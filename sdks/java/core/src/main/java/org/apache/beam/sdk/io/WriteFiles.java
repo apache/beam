@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,6 +59,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -82,6 +82,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -391,25 +392,32 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     PCollectionView<Integer> numShardsView =
         (getComputeNumShards() == null) ? null : input.apply(getComputeNumShards());
 
-    PCollection<FileResult<DestinationT>> tempFileResults =
-        (getComputeNumShards() == null && getNumShardsProvider() == null)
-            ? !getWithRunnerDeterminedShardingUnbounded()
-                ? input.apply(
-                    "WriteUnshardedBundlesToTempFiles",
-                    new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
-                : input.apply(
-                    "WriteAutoShardedBundlesToTempFiles",
-                    new WriteAutoShardedBundlesToTempFiles(destinationCoder, fileResultCoder))
-            : input.apply(
-                "WriteShardedBundlesToTempFiles",
-                new WriteShardedBundlesToTempFiles(
-                    destinationCoder, fileResultCoder, numShardsView));
+    boolean fixedSharding = getComputeNumShards() != null || getNumShardsProvider() != null;
+    PCollection<List<FileResult<DestinationT>>> tempFileResults;
+    if (fixedSharding) {
+      tempFileResults =
+          input
+              .apply(
+                  "WriteShardedBundlesToTempFiles",
+                  new WriteShardedBundlesToTempFiles(
+                      destinationCoder, fileResultCoder, numShardsView))
+              .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
+    } else if (getWithRunnerDeterminedShardingUnbounded()) {
+      tempFileResults =
+          input.apply(
+              "WriteAutoShardedBundlesToTempFiles",
+              new WriteAutoShardedBundlesToTempFiles(destinationCoder, fileResultCoder));
+    } else {
+      tempFileResults =
+          input
+              .apply(
+                  "WriteUnshardedBundlesToTempFiles",
+                  new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
+              .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
+    }
 
-    return tempFileResults
-        .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder))
-        .apply(
-            "FinalizeTempFileBundles",
-            new FinalizeTempFileBundles(numShardsView, destinationCoder));
+    return tempFileResults.apply(
+        "FinalizeTempFileBundles", new FinalizeTempFileBundles(numShardsView, destinationCoder));
   }
 
   @Override
@@ -443,25 +451,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     @Override
     public PCollection<List<ResultT>> expand(PCollection<ResultT> input) {
       if (getWindowedWrites()) {
-        // Group the results to make them stable against retries.
+        // Reshuffle the results to make them stable against retries.
         // Use a single void key to maximize size of bundles for finalization.
         return input
-            .apply("AddVoidKey", WithKeys.of((Void) null))
-            .apply(GroupByKey.create())
-            .apply(
-                "DropKey",
-                ParDo.of(
-                    new DoFn<KV<Void, Iterable<ResultT>>, List<ResultT>>() {
-                      @ProcessElement
-                      public void processElement(
-                          @Element KV<Void, Iterable<ResultT>> element, ProcessContext c) {
-                        List<ResultT> result = new ArrayList<>();
-                        for (ResultT e : element.getValue()) {
-                          result.add(e);
-                        }
-                        c.output(result);
-                      }
-                    }))
+            .apply("Add void key", WithKeys.of((Void) null))
+            .apply("Reshuffle", Reshuffle.of())
+            .apply("Drop key", Values.create())
+            .apply("Gather bundles", ParDo.of(new GatherBundlesPerWindowFn<>()))
             .setCoder(ListCoder.of(resultCoder))
             // Reshuffle one more time to stabilize the contents of the bundle lists to finalize.
             .apply(Reshuffle.viaRandomKey());
@@ -520,19 +516,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               // shard numbers are assigned together to both the spilled and non-spilled files in
               // finalize.
               .apply("GroupUnwritten", GroupByKey.create())
-              .apply(
-                  "KeyedByShardNum",
-                  MapElements.via(
-                      new SimpleFunction<
-                          KV<ShardedKey<Integer>, Iterable<UserT>>,
-                          KV<Integer, Iterable<UserT>>>() {
-                        @Override
-                        public KV<Integer, Iterable<UserT>> apply(
-                            KV<ShardedKey<Integer>, Iterable<UserT>> input) {
-                          return KV.of(input.getKey().getShardNumber(), input.getValue());
-                        }
-                      }))
-              .setCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(input.getCoder())))
               .apply(
                   "WriteUnwritten",
                   ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
@@ -741,18 +724,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
           .apply("GroupIntoShards", GroupByKey.create())
           .apply(
-              "KeyedByShardNum",
-              MapElements.via(
-                  new SimpleFunction<
-                      KV<ShardedKey<Integer>, Iterable<UserT>>, KV<Integer, Iterable<UserT>>>() {
-                    @Override
-                    public KV<Integer, Iterable<UserT>> apply(
-                        KV<ShardedKey<Integer>, Iterable<UserT>> input) {
-                      return KV.of(input.getKey().getShardNumber(), input.getValue());
-                    }
-                  }))
-          .setCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(input.getCoder())))
-          .apply(
               "WriteShardsIntoTempFiles",
               ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
           .setCoder(fileResultCoder);
@@ -760,7 +731,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   private class WriteAutoShardedBundlesToTempFiles
-      extends PTransform<PCollection<UserT>, PCollection<FileResult<DestinationT>>> {
+      extends PTransform<PCollection<UserT>, PCollection<List<FileResult<DestinationT>>>> {
     private final Coder<DestinationT> destinationCoder;
     private final Coder<FileResult<DestinationT>> fileResultCoder;
 
@@ -771,7 +742,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @Override
-    public PCollection<FileResult<DestinationT>> expand(PCollection<UserT> input) {
+    public PCollection<List<FileResult<DestinationT>>> expand(PCollection<UserT> input) {
       checkArgument(
           getWithRunnerDeterminedShardingUnbounded(),
           "Runner determined sharding for unbounded data is not supported by the runner.");
@@ -780,59 +751,105 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // batching is per window and we also emit the batches if there are a certain number of
       // records buffered or they have been buffered for a certain time, controlled by
       // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
-      return input
+      //
+      // TODO(BEAM-12040): The implementation doesn't currently work with session windows.
+      PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
+          input
+              .apply(
+                  "KeyedByDestinationHash",
+                  ParDo.of(
+                      new DoFn<UserT, KV<Integer, UserT>>() {
+                        @ProcessElement
+                        public void processElement(@Element UserT element, ProcessContext context)
+                            throws Exception {
+                          getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
+                          DestinationT destination =
+                              getDynamicDestinations().getDestination(context.element());
+                          context.output(
+                              KV.of(hashDestination(destination, destinationCoder), element));
+                        }
+                      }))
+              .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
+              .apply(
+                  "ShardAndBatch",
+                  GroupIntoBatches.<Integer, UserT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                      .withMaxBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
+                      .withShardedKey())
+              .setCoder(
+                  KvCoder.of(
+                      org.apache.beam.sdk.util.ShardedKey.Coder.of(VarIntCoder.of()),
+                      IterableCoder.of(input.getCoder())));
+
+      // Write grouped elements to temp files.
+      PCollection<FileResult<DestinationT>> tempFiles =
+          shardedInput
+              .apply(
+                  "AddDummyShard",
+                  MapElements.via(
+                      new SimpleFunction<
+                          KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>,
+                          KV<ShardedKey<Integer>, Iterable<UserT>>>() {
+                        @Override
+                        public KV<ShardedKey<Integer>, Iterable<UserT>> apply(
+                            KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>
+                                input) {
+                          // Add dummy shard since it is required by WriteShardsIntoTempFilesFn. It
+                          // will be dropped after we generate the temp files.
+                          return KV.of(
+                              ShardedKey.of(input.getKey().getKey(), DUMMY_SHARDNUM),
+                              input.getValue());
+                        }
+                      }))
+              .setCoder(
+                  KvCoder.of(
+                      ShardedKeyCoder.of(VarIntCoder.of()), IterableCoder.of(input.getCoder())))
+              .apply(
+                  "WriteShardsIntoTempFiles",
+                  ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
+              .setCoder(fileResultCoder)
+              .apply(
+                  "DropShardNum",
+                  ParDo.of(
+                      new DoFn<FileResult<DestinationT>, FileResult<DestinationT>>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output(c.element().withShard(UNKNOWN_SHARDNUM));
+                        }
+                      }));
+
+      // Group temp file results by destinations again to gather all the results in the same window.
+      // This is needed since we don't have shard idx associated with each temp file so have to rely
+      // on the indexing within a bundle.
+      return tempFiles
           .apply(
               "KeyedByDestination",
-              ParDo.of(
-                  new DoFn<UserT, KV<Integer, UserT>>() {
-                    @ProcessElement
-                    public void processElement(@Element UserT element, ProcessContext context)
-                        throws Exception {
-                      getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
-                      DestinationT destination =
-                          getDynamicDestinations().getDestination(context.element());
-                      context.output(
-                          KV.of(hashDestination(destination, destinationCoder), element));
-                    }
-                  }))
-          .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
-          .apply(
-              "ShardAndGroup",
-              GroupIntoBatches.<Integer, UserT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                  .withMaxBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
-                  .withShardedKey())
-          .setCoder(
-              KvCoder.of(
-                  org.apache.beam.sdk.util.ShardedKey.Coder.of(VarIntCoder.of()),
-                  IterableCoder.of(input.getCoder())))
-          // Add dummy shard since it is required by WriteShardsIntoTempFilesFn. It will be dropped
-          // after we generate the temp files.
-          .apply(
-              "AddDummyShard",
-              MapElements.via(
-                  new SimpleFunction<
-                      KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>,
-                      KV<Integer, Iterable<UserT>>>() {
+              WithKeys.of(
+                  new SimpleFunction<FileResult<DestinationT>, DestinationT>() {
                     @Override
-                    public KV<Integer, Iterable<UserT>> apply(
-                        KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>> input) {
-                      return KV.of(DUMMY_SHARDNUM, input.getValue());
+                    public DestinationT apply(FileResult<DestinationT> input) {
+                      return input.getDestination();
                     }
                   }))
-          .setCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(input.getCoder())))
+          .setCoder(KvCoder.of(destinationCoder, fileResultCoder))
+          .apply(GroupByKey.create())
           .apply(
-              "WriteShardsIntoTempFiles",
-              ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
-          .setCoder(fileResultCoder)
-          .apply(
-              "DropShardNum",
+              "ExtractValuesToList",
               ParDo.of(
-                  new DoFn<FileResult<DestinationT>, FileResult<DestinationT>>() {
+                  new DoFn<
+                      KV<DestinationT, Iterable<FileResult<DestinationT>>>,
+                      List<FileResult<DestinationT>>>() {
                     @ProcessElement
-                    public void process(ProcessContext c) {
-                      c.output(c.element().withShard(UNKNOWN_SHARDNUM));
+                    public void processElement(
+                        @Element KV<DestinationT, Iterable<FileResult<DestinationT>>> element,
+                        ProcessContext c) {
+                      List<FileResult<DestinationT>> result = new ArrayList<>();
+                      for (FileResult<DestinationT> e : element.getValue()) {
+                        result.add(e);
+                      }
+                      c.output(result);
                     }
-                  }));
+                  }))
+          .setCoder(ListCoder.of(fileResultCoder));
     }
   }
 
@@ -905,7 +922,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   private class WriteShardsIntoTempFilesFn
-      extends DoFn<KV<Integer, Iterable<UserT>>, FileResult<DestinationT>> {
+      extends DoFn<KV<ShardedKey<Integer>, Iterable<UserT>>, FileResult<DestinationT>> {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
@@ -943,7 +960,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           writer.cleanup();
           throw e;
         }
-        int shard = c.element().getKey();
+        int shard = c.element().getKey().getShardNumber();
         checkArgument(
             shard != UNKNOWN_SHARDNUM,
             "Shard should have been set, but is unset for element %s",
@@ -1034,5 +1051,26 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               destWindow.getKey(), destWindow.getValue(), fixedNumShards, destEntry.getValue()));
     }
     return resultsToFinalFilenames;
+  }
+
+  private static class GatherBundlesPerWindowFn<T> extends DoFn<T, List<T>> {
+    private transient @Nullable Multimap<BoundedWindow, T> bundles = null;
+
+    @StartBundle
+    public void startBundle() {
+      bundles = ArrayListMultimap.create();
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c, BoundedWindow w) {
+      bundles.put(w, c.element());
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      for (BoundedWindow w : bundles.keySet()) {
+        c.output(Lists.newArrayList(bundles.get(w)), w.maxTimestamp(), w);
+      }
+    }
   }
 }
