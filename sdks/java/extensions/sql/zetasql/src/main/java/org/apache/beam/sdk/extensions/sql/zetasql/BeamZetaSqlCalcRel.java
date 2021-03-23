@@ -294,7 +294,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
     private static RuntimeException extractException(ExecutionException e) {
       try {
-        throw e.getCause();
+        throw checkArgumentNotNull(e.getCause());
       } catch (RuntimeException r) {
         return r;
       } catch (Throwable t) {
