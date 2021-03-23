@@ -106,6 +106,10 @@ task validatesRunner(type: Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
     // TODO(BEAM-11479)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+    // https://issues.apache.org/jira/browse/BEAM-12035
+    excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
+    // https://issues.apache.org/jira/browse/BEAM-12036
+    excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
 
     // These tests fail since there is no support for side inputs in Samza's unbounded splittable DoFn integration
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsUnbounded'
