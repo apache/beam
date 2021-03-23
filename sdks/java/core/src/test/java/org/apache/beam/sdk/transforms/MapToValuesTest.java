@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -37,18 +38,16 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MapToValuesTest {
 
-  @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-    "unchecked"
-  })
-  static final KV<String, Integer>[] TABLE =
-      new KV[] {KV.of("one", 1), KV.of("two", 2), KV.of("dup", 2)};
+  private static final List<KV<String, Integer>> TABLE =
+      new ArrayList<KV<String, Integer>>() {
+        {
+          add(KV.of("one", 1));
+          add(KV.of("two", 2));
+          add(KV.of("dup", 2));
+        }
+      };
 
-  @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-    "unchecked"
-  })
-  static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {};
+  private static final List<KV<String, Integer>> EMPTY_TABLE = new ArrayList<>();
 
   @Rule public final TestPipeline p = TestPipeline.create();
 
@@ -58,7 +57,7 @@ public class MapToValuesTest {
 
     PCollection<KV<String, Integer>> input =
         p.apply(
-            Create.of(Arrays.asList(TABLE))
+            Create.of(TABLE)
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<Double> output =
@@ -75,7 +74,7 @@ public class MapToValuesTest {
 
     PCollection<KV<String, Integer>> input =
         p.apply(
-            Create.of(Arrays.asList(EMPTY_TABLE))
+            Create.of(EMPTY_TABLE)
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<Double> output =
