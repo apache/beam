@@ -43,7 +43,6 @@ from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import BoundedWindow
 from apache_beam.transforms.window import GlobalWindow
-from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import TypeCheckError
@@ -56,10 +55,9 @@ _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
 
 K = typing.TypeVar('K')
-V = typing.TypeVar('V')
 
 
-class ReifyWindows(DoFn):
+class _ReifyWindows(DoFn):
   """Receives KV pairs, and wraps the values into WindowedValues."""
   def process(
       self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
@@ -105,7 +103,7 @@ class TriggerMergeContext(WindowFn.MergeContext):
 
   def merge(self, to_be_merged, merge_result):
     _LOGGER.debug("Merging %s into %s", to_be_merged, merge_result)
-    self.trigger_context.merge_state(to_be_merged, merge_result)
+    self.trigger_context.merge_windows(to_be_merged, merge_result)
     for window in to_be_merged:
       if window != merge_result:
         self.merged_away[window] = merge_result
@@ -130,6 +128,7 @@ class GeneralTriggerManagerDoFn(DoFn):
   related to all windows.
   """
 
+  # TODO(BEAM-12026) Add support for Global and custom window fns.
   KNOWN_WINDOWS = SetStateSpec('known_windows', IntervalWindowCoder())
   FINISHED_WINDOWS = SetStateSpec('finished_windows', IntervalWindowCoder())
   LAST_KNOWN_TIME = CombiningValueStateSpec('last_known_time', combine_fn=max)
@@ -138,7 +137,7 @@ class GeneralTriggerManagerDoFn(DoFn):
 
   # TODO(pabloem) What's the coder for the elements/keys here?
   WINDOW_ELEMENT_PAIRS = BagStateSpec(
-      'element_bag', TupleCoder([IntervalWindowCoder(), PickleCoder()]))
+      'all_elements', TupleCoder([IntervalWindowCoder(), PickleCoder()]))
   WINDOW_TAG_VALUES = BagStateSpec(
       'per_window_per_tag_value_state',
       TupleCoder([IntervalWindowCoder(), StrUtf8Coder(), VarIntCoder()]))
@@ -150,14 +149,14 @@ class GeneralTriggerManagerDoFn(DoFn):
   def __init__(self, windowing: Windowing):
     self.windowing = windowing
     # Only session windows are merging. Other windows are non-merging.
-    self.merging_windows = isinstance(windowing.windowfn, Sessions)
+    self.merging_windows = self.windowing.windowfn.is_merging()
 
   def process(
       self,
       element: typing.Tuple[K, typing.Iterable[windowed_value.WindowedValue]],
-      element_bag: BagRuntimeState = DoFn.StateParam(WINDOW_ELEMENT_PAIRS),  # type: ignore
-      time_state: AccumulatingRuntimeState = DoFn.StateParam(LAST_KNOWN_TIME),  # type: ignore
-      watermark_state: AccumulatingRuntimeState = DoFn.StateParam(  # type: ignore
+      all_elements: BagRuntimeState = DoFn.StateParam(WINDOW_ELEMENT_PAIRS),  # type: ignore
+      latest_processing_time: AccumulatingRuntimeState = DoFn.StateParam(LAST_KNOWN_TIME),  # type: ignore
+      latest_watermark: AccumulatingRuntimeState = DoFn.StateParam(  # type: ignore
           LAST_KNOWN_WATERMARK),
       window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),  # type: ignore
       windows_state: SetRuntimeState = DoFn.StateParam(KNOWN_WINDOWS),  # type: ignore
@@ -169,13 +168,13 @@ class GeneralTriggerManagerDoFn(DoFn):
     context = FnRunnerStatefulTriggerContext(
         processing_time_timer=processing_time_timer,
         watermark_timer=watermark_timer,
-        current_time_state=time_state,
-        watermark_state=watermark_state,
-        elements_bag_state=element_bag,
-        window_tag_values_bag_state=window_tag_values,
+        latest_processing_time=latest_processing_time,
+        latest_watermark=latest_watermark,
+        all_elements_state=all_elements,
+        window_tag_values=window_tag_values,
         finished_windows_state=finished_windows_state)
     key, windowed_values = element
-    watermark = read_watermark(watermark_state)
+    watermark = read_watermark(latest_watermark)
 
     windows_to_elements = collections.defaultdict(list)
     for wv in windowed_values:
@@ -204,9 +203,8 @@ class GeneralTriggerManagerDoFn(DoFn):
           merged_windows_to_elements[window].extend(values)
         windows_to_elements = merged_windows_to_elements
 
-      if old_windows != all_windows:
-        for w in windows_to_elements:
-          windows_state.add(w)
+      for w in windows_to_elements:
+        windows_state.add(w)
     # Done processing merging of windows
 
     seen_windows = set()
@@ -215,13 +213,13 @@ class GeneralTriggerManagerDoFn(DoFn):
       seen_windows.add(w)
       for value_w_timestamp in windows_to_elements[w]:
         _LOGGER.debug(value_w_timestamp)
-        element_bag.add((w, value_w_timestamp))
+        all_elements.add((w, value_w_timestamp))
         self.windowing.triggerfn.on_element(windowed_values, w, window_context)
 
-    return self._trigger_fire(
+    return self._fire_eligible_windows(
         key, TimeDomain.WATERMARK, watermark, None, context, seen_windows)
 
-  def _trigger_fire(
+  def _fire_eligible_windows(
       self,
       key: K,
       time_domain,
@@ -230,10 +228,9 @@ class GeneralTriggerManagerDoFn(DoFn):
       context: 'FnRunnerStatefulTriggerContext',
       windows_of_interest: typing.Optional[typing.Set[BoundedWindow]] = None):
     windows_to_elements = context.windows_to_elements_map()
-    context.elements_bag_state.clear()
+    context.all_elements_state.clear()
 
     fired_windows = set()
-    finished_windows = set()
     _LOGGER.debug(
         '%s - tag %s - timestamp %s', time_domain, timer_tag, timestamp)
     for w, elems in windows_to_elements.items():
@@ -253,11 +250,12 @@ class GeneralTriggerManagerDoFn(DoFn):
         fired_windows.add(w)
         if finished:
           context.finished_windows_state.add(w)
-          finished_windows.add(w)
         # TODO(pabloem): Format the output: e.g. pane info
         elems = [WindowedValue(e.value, e.timestamp, (w, )) for e in elems]
         yield (key, elems)
 
+    finished_windows: typing.Set[BoundedWindow] = set(
+        context.finished_windows_state.read())
     # Add elements that were not fired back into state.
     for w, elems in windows_to_elements.items():
       for e in elems:
@@ -265,7 +263,7 @@ class GeneralTriggerManagerDoFn(DoFn):
             (w in fired_windows and
              self.windowing.accumulation_mode == AccumulationMode.DISCARDING)):
           continue
-        context.elements_bag_state.add((w, e))
+        context.all_elements_state.add((w, e))
 
   @on_timer(PROCESSING_TIME_TIMER)
   def processing_time_trigger(
@@ -273,8 +271,8 @@ class GeneralTriggerManagerDoFn(DoFn):
       key=DoFn.KeyParam,
       timer_tag=DoFn.DynamicTimerTagParam,
       timestamp=DoFn.TimestampParam,
-      processing_time_state=DoFn.StateParam(LAST_KNOWN_TIME),
-      element_bag=DoFn.StateParam(WINDOW_ELEMENT_PAIRS),
+      latest_processing_time=DoFn.StateParam(LAST_KNOWN_TIME),
+      all_elements=DoFn.StateParam(WINDOW_ELEMENT_PAIRS),
       processing_time_timer=DoFn.TimerParam(PROCESSING_TIME_TIMER),
       window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),  # type: ignore
       finished_windows_state: SetRuntimeState = DoFn.StateParam(  # type: ignore
@@ -283,14 +281,14 @@ class GeneralTriggerManagerDoFn(DoFn):
     context = FnRunnerStatefulTriggerContext(
         processing_time_timer=processing_time_timer,
         watermark_timer=watermark_timer,
-        current_time_state=processing_time_state,
-        watermark_state=None,
-        elements_bag_state=element_bag,
-        window_tag_values_bag_state=window_tag_values,
+        latest_processing_time=latest_processing_time,
+        latest_watermark=None,
+        all_elements_state=all_elements,
+        window_tag_values=window_tag_values,
         finished_windows_state=finished_windows_state)
-    result = self._trigger_fire(
+    result = self._fire_eligible_windows(
         key, TimeDomain.REAL_TIME, timestamp, timer_tag, context)
-    processing_time_state.add(timestamp)
+    latest_processing_time.add(timestamp)
     return result
 
   @on_timer(WATERMARK_TIMER)
@@ -299,8 +297,8 @@ class GeneralTriggerManagerDoFn(DoFn):
       key=DoFn.KeyParam,
       timer_tag=DoFn.DynamicTimerTagParam,
       timestamp=DoFn.TimestampParam,
-      watermark_state=DoFn.StateParam(LAST_KNOWN_WATERMARK),
-      element_bag=DoFn.StateParam(WINDOW_ELEMENT_PAIRS),
+      latest_watermark=DoFn.StateParam(LAST_KNOWN_WATERMARK),
+      all_elements=DoFn.StateParam(WINDOW_ELEMENT_PAIRS),
       processing_time_timer=DoFn.TimerParam(PROCESSING_TIME_TIMER),
       window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),  # type: ignore
       finished_windows_state: SetRuntimeState = DoFn.StateParam(  # type: ignore
@@ -309,14 +307,14 @@ class GeneralTriggerManagerDoFn(DoFn):
     context = FnRunnerStatefulTriggerContext(
         processing_time_timer=processing_time_timer,
         watermark_timer=watermark_timer,
-        current_time_state=None,
-        watermark_state=watermark_state,
-        elements_bag_state=element_bag,
-        window_tag_values_bag_state=window_tag_values,
+        latest_processing_time=None,
+        latest_watermark=latest_watermark,
+        all_elements_state=all_elements,
+        window_tag_values=window_tag_values,
         finished_windows_state=finished_windows_state)
-    result = self._trigger_fire(
+    result = self._fire_eligible_windows(
         key, TimeDomain.WATERMARK, timestamp, timer_tag, context)
-    watermark_state.add(timestamp)
+    latest_watermark.add(timestamp)
     return result
 
 
@@ -325,21 +323,21 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
       self,
       processing_time_timer: RuntimeTimer,
       watermark_timer: RuntimeTimer,
-      current_time_state: typing.Optional[AccumulatingRuntimeState],
-      watermark_state: typing.Optional[AccumulatingRuntimeState],
-      elements_bag_state: BagRuntimeState,
-      window_tag_values_bag_state: BagRuntimeState,
+      latest_processing_time: typing.Optional[AccumulatingRuntimeState],
+      latest_watermark: typing.Optional[AccumulatingRuntimeState],
+      all_elements_state: BagRuntimeState,
+      window_tag_values: BagRuntimeState,
       finished_windows_state: SetRuntimeState):
     self.timers = {
         TimeDomain.REAL_TIME: processing_time_timer,
         TimeDomain.WATERMARK: watermark_timer
     }
     self.current_times = {
-        TimeDomain.REAL_TIME: current_time_state,
-        TimeDomain.WATERMARK: watermark_state
+        TimeDomain.REAL_TIME: latest_processing_time,
+        TimeDomain.WATERMARK: latest_watermark
     }
-    self.elements_bag_state = elements_bag_state
-    self.window_tag_values_bag_state = window_tag_values_bag_state
+    self.all_elements_state = all_elements_state
+    self.window_tag_values = window_tag_values
     self.finished_windows_state = finished_windows_state
 
   def windows_to_elements_map(
@@ -347,7 +345,7 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
   ) -> typing.Dict[BoundedWindow, typing.List[windowed_value.WindowedValue]]:
     window_element_pairs: typing.Iterable[typing.Tuple[
         BoundedWindow,
-        windowed_value.WindowedValue]] = self.elements_bag_state.read()
+        windowed_value.WindowedValue]] = self.all_elements_state.read()
     result: typing.Dict[BoundedWindow,
                         typing.List[windowed_value.WindowedValue]] = {}
     for w, e in window_element_pairs:
@@ -370,8 +368,8 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
     _LOGGER.debug('Clearing timer (%s, %s)', time_domain, name)
     self.timers[time_domain].clear(dynamic_timer_tag=name)
 
-  def merge_state(self, to_be_merged, merge_result):
-    all_triplets = self.window_tag_values_bag_state.read()
+  def merge_windows(self, to_be_merged, merge_result):
+    all_triplets = list(self.window_tag_values.read())
     # Collect all the triplets for the window we are merging away, and tag them
     # with the new window (merge_result).
     merging_away_triplets = [(merge_result, t[1], t[2]) for t in all_triplets
@@ -382,19 +380,19 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
     resulting_triplets = [
         t for t in all_triplets if t[0] not in to_be_merged
     ] + merging_away_triplets
-    self.window_tag_values_bag_state.clear()
+    self.window_tag_values.clear()
     for t in resulting_triplets:
-      self.window_tag_values_bag_state.add(t)
+      self.window_tag_values.add(t)
 
     # Merge also element-window pairs
-    all_elements = self.elements_bag_state.read()
+    all_elements = self.all_elements_state.read()
     resulting_elements = [
         (merge_result if e[0] in to_be_merged else e[0], e[1])
         for e in all_elements
     ]
-    self.elements_bag_state.clear()
+    self.all_elements_state.clear()
     for e in resulting_elements:
-      self.elements_bag_state.add(e)
+      self.all_elements_state.add(e)
 
   def add_state(self, tag, value):
     # State can only be kept in per-window context, so this is not implemented.
@@ -430,7 +428,7 @@ class PerWindowTriggerContext(TriggerContext):
     #   1) number of elements in a window ('count')
     #   2) number of triggers matched individually ('index')
     #   3) whether the watermark has passed end of window ('is_late')
-    self.parent.window_tag_values_bag_state.add((self.window, tag.tag, value))
+    self.parent.window_tag_values.add((self.window, tag.tag, value))
 
   def get_state(self, tag: _StateTag):
     assert isinstance(tag, _CombiningValueStateTag)
@@ -438,7 +436,7 @@ class PerWindowTriggerContext(TriggerContext):
     #   1) number of elements in a window ('count')
     #   2) number of triggers matched individually ('index')
     #   3) whether the watermark has passed end of window ('is_late')
-    all_triplets = self.parent.window_tag_values_bag_state.read()
+    all_triplets = self.parent.window_tag_values.read()
     relevant_triplets = [
         t for t in all_triplets if t[0] == self.window and t[1] == tag.tag
     ]
@@ -449,11 +447,11 @@ class PerWindowTriggerContext(TriggerContext):
       matches = lambda x: True
     else:
       matches = lambda x: x == tag.tag
-    all_triplets = list(self.parent.window_tag_values_bag_state.read())
+    all_triplets = self.parent.window_tag_values.read()
     remaining_triplets = [
         t for t in all_triplets if not (t[0] == self.window and matches(t[1]))
     ]
     _LOGGER.debug('Tag: %s | Remaining triplets: %s', tag, remaining_triplets)
-    self.parent.window_tag_values_bag_state.clear()
+    self.parent.window_tag_values.clear()
     for t in remaining_triplets:
-      self.parent.window_tag_values_bag_state.add(t)
+      self.parent.window_tag_values.add(t)

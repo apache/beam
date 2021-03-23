@@ -66,7 +66,7 @@ class TriggerManagerTest(unittest.TestCase):
           p
           | test_stream
           | WindowInto(windowing.windowfn)
-          | ParDo(trigger_manager.ReifyWindows())
+          | ParDo(trigger_manager._ReifyWindows())
           | ParDo(trigger_manager._GroupBundlesByKey())
           | ParDo(trigger_manager.GeneralTriggerManagerDoFn(windowing))
           | Map(
@@ -105,7 +105,7 @@ class TriggerManagerTest(unittest.TestCase):
           p
           | test_stream
           | WindowInto(windowing.windowfn)
-          | ParDo(trigger_manager.ReifyWindows())
+          | ParDo(trigger_manager._ReifyWindows())
           | ParDo(trigger_manager._GroupBundlesByKey())
           | ParDo(trigger_manager.GeneralTriggerManagerDoFn(windowing))
           | Map(
@@ -145,7 +145,7 @@ class TriggerManagerTest(unittest.TestCase):
           p
           | test_stream
           | WindowInto(windowing.windowfn)
-          | ParDo(trigger_manager.ReifyWindows())
+          | ParDo(trigger_manager._ReifyWindows())
           | ParDo(trigger_manager._GroupBundlesByKey())
           | ParDo(trigger_manager.GeneralTriggerManagerDoFn(windowing))
           | Map(
@@ -187,7 +187,7 @@ class TriggerManagerTest(unittest.TestCase):
           p
           | test_stream
           | WindowInto(windowing.windowfn)
-          | ParDo(trigger_manager.ReifyWindows())
+          | ParDo(trigger_manager._ReifyWindows())
           | ParDo(trigger_manager._GroupBundlesByKey())
           | ParDo(trigger_manager.GeneralTriggerManagerDoFn(windowing))
           | Map(
@@ -229,7 +229,7 @@ class TriggerManagerTest(unittest.TestCase):
           p
           | test_stream
           | WindowInto(windowing.windowfn)
-          | ParDo(trigger_manager.ReifyWindows())
+          | ParDo(trigger_manager._ReifyWindows())
           | ParDo(trigger_manager._GroupBundlesByKey())
           | ParDo(trigger_manager.GeneralTriggerManagerDoFn(windowing))
           | Map(
