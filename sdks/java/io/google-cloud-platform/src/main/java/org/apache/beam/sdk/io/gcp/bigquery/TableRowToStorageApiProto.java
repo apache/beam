@@ -92,8 +92,13 @@ public class TableRowToStorageApiProto {
   public static DynamicMessage messageFromTableRow(Descriptor descriptor, TableRow tableRow) {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Map.Entry<String, Object> entry : tableRow.entrySet()) {
+      @Nullable
       FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
-      Object value = messageValueFromFieldValue(fieldDescriptor, entry.getValue());
+      if (fieldDescriptor == null) {
+        throw new RuntimeException(
+            "TableRow contained unexpected field with name " + entry.getKey());
+      }
+      @Nullable Object value = messageValueFromFieldValue(fieldDescriptor, entry.getValue());
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
@@ -298,7 +303,7 @@ public class TableRowToStorageApiProto {
       case ENUM:
         throw new RuntimeException("Enumerations not supported");
       default:
-        return fieldValue;
+        return fieldValue.toString();
     }
   }
 }

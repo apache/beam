@@ -119,8 +119,17 @@ public class TableDestination implements Serializable {
         tableReference, tableDescription, jsonTimePartitioning, jsonClustering);
   }
 
+  /** Return the tablespec in [project:].dataset.tableid format. */
   public String getTableSpec() {
     return tableSpec;
+  }
+
+  /** Return the tablespec in projects/>project>/datasets/datset/tables/table format. */
+  public String getTableUrn() {
+    TableReference table = getTableReference();
+    return String.format(
+        "projects/%s/datasets/%s/tables/%s",
+        table.getProjectId(), table.getDatasetId(), table.getTableId());
   }
 
   public TableReference getTableReference() {
