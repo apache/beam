@@ -52,7 +52,8 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
                 input,
                 zetaNode.getTvf(),
                 zetaNode.getArgumentList(),
-                zetaNode.getArgumentList().get(0).getScan() != null
+                zetaNode.getArgumentList().size() > 0
+                        && zetaNode.getArgumentList().get(0).getScan() != null
                     ? zetaNode.getArgumentList().get(0).getScan().getColumnList()
                     : Collections.emptyList());
     RelNode tableFunctionScan =

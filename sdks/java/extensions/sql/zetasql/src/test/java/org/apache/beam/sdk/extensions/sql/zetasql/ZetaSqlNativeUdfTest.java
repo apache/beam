@@ -184,6 +184,27 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testNullaryUdtvf() {
+    String sql =
+        "CREATE TABLE FUNCTION CustomerRange()\n"
+            + "  AS\n"
+            + "    SELECT *\n"
+            + "    FROM KeyValue;\n"
+            + " SELECT key FROM CustomerRange()";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(singleField).addValues(14L).build(),
+            Row.withSchema(singleField).addValues(15L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testUDTVFTableNotFound() {
     String sql =
         "CREATE TABLE FUNCTION CustomerRange(MinID INT64, MaxID INT64)\n"
