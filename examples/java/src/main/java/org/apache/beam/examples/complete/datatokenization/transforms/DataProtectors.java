@@ -77,7 +77,8 @@ public class DataProtectors {
   private static final Logger LOG = LoggerFactory.getLogger(DataProtectors.class);
 
   public static final String ID_FIELD_NAME = "ID";
-  private static final Integer MAX_BUFFERING = 100;
+  private static final Long MAX_BUFFERING_DURATION_MS =
+      Long.valueOf(System.getenv().getOrDefault("MAX_BUFFERING_DURATION_MS", "100"));
 
   /**
    * The {@link RowToTokenizedRow} transform converts {@link Row} to {@link TableRow} objects. The
@@ -107,7 +108,7 @@ public class DataProtectors {
       FailsafeElementCoder<Row, Row> coder =
           FailsafeElementCoder.of(RowCoder.of(schema()), RowCoder.of(schema()));
 
-      Duration maxBuffering = Duration.millis(MAX_BUFFERING);
+      Duration maxBuffering = Duration.millis(MAX_BUFFERING_DURATION_MS);
       PCollectionTuple pCollectionTuple =
           inputRows
               .apply(

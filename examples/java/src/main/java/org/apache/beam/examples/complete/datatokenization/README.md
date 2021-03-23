@@ -137,6 +137,9 @@ The template allows for the user to supply the following optional parameter:
 
 - **nonTokenizedDeadLetterPath**: Folder where failed to tokenize data will be stored
 
+The template also allows user to override the environment variable:
+
+- **MAX_BUFFERING_DURATION_MS**: Max duration of buffering rows in milliseconds. Default value: 100ms.
 
 in the following format:
 
