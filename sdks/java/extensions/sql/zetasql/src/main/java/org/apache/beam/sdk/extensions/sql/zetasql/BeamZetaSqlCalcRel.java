@@ -163,7 +163,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
    * {@code CalcFn} is the executor for a {@link BeamZetaSqlCalcRel} step. The implementation is
    * based on the {@code ZetaSQL} expression evaluator.
    */
-  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private static class CalcFn extends DoFn<Row, Row> {
     private final String sql;
     private final Map<String, Value> nullParams;
@@ -171,8 +170,13 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final Schema outputSchema;
     private final String defaultTimezone;
     private final boolean verifyRowValues;
+
+    @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
     private transient List<Integer> referencedColumns = ImmutableList.of();
+
+    @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
     private transient Map<BoundedWindow, Queue<TimestampedFuture>> pending = new HashMap<>();
+
     private transient PreparedExpression exp;
     private transient PreparedExpression.@Nullable Stream stream;
 
