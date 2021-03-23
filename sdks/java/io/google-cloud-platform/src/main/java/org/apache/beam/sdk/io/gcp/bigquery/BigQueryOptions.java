@@ -78,4 +78,23 @@ public interface BigQueryOptions
   Integer getBqStreamingApiLoggingFrequencySec();
 
   void setBqStreamingApiLoggingFrequencySec(Integer value);
+
+  @Description("If set, then BigQueryIO.Write will default to using the Storage Write API.")
+  @Default.Boolean(false)
+  Boolean getUseStorageWriteApi();
+
+  void setUseStorageWriteApi(Boolean value);
+
+  @Description(
+      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams.")
+  @Default.Integer(0)
+  Integer getNumStorageWriteApiStreams();
+
+  void setNumStorageWriteApiStreams(Integer value);
+
+  @Description(
+      "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
+  Integer getStorageWriteApiTriggeringFrequencySec();
+
+  void setStorageWriteApiTriggeringFrequencySec(Integer value);
 }

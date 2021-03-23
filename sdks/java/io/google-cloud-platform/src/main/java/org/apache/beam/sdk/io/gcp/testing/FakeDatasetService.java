@@ -21,33 +21,50 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
+import com.google.cloud.bigquery.storage.v1beta2.WriteStream;
+import com.google.cloud.bigquery.storage.v1beta2.WriteStream.Type;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.Timestamp;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
 import org.apache.beam.sdk.io.gcp.bigquery.ErrorContainer;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 @Internal
@@ -61,6 +78,58 @@ public class FakeDatasetService implements DatasetService, Serializable {
           String, String, Map<String, TableContainer>>
       tables;
 
+  static Map<String, Stream> writeStreams;
+
+  static class Stream {
+    final List<TableRow> stream;
+    final TableContainer tableContainer;
+    final Type type;
+    long nextFlushPosition;
+    boolean finalized;
+
+    Stream(TableContainer tableContainer, Type type) {
+      this.stream = Lists.newArrayList();
+      this.tableContainer = tableContainer;
+      this.type = type;
+      this.finalized = false;
+      this.nextFlushPosition = 0;
+    }
+
+    long finalizeStream() {
+      this.finalized = true;
+      return stream.size();
+    }
+
+    void appendRows(long position, List<TableRow> rowsToAppend) {
+      if (finalized) {
+        throw new RuntimeException("Stream already finalized.");
+      }
+      if (position != -1 && position != stream.size()) {
+        throw new RuntimeException("Bad append: " + position);
+      }
+      stream.addAll(rowsToAppend);
+    }
+
+    void flush(long position) {
+      Preconditions.checkState(type == Type.BUFFERED);
+      Preconditions.checkState(!finalized);
+      if (position >= stream.size()) {
+        throw new RuntimeException("");
+      }
+      for (; nextFlushPosition <= position; ++nextFlushPosition) {
+        tableContainer.addRow(stream.get((int) nextFlushPosition), "");
+      }
+    }
+
+    void commit() {
+      if (!finalized) {
+        throw new RuntimeException("Can't commit unfinalized stream.");
+      }
+      Preconditions.checkState(type == Type.PENDING);
+      stream.forEach(tr -> tableContainer.addRow(tr, null));
+    }
+  }
+
   Map<String, List<String>> insertErrors = Maps.newHashMap();
 
   // The counter for the number of insertions performed.
@@ -69,6 +138,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   public static void setUp() {
     tables = HashBasedTable.create();
     insertCount = new AtomicInteger(0);
+    writeStreams = Maps.newHashMap();
     FakeJobService.setUp();
   }
 
@@ -92,6 +162,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
             tableRef.getProjectId(), tableRef.getDatasetId());
       }
       TableContainer tableContainer = dataset.get(tableRef.getTableId());
+
       return tableContainer == null ? null : tableContainer.getTable();
     }
   }
@@ -99,6 +170,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   public List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
     synchronized (tables) {
+      TableContainer tableContainer = getTableContainer(projectId, datasetId, tableId);
       return getTableContainer(projectId, datasetId, tableId).getRows();
     }
   }
@@ -320,6 +392,103 @@ public class FakeDatasetService implements DatasetService, Serializable {
       tableContainer.getTable().setDescription(tableDescription);
       return tableContainer.getTable();
     }
+  }
+
+  @Override
+  public WriteStream createWriteStream(String tableUrn, Type type)
+      throws IOException, InterruptedException {
+    if (type != Type.PENDING && type != Type.BUFFERED) {
+      throw new RuntimeException("We only support PENDING or BUFFERED streams.");
+    }
+    TableReference tableReference =
+        BigQueryHelpers.parseTableUrn(BigQueryHelpers.stripPartitionDecorator(tableUrn));
+    synchronized (tables) {
+      TableContainer tableContainer =
+          getTableContainer(
+              tableReference.getProjectId(),
+              tableReference.getDatasetId(),
+              tableReference.getTableId());
+      String streamName = UUID.randomUUID().toString();
+      writeStreams.put(streamName, new Stream(tableContainer, type));
+      return WriteStream.newBuilder().setName(streamName).build();
+    }
+  }
+
+  @Override
+  public StreamAppendClient getStreamAppendClient(String streamName) {
+    return new StreamAppendClient() {
+      @Override
+      public ApiFuture<AppendRowsResponse> appendRows(
+          long offset, ProtoRows rows, Descriptor descriptor) throws Exception {
+        synchronized (tables) {
+          Stream stream = writeStreams.get(streamName);
+          if (stream == null) {
+            throw new RuntimeException("No such stream: " + streamName);
+          }
+          List<TableRow> tableRows =
+              Lists.newArrayListWithExpectedSize(rows.getSerializedRowsCount());
+          for (ByteString bytes : rows.getSerializedRowsList()) {
+            tableRows.add(
+                TableRowToStorageApiProto.tableRowFromMessage(
+                    DynamicMessage.parseFrom(descriptor, bytes)));
+          }
+          stream.appendRows(offset, tableRows);
+        }
+        return ApiFutures.immediateFuture(AppendRowsResponse.newBuilder().build());
+      }
+
+      @Override
+      public void close() throws Exception {}
+
+      @Override
+      public void pin() {}
+
+      @Override
+      public void unpin() throws Exception {}
+    };
+  }
+
+  @Override
+  public ApiFuture<FlushRowsResponse> flush(String streamName, long offset) {
+    synchronized (tables) {
+      Stream stream = writeStreams.get(streamName);
+      if (stream == null) {
+        throw new RuntimeException("No such stream: " + streamName);
+      }
+      stream.flush(offset);
+    }
+    return ApiFutures.immediateFuture(FlushRowsResponse.newBuilder().build());
+  }
+
+  @Override
+  public ApiFuture<FinalizeWriteStreamResponse> finalizeWriteStream(String streamName) {
+    synchronized (tables) {
+      Stream stream = writeStreams.get(streamName);
+      if (stream == null) {
+        throw new RuntimeException("No such stream: " + streamName);
+      }
+      long numRows = stream.finalizeStream();
+      return ApiFutures.immediateFuture(
+          FinalizeWriteStreamResponse.newBuilder().setRowCount(numRows).build());
+    }
+  }
+
+  @Override
+  public ApiFuture<BatchCommitWriteStreamsResponse> commitWriteStreams(
+      String tableUrn, Iterable<String> writeStreamNames) {
+    synchronized (tables) {
+      for (String streamName : writeStreamNames) {
+        Stream stream = writeStreams.get(streamName);
+        if (stream == null) {
+          throw new RuntimeException("No such stream: " + streamName);
+        }
+        stream.commit();
+      }
+    }
+    return ApiFutures.immediateFuture(
+        BatchCommitWriteStreamsResponse.newBuilder()
+            .setCommitTime(Timestamp.newBuilder().build())
+            .build());
   }
 
   /**
