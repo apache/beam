@@ -186,6 +186,13 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
       // TODO(BEAM-11310)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
+
+      // https://issues.apache.org/jira/browse/BEAM-12039
+      excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode'
+      // https://issues.apache.org/jira/browse/BEAM-12038
+      excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+      // https://issues.apache.org/jira/browse/BEAM-12048
+      excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams'
     },
   )
 }
