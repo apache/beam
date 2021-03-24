@@ -1394,7 +1394,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category(ValidatesRunner.class)
     public void testMultiOutputChaining() {
 
       PCollectionTuple filters =
@@ -1685,7 +1685,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class LifecycleTests extends SharedTestBase implements Serializable {
     @Test
-    @Category(NeedsRunner.class)
+    @Category(ValidatesRunner.class)
     public void testParDoWithErrorInStartBatch() {
       List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -1697,7 +1697,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category(ValidatesRunner.class)
     public void testParDoWithErrorInProcessElement() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -1710,7 +1710,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category(ValidatesRunner.class)
     public void testParDoWithErrorInFinishBatch() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -1762,7 +1762,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class TimestampTests extends SharedTestBase implements Serializable {
     @Test
-    @Category(NeedsRunner.class)
+    @Category(ValidatesRunner.class)
     public void testParDoOutputWithTimestamp() {
 
       PCollection<Integer> input = pipeline.apply(Create.of(Arrays.asList(3, 42, 6)));
@@ -1783,7 +1783,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category(ValidatesRunner.class)
     public void testParDoTaggedOutputWithTimestamp() {
 
       PCollection<Integer> input = pipeline.apply(Create.of(Arrays.asList(3, 42, 6)));
@@ -3995,7 +3995,11 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStreamWithProcessingTime.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStreamWithProcessingTime.class
+    })
     public void testSimpleProcessingTimerTimer() throws Exception {
       final String timerId = "foo";
 
@@ -4034,7 +4038,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testEventTimeTimerUnbounded() throws Exception {
       final String timerId = "foo";
 
@@ -4069,7 +4073,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testEventTimeTimerAlignUnbounded() throws Exception {
       final String timerId = "foo";
 
@@ -4117,7 +4121,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testEventTimeTimerAlignAfterGcTimeUnbounded() throws Exception {
       final String timerId = "foo";
 
