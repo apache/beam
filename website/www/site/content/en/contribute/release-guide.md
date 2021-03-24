@@ -600,7 +600,6 @@ See the source of the script for more details, or to run commands manually in ca
          
 ### Upload release candidate to PyPi
 
-
 * **Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
 
 * **Usage**
@@ -611,7 +610,7 @@ See the source of the script for more details, or to run commands manually in ca
 		    --commit "${COMMIT_REF}" \
 		    --user "${GITHUB_USER}" \
 		    --deploy
-		    
+
 * **The script will:**
 	1. Download source distribution and wheels tagged as `rc`.
 	1. Deploy release candidate to PyPI
@@ -623,7 +622,7 @@ __Attention:__ Verify that the following files are correct at [Dowload Files](ht
 * Signatures and hashes do not need to be uploaded
 * There should be a pre-release version with the `rc` tag
 
-You can do a dry run by omitting the `--deploy` flag. Then it will only download the release candidate binaries. If it looks good, rerun it with `--deploy`. 
+You can do a dry run by omitting the `--deploy` flag. Then it will only download the release candidate binaries. If it looks good, rerun it with `--deploy`.
 
 See the source of the script for more details or to run commands manually in case of a problem.
 
