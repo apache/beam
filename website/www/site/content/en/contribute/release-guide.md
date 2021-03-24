@@ -597,7 +597,7 @@ See the source of the script for more details, or to run commands manually in ca
          They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
          Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
          Carefully review any new artifacts.
-         
+
 ### Upload release candidate to PyPi
 
 * **Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
