@@ -583,6 +583,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   array = property(frame_base.wont_implement_method('non-deferred value'))
 
+  argmax = frame_base.wont_implement_method('order-sensitive')
+  argmin = frame_base.wont_implement_method('order-sensitive')
+  ravel = frame_base.wont_implement_method('non-deferred value')
+
   rename = frame_base._elementwise_method('rename')
   between = frame_base._elementwise_method('between')
 
