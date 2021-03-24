@@ -344,6 +344,36 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def sort_values(self, axis, **kwargs):
+    if axis in (0, 'index'):
+      # axis=rows imposes an ordering on the DataFrame rows which we do not
+      # support
+      raise frame_base.WontImplementError("order-sensitive")
+    else:
+      # axis=columns will reorder the columns based on the data
+      raise frame_base.WontImplementError("non-deferred column values")
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def sort_index(self, axis, **kwargs):
+    if axis in (0, 'rows'):
+      # axis=rows imposes an ordering on the DataFrame which we do not support
+      raise frame_base.WontImplementError("order-sensitive")
+
+    # axis=columns reorders the columns by name
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'sort_index',
+            lambda df: df.sort_index(axis, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary(),
+        ))
+
   @property
   def dtype(self):
     return self._expr.proxy().dtype
@@ -1675,22 +1705,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @property
   def shape(self):
     raise frame_base.WontImplementError('scalar value')
-
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  @frame_base.maybe_inplace
-  def sort_values(self, axis, **kwargs):
-    if axis == 1 or axis == 'columns':
-      requires_partition_by = partitionings.Arbitrary()
-    else:
-      requires_partition_by = partitionings.Singleton()
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'sort_values',
-            lambda df: df.sort_values(axis=axis, **kwargs),
-            [self._expr],
-            preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=requires_partition_by))
 
   stack = frame_base._elementwise_method('stack')
 

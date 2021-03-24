@@ -167,6 +167,18 @@ class DeferredFrameTest(unittest.TestCase):
         s,
         ambiguous)
 
+  def test_sort_index_columns(self):
+    df = pd.DataFrame({
+        'c': range(10),
+        'a': range(10),
+        'b': range(10),
+        np.nan: range(10),
+    })
+
+    self._run_test(lambda df: df.sort_index(axis=1), df)
+    self._run_test(lambda df: df.sort_index(axis=1, ascending=False), df)
+    self._run_test(lambda df: df.sort_index(axis=1, na_position='first'), df)
+
   def test_groupby(self):
     df = pd.DataFrame({
         'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
