@@ -19,6 +19,7 @@ Post-Commit Tests Status (on master branch)
     <tr>
       <th>Lang</th>
       <th>SDK</th>
+      <th>ULR</th>
       <th>Dataflow</th>
       <th>Flink</th>
       <th>Samza</th>
@@ -34,6 +35,7 @@ Post-Commit Tests Status (on master branch)
           <img src="https://ci-beam.apache.org/job/beam_PostCommit_Go/lastCompletedBuild/badge/icon">
         </a>
       </td>
+      <td>---</td>
       <td>---</td>
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Go_VR_Flink/lastCompletedBuild/">
@@ -53,7 +55,12 @@ Post-Commit Tests Status (on master branch)
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Java/lastCompletedBuild/">
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Java/lastCompletedBuild/badge/icon">
-      </a>
+        </a>
+      </td>
+      <td>
+        <a href="https://ci-beam.apache.org/job/beam_PostCommit_Java_ValidatesRunner_ULR/lastCompletedBuild/">
+          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Java_ValidatesRunner_ULR/lastCompletedBuild/badge/icon">
+        </a>
       </td>
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Dataflow/lastCompletedBuild/">
@@ -130,6 +137,7 @@ Post-Commit Tests Status (on master branch)
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Python38/lastCompletedBuild/badge/icon">
         </a>
       </td>
+      <td>---</td>
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Py_VR_Dataflow/lastCompletedBuild/">
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Py_VR_Dataflow/lastCompletedBuild/badge/icon">
@@ -164,6 +172,7 @@ Post-Commit Tests Status (on master branch)
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_XVR_Direct/lastCompletedBuild/badge/icon">
         </a>
       </td>
+      <td>---</td>
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_XVR_Dataflow/lastCompletedBuild/">
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_XVR_Dataflow/lastCompletedBuild/badge/icon">
