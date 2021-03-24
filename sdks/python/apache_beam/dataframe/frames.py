@@ -484,6 +484,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   hist = frame_base.wont_implement_method('plot')
 
+  attrs = property(frame_base.wont_implement_method('experimental'))
+
   first = last = frame_base.wont_implement_method('order-sensitive')
   head = tail = frame_base.wont_implement_method('order-sensitive')
 
