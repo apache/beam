@@ -526,13 +526,12 @@ class DeferredFrameTest(unittest.TestCase):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
     df.loc[df.index[:5], 'a'] = np.nan
     df.loc[df.index[5:10], 'b'] = np.nan
-    self._run_test(lambda df: df.corr().round(8), df)
-    self._run_test(lambda df: df.cov().round(8), df)
-    self._run_test(lambda df: df.corr(min_periods=12).round(8), df)
-    self._run_test(lambda df: df.cov(min_periods=12).round(8), df)
-    self._run_test(lambda df: df.corrwith(df.a).round(8), df)
-    self._run_test(
-        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8), df)
+    self._run_test(lambda df: df.corr(), df)
+    self._run_test(lambda df: df.cov(), df)
+    self._run_test(lambda df: df.corr(min_periods=12), df)
+    self._run_test(lambda df: df.cov(min_periods=12), df)
+    self._run_test(lambda df: df.corrwith(df.a), df)
+    self._run_test(lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]), df)
 
   @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
   def test_applymap_na_action(self):
