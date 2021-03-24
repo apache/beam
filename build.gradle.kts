@@ -350,7 +350,7 @@ task("installVendoredGrpc") {
     val executable = if (file(jenkinsMvn).canExecute()) jenkinsMvn else (
             if (Os.isFamily(Os.FAMILY_WINDOWS)) "mvn.cmd" else "mvn"
             )
-    val jar = Paths.get("vendor","grpc-1_36_0","build","libs","beam-vendor-grpc-1_36_0-0.2.jar")
+    val jar = Paths.get("vendor","grpc-1_36_0","build","libs","beam-vendor-grpc-1_36_0-0.2-SNAPSHOT.jar")
     project.exec {
       commandLine = listOf(
               executable, "--batch-mode",
