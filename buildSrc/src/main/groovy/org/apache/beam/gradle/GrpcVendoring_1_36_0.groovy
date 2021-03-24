@@ -24,16 +24,18 @@ package org.apache.beam.gradle
 class GrpcVendoring_1_36_0 {
 
   static def guava_version = "30.1-jre"
-  static def protobuf_version = "3.15.3"
-  static def grpc_version = "1.36.0"
+  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.31.0/jar
+  static def protobuf_version = "3.12.0"
+  static def grpc_version = "1.31.0"
   static def gson_version = "2.8.6"
   // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-  static def netty_version = "4.1.52.Final"
-  // google-auth-library version from https://search.maven.org/artifact/io.grpc/grpc-auth/1.36.0/jar
-  static def google_auth_version = "0.22.2"
-  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.36.0/jar
-  static def proto_google_common_protos_version = "2.0.1"
-  static def opencensus_version = "0.28.0"
+  static def netty_version = "4.1.48.Final"
+  // google-auth-library version from https://search.maven.org/artifact/io.grpc/grpc-auth/1.31.0/jar
+  static def google_auth_version = "0.20.0"
+  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.31.0/jar
+  static def proto_google_common_protos_version = "1.17.0"
+  // opencensus version from https://search.maven.org/artifact/io.grpc/grpc-census/1.31.0/jar
+  static def opencensus_version = "0.24.0"
   static def conscrypt_version = "2.5.1"
 
   /** Returns the list of compile time dependencies. */
@@ -51,7 +53,7 @@ class GrpcVendoring_1_36_0 {
       "io.grpc:grpc-stub:$grpc_version",
       "io.netty:netty-transport-native-epoll:$netty_version",
       // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-      "io.netty:netty-tcnative-boringssl-static:2.0.34.Final",
+      "io.netty:netty-tcnative-boringssl-static:2.0.30.Final",
       "com.google.auth:google-auth-library-credentials:$google_auth_version",
       "io.grpc:grpc-testing:$grpc_version",
       "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
@@ -99,7 +101,8 @@ class GrpcVendoring_1_36_0 {
     // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
     // ensures that there are no classes outside of the 'org.apache.beam' namespace.
 
-    String version = "v1p36p0";
+    // Just being lazy (Or keeping the PR focused on the difference)
+    String version = "v1p26p0";
     String prefix = "org.apache.beam.vendor.grpc.${version}";
     List<String> packagesToRelocate = [
       // guava uses the com.google.common and com.google.thirdparty package namespaces
