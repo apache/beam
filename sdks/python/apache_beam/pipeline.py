@@ -995,6 +995,9 @@ class ExternalTransformFinder(PipelineVisitor):
     pipeline.visit(visitor)
     return visitor._contains_external_transforms
 
+  def enter_composite_transform(self, transform_node):
+    self.visit_transform(transform_node)
+
   def visit_transform(self, transform_node):
     # type: (AppliedPTransform) -> None
     from apache_beam.transforms import ExternalTransform
