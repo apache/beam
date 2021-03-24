@@ -62,12 +62,13 @@ In this section we will construct an Apache Beam pipeline that will use the BigQ
 
 First, the model needs to be downloaded to a local directory where you will be developing the rest of your pipeline (e.g. to `serving_dir/sample_model/1`).
 
-Then, you can start developing your pipeline like you would normally do. We will be using the `RunInference` PTransform from the [tfx_bsl](https://github.com/tensorflow/tfx-bsl) library, and we will point it to our local directory where the model is stored (see the `model_path` variable in the code example). The transform takes elements of the type `tf.train.Example` as inputs and outputs elements of the type `tensorflow_serving.apis.prediction_log_pb2.PredictionLog`.
+Then, you can start developing your pipeline like you would normally do. We will be using the `RunInference` PTransform from the [tfx_bsl](https://github.com/tensorflow/tfx-bsl) library, and we will point it to our local directory where the model is stored (see the `model_path` variable in the code example). The transform takes elements of the type `tf.train.Example` as inputs and outputs elements of the type [`tensorflow_serving.apis.prediction_log_pb2.PredictionLog`](https://github.com/tensorflow/serving/blob/master/tensorflow_serving/apis/prediction_log.proto). Depending on the signature of your model, you can extract values from the output; in our case we extract `label_probs`, `label_values` and the `predicted_label` as per the [docs on the logistic regression model](https://cloud.google.com/bigquery-ml/docs/exporting-models#logistic_reg) in the `extract_prediction` function.
 
 ```python
 import apache_beam
 import tensorflow as tf
 from google.protobuf import text_format
+from tensorflow.python.framework import tensor_util
 from tfx_bsl.beam import run_inference
 from tfx_bsl.public.beam import RunInference
 from tfx_bsl.public.proto import model_spec_pb2
@@ -81,6 +82,11 @@ inputs = tf.train.Example(features=tf.train.Features(
 
 model_path = "serving_dir/sample_model/1"
 
+def extract_prediction(response):
+  yield response.predict_log.response.outputs['label_values'].string_val,
+        tensor_util.MakeNdarray(response.predict_log.response.outputs['label_probs']),
+        response.predict_log.response.outputs['predicted_label'].string_val
+
 with beam.Pipeline() as p:
     res = (
         p
@@ -90,4 +96,5 @@ with beam.Pipeline() as p:
                 saved_model_spec=model_spec_pb2.SavedModelSpec(
                     model_path=model_path,
                     signature_name=['serving_default'])))
+        | beam.ParDo(extract_prediction)
 ```
