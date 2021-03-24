@@ -262,7 +262,9 @@ public class View {
        */
 
       // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")) {
+      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
+              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
         Coder<T> inputCoder = input.getCoder();
         PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> materializationInput =
             input
@@ -349,7 +351,9 @@ public class View {
       }
 
       // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")) {
+      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
+              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
         Coder<T> inputCoder = input.getCoder();
         PCollectionView<Iterable<T>> view =
             PCollectionViews.iterableView(
@@ -505,7 +509,9 @@ public class View {
       }
 
       // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")) {
+      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
+              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
         KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
         Coder<K> keyCoder = kvCoder.getKeyCoder();
         Coder<V> valueCoder = kvCoder.getValueCoder();
@@ -562,7 +568,9 @@ public class View {
       }
 
       // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")) {
+      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
+              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
         KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
         Coder<K> keyCoder = kvCoder.getKeyCoder();
         Coder<V> valueCoder = kvCoder.getValueCoder();
