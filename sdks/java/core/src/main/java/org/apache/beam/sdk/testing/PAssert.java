@@ -540,7 +540,7 @@ public class PAssert {
   ////////////////////////////////////////////////////////////
 
   /**
-   * An assert about the contents of each {@link PCollection} in the given {@link PCollectionList}
+   * An assert about the contents of each {@link PCollection} in the given {@link PCollectionList}.
    */
   protected static class PCollectionListContentsAssert<T> {
     private final PCollectionList<T> pCollectionList;
