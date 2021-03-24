@@ -55,7 +55,6 @@ import dill
 from fastavro import parse_schema
 from fastavro import schemaless_reader
 from fastavro import schemaless_writer
-from google.protobuf.message import Message
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
