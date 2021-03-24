@@ -719,8 +719,8 @@ public class PAssert {
       // Safe covariant cast. Could be elided by changing a lot of this file to use
       // more flexible bounds.
       @SuppressWarnings({
-          "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-          "unchecked"
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
       })
       SerializableFunction<Iterable<T>, Void> checkerFn =
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
@@ -1263,7 +1263,7 @@ public class PAssert {
                 .getPipeline()
                 .apply(
                     Create.<Iterable<ValueInSingleWindow<T>>>of(
-                        ImmutableList.of(ImmutableList.of()))
+                            ImmutableList.of(ImmutableList.of()))
                         .withCoder(actual.getCoder()));
         return PCollectionList.of(dummy)
             .and(actual)
@@ -1272,8 +1272,8 @@ public class PAssert {
                 // Default end-of-window trigger disallowed for unbounded PCollections.
                 input.isBounded() == PCollection.IsBounded.UNBOUNDED
                     ? Window.<Iterable<ValueInSingleWindow<T>>>configure()
-                    .triggering(Never.ever())
-                    .discardingFiredPanes()
+                        .triggering(Never.ever())
+                        .discardingFiredPanes()
                     : Window.<Iterable<ValueInSingleWindow<T>>>configure())
             .apply(WithKeys.of(combinedKey))
             .apply(GroupByKey.create())
@@ -1283,13 +1283,13 @@ public class PAssert {
 
       // Remove the triggering on both
       PTransform<
-          PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>,
-          PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>>
+              PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>,
+              PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>>
           removeTriggering =
-          Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
-              .triggering(Never.ever())
-              .discardingFiredPanes()
-              .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness());
+              Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
+                  .triggering(Never.ever())
+                  .discardingFiredPanes()
+                  .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness());
       // Group the contents by key. If it is empty, this PCollection will be empty, too.
       // Then key it again with a dummy key.
       PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>> groupedContents =
@@ -1308,10 +1308,10 @@ public class PAssert {
               .getPipeline()
               .apply(
                   Create.of(
-                      KV.of(
-                          combinedKey,
-                          (Iterable<ValueInSingleWindow<T>>)
-                              Collections.<ValueInSingleWindow<T>>emptyList()))
+                          KV.of(
+                              combinedKey,
+                              (Iterable<ValueInSingleWindow<T>>)
+                                  Collections.<ValueInSingleWindow<T>>emptyList()))
                       .withCoder(groupedContents.getCoder()))
               .apply("WindowIntoDummy", rewindowingStrategy.windowDummy())
               .apply("RemoveDummyTriggering", removeTriggering);
@@ -1793,8 +1793,8 @@ public class PAssert {
       }
       if (!node.isRootNode()
           && (node.getTransform() instanceof PAssert.OneSideInputAssert
-          || node.getTransform() instanceof PAssert.GroupThenAssert
-          || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton)) {
+              || node.getTransform() instanceof PAssert.GroupThenAssert
+              || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton)) {
         assertCount++;
       }
       return CompositeBehavior.ENTER_TRANSFORM;
