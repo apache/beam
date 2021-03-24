@@ -3547,8 +3547,8 @@ apache_beam.coders.registry.register_coder(int, BigEndianIntegerCoder)
 {{< paragraph class="language-java" >}}
 If your pipeline program defines a custom data type, you can use the
 `@DefaultCoder` annotation to specify the coder to use with that type. For
-example, let's say you have a custom data type for which you want to use
-`SerializableCoder`. You can use the `@DefaultCoder` annotation as follows:
+example, let's say you have a custom data type for which you **don't** want to use the default
+`SerializableCoder`. You can use the `@DefaultCoder` annotation to set a new default as follows:
 {{< /paragraph >}}
 
 {{< highlight java >}}
