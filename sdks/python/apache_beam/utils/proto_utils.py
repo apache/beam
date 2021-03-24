@@ -37,8 +37,7 @@ MessageT = TypeVar('MessageT', bound=message.Message)
 TimeMessageT = TypeVar(
     'TimeMessageT', duration_pb2.Duration, timestamp_pb2.Timestamp)
 
-
-message_types = (message.Message,)
+message_types = (message.Message, )
 
 
 @overload
