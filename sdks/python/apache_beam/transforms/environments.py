@@ -97,8 +97,9 @@ def is_apache_beam_container(container_image):
 
 
 def is_beam_java_container_name(container_image):
-  return (container_image.rsplit(
-      '/', 1)[1]).startswith(APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX)
+  return (
+      '/' in container_image and (container_image.rsplit(
+          '/', 1)[1]).startswith(APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX))
 
 
 class Environment(object):
