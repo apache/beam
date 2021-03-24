@@ -1309,7 +1309,9 @@ public class Combine {
     @Override
     public PCollectionView<OutputT> expand(PCollection<InputT> input) {
       // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")) {
+      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
+              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
         PCollection<OutputT> combined =
             input.apply(
                 "CombineValues",
