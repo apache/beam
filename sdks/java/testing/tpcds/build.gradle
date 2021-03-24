@@ -28,6 +28,8 @@ sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
+    // Maven local is not needed. Just for vendored gRPC testing
+    mavenLocal()
 }
 
 dependencies {
