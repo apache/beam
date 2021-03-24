@@ -76,8 +76,12 @@ class DeferredFrameTest(unittest.TestCase):
     else:
       if isinstance(expected, pd.core.generic.NDFrame):
         if distributed:
-          expected = expected.sort_index()
-          actual = actual.sort_index()
+          if expected.index.is_unique:
+            expected = expected.sort_index()
+            actual = actual.sort_index()
+          else:
+            expected = expected.sort_values(list(expected.columns))
+            actual = actual.sort_values(list(actual.columns))
 
         if isinstance(expected, pd.Series):
           pd.testing.assert_series_equal(expected, actual)
@@ -340,7 +344,7 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(
           lambda df1,
           df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
-              index=lambda x: '*').sort_values(['value_x', 'value_y']),
+              index=lambda x: '*'),
           df1,
           df2)
       self._run_test(
@@ -349,8 +353,7 @@ class DeferredFrameTest(unittest.TestCase):
               df2,
               left_on='lkey',
               right_on='rkey',
-              suffixes=('_left', '_right')).rename(index=lambda x: '*').
-          sort_values(['value_left', 'value_right']),
+              suffixes=('_left', '_right')).rename(index=lambda x: '*'),
           df1,
           df2)
 
@@ -363,8 +366,7 @@ class DeferredFrameTest(unittest.TestCase):
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*').
-          sort_values(['b', 'c']),
+          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
           df1,
           df2)
 
@@ -380,8 +382,7 @@ class DeferredFrameTest(unittest.TestCase):
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, left_index=True, right_index=True).sort_values(
-              ['value_x', 'value_y']),
+          df2: df1.merge(df2, left_index=True, right_index=True),
           df1,
           df2)
 
@@ -395,14 +396,13 @@ class DeferredFrameTest(unittest.TestCase):
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, on='key').rename(index=lambda x: '*').sort_values(
-              ['value_x', 'value_y']),
+          df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
           df1,
           df2)
       self._run_test(
           lambda df1,
           df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
-              index=lambda x: '*').sort_values(['value_left', 'value_right']),
+              index=lambda x: '*'),
           df1,
           df2)
 
@@ -413,15 +413,13 @@ class DeferredFrameTest(unittest.TestCase):
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*').
-          sort_values(['b', 'c']),
+          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
           df1,
           df2)
       # Test without specifying 'on'
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, how='left').rename(index=lambda x: '*').
-          sort_values(['b', 'c']),
+          df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
           df1,
           df2)
 
@@ -434,14 +432,14 @@ class DeferredFrameTest(unittest.TestCase):
           lambda df1,
           df2: df1.merge(
               df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).
-          rename(index=lambda x: '*').sort_values(['b', 'c']),
+          rename(index=lambda x: '*'),
           df1,
           df2)
       # Test without specifying 'on'
       self._run_test(
           lambda df1,
           df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
-          rename(index=lambda x: '*').sort_values(['b', 'c']),
+          rename(index=lambda x: '*'),
           df1,
           df2)
 
