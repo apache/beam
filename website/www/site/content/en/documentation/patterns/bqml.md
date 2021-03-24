@@ -73,23 +73,18 @@ from tfx_bsl.public.beam import RunInference
 from tfx_bsl.public.proto import model_spec_pb2
 
 
-inputs = """
-features {
-    feature { key: "country" value { bytes_list { value: 'Belgium' }}}
-}
-"""
-
-def create_tf_example(json_obj):
-    return text_format.Parse(json_obj, tf.train.Example())
+inputs = tf.train.Example(features=tf.train.Features(
+            feature={
+                'os': tf.train.Feature(bytes_list=tf.train.BytesList(b"Microsoft"))
+            })
+          )
 
 model_path = "serving_dir/sample_model/1"
 
 with beam.Pipeline() as p:
     res = (
         p
-        | beam.Create([
-            create_tf_example(inputs)
-        ])
+        | beam.Create([inputs])
         | RunInference(
             model_spec_pb2.InferenceSpecType(
                 saved_model_spec=model_spec_pb2.SavedModelSpec(
