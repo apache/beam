@@ -56,8 +56,10 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -595,5 +597,60 @@ public class PAssertTest implements Serializable {
         .isEqualTo(Collections.singletonMap(1, 2));
 
     assertThat(PAssert.countAsserts(pipeline), equalTo(3));
+  }
+
+  @Test
+  public void testPAssertThatFlattened() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatFlattened(collectionList).containsInAnyOrder(1, 2, 3, 4, 5, 6);
+    PAssert.thatFlattened("Reason", collectionList).containsInAnyOrder(1, 2, 3, 4, 5, 6);
+  }
+
+  @Test
+  public void testPAssertThatListSatisfiesOneMatcher() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatList(collectionList)
+        .satisfies(
+            input -> {
+              for (Integer element : input) {
+                assertTrue(element > 0);
+              }
+              return null;
+            });
+  }
+
+  @Test
+  public void testPAssertThatListSatisfiesMultipleMatchers() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatList(collectionList)
+        .satisfies(
+            ImmutableList.of(
+                input -> {
+                  for (Integer element : input) {
+                    assertTrue(element < 4);
+                  }
+                  return null;
+                },
+                input -> {
+                  for (Integer element : input) {
+                    assertTrue(element < 7);
+                  }
+                  return null;
+                }));
   }
 }

@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -512,7 +513,71 @@ public class PAssert {
         PAssertionSite.capture(reason));
   }
 
+  /**
+   * Constructs an {@link PCollectionListContentsAssert} for the provided {@link PCollectionList}.
+   */
+  public static <T> PCollectionListContentsAssert<T> thatList(PCollectionList<T> actual) {
+    return new PCollectionListContentsAssert<>(actual);
+  }
+
+  /**
+   * Constructs an {@link IterableAssert} for the elements of the flattened {@link PCollectionList}.
+   */
+  public static <T> IterableAssert<T> thatFlattened(PCollectionList<T> actual) {
+    PCollection<T> flatten = actual.apply(Flatten.pCollections());
+    return that(flatten.getName(), flatten);
+  }
+
+  /**
+   * Constructs an {@link IterableAssert} for the elements of the flattened {@link PCollectionList}
+   * with the specified reason.
+   */
+  public static <T> IterableAssert<T> thatFlattened(String reason, PCollectionList<T> actual) {
+    return new PCollectionContentsAssert<>(
+        actual.apply(Flatten.pCollections()), PAssertionSite.capture(reason));
+  }
+
   ////////////////////////////////////////////////////////////
+
+  /**
+   * An assert about the contents of each {@link PCollection} in the given {@link PCollectionList}
+   */
+  protected static class PCollectionListContentsAssert<T> {
+    private final PCollectionList<T> pCollectionList;
+
+    public PCollectionListContentsAssert(PCollectionList<T> actual) {
+      this.pCollectionList = actual;
+    }
+
+    /**
+     * Applies one {@link SerializableFunction} to check the elements of each {@code PCollection} in
+     * the {@link #pCollectionList}.
+     *
+     * <p>Returns this {@code PCollectionListContentsAssert}.
+     */
+    public PCollectionListContentsAssert<T> satisfies(
+        SerializableFunction<Iterable<T>, Void> checkerFn) {
+      for (int i = 0; i < pCollectionList.size(); i++) {
+        PAssert.that(pCollectionList.get(i)).satisfies(checkerFn);
+      }
+      return this;
+    }
+
+    /**
+     * Takes list of {@link SerializableFunction}s of the same size as {@link #pCollectionList}, and
+     * applies each matcher to the {@code PCollection} with the identical index in the {@link
+     * #pCollectionList}.
+     *
+     * <p>Returns this {@code PCollectionListContentsAssert}.
+     */
+    public PCollectionListContentsAssert<T> satisfies(
+        List<SerializableFunction<Iterable<T>, Void>> checkerFnList) {
+      for (int i = 0; i < pCollectionList.size(); i++) {
+        PAssert.that(pCollectionList.get(i)).satisfies(checkerFnList.get(i));
+      }
+      return this;
+    }
+  }
 
   /**
    * An {@link IterableAssert} about the contents of a {@link PCollection}. This does not require
@@ -654,8 +719,8 @@ public class PAssert {
       // Safe covariant cast. Could be elided by changing a lot of this file to use
       // more flexible bounds.
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-        "unchecked"
+          "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+          "unchecked"
       })
       SerializableFunction<Iterable<T>, Void> checkerFn =
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
@@ -1198,7 +1263,7 @@ public class PAssert {
                 .getPipeline()
                 .apply(
                     Create.<Iterable<ValueInSingleWindow<T>>>of(
-                            ImmutableList.of(ImmutableList.of()))
+                        ImmutableList.of(ImmutableList.of()))
                         .withCoder(actual.getCoder()));
         return PCollectionList.of(dummy)
             .and(actual)
@@ -1207,8 +1272,8 @@ public class PAssert {
                 // Default end-of-window trigger disallowed for unbounded PCollections.
                 input.isBounded() == PCollection.IsBounded.UNBOUNDED
                     ? Window.<Iterable<ValueInSingleWindow<T>>>configure()
-                        .triggering(Never.ever())
-                        .discardingFiredPanes()
+                    .triggering(Never.ever())
+                    .discardingFiredPanes()
                     : Window.<Iterable<ValueInSingleWindow<T>>>configure())
             .apply(WithKeys.of(combinedKey))
             .apply(GroupByKey.create())
@@ -1218,13 +1283,13 @@ public class PAssert {
 
       // Remove the triggering on both
       PTransform<
-              PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>,
-              PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>>
+          PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>,
+          PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>>
           removeTriggering =
-              Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
-                  .triggering(Never.ever())
-                  .discardingFiredPanes()
-                  .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness());
+          Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
+              .triggering(Never.ever())
+              .discardingFiredPanes()
+              .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness());
       // Group the contents by key. If it is empty, this PCollection will be empty, too.
       // Then key it again with a dummy key.
       PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>> groupedContents =
@@ -1243,10 +1308,10 @@ public class PAssert {
               .getPipeline()
               .apply(
                   Create.of(
-                          KV.of(
-                              combinedKey,
-                              (Iterable<ValueInSingleWindow<T>>)
-                                  Collections.<ValueInSingleWindow<T>>emptyList()))
+                      KV.of(
+                          combinedKey,
+                          (Iterable<ValueInSingleWindow<T>>)
+                              Collections.<ValueInSingleWindow<T>>emptyList()))
                       .withCoder(groupedContents.getCoder()))
               .apply("WindowIntoDummy", rewindowingStrategy.windowDummy())
               .apply("RemoveDummyTriggering", removeTriggering);
@@ -1728,8 +1793,8 @@ public class PAssert {
       }
       if (!node.isRootNode()
           && (node.getTransform() instanceof PAssert.OneSideInputAssert
-              || node.getTransform() instanceof PAssert.GroupThenAssert
-              || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton)) {
+          || node.getTransform() instanceof PAssert.GroupThenAssert
+          || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton)) {
         assertCount++;
       }
       return CompositeBehavior.ENTER_TRANSFORM;
