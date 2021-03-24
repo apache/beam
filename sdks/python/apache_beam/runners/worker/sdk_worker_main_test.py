@@ -26,8 +26,6 @@ from __future__ import print_function
 import logging
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 from hamcrest import all_of
 from hamcrest import assert_that
 from hamcrest import has_entry

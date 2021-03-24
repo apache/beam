@@ -452,10 +452,6 @@ class FileMetadata(object):
   def __hash__(self):
     return hash((self.path, self.size_in_bytes))
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __repr__(self):
     return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
 

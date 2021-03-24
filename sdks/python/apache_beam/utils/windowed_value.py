@@ -25,7 +25,8 @@ This module is experimental. No backwards-compatibility guarantees.
 # editing this file as WindowedValues are created for every element for
 # every step in a Beam pipeline.
 
-#cython: profile=True
+# cython: profile=True
+# cython: language_level=3
 
 # pytype: skip-file
 
@@ -153,10 +154,6 @@ class PaneInfo(object):
         self.timing == other.timing and self.index == other.index and
         self.nonspeculative_index == other.nonspeculative_index)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash((
         self.is_first,
@@ -254,10 +251,6 @@ class WindowedValue(object):
         self.value == other.value and self.windows == other.windows and
         self.pane_info == other.pane_info)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return ((hash(self.value) & 0xFFFFFFFFFFFFFFF) + 3 *
             (self.timestamp_micros & 0xFFFFFFFFFFFFFF) + 7 *
@@ -349,9 +342,6 @@ class _IntervalWindowBase(object):
         type(self) == type(other) and
         self._start_micros == other._start_micros and
         self._end_micros == other._end_micros)
-
-  def __ne__(self, other):
-    return not self == other
 
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))

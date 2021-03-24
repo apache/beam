@@ -27,6 +27,7 @@ import apache_beam as beam
 from apache_beam import runners
 from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -50,7 +51,7 @@ class TranslationsTest(unittest.TestCase):
         [1, 2, 3]) | 'multiple-key-with-none' >> MultipleKeyWithNone()
     pipeline_proto = pipeline.to_runner_api()
     _, stages = translations.create_and_optimize_stages(
-        pipeline_proto, [translations.eliminate_common_key_with_none],
+        pipeline_proto, [translations._eliminate_common_key_with_none],
         known_runner_urns=frozenset())
     key_with_none_stages = [
         stage for stage in stages if 'key-with-none' in stage.name
@@ -73,7 +74,7 @@ class TranslationsTest(unittest.TestCase):
         pipeline_options.PortableOptions(sdk_location='container'))
     pipeline_proto = pipeline.to_runner_api(default_environment=environment)
     _, stages = translations.create_and_optimize_stages(
-        pipeline_proto, [translations.pack_combiners],
+        pipeline_proto, [translations.pack_all_combiners],
         known_runner_urns=frozenset())
     combine_per_key_stages = []
     for stage in stages:
@@ -99,7 +100,7 @@ class TranslationsTest(unittest.TestCase):
     environment = environments.DockerEnvironment(capabilities=())
     pipeline_proto = pipeline.to_runner_api(default_environment=environment)
     _, stages = translations.create_and_optimize_stages(
-        pipeline_proto, [translations.pack_combiners],
+        pipeline_proto, [translations.pack_all_combiners],
         known_runner_urns=frozenset())
     combine_per_key_stages = []
     for stage in stages:
@@ -130,8 +131,7 @@ class TranslationsTest(unittest.TestCase):
     pipeline_proto = pipeline.to_runner_api(default_environment=environment)
     _, stages = translations.create_and_optimize_stages(
         pipeline_proto, [
-            translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
+            translations.pack_all_combiners,
         ],
         known_runner_urns=frozenset())
     key_with_void_stages = [
@@ -168,10 +168,8 @@ class TranslationsTest(unittest.TestCase):
     _ = pipeline | Create(vals) | combiners.Count.Globally()
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
-        pipeline_proto,
-        [
-            translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
+        pipeline_proto, [
+            translations.pack_all_combiners,
         ],
         known_runner_urns=frozenset(),
         partial=True)
@@ -189,10 +187,8 @@ class TranslationsTest(unittest.TestCase):
     _ = pcoll | 'largest-globally' >> core.CombineGlobally(combiners.Largest(1))
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
-        pipeline_proto,
-        [
-            translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
+        pipeline_proto, [
+            translations.pack_all_combiners,
         ],
         known_runner_urns=frozenset(),
         partial=True)
@@ -282,6 +278,50 @@ class TranslationsTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
       _ = pipeline | Create(vals) | 'multiple-combines' >> MultipleCombines()
+
+  def test_conditionally_packed_combiners(self):
+    class RecursiveCombine(beam.PTransform):
+      def __init__(self, labels):
+        self._labels = labels
+
+      def expand(self, pcoll):
+        base = pcoll | 'Sum' >> beam.CombineGlobally(sum)
+        if self._labels:
+          rest = pcoll | self._labels[0] >> RecursiveCombine(self._labels[1:])
+          return (base, rest) | beam.Flatten()
+        else:
+          return base
+
+      def annotations(self):
+        if len(self._labels) == 2:
+          return {python_urns.APPLY_COMBINER_PACKING: b''}
+        else:
+          return {}
+
+    # Verify the results are as expected.
+    with TestPipeline() as pipeline:
+      result = pipeline | beam.Create([1, 2, 3]) | RecursiveCombine('ABCD')
+      assert_that(result, equal_to([6, 6, 6, 6, 6]))
+
+    # Verify the optimization is as expected.
+    proto = pipeline.to_runner_api(
+        default_environment=environments.EmbeddedPythonEnvironment(
+            capabilities=environments.python_sdk_capabilities()))
+    optimized = translations.optimize_pipeline(
+        proto,
+        phases=[translations.pack_combiners],
+        known_runner_urns=frozenset(),
+        partial=True)
+    optimized_stage_names = sorted(
+        t.unique_name for t in optimized.components.transforms.values())
+    self.assertIn('RecursiveCombine/Sum/CombinePerKey', optimized_stage_names)
+    self.assertIn('RecursiveCombine/A/Sum/CombinePerKey', optimized_stage_names)
+    self.assertNotIn(
+        'RecursiveCombine/A/B/Sum/CombinePerKey', optimized_stage_names)
+    self.assertIn(
+        'RecursiveCombine/A/B/Packed[Sum_CombinePerKey, '
+        'C_Sum_CombinePerKey, C_D_Sum_CombinePerKey]/Pack',
+        optimized_stage_names)
 
 
 if __name__ == '__main__':

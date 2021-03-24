@@ -233,12 +233,20 @@ class PipelineContext(object):
   # rather than an actual coder. The element type is required for some runners,
   # as well as performing a round-trip through protos.
   # TODO(BEAM-2717): Remove once this is no longer needed.
-  def coder_id_from_element_type(self, element_type):
-    # type: (Any) -> str
+  def coder_id_from_element_type(
+      self, element_type, requires_deterministic_key_coder=None):
+    # type: (Any, Optional[str]) -> str
     if self.use_fake_coders:
       return pickler.dumps(element_type).decode('ascii')
     else:
-      return self.coders.get_id(coders.registry.get_coder(element_type))
+      coder = coders.registry.get_coder(element_type)
+      if requires_deterministic_key_coder:
+        coder = coders.TupleCoder([
+            coder.key_coder().as_deterministic_coder(
+                requires_deterministic_key_coder),
+            coder.value_coder()
+        ])
+      return self.coders.get_id(coder)
 
   def element_type_from_coder_id(self, coder_id):
     # type: (str) -> Any

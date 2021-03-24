@@ -62,9 +62,6 @@ import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for Sample transform. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SampleTest {
   private static final Integer[] EMPTY = new Integer[] {};
   private static final Integer[] DATA = new Integer[] {1, 2, 3, 4, 5};

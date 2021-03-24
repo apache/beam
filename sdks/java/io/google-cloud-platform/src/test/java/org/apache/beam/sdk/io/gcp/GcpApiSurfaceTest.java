@@ -34,9 +34,6 @@ import org.junit.runners.JUnit4;
 
 /** API surface verification for {@link org.apache.beam.sdk.io.gcp}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GcpApiSurfaceTest {
 
   @Test
@@ -68,6 +65,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.v2"),
             classesInPackage("com.google.cloud.bigquery.storage.v1"),
+            classesInPackage("com.google.cloud.bigquery.storage.v1beta2"),
             classesInPackage("com.google.cloud.bigtable.config"),
             classesInPackage("com.google.spanner.v1"),
             classesInPackage("com.google.pubsub.v1"),
@@ -92,6 +90,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.cloud.spanner"),
             classesInPackage("com.google.datastore.v1"),
             classesInPackage("com.google.protobuf"),
+            classesInPackage("com.google.rpc"),
             classesInPackage("com.google.type"),
             classesInPackage("com.fasterxml.jackson.annotation"),
             classesInPackage("com.fasterxml.jackson.core"),

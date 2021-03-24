@@ -164,7 +164,6 @@ import org.junit.runners.JUnit4;
 /** Tests for ParDo. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
@@ -814,6 +813,39 @@ public class ParDoTest implements Serializable {
 
       PAssert.that(output)
           .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs).andSideInputs(11, 222));
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testSameSideInputReadTwice() {
+
+      List<Integer> inputs = ImmutableList.of(3, -42, 66);
+
+      PCollection<Integer> input = pipeline.apply(Create.of(inputs));
+
+      PCollectionView<Integer> sideInput =
+          pipeline
+              .apply("CreateSideInput", Create.of(11))
+              .apply("ViewSideInput", View.asSingleton());
+
+      PCollection<String> output1 =
+          input.apply(
+              "First ParDo",
+              ParDo.of(new TestDoFn(ImmutableList.of(sideInput), Arrays.asList()))
+                  .withSideInputs(sideInput));
+
+      PCollection<String> output2 =
+          input.apply(
+              "Second ParDo",
+              ParDo.of(new TestDoFn(ImmutableList.of(sideInput), Arrays.asList()))
+                  .withSideInputs(sideInput));
+
+      PAssert.that(output1)
+          .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs).andSideInputs(11));
+      PAssert.that(output2)
+          .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs).andSideInputs(11));
 
       pipeline.run();
     }

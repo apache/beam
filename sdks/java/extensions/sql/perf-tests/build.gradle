@@ -17,7 +17,8 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

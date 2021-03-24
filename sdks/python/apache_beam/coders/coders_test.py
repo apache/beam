@@ -16,8 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
 import logging
 import unittest
@@ -166,10 +164,6 @@ class DummyClass(object):
     if isinstance(other, self.__class__):
       return True
     return False
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash(type(self))

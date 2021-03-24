@@ -46,9 +46,6 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for UDF/UDAF. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
   /** GROUP-BY with UDAF. */
@@ -238,7 +235,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
   /** test auto-provider UDF/UDAF. */
   @Test
-  public void testAutoUdfUdaf() throws Exception {
+  public void testAutoLoadedUdfUdaf() throws Exception {
     Schema resultType =
         Schema.builder().addInt32Field("f_int2").addInt32Field("autoload_squarecubicsum").build();
 
@@ -247,8 +244,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     String sql =
         "SELECT f_int2, autoload_squaresum(autoload_cubic(f_int)) AS `autoload_squarecubicsum`"
             + " FROM PCOLLECTION GROUP BY f_int2";
-    PCollection<Row> result =
-        boundedInput1.apply("testUdaf", SqlTransform.query(sql).withAutoUdfUdafLoad(true));
+    PCollection<Row> result = boundedInput1.apply("testUdaf", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(row);
     pipeline.run().waitUntilFinish();

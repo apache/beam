@@ -121,14 +121,14 @@ task createProcessWorker {
 
 def createSparkRunnerTestTask(String workerType) {
   def taskName = "sparkCompatibilityMatrix${workerType}"
-  // `project(':runners:spark:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
-  def jobServerJar = "${rootDir}/runners/spark/job-server/build/libs/beam-runners-spark-job-server-${version}.jar"
+  // `project(':runners:spark:2:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
+  def jobServerJar = "${rootDir}/runners/spark/2/job-server/build/libs/beam-runners-spark-job-server-${version}.jar"
   def options = "--spark_job_server_jar=${jobServerJar} --environment_type=${workerType}"
   if (workerType == 'PROCESS') {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
   def task = toxTask(taskName, 'spark-runner-test', options)
-  task.dependsOn ':runners:spark:job-server:shadowJar'
+  task.dependsOn ':runners:spark:2:job-server:shadowJar'
   if (workerType == 'DOCKER') {
     task.dependsOn ext.pythonContainerTask
   } else if (workerType == 'PROCESS') {
@@ -155,7 +155,7 @@ project.task("preCommitPy${pythonVersionSuffix}") {
 project.task("postCommitPy${pythonVersionSuffix}") {
   dependsOn = ['setupVirtualenv',
                "postCommitPy${pythonVersionSuffix}IT",
-               ':runners:spark:job-server:shadowJar',
+               ':runners:spark:2:job-server:shadowJar',
                'portableLocalRunnerJuliaSetWithSetupPy',
                'portableWordCountSparkRunnerBatch']
 }
@@ -227,7 +227,7 @@ def addTestJavaJarCreator(String runner, Task jobServerJarTask) {
 
 // TODO(BEAM-11333) Update and test multiple Flink versions.
 addTestJavaJarCreator("FlinkRunner", tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:shadowJar"))
-addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:job-server:shadowJar"))
+addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:2:job-server:shadowJar"))
 
 def addTestFlinkUberJar(boolean saveMainSession) {
   project.tasks.create(name: "testUberJarFlinkRunner${saveMainSession ? 'SaveMainSession' : ''}") {

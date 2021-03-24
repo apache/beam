@@ -100,7 +100,10 @@ from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
+from typing import Iterable
+from typing import List
 from typing import Tuple
+from typing import Union
 
 from past.builtins import unicode
 
@@ -154,7 +157,7 @@ class _MatchAllFn(beam.DoFn):
   def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
 
-  def process(self, file_pattern):
+  def process(self, file_pattern: str) -> List[filesystem.FileMetadata]:
     # TODO: Should we batch the lookups?
     match_results = filesystems.FileSystems.match([file_pattern])
     match_result = match_results[0]
@@ -175,12 +178,12 @@ class MatchFiles(beam.PTransform):
   of ``FileMetadata`` objects."""
   def __init__(
       self,
-      file_pattern,
+      file_pattern: str,
       empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
     self._file_pattern = file_pattern
     self._empty_match_treatment = empty_match_treatment
 
-  def expand(self, pcoll):
+  def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
     return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
 
 
@@ -192,30 +195,11 @@ class MatchAll(beam.PTransform):
   def __init__(self, empty_match_treatment=EmptyMatchTreatment.ALLOW):
     self._empty_match_treatment = empty_match_treatment
 
-  def expand(self, pcoll):
+  def expand(
+      self,
+      pcoll: beam.PCollection,
+  ) -> beam.PCollection[filesystem.FileMetadata]:
     return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
-
-
-class _ReadMatchesFn(beam.DoFn):
-  def __init__(self, compression, skip_directories):
-    self._compression = compression
-    self._skip_directories = skip_directories
-
-  def process(self, file_metadata):
-    metadata = (
-        filesystem.FileMetadata(file_metadata, 0) if isinstance(
-            file_metadata, (str, unicode)) else file_metadata)
-
-    if ((metadata.path.endswith('/') or metadata.path.endswith('\\')) and
-        self._skip_directories):
-      return
-    elif metadata.path.endswith('/') or metadata.path.endswith('\\'):
-      raise BeamIOError(
-          'Directories are not allowed in ReadMatches transform.'
-          'Found %s.' % metadata.path)
-
-    # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
-    yield ReadableFile(metadata, self._compression)
 
 
 class ReadableFile(object):
@@ -238,6 +222,31 @@ class ReadableFile(object):
     return self.open().read().decode('utf-8')
 
 
+class _ReadMatchesFn(beam.DoFn):
+  def __init__(self, compression, skip_directories):
+    self._compression = compression
+    self._skip_directories = skip_directories
+
+  def process(
+      self,
+      file_metadata: Union[str, filesystem.FileMetadata],
+  ) -> Iterable[ReadableFile]:
+    metadata = (
+        filesystem.FileMetadata(file_metadata, 0) if isinstance(
+            file_metadata, (str, unicode)) else file_metadata)
+
+    if ((metadata.path.endswith('/') or metadata.path.endswith('\\')) and
+        self._skip_directories):
+      return
+    elif metadata.path.endswith('/') or metadata.path.endswith('\\'):
+      raise BeamIOError(
+          'Directories are not allowed in ReadMatches transform.'
+          'Found %s.' % metadata.path)
+
+    # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
+    yield ReadableFile(metadata, self._compression)
+
+
 class ReadMatches(beam.PTransform):
   """Converts each result of MatchFiles() or MatchAll() to a ReadableFile.
 
@@ -246,7 +255,10 @@ class ReadMatches(beam.PTransform):
     self._compression = compression
     self._skip_directories = skip_directories
 
-  def expand(self, pcoll):
+  def expand(
+      self,
+      pcoll: beam.PCollection[Union[str, filesystem.FileMetadata]],
+  ) -> beam.PCollection[ReadableFile]:
     return pcoll | beam.ParDo(
         _ReadMatchesFn(self._compression, self._skip_directories))
 

@@ -75,9 +75,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for DataflowPipelineJob. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowPipelineJobTest {
   private static final String PROJECT_ID = "some-project";
   private static final String REGION_ID = "some-region-2b";

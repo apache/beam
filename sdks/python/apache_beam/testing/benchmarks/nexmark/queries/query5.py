@@ -39,7 +39,7 @@ from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import Re
 from apache_beam.transforms import window
 
 
-def load(events, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   return (
       events
       | nexmark_query_util.JustBids()

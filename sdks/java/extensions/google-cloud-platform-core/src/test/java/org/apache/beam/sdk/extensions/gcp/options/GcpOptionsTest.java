@@ -59,9 +59,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GcpOptions}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GcpOptionsTest {
 
   /** Tests for the majority of methods. */

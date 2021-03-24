@@ -52,9 +52,6 @@ import org.junit.runners.JUnit4;
  * (or higher) in the backend Elasticsearch server for this test to run.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ElasticsearchIOIT {
   private static RestClient restClient;
   private static ElasticsearchPipelineOptions options;

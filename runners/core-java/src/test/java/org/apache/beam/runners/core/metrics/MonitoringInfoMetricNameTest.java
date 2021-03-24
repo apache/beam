@@ -27,9 +27,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link MonitoringInfoMetricName}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MonitoringInfoMetricNameTest implements Serializable {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();

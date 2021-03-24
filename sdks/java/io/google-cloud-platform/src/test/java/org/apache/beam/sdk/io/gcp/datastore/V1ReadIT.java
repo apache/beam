@@ -44,9 +44,6 @@ import org.junit.runners.JUnit4;
 
 /** End-to-end tests for Datastore DatastoreV1.Read. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class V1ReadIT {
   private V1TestOptions options;
   private String project;

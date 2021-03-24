@@ -14,11 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import functools
-import inspect
-import sys
+from inspect import getfullargspec
+from inspect import unwrap
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -30,18 +28,6 @@ import pandas as pd
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import partitionings
-
-# pylint: disable=deprecated-method
-if sys.version_info < (3, ):
-  _getargspec = inspect.getargspec
-
-  def _unwrap(func):
-    while hasattr(func, '__wrapped__'):
-      func = func.__wrapped__
-    return func
-else:
-  _getargspec = inspect.getfullargspec
-  _unwrap = inspect.unwrap
 
 
 class DeferredBase(object):
@@ -70,7 +56,7 @@ class DeferredBase(object):
             'get_%d' % ix,
             lambda t: t[ix],
             [expr],
-            requires_partition_by=partitionings.Nothing(),
+            requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton())
 
       return tuple([cls.wrap(get(ix)) for ix in range(len(expr.proxy()))])
@@ -123,6 +109,16 @@ class _DeferredScalar(DeferredBase):
               func, [self._expr] + [arg._expr for arg in args],
               requires_partition_by=partitionings.Singleton()))
 
+  def __repr__(self):
+    return f"DeferredScalar[type={type(self._expr.proxy())}]"
+
+  def __bool__(self):
+    # TODO(BEAM-11951): Link to documentation
+    raise TypeError(
+        "Testing the truth value of a deferred scalar is not "
+        "allowed. It's not possible to branch on the result of "
+        "deferred operations.")
+
 
 DeferredBase._pandas_type_map[None] = _DeferredScalar
 
@@ -141,7 +137,7 @@ def _elementwise_method(func, name=None, restrictions=None, inplace=False):
       name,
       restrictions,
       inplace,
-      requires_partition_by=partitionings.Nothing(),
+      requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
 
@@ -151,7 +147,7 @@ def _proxy_method(
     restrictions=None,
     inplace=False,
     requires_partition_by=partitionings.Singleton(),
-    preserves_partition_by=partitionings.Nothing()):
+    preserves_partition_by=partitionings.Arbitrary()):
   if name is None:
     name, func = name_and_func(func)
   if restrictions is None:
@@ -171,7 +167,7 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
       name,
       restrictions,
       inplace,
-      requires_partition_by=partitionings.Nothing(),
+      requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
 
@@ -181,7 +177,7 @@ def _proxy_function(
       restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
       inplace=False,  # type: bool
       requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Arbitrary(),  # type: partitionings.Partitioning
 ):
 
   if name is None:
@@ -198,7 +194,7 @@ def _proxy_function(
         value = kwargs[key]
       else:
         try:
-          ix = _getargspec(func).args.index(key)
+          ix = getfullargspec(func).args.index(key)
         except ValueError:
           # TODO: fix for delegation?
           continue
@@ -234,7 +230,7 @@ def _proxy_function(
                 lambda ix: ix.index.to_series(),  # yapf break
                 [arg._frame._expr],
                 preserves_partition_by=partitionings.Singleton(),
-                requires_partition_by=partitionings.Nothing()))
+                requires_partition_by=partitionings.Arbitrary()))
       elif isinstance(arg, pd.core.generic.NDFrame):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(expressions.ConstantExpression(arg, arg[0:0]))
@@ -276,9 +272,9 @@ def _proxy_function(
 
       return actual_func(*full_args, **full_kwargs)
 
-    if (not requires_partition_by.is_subpartitioning_of(partitionings.Index())
-        and sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
-                for arg in deferred_exprs) > 1):
+    if (requires_partition_by.is_subpartitioning_of(partitionings.Index()) and
+        sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
+            for arg in deferred_exprs) > 1):
       # Implicit join on index if there is more than one indexed input.
       actual_requires_partition_by = partitionings.Index()
     else:
@@ -343,7 +339,7 @@ def maybe_inplace(func):
 
 def args_to_kwargs(base_type):
   def wrap(func):
-    arg_names = _getargspec(_unwrap(getattr(base_type, func.__name__))).args
+    arg_names = getfullargspec(unwrap(getattr(base_type, func.__name__))).args
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -362,7 +358,7 @@ def args_to_kwargs(base_type):
 
 def populate_defaults(base_type):
   def wrap(func):
-    base_argspec = _getargspec(_unwrap(getattr(base_type, func.__name__)))
+    base_argspec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
     if not base_argspec.defaults:
       return func
 
@@ -371,9 +367,9 @@ def populate_defaults(base_type):
             base_argspec.args[-len(base_argspec.defaults):],
             base_argspec.defaults))
 
-    unwrapped_func = _unwrap(func)
+    unwrapped_func = unwrap(func)
     # args that do not have defaults in func, but do have defaults in base
-    func_argspec = _getargspec(unwrapped_func)
+    func_argspec = getfullargspec(unwrapped_func)
     num_non_defaults = len(func_argspec.args) - len(func_argspec.defaults or ())
     defaults_to_populate = set(
         func_argspec.args[:num_non_defaults]).intersection(

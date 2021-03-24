@@ -403,7 +403,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       }
       PValue input = Iterables.getOnlyElement(nonAdditionalInputs);
       if (!(input instanceof PCollection)
-          || ((PCollection) input).getWindowingStrategy().getWindowFn().isNonMerging()) {
+          || !((PCollection) input).getWindowingStrategy().needsMerge()) {
         return false;
       }
       // so far we know that the input is a PCollection with merging windows.

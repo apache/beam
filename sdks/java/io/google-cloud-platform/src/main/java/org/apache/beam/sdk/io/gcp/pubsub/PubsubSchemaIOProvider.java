@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
@@ -27,14 +28,19 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -42,6 +48,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -94,8 +101,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class PubsubSchemaIOProvider implements SchemaIOProvider {
-  public static final FieldType VARCHAR = FieldType.STRING;
-  public static final FieldType TIMESTAMP = FieldType.DATETIME;
+  public static final FieldType ATTRIBUTE_MAP_FIELD_TYPE =
+      Schema.FieldType.map(FieldType.STRING.withNullable(false), FieldType.STRING);
+  public static final Schema ATTRIBUTE_ARRAY_ENTRY_SCHEMA =
+      Schema.builder().addStringField("key").addStringField("value").build();
+  public static final FieldType ATTRIBUTE_ARRAY_FIELD_TYPE =
+      Schema.FieldType.array(Schema.FieldType.row(ATTRIBUTE_ARRAY_ENTRY_SCHEMA));
 
   public enum PayloadFormat {
     JSON,
@@ -118,6 +129,11 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("timestampAttributeKey", FieldType.STRING)
         .addNullableField("deadLetterQueue", FieldType.STRING)
         .addNullableField("format", FieldType.STRING)
+        // For ThriftPayloadSerializerProvider
+        .addNullableField("thriftClass", FieldType.STRING)
+        .addNullableField("thriftProtocolFactoryClass", FieldType.STRING)
+        // For ProtoPayloadSerializerProvider
+        .addNullableField("protoClass", FieldType.STRING)
         .build();
   }
 
@@ -149,7 +165,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
           "Unsupported schema specified for Pubsub source in CREATE TABLE."
               + "CREATE TABLE for Pubsub topic must not be null");
     }
-    if (!PubsubSchemaIO.fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)) {
+    if (!PubsubSchemaIO.fieldPresent(schema, TIMESTAMP_FIELD, FieldType.DATETIME)) {
       throw new InvalidSchemaException(
           "Unsupported schema specified for Pubsub source in CREATE TABLE."
               + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
@@ -180,7 +196,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
     private PubsubSchemaIO(String location, Row config, Schema dataSchema) {
       this.dataSchema = dataSchema;
       this.location = location;
-      this.useFlatSchema = !definesAttributeAndPayload(dataSchema);
+      this.useFlatSchema = !shouldUseNestedSchema(dataSchema);
       this.config =
           new AutoValueSchema().fromRowFunction(TypeDescriptor.of(Config.class)).apply(config);
     }
@@ -190,22 +206,27 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
       return dataSchema;
     }
 
+    private boolean needsSerializer() {
+      return useFlatSchema || !fieldPresent(schema(), PAYLOAD_FIELD, FieldType.BYTES);
+    }
+
     @Override
     public PTransform<PBegin, PCollection<Row>> buildReader() {
       return new PTransform<PBegin, PCollection<Row>>() {
         @Override
         public PCollection<Row> expand(PBegin begin) {
+          PubsubMessageToRow.Builder builder =
+              PubsubMessageToRow.builder()
+                  .messageSchema(dataSchema)
+                  .useDlq(config.useDeadLetterQueue())
+                  .useFlatSchema(useFlatSchema);
+          if (needsSerializer()) {
+            builder.serializerProvider(config::serializer);
+          }
           PCollectionTuple rowsWithDlq =
               begin
                   .apply("ReadFromPubsub", readMessagesWithAttributes())
-                  .apply(
-                      "PubsubMessageToRow",
-                      PubsubMessageToRow.builder()
-                          .messageSchema(dataSchema)
-                          .useDlq(config.useDeadLetterQueue())
-                          .useFlatSchema(useFlatSchema)
-                          .payloadFormat(config.format())
-                          .build());
+                  .apply("PubsubMessageToRow", builder.build());
           rowsWithDlq.get(MAIN_TAG).setRowSchema(dataSchema);
 
           if (config.useDeadLetterQueue()) {
@@ -219,19 +240,31 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     @Override
     public PTransform<PCollection<Row>, POutput> buildWriter() {
-      if (!useFlatSchema) {
-        throw new UnsupportedOperationException(
-            "Writing to a Pubsub topic is only supported for flattened schemas");
-      }
+      @Nullable
+      PayloadSerializer serializer =
+          needsSerializer() ? config.serializer(stripFromTimestampField(dataSchema)) : null;
 
       return new PTransform<PCollection<Row>, POutput>() {
         @Override
         public POutput expand(PCollection<Row> input) {
-          return input
-              .apply(
-                  RowToPubsubMessage.of(
-                      config.useTimestampAttribute(), config.format(), dataSchema))
-              .apply(createPubsubMessageWrite());
+          PCollection<Row> filtered =
+              input.apply(new AddTimestampAttribute(config.useTimestampAttribute()));
+          PCollection<PubsubMessage> transformed;
+          if (useFlatSchema) {
+            transformed =
+                filtered.apply(
+                    "Transform Flat Schema",
+                    MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                        .via(
+                            row ->
+                                new PubsubMessage(serializer.serialize(row), ImmutableMap.of())));
+          } else {
+            transformed =
+                filtered.apply(
+                    "Transform Nested Schema",
+                    MapElements.via(new NestedRowToMessage(serializer, filtered.getSchema())));
+          }
+          return transformed.apply(createPubsubMessageWrite());
         }
       };
     }
@@ -261,11 +294,23 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
           : write;
     }
 
-    private boolean definesAttributeAndPayload(Schema schema) {
-      return fieldPresent(
-              schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR.withNullable(false), VARCHAR))
-          && (schema.hasField(PAYLOAD_FIELD)
-              && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()));
+    private boolean hasValidAttributesField(Schema schema) {
+      return fieldPresent(schema, ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
+          || fieldPresent(schema, ATTRIBUTES_FIELD, ATTRIBUTE_ARRAY_FIELD_TYPE);
+    }
+
+    private boolean hasValidPayloadField(Schema schema) {
+      if (!schema.hasField(PAYLOAD_FIELD)) {
+        return false;
+      }
+      if (fieldPresent(schema, PAYLOAD_FIELD, FieldType.BYTES)) {
+        return true;
+      }
+      return schema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(ROW);
+    }
+
+    private boolean shouldUseNestedSchema(Schema schema) {
+      return hasValidPayloadField(schema) && hasValidAttributesField(schema);
     }
 
     private static boolean fieldPresent(
@@ -274,6 +319,14 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
           && expectedType.equivalent(
               schema.getField(field).getType(), Schema.EquivalenceNullablePolicy.IGNORE);
     }
+  }
+
+  private static Schema stripFromTimestampField(Schema schema) {
+    List<Field> selectedFields =
+        schema.getFields().stream()
+            .filter(field -> !TIMESTAMP_FIELD.equals(field.getName()))
+            .collect(toList());
+    return Schema.of(selectedFields.toArray(new Schema.Field[0]));
   }
 
   @AutoValue
@@ -285,6 +338,14 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     abstract @Nullable String getFormat();
 
+    // For ThriftPayloadSerializerProvider
+    abstract @Nullable String getThriftClass();
+
+    abstract @Nullable String getThriftProtocolFactoryClass();
+
+    // For ProtoPayloadSerializerProvider
+    abstract @Nullable String getProtoClass();
+
     boolean useDeadLetterQueue() {
       return getDeadLetterQueue() != null;
     }
@@ -293,10 +354,19 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
       return getTimestampAttributeKey() != null;
     }
 
-    PayloadFormat format() {
-      return getFormat() == null
-          ? PayloadFormat.JSON
-          : PayloadFormat.valueOf(getFormat().toUpperCase());
+    PayloadSerializer serializer(Schema schema) {
+      String format = getFormat() == null ? "json" : getFormat();
+      ImmutableMap.Builder<String, Object> params = ImmutableMap.builder();
+      if (getThriftClass() != null) {
+        params.put("thriftClass", getThriftClass());
+      }
+      if (getThriftProtocolFactoryClass() != null) {
+        params.put("thriftProtocolFactoryClass", getThriftProtocolFactoryClass());
+      }
+      if (getProtoClass() != null) {
+        params.put("protoClass", getProtoClass());
+      }
+      return PayloadSerializers.getSerializer(format, schema, params.build());
     }
   }
 }

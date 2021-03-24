@@ -44,9 +44,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @Category(UsesKms.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GcsUtilIT {
   /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
   @Test

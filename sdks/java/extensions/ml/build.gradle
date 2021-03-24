@@ -21,25 +21,32 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.ml')
+applyJavaNature(
+    automaticModuleName: 'org.apache.beam.sdk.extensions.ml'
+)
 
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
 dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":sdks:java:expansion-service")
+    permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     compile 'com.google.cloud:google-cloud-dlp:1.1.4'
     compile 'com.google.cloud:google-cloud-language:1.99.4'
+    compile 'com.google.api.grpc:proto-google-cloud-dlp-v2:1.1.4'
+    compile 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
+    compile 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
+    compile 'com.google.api.grpc:proto-google-cloud-vision-v1:1.81.3'
+    compile library.java.auto_value_annotations
+    compile library.java.gax
+    compile library.java.protobuf_java
+    compile library.java.slf4j_api
     provided library.java.junit
     testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
     compile 'com.google.cloud:google-cloud-vision:1.99.3'
     testCompile library.java.mockito_core
-    testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
-    testCompile 'com.google.cloud:google-cloud-dlp:1.1.4'
     testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-    testCompile 'com.google.cloud:google-cloud-language:1.99.4'
-    testCompile 'com.google.cloud:google-cloud-vision:1.99.3'
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }

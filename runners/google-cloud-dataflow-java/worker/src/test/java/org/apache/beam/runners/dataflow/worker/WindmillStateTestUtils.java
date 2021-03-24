@@ -25,9 +25,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 /** Static helpers for testing Windmill state. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class WindmillStateTestUtils {
   /**
    * Assert that no field (including compiler-generated fields) within {@code obj} point back to a

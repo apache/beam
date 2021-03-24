@@ -28,7 +28,6 @@ import gzip
 import logging
 import math
 import os
-import sys
 import tempfile
 import time
 import unittest
@@ -496,12 +495,6 @@ class SnippetsTest(unittest.TestCase):
     def expand(self, pcoll):
       return pcoll | 'DummyWriteForTesting' >> beam.ParDo(
           SnippetsTest.DummyWriteTransform.WriteDoFn(self.file_to_write))
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     self.old_read_from_text = beam.io.ReadFromText
@@ -1247,11 +1240,11 @@ class CombineTest(unittest.TestCase):
           beam.Map(lambda x: beam.window.TimestampedValue(('k', x), x)))
       # [START setting_global_window]
       from apache_beam import window
-      session_windowed_items = (
+      global_windowed_items = (
           items | 'window' >> beam.WindowInto(window.GlobalWindows()))
       # [END setting_global_window]
       summed = (
-          session_windowed_items
+          global_windowed_items
           | 'group' >> beam.GroupByKey()
           | 'combine' >> beam.CombineValues(sum))
       unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])

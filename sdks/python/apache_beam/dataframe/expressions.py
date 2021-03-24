@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import contextlib
 import random
 import threading
@@ -92,9 +90,8 @@ class PartitioningSession(Session):
                    if not is_scalar(arg)):
               results.append(session.evaluate(expr))
 
-          expected_output_partitioning = expr.preserves_partition_by(
-          ) if input_partitioning.is_subpartitioning_of(
-              expr.preserves_partition_by()) else input_partitioning
+          expected_output_partitioning = output_partitioning(
+              expr, input_partitioning)
 
           if not expected_output_partitioning.check(results):
             raise AssertionError(
@@ -116,19 +113,24 @@ class PartitioningSession(Session):
         # the expression is part of a test that relies on the random seed.
         random_state = random.getstate()
 
-        for input_partitioning in set([expr.requires_partition_by(),
-                                       partitionings.Nothing(),
-                                       partitionings.Index(),
-                                       partitionings.Singleton()]):
-          if not input_partitioning.is_subpartitioning_of(
-              expr.requires_partition_by()):
+        result = None
+        # Run with all supported partitionings s.t. the smallest subpartitioning
+        # is used last. This way the final result is computed with the most
+        # challenging partitioning. Avoids heisenbugs where sometimes the result
+        # is computed trivially with Singleton partitioning and passes.
+        for input_partitioning in sorted(set([expr.requires_partition_by(),
+                                              partitionings.Arbitrary(),
+                                              partitionings.Index(),
+                                              partitionings.Singleton()])):
+          if not expr.requires_partition_by().is_subpartitioning_of(
+              input_partitioning):
             continue
 
           random.setstate(random_state)
 
-          # TODO(BEAM-11324): Consider verifying result is always the same
           result = evaluate_with(input_partitioning)
 
+        assert result is not None
         self._bindings[expr] = result
     return self._bindings[expr]
 
@@ -137,11 +139,69 @@ class PartitioningSession(Session):
 T = TypeVar('T')
 
 
+def output_partitioning(expr, input_partitioning):
+  """ Return the expected output partitioning for `expr` when it's input is
+  partitioned by `input_partitioning`.
+
+  For internal use only; No backward compatibility guarantees """
+  assert expr.requires_partition_by().is_subpartitioning_of(input_partitioning)
+
+  if expr.preserves_partition_by().is_subpartitioning_of(input_partitioning):
+    return min(input_partitioning, expr.preserves_partition_by())
+  else:
+    return partitionings.Arbitrary()
+
+
 class Expression(object):
   """An expression is an operation bound to a set of arguments.
 
   An expression represents a deferred tree of operations, which can be
   evaluated at a specific bindings of root expressions to values.
+
+  requires_partition_by indicates the upper bound of a set of partitionings that
+  are acceptable inputs to this expression. The expression should be able to
+  produce the correct result when given input(s) partitioned by its
+  requires_partition_by attribute, or by any partitoning that is _not_
+  a subpartitioning of it.
+
+  preserves_partition_by indicates the upper bound of a set of partitionings
+  that can be preserved by this expression. When the input(s) to this expression
+  are partitioned by preserves_partition_by, or by any partitioning that is
+  _not_ a subpartitioning of it, this expression should produce output(s)
+  partitioned by the same partitioning.
+
+  However, if the partitioning of an expression's input is a subpartitioning of
+  the partitioning that it preserves, the output is presumed to have no
+  particular partitioning (i.e. Arbitrary()).
+
+  For example, let's look at an "element-wise operation", that has no
+  partitioning requirement, and preserves any partitioning given to it::
+
+    requires_partition_by = Arbitrary() -----------------------------+
+                                                                     |
+             +-----------+-------------+---------- ... ----+---------|
+             |           |             |                   |         |
+        Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Arbitrary()
+             |           |             |                   |         |
+             +-----------+-------------+---------- ... ----+---------|
+                                                                     |
+    preserves_partition_by = Arbitrary() ----------------------------+
+
+  As a more interesting example, consider this expression, which requires Index
+  partitioning, and preserves just Singleton partitioning::
+
+    requires_partition_by = Index() -----------------------+
+                                                           |
+             +-----------+-------------+---------- ... ----|
+             |           |             |                   |
+        Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Arbitrary()
+             |
+             |
+    preserves_partition_by = Singleton()
+
+  Note that any non-Arbitrary partitioning is an acceptable input for this
+  expression. However, unless the inputs are Singleton-partitioned, the
+  expression makes no guarantees about the partitioning of the output.
   """
   def __init__(
       self,
@@ -163,9 +223,6 @@ class Expression(object):
   def __eq__(self, other):
     return self._id == other._id
 
-  def __ne__(self, other):
-    return not self == other
-
   def __repr__(self):
     return '%s[%s]' % (self.__class__.__name__, self._id)
 
@@ -180,7 +237,7 @@ class Expression(object):
   def requires_partition_by(self):  # type: () -> partitionings.Partitioning
     """Returns the partitioning, if any, require to evaluate this expression.
 
-    Returns partitioning.Nothing() to require no partitioning is required.
+    Returns partitioning.Arbitrary() to require no partitioning is required.
     """
     raise NotImplementedError(type(self))
 
@@ -220,10 +277,10 @@ class PlaceholderExpression(Expression):
     return session.lookup(self)
 
   def requires_partition_by(self):
-    return partitionings.Nothing()
+    return partitionings.Arbitrary()
 
   def preserves_partition_by(self):
-    return partitionings.Nothing()
+    return partitionings.Index()
 
 
 class ConstantExpression(Expression):
@@ -256,10 +313,10 @@ class ConstantExpression(Expression):
     return self._value
 
   def requires_partition_by(self):
-    return partitionings.Nothing()
+    return partitionings.Arbitrary()
 
   def preserves_partition_by(self):
-    return partitionings.Nothing()
+    return partitionings.Arbitrary()
 
 
 class ComputedExpression(Expression):
@@ -272,7 +329,7 @@ class ComputedExpression(Expression):
       proxy=None,  # type: Optional[T]
       _id=None,  # type: Optional[str]
       requires_partition_by=partitionings.Index(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
   ):
     """Initialize a computed expression.
 
@@ -326,8 +383,8 @@ def elementwise_expression(name, func, args):
       name,
       func,
       args,
-      requires_partition_by=partitionings.Nothing(),
-      preserves_partition_by=partitionings.Singleton())
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Arbitrary())
 
 
 _ALLOW_NON_PARALLEL = threading.local()

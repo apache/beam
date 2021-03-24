@@ -1,0 +1,151 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+@import "media";
+
+.pillars {
+  padding: $pad-l $pad;
+
+  .pillars-title {
+    @extend .component-title;
+
+    text-align: center;
+    border: none;
+  }
+
+  .pillars-content {
+    display: grid;
+    grid-template-columns: 443px 443px;
+    grid-gap: 50px 89px;
+    justify-content: center;
+    margin-top: 84px;
+
+    .pillars-item {
+      display: flex;
+      align-items: center;
+
+      .pillars-item-icon {
+        margin-right: 47px;
+      }
+
+      .pillars-item-description {
+        width: 100%;
+        max-width: 284px;
+
+        .pillars-item-header {
+          @extend .component-header;
+        }
+
+        .pillars-item-text {
+          @extend .component-text;
+        }
+      }
+    }
+  }
+
+  .pillars-social {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-top: 117px;
+
+    .pillars-social-icons {
+      display: flex;
+      align-items: center;
+      margin-bottom: 45px;
+
+      svg {
+        height: 41px;
+        width: auto;
+      }
+
+      #about-twitter-icon {
+        height: 45px;
+      }
+
+      a {
+        filter: grayscale(100%);
+        opacity: 0.7;
+
+        &:hover {
+          filter: grayscale(0);
+          opacity: 1;
+        }
+      }
+
+      .pillars-youtube-icon {
+        margin: 0 80px;
+      }
+    }
+
+    .pillars-social-text {
+      @extend .component-text;
+      max-width: 285px;
+    }
+  }
+}
+
+@media (max-width: $ak-breakpoint-lg) {
+  .pillars {
+    padding: $pad-md $pad-s;
+
+    .pillars-content {
+      grid-template-columns: 330px;
+      grid-column-gap: 47px;
+      margin-top: 62px;
+
+      .pillars-item {
+        align-items: flex-start;
+
+        .pillars-item-icon {
+          margin-right: 17px;
+          margin-top: 12px;
+        }
+
+        svg {
+          width: 64px;
+          height: 64px;
+        }
+      }
+    }
+
+    .pillars-social {
+      margin-top: 91px;
+
+      .pillars-social-icons {
+        svg {
+          height: 34px;
+          width: auto;
+        }
+
+        #about-twitter-icon {
+          height: 37px;
+        }
+
+        a {
+          filter: none;
+          opacity: 1;
+        }
+
+        .pillars-youtube-icon {
+          margin: 0 60px;
+        }
+      }
+    }
+  }
+}

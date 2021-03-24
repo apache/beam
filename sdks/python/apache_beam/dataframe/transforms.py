@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import collections
 from typing import TYPE_CHECKING
 from typing import Any
@@ -173,7 +171,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         if len(tabular_inputs) == 0:
           partitioned_pcoll = next(pcolls.values()).pipeline | beam.Create([{}])
 
-        elif self.stage.partitioning != partitionings.Nothing():
+        elif self.stage.partitioning != partitionings.Arbitrary():
           # Partitioning required for these operations.
           # Compute the number of partitions to use for the inputs based on
           # the estimated size of the inputs.
@@ -257,7 +255,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       """
       def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
-        if len(self.inputs) > 1 and partitioning == partitionings.Nothing():
+        if len(self.inputs) > 1 and partitioning == partitionings.Arbitrary():
           # We have to shuffle to co-locate, might as well partition.
           self.partitioning = partitionings.Index()
         else:
@@ -282,30 +280,42 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                 self.outputs))
 
     # First define some helper functions.
-    def output_is_partitioned_by(expr, stage, partitioning):
-      if partitioning == partitionings.Nothing():
-        # Always satisfied.
-        return True
-      elif stage.partitioning == partitionings.Singleton():
-        # Within a stage, the singleton partitioning is trivially preserved.
-        return True
-      elif expr in stage.inputs:
+    def output_partitioning_in_stage(expr, stage):
+      """Return the output partitioning of expr when computed in stage,
+      or returns None if the expression cannot be computed in this stage.
+      """
+      if expr in stage.inputs or expr in inputs:
         # Inputs are all partitioned by stage.partitioning.
-        return stage.partitioning.is_subpartitioning_of(partitioning)
-      elif expr.preserves_partition_by().is_subpartitioning_of(partitioning):
-        # Here expr preserves at least the requested partitioning; its outputs
-        # will also have this partitioning iff its inputs do.
-        if expr.requires_partition_by().is_subpartitioning_of(partitioning):
-          # If expr requires at least this partitioning, we will arrange such
-          # that its inputs satisfy this.
-          return True
-        else:
-          # Otherwise, recursively check all the inputs.
-          return all(
-              output_is_partitioned_by(arg, stage, partitioning)
-              for arg in expr.args())
-      else:
-        return False
+        return stage.partitioning
+
+      # Anything that's not an input must have arguments
+      assert len(expr.args())
+
+      arg_partitionings = set(
+          output_partitioning_in_stage(arg, stage) for arg in expr.args()
+          if not is_scalar(arg))
+
+      if len(arg_partitionings) == 0:
+        # All inputs are scalars, output partitioning isn't dependent on the
+        # input.
+        return expr.preserves_partition_by()
+
+      if len(arg_partitionings) > 1:
+        # Arguments must be identically partitioned, can't compute this
+        # expression here.
+        return None
+
+      arg_partitioning = arg_partitionings.pop()
+
+      if not expr.requires_partition_by().is_subpartitioning_of(
+          arg_partitioning):
+        # Arguments aren't partitioned sufficiently for this expression
+        return None
+
+      return expressions.output_partitioning(expr, arg_partitioning)
+
+    def is_computable_in_stage(expr, stage):
+      return output_partitioning_in_stage(expr, stage) is not None
 
     def common_stages(stage_lists):
       # Set intersection, with a preference for earlier items in the list.
@@ -331,8 +341,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       required_partitioning = expr.requires_partition_by()
       for stage in common_stages([expr_to_stages(arg) for arg in expr.args()
                                   if arg not in inputs]):
-        if all(output_is_partitioned_by(arg, stage, required_partitioning)
-               for arg in expr.args() if not is_scalar(arg)):
+        if is_computable_in_stage(expr, stage):
           break
       else:
         # Otherwise, compute this expression as part of a new stage.
@@ -391,7 +400,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         expr_stage = expr_to_stage(expr)
         # If the stage doesn't start with a shuffle, it's not safe to fuse
         # the computation into its parent either.
-        has_shuffle = expr_stage.partitioning != partitionings.Nothing()
+        has_shuffle = expr_stage.partitioning != partitionings.Arbitrary()
         # We assume the size of an expression is the sum of the size of its
         # inputs, which may be off by quite a bit, but the goal is to get
         # within an order of magnitude or two.

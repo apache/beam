@@ -45,9 +45,6 @@ import org.mockserver.model.HttpResponse;
 import org.mockserver.verify.VerificationTimes;
 
 /** Unit tests for {@link SplunkEventWriter} class. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SplunkEventWriterTest {
 
   private static final String EXPECTED_PATH = "/" + HttpEventPublisher.HEC_URL_PATH;

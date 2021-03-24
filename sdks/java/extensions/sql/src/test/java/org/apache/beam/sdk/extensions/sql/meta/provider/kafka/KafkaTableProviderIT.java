@@ -36,14 +36,15 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.ItThriftMessage;
 import org.apache.beam.sdk.io.thrift.ThriftCoder;
 import org.apache.beam.sdk.io.thrift.ThriftSchema;
+import org.apache.beam.sdk.io.thrift.payloads.ItThriftMessage;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -74,6 +75,7 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -87,9 +89,6 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Integration Test utility for KafkaTableProvider implementations. */
 @RunWith(Parameterized.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 
@@ -176,6 +175,57 @@ public class KafkaTableProviderIT {
 
     PCollection<Row> queryOutput =
         BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM kafka_table"));
+
+    queryOutput
+        .apply(ParDo.of(new FakeKvPair()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), RowCoder.of(TEST_TABLE_SCHEMA)))
+        .apply(
+            "waitForSuccess",
+            ParDo.of(
+                new StreamAssertEqual(
+                    ImmutableSet.of(generateRow(0), generateRow(1), generateRow(2)))));
+    queryOutput.apply(logRecords(""));
+    pipeline.run();
+    TimeUnit.SECONDS.sleep(4);
+    produceSomeRecords(3);
+
+    for (int i = 0; i < 200; i++) {
+      if (FLAG.getOrDefault(pipeline.getOptions().getOptionsId(), false)) {
+        return;
+      }
+      TimeUnit.MILLISECONDS.sleep(90);
+    }
+    Assert.fail();
+  }
+
+  @Test
+  public void testFakeNested() throws InterruptedException {
+    Assume.assumeFalse(topic.equals("csv_topic"));
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+    String createTableString =
+        String.format(
+            "CREATE EXTERNAL TABLE kafka_table(\n"
+                + "headers ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>,"
+                + "payload ROW<"
+                + "f_long BIGINT NOT NULL, \n"
+                + "f_int INTEGER NOT NULL, \n"
+                + "f_string VARCHAR NOT NULL \n"
+                + ">"
+                + ") \n"
+                + "TYPE 'kafka' \n"
+                + "LOCATION ''\n"
+                + "TBLPROPERTIES '%s'",
+            objectsProvider.getKafkaPropertiesString());
+    TableProvider tb = new KafkaTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.inMemory(tb);
+
+    env.executeDdl(createTableString);
+
+    PCollection<Row> queryOutput =
+        BeamSqlRelUtils.toPCollection(
+            pipeline,
+            env.parseQuery(
+                "SELECT kafka_table.payload.f_long, kafka_table.payload.f_int, kafka_table.payload.f_string FROM kafka_table"));
 
     queryOutput
         .apply(ParDo.of(new FakeKvPair()))
@@ -343,7 +393,7 @@ public class KafkaTableProviderIT {
 
   private static class KafkaProtoObjectProvider extends KafkaObjectProvider {
     private final SimpleFunction<Row, byte[]> toBytesFn =
-        ProtoMessageSchema.getRowToProtoBytesFn(KafkaMessages.ItMessage.class);
+        ProtoMessageSchema.getRowToProtoBytesFn(PayloadMessages.ItMessage.class);
 
     @Override
     protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
@@ -366,7 +416,7 @@ public class KafkaTableProviderIT {
           + kafkaOptions.getKafkaTopic()
           + "\"],"
           + "\"protoClass\": \""
-          + KafkaMessages.ItMessage.class.getName()
+          + PayloadMessages.ItMessage.class.getName()
           + "\"}";
     }
   }

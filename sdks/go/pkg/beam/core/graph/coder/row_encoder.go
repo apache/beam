@@ -196,9 +196,6 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (func(re
 			return nil, err
 		}
 		return func(rv reflect.Value, w io.Writer) error {
-			if rv.Kind() != reflect.Ptr {
-				return fmt.Errorf("expected pointer kind but was %v got type %v, want %v", rv.Kind(), rv.Type(), t)
-			}
 			return encf(rv.Elem(), w)
 		}, nil
 	case reflect.Slice:
@@ -234,14 +231,14 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (func(re
 }
 
 func (b *RowEncoderBuilder) containerEncoderForType(t reflect.Type) (func(reflect.Value, io.Writer) error, error) {
+	encf, err := b.encoderForSingleTypeReflect(t)
+	if err != nil {
+		return nil, err
+	}
 	if t.Kind() == reflect.Ptr {
-		encf, err := b.encoderForSingleTypeReflect(t.Elem())
-		if err != nil {
-			return nil, err
-		}
 		return containerNilEncoder(encf), nil
 	}
-	return b.encoderForSingleTypeReflect(t)
+	return encf, nil
 }
 
 type typeEncoderReflect struct {
@@ -256,9 +253,32 @@ func (b *RowEncoderBuilder) encoderForStructReflect(t reflect.Type) (func(reflec
 		coder.debug = append(coder.debug, t.Field(i).Name+" "+t.Field(i).Type.String())
 		sf := t.Field(i)
 		isUnexported := sf.PkgPath != ""
-		if isUnexported {
+		if sf.Anonymous {
+			ft := sf.Type
+			if ft.Kind() == reflect.Ptr {
+				// If a struct embeds a pointer to an unexported type,
+				// it is not possible to set a newly allocated value
+				// since the field is unexported.
+				//
+				// See https://golang.org/issue/21357
+				//
+				// Since the values are created by this package reflectively,
+				// there's no work around like pre-allocating the field
+				// manually.
+				if isUnexported {
+					return nil, errors.Errorf("cannot make schema encoder for type %v as it has an embedded field of a pointer to an unexported type %v. See https://golang.org/issue/21357", t, ft.Elem())
+				}
+				ft = ft.Elem()
+			}
+			if isUnexported && ft.Kind() != reflect.Struct {
+				// Ignore embedded fields of unexported non-struct types.
+				continue
+			}
+			// Do not ignore embedded fields of unexported struct types
+			// since they may have exported fields.
+		} else if isUnexported {
 			if b.RequireAllFieldsExported {
-				return nil, errors.Errorf("Cannot make schema decoder for type %v as it has unexported fields such as %s.", t, sf.Name)
+				return nil, errors.Errorf("cannot make schema encoder for type %v as it has unexported fields such as %s.", t, sf.Name)
 			}
 			// Silently ignore, since we can't do anything about it.
 			// Add a no-op coder to fill in field index

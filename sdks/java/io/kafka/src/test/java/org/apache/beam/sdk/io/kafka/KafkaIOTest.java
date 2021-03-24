@@ -24,9 +24,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -149,9 +149,6 @@ import org.slf4j.LoggerFactory;
  * specific Kafka version.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KafkaIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTest.class);
@@ -508,50 +505,34 @@ public class KafkaIOTest {
 
   public static class IntegerDeserializerWithHeadersAssertor extends IntegerDeserializer
       implements Deserializer<Integer> {
-    ConsumerSpEL consumerSpEL = null;
 
     @Override
     public Integer deserialize(String topic, byte[] data) {
-      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-      if (consumerSpEL == null) {
-        consumerSpEL = new ConsumerSpEL();
-      }
-      if (consumerSpEL.deserializerSupportsHeaders()) {
-        // Assert we have the default deserializer with headers API in the stack trace for Kafka API
-        // 2.1.0 onwards
-        try {
-          assertEquals(Deserializer.class, Class.forName(stackTraceElements[3].getClassName()));
-          assertEquals("deserialize", stackTraceElements[3].getMethodName());
-        } catch (ClassNotFoundException e) {
-        }
-      } else {
-        assertNotEquals("deserialize", stackTraceElements[3].getMethodName());
-      }
+      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
+      return super.deserialize(topic, data);
+    }
+
+    @Override
+    public Integer deserialize(String topic, Headers headers, byte[] data) {
+      // Overriding the default should trigger header evaluation and this to be called.
+      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
       return super.deserialize(topic, data);
     }
   }
 
   public static class LongDeserializerWithHeadersAssertor extends LongDeserializer
       implements Deserializer<Long> {
-    ConsumerSpEL consumerSpEL = null;
 
     @Override
     public Long deserialize(String topic, byte[] data) {
-      if (consumerSpEL == null) {
-        consumerSpEL = new ConsumerSpEL();
-      }
-      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-      if (consumerSpEL.deserializerSupportsHeaders()) {
-        // Assert we have the default deserializer with headers API in the stack trace for Kafka API
-        // 2.1.0 onwards
-        try {
-          assertEquals(Deserializer.class, Class.forName(stackTraceElements[3].getClassName()));
-          assertEquals("deserialize", stackTraceElements[3].getMethodName());
-        } catch (ClassNotFoundException e) {
-        }
-      } else {
-        assertNotEquals("deserialize", stackTraceElements[3].getMethodName());
-      }
+      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
+      return super.deserialize(topic, data);
+    }
+
+    @Override
+    public Long deserialize(String topic, Headers headers, byte[] data) {
+      // Overriding the default should trigger header evaluation and this to be called.
+      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
       return super.deserialize(topic, data);
     }
   }
@@ -706,6 +687,31 @@ public class KafkaIOTest {
 
     PAssert.thatSingleton(input.apply(Count.globally())).isEqualTo(numElements / 10L);
 
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithWrongTopic() {
+    // Expect an exception when provided Kafka topic doesn't exist.
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(instanceOf(IllegalStateException.class));
+    thrown.expectMessage(
+        "Could not find any partitions info. Please check Kafka configuration and make sure that "
+            + "provided topics exist.");
+
+    int numElements = 1000;
+    KafkaIO.Read<Integer, Long> reader =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("none")
+            .withTopic("wrong_topic") // read from topic that doesn't exist
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of("my_topic"), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withMaxNumRecords(numElements)
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class);
+
+    p.apply(reader.withoutMetadata()).apply(Values.create());
     p.run();
   }
 
@@ -1452,15 +1458,59 @@ public class KafkaIOTest {
     }
   }
 
+  @Test
+  public void testSinkProducerRecordsWithCustomPartition() throws Exception {
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      final String defaultTopic = "test";
+      final Integer partition = 1;
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(ParDo.of(new KV2ProducerRecord(defaultTopic, partition)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      // Verify that messages are written with user-defined timestamp
+      List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
+
+      for (int i = 0; i < numElements; i++) {
+        ProducerRecord<Integer, Long> record = sent.get(i);
+        assertEquals(defaultTopic, record.topic());
+        assertEquals(partition, record.partition());
+        assertEquals(i, record.key().intValue());
+        assertEquals(i, record.value().longValue());
+      }
+    }
+  }
+
   private static class KV2ProducerRecord
       extends DoFn<KV<Integer, Long>, ProducerRecord<Integer, Long>> {
     final String topic;
+    final Integer partition;
     final boolean isSingleTopic;
     final Long ts;
     final SimpleEntry<String, String> header;
 
     KV2ProducerRecord(String topic) {
       this(topic, true);
+    }
+
+    KV2ProducerRecord(String topic, Integer partition) {
+      this(topic, true, null, null, partition);
     }
 
     KV2ProducerRecord(String topic, Long ts) {
@@ -1472,12 +1522,22 @@ public class KafkaIOTest {
     }
 
     KV2ProducerRecord(String topic, boolean isSingleTopic, Long ts) {
-      this(topic, isSingleTopic, ts, null);
+      this(topic, isSingleTopic, ts, null, null);
     }
 
     KV2ProducerRecord(
         String topic, boolean isSingleTopic, Long ts, SimpleEntry<String, String> header) {
+      this(topic, isSingleTopic, ts, header, null);
+    }
+
+    KV2ProducerRecord(
+        String topic,
+        boolean isSingleTopic,
+        Long ts,
+        SimpleEntry<String, String> header,
+        Integer partition) {
       this.topic = topic;
+      this.partition = partition;
       this.isSingleTopic = isSingleTopic;
       this.ts = ts;
       this.header = header;
@@ -1494,14 +1554,16 @@ public class KafkaIOTest {
                     header.getKey(), header.getValue().getBytes(StandardCharsets.UTF_8)));
       }
       if (isSingleTopic) {
-        ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue(), headers));
+        ctx.output(new ProducerRecord<>(topic, partition, ts, kv.getKey(), kv.getValue(), headers));
       } else {
         if (kv.getKey() % 2 == 0) {
           ctx.output(
-              new ProducerRecord<>(topic + "_2", null, ts, kv.getKey(), kv.getValue(), headers));
+              new ProducerRecord<>(
+                  topic + "_2", partition, ts, kv.getKey(), kv.getValue(), headers));
         } else {
           ctx.output(
-              new ProducerRecord<>(topic + "_1", null, ts, kv.getKey(), kv.getValue(), headers));
+              new ProducerRecord<>(
+                  topic + "_1", partition, ts, kv.getKey(), kv.getValue(), headers));
         }
       }
     }
@@ -1597,7 +1659,7 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSourceStartReadTime() {
 
-    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
+    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
 
     int numElements = 1000;
     // In this MockConsumer, we let the elements of the time and offset equal and there are 20
@@ -1621,7 +1683,7 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSourceStartReadTimeException() {
 
-    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
+    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
 
     noMessagesException.expect(RuntimeException.class);
 

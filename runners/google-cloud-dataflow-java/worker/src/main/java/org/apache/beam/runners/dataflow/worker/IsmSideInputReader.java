@@ -56,7 +56,6 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
-import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.sdk.coders.Coder;
@@ -218,14 +217,8 @@ public class IsmSideInputReader implements SideInputReader {
       throw new Exception("unexpected kind of side input: " + sideInputKind);
     }
 
-    SideInputReadCounter sideInputReadCounter;
-    ExperimentContext ec = ExperimentContext.parseFrom(options);
-    if (ec.isEnabled(Experiment.SideInputIOMetrics)) {
-      sideInputReadCounter =
-          new DataflowSideInputReadCounter(executionContext, operationContext, sideInputIndex);
-    } else {
-      sideInputReadCounter = new NoopSideInputReadCounter();
-    }
+    SideInputReadCounter sideInputReadCounter =
+        new DataflowSideInputReadCounter(executionContext, operationContext, sideInputIndex);
 
     ImmutableList.Builder<IsmReader<?>> builder = ImmutableList.builder();
     for (Source source : sideInputInfo.getSources()) {

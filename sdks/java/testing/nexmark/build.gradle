@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-    enableStrictDependencies: true,
     automaticModuleName: 'org.apache.beam.sdk.nexmark',
     exportJavadoc: false,
     archivesBaseName: 'beam-sdks-java-nexmark',
@@ -29,12 +28,15 @@ description = "Apache Beam :: SDKs :: Java :: Nexmark"
 // When running via Gradle, this property can be used to pass commandline arguments
 // to the nexmark launch
 def nexmarkArgsProperty = "nexmark.args"
+// When running via Gradle, this property can be set to "true" to enable profiling for
+// the nexmark pipeline. Currently only works for the Dataflow runner.
+def nexmarkProfilingProperty = "nexmark.profile"
 
 // When running via Gradle, this property sets the runner dependency
 def nexmarkRunnerProperty = "nexmark.runner"
 def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
         ?: ":runners:direct-java"
-def shouldProvideSpark = ":runners:spark".equals(nexmarkRunnerDependency)
+def shouldProvideSpark = ":runners:spark:2".equals(nexmarkRunnerDependency)
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(nexmarkRunnerDependency)
 def runnerConfiguration = ":runners:direct-java".equals(nexmarkRunnerDependency) ? "shadow" : null
 
@@ -70,6 +72,7 @@ dependencies {
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
+  compile library.java.jackson_datatype_joda
   compile library.java.avro
   compile library.java.joda_time
   compile library.java.slf4j_api
@@ -103,13 +106,15 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.10"
+//       Specify a runner subproject, such as ":runners:spark:2" or ":runners:flink:1.10"
 //       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args
 //       Specify the command line for invoking org.apache.beam.sdk.nexmark.Main
 task run(type: JavaExec) {
   def nexmarkArgsStr =  project.findProperty(nexmarkArgsProperty) ?: ""
+  def nexmarkArgsList = new ArrayList<String>()
+  Collections.addAll(nexmarkArgsList, nexmarkArgsStr.split())
 
   if (isDataflowRunner) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
@@ -118,12 +123,16 @@ task run(type: JavaExec) {
     // Provide job with a customizable worker jar.
     // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
     // More context and discussions can be found in PR#6694.
-    nexmarkArgsStr = nexmarkArgsStr +
-          " --dataflowWorkerJar=${dataflowWorkerJar} " +
-          " --workerHarnessContainerImage="
+    nexmarkArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}".toString())
+    nexmarkArgsList.add('--workerHarnessContainerImage=')
+
+    def nexmarkProfile =  project.findProperty(nexmarkProfilingProperty) ?: ""
+    if (nexmarkProfile.equals("true")) {
+      nexmarkArgsList.add('--profilingAgentConfiguration={ "APICurated": true }')
+    }
   }
 
   main = "org.apache.beam.sdk.nexmark.Main"
   classpath = configurations.gradleRun
-  args nexmarkArgsStr.split()
+  args nexmarkArgsList.toArray()
 }

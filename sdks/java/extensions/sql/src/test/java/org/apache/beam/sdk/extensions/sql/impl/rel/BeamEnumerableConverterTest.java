@@ -58,9 +58,6 @@ import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Test for {@code BeamEnumerableConverter}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamEnumerableConverterTest {
   static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
   static RexBuilder rexBuilder = new RexBuilder(TYPE_FACTORY);

@@ -516,6 +516,14 @@ class TypeOptions(PipelineOptions):
         help='Enable faster type checking via sampling at pipeline execution '
         'time. NOTE: only supported with portable runners '
         '(including the DirectRunner)')
+    parser.add_argument(
+        '--allow_non_deterministic_key_coders',
+        default=False,
+        action='store_true',
+        help='Use non-deterministic coders (such as pickling) for key-grouping '
+        'operations such as GropuByKey.  This is unsafe, as runners may group '
+        'keys based on their encoded bytes, but is available for backwards '
+        'compatibility. See BEAM-11719.')
 
   def validate(self, unused_validator):
     errors = []
@@ -665,10 +673,24 @@ class GoogleCloudOptions(PipelineOptions):
         help='Set a Google Cloud KMS key name to be used in '
         'Dataflow state operations (GBK, Streaming).')
     parser.add_argument(
+        '--create_from_snapshot',
+        default=None,
+        help='The snapshot from which the job should be created.')
+    parser.add_argument(
         '--flexrs_goal',
         default=None,
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
+    parser.add_argument(
+        '--service_option',
+        '--service_options',
+        dest='service_options',
+        action='append',
+        default=None,
+        help=(
+            'Options to configure the Dataflow service. These '
+            'options decouple service side feature availbility '
+            'from the Apache Beam release cycle.'))
 
   def _create_default_gcs_bucket(self):
     try:
@@ -1267,7 +1289,8 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--spark_rest_url',
         help='URL for the Spark REST endpoint. '
-        'Only required when using spark_submit_uber_jar.')
+        'Only required when using spark_submit_uber_jar. '
+        'For example, http://hostname:6066')
 
 
 class TestOptions(PipelineOptions):

@@ -59,6 +59,7 @@ from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
+from apache_beam.transforms.core import MapTuple
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.ptransform import PTransform
@@ -216,22 +217,33 @@ class CoGroupByKey(PTransform):
             | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
 
 
-def Keys(label='Keys'):  # pylint: disable=invalid-name
+@ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(K)
+def Keys(pcoll, label='Keys'):  # pylint: disable=invalid-name
   """Produces a PCollection of first elements of 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v: k_v[0])
-
-
-def Values(label='Values'):  # pylint: disable=invalid-name
-  """Produces a PCollection of second elements of 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v1: k_v1[1])
-
-
-def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
-  """Produces a PCollection reversing 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v2: (k_v2[1], k_v2[0]))
+  return pcoll | label >> MapTuple(lambda k, _: k)
 
 
 @ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(V)
+def Values(pcoll, label='Values'):  # pylint: disable=invalid-name
+  """Produces a PCollection of second elements of 2-tuples in a PCollection."""
+  return pcoll | label >> MapTuple(lambda _, v: v)
+
+
+@ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[V, K])
+def KvSwap(pcoll, label='KvSwap'):  # pylint: disable=invalid-name
+  """Produces a PCollection reversing 2-tuples in a PCollection."""
+  return pcoll | label >> MapTuple(lambda k, v: (v, k))
+
+
+@ptransform_fn
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
 def Distinct(pcoll):  # pylint: disable=invalid-name
   """Produces a PCollection containing distinct elements of a PCollection."""
   return (
@@ -243,6 +255,8 @@ def Distinct(pcoll):  # pylint: disable=invalid-name
 
 @deprecated(since='2.12', current='Distinct')
 @ptransform_fn
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
 def RemoveDuplicates(pcoll):
   """Produces a PCollection containing distinct elements of a PCollection."""
   return pcoll | 'RemoveDuplicates' >> Distinct()
@@ -811,12 +825,14 @@ class GroupIntoBatches(PTransform):
     override the default sharding to do a better load balancing during the
     execution time.
     """
-    def __init__(self, batch_size, max_buffering_duration_secs=None):
+    def __init__(
+        self, batch_size, max_buffering_duration_secs=None, clock=time.time):
       """Create a new GroupIntoBatches with sharded output.
       See ``GroupIntoBatches`` transform for a description of input parameters.
       """
       self.params = _GroupIntoBatchesParams(
           batch_size, max_buffering_duration_secs)
+      self.clock = clock
 
     _shard_id_prefix = uuid.uuid4().bytes
 
@@ -836,7 +852,9 @@ class GroupIntoBatches(PTransform):
       return (
           sharded_pcoll
           | GroupIntoBatches(
-              self.params.batch_size, self.params.max_buffering_duration_secs))
+              self.params.batch_size,
+              self.params.max_buffering_duration_secs,
+              self.clock))
 
     def to_runner_api_parameter(
         self,

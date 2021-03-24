@@ -1,12 +1,15 @@
 ---
 title: "Beam Contribution Guide"
+type: "contribute"
+layout: "arrow_template"
 aliases:
- - /contribution-guide/
- - /contribute/contribution-guide/
- - /docs/contribute/
- - /contribute/source-repository/
- - /contribute/design-principles/
+  - /contribution-guide/
+  - /contribute/contribution-guide/
+  - /docs/contribute/
+  - /contribute/source-repository/
+  - /contribute/design-principles/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,15 +24,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Contribution Guide
+# Contribution guide
 
-The Apache Beam community welcomes contributions from anyone!
+<a class="arrow-list-header" data-toggle="collapse" href="#collapseOverview" role="button" aria-expanded="false"        aria-controls="collapseOverview">
+   {{< figure src="/images/arrow-icon_list.svg">}}
 
-If you have questions, please [reach out to the Beam community](/contribute/get-help).
+## Overview
 
-There are lots of opportunities to contribute:
+</a>
 
- - ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
+<div class="collapse dont-collapse-sm" id="collapseOverview">
+
+There are lots of opportunities to contribute. You can for example:
+
+- ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
 [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
  - review proposed design ideas on [dev@beam.apache.org](/community/contact-us/)
  - improve the documentation
@@ -49,16 +57,21 @@ There are lots of opportunities to contribute:
  https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
  - organize local meetups of users or contributors to Apache Beam
 
-Most importantly, if you have an idea of how to contribute, then do it!
+</div>
+
+<a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
+   {{< figure src="/images/arrow-icon_list.svg">}}
 
 ## Contributing code
+
+  </a>
+
+<div class="collapse dont-collapse-sm" id="collapseContributing">
 
 Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.
 
 ### Prerequisites
-
-To contribute code, you need
 
  - a GitHub account
  - a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
@@ -70,6 +83,8 @@ To contribute code, you need
  - for large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
+
+
 
 To install these in a Debian-based distribution:
 
@@ -127,8 +142,7 @@ script which is part of the Beam repo:
 1. Assign the issue to yourself. To get the permission to do so, email
    the [dev@ mailing list](/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
-   ASF Jira Username. For example [this welcome email](
-   https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
+   ASF Jira Username. For example [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
 1. If your change is large or it is your first change, it is a good idea to
    [discuss it on the dev@ mailing list](/community/contact-us/).
 1. For large changes create a design doc
@@ -139,6 +153,13 @@ script which is part of the Beam repo:
 
 1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
    [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
+1. Clone the git repository. You can download it anywhere you like, however for Go development we recommend putting it in your [`$GOPATH`](https://golang.org/doc/gopath_code#GOPATH) (`$HOME/go` by default on Unix systems).
+
+       $ mkdir -p ~/go/src/github.com/apache
+       $ cd ~/go/src/github.com/apache
+       $ git clone https://github.com/apache/beam
+       $ cd beam
+
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
 
        $ ./gradlew projects
@@ -157,11 +178,7 @@ script which is part of the Beam repo:
 
 1. Make sure you can build and run tests
 
-    Run the entire set of tests with:
-
-       $ ./gradlew check
-
-   You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:
+   Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
 
        $ ./gradlew -p sdks/go check
        $ ./gradlew -p sdks/java/io/cassandra check
@@ -232,6 +249,8 @@ script which is part of the Beam repo:
    Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
    then the PR author should help squashing fixup commits to maintain a clean commmit history.
+
+</div>
 
 ## When will my change show up in an Apache Beam release?
 

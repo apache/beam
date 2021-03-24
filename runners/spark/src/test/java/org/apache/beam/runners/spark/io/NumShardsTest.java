@@ -41,9 +41,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Number of shards test. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class NumShardsTest {
 
   private static final String[] WORDS_ARRAY = {

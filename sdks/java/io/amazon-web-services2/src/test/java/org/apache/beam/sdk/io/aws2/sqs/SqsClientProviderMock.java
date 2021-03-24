@@ -20,9 +20,6 @@ package org.apache.beam.sdk.io.aws2.sqs;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 /** Mocking AwsClientProvider. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SqsClientProviderMock implements SqsClientProvider {
 
   private static SqsClientProviderMock instance = new SqsClientProviderMock();
