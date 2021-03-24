@@ -550,8 +550,8 @@ public class PAssert {
     }
 
     /**
-     * Applies one {@link SerializableFunction} to check the elements of each {@code PCollection} in
-     * the {@link #pCollectionList}.
+     * Applies one {@link SerializableFunction} to check the elements of each {@link PCollection} in
+     * the {@link PCollectionList}.
      *
      * <p>Returns this {@code PCollectionListContentsAssert}.
      */
@@ -572,6 +572,12 @@ public class PAssert {
      */
     public PCollectionListContentsAssert<T> satisfies(
         List<SerializableFunction<Iterable<T>, Void>> checkerFnList) {
+      if (checkerFnList == null) {
+        throw new IllegalArgumentException("List of SerializableFunction must not be null");
+      } else if (checkerFnList.size() != pCollectionList.size()) {
+        throw new IllegalArgumentException(
+            "List of SerializableFunction must be the same size as the PCollectionList");
+      }
       for (int i = 0; i < pCollectionList.size(); i++) {
         PAssert.that(pCollectionList.get(i)).satisfies(checkerFnList.get(i));
       }
