@@ -667,9 +667,9 @@ public class PAssertTest implements Serializable {
             });
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
-    String message = thrown.getMessage();
+    String stackTrace = Throwables.getStackTraceAsString(thrown);
 
-    assertThat(message, containsString(expectedAssertionFailMessage));
+    assertThat(stackTrace, containsString(expectedAssertionFailMessage));
   }
 
   @Test
@@ -724,8 +724,8 @@ public class PAssertTest implements Serializable {
                 }));
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
-    String message = thrown.getMessage();
+    String stackTrace = Throwables.getStackTraceAsString(thrown);
 
-    assertThat(message, containsString(expectedAssertionFailMessage));
+    assertThat(stackTrace, containsString(expectedAssertionFailMessage));
   }
 }
