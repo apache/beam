@@ -953,6 +953,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (!experiments.contains("beam_fn_api")) {
         experiments.add("beam_fn_api");
       }
+      if (!experiments.contains("use_portable_job_submission")) {
+        experiments.add("use_portable_job_submission");
+      }
       options.setExperiments(ImmutableList.copyOf(experiments));
     }
 
