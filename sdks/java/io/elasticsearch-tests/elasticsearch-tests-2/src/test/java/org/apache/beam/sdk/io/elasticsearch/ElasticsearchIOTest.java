@@ -202,6 +202,23 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
+  public void testWriteWithAllowedErrors() throws Exception {
+    elasticsearchIOTestCommon.testWriteWithAllowedErrors();
+  }
+
+  @Test
+  public void testWriteWithRouting() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithRouting();
+  }
+
+  @Test
+  public void testWriteWithDocVersion() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithDocVersion();
+  }
+
+  @Test
   public void testReadWithMetadata() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithMetadata();

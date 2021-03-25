@@ -60,6 +60,8 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Allow splitting apart document serialization and IO for ElasticsearchIO
+* Support Bulk API request size optimization through addition of ElasticsearchIO.Write.withStatefulBatches
 
 ## New Features / Improvements
 
