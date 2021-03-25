@@ -235,6 +235,14 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
+      filter {
+        // https://issues.apache.org/jira/browse/BEAM-12039
+        excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode'
+        // https://issues.apache.org/jira/browse/BEAM-12037
+        excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
+        // https://issues.apache.org/jira/browse/BEAM-12038
+        excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+      }
     }
   }
 }
