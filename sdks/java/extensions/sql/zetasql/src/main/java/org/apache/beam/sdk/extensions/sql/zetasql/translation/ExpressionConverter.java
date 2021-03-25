@@ -22,6 +22,7 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BOOL;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BYTES;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCatalog.PRE_DEFINED_WINDOW_FUNCTIONS;
@@ -821,7 +822,7 @@ public class ExpressionConverter {
   private RexNode convertResolvedCast(ResolvedCast resolvedCast, RexNode input) {
     TypeKind fromType = resolvedCast.getExpr().getType().getKind();
     TypeKind toType = resolvedCast.getType().getKind();
-    isCastingSupported(fromType, toType);
+    isCastingSupported(fromType, toType, input);
 
     // nullability of the output type should match that of the input node's type
     RelDataType outputType =
@@ -835,11 +836,36 @@ public class ExpressionConverter {
     }
   }
 
-  private static void isCastingSupported(TypeKind fromType, TypeKind toType) {
+  private static void isCastingSupported(TypeKind fromType, TypeKind toType, RexNode input) {
     if (UNSUPPORTED_CASTING.containsKey(toType)
         && UNSUPPORTED_CASTING.get(toType).contains(fromType)) {
       throw new UnsupportedOperationException(
           "Does not support CAST(" + fromType + " AS " + toType + ")");
+    }
+    if (fromType.equals(TYPE_DOUBLE)
+        && toType.equals(TYPE_NUMERIC)
+        && input instanceof RexLiteral) {
+      BigDecimal value = (BigDecimal) ((RexLiteral) input).getValue();
+      if (value.compareTo(ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MAX_VALUE) > 0) {
+        throw new SqlConversionException(
+            String.format(
+                "Casting %s as %s would cause overflow of literal %s.", fromType, toType, value));
+      }
+      if (value.compareTo(ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MIN_VALUE) < 0) {
+        throw new SqlConversionException(
+            String.format(
+                "Casting %s as %s would cause underflow of literal %s.", fromType, toType, value));
+      }
+      if (value.scale() > ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE) {
+        throw new SqlConversionException(
+            String.format(
+                "Cannot cast %s as %s: scale %d exceeds %d for literal %s.",
+                fromType,
+                toType,
+                value.scale(),
+                ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE,
+                value));
+      }
     }
   }
 
