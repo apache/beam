@@ -224,17 +224,21 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
           .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
     }
 
-    LOG.info("ajamato counterUpdateToMonitoringInfo2 metricUpdate.getStartTime " + metricUpdate.getStartTime() +
-      " " + metricName.toString());
     builder.setStartTime(metricUpdate.getStartTime());
 
     builder.setInt64SumValue(metricUpdate.getUpdate());
 
     MonitoringInfo ret = builder.build();
+
     if (ret == null) {
       LOG.info("ajamato counterUpdateToMonitoringInfo FAILED BUILDER RET NULL" + metricName.toString());
     } else {
       LOG.info("ajamato counterUpdateToMonitoringInfo RET SUCCESS " + metricName.toString());
+      LOG.info("ajamato counterUpdateToMonitoringInfo2" +
+        "metricUpdate.getStartTime " + metricUpdate.getStartTime() +
+        " metricUpdate.getUpdate() " + metricUpdate.getUpdate() +
+        " ret.getPayload() " + ret.getPayload() +
+        " " + metricName.toString());
     }
     return ret;
   }

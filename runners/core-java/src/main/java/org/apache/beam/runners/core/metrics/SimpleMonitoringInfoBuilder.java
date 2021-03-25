@@ -114,6 +114,10 @@ public class SimpleMonitoringInfoBuilder {
    */
   public SimpleMonitoringInfoBuilder setInt64SumValue(long value) {
     this.builder.setPayload(encodeInt64Counter(value));
+    if (this.builder.getUrn().equals(MonitoringInfoConstants.Urns.API_REQUEST_COUNT)) {
+      LOG.info("ajamato SimpleMonitoringInfoBuilder using value: " + value + " as " +
+          encodeInt64Counter(value).toString());
+    }
     this.builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE);
     return this;
   }
