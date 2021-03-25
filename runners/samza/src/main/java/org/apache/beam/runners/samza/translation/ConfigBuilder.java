@@ -254,7 +254,6 @@ public class ConfigBuilder {
     // if config does not contain "stores.beamStore.factory" at this moment,
     // then it is a stateless job.
     if (!config.containsKey(BEAM_STORE_FACTORY)) {
-      options.setStateDurable(false);
       configBuilder.put(
           BEAM_STORE_FACTORY,
           "org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory");
