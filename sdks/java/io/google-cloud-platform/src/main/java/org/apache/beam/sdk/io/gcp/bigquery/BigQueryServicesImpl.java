@@ -875,7 +875,8 @@ class BigQueryServicesImpl implements BigQueryServices {
             LOG.info("ajamato BigQueryServicesImpl0");
 
             HashMap<String, String> baseLabels = new HashMap<String, String>();
-            baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "TODO"); // TODO can we grab this somehow?
+            // TODO can we grab this somehow?
+            baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "TODO");
             baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
             baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
             baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "TODO");

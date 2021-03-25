@@ -26,14 +26,9 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Class implements validation of MonitoringInfos against MonitoringInfoSpecs. */
 public class SpecMonitoringInfoValidator {
-  private static final Logger LOG = LoggerFactory.getLogger(SpecMonitoringInfoValidator.class);
-
-
   protected final MonitoringInfoSpec[] specs;
 
   public SpecMonitoringInfoValidator() {
@@ -55,7 +50,6 @@ public class SpecMonitoringInfoValidator {
     MonitoringInfoSpec spec = null;
 
     if (monitoringInfo.getUrn().isEmpty() || monitoringInfo.getType().isEmpty()) {
-      LOG.info("ajamato counter validation URN OR TYPE MISSING " + monitoringInfo.toString());
       return Optional.of(
           String.format(
               "MonitoringInfo requires both urn %s and type %s to be specified.",
@@ -72,21 +66,18 @@ public class SpecMonitoringInfoValidator {
 
     // Skip checking unknown MonitoringInfos
     if (spec == null) {
-      LOG.info("ajamato counter validation NO SPEC " + monitoringInfo.toString());
       return Optional.empty();
     }
 
     // TODO(ajamato): Tighten this restriction to use set equality, to catch unused
     Set<String> requiredLabels = new HashSet<>(spec.getRequiredLabelsList());
     if (!monitoringInfo.getLabelsMap().keySet().containsAll(requiredLabels)) {
-      LOG.info("ajamato counter validation LABEL MISMATCH " + monitoringInfo.toString());
       return Optional.of(
           String.format(
               "MonitoringInfo with urn: %s should have labels: %s, actual: %s",
               monitoringInfo.getUrn(), requiredLabels, monitoringInfo.getLabelsMap()));
     }
 
-    LOG.info("ajamato counter validation DONE " + monitoringInfo.toString());
     return Optional.empty();
   }
 }

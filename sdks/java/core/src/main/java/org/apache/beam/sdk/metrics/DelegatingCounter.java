@@ -19,20 +19,12 @@ package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 /** Implementation of {@link Counter} that delegates to the instance for the current context. */
 @Internal
 public class DelegatingCounter implements Metric, Counter, Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(DelegatingCounter.class);
-
   private final MetricName name;
   private final boolean processWideContainer;
-
 
   public DelegatingCounter(MetricName name) {
     this(name, false);
@@ -56,13 +48,8 @@ public class DelegatingCounter implements Metric, Counter, Serializable {
         this.processWideContainer
             ? MetricsEnvironment.getProcessWideContainer()
             : MetricsEnvironment.getCurrentContainer();
-    LOG.info("ajamato inc0 this.processWideContainer " + this.processWideContainer +
-      " container " + container);
     if (container != null) {
       container.getCounter(name).inc(n);
-      LOG.info("ajamato inc1 SUCCESSS");
-    } else {
-      LOG.info("ajamato inc1 FAIL");
     }
   }
 
