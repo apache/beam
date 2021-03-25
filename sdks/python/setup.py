@@ -146,7 +146,6 @@ REQUIRED_PACKAGES = [
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.18.0',
-    'mock>=1.0.1,<5.0.0',
     'numpy>=1.14.3,<1.21.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
@@ -167,6 +166,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
+    'mock>=1.0.1',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=1.0,<1.3.0',
