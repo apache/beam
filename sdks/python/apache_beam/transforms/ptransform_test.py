@@ -35,6 +35,7 @@ from builtins import map
 from builtins import range
 from builtins import zip
 from functools import reduce
+from typing import Iterable
 from typing import Optional
 from unittest.mock import patch
 
@@ -2592,6 +2593,8 @@ def _sort_lists(result):
     return tuple(_sort_lists(e) for e in result)
   elif isinstance(result, dict):
     return {k: _sort_lists(v) for k, v in result.items()}
+  elif isinstance(result, Iterable) and not isinstance(result, str):
+    return sorted(result)
   else:
     return result
 
