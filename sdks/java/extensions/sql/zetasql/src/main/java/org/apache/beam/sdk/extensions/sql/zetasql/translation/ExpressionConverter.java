@@ -855,12 +855,12 @@ public class ExpressionConverter {
         && toType.equals(TYPE_NUMERIC)
         && input instanceof RexLiteral) {
       BigDecimal value = (BigDecimal) ((RexLiteral) input).getValue();
-      if (value.compareTo(MAX_NUMERIC_VALUE) == 1) {
+      if (value.compareTo(MAX_NUMERIC_VALUE) > 0) {
         throw new SqlConversionException(
             String.format(
                 "Casting %s as %s would cause overflow of literal %s.", fromType, toType, value));
       }
-      if (value.compareTo(MIN_NUMERIC_VALUE) == -1) {
+      if (value.compareTo(MIN_NUMERIC_VALUE) < 0) {
         throw new SqlConversionException(
             String.format(
                 "Casting %s as %s would cause underflow of literal %s.", fromType, toType, value));
