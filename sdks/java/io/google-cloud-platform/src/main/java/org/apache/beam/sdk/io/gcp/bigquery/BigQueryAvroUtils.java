@@ -330,7 +330,7 @@ class BigQueryAvroUtils {
         return ((Long) v).toString();
       case "FLOAT":
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
-        return v;
+        return v.toString();
       case "NUMERIC":
       case "BIGNUMERIC":
         // NUMERIC data types are represented as BYTES with the DECIMAL logical type. They are
@@ -345,7 +345,7 @@ class BigQueryAvroUtils {
       case "BOOL":
       case "BOOLEAN":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
-        return v;
+        return v.toString();
       case "TIMESTAMP":
         // TIMESTAMP data types are represented as Avro LONG types, microseconds since the epoch.
         // Values may be negative since BigQuery timestamps start at 0001-01-01 00:00:00 UTC.

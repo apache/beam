@@ -304,11 +304,7 @@ public class BigQueryUtilsTest {
       Row.withSchema(MAP_MAP_TYPE).addValues(ImmutableMap.of("test", 123.456)).build();
 
   private static final TableRow BQ_ARRAY_ROW =
-      new TableRow()
-          .set(
-              "ids",
-              Arrays.asList(
-                  Collections.singletonMap("v", "123"), Collections.singletonMap("v", "124")));
+      new TableRow().set("ids", Arrays.asList("123", "124"));
 
   private static final Row ROW_ROW = Row.withSchema(ROW_TYPE).addValues(FLAT_ROW).build();
 
@@ -318,8 +314,7 @@ public class BigQueryUtilsTest {
       Row.withSchema(ARRAY_ROW_TYPE).addValues((Object) Arrays.asList(FLAT_ROW)).build();
 
   private static final TableRow BQ_ARRAY_ROW_ROW =
-      new TableRow()
-          .set("rows", Collections.singletonList(Collections.singletonMap("v", BQ_FLAT_ROW)));
+      new TableRow().set("rows", Collections.singletonList(BQ_FLAT_ROW));
 
   private static final TableSchema BQ_FLAT_TYPE =
       new TableSchema()

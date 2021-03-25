@@ -37,6 +37,8 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -426,7 +428,13 @@ public class BigQueryIOReadTest implements Serializable {
             .setFields(
                 ImmutableList.of(
                     new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER"))));
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("boolean").setType("BOOLEAN"),
+                    new TableFieldSchema().setName("double").setType("FLOAT"),
+                    new TableFieldSchema()
+                        .setName("listOfStrings")
+                        .setType("STRING")
+                        .setMode("REPEATED"))));
     someTable.setTableReference(
         new TableReference()
             .setProjectId("non-executing-project")
@@ -439,9 +447,24 @@ public class BigQueryIOReadTest implements Serializable {
 
     List<TableRow> records =
         Lists.newArrayList(
-            new TableRow().set("name", "a").set("number", 1L),
-            new TableRow().set("name", "b").set("number", 2L),
-            new TableRow().set("name", "c").set("number", 3L));
+            new TableRow()
+                .set("name", "a")
+                .set("number", 1L)
+                .set("boolean", true)
+                .set("double", 1.0d)
+                .set("listOfStrings", Arrays.asList("list", "of", "strings")),
+            new TableRow()
+                .set("name", "b")
+                .set("number", 2L)
+                .set("boolean", false)
+                .set("double", 2.0d)
+                .set("listOfStrings", Collections.emptyList()),
+            new TableRow()
+                .set("name", "c")
+                .set("number", 3L)
+                .set("boolean", true)
+                .set("double", 3.0d)
+                .set("listOfStrings", Collections.emptyList()));
 
     fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
 
@@ -462,16 +485,26 @@ public class BigQueryIOReadTest implements Serializable {
     Schema expectedSchema =
         Schema.of(
             Schema.Field.of("name", Schema.FieldType.STRING).withNullable(true),
-            Schema.Field.of("number", Schema.FieldType.INT64).withNullable(true));
+            Schema.Field.of("number", Schema.FieldType.INT64).withNullable(true),
+            Schema.Field.of("boolean", Schema.FieldType.BOOLEAN).withNullable(true),
+            Schema.Field.of("double", Schema.FieldType.DOUBLE).withNullable(true),
+            Schema.Field.of("listOfStrings", Schema.FieldType.array(Schema.FieldType.STRING)));
     assertEquals(expectedSchema, bqRows.getSchema());
 
-    PCollection<Row> output = bqRows.apply(Select.fieldNames("name", "number"));
+    PCollection<Row> output =
+        bqRows.apply(Select.fieldNames("name", "number", "boolean", "double", "listOfStrings"));
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(
-                Row.withSchema(expectedSchema).addValues("a", 1L).build(),
-                Row.withSchema(expectedSchema).addValues("b", 2L).build(),
-                Row.withSchema(expectedSchema).addValues("c", 3L).build()));
+                Row.withSchema(expectedSchema)
+                    .addValues("a", 1L, true, 1.0d, Arrays.asList("list", "of", "strings"))
+                    .build(),
+                Row.withSchema(expectedSchema)
+                    .addValues("b", 2L, false, 2.0d, Collections.emptyList())
+                    .build(),
+                Row.withSchema(expectedSchema)
+                    .addValues("c", 3L, true, 3.0d, Collections.emptyList())
+                    .build()));
 
     p.run();
   }
