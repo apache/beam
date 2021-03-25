@@ -70,7 +70,10 @@ public class BigQueryAvroUtilsTest {
           new TableFieldSchema().setName("quantity").setType("INTEGER") /* default to NULLABLE */,
           new TableFieldSchema().setName("birthday").setType("TIMESTAMP").setMode("NULLABLE"),
           new TableFieldSchema().setName("birthdayMoney").setType("NUMERIC").setMode("NULLABLE"),
-          new TableFieldSchema().setName("lotteryWinnings").setType("BIGNUMERIC").setMode("NULLABLE"),
+          new TableFieldSchema()
+              .setName("lotteryWinnings")
+              .setType("BIGNUMERIC")
+              .setMode("NULLABLE"),
           new TableFieldSchema().setName("flighted").setType("BOOLEAN").setMode("NULLABLE"),
           new TableFieldSchema().setName("sound").setType("BYTES").setMode("NULLABLE"),
           new TableFieldSchema().setName("anniversaryDate").setType("DATE").setMode("NULLABLE"),
@@ -100,7 +103,9 @@ public class BigQueryAvroUtilsTest {
     // type. AvroCoder can't apply logical types to Schemas directly, so we need to get the
     // Schema for the Bird class defined below, then replace the field used to test NUMERIC with
     // a field that has the appropriate Schema.
-    BigDecimal bigDecimal = new BigDecimal("578960446186580977117854925043439539266.34992332820282019728792003956564819967");
+    BigDecimal bigDecimal =
+        new BigDecimal(
+            "578960446186580977117854925043439539266.34992332820282019728792003956564819967");
     Schema bigDecimalSchema = Schema.create(Type.BYTES);
     LogicalType bigDecimalLogicalType =
         LogicalTypes.decimal(bigDecimal.precision(), bigDecimal.scale());
@@ -121,8 +126,7 @@ public class BigQueryAvroUtilsTest {
         // birthdayMoney  and lotteryWinnings are nullable field with type BYTES/DECIMAL.
         schema =
             Schema.createUnion(
-                Schema.create(Type.NULL),
-                bigDecimalLogicalType.addToSchema(bigDecimalSchema));
+                Schema.create(Type.NULL), bigDecimalLogicalType.addToSchema(bigDecimalSchema));
       }
       // After a Field is added to a Schema, it is assigned a position, so we can't simply reuse
       // the existing Field.
