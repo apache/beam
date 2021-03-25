@@ -435,6 +435,9 @@ public class DataflowPipelineTranslator {
       if (options.getDataflowKmsKey() != null) {
         environment.setServiceKmsKeyName(options.getDataflowKmsKey());
       }
+      if (options.getHotKeyLoggingEnabled()) {
+        job.getEnvironment().getDebugOptions().setHotKeyLoggingEnabled(true);
+      }
 
       pipeline.traverseTopologically(this);
       return job;

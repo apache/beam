@@ -1072,10 +1072,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     newJob.getEnvironment().setExperiments(experiments);
 
-    if (dataflowOptions.isHotKeyLoggingEnabled()) {
-      newJob.getEnvironment().getDebugOptions().setHotKeyLoggingEnabled(true);
-    }
-
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
     // Container Registry. Translator is guaranteed to create a worker pool prior to this point.
     String workerHarnessContainerImage = getContainerImageForJob(options);
