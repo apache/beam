@@ -425,7 +425,6 @@ class TestParquet(unittest.TestCase):
         pa.Table.from_batches([batch], schema=self.SCHEMA96)
         for batch in orig.to_batches(chunksize=20)
     ]
-    self.maxDiff = None
     self._run_parquet_test(file_name, None, None, False, expected_result)
 
   def test_split_points(self):
