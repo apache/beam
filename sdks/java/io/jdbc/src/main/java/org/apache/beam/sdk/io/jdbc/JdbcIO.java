@@ -903,6 +903,9 @@ public class JdbcIO {
       if (connection == null) {
         connection = dataSource.getConnection();
       }
+      // PostgreSQL requires autocommit to be disabled to enable cursor streaming
+      // see https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
+      connection.setAutoCommit(false);
       try (PreparedStatement statement =
           connection.prepareStatement(
               query.get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
