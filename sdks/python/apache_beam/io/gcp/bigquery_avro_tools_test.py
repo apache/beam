@@ -86,28 +86,33 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
 
     # Test that schema can be parsed correctly by avro
     parsed_schema = Parse(json.dumps(avro_schema))
-    field_map = getattr(parsed_schema, "field_map", None)
 
-    self.assertEqual(field_map["number"].type, Parse(json.dumps("long")))
     self.assertEqual(
-        field_map["species"].type, Parse(json.dumps(["null", "string"])))
+        parsed_schema.field_map["number"].type, Parse(json.dumps("long")))
     self.assertEqual(
-        field_map["quality"].type, Parse(json.dumps(["null", "double"])))
+        parsed_schema.field_map["species"].type,
+        Parse(json.dumps(["null", "string"])))
     self.assertEqual(
-        field_map["grade"].type, Parse(json.dumps(["null", "double"])))
+        parsed_schema.field_map["quality"].type,
+        Parse(json.dumps(["null", "double"])))
     self.assertEqual(
-        field_map["quantity"].type, Parse(json.dumps(["null", "long"])))
+        parsed_schema.field_map["grade"].type,
+        Parse(json.dumps(["null", "double"])))
     self.assertEqual(
-        field_map["dependents"].type, Parse(json.dumps(["null", "long"])))
+        parsed_schema.field_map["quantity"].type,
+        Parse(json.dumps(["null", "long"])))
     self.assertEqual(
-        field_map["birthday"].type,
+        parsed_schema.field_map["dependents"].type,
+        Parse(json.dumps(["null", "long"])))
+    self.assertEqual(
+        parsed_schema.field_map["birthday"].type,
         Parse(
             json.dumps(
                 ["null", {
                     "type": "long", "logicalType": "timestamp-micros"
                 }])))
     self.assertEqual(
-        field_map["birthdayMoney"].type,
+        parsed_schema.field_map["birthdayMoney"].type,
         Parse(
             json.dumps([
                 "null",
@@ -119,31 +124,35 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
                 }
             ])))
     self.assertEqual(
-        field_map["flighted"].type, Parse(json.dumps(["null", "boolean"])))
+        parsed_schema.field_map["flighted"].type,
+        Parse(json.dumps(["null", "boolean"])))
     self.assertEqual(
-        field_map["flighted2"].type, Parse(json.dumps(["null", "boolean"])))
+        parsed_schema.field_map["flighted2"].type,
+        Parse(json.dumps(["null", "boolean"])))
     self.assertEqual(
-        field_map["sound"].type, Parse(json.dumps(["null", "bytes"])))
+        parsed_schema.field_map["sound"].type,
+        Parse(json.dumps(["null", "bytes"])))
     self.assertEqual(
-        field_map["anniversaryDate"].type,
+        parsed_schema.field_map["anniversaryDate"].type,
         Parse(json.dumps(["null", {
             "type": "int", "logicalType": "date"
         }])))
     self.assertEqual(
-        field_map["anniversaryDatetime"].type,
+        parsed_schema.field_map["anniversaryDatetime"].type,
         Parse(json.dumps(["null", "string"])))
     self.assertEqual(
-        field_map["anniversaryTime"].type,
+        parsed_schema.field_map["anniversaryTime"].type,
         Parse(
             json.dumps(["null", {
                 "type": "long", "logicalType": "time-micros"
             }])))
     self.assertEqual(
-        field_map["geoPositions"].type, Parse(json.dumps(["null", "string"])))
+        parsed_schema.field_map["geoPositions"].type,
+        Parse(json.dumps(["null", "string"])))
 
     for field in ("scion", "family"):
       self.assertEqual(
-          field_map[field].type,
+          parsed_schema.field_map[field].type,
           Parse(
               json.dumps([
                   "null",
@@ -163,7 +172,7 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
               ])))
 
     self.assertEqual(
-        field_map["associates"].type,
+        parsed_schema.field_map["associates"].type,
         Parse(
             json.dumps({
                 "type": "array",
