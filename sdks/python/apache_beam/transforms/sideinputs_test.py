@@ -220,8 +220,7 @@ class SideInputsTest(unittest.TestCase):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create(['A', 'B'])
     side = pipeline | 'side' >> beam.Create(expected_side)
-    _ = pcol | 'check' >> beam.Map(
-        check_reiteration, beam.pvalue.AsIter(side))
+    _ = pcol | 'check' >> beam.Map(check_reiteration, beam.pvalue.AsIter(side))
     pipeline.run()
 
   @attr('ValidatesRunner')
