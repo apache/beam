@@ -164,15 +164,6 @@ public class ExpressionConverter {
           + " The date_part includes: "
           + INTERVAL_DATE_PART_MSG;
 
-  // Maximum and minimum allowed values for the NUMERIC/DECIMAL data type.
-  // https://github.com/google/zetasql/blob/master/docs/data-types.md#decimal-type
-  private static final BigDecimal MAX_NUMERIC_VALUE =
-      new BigDecimal("99999999999999999999999999999.999999999");
-  private static final BigDecimal MIN_NUMERIC_VALUE =
-      new BigDecimal("-99999999999999999999999999999.999999999");
-  // Number of digits after the decimal point supported by the NUMERIC data type.
-  private static final int NUMERIC_SCALE = 9;
-
   private final RelOptCluster cluster;
   private final QueryParameters queryParams;
   private int nullParamCount = 0;
@@ -855,21 +846,25 @@ public class ExpressionConverter {
         && toType.equals(TYPE_NUMERIC)
         && input instanceof RexLiteral) {
       BigDecimal value = (BigDecimal) ((RexLiteral) input).getValue();
-      if (value.compareTo(MAX_NUMERIC_VALUE) > 0) {
+      if (value.compareTo(ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MAX_VALUE) > 0) {
         throw new SqlConversionException(
             String.format(
                 "Casting %s as %s would cause overflow of literal %s.", fromType, toType, value));
       }
-      if (value.compareTo(MIN_NUMERIC_VALUE) < 0) {
+      if (value.compareTo(ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MIN_VALUE) < 0) {
         throw new SqlConversionException(
             String.format(
                 "Casting %s as %s would cause underflow of literal %s.", fromType, toType, value));
       }
-      if (value.scale() > NUMERIC_SCALE) {
+      if (value.scale() > ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE) {
         throw new SqlConversionException(
             String.format(
                 "Cannot cast %s as %s: scale %d exceeds %d for literal %s.",
-                fromType, toType, value.scale(), NUMERIC_SCALE, value));
+                fromType,
+                toType,
+                value.scale(),
+                ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE,
+                value));
       }
     }
   }

@@ -637,8 +637,8 @@ public class ZetaSqlMathFunctionsTest extends ZetaSqlTestBase {
                     ZetaSqlTypesUtils.bigDecimalAsNumeric("-0.54321"),
                     ZetaSqlTypesUtils.bigDecimalAsNumeric("123456"),
                     ZetaSqlTypesUtils.bigDecimalAsNumeric("-0.009876"),
-                    ZetaSqlTypesUtils.NUMERIC_MIN_VALUE,
-                    ZetaSqlTypesUtils.NUMERIC_MAX_VALUE)
+                    ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MAX_VALUE,
+                    ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MIN_VALUE)
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
