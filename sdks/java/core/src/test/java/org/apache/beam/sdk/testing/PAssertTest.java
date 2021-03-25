@@ -611,6 +611,24 @@ public class PAssertTest implements Serializable {
     PAssert.thatFlattened("Reason", collectionList).containsInAnyOrder(1, 2, 3, 4, 5, 6);
   }
 
+  /** Test that we throw an error for false assertion on flattened. */
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertThatFlattenedFalse() throws Exception {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatFlattened(collectionList).containsInAnyOrder(7);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("Expected: iterable with items [<7>] in any order"));
+  }
+
   @Test
   public void testPAssertThatListSatisfiesOneMatcher() {
     PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
@@ -627,6 +645,29 @@ public class PAssertTest implements Serializable {
               }
               return null;
             });
+  }
+
+  @Test
+  public void testPAssertThatListSatisfiesOneMatcherFalse() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatList(collectionList)
+        .satisfies(
+            input -> {
+              for (Integer element : input) {
+                assertTrue(element < 0);
+              }
+              return null;
+            });
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("Expected:"));
   }
 
   @Test
@@ -652,5 +693,35 @@ public class PAssertTest implements Serializable {
                   }
                   return null;
                 }));
+  }
+
+  @Test
+  public void testPAssertThatListSatisfiesMultipleMatchersFalse() {
+    PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+    PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
+
+    PCollectionList<Integer> collectionList =
+        PCollectionList.of(firstCollection).and(secondCollection);
+
+    PAssert.thatList(collectionList)
+        .satisfies(
+            ImmutableList.of(
+                input -> {
+                  for (Integer element : input) {
+                    assertTrue(element < 4);
+                  }
+                  return null;
+                },
+                input -> {
+                  for (Integer element : input) {
+                    assertTrue(element < 7);
+                  }
+                  return null;
+                }));
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("Expected:"));
   }
 }
