@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +80,12 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     MetricsEnvironment.setMetricsSupported(true);
 
+    final String flinkVersion = EnvironmentInformation.getVersion();
+    if (flinkVersion.startsWith("1.8") || flinkVersion.startsWith("1.9")) {
+      LOG.warn(
+          "You are running Flink {}. Support for Flink 1.8.x and 1.9.x will be removed from Beam in version 2.30.0. Please consider upgrading to a more recent Flink version.",
+          flinkVersion);
+    }
     LOG.info("Executing pipeline using FlinkRunner.");
 
     if (!options.getFasterCopy()) {
