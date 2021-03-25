@@ -50,15 +50,12 @@ https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA
   for further details.
 """
 
-from __future__ import absolute_import
-
 import logging
 import os
 import typing
 import unittest
 
 from nose.plugins.attrib import attr
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -94,7 +91,7 @@ class CrossLanguageTestPipelines(object):
     with pipeline as p:
       res = (
           p
-          | beam.Create(['a', 'b']).with_output_types(unicode)
+          | beam.Create(['a', 'b']).with_output_types(str)
           | beam.ExternalTransform(
               TEST_PREFIX_URN,
               ImplicitSchemaPayloadBuilder({'data': u'0'}),
@@ -113,10 +110,10 @@ class CrossLanguageTestPipelines(object):
     """
     with pipeline as p:
       main1 = p | 'Main1' >> beam.Create(
-          ['a', 'bb'], reshuffle=False).with_output_types(unicode)
+          ['a', 'bb'], reshuffle=False).with_output_types(str)
       main2 = p | 'Main2' >> beam.Create(
-          ['x', 'yy', 'zzz'], reshuffle=False).with_output_types(unicode)
-      side = p | 'Side' >> beam.Create(['s']).with_output_types(unicode)
+          ['x', 'yy', 'zzz'], reshuffle=False).with_output_types(str)
+      side = p | 'Side' >> beam.Create(['s']).with_output_types(str)
       res = dict(
           main1=main1, main2=main2, side=side) | beam.ExternalTransform(
               TEST_MULTI_URN, None, self.expansion_service)
@@ -138,7 +135,7 @@ class CrossLanguageTestPipelines(object):
           p
           | beam.Create([(0, "1"), (0, "2"),
                          (1, "3")], reshuffle=False).with_output_types(
-                             typing.Tuple[int, unicode])
+                             typing.Tuple[int, str])
           | beam.ExternalTransform(TEST_GBK_URN, None, self.expansion_service)
           | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1])))))
       assert_that(res, equal_to(['0:1,2', '1:3']))
@@ -156,10 +153,10 @@ class CrossLanguageTestPipelines(object):
     with pipeline as p:
       col1 = p | 'create_col1' >> beam.Create(
           [(0, "1"), (0, "2"), (1, "3")], reshuffle=False).with_output_types(
-              typing.Tuple[int, unicode])
+              typing.Tuple[int, str])
       col2 = p | 'create_col2' >> beam.Create(
           [(0, "4"), (1, "5"), (1, "6")], reshuffle=False).with_output_types(
-              typing.Tuple[int, unicode])
+              typing.Tuple[int, str])
       res = (
           dict(col1=col1, col2=col2)
           | beam.ExternalTransform(TEST_CGBK_URN, None, self.expansion_service)
@@ -197,8 +194,8 @@ class CrossLanguageTestPipelines(object):
     with pipeline as p:
       res = (
           p
-          | beam.Create([('a', 1), ('a', 2), ('b', 3)]).with_output_types(
-              typing.Tuple[unicode, int])
+          | beam.Create([('a', 1), ('a', 2),
+                         ('b', 3)]).with_output_types(typing.Tuple[str, int])
           | beam.ExternalTransform(
               TEST_COMPK_URN, None, self.expansion_service))
       assert_that(res, equal_to([('a', 3), ('b', 3)]))

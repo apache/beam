@@ -19,9 +19,6 @@
 
 """a collection of ptransforms for deduplicating elements."""
 
-from __future__ import absolute_import
-from __future__ import division
-
 import typing
 
 from apache_beam import typehints
