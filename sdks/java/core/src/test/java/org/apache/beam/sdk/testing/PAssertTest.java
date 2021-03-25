@@ -622,8 +622,8 @@ public class PAssertTest implements Serializable {
         PCollectionList.of(firstCollection).and(secondCollection);
 
     PAssert.thatFlattened(collectionList).containsInAnyOrder(7);
-
     Throwable thrown = runExpectingAssertionFailure(pipeline);
+
     String message = thrown.getMessage();
 
     assertThat(message, containsString("Expected: iterable with items [<7>] in any order"));
@@ -655,11 +655,13 @@ public class PAssertTest implements Serializable {
     PCollectionList<Integer> collectionList =
         PCollectionList.of(firstCollection).and(secondCollection);
 
+    String expectedAssertionFailMessage = "Elements should be less than 0";
+
     PAssert.thatList(collectionList)
         .satisfies(
             input -> {
               for (Integer element : input) {
-                assertTrue(element < 0);
+                assertTrue(expectedAssertionFailMessage, element < 0);
               }
               return null;
             });
@@ -667,7 +669,7 @@ public class PAssertTest implements Serializable {
     Throwable thrown = runExpectingAssertionFailure(pipeline);
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("Expected:"));
+    assertThat(message, containsString(expectedAssertionFailMessage));
   }
 
   @Test
@@ -703,18 +705,20 @@ public class PAssertTest implements Serializable {
     PCollectionList<Integer> collectionList =
         PCollectionList.of(firstCollection).and(secondCollection);
 
+    String expectedAssertionFailMessage = "Elements should be less than 0";
+
     PAssert.thatList(collectionList)
         .satisfies(
             ImmutableList.of(
                 input -> {
                   for (Integer element : input) {
-                    assertTrue(element < 4);
+                    assertTrue(expectedAssertionFailMessage, element < 0);
                   }
                   return null;
                 },
                 input -> {
                   for (Integer element : input) {
-                    assertTrue(element < 7);
+                    assertTrue(expectedAssertionFailMessage, element < 0);
                   }
                   return null;
                 }));
@@ -722,6 +726,6 @@ public class PAssertTest implements Serializable {
     Throwable thrown = runExpectingAssertionFailure(pipeline);
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("Expected:"));
+    assertThat(message, containsString(expectedAssertionFailMessage));
   }
 }
