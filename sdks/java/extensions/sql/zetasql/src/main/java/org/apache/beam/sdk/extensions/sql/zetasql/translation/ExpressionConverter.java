@@ -856,17 +856,17 @@ public class ExpressionConverter {
         && input instanceof RexLiteral) {
       BigDecimal value = (BigDecimal) ((RexLiteral) input).getValue();
       if (value.compareTo(MAX_NUMERIC_VALUE) == 1) {
-        throw new UnsupportedOperationException(
+        throw new SqlConversionException(
             String.format(
                 "Casting %s as %s would cause overflow of literal %s.", fromType, toType, value));
       }
       if (value.compareTo(MIN_NUMERIC_VALUE) == -1) {
-        throw new UnsupportedOperationException(
+        throw new SqlConversionException(
             String.format(
                 "Casting %s as %s would cause underflow of literal %s.", fromType, toType, value));
       }
       if (value.scale() > NUMERIC_SCALE) {
-        throw new UnsupportedOperationException(
+        throw new SqlConversionException(
             String.format(
                 "Cannot cast %s as %s: scale %d exceeds %d for literal %s.",
                 fromType, toType, value.scale(), NUMERIC_SCALE, value));
