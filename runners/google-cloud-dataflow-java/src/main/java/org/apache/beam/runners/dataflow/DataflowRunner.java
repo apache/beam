@@ -991,7 +991,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     RunnerApi.Pipeline portablePipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
-    LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
+    LOG.info("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
     // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
     // the options on the new job
     // TODO: add an explicit `pipeline` parameter to the submission instead of pipeline options
@@ -1013,7 +1013,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .build());
     RunnerApi.Pipeline dataflowV1PipelineProto =
         PipelineTranslation.toProto(pipeline, dataflowV1Components, true);
-    LOG.debug("Dataflow v1 pipeline proto:\n{}", TextFormat.printToString(dataflowV1PipelineProto));
+    LOG.info("Dataflow v1 pipeline proto:\n{}", TextFormat.printToString(dataflowV1PipelineProto));
     List<DataflowPackage> packages = stageArtifacts(dataflowV1PipelineProto);
 
     // Set a unique client_request_id in the CreateJob request.
@@ -1205,6 +1205,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     Job jobResult;
     try {
+      LOG.info("v1beta3 job: {}", newJob.toPrettyString());
       jobResult = dataflowClient.createJob(newJob);
     } catch (GoogleJsonResponseException e) {
       String errorMessages = "Unexpected errors";
