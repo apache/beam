@@ -39,7 +39,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_DataflowV2', 'Run PostC
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":runners:google-cloud-dataflow-java:postCommit")
+          tasks(":runners:google-cloud-dataflow-java:postCommitRunnerV2")
           commonJobProperties.setGradleSwitches(delegate)
           // Specify maven home on Jenkins, needed by Maven archetype integration tests.
           switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
