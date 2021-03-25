@@ -22,9 +22,12 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
@@ -82,7 +85,16 @@ public class SamzaJobServerDriver {
               @Nullable String retrievalToken,
               ListeningExecutorService executorService)
               throws IOException {
-            return new SamzaJobInvocation(pipeline, pipelineOptions);
+            SamzaPipelineRunner pipelineRunner = new SamzaPipelineRunner(pipelineOptions);
+            String invocationId =
+                String.format("%s_%s", pipelineOptions.getJobName(), UUID.randomUUID().toString());
+            JobInfo jobInfo =
+                JobInfo.create(
+                    invocationId,
+                    pipelineOptions.getJobName(),
+                    retrievalToken,
+                    PipelineOptionsTranslation.toProto(pipelineOptions));
+            return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
           }
         };
     return InMemoryJobService.create(
