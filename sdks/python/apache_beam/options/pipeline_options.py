@@ -696,8 +696,8 @@ class GoogleCloudOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='When true, will enable the direct logging of any detected hot '
-        'keys into Cloud Logging. Warning: this will log the literal key as a '
-        'string.')
+        'keys into Cloud Logging. Warning: this will log the literal key as an '
+        'unobfuscated string.')
 
   def _create_default_gcs_bucket(self):
     try:
