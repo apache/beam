@@ -647,7 +647,9 @@ public class PAssertTest implements Serializable {
             });
   }
 
+  /** Test that we throw an error for false assertion on list with one matcher. */
   @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testPAssertThatListSatisfiesOneMatcherFalse() {
     PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
     PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
@@ -697,7 +699,9 @@ public class PAssertTest implements Serializable {
                 }));
   }
 
+  /** Test that we throw an error for false assertion on list with multiple matchers. */
   @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testPAssertThatListSatisfiesMultipleMatchersFalse() {
     PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
     PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
