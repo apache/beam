@@ -612,15 +612,15 @@ See the source of the script for more details, or to run commands manually in ca
 		    --deploy
 
 * **The script will:**
-	1. Download source distribution and wheels tagged as `rc`.
+	1. Download python binary artifacts
 	1. Deploy release candidate to PyPI
 
-__Attention:__ Verify that the following files are correct at [Dowload Files](https://pypi.org/project/apache-beam/#files):
-
-* All wheels should be published
-* Release source's zip should be published
-* Signatures and hashes do not need to be uploaded
-* There should be a pre-release version with the `rc` tag
+__Attention:__ Verify that:
+* The File names version include ``rc-#`` suffix
+* [Download Files](https://pypi.org/project/apache-beam/#files) have:
+  * All wheels uploaded as artifacts
+  * Release source's zip published
+  * Signatures and hashes do not need to be uploaded
 
 You can do a dry run by omitting the `--deploy` flag. Then it will only download the release candidate binaries. If it looks good, rerun it with `--deploy`.
 
