@@ -116,14 +116,13 @@ if [[ -d ${LOCAL_CLONE_DIR} ]]; then
   rm -rf "${LOCAL_CLONE_DIR}"
 fi
 mkdir "${LOCAL_CLONE_DIR}"
-cd $LOCAL_CLONE_DIR
 LOCAL_CLONE_DIR_ROOT=$(pwd)/${LOCAL_CLONE_DIR}
+cd $LOCAL_CLONE_DIR
 
 echo "===================Cloning Beam Release Branch=================="
 git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL} "${BEAM_ROOT_DIR}"
 cd $BEAM_ROOT_DIR
 RELEASE_COMMIT=$(git rev-list -n 1 $RC_TAG)
-echo $RELEASE_COMMIT
 
 echo "================Download python artifacts======================"
 PYTHON_ARTIFACTS_DIR="${LOCAL_CLONE_DIR_ROOT}/python"
@@ -131,11 +130,11 @@ python "./release/src/main/scripts/download_github_actions_artifacts.py" \
   --github-user "${USER_GITHUB_ID}" \
   --repo-url "${GIT_REPO_BASE_URL}" \
   --release-branch "${RC_TAG}" \
-  --release-commit "${COMMIT}" \
+  --release-commit "${RELEASE_COMMIT}" \
   --artifacts_dir "${PYTHON_ARTIFACTS_DIR}" \
   --rc_number "${RC_NUMBER}"
 
-cd ${PYTHON_ARTIFACTS_DIR}
+cd "${PYTHON_ARTIFACTS_DIR}"
 
 echo "------Checking Hash Value for apache-beam-${RELEASE}rc${RC_NUMBER}.zip-----"
 sha512sum -c "apache-beam-${RELEASE}rc${RC_NUMBER}.zip.sha512"
