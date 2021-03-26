@@ -25,8 +25,6 @@ in order to check if the connectors are functioning correctly.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import random
 import string
 import unittest

@@ -25,17 +25,11 @@ This API is currently under development and is subject to change.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import re
-from builtins import object
 from typing import Any
 from typing import List
 from typing import NamedTuple
 from typing import Optional
-
-from future.utils import iteritems
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.io.iobase import Read
@@ -124,7 +118,7 @@ class PubsubMessage(object):
     """
     msg = pubsub.types.pubsub_pb2.PubsubMessage()
     msg.data = self.data
-    for key, value in iteritems(self.attributes):
+    for key, value in self.attributes.items():
       msg.attributes[key] = value
     return msg.SerializeToString()
 
@@ -230,7 +224,7 @@ class _ReadStringsFromPubSub(PTransform):
         | ReadFromPubSub(
             self.topic, self.subscription, self.id_label, with_attributes=False)
         | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
-    p.element_type = unicode
+    p.element_type = str
     return p
 
 

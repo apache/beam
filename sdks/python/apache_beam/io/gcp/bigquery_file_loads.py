@@ -28,15 +28,11 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import hashlib
 import logging
 import random
 import time
 import uuid
-
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -263,7 +259,7 @@ class WriteRecordsToFile(beam.DoFn):
 
   def finish_bundle(self):
     for destination, file_path_writer in \
-      iteritems(self._destination_to_file_writer):
+        self._destination_to_file_writer.items():
       (file_path, writer) = file_path_writer
       file_size = writer.tell()
       writer.close()

@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import io
@@ -30,11 +28,8 @@ import time
 import unittest
 
 import fastavro
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import,ungrouped-imports
 import mock
 import pytz
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
@@ -826,7 +821,7 @@ class TestBigQueryWriter(unittest.TestCase):
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
     expected_rows = []
     json_object = bigquery.JsonObject()
-    for k, v in iteritems(sample_row):
+    for k, v in sample_row.items():
       json_object.additionalProperties.append(
           bigquery.JsonObject.AdditionalProperty(key=k, value=to_json_value(v)))
     expected_rows.append(
