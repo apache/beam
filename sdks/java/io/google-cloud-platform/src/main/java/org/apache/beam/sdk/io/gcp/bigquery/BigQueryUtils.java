@@ -160,7 +160,7 @@ public class BigQueryUtils {
   }
 
   private static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
-      java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss[.SSSSSS]");
+      java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss[.SSSSSS]");
 
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
