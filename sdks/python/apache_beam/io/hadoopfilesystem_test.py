@@ -19,17 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import io
 import logging
 import posixpath
 import unittest
-from builtins import object
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
-from future.utils import itervalues
 from parameterized import parameterized_class
 
 from apache_beam.io import hadoopfilesystem as hdfs
@@ -133,7 +127,7 @@ class FakeHdfs(object):
           'list must be called on a directory, got file: %s' % path)
 
     result = []
-    for file in itervalues(self.files):
+    for file in self.files.values():
       if file.stat['path'].startswith(path):
         fs = file.get_file_status()
         result.append((fs[hdfs._FILE_STATUS_PATH_SUFFIX], fs))

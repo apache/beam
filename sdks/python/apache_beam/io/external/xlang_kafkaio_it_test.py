@@ -17,8 +17,6 @@
 
 """Integration test for Python cross-language pipelines for Java KafkaIO."""
 
-from __future__ import absolute_import
-
 import contextlib
 import logging
 import os
