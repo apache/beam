@@ -24,17 +24,17 @@ package org.apache.beam.gradle
 class GrpcVendoring_1_36_0 {
 
   static def guava_version = "30.1-jre"
-  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.32.2/jar
+  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.33.1/jar
   static def protobuf_version = "3.12.0"
-  static def grpc_version = "1.32.2"
+  static def grpc_version = "1.33.1"
   static def gson_version = "2.8.6"
   // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
   static def netty_version = "4.1.51.Final"
-  // google-auth-library version from https://search.maven.org/artifact/io.grpc/grpc-auth/1.32.2/jar
+  // google-auth-library version from https://search.maven.org/artifact/io.grpc/grpc-auth/1.33.1/jar
   static def google_auth_version = "0.20.0"
-  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.32.2/jar
+  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.33.1/jar
   static def proto_google_common_protos_version = "1.17.0"
-  // opencensus version from https://search.maven.org/artifact/io.grpc/grpc-census/1.32.2/jar
+  // opencensus version from https://search.maven.org/artifact/io.grpc/grpc-census/1.33.1/jar
   static def opencensus_version = "0.24.0"
   static def conscrypt_version = "2.5.1"
 
