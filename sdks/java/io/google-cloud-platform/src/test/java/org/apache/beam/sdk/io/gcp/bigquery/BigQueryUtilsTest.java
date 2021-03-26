@@ -275,7 +275,7 @@ public class BigQueryUtilsTest {
               "timestamp_variant4",
               String.valueOf(
                   new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
-          .set("datetime", "2020-11-02 12:34:56.789876")
+          .set("datetime", "2020-11-02T12:34:56.789876")
           .set("date", "2020-11-02")
           .set("time", "12:34:56.789876")
           .set("valid", "false")
@@ -488,7 +488,7 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));
@@ -533,7 +533,7 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));
@@ -551,7 +551,7 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));
