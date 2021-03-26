@@ -77,20 +77,20 @@ jobs:
         id: get_tag
         run: |
           echo ::set-output name=TAG::${GITHUB_REF#refs/*/}
-      - name: Check for rc version
+      - name: Check whether an -RC tag was applied to the commit.
         id: is_rc
         run: |
           echo ${{ steps.get_tag.outputs.TAG }} > temp
           OUTPUT=$( if  grep -e '-RC.' -q temp; then echo 1; else echo 0; fi)
           echo "::set-output name=is_rc::$OUTPUT"
-      - name: Get RC_NUM and VERSION
+      - name: Get RELEASE_VERSION and RC_NUM
         if: steps.is_rc.outputs.is_rc == 1
         id: get_rc_version
         run: |
-          OUTPUT=$(sed -n "s/^.*-RC\([0-9]*\)/\1/p" temp)
-          VERSION=$(sed -n "s/^v\(.*\)-RC[0-9]/\1/p" temp)
-          echo "::set-output name=RC_NUM::$OUTPUT"
-          echo "::set-output name=VERSION::$VERSION"
+          RC_NUM=$(sed -n "s/^.*-RC\([0-9]*\)/\1/p" temp)
+          RELEASE_VERSION=$(sed -n "s/^v\(.*\)-RC[0-9]/\1/p" temp)
+          echo "::set-output name=RC_NUM::RC_NUM"
+          echo "::set-output name=RELEASE_VERSION::RELEASE_VERSION"
       - name: Build source
         working-directory: ./sdks/python
         run: python setup.py sdist --formats=zip
@@ -121,13 +121,13 @@ jobs:
         run: |
           rm -r ./dist
           rm -rd apache-beam-source
-      - name: Add rc tag
+      - name: Rewrite SDK version to include RC number
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
         run: |
-          VERSION=${{ steps.get_rc_version.outputs.VERSION }}
+          RELEASE_VERSION=${{ steps.get_rc_version.outputs.RELEASE_VERSION }}
           RC_NUM=${{ steps.get_rc_version.outputs.RC_NUM }}
-          sed -i -e "s/${VERSION}/${VERSION}rc${RC_NUM}/g" apache_beam/version.py
+          sed -i -e "s/${RELEASE_VERSION}/${RELEASE_VERSION}rc${RC_NUM}/g" apache_beam/version.py
       - name: Build source with rc tag
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
@@ -214,7 +214,7 @@ jobs:
       with:
         name: source
         path: apache-beam-source
-    - name: Download python source distribution rc tagged from artifacts
+    - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
       uses: actions/download-artifact@v2
       with:
@@ -248,7 +248,7 @@ jobs:
       with:
         name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
-    - name: Build wheel rc
+    - name: Build RC wheels
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
       working-directory: apache-beam-source-rc
       env:
@@ -256,7 +256,7 @@ jobs:
         CIBW_BEFORE_BUILD: pip install cython
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
-    - name: Add checksums rc
+    - name: Add RC checksums
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
       working-directory: apache-beam-source-rc/wheelhouse/
       run: |
@@ -264,7 +264,7 @@ jobs:
           sha512sum $file > ${file}.sha512
         done
       shell: bash
-    - name: Upload wheels as artifacts tagged as RC
+    - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
       uses: actions/upload-artifact@v2
       with:

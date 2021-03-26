@@ -23,11 +23,11 @@
 set -e
 
 function usage() {
-  echo 'Usage: deploy_release_candidate.sh --release <version> --rc <rc> --commit <commit> --user <user> [--deploy]'
+  echo 'Usage: deploy_release_candidate_pypi.sh --release <version> --rc_number <rc_number> --commit <commit> --user <user> [--deploy]'
 }
 
 RELEASE=
-RC=
+RC_NUMBER=
 COMMIT=
 USER_GITHUB_ID=
 DEPLOY=no
@@ -45,9 +45,9 @@ while [[ $# -gt 0 ]] ; do
       shift
       ;;
 
-      --rc)
+      --rc_number)
       shift
-      RC=$1
+      RC_NUMBER=$1
       shift
       ;;
 
@@ -81,7 +81,7 @@ if [[ -z "$RELEASE" ]] ; then
   exit 1
 fi
 
-if [[ -z "$RC" ]] ; then
+if [[ -z "$RC_NUMBER" ]] ; then
   echo 'No RC number supplied'
   usage
   exit 1
@@ -109,15 +109,13 @@ function clean_up(){
   fi
 }
 
-RC_TAG="v${RELEASE}-RC${RC}"
+RC_TAG="v${RELEASE}-RC${RC_NUMBER}"
 LOCAL_CLONE_DIR="beam_release_${RC_TAG}"
 SCRIPT_DIR=$(dirname $0)
 
 echo "================Checking Environment Variables=============="
-echo "working on release version: ${RELEASE}"
-echo "working on release branch: ${RC_TAG}"
-echo "will create release candidate: RC${RC}"
-echo "Please review all environment variables and confirm: [y|N]"
+echo "will download artifacts for ${RC_TAG} built by github actions"
+echo "Please review the release version and confirm: [y|N]"
 read confirmation
 if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
@@ -145,8 +143,8 @@ python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
 
 cd ${LOCAL_CLONE_DIR_ROOT}
 
-echo "------Checking Hash Value for apache-beam-${RELEASE}rc${RC}.zip-----"
-sha512sum -c "apache-beam-${RELEASE}rc${RC}.zip.sha512"
+echo "------Checking Hash Value for apache-beam-${RELEASE}rc${RC_NUMBER}.zip-----"
+sha512sum -c "apache-beam-${RELEASE}rc${RC_NUMBER}.zip.sha512"
 
 for artifact in *.whl; do
   echo "----------Checking Hash Value for ${artifact} wheel-----------"
@@ -175,7 +173,7 @@ fi
 if [[ "$DEPLOY" == yes ]] ; then
   twine upload *
 else
-  echo "Not deploying to pypi with tag $RC."
+  echo "Skipping deployment to PyPI. Run the script with --deploy to stage the artifacts."
 fi
 
 clean_up
