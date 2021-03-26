@@ -23,7 +23,7 @@
 set -e
 
 function usage() {
-  echo 'Usage: deploy_release_candidate_pypi.sh --release <version> --rc_number <rc_number> --commit <commit> --user <user> [--deploy]'
+  echo 'Usage: deploy_release_candidate_pypi.sh --release <version> --rc <rc> --user <user> [--deploy]'
 }
 
 RELEASE=
@@ -31,9 +31,9 @@ RC_NUMBER=
 COMMIT=
 USER_GITHUB_ID=
 DEPLOY=no
-PYTHON_ARTIFACTS_DIR=python
 BEAM_ROOT_DIR=beam
 GIT_REPO_BASE_URL=apache/beam
+GIT_REPO_URL=https://github.com/${GIT_REPO_BASE_URL}
 
 while [[ $# -gt 0 ]] ; do
   arg="$1"
@@ -45,15 +45,9 @@ while [[ $# -gt 0 ]] ; do
       shift
       ;;
 
-      --rc_number)
+      --rc)
       shift
       RC_NUMBER=$1
-      shift
-      ;;
-
-      --commit)
-      shift
-      COMMIT=$1
       shift
       ;;
 
@@ -87,12 +81,6 @@ if [[ -z "$RC_NUMBER" ]] ; then
   exit 1
 fi
 
-if [[ -z "$COMMIT" ]] ; then
-  echo 'No commit hash supplied.'
-  usage
-  exit 1
-fi
-
 if [[ -z "$USER_GITHUB_ID" ]] ; then
   echo 'No github user supplied.'
   usage
@@ -111,7 +99,6 @@ function clean_up(){
 
 RC_TAG="v${RELEASE}-RC${RC_NUMBER}"
 LOCAL_CLONE_DIR="beam_release_${RC_TAG}"
-SCRIPT_DIR=$(dirname $0)
 
 echo "================Checking Environment Variables=============="
 echo "will download artifacts for ${RC_TAG} built by github actions"
@@ -129,19 +116,26 @@ if [[ -d ${LOCAL_CLONE_DIR} ]]; then
   rm -rf "${LOCAL_CLONE_DIR}"
 fi
 mkdir "${LOCAL_CLONE_DIR}"
+cd $LOCAL_CLONE_DIR
 LOCAL_CLONE_DIR_ROOT=$(pwd)/${LOCAL_CLONE_DIR}
 
+echo "===================Cloning Beam Release Branch=================="
+git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL} "${BEAM_ROOT_DIR}"
+cd $BEAM_ROOT_DIR
+RELEASE_COMMIT=$(git rev-list -n 1 $RC_TAG)
+echo $RELEASE_COMMIT
+
 echo "================Download python artifacts======================"
-cd -
-python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
+PYTHON_ARTIFACTS_DIR="${LOCAL_CLONE_DIR_ROOT}/python"
+python "./release/src/main/scripts/download_github_actions_artifacts.py" \
   --github-user "${USER_GITHUB_ID}" \
   --repo-url "${GIT_REPO_BASE_URL}" \
   --release-branch "${RC_TAG}" \
   --release-commit "${COMMIT}" \
-  --artifacts_dir "${LOCAL_CLONE_DIR_ROOT}" \
-  --is_rc_version
+  --artifacts_dir "${PYTHON_ARTIFACTS_DIR}" \
+  --rc_number "${RC_NUMBER}"
 
-cd ${LOCAL_CLONE_DIR_ROOT}
+cd ${PYTHON_ARTIFACTS_DIR}
 
 echo "------Checking Hash Value for apache-beam-${RELEASE}rc${RC_NUMBER}.zip-----"
 sha512sum -c "apache-beam-${RELEASE}rc${RC_NUMBER}.zip.sha512"

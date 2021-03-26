@@ -90,8 +90,8 @@ jobs:
         run: |
           RC_NUM=$(sed -n "s/^.*-RC\([0-9]*\)/\1/p" temp)
           RELEASE_VERSION=$(sed -n "s/^v\(.*\)-RC[0-9]/\1/p" temp)
-          echo "::set-output name=RC_NUM::RC_NUM"
-          echo "::set-output name=RELEASE_VERSION::RELEASE_VERSION"
+          echo "::set-output name=RC_NUM::$RC_NUM"
+          echo "::set-output name=RELEASE_VERSION::$RELEASE_VERSION"
       - name: Build source
         working-directory: ./sdks/python
         run: python setup.py sdist --formats=zip
