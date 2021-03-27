@@ -486,6 +486,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   first = last = frame_base.wont_implement_method('order-sensitive')
   head = tail = frame_base.wont_implement_method('order-sensitive')
+  interpolate = frame_base.wont_implement_method('order-sensitive')
 
 
 @populate_not_implemented(pd.Series)

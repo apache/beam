@@ -73,6 +73,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.where': [
                 'df.where(m, -df) == np.where(m, df, -df)'
             ],
+            'pandas.core.generic.NDFrame.interpolate': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.add_prefix': ['*'],
@@ -84,7 +85,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
-            'pandas.core.generic.NDFrame.interpolate': ['*'],
             'pandas.core.generic.NDFrame.pct_change': ['*'],
             'pandas.core.generic.NDFrame.rank': ['*'],
             'pandas.core.generic.NDFrame.reindex': ['*'],
