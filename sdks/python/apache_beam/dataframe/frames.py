@@ -491,6 +491,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(DeferredDataFrameOrSeries):
+  @property
+  def name(self):
+    return self._expr.proxy().name
+
   def __getitem__(self, key):
     if _is_null_slice(key) or key is Ellipsis:
       return self

@@ -660,5 +660,15 @@ class AllowNonParallelTest(unittest.TestCase):
       self._use_non_parallel_operation()
 
 
+class ConstructionTimeConstantsTest(unittest.TestCase):
+  DF = pd.DataFrame({'column_a': ['foo', 'bar'],
+                     'column_b': [1, 2]})
+  DEFERRED_DF = frame_base.DeferredFrame.wrap(
+    expressions.PlaceholderExpression(DF))
+
+  def test_series_name(self):
+    self.assertEqual(self.DEFERRED_DF['column_a'].name, 'column_a')
+
+
 if __name__ == '__main__':
   unittest.main()
