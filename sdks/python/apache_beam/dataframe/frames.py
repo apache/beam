@@ -496,6 +496,20 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def name(self):
     return self._expr.proxy().name
 
+  @name.setter
+  def name(self, value):
+    def fn(s):
+      s = s.copy()
+      s.name = value
+      return s
+
+    self._expr = expressions.ComputedExpression(
+      'series_set_name',
+      fn,
+      [self._expr],
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Arbitrary())
+
   @property
   def dtype(self):
     return self._expr.proxy().dtype
@@ -2172,6 +2186,20 @@ class _DeferredIndex(object):
   @property
   def names(self):
     return self._frame._expr.proxy().index.names
+
+  @names.setter
+  def names(self, value):
+    def set_index_names(df):
+      df = df.copy()
+      df.index.names = value
+      return df
+
+    self._frame._expr = expressions.ComputedExpression(
+      'set_index_names',
+      set_index_names,
+      [self._frame._expr],
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Arbitrary())
 
   @property
   def ndim(self):

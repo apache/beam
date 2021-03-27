@@ -629,6 +629,18 @@ class DeferredFrameTest(unittest.TestCase):
     self.assertRaises(
         NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
+  def test_index_name_assignment(self):
+    df = pd.DataFrame({
+        'a': ['foo', 'bar'],
+        'b': [1, 2]})
+    df = df.set_index(['a','b'], drop=False)
+
+    def change_index_names(df):
+      df.index.names = ['A', None]
+      return df
+
+    self._run_test(change_index_names, df)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
