@@ -470,11 +470,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def dtype(self):
     return self._expr.proxy().dtype
 
+  isin = frame_base._elementwise_method('isin')
+
   @property
   def ndim(self):
     return self._expr.proxy().ndim
-
-  dtypes = dtype
 
   def _get_index(self):
     return _DeferredIndex(self)
@@ -494,6 +494,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @property
   def name(self):
     return self._expr.proxy().name
+
+  @property
+  def dtype(self):
+    return self._expr.proxy().dtype
+
+  dtypes = dtype
 
   def __getitem__(self, key):
     if _is_null_slice(key) or key is Ellipsis:
@@ -767,8 +773,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Arbitrary()))
 
   items = iteritems = frame_base.wont_implement_method('non-lazy')
-
-  isin = frame_base._elementwise_method('isin')
 
   isnull = isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')

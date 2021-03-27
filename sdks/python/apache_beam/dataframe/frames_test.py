@@ -660,14 +660,32 @@ class AllowNonParallelTest(unittest.TestCase):
       self._use_non_parallel_operation()
 
 
-class ConstructionTimeConstantsTest(unittest.TestCase):
-  DF = pd.DataFrame({'column_a': ['foo', 'bar'],
-                     'column_b': [1, 2]})
+class ConstructionTimeTest(unittest.TestCase):
+  """Tests for operations that can be executed eagerly."""
+  DF = pd.DataFrame({'str_col': ['foo', 'bar'],
+                     'int_col': [1, 2],
+                     'flt_col': [1.1, 2.2],
+                     })
   DEFERRED_DF = frame_base.DeferredFrame.wrap(
     expressions.PlaceholderExpression(DF))
 
+  def _run_test(self, fn):
+    self.assertEqual(fn(self.DEFERRED_DF), fn(self.DF))
+
   def test_series_name(self):
-    self.assertEqual(self.DEFERRED_DF['column_a'].name, 'column_a')
+    for col in self.DF.columns:
+      self._run_test(lambda df: df[col].name)
+
+  def test_series_dtype(self):
+    for col in self.DF.columns:
+      self._run_test(lambda df: df[col].dtype)
+      self._run_test(lambda df: df[col].dtypes)
+
+  def test_dataframe_columns(self):
+    self._run_test(lambda df: list(df.columns))
+
+  def test_dataframe_dtypes(self):
+    self._run_test(lambda df: list(df.dtypes))
 
 
 if __name__ == '__main__':

@@ -213,7 +213,6 @@ class DoctestTest(unittest.TestCase):
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
-            'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
