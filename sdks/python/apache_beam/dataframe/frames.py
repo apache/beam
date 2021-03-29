@@ -504,11 +504,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       return s
 
     self._expr = expressions.ComputedExpression(
-      'series_set_name',
-      fn,
-      [self._expr],
-      requires_partition_by=partitionings.Arbitrary(),
-      preserves_partition_by=partitionings.Arbitrary())
+        'series_set_name',
+        fn, [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Arbitrary())
 
   @property
   def dtype(self):

@@ -630,10 +630,8 @@ class DeferredFrameTest(unittest.TestCase):
         NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
   def test_index_name_assignment(self):
-    df = pd.DataFrame({
-        'a': ['foo', 'bar'],
-        'b': [1, 2]})
-    df = df.set_index(['a','b'], drop=False)
+    df = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
+    df = df.set_index(['a', 'b'], drop=False)
 
     def change_index_names(df):
       df.index.names = ['A', None]
@@ -674,12 +672,13 @@ class AllowNonParallelTest(unittest.TestCase):
 
 class ConstructionTimeTest(unittest.TestCase):
   """Tests for operations that can be executed eagerly."""
-  DF = pd.DataFrame({'str_col': ['foo', 'bar'],
-                     'int_col': [1, 2],
-                     'flt_col': [1.1, 2.2],
-                     })
+  DF = pd.DataFrame({
+      'str_col': ['foo', 'bar'],
+      'int_col': [1, 2],
+      'flt_col': [1.1, 2.2],
+  })
   DEFERRED_DF = frame_base.DeferredFrame.wrap(
-    expressions.PlaceholderExpression(DF))
+      expressions.PlaceholderExpression(DF))
 
   def _run_test(self, fn):
     self.assertEqual(fn(self.DEFERRED_DF), fn(self.DF))
