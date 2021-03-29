@@ -600,6 +600,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
+  @Category(ValidatesRunner.class)
   public void testPAssertThatFlattened() {
     PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
     PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
@@ -609,6 +610,8 @@ public class PAssertTest implements Serializable {
 
     PAssert.thatFlattened(collectionList).containsInAnyOrder(1, 2, 3, 4, 5, 6);
     PAssert.thatFlattened("Reason", collectionList).containsInAnyOrder(1, 2, 3, 4, 5, 6);
+
+    pipeline.run();
   }
 
   /** Test that we throw an error for false assertion on flattened. */
@@ -630,6 +633,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
+  @Category(ValidatesRunner.class)
   public void testPAssertThatListSatisfiesOneMatcher() {
     PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
     PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
@@ -645,6 +649,8 @@ public class PAssertTest implements Serializable {
               }
               return null;
             });
+
+    pipeline.run();
   }
 
   /** Test that we throw an error for false assertion on list with one matcher. */
@@ -675,6 +681,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
+  @Category(ValidatesRunner.class)
   public void testPAssertThatListSatisfiesMultipleMatchers() {
     PCollection<Integer> firstCollection = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
     PCollection<Integer> secondCollection = pipeline.apply("SecondCreate", Create.of(4, 5, 6));
@@ -697,6 +704,8 @@ public class PAssertTest implements Serializable {
                   }
                   return null;
                 }));
+
+    pipeline.run();
   }
 
   /** Test that we throw an error for false assertion on list with multiple matchers. */
