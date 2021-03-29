@@ -69,7 +69,7 @@ class FakePandasObject(object):
   def __call__(self, *args, **kwargs):
     result = self._pandas_obj(*args, **kwargs)
     if type(result) in DeferredBase._pandas_type_map.keys():
-      placeholder = expressions.PlaceholderExpression(result[0:0])
+      placeholder = expressions.PlaceholderExpression(result.iloc[0:0])
       self._test_env._inputs[placeholder] = result
       return DeferredBase.wrap(placeholder)
     else:
