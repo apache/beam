@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
@@ -591,6 +593,45 @@ public class SelectTest {
             .apply(Create.of(rows).withRowSchema(SIMPLE_SCHEMA))
             .apply(Select.flattenedSchema());
     PAssert.that(unnested).containsInAnyOrder(rows);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testComplexFlatSchema() {
+
+    Schema transactionSchema =
+        Schema.builder().addStringField("bank").addDoubleField("purchaseAmount").build();
+    Row transactionOne = Row.withSchema(transactionSchema).addValues("foo", 1.0).build();
+    Row transactionTwo = Row.withSchema(transactionSchema).addValues("bar", 2.0).build();
+    Schema shippingAddressSchema =
+        Schema.builder().addStringField("streetAddress").addStringField("city").build();
+    Row address = Row.withSchema(shippingAddressSchema).addValues("street", "city").build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("userId")
+            .addRowField("shippingAddress", shippingAddressSchema)
+            .addArrayField("transactions", Schema.FieldType.row(transactionSchema))
+            .build();
+    Row row =
+        Row.withSchema(schema)
+            .addValues("user", address)
+            .addArray(transactionOne, transactionTwo)
+            .build();
+
+    PCollection<Row> unnested =
+        pipeline.apply(Create.of(row).withRowSchema(schema)).apply(Select.flattenedSchema());
+
+    List<String> flattenedSchemaFieldNames = unnested.getSchema().getFieldNames();
+
+    assertTrue(flattenedSchemaFieldNames.contains("shippingAddress_streetAddress"));
+    assertTrue(flattenedSchemaFieldNames.contains("shippingAddress_city"));
+    assertFalse(flattenedSchemaFieldNames.contains("shippingAddress"));
+
+    assertTrue(flattenedSchemaFieldNames.contains("transactions_bank"));
+    assertTrue(flattenedSchemaFieldNames.contains("transactions_purchaseAmount"));
+    assertFalse(flattenedSchemaFieldNames.contains("transactions"));
+
     pipeline.run();
   }
 
