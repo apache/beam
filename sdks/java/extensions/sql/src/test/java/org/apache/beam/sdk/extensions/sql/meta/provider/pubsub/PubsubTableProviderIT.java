@@ -24,7 +24,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
-import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
@@ -49,6 +49,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -105,7 +106,11 @@ public class PubsubTableProviderIT implements Serializable {
   @Parameters
   public static Collection<Object[]> data() {
     return Arrays.asList(
-        new Object[][] {{new PubsubJsonObjectProvider()}, {new PubsubAvroObjectProvider()}, {new PubsubProtoObjectProvider()}});
+        new Object[][] {
+          {new PubsubJsonObjectProvider()},
+          {new PubsubAvroObjectProvider()},
+          {new PubsubProtoObjectProvider()}
+        });
   }
 
   @Parameter public PubsubObjectProvider objectsProvider;
@@ -791,15 +796,15 @@ public class PubsubTableProviderIT implements Serializable {
     @Override
     protected PubsubMessage messageIdName(Instant timestamp, int id, String name) {
       PayloadMessages.SimpleMessage.Builder simpleMessage =
-              PayloadMessages.SimpleMessage.newBuilder();
+          PayloadMessages.SimpleMessage.newBuilder();
 
       simpleMessage.setId(id);
       simpleMessage.setName(name);
 
       return PubsubTableProviderIT.message(
-              timestamp,
-              simpleMessage.build().toByteArray(),
-              ImmutableMap.of(name, Integer.toString(id)));
+          timestamp,
+          simpleMessage.build().toByteArray(),
+          ImmutableMap.of(name, Integer.toString(id)));
     }
 
     @Override
@@ -812,10 +817,10 @@ public class PubsubTableProviderIT implements Serializable {
 
     @Override
     protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-            String name, int height, boolean knowsJS) throws IOException {
+        String name, int height, boolean knowsJS) throws IOException {
 
       PayloadMessages.NameHeightKnowsJSMessage.Builder nameHeightKnowsJSMessage =
-              PayloadMessages.NameHeightKnowsJSMessage.newBuilder();
+          PayloadMessages.NameHeightKnowsJSMessage.newBuilder();
 
       return hasProperty("payload", equalTo(nameHeightKnowsJSMessage.build().toByteArray()));
     }
@@ -823,7 +828,7 @@ public class PubsubTableProviderIT implements Serializable {
     @Override
     protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) throws IOException {
       PayloadMessages.NameHeightMessage.Builder nameHeightMEssage =
-              PayloadMessages.NameHeightMessage.newBuilder();
+          PayloadMessages.NameHeightMessage.newBuilder();
 
       return hasProperty("payload", equalTo(nameHeightMEssage.build().toByteArray()));
     }
