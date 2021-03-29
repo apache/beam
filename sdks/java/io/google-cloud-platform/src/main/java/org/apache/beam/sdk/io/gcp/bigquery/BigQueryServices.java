@@ -173,7 +173,7 @@ public interface BigQueryServices extends Serializable {
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
 
-    /** Create a Write Stream for use with the the Storage Write API. */
+    /** Create a Write Stream for use with the Storage Write API. */
     WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
         throws IOException, InterruptedException;
 
