@@ -234,7 +234,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               return RetryType.RETRY_ALL_OPERATIONS;
             },
             response -> {
-              LOG.info("Append to stream " + streamName + " succeeded.");
+              LOG.info("Append to stream %s succeeded.", streamName);
             },
             new Context<>());
         // TODO: Do we have to wait on every append?
