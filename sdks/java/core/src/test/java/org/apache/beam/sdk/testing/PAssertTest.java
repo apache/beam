@@ -609,7 +609,6 @@ public class PAssertTest implements Serializable {
         PCollectionList.of(firstCollection).and(secondCollection);
 
     PAssert.thatFlattened(collectionList).containsInAnyOrder(1, 2, 3, 4, 5, 6);
-    PAssert.thatFlattened("Reason", collectionList).containsInAnyOrder(1, 2, 3, 4, 5, 6);
 
     pipeline.run();
   }
