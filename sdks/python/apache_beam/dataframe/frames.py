@@ -949,6 +949,34 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   to_string = frame_base.wont_implement_method(
       pd.Series, 'to_string', reason="non-deferred-result")
 
+  def _wrap_in_df(self):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'wrap_in_df',
+            lambda s: pd.DataFrame(s),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary(),
+        ))
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def duplicated(self, keep):
+    # Re-use the DataFrame based duplcated, extract the series back out
+    df = self._wrap_in_df()
+
+    return df.duplicated(keep=keep)[df.columns[0]]
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def drop_duplicates(self, keep):
+    # Re-use the DataFrame based drop_duplicates, extract the series back out
+    df = self._wrap_in_df()
+
+    return df.drop_duplicates(keep=keep)[df.columns[0]]
+
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def aggregate(self, func, axis, *args, **kwargs):
@@ -958,7 +986,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       _ = self._expr.proxy().aggregate(func, axis, *args, **kwargs)
       kwargs.pop('skipna')
       return self.dropna().aggregate(func, axis, *args, **kwargs)
-
     if isinstance(func, list) and len(func) > 1:
       # level arg is ignored for multiple aggregations
       _ = kwargs.pop('level', None)
@@ -1530,6 +1557,53 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary()))
 
     self._expr = inserted._expr
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def duplicated(self, keep, subset):
+    # TODO(BEAM-12074): Document keep="any"
+    if keep == 'any':
+      keep = 'first'
+    elif keep is not False:
+      raise frame_base.WontImplementError(
+          f"duplicated(keep={keep!r}) is not supported because it is "
+          "sensitive to the order of the data. Only keep=False and "
+          "keep=\"any\" are supported.",
+          reason="order-sensitive")
+
+    by = subset or list(self.columns)
+
+    # Workaround a bug where groupby.apply() that returns a single-element Series
+    # moves index label to column
+    return self.groupby(by).apply(
+        lambda df: pd.DataFrame(df.duplicated(keep=keep, subset=subset), columns=[None])).droplevel(by)[None]
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def drop_duplicates(self, keep, subset, ignore_index):
+    # TODO(BEAM-12074): Document keep="any"
+    if keep == 'any':
+      keep = 'first'
+    elif keep is not False:
+      raise frame_base.WontImplementError(
+          f"drop_duplicates(keep={keep!r}) is not supported because it is "
+          "sensitive to the order of the data. Only keep=False and "
+          "keep=\"any\" are supported.",
+          reason="order-sensitive")
+
+    if ignore_index is not False:
+      raise frame_base.WontImplementError(
+          "drop_duplicates(ignore_index=False) is not supported because it "
+          "requires generating a new index that is sensitive to the order of "
+          "the data.",
+          reason="order-sensitive")
+
+    by = subset or list(self.columns)
+
+    return self.groupby(by).apply(
+        lambda df: df.drop_duplicates(keep=keep, subset=subset)).droplevel(by)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)

@@ -1093,6 +1093,174 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.std(numeric_only=True), GROUPBY_DF)
     self._run_test(lambda df: df.var(numeric_only=True), GROUPBY_DF)
 
+  def test_drop_duplicates(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    self._run_test(lambda df: df.drop_duplicates(keep=False), df)
+    self._run_test(
+        lambda df: df.drop_duplicates(subset=['brand'], keep=False), df)
+    self._run_test(
+        lambda df: df.drop_duplicates(subset=['brand', 'style'], keep=False),
+        df)
+
+
+class BeamSpecificTest(unittest.TestCase):
+  """Tests for functionality that's specific to the Beam DataFrame API.
+
+  These features don't exist in pandas so we must verify them independently."""
+  def assert_frame_data_equivalent(self, actual, expected):
+    """Verify that actual is the same as expected, ignoring the index and order
+    of the data."""
+    def sort_and_drop_index(df):
+      if isinstance(df, pd.Series):
+        df = df.sort_values()
+      elif isinstance(df, pd.DataFrame):
+        df = df.sort_values(by=list(df.columns))
+
+      return df.reset_index(drop=True)
+
+    actual = sort_and_drop_index(actual)
+    expected = sort_and_drop_index(expected)
+
+    if isinstance(expected, pd.Series):
+      pd.testing.assert_series_equal(actual, expected)
+    elif isinstance(expected, pd.DataFrame):
+      pd.testing.assert_frame_equal(actual, expected)
+
+  def _run_test(self, func, *args, distributed=True):
+    deferred_args = [
+        frame_base.DeferredFrame.wrap(
+            expressions.ConstantExpression(arg, arg[0:0])) for arg in args
+    ]
+
+    session_type = (
+        expressions.PartitioningSession if distributed else expressions.Session)
+
+    return session_type({}).evaluate(func(*deferred_args)._expr)
+
+  def test_drop_duplicates_keep_any(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._run_test(lambda df: df.drop_duplicates(keep='any'), df)
+
+    # Verify that the result is the same as conventional drop_duplicates
+    self.assert_frame_data_equivalent(result, df.drop_duplicates())
+
+  def test_drop_duplicates_keep_any_subset(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._run_test(
+        lambda df: df.drop_duplicates(keep='any', subset=['brand']), df)
+
+    self.assertTrue(result.brand.unique)
+    self.assert_frame_data_equivalent(
+        result.brand, df.drop_duplicates(subset=['brand']).brand)
+
+  def test_series_drop_duplicates_keep_any(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._run_test(lambda df: df.brand.drop_duplicates(keep='any'), df)
+
+    self.assert_frame_data_equivalent(result, df.brand.drop_duplicates())
+
+  def test_duplicated_keep_any(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._run_test(lambda df: df.duplicated(keep='any'), df)
+
+    # Verify that the result is the same as conventional duplicated
+    self.assert_frame_data_equivalent(result, df.duplicated())
+
+  def test_nsmallest_any(self):
+    df = pd.DataFrame({
+        'population': [
+            59000000,
+            65000000,
+            434000,
+            434000,
+            434000,
+            337000,
+            337000,
+            11300,
+            11300
+        ],
+        'GDP': [1937894, 2583560, 12011, 4520, 12128, 17036, 182, 38, 311],
+        'alpha-2': ["IT", "FR", "MT", "MV", "BN", "IS", "NR", "TV", "AI"]
+    },
+                      index=[
+                          "Italy",
+                          "France",
+                          "Malta",
+                          "Maldives",
+                          "Brunei",
+                          "Iceland",
+                          "Nauru",
+                          "Tuvalu",
+                          "Anguilla"
+                      ])
+
+    result = self._run_test(
+        lambda df: df.population.nsmallest(3, keep='any'), df)
+
+    # keep='any' should produce the same result as keep='first',
+    # but not necessarily with the same index
+    self.assert_frame_data_equivalent(result, df.population.nsmallest(3))
+
+  def test_nlargest_any(self):
+    df = pd.DataFrame({
+        'population': [
+            59000000,
+            65000000,
+            434000,
+            434000,
+            434000,
+            337000,
+            337000,
+            11300,
+            11300
+        ],
+        'GDP': [1937894, 2583560, 12011, 4520, 12128, 17036, 182, 38, 311],
+        'alpha-2': ["IT", "FR", "MT", "MV", "BN", "IS", "NR", "TV", "AI"]
+    },
+                      index=[
+                          "Italy",
+                          "France",
+                          "Malta",
+                          "Maldives",
+                          "Brunei",
+                          "Iceland",
+                          "Nauru",
+                          "Tuvalu",
+                          "Anguilla"
+                      ])
+
+    result = self._run_test(
+        lambda df: df.population.nlargest(3, keep='any'), df)
+
+    # keep='any' should produce the same result as keep='first',
+    # but not necessarily with the same index
+    self.assert_frame_data_equivalent(result, df.population.nlargest(3))
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
