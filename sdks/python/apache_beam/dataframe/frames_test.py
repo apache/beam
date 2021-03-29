@@ -455,7 +455,7 @@ class DeferredFrameTest(unittest.TestCase):
 
   def test_series_is_unique(self):
     s_unique = pd.Series(range(10))
-    s_dupes = pd.Series(i %  4 for i in range(10))
+    s_dupes = pd.Series(i % 4 for i in range(10))
 
     self._run_test(lambda s: s.is_unique, s_unique)
     self._run_test(lambda s: s.is_unique, s_dupes)
