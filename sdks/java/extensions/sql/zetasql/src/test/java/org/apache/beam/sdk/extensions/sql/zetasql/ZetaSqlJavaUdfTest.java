@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Method;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
@@ -44,6 +43,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
