@@ -320,6 +320,8 @@ class DeferredFrameTest(unittest.TestCase):
     def median_sum_fn(x):
       return (x.foo + x.bar).median()
 
+    # Note this is the same as DataFrameGroupBy.describe. Using it here is
+    # just a convenient way to test apply() with a user fn that returns a Series
     describe = lambda df: df.describe()
 
     self._run_test(lambda df: df.groupby('group').foo.apply(describe), df)

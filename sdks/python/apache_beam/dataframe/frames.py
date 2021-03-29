@@ -1896,6 +1896,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
           index_to_arrays(proxy.index),
           names=self._ungrouped.proxy().index.names + proxy.index.names)
     else:
+      # The user fn returns some non-pandas type. The expected result is a
+      # Series where each element is the result of one user fn call.
       dtype = pd.Series([result]).dtype
       proxy = pd.Series([], dtype=dtype, index=self._ungrouped.proxy().index)
 
