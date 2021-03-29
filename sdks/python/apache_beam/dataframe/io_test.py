@@ -302,7 +302,7 @@ X     , c1, c2
   def test_file_not_found(self):
     with self.assertRaisesRegex(FileNotFoundError, r'/tmp/fake_dir/\*\*'):
       with beam.Pipeline() as p:
-        p | io.read_csv('/tmp/fake_dir/**')
+        _ = p | io.read_csv('/tmp/fake_dir/**')
 
 
 if __name__ == '__main__':
