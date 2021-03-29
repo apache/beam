@@ -933,7 +933,7 @@ class ProtoCoder(FastCoder):
 
   @staticmethod
   def from_type_hint(typehint, unused_registry):
-    if issubclass(typehint, google.protobuf.message.Message):
+    if issubclass(typehint, proto_utils.message_types):
       return ProtoCoder(typehint)
     else:
       raise ValueError((
