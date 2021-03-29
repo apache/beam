@@ -538,6 +538,7 @@ The final state of the repository should match this diagram:
       ./beam/release/src/main/scripts/choose_rc_commit.sh \
           --release "${RELEASE_VERSION}" \
           --rc "${RC_NUM}" \
+	  --commit "${COMMIT_REF}" \
           --clone \
           --push-tag
 
@@ -606,7 +607,6 @@ See the source of the script for more details, or to run commands manually in ca
 		./release/src/main/scripts/deploy_release_candidate_pypi.sh \
 		    --release "${RELEASE_VERSION}" \
 		    --rc "${RC_NUM}" \
-		    --commit "${COMMIT_REF}" \
 		    --user "${GITHUB_USER}" \
 		    --deploy
 
