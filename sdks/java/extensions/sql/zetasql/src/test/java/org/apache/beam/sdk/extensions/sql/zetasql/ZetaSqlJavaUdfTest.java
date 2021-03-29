@@ -23,11 +23,18 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.ImmutableMap;
+import java.lang.reflect.Method;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -206,6 +213,31 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
             SqlTransform.query(sql)
                 .withQueryPlannerClass(ZetaSQLQueryPlanner.class)
                 .registerUdf("increment", IncrementFn.class));
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  /** This tests a subset of the code path used by {@link #testSqlTransformRegisterUdf()}. */
+  @Test
+  public void testUdfFromCatalog() throws NoSuchMethodException {
+    // Add IncrementFn to Calcite schema.
+    JdbcConnection jdbcConnection =
+        JdbcDriver.connect(
+            new ReadOnlyTableProvider("empty_table_provider", ImmutableMap.of()),
+            PipelineOptionsFactory.create());
+    Method method = IncrementFn.class.getMethod("eval", Long.class);
+    jdbcConnection.getCurrentSchemaPlus().add("increment", ScalarFunctionImpl.create(method));
+    this.config =
+        Frameworks.newConfigBuilder(config)
+            .defaultSchema(jdbcConnection.getCurrentSchemaPlus())
+            .build();
+
+    String sql = "SELECT increment(0);";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
     final Schema schema = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
