@@ -538,7 +538,6 @@ The final state of the repository should match this diagram:
       ./beam/release/src/main/scripts/choose_rc_commit.sh \
           --release "${RELEASE_VERSION}" \
           --rc "${RC_NUM}" \
-          --commit "${COMMIT_REF}" \
           --clone \
           --push-tag
 
