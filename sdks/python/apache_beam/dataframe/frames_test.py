@@ -18,6 +18,7 @@ import unittest
 
 import numpy as np
 import pandas as pd
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.dataframe import expressions
@@ -683,14 +684,14 @@ class ConstructionTimeTest(unittest.TestCase):
   def _run_test(self, fn):
     self.assertEqual(fn(self.DEFERRED_DF), fn(self.DF))
 
-  def test_series_name(self):
-    for col in self.DF.columns:
-      self._run_test(lambda df: df[col].name)
+  @parameterized.expand(DF.columns)
+  def test_series_name(self, col_name):
+    self._run_test(lambda df: df[col_name])
 
-  def test_series_dtype(self):
-    for col in self.DF.columns:
-      self._run_test(lambda df: df[col].dtype)
-      self._run_test(lambda df: df[col].dtypes)
+  @parameterized.expand(DF.columns)
+  def test_series_dtype(self, col_name):
+    self._run_test(lambda df: df[col_name].dtype)
+    self._run_test(lambda df: df[col_name].dtypes)
 
   def test_dataframe_columns(self):
     self._run_test(lambda df: list(df.columns))
