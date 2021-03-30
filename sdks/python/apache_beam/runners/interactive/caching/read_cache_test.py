@@ -39,7 +39,7 @@ class ReadCacheTest(unittest.TestCase):
     p = beam.Pipeline()
     pcoll = p | beam.Create([1, 2, 3])
     consumer_transform = beam.Map(lambda x: x * x)
-    pcoll_consumer = pcoll | consumer_transform
+    _ = pcoll | consumer_transform
     ib.watch(locals())
 
     # Create the cache in memory.
@@ -52,7 +52,8 @@ class ReadCacheTest(unittest.TestCase):
     # Capture the applied transform of the consumer_transform.
     pcoll_id = aug_p._context.pcollections.get_id(pcoll)
     consumer_transform_id = None
-    for transform_id, transform in aug_p._pipeline.components.transforms.items():
+    for transform_id, transform in \
+        aug_p._pipeline.components.transforms.items():
       if pcoll_id in transform.inputs.values():
         consumer_transform_id = transform_id
         break
