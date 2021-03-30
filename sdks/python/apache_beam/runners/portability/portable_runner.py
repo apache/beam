@@ -264,6 +264,7 @@ class PortableRunner(runner.PipelineRunner):
   """
   def __init__(self):
     self._dockerized_job_server = None  # type: Optional[job_server.JobServer]
+    self._default_environment = None  # type: Optional[environments.Environment]
 
   @staticmethod
   def _create_environment(options):
@@ -318,6 +319,14 @@ class PortableRunner(runner.PipelineRunner):
     else:
       server = self.default_job_server(options)
     return self.create_job_service_handle(server.start(), options)
+
+  def get_default_environment(self, options):
+    # type: (PipelineOptions) -> environments.Environment
+    if self._default_environment is None:
+      portable_options = options.view_as(PortableOptions)
+      self._default_environment = PortableRunner._create_environment(
+          portable_options)
+    return self._default_environment
 
   @staticmethod
   def get_proto_pipeline(pipeline, options):

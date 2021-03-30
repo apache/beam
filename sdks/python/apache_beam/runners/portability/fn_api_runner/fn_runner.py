@@ -71,6 +71,7 @@ from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.profiler import Profile
 
 if TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.pipeline import Pipeline
   from apache_beam.portability.api import metrics_pb2
   from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandler
@@ -116,8 +117,7 @@ class FnApiRunner(runner.PipelineRunner):
       is_drain: identify whether expand the sdf graph in the drain mode.
     """
     super(FnApiRunner, self).__init__()
-    self._default_environment = (
-        default_environment or environments.EmbeddedPythonEnvironment())
+    self._default_environment = default_environment
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
@@ -127,6 +127,23 @@ class FnApiRunner(runner.PipelineRunner):
     self._provision_info = provision_info or ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
             retrieval_token='unused-retrieval-token'))
+
+  def get_default_environment(self, options):
+    # type: (PipelineOptions) -> environments.Environment
+    if self._default_environment is None:
+      running_mode = \
+        options.view_as(pipeline_options.DirectOptions).direct_running_mode
+      if running_mode == 'multi_threading':
+        self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
+      elif running_mode == 'multi_processing':
+        command_string = '%s -m apache_beam.runners.worker.sdk_worker_main' \
+                         % sys.executable
+        self._default_environment = environments.SubprocessSDKEnvironment(
+            command_string=command_string)
+      else:
+        self._default_environment = environments.EmbeddedPythonEnvironment()
+
+    return self._default_environment
 
   @staticmethod
   def supported_requirements():
@@ -170,13 +187,6 @@ class FnApiRunner(runner.PipelineRunner):
     # set direct workers running mode if it is defined with pipeline options.
     running_mode = \
       options.view_as(pipeline_options.DirectOptions).direct_running_mode
-    if running_mode == 'multi_threading':
-      self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
-    elif running_mode == 'multi_processing':
-      command_string = '%s -m apache_beam.runners.worker.sdk_worker_main' \
-                    % sys.executable
-      self._default_environment = environments.SubprocessSDKEnvironment(
-          command_string=command_string)
 
     if running_mode == 'in_memory' and self._num_workers != 1:
       _LOGGER.warning(
@@ -191,7 +201,8 @@ class FnApiRunner(runner.PipelineRunner):
         options.view_as(pipeline_options.ProfilingOptions))
 
     self._latest_run_result = self.run_via_runner_api(
-        pipeline.to_runner_api(default_environment=self._default_environment))
+        pipeline.to_runner_api(
+            default_environment=self.get_default_environment(options)))
     return self._latest_run_result
 
   def run_via_runner_api(self, pipeline_proto):

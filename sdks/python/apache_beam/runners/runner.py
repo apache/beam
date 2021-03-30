@@ -40,6 +40,7 @@ if TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
   from apache_beam.pipeline import Pipeline
   from apache_beam.pipeline import PipelineVisitor
+  from apache_beam.transforms.environments import Environment
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
@@ -241,6 +242,15 @@ class PipelineRunner(object):
   def is_fnapi_compatible(self):
     """Whether to enable the beam_fn_api experiment by default."""
     return True
+
+  def get_default_environment(self, options):  # pylint: disable=useless-return
+    # type: (PipelineOptions) -> Optional[Environment]
+
+    """Provides default environment for portable pipeline execution."""
+    # Must be implemented by portable runners.
+    assert not self.is_fnapi_compatible()
+    # pylint and mypy disagree on whether to return None explicitly
+    return None
 
 
 class PValueCache(object):
