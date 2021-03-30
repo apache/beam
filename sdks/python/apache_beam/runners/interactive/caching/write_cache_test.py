@@ -65,7 +65,8 @@ class WriteCacheTest(unittest.TestCase):
     # Check if the actual_pipeline uses pcoll as an input of a write transform.
     pcoll_id = aug_p._context.pcollections.get_id(pcoll)
     write_transform_id = None
-    for transform_id, transform in actual_pipeline.components.transforms.items():
+    for transform_id, transform in \
+         actual_pipeline.components.transforms.items():
       if pcoll_id in transform.inputs.values():
         write_transform_id = transform_id
         break

@@ -25,10 +25,10 @@ from __future__ import absolute_import
 
 import copy
 from typing import Dict
+from typing import Optional
 from typing import Set
 
 import apache_beam as beam
-from apache_beam.pipeline import PipelineVisitor
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import background_caching_job
@@ -45,7 +45,7 @@ class AugmentedPipeline:
   def __init__(
       self,
       user_pipeline: beam.Pipeline,
-      pcolls: Set[beam.pvalue.PCollection] = set()):
+      pcolls: Optional[Set[beam.pvalue.PCollection]] = None):
     """
     Initializes a pipelilne for augmenting interactive flavor.
 
@@ -63,7 +63,8 @@ class AugmentedPipeline:
     if background_caching_job.has_source_to_cache(self._user_pipeline):
       self._cache_manager = ie.current_env().get_cache_manager(
           self._user_pipeline)
-    self._pipeline, self._context = self._user_pipeline.to_runner_api(return_context=True)
+    self._pipeline, self._context = self._user_pipeline.to_runner_api(
+        return_context=True)
     self._context.component_id_map = copy.copy(
         self._user_pipeline.component_id_map)
     self._cacheables = self.cacheables()
