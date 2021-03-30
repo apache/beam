@@ -49,8 +49,6 @@ import org.slf4j.LoggerFactory;
  * queries.
  */
 public class SqlTransformRunner {
-  private static final String DATA_DIRECTORY = "gs://beamsql_tpcds_1/data";
-  private static final String RESULT_DIRECTORY = "gs://beamsql_tpcds_1/tpcds_results";
   private static final String SUMMARY_START = "\n" + "TPC-DS Query Execution Summary:";
   private static final List<String> SUMMARY_HEADERS_LIST =
       Arrays.asList(
@@ -86,14 +84,13 @@ public class SqlTransformRunner {
     PCollectionTuple tables = PCollectionTuple.empty(pipeline);
     for (Map.Entry<String, Schema> tableSchema : schemaMap.entrySet()) {
       String tableName = tableSchema.getKey();
-      System.out.println("tableName = " + tableName);
 
       // Only when queryString contains tableName, the table is relevant to this query and will be
       // added. This can avoid reading unnecessary data files.
       if (queryString.contains(tableName)) {
         // This is location path where the data are stored
-        String filePattern = DATA_DIRECTORY + "/" + dataSize + "/" + tableName + ".dat";
-        System.out.println("filePattern = " + filePattern);
+        String filePattern =
+            tpcdsOptions.getDataDirectory() + "/" + dataSize + "/" + tableName + ".dat";
 
         PCollection<Row> table =
             new TextTable(
@@ -196,7 +193,7 @@ public class SqlTransformRunner {
             .apply(
                 TextIO.write()
                     .to(
-                        RESULT_DIRECTORY
+                        tpcdsOptions.getResultsDirectory()
                             + "/"
                             + dataSize
                             + "/"

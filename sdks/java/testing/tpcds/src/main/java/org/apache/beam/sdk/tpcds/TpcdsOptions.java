@@ -20,11 +20,13 @@ package org.apache.beam.sdk.tpcds;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.Validation;
 
 /** Options used to configure TPC-DS test. */
 public interface TpcdsOptions extends PipelineOptions {
   @Description(
       "The size of TPC-DS data to run query on, user input should contain the unit, such as '1G', '10G'")
+  @Validation.Required
   String getDataSize();
 
   void setDataSize(String dataSize);
@@ -41,4 +43,16 @@ public interface TpcdsOptions extends PipelineOptions {
   Integer getTpcParallel();
 
   void setTpcParallel(Integer parallelism);
+
+  @Description("The path to input data directory")
+  @Validation.Required
+  String getDataDirectory();
+
+  void setDataDirectory(String path);
+
+  @Description("The path to directory with results")
+  @Validation.Required
+  String getResultsDirectory();
+
+  void setResultsDirectory(String path);
 }
