@@ -118,13 +118,19 @@ class _PipelineContextMap(Generic[PortableObjectT]):
 
   def get_by_proto(self, maybe_new_proto, label=None, deduplicate=False):
     # type: (message.Message, Optional[str], bool) -> str
+    obj = self._obj_type.from_runner_api(
+        maybe_new_proto, self._pipeline_context)
+
     if deduplicate:
+      if obj in self._obj_to_id:
+        return self._obj_to_id[obj]
+
       for id, proto in self._id_to_proto.items():
         if proto == maybe_new_proto:
           return id
     return self.put_proto(
         self._pipeline_context.component_id_map.get_or_assign(
-            label, obj_type=self._obj_type),
+            obj=obj, obj_type=self._obj_type, label=label),
         maybe_new_proto)
 
   def get_id_to_proto_map(self):
