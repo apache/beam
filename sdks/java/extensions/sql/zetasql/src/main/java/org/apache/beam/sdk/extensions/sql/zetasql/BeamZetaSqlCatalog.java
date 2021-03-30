@@ -292,7 +292,8 @@ public class BeamZetaSqlCatalog {
       if (functions.size() != 1) {
         throw new IllegalArgumentException(
             String.format(
-                "Expected exactly 1 definition for function '%s', but found %d.",
+                "Expected exactly 1 definition for function '%s', but found %d."
+                    + " Beam ZetaSQL supports only a single function definition per function name (BEAM-12073).",
                 functionName, functions.size()));
       }
       for (org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function function :
@@ -323,6 +324,11 @@ public class BeamZetaSqlCatalog {
                   USER_DEFINED_JAVA_SCALAR_FUNCTIONS,
                   ZetaSQLFunctions.FunctionEnums.Mode.SCALAR,
                   ImmutableList.of(functionSignature)));
+        } else {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Function %s has unrecognized implementation type %s.",
+                  functionName, function.getClass().getName()));
         }
       }
     }
