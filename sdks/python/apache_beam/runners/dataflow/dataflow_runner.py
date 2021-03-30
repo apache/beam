@@ -448,9 +448,12 @@ class DataflowRunner(PipelineRunner):
     self._adjust_pipeline_for_dataflow_v2(pipeline)
 
     # Snapshot the pipeline in a portable proto.
+    # Note that pipeline.context may be already populated after the
+    # Pipeline > Runner API > Pipeline round trip.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True,
-        default_environment=self.get_default_environment(options))
+        default_environment=None if pipeline.context is not None else \
+            self.get_default_environment(options))
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.

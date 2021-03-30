@@ -228,6 +228,9 @@ class Pipeline(object):
     # Records whether this pipeline contains any external transforms.
     self.contains_external_transforms = False
 
+    # Stores context when pipeline was created from a RunnerApi proto.
+    self.context = None  # type: Optional[PipelineContext]
+
 
   @property  # type: ignore[misc]  # decorated property not supported
   @deprecated(
@@ -832,7 +835,11 @@ class Pipeline(object):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
-    if context is None:
+    if self.context is not None:
+      if context is not None or default_environment is not None:
+        raise ValueError('Pipeline already has a defined context.')
+      context = self.context
+    elif context is None:
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
           component_id_map=self.component_id_map,
@@ -907,18 +914,17 @@ class Pipeline(object):
       proto,  # type: beam_runner_api_pb2.Pipeline
       runner,  # type: PipelineRunner
       options,  # type: PipelineOptions
-      return_context=False,  # type: bool
   ):
     # type: (...) -> Pipeline
 
     """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
-    context = pipeline_context.PipelineContext(
+    p.context = pipeline_context.PipelineContext(
         proto.components, requirements=proto.requirements)
     if proto.root_transform_ids:
       root_transform_id, = proto.root_transform_ids
-      p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+      p.transforms_stack = [p.context.transforms.get_by_id(root_transform_id)]
     else:
       p.transforms_stack = [AppliedPTransform(None, None, '', None)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
@@ -927,7 +933,7 @@ class Pipeline(object):
         for t in proto.components.transforms.values()
     }
     for id in proto.components.pcollections:
-      pcollection = context.pcollections.get_by_id(id)
+      pcollection = p.context.pcollections.get_by_id(id)
       pcollection.pipeline = p
       if not pcollection.producer:
         raise ValueError('No producer for %s' % id)
@@ -937,14 +943,11 @@ class Pipeline(object):
     from apache_beam.transforms.core import Create
     has_pbegin = [Read, Create]
     for id in proto.components.transforms:
-      transform = context.transforms.get_by_id(id)
+      transform = p.context.transforms.get_by_id(id)
       if not transform.inputs and transform.transform.__class__ in has_pbegin:
         transform.inputs = (pvalue.PBegin(p), )
 
-    if return_context:
-      return p, context  # type: ignore  # too complicated for now
-    else:
-      return p
+    return p
 
 
 class PipelineVisitor(object):
