@@ -57,7 +57,6 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,7 +66,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
-import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
@@ -674,7 +672,6 @@ public class ExpressionConverter {
           userFunctionDefinitions
               .javaScalarFunctions()
               .get(functionCall.getFunction().getNamePath());
-      Method method = ScalarFnReflector.getApplyMethod(javaScalarFunction.scalarFn());
       ArrayList<RexNode> innerFunctionArguments = new ArrayList<>();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
         ResolvedExpr argExpr = functionCall.getArgumentList().get(i);
@@ -686,7 +683,7 @@ public class ExpressionConverter {
           .makeCall(
               SqlOperators.createUdfOperator(
                   functionCall.getFunction().getName(),
-                  method,
+                  javaScalarFunction.method(),
                   USER_DEFINED_JAVA_SCALAR_FUNCTIONS,
                   javaScalarFunction.jarPath()),
               innerFunctionArguments);

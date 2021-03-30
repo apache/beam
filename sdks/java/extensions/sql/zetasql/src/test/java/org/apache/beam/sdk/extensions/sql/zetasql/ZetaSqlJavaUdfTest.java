@@ -23,9 +23,17 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.fail;
 
+import java.lang.reflect.Method;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -35,10 +43,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -183,6 +193,53 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     Schema singleField = Schema.builder().addBooleanField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(true).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  public static class IncrementFn implements BeamSqlUdf {
+    public Long eval(Long i) {
+      return i + 1;
+    }
+  }
+
+  @Test
+  @Ignore(
+      "Re-enable when ZetaSQLQueryPlanner has UDFs enabled by default. "
+          + "Until then, this test fails because we can't pass a ZetaSQLQueryPlanner instance to SqlTransform.")
+  public void testSqlTransformRegisterUdf() {
+    String sql = "SELECT increment(0);";
+    PCollection<Row> stream =
+        pipeline.apply(
+            SqlTransform.query(sql)
+                .withQueryPlannerClass(ZetaSQLQueryPlanner.class)
+                .registerUdf("increment", IncrementFn.class));
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  /** This tests a subset of the code path used by {@link #testSqlTransformRegisterUdf()}. */
+  @Test
+  public void testUdfFromCatalog() throws NoSuchMethodException {
+    // Add IncrementFn to Calcite schema.
+    JdbcConnection jdbcConnection =
+        JdbcDriver.connect(
+            new ReadOnlyTableProvider("empty_table_provider", ImmutableMap.of()),
+            PipelineOptionsFactory.create());
+    Method method = IncrementFn.class.getMethod("eval", Long.class);
+    jdbcConnection.getCurrentSchemaPlus().add("increment", ScalarFunctionImpl.create(method));
+    this.config =
+        Frameworks.newConfigBuilder(config)
+            .defaultSchema(jdbcConnection.getCurrentSchemaPlus())
+            .build();
+
+    String sql = "SELECT increment(0);";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
