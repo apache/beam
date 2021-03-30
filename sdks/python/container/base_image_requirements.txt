@@ -38,7 +38,7 @@ pyarrow==3.0.0
 pydot==1.4.1
 pymongo==3.9.0
 pytz==2019.3
-pyyaml==5.1
+pyyaml==5.4
 typing-extensions==3.7.4.3
 
 # GCP extra features
