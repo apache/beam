@@ -35,44 +35,46 @@ First of all, it would be useful to have a single property in your `pom.xml`
 where you keep the global Beam version that you're using. Something like this
 in your `pom.xml`:
 
-```xml
-<properties>
+{{< highlight java >}}
+&lt;properties&gt;
     ...
-    <beam.version>2.26.0</beam.version>
+    &lt;beam.version&gt;2.26.0&lt;/beam.version&gt;
     ...
-</properties>
-<dependencies>
-    <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-core</artifactId>
-        <version>${beam.version}</version>
-    </dependency>
+&lt;/properties&gt;
+&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+        &lt;artifactId&gt;beam-sdks-java-core&lt;/artifactId&gt;
+        &lt;version&gt;${beam.version}&lt;/version&gt;
+    &lt;/dependency&gt;
     ...
-</dependencies>
-```
+&lt;/dependencies&gt;
+{{< /highlight >}}
 
 Second, you can add a new profile to your `pom.xml` file. In this new profile,
 add a new repository with the staging repository for the new Beam release. For
 Beam 2.27.0, this was `https://repository.apache.org/content/repositories/orgapachebeam-1149/`.
 
-```xml
-        <profile>
-            <id>validaterelease</id>
-            <repositories>
-                <repository>
-                    <id>apache.beam.newrelease</id>
-                    <url>${beam.release.repo}</url>
-                </repository>
-            </repositories>
-        </profile>
-```
+{{< highlight java >}}
+        &lt;profile&gt;
+            &lt;id&gt;validaterelease&lt;/id&gt;
+            &lt;repositories&gt;
+                &lt;repository&gt;
+                    &lt;id&gt;apache.beam.newrelease&lt;/id&gt;
+                    &lt;url&gt;${beam.release.repo}&lt;/url&gt;
+                &lt;/repository&gt;
+            &lt;/repositories&gt;
+        &lt;/profile&gt;
+{{< /highlight >}}
 
 Once you have a `beam.version` property in your `pom.xml`, and a new profile
 with the new release, you can run your `mvn` command activating the new profile,
 and the new Beam version:
 
 ```
-mvn test -Pvalidaterelease -Dbeam.version=2.27.0 -Dbeam.release.repo=https://repository.apache.org/content/repositories/orgapachebeam-XXXX/
+mvn test -Pvalidaterelease \
+         -Dbeam.version=2.27.0 \
+         -Dbeam.release.repo=https://repository.apache.org/content/repositories/orgapachebeam-XXXX/
 ```
 
 This should build your project against the new release, and run basic tests.
