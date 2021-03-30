@@ -127,14 +127,8 @@ def spannerio_write_test_2gb = [
   ]
 ]
 
-def executeJob10Gb = { scope, testConfig ->
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 360)
-
-  loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test)
-}
-
-def executeJob2Gb = { scope, testConfig ->
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+def executeJob = { scope, testConfig ->
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 480)
 
   loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test)
 }
@@ -145,11 +139,11 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'SpannerIO Read 10GB Performance Test Python',
     this
     ) {
-      executeJob10Gb(delegate, spannerio_read_test_10gb)
+      executeJob(delegate, spannerio_read_test_10gb)
     }
 
 CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Read_10GB_Python', 'H 15 * * *', this) {
-  executeJob10Gb(delegate, spannerio_read_test_10gb)
+  executeJob(delegate, spannerio_read_test_10gb)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -158,11 +152,11 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'SpannerIO Write 10GB Performance Test Python Batch',
     this
     ) {
-      executeJob10Gb(delegate, spannerio_write_test_10gb)
+      executeJob(delegate, spannerio_write_test_10gb)
     }
 
 CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Write_10GB_Python_Batch', 'H 15 * * *', this) {
-  executeJob10Gb(delegate, spannerio_write_test_10gb)
+  executeJob(delegate, spannerio_write_test_10gb)
 }
 
 
@@ -172,11 +166,11 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'SpannerIO Read 2GB Performance Test Python',
     this
     ) {
-      executeJob2Gb(delegate, spannerio_read_test_2gb)
+      executeJob(delegate, spannerio_read_test_2gb)
     }
 
 CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Read_2GB_Python', 'H 15 * * *', this) {
-  executeJob2Gb(delegate, spannerio_read_test_2gb)
+  executeJob(delegate, spannerio_read_test_2gb)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -185,9 +179,9 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'SpannerIO Write 2GB Performance Test Python Batch',
     this
     ) {
-      executeJob2Gb(delegate, spannerio_write_test_2gb)
+      executeJob(delegate, spannerio_write_test_2gb)
     }
 
 CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Write_2GB_Python_Batch', 'H 15 * * *', this) {
-  executeJob2Gb(delegate, spannerio_write_test_2gb)
+  executeJob(delegate, spannerio_write_test_2gb)
 }
