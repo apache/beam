@@ -25,6 +25,125 @@ from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_funct
 
 @unittest.skipIf(sys.platform == 'win32', '[BEAM-10626]')
 class DoctestTest(unittest.TestCase):
+  def test_ndframe_tests(self):
+    # IO methods are tested in io_test.py
+    skip_writes = {
+        f'pandas.core.generic.NDFrame.{name}': ['*']
+        for name in dir(pd.core.generic.NDFrame) if name.startswith('to_')
+    }
+
+    result = doctests.testmod(
+        pd.core.generic,
+        use_beam=False,
+        report=True,
+        wont_implement_ok={
+            'pandas.core.generic.NDFrame.first': ['*'],
+            'pandas.core.generic.NDFrame.head': ['*'],
+            'pandas.core.generic.NDFrame.last': ['*'],
+            'pandas.core.generic.NDFrame.shift': ['*'],
+            'pandas.core.generic.NDFrame.tail': ['*'],
+            'pandas.core.generic.NDFrame.take': ['*'],
+            'pandas.core.generic.NDFrame.values': ['*'],
+            'pandas.core.generic.NDFrame.tz_localize': [
+                "s.tz_localize('CET', ambiguous='infer')",
+                # np.array is not a deferred object. This use-case is possible
+                # with a deferred Series though, which is tested in
+                # frames_test.py
+                "s.tz_localize('CET', ambiguous=np.array([True, True, False]))",
+            ],
+            'pandas.core.generic.NDFrame.truncate': [
+                # These inputs rely on tail (wont implement, order
+                # sensitive) for verification
+                "df.tail()",
+                "df.loc['2016-01-05':'2016-01-10', :].tail()",
+            ],
+            'pandas.core.generic.NDFrame.replace': [
+                "s.replace([1, 2], method='bfill')",
+                # Relies on method='pad'
+                "s.replace('a', None)",
+            ],
+            'pandas.core.generic.NDFrame.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
+            'pandas.core.generic.NDFrame.sort_values': ['*'],
+        },
+        not_implemented_ok={
+            'pandas.core.generic.NDFrame.add_prefix': ['*'],
+            'pandas.core.generic.NDFrame.add_suffix': ['*'],
+            'pandas.core.generic.NDFrame.asof': ['*'],
+            'pandas.core.generic.NDFrame.at_time': ['*'],
+            'pandas.core.generic.NDFrame.between_time': ['*'],
+            'pandas.core.generic.NDFrame.describe': ['*'],
+            'pandas.core.generic.NDFrame.ewm': ['*'],
+            'pandas.core.generic.NDFrame.expanding': ['*'],
+            'pandas.core.generic.NDFrame.flags': ['*'],
+            'pandas.core.generic.NDFrame.interpolate': ['*'],
+            'pandas.core.generic.NDFrame.mask': ['*'],
+            'pandas.core.generic.NDFrame.pct_change': ['*'],
+            'pandas.core.generic.NDFrame.rank': ['*'],
+            'pandas.core.generic.NDFrame.reindex': ['*'],
+            'pandas.core.generic.NDFrame.reindex_like': ['*'],
+            'pandas.core.generic.NDFrame.replace': ['*'],
+            'pandas.core.generic.NDFrame.resample': ['*'],
+            'pandas.core.generic.NDFrame.rolling': ['*'],
+            'pandas.core.generic.NDFrame.sample': ['*'],
+            'pandas.core.generic.NDFrame.set_flags': ['*'],
+            'pandas.core.generic.NDFrame.squeeze': ['*'],
+            'pandas.core.generic.NDFrame.transform': ['*'],
+            'pandas.core.generic.NDFrame.truncate': ['*'],
+            'pandas.core.generic.NDFrame.where': ['*'],
+            'pandas.core.generic.NDFrame.xs': ['*'],
+            # argsort unimplemented
+            'pandas.core.generic.NDFrame.abs': [
+                'df.loc[(df.c - 43).abs().argsort()]',
+            ],
+        },
+        skip={
+            # Internal test
+            'pandas.core.generic.NDFrame._set_axis_name': ['*'],
+            # Fails to construct test series. asfreq is not implemented anyway.
+            'pandas.core.generic.NDFrame.asfreq': ['*'],
+            'pandas.core.generic.NDFrame.astype': ['*'],
+            'pandas.core.generic.NDFrame.convert_dtypes': ['*'],
+            'pandas.core.generic.NDFrame.copy': ['*'],
+            'pandas.core.generic.NDFrame.droplevel': ['*'],
+            'pandas.core.generic.NDFrame.infer_objects': ['*'],
+            'pandas.core.generic.NDFrame.rank': [
+                # Modified dataframe
+                'df'
+            ],
+            'pandas.core.generic.NDFrame.rename': [
+                # Seems to be an upstream bug. The actual error has a different
+                # message:
+                #   TypeError: Index(...) must be called with a collection of
+                #   some kind, 2 was passed
+                # pandas doctests only verify the type of exception
+                'df.rename(2)'
+            ],
+            # Tests rely on setting index
+            'pandas.core.generic.NDFrame.rename_axis': ['*'],
+            # Raises right exception, but testing framework has matching issues.
+            'pandas.core.generic.NDFrame.replace': [
+                "df.replace({'a string': 'new value', True: False})  # raises"
+            ],
+            'pandas.core.generic.NDFrame.squeeze': ['*'],
+
+            # NameError
+            'pandas.core.generic.NDFrame.resample': ['df'],
+
+            # Skipped so we don't need to install natsort
+            'pandas.core.generic.NDFrame.sort_values': [
+                'from natsort import index_natsorted',
+                'df.sort_values(\n'
+                '   by="time",\n'
+                '   key=lambda x: np.argsort(index_natsorted(df["time"]))\n'
+                ')'
+            ],
+            **skip_writes
+        })
+    self.assertEqual(result.failed, 0)
+
   def test_dataframe_tests(self):
     result = doctests.testmod(
         pd.core.frame,
@@ -85,6 +204,8 @@ class DoctestTest(unittest.TestCase):
                 "for i in range(5):\n" +
                 "    df = df.append({'A': i}, ignore_index=True)",
             ],
+            'pandas.core.frame.DataFrame.sort_index': ['*'],
+            'pandas.core.frame.DataFrame.sort_values': ['*'],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
@@ -160,7 +281,6 @@ class DoctestTest(unittest.TestCase):
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
             'pandas.core.frame.DataFrame.set_axis': ['*'],
-            'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
             'pandas.core.frame.DataFrame.value_counts': ['*'],
@@ -277,6 +397,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.append': [
                 's1.append(s2, ignore_index=True)',
             ],
+            'pandas.core.series.Series.sort_index': ['*'],
+            'pandas.core.series.Series.sort_values': ['*'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -323,8 +445,6 @@ class DoctestTest(unittest.TestCase):
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
             ],
             'pandas.core.series.Series.set_axis': ['*'],
-            'pandas.core.series.Series.sort_index': ['*'],
-            'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
             'pandas.core.series.Series.to_markdown': ['*'],
             'pandas.core.series.Series.update': ['*'],
@@ -557,6 +677,7 @@ class DoctestTest(unittest.TestCase):
         if _is_top_level_function(func) and getattr(func, '__doc__', None)
     }
 
+    # IO methods are tested in io_test.py
     skip_reads = {name: ['*'] for name in dir(pd) if name.startswith('read_')}
 
     result = doctests.teststrings(

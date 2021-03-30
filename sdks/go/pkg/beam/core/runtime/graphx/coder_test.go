@@ -100,6 +100,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
 		},
 		{
+			name: "R[graphx.registeredNamedTypeForTest]",
+			c:    coder.NewR(typex.New(reflect.TypeOf((*registeredNamedTypeForTest)(nil)).Elem())),
+		},
+		{
 			name: "R[*graphx.registeredNamedTypeForTest]",
 			c:    coder.NewR(typex.New(reflect.TypeOf((*registeredNamedTypeForTest)(nil)))),
 		},

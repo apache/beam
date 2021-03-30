@@ -35,8 +35,10 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,6 +61,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -177,6 +180,131 @@ public class PubsubTableProviderIT implements Serializable {
   }
 
   @Test
+  public void testSQLSelectsArrayAttributes() throws Exception {
+    String createTableString =
+        String.format(
+            "CREATE EXTERNAL TABLE message (\n"
+                + "event_timestamp TIMESTAMP, \n"
+                + "attributes ARRAY<ROW<key VARCHAR, `value` VARCHAR>>, \n"
+                + "payload ROW< \n"
+                + "             id INTEGER, \n"
+                + "             name VARCHAR \n"
+                + "           > \n"
+                + ") \n"
+                + "TYPE '%s' \n"
+                + "LOCATION '%s' \n"
+                + "TBLPROPERTIES '{ "
+                + "%s"
+                + "\"timestampAttributeKey\" : \"ts\" }'",
+            tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam());
+
+    String queryString =
+        "SELECT message.payload.id, attributes[1].key AS a1, attributes[2].key AS a2 FROM message";
+
+    // Prepare messages to send later
+    List<PubsubMessage> messages =
+        ImmutableList.of(
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"));
+
+    // Initialize SQL environment and create the pubsub table
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());
+    sqlEnv.executeDdl(createTableString);
+
+    // Apply the PTransform to query the pubsub topic
+    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+
+    // Observe the query results and send success signal after seeing the expected messages
+    queryOutput.apply(
+        "waitForSuccess",
+        resultSignal.signalSuccessWhen(
+            SchemaCoder.of(PAYLOAD_SCHEMA),
+            observedRows -> {
+              Map<Integer, String> entries = new HashMap<>();
+              for (Row row : observedRows) {
+                if ("ts".equals(row.getString("a1"))) {
+                  entries.put(row.getInt32("id"), row.getString("a2"));
+                } else {
+                  entries.put(row.getInt32("id"), row.getString("a1"));
+                }
+              }
+
+              return entries.equals(ImmutableMap.of(3, "foo", 5, "bar", 7, "baz"));
+            }));
+
+    // Start the pipeline
+    pipeline.run();
+
+    // Block until a subscription for this topic exists
+    eventsTopic.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
+
+    // Start publishing the messages when main pipeline is started and signaling topic is ready
+    eventsTopic.publish(messages);
+
+    // Poll the signaling topic for success message
+    resultSignal.waitForSuccess(Duration.standardMinutes(1));
+  }
+
+  @Test
+  public void testSQLWithBytePayload() throws Exception {
+    String createTableString =
+        String.format(
+            "CREATE EXTERNAL TABLE message (\n"
+                + "event_timestamp TIMESTAMP, \n"
+                + "attributes MAP<VARCHAR, VARCHAR>, \n"
+                + "payload VARBINARY \n"
+                + ") \n"
+                + "TYPE '%s' \n"
+                + "LOCATION '%s' \n"
+                + "TBLPROPERTIES '{ "
+                + "\"timestampAttributeKey\" : \"ts\" }'",
+            tableProvider.getTableType(), eventsTopic.topicPath());
+
+    String queryString = "SELECT message.payload AS some_bytes FROM message";
+
+    // Prepare messages to send later
+    List<PubsubMessage> messages =
+        ImmutableList.of(
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"));
+
+    // Initialize SQL environment and create the pubsub table
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());
+    sqlEnv.executeDdl(createTableString);
+
+    // Apply the PTransform to query the pubsub topic
+    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+
+    // Observe the query results and send success signal after seeing the expected messages
+    Schema justBytesSchema =
+        Schema.builder().addField("some_bytes", FieldType.BYTES.withNullable(true)).build();
+    Row expectedRow0 = row(justBytesSchema, (Object) messages.get(0).getPayload());
+    Row expectedRow1 = row(justBytesSchema, (Object) messages.get(1).getPayload());
+    Row expectedRow2 = row(justBytesSchema, (Object) messages.get(2).getPayload());
+    Set<Row> expected = ImmutableSet.of(expectedRow0, expectedRow1, expectedRow2);
+    queryOutput.apply(
+        "waitForSuccess",
+        resultSignal.signalSuccessWhen(
+            SchemaCoder.of(justBytesSchema), observedRows -> observedRows.equals(expected)));
+
+    // Start the pipeline
+    pipeline.run();
+
+    // Block until a subscription for this topic exists
+    eventsTopic.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
+
+    // Start publishing the messages when main pipeline is started and signaling topic is ready
+    eventsTopic.publish(messages);
+
+    // Poll the signaling topic for success message
+    resultSignal.waitForSuccess(Duration.standardMinutes(5));
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   public void testUsesDlq() throws Exception {
     String createTableString =
@@ -210,8 +338,8 @@ public class PubsubTableProviderIT implements Serializable {
             objectsProvider.messageIdName(ts(1), 3, "foo"),
             objectsProvider.messageIdName(ts(2), 5, "bar"),
             objectsProvider.messageIdName(ts(3), 7, "baz"),
-            messagePayload(ts(4), "{ - }"), // invalid message, will go to DLQ
-            messagePayload(ts(5), "{ + }")); // invalid message, will go to DLQ
+            messagePayload(ts(4), "{ - }", ImmutableMap.of()), // invalid message, will go to DLQ
+            messagePayload(ts(5), "{ + }", ImmutableMap.of())); // invalid message, will go to DLQ
 
     // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());
@@ -606,8 +734,14 @@ public class PubsubTableProviderIT implements Serializable {
     return Row.withSchema(schema).addValues(values).build();
   }
 
-  private static PubsubMessage message(Instant timestamp, byte[] payload) {
-    return new PubsubMessage(payload, ImmutableMap.of("ts", String.valueOf(timestamp.getMillis())));
+  private static PubsubMessage message(
+      Instant timestamp, byte[] payload, Map<String, String> attributes) {
+    return new PubsubMessage(
+        payload,
+        ImmutableMap.<String, String>builder()
+            .putAll(attributes)
+            .put("ts", String.valueOf(timestamp.getMillis()))
+            .build());
   }
 
   private Matcher<PubsubMessage> matcherTsNameHeightKnowsJS(
@@ -627,8 +761,9 @@ public class PubsubTableProviderIT implements Serializable {
     return Instant.ofEpochMilli(millis);
   }
 
-  private PubsubMessage messagePayload(Instant timestamp, String payload) {
-    return message(timestamp, payload.getBytes(StandardCharsets.US_ASCII));
+  private PubsubMessage messagePayload(
+      Instant timestamp, String payload, Map<String, String> attributes) {
+    return message(timestamp, payload.getBytes(StandardCharsets.US_ASCII), attributes);
   }
 
   private abstract static class PubsubObjectProvider implements Serializable {
@@ -657,7 +792,7 @@ public class PubsubTableProviderIT implements Serializable {
     @Override
     protected PubsubMessage messageIdName(Instant timestamp, int id, String name) {
       String jsonString = "{ \"id\" : " + id + ", \"name\" : \"" + name + "\" }";
-      return message(timestamp, jsonString);
+      return message(timestamp, jsonString, ImmutableMap.of(name, Integer.toString(id)));
     }
 
     @Override
@@ -681,8 +816,9 @@ public class PubsubTableProviderIT implements Serializable {
       return hasProperty("payload", toJsonByteLike(jsonString));
     }
 
-    private PubsubMessage message(Instant timestamp, String jsonPayload) {
-      return PubsubTableProviderIT.message(timestamp, jsonPayload.getBytes(UTF_8));
+    private PubsubMessage message(
+        Instant timestamp, String jsonPayload, Map<String, String> attributes) {
+      return PubsubTableProviderIT.message(timestamp, jsonPayload.getBytes(UTF_8), attributes);
     }
 
     private Matcher<byte[]> toJsonByteLike(String jsonString) throws IOException {
@@ -717,7 +853,7 @@ public class PubsubTableProviderIT implements Serializable {
               PAYLOAD_SCHEMA,
               org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
                   id, name));
-      return message(timestamp, encodedRecord);
+      return message(timestamp, encodedRecord, ImmutableMap.of(name, Integer.toString(id)));
     }
 
     @Override

@@ -253,10 +253,20 @@ Attention: Only committer has permission to create release branch in apache/beam
 
 Release candidates are built from a release branch.
 As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.
+The final state of the repository should match this diagram:
 
-There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.
+<img src="/images/cut-release-branch.png" alt="Increment minor version on master branch and set Dataflow container version on release branch" width="100%">
 
-After following one of these processes you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
+The key points to know:
+
+- The `master` branch has the SNAPSHOT/dev version incremented.
+- The release branch has the SNAPSHOT/dev version to be released.
+- The Dataflow container image should be modified to the version to be released.
+
+This will all be accomplished by the [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
+script.
+
+After cutting the branch, you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
 
 #### Use cut_release_branch.sh to cut a release branch
 * **Script:** [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
@@ -271,76 +281,6 @@ After following one of these processes you should manually update `CHANGES.md` o
   # Show help page
   ./beam/release/src/main/scripts/cut_release_branch.sh -h
   ```
-* **The script will:**
-  1. Create release-${RELEASE_VERSION} branch locally.
-  1. Change and commit dev versoin number in master branch:
-
-     [BeamModulePlugin.groovy](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L209),
-     [gradle.properties](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/gradle.properties#L25),
-     [version.py](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/sdks/python/apache_beam/version.py#L21)
-  1. Change and commit version number in release branch:
-
-     [version.py](https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21),
-     [build.gradle](https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39),
-     [gradle.properties](https://github.com/apache/beam/blob/release-2.16.0/gradle.properties#L27)
-
-#### (Alternative) Run all steps manually
-* **Checkout working branch**
-
-  Check out the version of the codebase from which you start the release.
-  For a new minor or major release, this may be `HEAD` of the `master` branch.
-  To build a hotfix/incremental release, instead of the `master` branch, use the release tag of the release being patched.
-  (Please make sure your cloned repository is up-to-date before starting.)
-
-      git checkout <master branch OR release tag>
-
-  **NOTE**: If you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, rather than the master branch.
-
-* **Set up environment variables**
-
-  Set up a few environment variables to simplify Maven commands that follow.
-  (We use `bash` Unix syntax in this guide.)
-
-      RELEASE=2.5.0
-      NEXT_VERSION_IN_BASE_BRANCH=2.6.0
-      BRANCH=release-${RELEASE}
-
-  Version represents the release currently underway, while next version specifies the anticipated next version to be released from that branch.
-  Normally, 1.2.0 is followed by 1.3.0, while 1.2.3 is followed by 1.2.4.
-
-  **NOTE**: Only if you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, before running the following instructions:
-
-      BASE_RELEASE=2.5.0
-      RELEASE=2.5.1
-      NEXT_VERSION_IN_BASE_BRANCH=2.6.0
-      git checkout tags/${BASE_RELEASE}
-
-* **Create release branch locally**
-
-      git branch ${BRANCH}
-
-* **Update version files in the master branch**
-
-      # Now change the version in existing gradle files, and Python files
-      sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" build_rules.gradle
-      sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
-      sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
-
-      # Save changes in master branch
-      git add gradle.properties build_rules.gradle sdks/python/apache_beam/version.py
-      git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
-
-* **Check out the release branch**
-
-      git checkout ${BRANCH}
-
-* **Update version files in release branch**
-
-      DEV=${RELEASE}.dev
-      sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
-      sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
-      sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
-
 
 ### Start a snapshot build
 
@@ -579,6 +519,36 @@ The Release Manager repeats this cycle until the community approves one release 
 
 For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want.
 
+### Tag a chosen commit for the RC
+
+Release candidates are built from single commits off the release branch.
+Before building, the version must be set to a non-SNAPSHOT, non-dev version.
+The final state of the repository should match this diagram:
+
+<img src="/images/tag-rc-commit.png" alt="Set version to non-SNAPSHOT, non-dev, on tagged RC commit" width="100%" />
+
+- The release branch is unchanged.
+- There is a commit not on the release branch with the version adjusted.
+- The RC tag points to that commit.
+
+* **Script:** [choose_rc_commit.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/choose_rc_commit.sh)
+
+* **Usage**
+
+      ./beam/release/src/main/scripts/choose_rc_commit.sh \
+          --release "${RELEASE_VERSION}" \
+          --rc "${RC_NUM}" \
+          --commit "${COMMIT_REF}" \
+          --clone \
+          --push-tag
+
+You can do a dry run by omitting the `--push-tag` flag. Then it will only clone the repo,
+adjust the version, and add the tag locally. If it looks good, run it again with `--push-tag`.
+If you already have a clone that includes the `${COMMIT_REF}` then you can omit `--clone`. This
+is perfectly safe since the script does not depend on the current working tree.
+
+See the source of the script for more details, or to run commands manually in case of a problem.
+
 ### Run build_release_candidate.sh to create a release candidate
 
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
@@ -588,7 +558,7 @@ For this step, we recommend you using automation script to create a RC, but you 
       ./beam/release/src/main/scripts/build_release_candidate.sh
 
 * **The script will:**
-  1. Run gradle release to create rc tag and push source release into github repo.
+  1. Clone the repo at the selected RC tag.
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir

@@ -95,8 +95,6 @@ public interface DataflowPipelineOptions
   void setUpdate(boolean value);
 
   /** If set, the snapshot from which the job should be created. */
-  @Hidden
-  @Experimental
   @Description("If set, the snapshot from which the job should be created.")
   String getCreateFromSnapshot();
 

@@ -30,7 +30,6 @@ import io
 import logging
 import multiprocessing
 import re
-import sys
 import threading
 import time
 import traceback
@@ -154,7 +153,7 @@ class GcsIO(object):
           credentials=auth.get_service_credentials(),
           get_credentials=False,
           http=get_new_http(),
-          response_encoding=None if sys.version_info[0] < 3 else 'utf8')
+          response_encoding='utf8')
     self.client = storage_client
     self._rewrite_cb = None
 

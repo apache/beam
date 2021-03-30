@@ -673,6 +673,10 @@ class GoogleCloudOptions(PipelineOptions):
         help='Set a Google Cloud KMS key name to be used in '
         'Dataflow state operations (GBK, Streaming).')
     parser.add_argument(
+        '--create_from_snapshot',
+        default=None,
+        help='The snapshot from which the job should be created.')
+    parser.add_argument(
         '--flexrs_goal',
         default=None,
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
@@ -1285,7 +1289,8 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--spark_rest_url',
         help='URL for the Spark REST endpoint. '
-        'Only required when using spark_submit_uber_jar.')
+        'Only required when using spark_submit_uber_jar. '
+        'For example, http://hostname:6066')
 
 
 class TestOptions(PipelineOptions):

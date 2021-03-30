@@ -170,6 +170,10 @@ class JavaJarServer(SubprocessServer):
     if self._existing_service:
       return self._existing_service
     else:
+      if not shutil.which('java'):
+        raise RuntimeError(
+            'Java must be installed on this system to use this '
+            'transform/runner.')
       return super(JavaJarServer, self).start_process()
 
   def stop_process(self):

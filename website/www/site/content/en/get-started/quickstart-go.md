@@ -72,7 +72,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 {{< highlight class="runner-spark" >}}
 # Build and run the Spark job server from Beam source.
 # -PsparkMasterUrl is optional. If it is unset the job will be run inside an embedded Spark cluster.
-$ ./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
+$ ./gradlew :runners:spark:2:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
 
 # In a separate terminal, run:
 $ go install github.com/apache/beam/sdks/go/examples/wordcount

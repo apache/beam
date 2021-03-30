@@ -31,6 +31,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -425,8 +426,24 @@ public class ParquetIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(
-          DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"));
+      builder
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
+          .add(DisplayData.item("splittable", isSplittable()))
+          .addIfNotNull(DisplayData.item("projectionSchema", String.valueOf(getProjectionSchema())))
+          .addIfNotNull(DisplayData.item("avroDataModel", String.valueOf(getAvroDataModel())));
+      if (this.getConfiguration() != null) {
+        Configuration configuration = this.getConfiguration().get();
+        for (Entry<String, String> entry : configuration) {
+          if (entry.getKey().startsWith("parquet")) {
+            builder.addIfNotNull(DisplayData.item(entry.getKey(), entry.getValue()));
+          }
+        }
+      }
     }
   }
 
@@ -460,12 +477,12 @@ public class ParquetIO {
       abstract Parse<T> build();
     }
 
-    public Parse<T> from(ValueProvider<String> inputFiles) {
-      return toBuilder().setFilepattern(inputFiles).build();
+    public Parse<T> from(ValueProvider<String> filepattern) {
+      return toBuilder().setFilepattern(filepattern).build();
     }
 
-    public Parse<T> from(String inputFiles) {
-      return from(ValueProvider.StaticValueProvider.of(inputFiles));
+    public Parse<T> from(String filepattern) {
+      return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
     /** Specify the output coder to use for output of the {@code ParseFn}. */
@@ -502,6 +519,27 @@ public class ParquetIO {
                   .setCoder(getCoder())
                   .setSplittable(isSplittable())
                   .build());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+          .add(DisplayData.item("splittable", isSplittable()))
+          .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"));
+      if (this.getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass()));
+      }
+      if (this.getConfiguration() != null) {
+        Configuration configuration = this.getConfiguration().get();
+        for (Entry<String, String> entry : configuration) {
+          if (entry.getKey().startsWith("parquet")) {
+            builder.addIfNotNull(DisplayData.item(entry.getKey(), entry.getValue()));
+          }
+        }
+      }
     }
   }
 
@@ -561,6 +599,25 @@ public class ParquetIO {
       return input
           .apply(ParDo.of(buildFileReadingFn()))
           .setCoder(inferCoder(input.getPipeline().getCoderRegistry()));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .add(DisplayData.item("splittable", isSplittable()))
+          .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"));
+      if (this.getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass()));
+      }
+      if (this.getConfiguration() != null) {
+        Configuration configuration = this.getConfiguration().get();
+        for (Entry<String, String> entry : configuration) {
+          if (entry.getKey().startsWith("parquet")) {
+            builder.addIfNotNull(DisplayData.item(entry.getKey(), entry.getValue()));
+          }
+        }
+      }
     }
 
     /** Returns Splittable or normal Parquet file reading DoFn. */
@@ -686,6 +743,27 @@ public class ParquetIO {
     public PCollection<GenericRecord> expand(PCollection<ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
       return input.apply(ParDo.of(getReaderFn())).setCoder(getCollectionCoder());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("schema", String.valueOf(getSchema())))
+          .add(
+              DisplayData.item("inferBeamSchema", getInferBeamSchema())
+                  .withLabel("Infer Beam Schema"))
+          .add(DisplayData.item("splittable", isSplittable()))
+          .addIfNotNull(DisplayData.item("projectionSchema", String.valueOf(getProjectionSchema())))
+          .addIfNotNull(DisplayData.item("avroDataModel", String.valueOf(getAvroDataModel())));
+      if (this.getConfiguration() != null) {
+        Configuration configuration = this.getConfiguration().get();
+        for (Entry<String, String> entry : configuration) {
+          if (entry.getKey().startsWith("parquet")) {
+            builder.addIfNotNull(DisplayData.item(entry.getKey(), entry.getValue()));
+          }
+        }
+      }
     }
 
     /** Returns Parquet file reading function based on {@link #isSplittable()}. */
@@ -1059,6 +1137,8 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_Sink.Builder()
         .setJsonSchema(schema.toString())
         .setCompressionCodec(CompressionCodecName.SNAPPY)
+        // This resembles the default value for ParquetWriter.rowGroupSize.
+        .setRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE)
         .build();
   }
 
@@ -1072,6 +1152,8 @@ public class ParquetIO {
 
     abstract @Nullable SerializableConfiguration getConfiguration();
 
+    abstract int getRowGroupSize();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1081,6 +1163,8 @@ public class ParquetIO {
       abstract Builder setCompressionCodec(CompressionCodecName compressionCodec);
 
       abstract Builder setConfiguration(SerializableConfiguration configuration);
+
+      abstract Builder setRowGroupSize(int rowGroupSize);
 
       abstract Sink build();
     }
@@ -1102,6 +1186,12 @@ public class ParquetIO {
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
+    /** Specify row-group size; if not set or zero, a default is used by the underlying writer. */
+    public Sink withRowGroupSize(int rowGroupSize) {
+      checkArgument(rowGroupSize > 0, "rowGroupSize must be positive");
+      return toBuilder().setRowGroupSize(rowGroupSize).build();
+    }
+
     private transient @Nullable ParquetWriter<GenericRecord> writer;
 
     @Override
@@ -1113,13 +1203,14 @@ public class ParquetIO {
       BeamParquetOutputFile beamParquetOutputFile =
           new BeamParquetOutputFile(Channels.newOutputStream(channel));
 
-      this.writer =
+      AvroParquetWriter.Builder<GenericRecord> builder =
           AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
               .withWriteMode(OVERWRITE)
               .withConf(SerializableConfiguration.newConfiguration(getConfiguration()))
-              .build();
+              .withRowGroupSize(getRowGroupSize());
+      this.writer = builder.build();
     }
 
     @Override

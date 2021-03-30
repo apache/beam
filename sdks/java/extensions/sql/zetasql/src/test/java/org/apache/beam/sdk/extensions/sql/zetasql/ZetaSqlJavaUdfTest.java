@@ -32,11 +32,13 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -50,7 +52,6 @@ import org.junit.runners.JUnit4;
  * beam.sql.udf.test.empty_jar_path</code> must be set.
  */
 @RunWith(JUnit4.class)
-@Ignore("TODO(BEAM-11747) Re-enable when BeamJavaUdfCalcRule can be re-enabled.")
 public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -76,6 +77,16 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
               emptyJarPathProperty, ZetaSqlJavaUdfTest.class.getSimpleName()));
     }
     initialize();
+
+    // Add BeamJavaUdfCalcRule to planner to enable UDFs.
+    this.config =
+        Frameworks.newConfigBuilder(config)
+            .ruleSets(
+                ZetaSQLQueryPlanner.getZetaSqlRuleSets(
+                        ImmutableList.of(
+                            BeamZetaSqlCalcRule.INSTANCE, BeamJavaUdfCalcRule.INSTANCE))
+                    .toArray(new RuleSet[0]))
+            .build();
   }
 
   @Test
