@@ -216,7 +216,7 @@ class UtilTest(unittest.TestCase):
         sdk_info.containerImage
         for sdk_info in worker_pool.sdkHarnessContainerImages
     ]
-    self.assertTrue('test_default_image' in images_from_proto)
+    self.assertIn('test_default_image', images_from_proto)
 
   def test_sdk_harness_container_image_overrides(self):
     test_environment = DockerEnvironment(
@@ -344,9 +344,9 @@ class UtilTest(unittest.TestCase):
         for transform_id in proto_pipeline.components.transforms
     ]
     if 'dummy_env_id_1' in env_ids_from_transforms:
-      self.assertTrue('dummy_env_id_2' not in env_ids_from_transforms)
+      self.assertNotIn('dummy_env_id_2', env_ids_from_transforms)
     else:
-      self.assertTrue('dummy_env_id_2' in env_ids_from_transforms)
+      self.assertIn('dummy_env_id_2', env_ids_from_transforms)
 
   def test_non_apache_container_not_overridden(self):
     pipeline_options = PipelineOptions([
