@@ -136,13 +136,11 @@ public class BigQueryAvroUtilsTest {
         schema =
             Schema.createUnion(
                 Schema.create(Type.NULL), numericPair.getLeft().addToSchema(numericSchema));
-      }
-      else if ("lotteryWinnings".equals(field.name())) {
+      } else if ("lotteryWinnings".equals(field.name())) {
         // lotteryWinnings is nullable field with type BYTES/DECIMAL.
         schema =
             Schema.createUnion(
                 Schema.create(Type.NULL), bigNumericPair.getLeft().addToSchema(bigNumericSchema));
-
       }
       // After a Field is added to a Schema, it is assigned a position, so we can't simply reuse
       // the existing Field.
