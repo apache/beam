@@ -202,7 +202,8 @@ class FnApiRunner(runner.PipelineRunner):
 
     self._latest_run_result = self.run_via_runner_api(
         pipeline.to_runner_api(
-            default_environment=self.get_default_environment(options)))
+            default_environment=None if pipeline.context is not None \
+                else self.get_default_environment(options)))
     return self._latest_run_result
 
   def run_via_runner_api(self, pipeline_proto):

@@ -73,6 +73,12 @@ class SwitchingDirectRunner(PipelineRunner):
   def is_fnapi_compatible(self):
     return BundleBasedDirectRunner.is_fnapi_compatible()
 
+  def get_default_environment(
+      self, options):  # type: (PipelineOptions) -> Optional[Environment]
+    # Environment is only applicable when SwitchingDirectRunner is running
+    # portable implementation.
+    return _get_fn_runner_instance(options).get_default_environment(options)
+
   def run_pipeline(self, pipeline, options):
 
     from apache_beam.pipeline import PipelineVisitor
@@ -118,19 +124,22 @@ class SwitchingDirectRunner(PipelineRunner):
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
-      from apache_beam.portability.api import beam_provision_api_pb2
-      from apache_beam.runners.portability.fn_api_runner import fn_runner
-      from apache_beam.runners.portability.portable_runner import JobServiceHandle
-      all_options = options.get_all_options()
-      encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
-      provision_info = fn_runner.ExtendedProvisionInfo(
-          beam_provision_api_pb2.ProvisionInfo(
-              pipeline_options=encoded_options))
-      runner = fn_runner.FnApiRunner(provision_info=provision_info)
+      runner = _get_fn_runner_instance(options)
     else:
       runner = BundleBasedDirectRunner()
 
     return runner.run_pipeline(pipeline, options)
+
+
+def _get_fn_runner_instance(options):
+  from apache_beam.portability.api import beam_provision_api_pb2
+  from apache_beam.runners.portability.fn_api_runner import fn_runner
+  from apache_beam.runners.portability.portable_runner import JobServiceHandle
+  all_options = options.get_all_options()
+  encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
+  provision_info = fn_runner.ExtendedProvisionInfo(
+      beam_provision_api_pb2.ProvisionInfo(pipeline_options=encoded_options))
+  return fn_runner.FnApiRunner(provision_info=provision_info)
 
 
 # Type variables.
