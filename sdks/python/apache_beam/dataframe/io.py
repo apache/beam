@@ -521,7 +521,7 @@ class _WriteToPandas(beam.PTransform):
     return pcoll | fileio.WriteToFiles(
         path=dir,
         file_naming=fileio.default_file_naming(name),
-        sink=_WriteToPandasFileSink(
+        sink=lambda _: _WriteToPandasFileSink(
             self.writer, self.args, self.kwargs, self.incremental, self.binary))
 
 
