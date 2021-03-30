@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,16 +68,13 @@ public class BeamSqlEnvRunner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlEnvRunner.class);
 
   private static String buildTableCreateStatement(String tableName) {
-    String createStatement =
-        "CREATE EXTERNAL TABLE "
-            + tableName
-            + " (%s) TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\", \"csvformat\": \"InformixUnload\"}'";
-    return createStatement;
+    return "CREATE EXTERNAL TABLE "
+        + tableName
+        + " (%s) TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\", \"csvformat\": \"InformixUnload\"}'";
   }
 
   private static String buildDataLocation(String dataSize, String tableName) {
-    String dataLocation = DATA_DIRECTORY + "/" + dataSize + "/" + tableName + ".dat";
-    return dataLocation;
+    return DATA_DIRECTORY + "/" + dataSize + "/" + tableName + ".dat";
   }
 
   /**
@@ -107,6 +106,7 @@ public class BeamSqlEnvRunner {
       String tableName = entry.getKey();
       String dataLocation = DATA_DIRECTORY + "/" + dataSize + "/" + tableName + ".dat";
       Schema tableSchema = schemaMap.get(tableName);
+      checkArgumentNotNull(tableSchema, "Table schema can't be null for table: " + tableName);
       Table table =
           Table.builder()
               .name(tableName)

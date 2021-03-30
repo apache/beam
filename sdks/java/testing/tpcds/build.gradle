@@ -33,7 +33,7 @@ def tpcdsArgsProperty = "tpcds.args"
 def tpcdsRunnerProperty = "tpcds.runner"
 def tpcdsRunnerDependency = project.findProperty(tpcdsRunnerProperty)
         ?: ":runners:direct-java"
-def shouldProvideSpark = ":runners:spark".equals(tpcdsRunnerDependency)
+def shouldProvideSpark = ":runners:spark:2".equals(tpcdsRunnerDependency)
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(tpcdsRunnerDependency)
 def runnerConfiguration = ":runners:direct-java".equals(tpcdsRunnerDependency) ? "shadow" : null
 
@@ -88,6 +88,15 @@ if (shouldProvideSpark) {
     }
 }
 
+// Execute the TPC-DS queries or suites via Gradle.
+//
+// Parameters:
+//   -Ptpcds.runner
+//       Specify a runner subproject, such as ":runners:spark:2" or ":runners:flink:1.10"
+//       Defaults to ":runners:direct-java"
+//
+//   -Ptpcds.args
+//       Specify the command line for invoking org.apache.beam.sdk.tpcds.BeamTpcds
 task run(type: JavaExec) {
     def tpcdsArgsStr = project.findProperty(tpcdsArgsProperty) ?: ""
     def tpcdsArgsList = new ArrayList<String>()

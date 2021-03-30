@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.tpcds;
 
-import java.io.File;
-import java.net.URL;
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.FileNameUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.ClassPath;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -36,12 +35,6 @@ import org.json.simple.parser.JSONParser;
  * table's schema into a string.
  */
 public class TableSchemaJSONLoader {
-  public static String readQuery(String tableName) throws Exception {
-    String path = "schemas/" + tableName + ".json";
-    String fixture = Resources.toString(Resources.getResource(path), Charsets.UTF_8);
-    return fixture;
-  }
-
   /**
    * Read a table schema json file from resource/schemas directory, parse the file into a string
    * which can be utilized by BeamSqlEnv.executeDdl method.
@@ -55,7 +48,6 @@ public class TableSchemaJSONLoader {
   public static String parseTableSchema(String tableName) throws Exception {
     String path = "schemas/" + tableName + ".json";
     String schema = Resources.toString(Resources.getResource(path), Charsets.UTF_8);
-    System.out.println("schema = " + schema);
 
     JSONObject jsonObject = (JSONObject) new JSONParser().parse(schema);
     JSONArray jsonArray = (JSONArray) jsonObject.get("schema");
@@ -67,11 +59,11 @@ public class TableSchemaJSONLoader {
     StringBuilder schemaStringBuilder = new StringBuilder();
 
     Iterator jsonArrIterator = jsonArray.iterator();
-    Iterator<Map.Entry> recordIterator;
+    Iterator recordIterator;
     while (jsonArrIterator.hasNext()) {
       recordIterator = ((Map) jsonArrIterator.next()).entrySet().iterator();
       while (recordIterator.hasNext()) {
-        Map.Entry pair = recordIterator.next();
+        Map.Entry pair = (Map.Entry) recordIterator.next();
 
         if (pair.getKey().equals("type")) {
           // If the key of the pair is "type", make some modification before appending it to the
@@ -105,9 +97,7 @@ public class TableSchemaJSONLoader {
       schemaStringBuilder.deleteCharAt(schemaStringBuilder.length() - 1);
     }
 
-    String schemaString = schemaStringBuilder.toString();
-
-    return schemaString;
+    return schemaStringBuilder.toString();
   }
 
   /**
@@ -116,25 +106,20 @@ public class TableSchemaJSONLoader {
    *
    * @return The list of names of all tables.
    */
-  public static List<String> getAllTableNames() {
+  public static List<String> getAllTableNames() throws IOException, URISyntaxException {
     ClassLoader classLoader = TableSchemaJSONLoader.class.getClassLoader();
     if (classLoader == null) {
       throw new RuntimeException("Can't get classloader from TableSchemaJSONLoader.");
     }
-    URL resource = classLoader.getResource("schemas");
-    if (resource == null) {
-      throw new RuntimeException("Resource for \"schemas\" can't be null.");
-    }
-    String tableDirPath = Objects.requireNonNull(resource).getPath();
-    File tableDir = new File(tableDirPath);
-    File[] tableDirListing = tableDir.listFiles();
+    ClassPath classPath = ClassPath.from(classLoader);
 
     List<String> tableNames = new ArrayList<>();
-
-    if (tableDirListing != null) {
-      for (File file : tableDirListing) {
-        // Remove the .json extension in file name
-        tableNames.add(FileNameUtils.getBaseName((file.getName())));
+    for (ClassPath.ResourceInfo resourceInfo : classPath.getResources()) {
+      String resourceName = resourceInfo.getResourceName();
+      if (resourceName.startsWith("schemas/")) {
+        String tableName =
+            resourceName.substring("schemas/".length(), resourceName.length() - ".json".length());
+        tableNames.add(tableName);
       }
     }
 
