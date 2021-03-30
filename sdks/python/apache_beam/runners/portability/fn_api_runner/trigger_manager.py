@@ -372,14 +372,15 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
     all_triplets = list(self.window_tag_values.read())
     # Collect all the triplets for the window we are merging away, and tag them
     # with the new window (merge_result).
-    merging_away_triplets = [(merge_result, t[1], t[2]) for t in all_triplets
-                             if t[0] in to_be_merged]
+    merging_away_triplets = [(merge_result, state_tag, state)
+                             for (window, state_tag, state) in all_triplets
+                             if window in to_be_merged]
 
     # Collect all of the other triplets, and joining them with the newly-tagged
     # set of triplets.
-    resulting_triplets = [
-        t for t in all_triplets if t[0] not in to_be_merged
-    ] + merging_away_triplets
+    resulting_triplets = [(window, state_tag, state)
+                          for (window, state_tag, state) in all_triplets
+                          if window not in to_be_merged] + merging_away_triplets
     self.window_tag_values.clear()
     for t in resulting_triplets:
       self.window_tag_values.add(t)
@@ -437,9 +438,9 @@ class PerWindowTriggerContext(TriggerContext):
     #   2) number of triggers matched individually ('index')
     #   3) whether the watermark has passed end of window ('is_late')
     all_triplets = self.parent.window_tag_values.read()
-    relevant_triplets = [
-        t for t in all_triplets if t[0] == self.window and t[1] == tag.tag
-    ]
+    relevant_triplets = [(window, state_tag, state)
+                         for (window, state_tag, state) in all_triplets
+                         if window == self.window and state_tag == tag.tag]
     return tag.combine_fn.apply(relevant_triplets)
 
   def clear_state(self, tag: _StateTag):
@@ -448,9 +449,9 @@ class PerWindowTriggerContext(TriggerContext):
     else:
       matches = lambda x: x == tag.tag
     all_triplets = self.parent.window_tag_values.read()
-    remaining_triplets = [
-        t for t in all_triplets if not (t[0] == self.window and matches(t[1]))
-    ]
+    remaining_triplets = [(window, state_tag, state)
+                          for (window, state_tag, state) in all_triplets
+                          if not (window == self.window and matches(state_tag))]
     _LOGGER.debug('Tag: %s | Remaining triplets: %s', tag, remaining_triplets)
     self.parent.window_tag_values.clear()
     for t in remaining_triplets:
