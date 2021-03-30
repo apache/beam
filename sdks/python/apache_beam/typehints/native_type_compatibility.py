@@ -19,13 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import sys
 import typing
-from builtins import next
 
 from apache_beam.typehints import typehints
 
@@ -133,12 +130,6 @@ def _match_is_union(user_type):
   # For non-subscripted unions (Python 2.7.14+ with typing 3.64)
   if user_type is typing.Union:
     return True
-
-  try:  # Python 3.5.2
-    if isinstance(user_type, typing.UnionMeta):
-      return True
-  except AttributeError:
-    pass
 
   try:  # Python 3.5.4+, or Python 2.7.14+ with typing 3.64
     return user_type.__origin__ is typing.Union
