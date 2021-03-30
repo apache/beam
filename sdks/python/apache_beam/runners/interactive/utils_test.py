@@ -193,10 +193,10 @@ class ProgressIndicatorTest(unittest.TestCase):
 
       @utils.progress_indicated
       def progress_indicated_dummy():
-        mocked_display.assert_called_with('Processing...')
+        mocked_display.assert_any_call('Processing...')
 
       progress_indicated_dummy()
-      mocked_display.assert_called_with('Done.')
+      mocked_display.assert_any_call('Done.')
 
   def test_progress_in_HTML_JS_when_in_notebook(self):
     ie.current_env()._is_in_notebook = True
@@ -212,10 +212,10 @@ class ProgressIndicatorTest(unittest.TestCase):
 
       @utils.progress_indicated
       def progress_indicated_dummy():
-        mocked_html.assert_called_with('enter')
+        mocked_html.assert_any_call('enter')
 
       progress_indicated_dummy()
-      mocked_javascript.assert_called_with(
+      mocked_javascript.assert_any_call(
           ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(customized_script='exit'))
 
 
