@@ -1880,6 +1880,17 @@ class DatastoreIODetails(_messages.Message):
   projectId = _messages.StringField(2)
 
 
+class DebugOptions(_messages.Message):
+  r"""Describes any options that have an effect on the debugging of pipelines.
+
+  Fields:
+    enableHotKeyLogging: When true, enables the logging of the literal hot key
+      to the user's Cloud Logging.
+  """
+
+  enableHotKeyLogging = _messages.BooleanField(1)
+
+
 class DeleteSnapshotResponse(_messages.Message):
   r"""Response from deleting a snapshot."""
 
@@ -2064,6 +2075,7 @@ class Environment(_messages.Message):
     dataset: The dataset for the current project where various workflow
       related tables are stored. The supported resource type is: Google
       BigQuery: bigquery.googleapis.com/{dataset}
+    debugOptions: Any debugging options to be supplied to the job.
     experiments: The list of experiments to enable. This field should be used
       for SDK related experiments and not for service related experiments. The
       proper field for service related experiments is service_options. For
@@ -2243,20 +2255,21 @@ class Environment(_messages.Message):
 
   clusterManagerApiService = _messages.StringField(1)
   dataset = _messages.StringField(2)
-  experiments = _messages.StringField(3, repeated=True)
-  flexResourceSchedulingGoal = _messages.EnumField('FlexResourceSchedulingGoalValueValuesEnum', 4)
-  internalExperiments = _messages.MessageField('InternalExperimentsValue', 5)
-  sdkPipelineOptions = _messages.MessageField('SdkPipelineOptionsValue', 6)
-  serviceAccountEmail = _messages.StringField(7)
-  serviceKmsKeyName = _messages.StringField(8)
-  serviceOptions = _messages.StringField(9, repeated=True)
-  shuffleMode = _messages.EnumField('ShuffleModeValueValuesEnum', 10)
-  tempStoragePrefix = _messages.StringField(11)
-  userAgent = _messages.MessageField('UserAgentValue', 12)
-  version = _messages.MessageField('VersionValue', 13)
-  workerPools = _messages.MessageField('WorkerPool', 14, repeated=True)
-  workerRegion = _messages.StringField(15)
-  workerZone = _messages.StringField(16)
+  debugOptions = _messages.MessageField('DebugOptions', 3)
+  experiments = _messages.StringField(4, repeated=True)
+  flexResourceSchedulingGoal = _messages.EnumField('FlexResourceSchedulingGoalValueValuesEnum', 5)
+  internalExperiments = _messages.MessageField('InternalExperimentsValue', 6)
+  sdkPipelineOptions = _messages.MessageField('SdkPipelineOptionsValue', 7)
+  serviceAccountEmail = _messages.StringField(8)
+  serviceKmsKeyName = _messages.StringField(9)
+  serviceOptions = _messages.StringField(10, repeated=True)
+  shuffleMode = _messages.EnumField('ShuffleModeValueValuesEnum', 11)
+  tempStoragePrefix = _messages.StringField(12)
+  userAgent = _messages.MessageField('UserAgentValue', 13)
+  version = _messages.MessageField('VersionValue', 14)
+  workerPools = _messages.MessageField('WorkerPool', 15, repeated=True)
+  workerRegion = _messages.StringField(16)
+  workerZone = _messages.StringField(17)
 
 
 class ExecutionStageState(_messages.Message):
