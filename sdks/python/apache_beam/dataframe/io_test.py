@@ -21,7 +21,9 @@ import os
 import platform
 import shutil
 import tempfile
+import typing
 import unittest
+from datetime import datetime
 from io import BytesIO
 from io import StringIO
 
@@ -36,6 +38,11 @@ from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
 from apache_beam.io import restriction_trackers
 from apache_beam.testing.util import assert_that
+
+
+class MyRow(typing.NamedTuple):
+  timestamp: int
+  value: int
 
 
 @unittest.skipIf(platform.system() == 'Windows', 'BEAM-10929')
@@ -56,12 +63,14 @@ class IOTest(unittest.TestCase):
           fout.write(contents)
     return dir + os.path.sep
 
-  def read_all_lines(self, pattern):
+  def read_all_lines(self, pattern, delete=False):
     for path in glob.glob(pattern):
       with open(path) as fin:
         # TODO(Py3): yield from
         for line in fin:
           yield line.rstrip('\n')
+      if delete:
+        os.remove(path)
 
   def test_read_write_csv(self):
     input = self.temp_dir({'1.csv': 'a,b\n1,2\n', '2.csv': 'a,b\n3,4\n'})
@@ -303,6 +312,36 @@ X     , c1, c2
     with self.assertRaisesRegex(FileNotFoundError, r'/tmp/fake_dir/\*\*'):
       with beam.Pipeline() as p:
         _ = p | io.read_csv('/tmp/fake_dir/**')
+
+  def test_windowed_write(self):
+    output = self.temp_dir()
+    with beam.Pipeline() as p:
+      pc = (
+          p | beam.Create([MyRow(timestamp=i, value=i % 3) for i in range(20)])
+          | beam.Map(lambda v: beam.window.TimestampedValue(v, v.timestamp)).
+          with_output_types(MyRow)
+          | beam.WindowInto(
+              beam.window.FixedWindows(10)).with_output_types(MyRow))
+
+      deferred_df = convert.to_dataframe(pc)
+      deferred_df.to_csv(output + 'out.csv', index=False)
+
+    first_window_files = (
+        f'{output}out.csv-'
+        f'{datetime.utcfromtimestamp(0).isoformat()}*')
+    self.assertCountEqual(
+        ['timestamp,value'] + [f'{i},{i%3}' for i in range(10)],
+        set(self.read_all_lines(first_window_files, delete=True)))
+
+    second_window_files = (
+        f'{output}out.csv-'
+        f'{datetime.utcfromtimestamp(10).isoformat()}*')
+    self.assertCountEqual(
+        ['timestamp,value'] + [f'{i},{i%3}' for i in range(10, 20)],
+        set(self.read_all_lines(second_window_files, delete=True)))
+
+    # Check that we've read (and removed) every output file
+    self.assertEqual(len(glob.glob(f'{output}out.csv*')), 0)
 
 
 if __name__ == '__main__':
