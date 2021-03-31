@@ -119,6 +119,44 @@ class EnvironmentOptionsTest(unittest.TestCase):
       ])
       ProcessEnvironment.from_options(options)
 
+  def test_resource_hints_are_parsed(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container',
+        '--resource_hint=accelerator_type=nvidia-tesla-k80',
+        '--resource_hint=accelerator_count=1',
+    ])
+    environment = ProcessEnvironment.from_options(options)
+    self.assertEqual(
+        environment.resource_hints(),
+        {
+            'beam:resources:accelerator_type:v1': b'nvidia-tesla-k80',
+            'beam:resources:accelerator_count:v1': b'1',
+        })
+
+  def test_environments_with_same_hints_are_equal(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container',
+        '--resource_hint=accelerator_type=nvidia-tesla-k80',
+        '--resource_hint=accelerator_count=1',
+    ])
+    environment1 = ProcessEnvironment.from_options(options)
+    environment2 = ProcessEnvironment.from_options(options)
+    self.assertEqual(environment1, environment2)
+
+  def test_unknown_hints_are_rejected(self):
+    with self.assertRaises(ValueError):
+      options = PortableOptions([
+          '--environment_type=PROCESS',
+          '--environment_option=process_command=foo',
+          '--sdk_location=container',
+          '--resource_hint=unknown_hint=foo'
+      ])
+      ProcessEnvironment.from_options(options)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

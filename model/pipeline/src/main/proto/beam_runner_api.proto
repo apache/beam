@@ -1825,3 +1825,11 @@ message ExecutableStagePayload {
     }
   }
 }
+
+message StandardResourceHints {
+  enum Enum {
+    ACCELERATOR_TYPE = 0 [(beam_urn) = "beam:resources:accelerator_type:v1"];
+    ACCELERATOR_COUNT = 1 [(beam_urn) = "beam:resources:accelerator_count:v1"];
+    ACCELERATOR_METADATA = 2 [(beam_urn) = "beam:resources:accelerator_metadata:v1"];
+  }
+}

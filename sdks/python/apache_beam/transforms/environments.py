@@ -54,9 +54,11 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import stager
 from apache_beam.runners.portability.sdk_container_builder import SdkContainerImageBuilder
+from apache_beam.transforms.resources import parse_resource_hints
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.options.pipeline_options import PortableOptions
   from apache_beam.runners.pipeline_context import PipelineContext
 
@@ -113,7 +115,7 @@ class Environment(object):
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints,  # type: Optional[Dict[str, bytes]]
-  ):
+               ):
     # type: (...) -> None
     self._capabilities = capabilities
     self._artifacts = artifacts
@@ -300,7 +302,7 @@ class DockerEnvironment(Environment):
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints,  # type: Dict[str, bytes]
       context  # type: PipelineContext
-  ):
+                                ):
     # type: (...) -> DockerEnvironment
     return DockerEnvironment(
         container_image=payload.container_image,
@@ -328,10 +330,7 @@ class DockerEnvironment(Environment):
 
   @classmethod
   def from_container_image(
-      cls,
-      container_image,
-      artifacts=(),
-      resource_hints=None):
+      cls, container_image, artifacts=(), resource_hints=None):
     # type: (str, Iterable[beam_runner_api_pb2.ArtifactInformation], Optional[Dict[str, bytes]]) -> DockerEnvironment
     return cls(
         container_image=container_image,
@@ -418,7 +417,7 @@ class ProcessEnvironment(Environment):
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints,  # type: Dict[str, bytes]
       context  # type: PipelineContext
-  ):
+                                ):
     # type: (...) -> ProcessEnvironment
     return ProcessEnvironment(
         command=payload.command,
@@ -493,9 +492,9 @@ class ExternalEnvironment(Environment):
   def __hash__(self):
     # type: () -> int
     return hash((
-      self.__class__,
-      self.url,
-      frozenset(self.params.items()) if self.params is not None else None))
+        self.__class__,
+        self.url,
+        frozenset(self.params.items()) if self.params is not None else None))
 
   def __repr__(self):
     # type: () -> str
@@ -515,7 +514,7 @@ class ExternalEnvironment(Environment):
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints,  # type: Dict[str, bytes]
       context  # type: PipelineContext
-  ):
+                                ):
     # type: (...) -> ExternalEnvironment
     return ExternalEnvironment(
         payload.endpoint.url,
@@ -569,7 +568,7 @@ class EmbeddedPythonEnvironment(Environment):
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints,  # type: Dict[str, bytes]
       context  # type: PipelineContext
-  ):
+                                ):
     # type: (...) -> EmbeddedPythonEnvironment
     return EmbeddedPythonEnvironment(capabilities, artifacts, resource_hints)
 
@@ -635,7 +634,7 @@ class EmbeddedPythonGrpcEnvironment(Environment):
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints,  # type: Dict[str, bytes]
       context  # type: PipelineContext
-  ):
+                                ):
     # type: (...) -> EmbeddedPythonGrpcEnvironment
     if payload:
       config = EmbeddedPythonGrpcEnvironment.parse_config(
@@ -715,7 +714,7 @@ class SubprocessSDKEnvironment(Environment):
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints,  # type: Dict[str, bytes]
       context  # type: PipelineContext
-  ):
+                                ):
     # type: (...) -> SubprocessSDKEnvironment
     return SubprocessSDKEnvironment(
         payload.decode('utf-8'), capabilities, artifacts, resource_hints)
@@ -776,9 +775,9 @@ def python_sdk_dependencies(options, tmp_dir=None):
       ],
       skip_prestaged_dependencies=skip_prestaged_dependencies)
 
+
 def resource_hints_from_options(options):
   # type: (PipelineOptions) -> Dict[str, bytes]
-  # TODO: add pipeline option + tests.
   resource_hints = {}
   option_specified_hints = options.view_as(StandardOptions).resource_hints or []
   for hint in option_specified_hints:

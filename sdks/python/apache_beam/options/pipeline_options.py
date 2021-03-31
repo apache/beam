@@ -445,6 +445,17 @@ class StandardOptions(PipelineOptions):
         action='store_true',
         help='Whether to enable streaming mode.')
 
+    parser.add_argument(
+        '--resource_hint',
+        dest='resource_hints',
+        action='append',
+        default=None,
+        help=(
+            'Resource hint to set in the pipeline execution environment.'
+            'Hints specified via this option override hints specified '
+            'at transform level. Interpretation of hints is defined by '
+            'Beam runners.'))
+
 
 class CrossLanguageOptions(PipelineOptions):
   @classmethod
