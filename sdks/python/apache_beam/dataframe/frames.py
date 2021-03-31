@@ -29,6 +29,11 @@ from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import io
 from apache_beam.dataframe import partitionings
 
+__all__ = [
+    'DeferredSeries',
+    'DeferredDataFrame',
+]
+
 
 def populate_not_implemented(pd_type):
   def wrapper(deferred_type):
