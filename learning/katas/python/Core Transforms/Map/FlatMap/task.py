@@ -20,12 +20,7 @@ from log_elements import LogElements
 
 with beam.Pipeline() as p:
 
-  print("This is a Map:")
   (p | beam.Create(['Apache Beam', 'Unified Batch and Streaming'])
-     | beam.Map(lambda sentence: sentence.split())
+     | beam.FlatMap(lambda sentence: sentence.split())
      | LogElements())
 
-  print("This is your FlatMap")
-  (p | beam.Create(['Apache Beam', 'Unified Batch and Streaming'])
-   | beam.FlatMap(lambda sentence: sentence.split())
-   | LogElements())
