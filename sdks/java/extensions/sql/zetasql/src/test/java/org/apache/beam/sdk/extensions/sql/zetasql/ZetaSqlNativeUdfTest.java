@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import static org.hamcrest.Matchers.isA;
 
 import com.google.zetasql.SqlException;
-import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -215,7 +214,7 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
             + " SELECT key FROM CustomerRange(10, 14)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(SqlConversionException.class);
+    thrown.expect(ZetaSqlException.class);
     thrown.expectMessage("Wasn't able to resolve the path [TableNotExist] in schema: beam");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }

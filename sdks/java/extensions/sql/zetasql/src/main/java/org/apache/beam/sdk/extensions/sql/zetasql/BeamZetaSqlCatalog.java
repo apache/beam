@@ -43,7 +43,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
-import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
@@ -382,7 +381,7 @@ public class BeamZetaSqlCatalog {
         TableResolution.resolveCalciteTable(calciteSchema, tablePath);
 
     if (calciteTable == null) {
-      throw new SqlConversionException(
+      throw new ZetaSqlException(
           "Wasn't able to resolve the path "
               + tablePath
               + " in schema: "
