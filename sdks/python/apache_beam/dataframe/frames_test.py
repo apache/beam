@@ -700,5 +700,37 @@ class ConstructionTimeTest(unittest.TestCase):
     self._run_test(lambda df: list(df.dtypes))
 
 
+class DocstringTest(unittest.TestCase):
+  @parameterized.expand([
+      (frames.DeferredDataFrame, pd.DataFrame),
+      (frames.DeferredSeries, pd.Series),
+      (frames._DeferredIndex, pd.Index),
+      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
+      (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+  ])
+  @unittest.skip('BEAM-12074')
+  def test_docs_defined(self, beam_type, pd_type):
+    beam_attrs = set(dir(beam_type))
+    pd_attrs = set(dir(pd_type))
+
+    docstring_required = sorted([
+        attr for attr in beam_attrs.intersection(pd_attrs)
+        if getattr(pd_type, attr).__doc__ and not attr.startswith('_')
+    ])
+
+    docstring_missing = [
+        attr for attr in docstring_required
+        if not getattr(beam_type, attr).__doc__
+    ]
+
+    self.assertTrue(
+        len(docstring_missing) == 0,
+        f'{beam_type.__name__} is missing a docstring for '
+        f'{len(docstring_missing)}/{len(docstring_required)} '
+        f'({len(docstring_missing)/len(docstring_required):%}) '
+        f'operations:\n{docstring_missing}')
+
+
 if __name__ == '__main__':
   unittest.main()
