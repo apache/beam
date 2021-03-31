@@ -73,6 +73,7 @@ from apache_beam.portability import python_urns
 from apache_beam.pvalue import DoOutputsTuple
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.resources import parse_resource_hints
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
@@ -346,6 +347,9 @@ class PTransform(WithTypeHints, HasDisplayData):
   # Default is unset.
   _user_label = None  # type: Optional[str]
 
+  # By default, transforms don't have any resource hints.
+  _resource_hints = {}  # type: Dict[str, bytes]
+
   def __init__(self, label=None):
     # type: (Optional[str]) -> None
     super(PTransform, self).__init__()
@@ -421,6 +425,30 @@ class PTransform(WithTypeHints, HasDisplayData):
     type_hint = native_type_compatibility.convert_to_beam_type(type_hint)
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
     return super(PTransform, self).with_output_types(type_hint)
+
+  def with_resource_hints(self, **kwargs):  # type: (...) -> PTransform
+    """Adds resource hints to the :class:`PTransform`.
+
+    Resource hints allow users to express constraints on the environment where
+    the transform should be executed.  Interpretation of the resource hints is
+    defined by Beam Runners. Runners may ignore unsupported the hints.
+
+    Args:
+      **kwargs: key-value pairs describing hints and their values.
+
+    Raises:
+      ValueError: if provided hints are unknown to the SDK. See
+        :mod:~apache_beam.transforms.resources` for a list of known hints.
+
+    Returns:
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object.
+    """
+    self._resource_hints = parse_resource_hints(kwargs)
+    return self
+
+  def get_resource_hints(self):
+    return self._resource_hints
 
   def type_check_inputs(self, pvalueish):
     self.type_check_inputs_or_outputs(pvalueish, 'input')
