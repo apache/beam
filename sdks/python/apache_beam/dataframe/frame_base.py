@@ -374,8 +374,8 @@ def args_to_kwargs(base_type):
 
 
 BEAM_SPECIFIC_HEADER = cleandoc(
-    """Beam DataFrame API Divergences
-                                ------------------------------""")
+    """Divergences from pandas
+    ------------------------------""")
 
 
 def with_docs_from(base_type, name=None):

@@ -119,6 +119,9 @@ autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 
+# Allow a special section for documenting DataFrame API
+napoleon_custom_sections = ['Divergences from pandas']
+
 doctest_global_setup = '''
 import apache_beam as beam
 '''
