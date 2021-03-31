@@ -340,6 +340,7 @@ limitations under the License.
 &lt;li>&lt;a href="#tasks-you-need-to-do-manually">Tasks you need to do manually&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>&lt;a href="#upload-release-candidate-to-pypi">Upload release candidate to PyPi&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#8-prepare-documents">8. Prepare documents&lt;/a>
@@ -961,6 +962,41 @@ Carefully review any new artifacts.&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;/ol>
+&lt;h3 id="upload-release-candidate-to-pypi">Upload release candidate to PyPi&lt;/h3>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Script:&lt;/strong> &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh">deploy_release_candidate_pypi.sh&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Usage&lt;/strong>&lt;/p>
+&lt;pre>&lt;code> ./release/src/main/scripts/deploy_release_candidate_pypi.sh \
+--release &amp;quot;${RELEASE_VERSION}&amp;quot; \
+--rc &amp;quot;${RC_NUM}&amp;quot; \
+--user &amp;quot;${GITHUB_USER}&amp;quot; \
+--deploy
+&lt;/code>&lt;/pre>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>The script will:&lt;/strong>&lt;/p>
+&lt;ol>
+&lt;li>Download python binary artifacts&lt;/li>
+&lt;li>Deploy release candidate to PyPI&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Attention:&lt;/strong> Verify that:&lt;/p>
+&lt;ul>
+&lt;li>The File names version include &lt;code>rc-#&lt;/code> suffix&lt;/li>
+&lt;li>&lt;a href="https://pypi.org/project/apache-beam/#files">Download Files&lt;/a> have:
+&lt;ul>
+&lt;li>All wheels uploaded as artifacts&lt;/li>
+&lt;li>Release source&amp;rsquo;s zip published&lt;/li>
+&lt;li>Signatures and hashes do not need to be uploaded&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>You can do a dry run by omitting the &lt;code>--deploy&lt;/code> flag. Then it will only download the release candidate binaries. If it looks good, rerun it with &lt;code>--deploy&lt;/code>.&lt;/p>
+&lt;p>See the source of the script for more details or to run commands manually in case of a problem.&lt;/p>
 &lt;hr>
 &lt;h2 id="8-prepare-documents">8. Prepare documents&lt;/h2>
 &lt;h3 id="update-and-verify-javadoc">Update and Verify Javadoc&lt;/h3>
