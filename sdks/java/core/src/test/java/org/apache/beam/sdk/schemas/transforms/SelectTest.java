@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
@@ -28,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -598,39 +597,58 @@ public class SelectTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testComplexFlatSchema() {
+  public void testFlatSchemaWithArrayNestedField() {
 
-    Schema transactionSchema =
-        Schema.builder().addStringField("bank").addDoubleField("purchaseAmount").build();
-    Row transactionOne = Row.withSchema(transactionSchema).addValues("foo", 1.0).build();
-    Row transactionTwo = Row.withSchema(transactionSchema).addValues("bar", 2.0).build();
     Schema shippingAddressSchema =
         Schema.builder().addStringField("streetAddress").addStringField("city").build();
-    Row address = Row.withSchema(shippingAddressSchema).addValues("street", "city").build();
-    Schema schema =
+    Schema transactionSchema =
+        Schema.builder().addStringField("bank").addDoubleField("purchaseAmount").build();
+    Schema nestedSchema =
         Schema.builder()
             .addStringField("userId")
             .addRowField("shippingAddress", shippingAddressSchema)
             .addArrayField("transactions", Schema.FieldType.row(transactionSchema))
             .build();
+
+    String user = "user";
+    String street = "street";
+    String city = "city";
+    String bank1 = "bank1";
+    String bank2 = "bank2";
+    double purchaseAmount1 = 1.0;
+    double purchaseAmount2 = 2.0;
+
+    Row transactionOne =
+        Row.withSchema(transactionSchema).addValues(bank1, purchaseAmount1).build();
+    Row transactionTwo =
+        Row.withSchema(transactionSchema).addValues(bank2, purchaseAmount2).build();
+    Row address = Row.withSchema(shippingAddressSchema).addValues(street, city).build();
     Row row =
-        Row.withSchema(schema)
-            .addValues("user", address)
+        Row.withSchema(nestedSchema)
+            .addValues(user, address)
             .addArray(transactionOne, transactionTwo)
             .build();
 
     PCollection<Row> unnested =
-        pipeline.apply(Create.of(row).withRowSchema(schema)).apply(Select.flattenedSchema());
+        pipeline.apply(Create.of(row).withRowSchema(nestedSchema)).apply(Select.flattenedSchema());
 
-    List<String> flattenedSchemaFieldNames = unnested.getSchema().getFieldNames();
+    Schema expectedUnnsetedSchema =
+        Schema.builder()
+            .addStringField("userId")
+            .addStringField("shippingAddress_streetAddress")
+            .addStringField("shippingAddress_city")
+            .addArrayField("transactions_bank", FieldType.STRING)
+            .addArrayField("transactions_purchaseAmount", FieldType.DOUBLE)
+            .build();
+    assertEquals(expectedUnnsetedSchema, unnested.getSchema());
 
-    assertTrue(flattenedSchemaFieldNames.contains("shippingAddress_streetAddress"));
-    assertTrue(flattenedSchemaFieldNames.contains("shippingAddress_city"));
-    assertFalse(flattenedSchemaFieldNames.contains("shippingAddress"));
-
-    assertTrue(flattenedSchemaFieldNames.contains("transactions_bank"));
-    assertTrue(flattenedSchemaFieldNames.contains("transactions_purchaseAmount"));
-    assertFalse(flattenedSchemaFieldNames.contains("transactions"));
+    Row expectedUnnestedRow =
+        Row.withSchema(unnested.getSchema())
+            .addValues(user, street, city)
+            .addArray(bank1, bank2)
+            .addArray(purchaseAmount1, purchaseAmount2)
+            .build();
+    PAssert.that(unnested).containsInAnyOrder(expectedUnnestedRow);
 
     pipeline.run();
   }
