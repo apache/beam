@@ -19,11 +19,13 @@ package pipelinex
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/golang/protobuf/proto"
 )
 
 // Update merges a pipeline with the given components, which may add, replace
@@ -242,4 +244,34 @@ func findFreeName(seen map[string]bool, name string) string {
 			return next
 		}
 	}
+}
+
+// ApplySdkImageOverrides takes a pipeline and a map of patterns to overrides,
+// and proceeds to replace matching ContainerImages in any Environments
+// present in the pipeline.
+func ApplySdkImageOverrides(p *pipepb.Pipeline, patterns map[string]string) error {
+	if len(patterns) == 0 {
+		return nil
+	}
+
+	for _, env := range p.GetComponents().GetEnvironments() {
+		var payload pipepb.DockerPayload
+		if err := proto.Unmarshal(env.GetPayload(), &payload); err != nil {
+			return err
+		}
+		oldImg := payload.GetContainerImage()
+		for pattern, replacement := range patterns {
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return err
+			}
+			newImg := re.ReplaceAllLiteralString(oldImg, replacement)
+			if newImg != oldImg {
+				payload.ContainerImage = newImg
+				env.Payload, err = proto.Marshal(&payload)
+				break
+			}
+		}
+	}
+	return nil
 }
