@@ -691,6 +691,13 @@ class GoogleCloudOptions(PipelineOptions):
             'Options to configure the Dataflow service. These '
             'options decouple service side feature availbility '
             'from the Apache Beam release cycle.'))
+    parser.add_argument(
+        '--enable_hot_key_logging',
+        default=False,
+        action='store_true',
+        help='When true, will enable the direct logging of any detected hot '
+        'keys into Cloud Logging. Warning: this will log the literal key as an '
+        'unobfuscated string.')
 
   def _create_default_gcs_bucket(self):
     try:
