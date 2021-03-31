@@ -1667,16 +1667,16 @@ def check_schema_equal(
 
   Args:
     left (~apache_beam.io.gcp.internal.clients.bigquery.\
-biuery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.bigquery.\
-biuery_v2_messages.TableFieldSchema):
+bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
+bigquery.bigquery_v2_messages.TableFieldSchema):
       One schema to compare.
     right (~apache_beam.io.gcp.internal.clients.bigquery.\
-biuery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.bigquery.\
-biuery_v2_messages.TableFieldSchema):
+bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
+bigquery.bigquery_v2_messages.TableFieldSchema):
       The other schema to compare.
-    ignore_descriptions (bool, optional): Whether or not to ignore field
+    ignore_descriptions (bool): (optional) Whether or not to ignore field
       descriptions when comparing. Defaults to False.
-    ignore_field_order (bool, optional): Whether or not to ignore struct field
+    ignore_field_order (bool): (optional) Whether or not to ignore struct field
       order when comparing. Defaults to False.
 
   Returns:
