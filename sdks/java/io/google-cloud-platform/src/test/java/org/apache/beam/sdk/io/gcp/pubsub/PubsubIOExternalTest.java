@@ -159,13 +159,17 @@ public class PubsubIOExternalTest {
     RunnerApi.PTransform writeComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(1));
 
-    // test_namespacetest/PubsubUnboundedSink/PubsubUnboundedSink.Writer
+    // test_namespacetest/PubsubUnboundedSink/PubsubSink
     RunnerApi.PTransform writeComposite2 =
-        result.getComponents().getTransformsOrThrow(writeComposite.getSubtransforms(3));
+        result.getComponents().getTransformsOrThrow(writeComposite.getSubtransforms(1));
 
-    // test_namespacetest/PubsubUnboundedSink/PubsubUnboundedSink.Writer/ParMultiDo(Writer)
+    // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer
+    RunnerApi.PTransform writeComposite3 =
+        result.getComponents().getTransformsOrThrow(writeComposite2.getSubtransforms(3));
+
+    // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer/ParMultiDo(Writer)
     RunnerApi.PTransform writeParDo =
-        result.getComponents().getTransformsOrThrow(writeComposite2.getSubtransforms(0));
+        result.getComponents().getTransformsOrThrow(writeComposite3.getSubtransforms(0));
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());

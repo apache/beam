@@ -25,9 +25,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PubSubReadPayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
-import org.apache.beam.sdk.io.gcp.pubsub.RunnerImplementedSourceTranslation.RunnerImplementedSourceTranslator;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -43,15 +43,15 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Test RunnerImplementedSourceTranslator. */
 @RunWith(Parameterized.class)
-public class RunnerImplementedSourceTranslationTest {
+public class PubSubReadPayloadTranslationTest {
   private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
   private static final String ID_ATTRIBUTE = "id";
   private static final String PROJECT = "project";
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName(PROJECT, "testTopic");
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName(PROJECT, "testSubscription");
-  private final RunnerImplementedSourceTranslator sourceTranslator =
-      new RunnerImplementedSourceTranslator();
+  private final PubSubPayloadTranslation.PubSubReadPayloadTranslator sourceTranslator =
+      new PubSubPayloadTranslation.PubSubReadPayloadTranslator();
 
   public static TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   private static final ValueProvider<TopicPath> TOPIC_PROVIDER = pipeline.newProvider(TOPIC);
@@ -64,16 +64,17 @@ public class RunnerImplementedSourceTranslationTest {
         new Object[][] {
           {
             // Read payload only from TOPIC.
-            new RunnerImplementedSource(
-                new PubsubUnboundedSource(
-                    PubsubTestClient.createFactoryForCreateSubscription(),
-                    StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
-                    StaticValueProvider.of(TOPIC),
-                    null /* subscription */,
-                    null /* timestampLabel */,
-                    null /* idLabel */,
-                    false /* needsAttributes */,
-                    false /* needsMessageId*/)),
+            Read.from(
+                new PubsubUnboundedSource.PubsubSource(
+                    new PubsubUnboundedSource(
+                        PubsubTestClient.createFactoryForCreateSubscription(),
+                        StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
+                        StaticValueProvider.of(TOPIC),
+                        null /* subscription */,
+                        null /* timestampLabel */,
+                        null /* idLabel */,
+                        false /* needsAttributes */,
+                        false /* needsMessageId*/))),
             PubSubReadPayload.newBuilder()
                 .setTopic(TOPIC.getFullPath())
                 .setWithAttributes(false)
@@ -81,16 +82,17 @@ public class RunnerImplementedSourceTranslationTest {
           },
           {
             // Read with attributes and message id from TOPIC.
-            new RunnerImplementedSource(
-                new PubsubUnboundedSource(
-                    PubsubTestClient.createFactoryForCreateSubscription(),
-                    StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
-                    StaticValueProvider.of(TOPIC),
-                    null /* subscription */,
-                    TIMESTAMP_ATTRIBUTE /* timestampLabel */,
-                    ID_ATTRIBUTE /* idLabel */,
-                    true /* needsAttributes */,
-                    true /* needsMessageId */)),
+            Read.from(
+                new PubsubUnboundedSource.PubsubSource(
+                    new PubsubUnboundedSource(
+                        PubsubTestClient.createFactoryForCreateSubscription(),
+                        StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
+                        StaticValueProvider.of(TOPIC),
+                        null /* subscription */,
+                        TIMESTAMP_ATTRIBUTE /* timestampLabel */,
+                        ID_ATTRIBUTE /* idLabel */,
+                        true /* needsAttributes */,
+                        true /* needsMessageId */))),
             PubSubReadPayload.newBuilder()
                 .setTopic(TOPIC.getFullPath())
                 .setIdAttribute(ID_ATTRIBUTE)
@@ -100,16 +102,17 @@ public class RunnerImplementedSourceTranslationTest {
           },
           {
             // Read payload from runtime provided topic.
-            new RunnerImplementedSource(
-                new PubsubUnboundedSource(
-                    PubsubTestClient.createFactoryForCreateSubscription(),
-                    StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
-                    TOPIC_PROVIDER,
-                    null /* subscription */,
-                    null /* timestampLabel */,
-                    null /* idLabel */,
-                    false /* needsAttributes */,
-                    false /* needsMessageId */)),
+            Read.from(
+                new PubsubUnboundedSource.PubsubSource(
+                    new PubsubUnboundedSource(
+                        PubsubTestClient.createFactoryForCreateSubscription(),
+                        StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
+                        TOPIC_PROVIDER,
+                        null /* subscription */,
+                        null /* timestampLabel */,
+                        null /* idLabel */,
+                        false /* needsAttributes */,
+                        false /* needsMessageId */))),
             PubSubReadPayload.newBuilder()
                 .setTopicRuntimeOverridden(((NestedValueProvider) TOPIC_PROVIDER).propertyName())
                 .setWithAttributes(false)
@@ -117,16 +120,17 @@ public class RunnerImplementedSourceTranslationTest {
           },
           {
             // Read payload with attributes and message id from runtime provided topic.
-            new RunnerImplementedSource(
-                new PubsubUnboundedSource(
-                    PubsubTestClient.createFactoryForCreateSubscription(),
-                    StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
-                    TOPIC_PROVIDER,
-                    null /* subscription */,
-                    TIMESTAMP_ATTRIBUTE /* timestampLabel */,
-                    ID_ATTRIBUTE /* idLabel */,
-                    true /* needsAttributes */,
-                    true /* needsMessageId */)),
+            Read.from(
+                new PubsubUnboundedSource.PubsubSource(
+                    new PubsubUnboundedSource(
+                        PubsubTestClient.createFactoryForCreateSubscription(),
+                        StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
+                        TOPIC_PROVIDER,
+                        null /* subscription */,
+                        TIMESTAMP_ATTRIBUTE /* timestampLabel */,
+                        ID_ATTRIBUTE /* idLabel */,
+                        true /* needsAttributes */,
+                        true /* needsMessageId */))),
             PubSubReadPayload.newBuilder()
                 .setTopicRuntimeOverridden(((NestedValueProvider) TOPIC_PROVIDER).propertyName())
                 .setIdAttribute(ID_ATTRIBUTE)
@@ -136,16 +140,17 @@ public class RunnerImplementedSourceTranslationTest {
           },
           {
             // Read payload only from SUBSCRIPTION.
-            new RunnerImplementedSource(
-                new PubsubUnboundedSource(
-                    PubsubTestClient.createFactoryForCreateSubscription(),
-                    StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
-                    null /* topic */,
-                    StaticValueProvider.of(SUBSCRIPTION),
-                    null /* timestampLabel */,
-                    null /* idLabel */,
-                    false /* needsAttributes */,
-                    false /* needsMessageId */)),
+            Read.from(
+                new PubsubUnboundedSource.PubsubSource(
+                    new PubsubUnboundedSource(
+                        PubsubTestClient.createFactoryForCreateSubscription(),
+                        StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
+                        null /* topic */,
+                        StaticValueProvider.of(SUBSCRIPTION),
+                        null /* timestampLabel */,
+                        null /* idLabel */,
+                        false /* needsAttributes */,
+                        false /* needsMessageId */))),
             PubSubReadPayload.newBuilder()
                 .setSubscription(SUBSCRIPTION.getFullPath())
                 .setWithAttributes(false)
@@ -153,16 +158,17 @@ public class RunnerImplementedSourceTranslationTest {
           },
           {
             // Read payload with attributes and message id from SUBSCRIPTION.
-            new RunnerImplementedSource(
-                new PubsubUnboundedSource(
-                    PubsubTestClient.createFactoryForCreateSubscription(),
-                    StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
-                    null /* topic */,
-                    StaticValueProvider.of(SUBSCRIPTION),
-                    TIMESTAMP_ATTRIBUTE /* timestampLabel */,
-                    ID_ATTRIBUTE /* idLabel */,
-                    true /* needsAttributes */,
-                    true /* needsMessageId */)),
+            Read.from(
+                new PubsubUnboundedSource.PubsubSource(
+                    new PubsubUnboundedSource(
+                        PubsubTestClient.createFactoryForCreateSubscription(),
+                        StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
+                        null /* topic */,
+                        StaticValueProvider.of(SUBSCRIPTION),
+                        TIMESTAMP_ATTRIBUTE /* timestampLabel */,
+                        ID_ATTRIBUTE /* idLabel */,
+                        true /* needsAttributes */,
+                        true /* needsMessageId */))),
             PubSubReadPayload.newBuilder()
                 .setSubscription(SUBSCRIPTION.getFullPath())
                 .setIdAttribute(ID_ATTRIBUTE)
@@ -172,16 +178,17 @@ public class RunnerImplementedSourceTranslationTest {
           },
           {
             // Read payload only from runtime provided subscription.
-            new RunnerImplementedSource(
-                new PubsubUnboundedSource(
-                    PubsubTestClient.createFactoryForCreateSubscription(),
-                    StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
-                    null /* topic */,
-                    SUBSCRIPTION_PROVIDER,
-                    null /* timestampLabel */,
-                    null /* idLabel */,
-                    false /* needsAttributes */,
-                    false /* needsMessageId */)),
+            Read.from(
+                new PubsubUnboundedSource.PubsubSource(
+                    new PubsubUnboundedSource(
+                        PubsubTestClient.createFactoryForCreateSubscription(),
+                        StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
+                        null /* topic */,
+                        SUBSCRIPTION_PROVIDER,
+                        null /* timestampLabel */,
+                        null /* idLabel */,
+                        false /* needsAttributes */,
+                        false /* needsMessageId */))),
             PubSubReadPayload.newBuilder()
                 .setSubscriptionRuntimeOverridden(
                     ((NestedValueProvider) SUBSCRIPTION_PROVIDER).propertyName())
@@ -190,16 +197,17 @@ public class RunnerImplementedSourceTranslationTest {
           },
           {
             // Read payload with attributes and message id from runtime provided subscription.
-            new RunnerImplementedSource(
-                new PubsubUnboundedSource(
-                    PubsubTestClient.createFactoryForCreateSubscription(),
-                    StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
-                    null /* topic */,
-                    SUBSCRIPTION_PROVIDER,
-                    TIMESTAMP_ATTRIBUTE /* timestampLabel */,
-                    ID_ATTRIBUTE /* idLabel */,
-                    true /* needsAttributes */,
-                    true /* needsMessageId */)),
+            Read.from(
+                new PubsubUnboundedSource.PubsubSource(
+                    new PubsubUnboundedSource(
+                        PubsubTestClient.createFactoryForCreateSubscription(),
+                        StaticValueProvider.of(PubsubClient.projectPathFromId(PROJECT)),
+                        null /* topic */,
+                        SUBSCRIPTION_PROVIDER,
+                        TIMESTAMP_ATTRIBUTE /* timestampLabel */,
+                        ID_ATTRIBUTE /* idLabel */,
+                        true /* needsAttributes */,
+                        true /* needsMessageId */))),
             PubSubReadPayload.newBuilder()
                 .setSubscriptionRuntimeOverridden(
                     ((NestedValueProvider) SUBSCRIPTION_PROVIDER).propertyName())
@@ -212,24 +220,25 @@ public class RunnerImplementedSourceTranslationTest {
   }
 
   @Parameter(0)
-  public RunnerImplementedSource runnerImplementedSource;
+  public Read.Unbounded<byte[]> readFromPubSub;
 
   @Parameter(1)
   public PubSubReadPayload pubsubReadPayload;
 
   @Test
   public void testTranslateSourceToFunctionSpec() throws Exception {
-    PCollection<byte[]> output = pipeline.apply(runnerImplementedSource);
-    AppliedPTransform<?, ?, RunnerImplementedSource> appliedPTransform =
+    PCollection<byte[]> output = pipeline.apply(readFromPubSub);
+    AppliedPTransform<?, ?, Read.Unbounded<byte[]>> appliedPTransform =
         AppliedPTransform.of(
-            "sink",
+            "ReadFromPubsub",
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(output),
-            runnerImplementedSource,
+            readFromPubSub,
             pipeline);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    RunnerApi.FunctionSpec spec = sourceTranslator.translate(appliedPTransform, components);
+    RunnerApi.FunctionSpec spec =
+        sourceTranslator.translate((AppliedPTransform) appliedPTransform, components);
     assertEquals(PTransformTranslation.PUBSUB_READ, spec.getUrn());
     PubSubReadPayload result = PubSubReadPayload.parseFrom(spec.getPayload());
     assertEquals(pubsubReadPayload, result);
