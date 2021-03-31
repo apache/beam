@@ -23,8 +23,7 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
   classesTriggerCheckerBugs: [
-    'RunnerImplementedSourceTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
-    'RunnerImplementedSinkTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'PubSubPayloadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
   ],
 )
 
