@@ -28,6 +28,7 @@ import pandas as pd
 
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.testing.test_stream import WindowedValueHolder
+from apache_beam.typehints.schemas import named_fields_from_element_type
 
 
 def to_element_list(
@@ -76,8 +77,8 @@ def to_element_list(
       count += 1
 
 
-def elements_to_df(elements, include_window_info=False):
-  # type: (List[WindowedValue], bool) -> DataFrame
+def elements_to_df(elements, include_window_info=False, element_type=None):
+  # type: (List[WindowedValue], bool, Any) -> DataFrame
 
   """Parses the given elements into a Dataframe.
 
@@ -86,6 +87,12 @@ def elements_to_df(elements, include_window_info=False):
   True, then it will concatenate the windowing information onto the elements
   DataFrame.
   """
+  try:
+    columns_names = [
+        name for name, _ in named_fields_from_element_type(element_type)
+    ]
+  except TypeError:
+    columns_names = None
 
   rows = []
   windowed_info = []
@@ -94,7 +101,7 @@ def elements_to_df(elements, include_window_info=False):
     if include_window_info:
       windowed_info.append([e.timestamp.micros, e.windows, e.pane_info])
 
-  rows_df = pd.DataFrame(rows)
+  rows_df = pd.DataFrame(rows, columns=columns_names)
   if include_window_info:
     windowed_info_df = pd.DataFrame(
         windowed_info, columns=['event_time', 'windows', 'pane_info'])
