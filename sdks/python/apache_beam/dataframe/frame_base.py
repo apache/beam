@@ -385,9 +385,14 @@ def with_docs_from(base_type, name=None):
     if orig_doc is None:
       return func
 
-    # TODO(BEAM-12074): Update "See also" references so that they link to Beam
+    orig_doc = cleandoc(orig_doc).replace('DataFrame',
+                                          'DeferredDataFrame').replace(
+                                              'Series', 'DeferredSeries')
+    # TODO(BEAM-12074): "Examples" section can be misleading as it shows pandas
+    # usage, not Beam usage. We should either add a disclaimer, or remove the
+    # examples section.
+    # TODO(BEAM-12074): Make sure "See also" references so that link to Beam
     # methods
-    orig_doc = cleandoc(orig_doc)
     if func.__doc__:
       beam_specific = cleandoc(func.__doc__)
     else:
