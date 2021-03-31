@@ -403,10 +403,10 @@ class UpdateDestinationSchema(beam.DoFn):
         location=temp_table_load_job_reference.location)
     temp_table_schema = temp_table_load_job.configuration.load.schema
 
-    # FIXME: This short-circuit lacks specificity. Schemas differing only in
-    #        the order of fields are not equivalent according to == but do not
-    #        need a schema modification job to precede the copy job.
-    if temp_table_schema == destination_table.schema:
+    if bigquery_tools.check_schema_equal(temp_table_schema,
+                                         destination_table.schema,
+                                         ignore_descriptions=True,
+                                         ignore_field_order=True):
       # Destination table schema is already the same as the temp table schema,
       # so no need to run a job to update the destination table schema.
       return
