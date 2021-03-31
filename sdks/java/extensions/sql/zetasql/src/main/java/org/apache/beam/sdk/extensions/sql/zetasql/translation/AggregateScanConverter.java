@@ -33,13 +33,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlAggFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
@@ -89,12 +87,9 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
       aggregateCalls = new ArrayList<>();
       // For aggregate calls, their input ref follow after GROUP BY input ref.
       int columnRefoff = groupFieldsListSize;
-      boolean nullable = false;
-      if (input.getProjects().size() > columnRefoff) {
-        nullable = input.getProjects().get(columnRefoff).getType().isNullable();
-      }
       for (ResolvedComputedColumn computedColumn : zetaNode.getAggregateList()) {
-        AggregateCall aggCall = convertAggCall(computedColumn, columnRefoff, nullable);
+        AggregateCall aggCall =
+            convertAggCall(computedColumn, columnRefoff, groupSet.size(), input);
         aggregateCalls.add(aggCall);
         if (!aggCall.getArgList().isEmpty()) {
           // Only increment column reference offset when aggregates use them (BEAM-8042).
@@ -174,7 +169,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
   }
 
   private AggregateCall convertAggCall(
-      ResolvedComputedColumn computedColumn, int columnRefOff, boolean nullable) {
+      ResolvedComputedColumn computedColumn, int columnRefOff, int groupCount, RelNode input) {
     ResolvedAggregateFunctionCall aggregateFunctionCall =
         (ResolvedAggregateFunctionCall) computedColumn.getExpr();
 
@@ -226,12 +221,20 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
       }
     }
 
-    RelDataType returnType =
-        ZetaSqlCalciteTranslationUtils.toCalciteType(
-            computedColumn.getColumn().getType(), nullable, getCluster().getRexBuilder());
-
     String aggName = getTrait().resolveAlias(computedColumn.getColumn());
+
     return AggregateCall.create(
-        sqlAggFunction, false, false, false, argList, -1, RelCollations.EMPTY, returnType, aggName);
+        sqlAggFunction,
+        false,
+        false,
+        false,
+        argList,
+        -1,
+        RelCollations.EMPTY,
+        groupCount,
+        input,
+        // When we pass null as the return type, Calcite infers it for us.
+        null,
+        aggName);
   }
 }
