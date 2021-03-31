@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import functools
+from inspect import cleandoc
 from inspect import getfullargspec
 from inspect import unwrap
 from typing import Any
@@ -352,6 +353,38 @@ def args_to_kwargs(base_type):
       return func(**kwargs)
 
     return wrapper
+
+  return wrap
+
+
+BEAM_SPECIFIC_HEADER = cleandoc(
+    """Beam DataFrame API Divergences
+                                ------------------------------""")
+
+
+def with_docs_from(base_type, name=None):
+  def wrap(func):
+    fn_name = name or func.__name__
+    orig_doc = getattr(base_type, fn_name).__doc__
+    if orig_doc is None:
+      return func
+
+    # TODO(BEAM-12074): Update "See also" references so that they link to Beam
+    # methods
+    orig_doc = cleandoc(orig_doc)
+    if func.__doc__:
+      beam_specific = cleandoc(func.__doc__)
+    else:
+      beam_specific = (
+          "This operation has no known divergences from the "
+          "pandas API.")
+
+    # TODO(BEAM-12074): This section should be inserted earlier, the user may
+    # miss it if we put it at the end like this.
+    func.__doc__ = '\n'.join(
+        (orig_doc, "", BEAM_SPECIFIC_HEADER, beam_specific))
+
+    return func
 
   return wrap
 

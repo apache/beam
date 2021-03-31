@@ -387,22 +387,35 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
-  @frame_base.maybe_inplace
   def sort_values(self, axis, **kwargs):
+    """``sort_values`` will not be implemented.
+
+    It cannot be implemented for ``axis=index`` because it imposes an ordering on
+    the dataset, and we cannot guarantee it will be maintained (see
+    https://s.apache.org/dataframe-order-sensitive-operations).
+
+    It cannot be implemented for ``axis=columns`` because it makes the order of
+    the columns depend on the data (see
+    https://s.apache.org/dataframe-non-deferred-column-names)."""
     if axis in (0, 'index'):
-      # axis=rows imposes an ordering on the DataFrame rows which we do not
+      # axis=index imposes an ordering on the DataFrame rows which we do not
       # support
       raise frame_base.WontImplementError("order-sensitive")
     else:
       # axis=columns will reorder the columns based on the data
       raise frame_base.WontImplementError("non-deferred column values")
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def sort_index(self, axis, **kwargs):
-    if axis in (0, 'rows'):
-      # axis=rows imposes an ordering on the DataFrame which we do not support
+    """``axis=index`` is not allowed because it imposes an ordering on the
+    dataset, and we cannot guarantee it will be maintained (see
+    https://s.apache.org/dataframe-order-sensitive-operations). Only
+    ``axis=columns`` is allowed."""
+    if axis in (0, 'index'):
+      # axis=index imposes an ordering on the DataFrame which we do not support
       raise frame_base.WontImplementError("order-sensitive")
 
     # axis=columns reorders the columns by name
@@ -586,9 +599,18 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def align(self, other, join, axis, level, method, **kwargs):
+    """Aligning per-level is not yet supported. Only the default, ``level=None``,
+    is allowed.
+
+    Filling NaN values via ``method`` will not be supported, because it is
+    sensitive to the order of the data
+    (see https://s.apache.org/dataframe-order-sensitive-operations). Only the
+    default, ``method=None``, is allowed.
+    """
     if level is not None:
       raise NotImplementedError('per-level align')
     if method is not None:
@@ -653,13 +675,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   __matmul__ = dot
 
+  @frame_base.with_docs_from(pd.Series)
   def std(self, *args, **kwargs):
     # Compute variance (deferred scalar) with same args, then sqrt it
     return self.var(*args, **kwargs).apply(lambda var: math.sqrt(var))
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def var(self, axis, skipna, level, ddof, **kwargs):
+    """Per-level aggregation is not yet supported (BEAM-11777). Only the
+    default, ``level=None``, is allowed."""
     if level is not None:
       raise NotImplementedError("per-level aggregation")
     if skipna is None or skipna:
@@ -1899,7 +1925,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         but we only use it when necessary to avoid unnessary data transfer and
         GBKs.
     :param grouping_columns: list of column labels that were in the original
-        groupby(..) `by` parameter. Only relevant for grouped DataFrames.
+        groupby(..) ``by`` parameter. Only relevant for grouped DataFrames.
     :param grouping_indexes: list of index names (or index level numbers) to be
         grouped.
     :param kwargs: Keywords args passed to the original groupby(..) call."""
