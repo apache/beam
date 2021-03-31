@@ -71,8 +71,10 @@ class DeferredBase(object):
       wrapper_type = _DeferredScalar
     return wrapper_type(expr)
 
-  def _elementwise(self, func, name=None, other_args=(), inplace=False):
-    return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
+  def _elementwise(
+      self, func, name=None, other_args=(), other_kwargs={}, inplace=False):
+    return _elementwise_function(
+        func, name, inplace=inplace)(self, *other_args, **other_kwargs)
 
   def __reduce__(self):
     return UnusableUnpickledDeferredBase, (str(self), )
@@ -132,12 +134,14 @@ def name_and_func(method):
     return method.__name__, method
 
 
-def _elementwise_method(func, name=None, restrictions=None, inplace=False):
+def _elementwise_method(
+    func, name=None, restrictions=None, inplace=False, base=None):
   return _proxy_method(
       func,
       name,
       restrictions,
       inplace,
+      base,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
@@ -147,38 +151,45 @@ def _proxy_method(
     name=None,
     restrictions=None,
     inplace=False,
+    base=None,
     requires_partition_by=partitionings.Singleton(),
     preserves_partition_by=partitionings.Arbitrary()):
   if name is None:
     name, func = name_and_func(func)
-  if restrictions is None:
-    restrictions = {}
+  if base is None:
+    raise ValueError("base is required for _proxy_method")
   return _proxy_function(
       func,
       name,
       restrictions,
       inplace,
+      base,
       requires_partition_by,
       preserves_partition_by)
 
 
-def _elementwise_function(func, name=None, restrictions=None, inplace=False):
+def _elementwise_function(
+    func, name=None, restrictions=None, inplace=False, base=None):
   return _proxy_function(
       func,
       name,
       restrictions,
       inplace,
+      base,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
 
 def _proxy_function(
-      func,  # type: Union[Callable, str]
-      name=None,  # type: Optional[str]
-      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
-      inplace=False,  # type: bool
-      requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Arbitrary(),  # type: partitionings.Partitioning
+    func,  # type: Union[Callable, str]
+    name=None,  # type: Optional[str]
+    restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
+    inplace=False,  # type: bool
+    base=None,  # type: Optional[type]
+    requires_partition_by=partitionings.Singleton(
+    ),  # type: partitionings.Partitioning
+    preserves_partition_by=partitionings.Arbitrary(
+    ),  # type: partitionings.Partitioning
 ):
 
   if name is None:
@@ -293,7 +304,12 @@ def _proxy_function(
     else:
       return DeferredFrame.wrap(result_expr)
 
-  return wrapper
+  # TODO(BEAM-12074): Generate docs that include "Divergences" section
+  # documenting restrictions.
+  if base is not None and not restrictions:
+    return with_docs_from(base, name=name)(wrapper)
+  else:
+    return wrapper
 
 
 def _agg_method(func):
