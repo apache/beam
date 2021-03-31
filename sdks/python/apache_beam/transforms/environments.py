@@ -256,6 +256,35 @@ class Environment(object):
     raise NotImplementedError
 
 
+@Environment.register_urn(common_urns.environments.DEFAULT.urn, None)
+class DefaultEnvironment(Environment):
+  """Used as a stub when context is missing a default environment."""
+  def __init__(
+      self,
+      capabilities=(),  # type: Iterable[str]
+      artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
+  ):
+    super(DefaultEnvironment,
+          self).__init__(capabilities, artifacts, resource_hints)
+
+  def to_runner_api_parameter(self, context):
+    return common_urns.environments.DEFAULT.urn, None
+
+  @staticmethod
+  def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.DockerPayload
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Dict[str, bytes]
+      context  # type: PipelineContext
+                                ):
+    # type: (...) -> DefaultEnvironment
+    return DefaultEnvironment(
+        capabilities=capabilities,
+        artifacts=artifacts,
+        resource_hints=resource_hints)
+
+
 @Environment.register_urn(
     common_urns.environments.DOCKER.urn, beam_runner_api_pb2.DockerPayload)
 class DockerEnvironment(Environment):

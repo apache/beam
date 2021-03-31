@@ -18,6 +18,7 @@
 
 from typing import Any
 from typing import Dict
+
 from apache_beam.portability.common_urns import resource_hints
 
 __all__ = ['parse_resource_hints']

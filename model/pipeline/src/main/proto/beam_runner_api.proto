@@ -1480,6 +1480,8 @@ message StandardEnvironments {
     PROCESS = 1 [(beam_urn) = "beam:env:process:v1"]; // A managed native process to run user code.
 
     EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"]; // An external non managed process to run user code.
+
+    DEFAULT = 3 [(beam_urn) = "beam:env:default:v1"]; // Used as a stub when context is missing a runner-provided default environment.
   }
 }
 
