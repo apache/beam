@@ -96,12 +96,6 @@ def is_apache_beam_container(container_image):
       APACHE_BEAM_DOCKER_IMAGE_PREFIX)
 
 
-def is_beam_java_container_name(container_image):
-  return (
-      '/' in container_image and (container_image.rsplit(
-          '/', 1)[1]).startswith(APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX))
-
-
 class Environment(object):
   """Abstract base class for environments.
 
