@@ -190,7 +190,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-datastore>=1.7.1,<2',
     'google-cloud-pubsub>=0.39.0,<2',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<2',
+    'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<2',
     'google-cloud-spanner>=1.13.0,<2',
