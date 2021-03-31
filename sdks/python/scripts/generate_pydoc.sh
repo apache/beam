@@ -53,30 +53,30 @@ current_minor_version=`echo ${python_version} | sed -E "s/Python 3.([0-9])\..*/\
 
 # Exclude internal, test, and Cython paths/patterns from the documentation.
 excluded_patterns=(
-    apache_beam/coders/stream.*
-    apache_beam/coders/coder_impl.*
-    apache_beam/examples/
-    apache_beam/internal/clients/
-    apache_beam/io/gcp/internal/
-    apache_beam/io/gcp/tests/
-    apache_beam/metrics/execution.*
-    apache_beam/runners/common.*
-    apache_beam/runners/api/
-    apache_beam/runners/test/
-    apache_beam/runners/dataflow/internal/
-    apache_beam/runners/portability/
-    apache_beam/runners/worker/
-    apache_beam/testing/benchmarks/chicago_taxi/
-    apache_beam/tools/map_fn_microbenchmark.*
-    apache_beam/transforms/cy_combiners.*
-    apache_beam/transforms/cy_dataflow_distribution_counter.*
-    apache_beam/transforms/py_dataflow_distribution_counter.*
-    apache_beam/utils/counters.*
-    apache_beam/utils/windowed_value.*
-    *_pb2.py
-    *_test.py
-    *_test_common.py
-    *_py3[`echo $(($current_minor_version+1))`-9]*.py
+    'apache_beam/coders/stream.*'
+    'apache_beam/coders/coder_impl.*'
+    'apache_beam/examples/'
+    'apache_beam/internal/clients/'
+    'apache_beam/io/gcp/internal/'
+    'apache_beam/io/gcp/tests/'
+    'apache_beam/metrics/execution.*'
+    'apache_beam/runners/common.*'
+    'apache_beam/runners/api/'
+    'apache_beam/runners/test/'
+    'apache_beam/runners/dataflow/internal/'
+    'apache_beam/runners/portability/'
+    'apache_beam/runners/worker/'
+    'apache_beam/testing/benchmarks/chicago_taxi/'
+    'apache_beam/tools/map_fn_microbenchmark.*'
+    'apache_beam/transforms/cy_combiners.*'
+    'apache_beam/transforms/cy_dataflow_distribution_counter.*'
+    'apache_beam/transforms/py_dataflow_distribution_counter.*'
+    'apache_beam/utils/counters.*'
+    'apache_beam/utils/windowed_value.*'
+    '*_pb2.py'
+    '*_test.py'
+    '*_test_common.py'
+    '*_py3[0-9]*.py'
 )
 
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
