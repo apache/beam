@@ -386,6 +386,35 @@ class TestBigQueryWrapper(unittest.TestCase):
         project_id="second_project_id", query=query, use_legacy_sql=False)
     self.assertEqual("US", location)
 
+  def test_perform_load_job_source_mutual_exclusivity(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    # Both source_uri and source_stream specified.
+    with self.assertRaises(ValueError):
+      wrapper.perform_load_job(
+          destination=parse_table_reference('project:dataset.table'),
+          job_id='job_id',
+          source_uris=['gs://example.com/*'],
+          source_stream=io.BytesIO())
+
+    # Neither source_uri nor source_stream specified.
+    with self.assertRaises(ValueError):
+      wrapper.perform_load_job(destination='P:D.T', job_id='J')
+
+  def test_perform_load_job_with_source_stream(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    wrapper.perform_load_job(
+        destination=parse_table_reference('project:dataset.table'),
+        job_id='job_id',
+        source_stream=io.BytesIO(b'some,data'))
+
+    client.jobs.Insert.assert_called_once()
+    upload = client.jobs.Insert.call_args[1]["upload"]
+    self.assertEqual(b'some,data', upload.stream.read())
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryReader(unittest.TestCase):
