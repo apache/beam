@@ -79,6 +79,7 @@ ConstructorFn = Callable[[
     Optional[Any],
     Iterable[str],
     Iterable[beam_runner_api_pb2.ArtifactInformation],
+    Mapping[str, bytes],
     'PipelineContext'
 ],
                          Any]
@@ -114,7 +115,7 @@ class Environment(object):
   def __init__(self,
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Optional[Dict[str, bytes]]
+      resource_hints,  # type: Optional[Mapping[str, bytes]]
                ):
     # type: (...) -> None
     self._capabilities = capabilities
@@ -275,7 +276,7 @@ class DefaultEnvironment(Environment):
   def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.DockerPayload
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Dict[str, bytes]
+      resource_hints,  # type: Mapping[str, bytes]
       context  # type: PipelineContext
                                 ):
     # type: (...) -> DefaultEnvironment
@@ -293,7 +294,7 @@ class DockerEnvironment(Environment):
       container_image=None,  # type: Optional[str]
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints=None,  # type: Optional[Dict[str, bytes]]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
     super(DockerEnvironment,
           self).__init__(capabilities, artifacts, resource_hints)
@@ -329,7 +330,7 @@ class DockerEnvironment(Environment):
   def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.DockerPayload
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Dict[str, bytes]
+      resource_hints,  # type: Mapping[str, bytes]
       context  # type: PipelineContext
                                 ):
     # type: (...) -> DockerEnvironment
@@ -360,7 +361,7 @@ class DockerEnvironment(Environment):
   @classmethod
   def from_container_image(
       cls, container_image, artifacts=(), resource_hints=None):
-    # type: (str, Iterable[beam_runner_api_pb2.ArtifactInformation], Optional[Dict[str, bytes]]) -> DockerEnvironment
+    # type: (str, Iterable[beam_runner_api_pb2.ArtifactInformation], Optional[Mapping[str, bytes]]) -> DockerEnvironment
     return cls(
         container_image=container_image,
         capabilities=python_sdk_capabilities(),
@@ -398,7 +399,7 @@ class ProcessEnvironment(Environment):
       env=None,  # type: Optional[Mapping[str, str]]
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints=None,  # type: Optional[Dict[str, bytes]]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
     # type: (...) -> None
     super(ProcessEnvironment,
@@ -444,7 +445,7 @@ class ProcessEnvironment(Environment):
   def from_runner_api_parameter(payload,
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Dict[str, bytes]
+      resource_hints,  # type: Mapping[str, bytes]
       context  # type: PipelineContext
                                 ):
     # type: (...) -> ProcessEnvironment
@@ -506,7 +507,7 @@ class ExternalEnvironment(Environment):
       params=None,  # type: Optional[Mapping[str, str]]
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints=None,  # type: Optional[Dict[str, bytes]]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
     super(ExternalEnvironment,
           self).__init__(capabilities, artifacts, resource_hints)
@@ -541,7 +542,7 @@ class ExternalEnvironment(Environment):
   def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.ExternalPayload
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Dict[str, bytes]
+      resource_hints,  # type: Mapping[str, bytes]
       context  # type: PipelineContext
                                 ):
     # type: (...) -> ExternalEnvironment
@@ -580,9 +581,9 @@ class ExternalEnvironment(Environment):
 class EmbeddedPythonEnvironment(Environment):
   def __init__(
       self,
-      capabilities=None,  # type: Iterable[str]
+      capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints=None  # type: Optional[Dict[str, bytes]]
+      resource_hints=None  # type: Optional[Mapping[str, bytes]]
   ):
     super(EmbeddedPythonEnvironment,
           self).__init__(capabilities, artifacts, resource_hints)
@@ -595,7 +596,7 @@ class EmbeddedPythonEnvironment(Environment):
   def from_runner_api_parameter(unused_payload,  # type: None
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Dict[str, bytes]
+      resource_hints,  # type: Mapping[str, bytes]
       context  # type: PipelineContext
                                 ):
     # type: (...) -> EmbeddedPythonEnvironment
@@ -661,7 +662,7 @@ class EmbeddedPythonGrpcEnvironment(Environment):
   def from_runner_api_parameter(payload,  # type: bytes
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Dict[str, bytes]
+      resource_hints,  # type: Mapping[str, bytes]
       context  # type: PipelineContext
                                 ):
     # type: (...) -> EmbeddedPythonGrpcEnvironment
@@ -715,7 +716,7 @@ class SubprocessSDKEnvironment(Environment):
       command_string,  # type: str
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints=None,  # type: Optional[Dict[str, bytes]]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
     super(SubprocessSDKEnvironment,
           self).__init__(capabilities, artifacts, resource_hints)
@@ -741,7 +742,7 @@ class SubprocessSDKEnvironment(Environment):
   def from_runner_api_parameter(payload,  # type: bytes
       capabilities,  # type: Iterable[str]
       artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Dict[str, bytes]
+      resource_hints,  # type: Mapping[str, bytes]
       context  # type: PipelineContext
                                 ):
     # type: (...) -> SubprocessSDKEnvironment
