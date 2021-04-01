@@ -1142,6 +1142,29 @@ class UtilTest(unittest.TestCase):
         FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.serviceOptions, ['whizz=bang'])
 
+  def test_enable_hot_key_logging(self):
+    # Tests that the enable_hot_key_logging is not set by default.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertIsNone(env.proto.debugOptions)
+
+    # Now test that it is set when given.
+    pipeline_options = PipelineOptions([
+        '--enable_hot_key_logging', '--temp_location', 'gs://any-location/temp'
+    ])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.debugOptions, dataflow.DebugOptions(enableHotKeyLogging=True))
+
 
 if __name__ == '__main__':
   unittest.main()
