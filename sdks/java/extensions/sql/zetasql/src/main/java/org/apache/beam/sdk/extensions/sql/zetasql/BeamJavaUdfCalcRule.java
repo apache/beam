@@ -89,11 +89,11 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
               return false;
             }
           } else if (rexNode instanceof RexLiteral) {
-            if (!udfSupportsLiteral((RexLiteral) rexNode)) {
+            if (!udfSupportsLiteralType(rexNode.getType())) {
               return false;
             }
           } else if (rexNode instanceof RexInputRef) {
-            if (!udfSupportsInput((RexInputRef) rexNode)) {
+            if (!udfSupportsInputType(rexNode.getType())) {
               return false;
             }
           } else {
@@ -122,8 +122,8 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
    * Returns true only if the literal can be correctly implemented by {@link
    * org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel} in ZetaSQL.
    */
-  private static boolean udfSupportsLiteral(RexLiteral rexLiteral) {
-    switch (rexLiteral.getType().getSqlTypeName()) {
+  private static boolean udfSupportsLiteralType(RelDataType type) {
+    switch (type.getSqlTypeName()) {
       case BIGINT:
       case BOOLEAN:
       case DECIMAL:
@@ -133,6 +133,9 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
       case VARBINARY:
       case VARCHAR:
+      case CHAR:
+      case BINARY:
+      case NULL:
         return true;
       case DATE: // BEAM-11990
       default:
@@ -141,13 +144,9 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
   }
 
   /**
-   * Returns true only if the input ref can be correctly implemented by {@link
+   * Returns true only if the input type can be correctly implemented by {@link
    * org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel} in ZetaSQL.
    */
-  private static boolean udfSupportsInput(RexInputRef rexInputRef) {
-    return udfSupportsInputType(rexInputRef.getType());
-  }
-
   private static boolean udfSupportsInputType(RelDataType type) {
     switch (type.getSqlTypeName()) {
       case BIGINT:
