@@ -67,6 +67,12 @@ class DoctestTest(unittest.TestCase):
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.generic.NDFrame.sort_values': ['*'],
+            'pandas.core.generic.NDFrame.mask': [
+                'df.where(m, -df) == np.where(m, df, -df)'
+            ],
+            'pandas.core.generic.NDFrame.where': [
+                'df.where(m, -df) == np.where(m, df, -df)'
+            ],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.add_prefix': ['*'],
@@ -79,7 +85,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
             'pandas.core.generic.NDFrame.interpolate': ['*'],
-            'pandas.core.generic.NDFrame.mask': ['*'],
             'pandas.core.generic.NDFrame.pct_change': ['*'],
             'pandas.core.generic.NDFrame.rank': ['*'],
             'pandas.core.generic.NDFrame.reindex': ['*'],
@@ -92,7 +97,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.squeeze': ['*'],
             'pandas.core.generic.NDFrame.transform': ['*'],
             'pandas.core.generic.NDFrame.truncate': ['*'],
-            'pandas.core.generic.NDFrame.where': ['*'],
             'pandas.core.generic.NDFrame.xs': ['*'],
             # argsort unimplemented
             'pandas.core.generic.NDFrame.abs': [

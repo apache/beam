@@ -415,6 +415,57 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Arbitrary(),
         ))
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def where(self, cond, other, errors, **kwargs):
+    requires = partitionings.Arbitrary()
+    deferred_args = {}
+    actual_args = {}
+
+    # TODO(bhulette): This is very similar to the logic in
+    # frame_base.elementwise_method, can we unify it?
+    if isinstance(cond, frame_base.DeferredFrame):
+      deferred_args['cond'] = cond
+      requires = partitionings.Index()
+    else:
+      actual_args['cond'] = cond
+
+    if isinstance(other, frame_base.DeferredFrame):
+      deferred_args['other'] = other
+      requires = partitionings.Index()
+    else:
+      actual_args['other'] = other
+
+    if errors == "ignore":
+      # We need all data in order to ignore errors and propagate the original
+      # data.
+      requires = partitionings.Singleton()
+
+    actual_args['errors'] = errors
+
+    def where_execution(df, *args):
+      runtime_values = {
+          name: value
+          for (name, value) in zip(deferred_args.keys(), args)
+      }
+      return df.where(**runtime_values, **actual_args, **kwargs)
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            "where",
+            where_execution,
+            [self._expr] + [df._expr for df in deferred_args.values()],
+            requires_partition_by=requires,
+            preserves_partition_by=partitionings.Index(),
+        ))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def mask(self, cond, **kwargs):
+    return self.where(~cond, **kwargs)
+
   @property
   def dtype(self):
     return self._expr.proxy().dtype
