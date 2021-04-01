@@ -444,17 +444,17 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     actual_args['errors'] = errors
 
-    def where(self, *args):
+    def where_execution(df, *args):
       runtime_values = {
           name: value
           for (name, value) in zip(deferred_args.keys(), args)
       }
-      return self.where(**runtime_values, **actual_args, **kwargs)
+      return df.where(**runtime_values, **actual_args, **kwargs)
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             "where",
-            where,
+            where_execution,
             [self._expr] + [df._expr for df in deferred_args.values()],
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Index(),
