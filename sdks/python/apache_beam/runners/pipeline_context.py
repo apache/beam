@@ -216,12 +216,12 @@ class PipelineContext(object):
         namespace,
         proto.environments if proto is not None else None)
 
-    if default_environment:
-      self._default_environment_id = self.environments.get_id(
-          default_environment,
-          label='default_environment')  # type: Optional[str]
-    else:
-      self._default_environment_id = None
+    if default_environment is None:
+      default_environment = environments.DefaultEnvironment()
+
+    self._default_environment_id = self.environments.get_id(
+        default_environment, label='default_environment')  # type: Optional[str]
+
     self.use_fake_coders = use_fake_coders
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
@@ -282,3 +282,39 @@ class PipelineContext(object):
   def default_environment_id(self):
     # type: () -> Optional[str]
     return self._default_environment_id
+
+  def get_environment_id_for_transform(
+      self, transform):  # type: (Optional[ptransform.PTransform]) -> str
+    """Returns an environment id where the transform can be executed."""
+    if not transform or not transform.get_resource_hints():
+      return self.default_environment_id()
+
+    def merge_resource_hints(environment_id, transform):
+      # TODO: add test.
+      # Hints already defined in the environment take precedence over hints
+      # specified by a transform.
+      return dict(
+          transform.get_resource_hints(),
+          **self.environments.get_by_id(environment_id).resource_hints())
+
+    def get_or_create_environment_with_resource_hints(
+        template_env_id,
+        resource_hints,
+    ):  # type: (str, Dict[str, bytes]) -> str
+      """Creates an environment that has necessary hints and returns its id."""
+      template_env = self.environments.get_proto_from_id(template_env_id)
+      cloned_env = type(template_env)()
+      cloned_env.CopyFrom(template_env)
+      cloned_env.resource_hints.clear()
+      for hint, value in resource_hints.items():
+        cloned_env.resource_hints[hint] = value
+
+      return self.environments.get_by_proto(
+          cloned_env, label='environment_with_resource_hints', deduplicate=True)
+
+    default_env_id = self.default_environment_id()
+    merged_hints = merge_resource_hints(default_env_id, transform)
+    maybe_new_env_id = get_or_create_environment_with_resource_hints(
+        default_env_id, merged_hints)
+
+    return maybe_new_env_id

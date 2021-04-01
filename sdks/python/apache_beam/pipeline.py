@@ -1226,7 +1226,7 @@ class AppliedPTransform(object):
     transform_urn = transform_spec.urn if transform_spec else None
     if (not environment_id and
         (transform_urn not in Pipeline.runner_implemented_transforms())):
-      environment_id = context.default_environment_id()
+      environment_id = context.get_environment_id_for_transform(self.transform)
 
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
@@ -1274,6 +1274,12 @@ class AppliedPTransform(object):
     ]
 
     transform = ptransform.PTransform.from_runner_api(proto, context)
+    if transform and proto.environment_id:
+      resource_hints = context.environments.get_by_id(
+          proto.environment_id).resource_hints()
+      if resource_hints:
+        transform._resource_hints = dict(resource_hints)
+
     # Ordering is important here.
     # TODO(BEAM-9635): use key, value pairs instead of depending on tags with
     # index as a suffix.
