@@ -19,8 +19,6 @@
 functionality.
 """
 
-from __future__ import absolute_import
-
 import logging
 
 from google.cloud import dlp_v2
