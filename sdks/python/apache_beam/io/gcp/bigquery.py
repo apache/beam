@@ -1431,7 +1431,7 @@ class _StreamToBigQuery(PTransform):
 
     def _restore_table_ref(sharded_table_ref_elems_kv):
       sharded_table_ref = sharded_table_ref_elems_kv[0]
-      table_ref = bigquery_tools.parse_table_reference(sharded_table_ref.key)
+      table_ref = bigquery_tools.parse_table_reference(sharded_table_ref)
       return (table_ref, sharded_table_ref_elems_kv[1])
 
     tagged_data = (
@@ -1439,7 +1439,8 @@ class _StreamToBigQuery(PTransform):
         | 'AppendDestination' >> beam.ParDo(
             bigquery_tools.AppendDestinationsFn(self.table_reference),
             *self.table_side_inputs)
-        | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn()))
+        | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
+        | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref))
 
     if not self.with_auto_sharding:
       tagged_data = (
@@ -1458,14 +1459,14 @@ class _StreamToBigQuery(PTransform):
       # references are restored.
       tagged_data = (
           tagged_data
-          | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref)
           | 'WithAutoSharding' >> beam.GroupIntoBatches.WithShardedKey(
               (self.batch_size or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS),
               DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
-          | 'FromHashableTableRefAndDropShard' >> beam.Map(_restore_table_ref))
+          | 'DropShard' >> beam.Map(lambda kv: (kv[0].key, kv[1])))
 
     return (
         tagged_data
+        | 'FromHashableTableRef' >> beam.Map(_restore_table_ref)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
                 BigQueryWriteFn.FAILED_ROWS, main='main'))
