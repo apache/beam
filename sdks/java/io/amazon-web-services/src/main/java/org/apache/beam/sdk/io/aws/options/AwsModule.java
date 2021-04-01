@@ -299,7 +299,7 @@ public class AwsModule extends SimpleModule {
         clientConfiguration.setProxyHost((String) map.get(PROXY_HOST));
       }
       if (map.containsKey(PROXY_PORT)) {
-        clientConfiguration.setProxyPort((Integer) map.get(PROXY_PORT));
+        clientConfiguration.setProxyPort(((Number) map.get(PROXY_PORT)).intValue());
       }
       if (map.containsKey(PROXY_USERNAME)) {
         clientConfiguration.setProxyUsername((String) map.get(PROXY_USERNAME));
@@ -308,27 +308,28 @@ public class AwsModule extends SimpleModule {
         clientConfiguration.setProxyPassword((String) map.get(PROXY_PASSWORD));
       }
       if (map.containsKey(CLIENT_EXECUTION_TIMEOUT)) {
-        clientConfiguration.setClientExecutionTimeout((Integer) map.get(CLIENT_EXECUTION_TIMEOUT));
+        clientConfiguration.setClientExecutionTimeout(
+            ((Number) map.get(CLIENT_EXECUTION_TIMEOUT)).intValue());
       }
       if (map.containsKey(CONNECTION_MAX_IDLE_TIME)) {
         clientConfiguration.setConnectionMaxIdleMillis(
             ((Number) map.get(CONNECTION_MAX_IDLE_TIME)).longValue());
       }
       if (map.containsKey(CONNECTION_TIMEOUT)) {
-        clientConfiguration.setConnectionTimeout((Integer) map.get(CONNECTION_TIMEOUT));
+        clientConfiguration.setConnectionTimeout(((Number) map.get(CONNECTION_TIMEOUT)).intValue());
       }
       if (map.containsKey(CONNECTION_TIME_TO_LIVE)) {
         clientConfiguration.setConnectionTTL(
             ((Number) map.get(CONNECTION_TIME_TO_LIVE)).longValue());
       }
       if (map.containsKey(MAX_CONNECTIONS)) {
-        clientConfiguration.setMaxConnections((Integer) map.get(MAX_CONNECTIONS));
+        clientConfiguration.setMaxConnections(((Number) map.get(MAX_CONNECTIONS)).intValue());
       }
       if (map.containsKey(REQUEST_TIMEOUT)) {
-        clientConfiguration.setRequestTimeout((Integer) map.get(REQUEST_TIMEOUT));
+        clientConfiguration.setRequestTimeout(((Number) map.get(REQUEST_TIMEOUT)).intValue());
       }
       if (map.containsKey(SOCKET_TIMEOUT)) {
-        clientConfiguration.setSocketTimeout((Integer) map.get(SOCKET_TIMEOUT));
+        clientConfiguration.setSocketTimeout(((Number) map.get(SOCKET_TIMEOUT)).intValue());
       }
       return clientConfiguration;
     }
