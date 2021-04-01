@@ -211,6 +211,12 @@ public class NexmarkConfiguration implements Serializable {
    */
   @JsonProperty public long outOfOrderGroupSize = 1;
 
+  /**
+   * Used by Query 13. This specifies number of random keys to generate. Generated events will be
+   * assigned to these keys randomly and then goes through a GBK.
+   */
+  @JsonProperty public long numKeyBuckets = 20000L;
+
   /** Replace any properties of this configuration which have been supplied by the command line. */
   public void overrideFromOptions(NexmarkOptions options) {
     if (options.getDebug() != null) {

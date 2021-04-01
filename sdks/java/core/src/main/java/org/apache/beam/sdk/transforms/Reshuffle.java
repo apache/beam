@@ -129,37 +129,37 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
           .apply(Reshuffle.of())
           .apply(Values.create());
     }
+  }
 
-    private static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {
-      private int shard;
-      private @Nullable Integer numBuckets;
+  public static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {
+    private int shard;
+    private @Nullable Integer numBuckets;
 
-      private AssignShardFn(@Nullable Integer numBuckets) {
-        this.numBuckets = numBuckets;
+    public AssignShardFn(@Nullable Integer numBuckets) {
+      this.numBuckets = numBuckets;
+    }
+
+    @Setup
+    public void setup() {
+      shard = ThreadLocalRandom.current().nextInt();
+    }
+
+    @ProcessElement
+    public void processElement(@Element T element, OutputReceiver<KV<Integer, T>> r) {
+      ++shard;
+      // Smear the shard into something more random-looking, to avoid issues
+      // with runners that don't properly hash the key being shuffled, but rely
+      // on it being random-looking. E.g. Spark takes the Java hashCode() of keys,
+      // which for Integer is a no-op and it is an issue:
+      // http://hydronitrogen.com/poor-hash-partitioning-of-timestamps-integers-and-longs-in-
+      // spark.html
+      // This hashing strategy is copied from
+      // org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Hashing.smear().
+      int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
+      if (numBuckets != null) {
+        hashOfShard %= numBuckets;
       }
-
-      @Setup
-      public void setup() {
-        shard = ThreadLocalRandom.current().nextInt();
-      }
-
-      @ProcessElement
-      public void processElement(@Element T element, OutputReceiver<KV<Integer, T>> r) {
-        ++shard;
-        // Smear the shard into something more random-looking, to avoid issues
-        // with runners that don't properly hash the key being shuffled, but rely
-        // on it being random-looking. E.g. Spark takes the Java hashCode() of keys,
-        // which for Integer is a no-op and it is an issue:
-        // http://hydronitrogen.com/poor-hash-partitioning-of-timestamps-integers-and-longs-in-
-        // spark.html
-        // This hashing strategy is copied from
-        // org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Hashing.smear().
-        int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
-        if (numBuckets != null) {
-          hashOfShard %= numBuckets;
-        }
-        r.output(KV.of(hashOfShard, element));
-      }
+      r.output(KV.of(hashOfShard, element));
     }
   }
 }
