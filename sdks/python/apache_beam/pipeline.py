@@ -1195,9 +1195,10 @@ class AppliedPTransform(object):
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PTransform
-    # External tranforms require more splicing than just setting the spec.
+    # External transforms require more splicing than just setting the spec.
     from apache_beam.transforms import external
     if isinstance(self.transform, external.ExternalTransform):
+      # TODO(BEAM-12082): Support resource hints in XLang transforms.
       return self.transform.to_runner_api_transform(context, self.full_label)
 
     from apache_beam.portability.api import beam_runner_api_pb2
@@ -1294,7 +1295,7 @@ class AppliedPTransform(object):
         transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
-        environment_id=proto.environment_id,
+        environment_id=None,
         annotations=proto.annotations)
 
     if result.transform and result.transform.side_inputs:

@@ -190,6 +190,7 @@ class PipelineContext(object):
     self.component_id_map = component_id_map or ComponentIdMap(namespace)
     assert self.component_id_map.namespace == namespace
 
+    # TODO(BEAM-12084) Initialize component_id_map with objects from proto.
     self.transforms = _PipelineContextMap(
         self,
         pipeline.AppliedPTransform,

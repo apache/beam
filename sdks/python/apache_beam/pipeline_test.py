@@ -52,6 +52,7 @@ from apache_beam.transforms import FlatMap
 from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
+from apache_beam.transforms import resources
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
@@ -959,6 +960,31 @@ class RunnerApiTest(unittest.TestCase):
         self.assertEqual(
             transform.annotations['proto'], some_proto.SerializeToString())
     self.assertEqual(seen, 2)
+
+  def test_runner_api_roundtrip_preserves_resource_hints(self):
+    resources._KNOWN_HINTS.update(
+        {'foo_hint': lambda value: {
+            'foo_urn': value
+        }})
+
+    p = TestPipeline()
+    _ = (
+        p | beam.Create([1, 2])
+        | beam.Map(lambda x: x + 1).with_resource_hints(foo_hint=b"bar",
+                                                        ))
+
+    self.assertEqual(
+        p.transforms_stack[0].parts[1].transform.get_resource_hints(),
+        {'foo_urn': b'bar'})
+
+    for _ in range(3):
+      # Verify that DEFAULT environments are recreated during multiple RunnerAPI
+      # translation and hints don't get lost.
+      p = Pipeline.from_runner_api(
+          Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
+      self.assertEqual(
+          p.transforms_stack[0].parts[1].transform.get_resource_hints(),
+          {'foo_urn': b'bar'})
 
 
 if __name__ == '__main__':
