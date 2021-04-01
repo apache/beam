@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING
 from typing import List
 from urllib.parse import quote
 from urllib.parse import unquote_to_bytes
+from urllib.parse import quote_from_bytes
 
 from future.utils import iteritems
 
@@ -707,6 +708,17 @@ class DataflowRunner(PipelineRunner):
             item.get_dict()
             for item in DisplayData.create_from(transform_node.transform).items
         ])
+
+    resource_hints = transform_node.transform.get_resource_hints() or {}
+    resource_hints.update(self._default_environment.resource_hints())
+    if resource_hints:
+      step.add_property(
+          PropertyNames.RESOURCE_HINTS,
+          {
+              hint: quote_from_bytes(value)
+              for hint,
+              value in resource_hints.items()
+          })
 
     return step
 
