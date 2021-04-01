@@ -42,6 +42,7 @@ import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
+import com.google.zetasql.io.grpc.Status;
 import com.google.zetasql.resolvedast.ResolvedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateScan;
@@ -66,10 +67,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
-import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -381,7 +382,7 @@ public class ExpressionConverter {
     if (functionCall.getFunction().getName().equals(FIXED_WINDOW)
         || functionCall.getFunction().getName().equals(SLIDING_WINDOW)
         || functionCall.getFunction().getName().equals(SESSION_WINDOW)) {
-      throw new SqlConversionException(
+      throw new ZetaSqlException(
           functionCall.getFunction().getName() + " shouldn't appear in SELECT exprlist.");
     }
 
@@ -719,7 +720,7 @@ public class ExpressionConverter {
 
   private RexNode convertIntervalToRexIntervalLiteral(ResolvedLiteral resolvedLiteral) {
     if (resolvedLiteral.getType().getKind() != TYPE_STRING) {
-      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
+      throw new ZetaSqlException(INTERVAL_FORMAT_MSG);
     }
 
     String valStr = resolvedLiteral.getValue().getStringValue();
@@ -727,18 +728,22 @@ public class ExpressionConverter {
         Arrays.stream(valStr.split(" ")).filter(s -> !s.isEmpty()).collect(Collectors.toList());
 
     if (stringList.size() != 3) {
-      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
+      throw new ZetaSqlException(INTERVAL_FORMAT_MSG);
     }
 
     if (!Ascii.toUpperCase(stringList.get(0)).equals("INTERVAL")) {
-      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
+      throw new ZetaSqlException(INTERVAL_FORMAT_MSG);
     }
 
     long intervalValue;
     try {
       intervalValue = Long.parseLong(stringList.get(1));
     } catch (NumberFormatException e) {
-      throw new SqlConversionException(INTERVAL_FORMAT_MSG, e);
+      throw new ZetaSqlException(
+          Status.UNIMPLEMENTED
+              .withDescription(INTERVAL_FORMAT_MSG)
+              .withCause(e)
+              .asRuntimeException());
     }
 
     String intervalDatepart = Ascii.toUpperCase(stringList.get(2));
@@ -771,7 +776,7 @@ public class ExpressionConverter {
       case INTERVAL_SECOND:
         return new BigDecimal(value * ONE_SECOND_IN_MILLIS);
       default:
-        throw new SqlConversionException(qualifier.typeName().toString());
+        throw new ZetaSqlException(qualifier.typeName().toString());
     }
   }
 
@@ -797,7 +802,7 @@ public class ExpressionConverter {
       case "MILLISECOND":
         return new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO);
       default:
-        throw new SqlConversionException(
+        throw new ZetaSqlException(
             String.format(
                 "Received an undefined INTERVAL unit: %s. Please specify unit from the following"
                     + " list: %s.",
@@ -844,24 +849,35 @@ public class ExpressionConverter {
         && input instanceof RexLiteral) {
       BigDecimal value = (BigDecimal) ((RexLiteral) input).getValue();
       if (value.compareTo(ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MAX_VALUE) > 0) {
-        throw new SqlConversionException(
-            String.format(
-                "Casting %s as %s would cause overflow of literal %s.", fromType, toType, value));
+        throw new ZetaSqlException(
+            Status.OUT_OF_RANGE
+                .withDescription(
+                    String.format(
+                        "Casting %s as %s would cause overflow of literal %s.",
+                        fromType, toType, value))
+                .asRuntimeException());
       }
       if (value.compareTo(ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MIN_VALUE) < 0) {
-        throw new SqlConversionException(
-            String.format(
-                "Casting %s as %s would cause underflow of literal %s.", fromType, toType, value));
+        throw new ZetaSqlException(
+            Status.OUT_OF_RANGE
+                .withDescription(
+                    String.format(
+                        "Casting %s as %s would cause underflow of literal %s.",
+                        fromType, toType, value))
+                .asRuntimeException());
       }
       if (value.scale() > ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE) {
-        throw new SqlConversionException(
-            String.format(
-                "Cannot cast %s as %s: scale %d exceeds %d for literal %s.",
-                fromType,
-                toType,
-                value.scale(),
-                ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE,
-                value));
+        throw new ZetaSqlException(
+            Status.OUT_OF_RANGE
+                .withDescription(
+                    String.format(
+                        "Cannot cast %s as %s: scale %d exceeds %d for literal %s.",
+                        fromType,
+                        toType,
+                        value.scale(),
+                        ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE,
+                        value))
+                .asRuntimeException());
       }
     }
   }
