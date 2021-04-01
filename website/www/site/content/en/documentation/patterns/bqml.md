@@ -28,7 +28,7 @@ Roughly, the sections below will go through the following steps in more detail:
 
 To be able to incorporate your BQML model into an Apache Beam pipeline using tfx_bsl, it has to be in the [TensorFlow SavedModel](https://www.tensorflow.org/guide/saved_model) format. An overview that maps different model types to their export model format for BQML can be found [here](https://cloud.google.com/bigquery-ml/docs/exporting-models#export_model_formats_and_samples).
 
-For the sake of simplicity, we'll be training a (simplified version of the) logistic regression model in the [BQML quickstart guide](https://cloud.google.com/bigquery-ml/docs/bigqueryml-web-ui-start), using the publicly available Google Analytics sample dataset. An overview of all models you can create using BQML can be found [here](https://cloud.google.com/bigquery-ml/docs/introduction#supported_models_in).
+For the sake of simplicity, we'll be training a (simplified version of the) logistic regression model in the [BQML quickstart guide](https://cloud.google.com/bigquery-ml/docs/bigqueryml-web-ui-start), using the publicly available Google Analytics sample dataset (which is a [date-sharded table](https://cloud.google.com/bigquery/docs/partitioned-tables#dt_partition_shard) - alternatively, you might encounter [partitioned tables](https://cloud.google.com/bigquery/docs/partitioned-tables)). An overview of all models you can create using BQML can be found [here](https://cloud.google.com/bigquery-ml/docs/introduction#supported_models_in).
 
 After creating a BigQuery dataset, you continue to create the model, which is fully defined in SQL:
 
