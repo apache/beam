@@ -448,10 +448,6 @@ class _DoFnParam(object):
       return self.param_id == other.param_id
     return False
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash(self.param_id)
 
@@ -2463,11 +2459,23 @@ class GroupBy(PTransform):
       key_exprs = [expr for _, expr in self._key_fields]
       return lambda element: key_type(*(expr(element) for expr in key_exprs))
 
+  def _key_type_hint(self):
+    if not self._force_tuple_keys and len(self._key_fields) == 1:
+      return typing.Any
+    else:
+      return _dynamic_named_tuple(
+          'Key', tuple(name for name, _ in self._key_fields))
+
   def default_label(self):
     return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
 
   def expand(self, pcoll):
-    return pcoll | Map(lambda x: (self._key_func()(x), x)) | GroupByKey()
+    input_type = pcoll.element_type or typing.Any
+    return (
+        pcoll
+        | Map(lambda x: (self._key_func()(x), x)).with_output_types(
+            typehints.Tuple[self._key_type_hint(), input_type])
+        | GroupByKey())
 
 
 _dynamic_named_tuple_cache = {
@@ -2517,10 +2525,12 @@ class _GroupAndAggregate(PTransform):
     result_fields = tuple(name
                           for name, _ in self._grouping._key_fields) + tuple(
                               dest for _, __, dest in self._aggregations)
+    key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint()
 
     return (
         pcoll
-        | Map(lambda x: (key_func(x), value_func(x)))
+        | Map(lambda x: (key_func(x), value_func(x))).with_output_types(
+            typehints.Tuple[key_type_hint, typing.Any])
         | CombinePerKey(
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
@@ -2682,10 +2692,6 @@ class Windowing(object):
           self.allowed_lateness == other.allowed_lateness and
           self.environment_id == self.environment_id)
     return False
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash((

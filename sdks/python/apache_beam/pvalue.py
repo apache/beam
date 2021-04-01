@@ -152,10 +152,6 @@ class PCollection(PValue, Generic[T]):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash((self.tag, self.producer))
 
@@ -658,6 +654,9 @@ class Row(object):
 
   when applied to a PCollection of ints will produce a PCollection with schema
   `(x=int, y=float)`.
+
+  Note that in Beam 2.30.0 and later, Row objects are sensitive to field order.
+  So `Row(x=3, y=4)` is not considered equal to `Row(y=4, x=3)`.
   """
   def __init__(self, **kwargs):
     self.__dict__.update(kwargs)
@@ -666,24 +665,21 @@ class Row(object):
     return dict(self.__dict__)
 
   def __iter__(self):
-    for _, value in sorted(self.__dict__.items()):
+    for _, value in self.__dict__.items():
       yield value
 
   def __repr__(self):
-    return 'Row(%s)' % ', '.join(
-        '%s=%r' % kv for kv in sorted(self.__dict__.items()))
+    return 'Row(%s)' % ', '.join('%s=%r' % kv for kv in self.__dict__.items())
 
   def __hash__(self):
-    return hash(type(sorted(self.__dict__.items())))
+    return hash(self.__dict__.items())
 
   def __eq__(self, other):
-    return type(self) == type(other) and self.__dict__ == other.__dict__
-
-  def __ne__(self, other):
-    return not self == other
+    return type(self) == type(other) and all(
+        s == o for s, o in zip(self.__dict__.items(), other.__dict__.items()))
 
   def __reduce__(self):
-    return _make_Row, tuple(sorted(self.__dict__.items()))
+    return _make_Row, tuple(self.__dict__.items())
 
 
 def _make_Row(*items):

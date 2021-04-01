@@ -31,6 +31,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 from __future__ import absolute_import
 
 import hashlib
+import io
 import logging
 import random
 import time
@@ -49,6 +50,13 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.util import GroupIntoBatches
 from apache_beam.transforms.window import GlobalWindows
+
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  pass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -316,6 +324,119 @@ class WriteGroupedRecordsToFile(beam.DoFn):
       yield (destination, (file_path, file_size))
 
 
+class UpdateDestinationSchema(beam.DoFn):
+  """Update destination schema based on data that is about to be copied into it.
+
+  Unlike load and query jobs, BigQuery copy jobs do not support schema field
+  addition or relaxation on the destination table. This DoFn fills that gap by
+  updating the destination table schemas to be compatible with the data coming
+  from the source table so that schema field modification options are respected
+  regardless of whether data is loaded directly to the destination table or
+  loaded into temporary tables before being copied into the destination.
+
+  This tranform takes as input a (destination, job_reference) pair where the
+  job_reference refers to a completed load job into a temporary table.
+
+  This transform emits (destination, job_reference) pairs where the
+  job_reference refers to a submitted load job for performing the schema
+  modification. Note that the input and output job references are not the same.
+
+  Experimental; no backwards compatibility guarantees.
+  """
+  def __init__(
+      self,
+      write_disposition=None,
+      test_client=None,
+      additional_bq_parameters=None,
+      step_name=None):
+    self._test_client = test_client
+    self._write_disposition = write_disposition
+    self._additional_bq_parameters = additional_bq_parameters or {}
+    self._step_name = step_name
+
+  def setup(self):
+    self._bq_wrapper = bigquery_tools.BigQueryWrapper(client=self._test_client)
+    self._bq_io_metadata = create_bigquery_io_metadata(self._step_name)
+
+  def process(self, element, schema_mod_job_name_prefix):
+    destination = element[0]
+    temp_table_load_job_reference = element[1]
+
+    if callable(self._additional_bq_parameters):
+      additional_parameters = self._additional_bq_parameters(destination)
+    elif isinstance(self._additional_bq_parameters, vp.ValueProvider):
+      additional_parameters = self._additional_bq_parameters.get()
+    else:
+      additional_parameters = self._additional_bq_parameters
+
+    # When writing to normal tables WRITE_TRUNCATE will overwrite the schema but
+    # when writing to a partition, care needs to be taken to update the schema
+    # even on WRITE_TRUNCATE.
+    if (self._write_disposition not in ('WRITE_TRUNCATE', 'WRITE_APPEND') or
+        not additional_parameters or
+        not additional_parameters.get("schemaUpdateOptions")):
+      # No need to modify schema of destination table
+      return
+
+    table_reference = bigquery_tools.parse_table_reference(destination)
+    if table_reference.projectId is None:
+      table_reference.projectId = vp.RuntimeValueProvider.get_value(
+          'project', str, '')
+
+    try:
+      # Check if destination table exists
+      destination_table = self._bq_wrapper.get_table(
+          project_id=table_reference.projectId,
+          dataset_id=table_reference.datasetId,
+          table_id=table_reference.tableId)
+    except HttpError as exn:
+      if exn.status_code == 404:
+        # Destination table does not exist, so no need to modify its schema
+        # ahead of the copy jobs.
+        return
+      else:
+        raise
+
+    temp_table_load_job = self._bq_wrapper.get_job(
+        project=temp_table_load_job_reference.projectId,
+        job_id=temp_table_load_job_reference.jobId,
+        location=temp_table_load_job_reference.location)
+    temp_table_schema = temp_table_load_job.configuration.load.schema
+
+    # FIXME: This short-circuit lacks specificity. Schemas differing only in
+    #        the order of fields are not equivalent according to == but do not
+    #        need a schema modification job to precede the copy job.
+    if temp_table_schema == destination_table.schema:
+      # Destination table schema is already the same as the temp table schema,
+      # so no need to run a job to update the destination table schema.
+      return
+
+    destination_hash = _bq_uuid(
+        '%s:%s.%s' % (
+            table_reference.projectId,
+            table_reference.datasetId,
+            table_reference.tableId))
+    uid = _bq_uuid()
+    job_name = '%s_%s_%s' % (schema_mod_job_name_prefix, destination_hash, uid)
+
+    _LOGGER.debug(
+        'Triggering schema modification job %s on %s',
+        job_name,
+        table_reference)
+    # Trigger potential schema modification by loading zero rows into the
+    # destination table with the temporary table schema.
+    schema_update_job_reference = self._bq_wrapper.perform_load_job(
+        destination=table_reference,
+        source_stream=io.BytesIO(),  # file with zero rows
+        job_id=job_name,
+        schema=temp_table_schema,
+        write_disposition='WRITE_APPEND',
+        create_disposition='CREATE_NEVER',
+        additional_load_parameters=additional_parameters,
+        job_labels=self._bq_io_metadata.add_additional_bq_job_labels())
+    yield (destination, schema_update_job_reference)
+
+
 class TriggerCopyJobs(beam.DoFn):
   """Launches jobs to copy from temporary tables into the main target table.
 
@@ -355,7 +476,7 @@ class TriggerCopyJobs(beam.DoFn):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
-  def process(self, element, job_name_prefix=None):
+  def process(self, element, job_name_prefix=None, unused_schema_mod_jobs=None):
     destination = element[0]
     job_reference = element[1]
 
@@ -526,9 +647,9 @@ class TriggerLoadJobs(beam.DoFn):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     job_reference = self.bq_wrapper.perform_load_job(
-        table_reference,
-        files,
-        job_name,
+        destination=table_reference,
+        source_uris=files,
+        job_id=job_name,
         schema=schema,
         write_disposition=self.write_disposition,
         create_disposition=create_disposition,
@@ -845,6 +966,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       partitions_using_temp_tables,
       partitions_direct_to_destination,
       load_job_name_pcv,
+      schema_mod_job_name_pcv,
       copy_job_name_pcv,
       p,
       step_name):
@@ -883,32 +1005,56 @@ class BigQueryBatchFileLoads(beam.PTransform):
     temp_tables_load_job_ids_pc = trigger_loads_outputs['main']
     temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
-    destination_copy_job_ids_pc = (
+    finished_temp_tables_load_jobs_pc = (
         p
         | "ImpulseMonitorLoadJobs" >> beam.Create([None])
         | "WaitForTempTableLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(temp_tables_load_job_ids_pc))
+            pvalue.AsList(temp_tables_load_job_ids_pc)))
+
+    schema_mod_job_ids_pc = (
+        finished_temp_tables_load_jobs_pc
+        | beam.ParDo(
+            UpdateDestinationSchema(
+                write_disposition=self.write_disposition,
+                test_client=self.test_client,
+                additional_bq_parameters=self.additional_bq_parameters,
+                step_name=step_name),
+            schema_mod_job_name_pcv))
+
+    finished_schema_mod_jobs_pc = (
+        p
+        | "ImpulseMonitorSchemaModJobs" >> beam.Create([None])
+        | "WaitForSchemaModJobs" >> beam.ParDo(
+            WaitForBQJobs(self.test_client),
+            pvalue.AsList(schema_mod_job_ids_pc)))
+
+    destination_copy_job_ids_pc = (
+        finished_temp_tables_load_jobs_pc
         | beam.ParDo(
             TriggerCopyJobs(
                 create_disposition=self.create_disposition,
                 write_disposition=self.write_disposition,
                 test_client=self.test_client,
                 step_name=step_name),
-            copy_job_name_pcv))
+            copy_job_name_pcv,
+            pvalue.AsIter(finished_schema_mod_jobs_pc)))
 
     finished_copy_jobs_pc = (
         p
         | "ImpulseMonitorCopyJobs" >> beam.Create([None])
         | "WaitForCopyJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(destination_copy_job_ids_pc)))
+            pvalue.AsList(destination_copy_job_ids_pc)))
 
     _ = (
-        finished_copy_jobs_pc
+        p
+        | "RemoveTempTables/Impulse" >> beam.Create([None])
         | "RemoveTempTables/PassTables" >> beam.FlatMap(
-            lambda x,
+            lambda _,
+            unused_copy_jobs,
             deleting_tables: deleting_tables,
+            pvalue.AsIter(finished_copy_jobs_pc),
             pvalue.AsIter(temp_tables_pc))
         | "RemoveTempTables/AddUselessValue" >> beam.Map(lambda x: (x, None))
         | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
@@ -934,10 +1080,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     _ = (
         p
-        | "ImpulseMonitorDestLoadJobs" >> beam.Create([None])
+        | "ImpulseMonitorDestinationLoadJobs" >> beam.Create([None])
         | "WaitForDestinationLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(destination_load_job_ids_pc)))
+            pvalue.AsList(destination_load_job_ids_pc)))
 
     destination_load_job_ids_pc = (
         (temp_tables_load_job_ids_pc, destination_load_job_ids_pc)
@@ -965,6 +1111,14 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "LoadJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
                 job_name, bigquery_tools.BigQueryJobTypes.LOAD, 'LOAD_STEP')))
+
+    schema_mod_job_name_pcv = pvalue.AsSingleton(
+        singleton_pc
+        | "SchemaModJobNamePrefix" >> beam.Map(
+            lambda _: _generate_job_name(
+                job_name,
+                bigquery_tools.BigQueryJobTypes.LOAD,
+                'SCHEMA_MOD_STEP')))
 
     copy_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
@@ -1022,6 +1176,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
           self._load_data(all_partitions,
                           empty_pc,
                           load_job_name_pcv,
+                          schema_mod_job_name_pcv,
                           copy_job_name_pcv,
                           p,
                           step_name))
@@ -1030,6 +1185,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
           self._load_data(multiple_partitions_per_destination_pc,
                           single_partition_per_destination_pc,
                           load_job_name_pcv,
+                          schema_mod_job_name_pcv,
                           copy_job_name_pcv,
                           p,
                           step_name))

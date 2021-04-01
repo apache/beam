@@ -34,9 +34,7 @@ import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.type.WritableTypeId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -177,9 +175,9 @@ public class AwsModule extends SimpleModule {
         SerializerProvider serializers,
         TypeSerializer typeSerializer)
         throws IOException {
-      WritableTypeId typeId =
-          typeSerializer.writeTypePrefix(
-              jsonGenerator, typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
+
       if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
         jsonGenerator.writeStringField(
             AWS_ACCESS_KEY_ID, credentialsProvider.getCredentials().getAWSAccessKeyId());
@@ -239,7 +237,8 @@ public class AwsModule extends SimpleModule {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
-      typeSerializer.writeTypeSuffix(jsonGenerator, typeId);
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
     }
   }
 
@@ -300,7 +299,7 @@ public class AwsModule extends SimpleModule {
         clientConfiguration.setProxyHost((String) map.get(PROXY_HOST));
       }
       if (map.containsKey(PROXY_PORT)) {
-        clientConfiguration.setProxyPort((Integer) map.get(PROXY_PORT));
+        clientConfiguration.setProxyPort(((Number) map.get(PROXY_PORT)).intValue());
       }
       if (map.containsKey(PROXY_USERNAME)) {
         clientConfiguration.setProxyUsername((String) map.get(PROXY_USERNAME));
@@ -309,27 +308,28 @@ public class AwsModule extends SimpleModule {
         clientConfiguration.setProxyPassword((String) map.get(PROXY_PASSWORD));
       }
       if (map.containsKey(CLIENT_EXECUTION_TIMEOUT)) {
-        clientConfiguration.setClientExecutionTimeout((Integer) map.get(CLIENT_EXECUTION_TIMEOUT));
+        clientConfiguration.setClientExecutionTimeout(
+            ((Number) map.get(CLIENT_EXECUTION_TIMEOUT)).intValue());
       }
       if (map.containsKey(CONNECTION_MAX_IDLE_TIME)) {
         clientConfiguration.setConnectionMaxIdleMillis(
             ((Number) map.get(CONNECTION_MAX_IDLE_TIME)).longValue());
       }
       if (map.containsKey(CONNECTION_TIMEOUT)) {
-        clientConfiguration.setConnectionTimeout((Integer) map.get(CONNECTION_TIMEOUT));
+        clientConfiguration.setConnectionTimeout(((Number) map.get(CONNECTION_TIMEOUT)).intValue());
       }
       if (map.containsKey(CONNECTION_TIME_TO_LIVE)) {
         clientConfiguration.setConnectionTTL(
             ((Number) map.get(CONNECTION_TIME_TO_LIVE)).longValue());
       }
       if (map.containsKey(MAX_CONNECTIONS)) {
-        clientConfiguration.setMaxConnections((Integer) map.get(MAX_CONNECTIONS));
+        clientConfiguration.setMaxConnections(((Number) map.get(MAX_CONNECTIONS)).intValue());
       }
       if (map.containsKey(REQUEST_TIMEOUT)) {
-        clientConfiguration.setRequestTimeout((Integer) map.get(REQUEST_TIMEOUT));
+        clientConfiguration.setRequestTimeout(((Number) map.get(REQUEST_TIMEOUT)).intValue());
       }
       if (map.containsKey(SOCKET_TIMEOUT)) {
-        clientConfiguration.setSocketTimeout((Integer) map.get(SOCKET_TIMEOUT));
+        clientConfiguration.setSocketTimeout(((Number) map.get(SOCKET_TIMEOUT)).intValue());
       }
       return clientConfiguration;
     }

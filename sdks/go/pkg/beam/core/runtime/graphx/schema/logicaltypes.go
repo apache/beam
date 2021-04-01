@@ -93,6 +93,9 @@ func (r *Registry) RegisterLogicalType(lt LogicalType) {
 	if err != nil {
 		panic(fmt.Sprintf("LogicalType[%v] has an invalid StorageType %v: %v", lt.ID(), st, err))
 	}
+	if len(lt.ID()) == 0 {
+		panic(fmt.Sprintf("invalid logical type, bad id: %v -> %v", lt.GoType(), lt.StorageType()))
+	}
 	// TODO add duplication checks.
 	r.logicalTypeIdentifiers[lt.GoType()] = lt.ID()
 	r.logicalTypes[lt.ID()] = lt

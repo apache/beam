@@ -149,6 +149,7 @@ ignore_identifiers = [
   # Ignore private classes
   'apache_beam.coders.coders._PickleCoderBase',
   'apache_beam.coders.coders.FastCoder',
+  'apache_beam.coders.coders.ListLikeCoder',
   'apache_beam.io._AvroSource',
   'apache_beam.io.gcp.bigquery.RowAsDictJsonCoder',
   'apache_beam.io.gcp.datastore.v1new.datastoreio._Mutate',

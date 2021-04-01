@@ -86,4 +86,18 @@ public class FhirSearchParameter<T> {
   public int hashCode() {
     return Objects.hash(resourceType, queries);
   }
+
+  @Override
+  public String toString() {
+    return "FhirSearchParameter{"
+        + "resourceType='"
+        + resourceType
+        + '\''
+        + ", key='"
+        + key
+        + '\''
+        + ", queries="
+        + queries
+        + '}';
+  }
 }

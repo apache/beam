@@ -35,10 +35,10 @@ import io
 import json
 import logging
 import re
-import sys
 import time
 import uuid
 from builtins import object
+from json.decoder import JSONDecodeError
 
 import fastavro
 from future.utils import iteritems
@@ -69,23 +69,18 @@ from apache_beam.utils.histogram import LinearBucket
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from apitools.base.py.transfer import Upload
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
 except ImportError:
   pass
-
-try:
-  # TODO(pabloem): Remove this workaround after Python 2.7 support ends.
-  from json.decoder import JSONDecodeError
-except ImportError:
-  JSONDecodeError = ValueError
 
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
-
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
+MAX_RETRIES = 3
+UNKNOWN_MIME_TYPE = 'application/octet-stream'
 
 
 class FileFormat(object):
@@ -273,7 +268,7 @@ class BigQueryWrapper(object):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
         credentials=auth.get_service_credentials(),
-        response_encoding=None if sys.version_info[0] < 3 else 'utf8')
+        response_encoding='utf8')
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -407,13 +402,29 @@ class BigQueryWrapper(object):
       project_id,
       job_id,
       table_reference,
-      source_uris,
+      source_uris=None,
+      source_stream=None,
       schema=None,
       write_disposition=None,
       create_disposition=None,
       additional_load_parameters=None,
       source_format=None,
       job_labels=None):
+
+    if not source_uris and not source_stream:
+      raise ValueError(
+          'Either a non-empty list of fully-qualified source URIs must be '
+          'provided via the source_uris parameter or an open file object must '
+          'be provided via the source_stream parameter. Got neither.')
+
+    if source_uris and source_stream:
+      raise ValueError(
+          'Only one of source_uris and source_stream may be specified. '
+          'Got both.')
+
+    if source_uris is None:
+      source_uris = []
+
     additional_load_parameters = additional_load_parameters or {}
     job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
@@ -435,18 +446,26 @@ class BigQueryWrapper(object):
             ),
             jobReference=reference,
         ))
-    return self._start_job(request).jobReference
+    return self._start_job(request, stream=source_stream).jobReference
 
   def _start_job(
       self,
-      request  # type: bigquery.BigqueryJobsInsertRequest
+      request,  # type: bigquery.BigqueryJobsInsertRequest
+      stream=None,
   ):
     """Inserts a BigQuery job.
 
     If the job exists already, it returns it.
+
+    Args:
+      request (bigquery.BigqueryJobsInsertRequest): An insert job request.
+      stream (IO[bytes]): A bytes IO object open for reading.
     """
     try:
-      response = self.client.jobs.Insert(request)
+      upload = None
+      if stream:
+        upload = Upload.FromStream(stream, mime_type=UNKNOWN_MIME_TYPE)
+      response = self.client.jobs.Insert(request, upload=upload)
       _LOGGER.info(
           "Stated BigQuery job: %s\n "
           "bq show -j --format=prettyjson --project_id=%s %s",
@@ -809,8 +828,9 @@ class BigQueryWrapper(object):
   def perform_load_job(
       self,
       destination,
-      files,
       job_id,
+      source_uris=None,
+      source_stream=None,
       schema=None,
       write_disposition=None,
       create_disposition=None,
@@ -822,11 +842,23 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.JobReference with the information about the job that was started.
     """
+    if not source_uris and not source_stream:
+      raise ValueError(
+          'Either a non-empty list of fully-qualified source URIs must be '
+          'provided via the source_uris parameter or an open file object must '
+          'be provided via the source_stream parameter. Got neither.')
+
+    if source_uris and source_stream:
+      raise ValueError(
+          'Only one of source_uris and source_stream may be specified. '
+          'Got both.')
+
     return self._insert_load_job(
         destination.projectId,
         job_id,
         destination,
-        files,
+        source_uris=source_uris,
+        source_stream=source_stream,
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,

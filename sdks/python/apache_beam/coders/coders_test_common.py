@@ -18,6 +18,9 @@
 """Tests common to all coder implementations."""
 # pytype: skip-file
 
+from __future__ import absolute_import
+
+import collections
 import logging
 import math
 import unittest
@@ -44,6 +47,13 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 from . import observable
 
+try:
+  import dataclasses
+except ImportError:
+  dataclasses = None  # type: ignore
+
+MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+
 
 # Defined out of line for picklability.
 class CustomCoder(coders.Coder):
@@ -52,6 +62,19 @@ class CustomCoder(coders.Coder):
 
   def decode(self, encoded):
     return int(encoded) - 1
+
+
+if dataclasses is not None:
+
+  @dataclasses.dataclass(frozen=True)
+  class FrozenDataClass:
+    a: Any
+    b: int
+
+  @dataclasses.dataclass
+  class UnFrozenDataClass:
+    x: int
+    y: int
 
 
 # These tests need to all be run in the same process due to the asserts
@@ -105,6 +128,7 @@ class CodersTest(unittest.TestCase):
         coders.AvroGenericCoder,
         coders.DeterministicProtoCoder,
         coders.FastCoder,
+        coders.ListLikeCoder,
         coders.ProtoCoder,
         coders.ToBytesCoder
     ])
@@ -175,6 +199,21 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coders.TupleCoder((deterministic_coder, coder)), (1, dict()),
         ('a', [dict()]))
+
+    self.check_coder(deterministic_coder, test_message.MessageA(field1='value'))
+
+    if dataclasses is not None:
+      self.check_coder(
+          deterministic_coder, [FrozenDataClass(1, 2), MyNamedTuple(1, 2)])
+
+      with self.assertRaises(TypeError):
+        self.check_coder(deterministic_coder, UnFrozenDataClass(1, 2))
+      with self.assertRaises(TypeError):
+        self.check_coder(
+            deterministic_coder, FrozenDataClass(UnFrozenDataClass(1, 2), 3))
+      with self.assertRaises(TypeError):
+        self.check_coder(
+            deterministic_coder, MyNamedTuple(UnFrozenDataClass(1, 2), 3))
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
@@ -360,6 +399,14 @@ class CodersTest(unittest.TestCase):
     self.assertCountEqual(
         list(iter_generator(count)),
         iterable_coder.decode(iterable_coder.encode(iter_generator(count))))
+
+  def test_list_coder(self):
+    list_coder = coders.ListCoder(coders.VarIntCoder())
+    # Test unnested
+    self.check_coder(list_coder, [1], [-1, 0, 100])
+    # Test nested
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), list_coder)), (1, [1, 2, 3]))
 
   def test_windowedvalue_coder_paneinfo(self):
     coder = coders.WindowedValueCoder(

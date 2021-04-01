@@ -38,7 +38,7 @@ GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/{repo_url}/actions/runs/{run_id
 def parse_arguments():
   """
   Gets all neccessary data from the user by parsing arguments or asking for input.
-  Return: github_token, user_github_id, repo_url, release_branch, release_commit, artifacts_dir
+  Return: github_token, user_github_id, repo_url, release_branch, release_commit, artifacts_dir, rc_number
   """
   parser = argparse.ArgumentParser(
       description=
@@ -49,6 +49,7 @@ def parse_arguments():
   parser.add_argument("--release-branch", required=True)
   parser.add_argument("--release-commit", required=True)
   parser.add_argument("--artifacts_dir", required=True)
+  parser.add_argument("--rc_number", required=False, default="")
 
   args = parser.parse_args()
   github_token = ask_for_github_token()
@@ -66,8 +67,9 @@ def parse_arguments():
   release_commit = args.release_commit
   artifacts_dir = args.artifacts_dir if os.path.isabs(args.artifacts_dir) \
     else os.path.abspath(args.artifacts_dir)
+  rc_number = args.rc_number
 
-  return github_token, user_github_id, repo_url, release_branch, release_commit, artifacts_dir
+  return github_token, user_github_id, repo_url, release_branch, release_commit, artifacts_dir, rc_number
 
 
 def ask_for_github_token():
@@ -254,18 +256,27 @@ def prepare_directory(artifacts_dir):
   os.makedirs(artifacts_dir)
 
 
-def fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token):
+def filter_artifacts(artifacts, rc_number):
+  def filter_source(artifact_name):
+    if rc_number:
+      return artifact_name.startswith("source_zip_rc{}".format(rc_number))
+    return artifact_name.startswith("source_zip") and "_rc" not in artifact_name
+
+  def filter_wheels(artifact_name):
+    if rc_number:
+      return artifact_name.startswith("wheelhouse-rc{}".format(rc_number))
+    return artifact_name.startswith("wheelhouse") and "-rc" not in artifact_name
+
+  return [a for a in artifacts if (filter_source(a["name"]) or filter_wheels(a["name"]))]
+
+def fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token, rc_number):
   """Downloads and extracts github artifacts with source dist and wheels from given run."""
   print("Starting downloading artifacts ... (it may take a while)")
   run_data = get_single_workflow_run_data(run_id, repo_url, github_token)
   artifacts_url = safe_get(run_data, "artifacts_url")
   data_artifacts = request_url(artifacts_url, github_token)
   artifacts = safe_get(data_artifacts, "artifacts", artifacts_url)
-  filtered_artifacts = [
-      a for a in artifacts if (
-          a["name"].startswith("source_zip") or
-          a["name"].startswith("wheelhouse"))
-  ]
+  filtered_artifacts = filter_artifacts(artifacts, rc_number)
   for artifact in filtered_artifacts:
     url = safe_get(artifact, "archive_download_url")
     name = safe_get(artifact, "name")
@@ -311,6 +322,7 @@ if __name__ == "__main__":
       release_branch,
       release_commit,
       artifacts_dir,
+      rc_number,
   ) = parse_arguments()
 
   try:
@@ -319,7 +331,7 @@ if __name__ == "__main__":
         workflow_id, repo_url, release_branch, release_commit, github_token)
     validate_run(run_id, repo_url, github_token)
     prepare_directory(artifacts_dir)
-    fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token)
+    fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token, rc_number)
     print("Script finished successfully!")
     print(f"Artifacts available in directory: {artifacts_dir}")
   except KeyboardInterrupt as e:

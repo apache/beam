@@ -50,6 +50,7 @@ tasks.rat {
     "**/test.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
+    "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
 
     // Default eclipse excludes neglect subprojects
@@ -162,15 +163,12 @@ task("javaPreCommitPortabilityApi") {
 }
 
 task("javaPostCommit") {
-  dependsOn(":runners:google-cloud-dataflow-java:postCommit")
-  dependsOn(":runners:google-cloud-dataflow-java:postCommitRunnerV2")
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
   dependsOn(":sdks:java:io:debezium:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
-  dependsOn(":javaHadoopVersionsTest")
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
 }
 
@@ -181,7 +179,7 @@ task("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
-  dependsOn(":runners:spark:hadoopVersionsTest")
+  dependsOn(":runners:spark:2:hadoopVersionsTest")
 }
 
 task("sqlPostCommit") {
@@ -217,7 +215,7 @@ task("goPrecommitBuild") {
 }
 
 task("goPortablePreCommit") {
-  dependsOn(":sdks:go:test:ulrXlangValidatesRunnerJenkins")
+  dependsOn(":sdks:go:test:ulrValidatesRunnerJenkins")
 }
 
 task("goPostCommit") {
@@ -329,7 +327,8 @@ task("typescriptPreCommit") {
 }
 
 task("pushAllDockerImages") {
-  dependsOn(":runners:spark:job-server:container:dockerPush")
+  dependsOn(":runners:spark:2:job-server:container:dockerPush")
+  dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {

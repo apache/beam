@@ -55,7 +55,7 @@ if [[ -z "$RELEASE" || -z "$NEXT_VERSION_IN_BASE_BRANCH" ]]; then
 	exit
 fi
 
-
+SCRIPT_DIR=$(dirname $0)
 MASTER_BRANCH=master
 DEV=${RELEASE}.dev
 RELEASE_BRANCH=release-${RELEASE}
@@ -78,7 +78,7 @@ if [[ -d ${LOCAL_CLONE_DIR} ]]; then
 fi
 mkdir ${LOCAL_CLONE_DIR}
 cd ${LOCAL_CLONE_DIR}
-git clone ${GITHUB_REPO_URL}
+git clone --depth=1 ${GITHUB_REPO_URL}
 cd ${BEAM_ROOT_DIR}
 
 # Create local release branch
@@ -91,10 +91,7 @@ echo ${MASTER_BRANCH}
 echo "==============================================================="
 
 # Update master branch
-sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
-sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
-sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
-sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/go/pkg/beam/core/core.go
+sh "$SCRIPT_DIR"/set_version.sh "$NEXT_VERSION_IN_BASE_BRANCH""
 
 echo "==============Update master branch as following================"
 git diff
@@ -127,10 +124,6 @@ echo "==================Current working branch======================="
 echo ${RELEASE_BRANCH}
 echo "==============================================================="
 
-sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
-sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
-sed -i -e "s/${DEV}/${RELEASE}/g" sdks/go/pkg/beam/core/core.go
-# TODO: [BEAM-4767]
 sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
 
 echo "===============Update release branch as following=============="
@@ -149,7 +142,7 @@ git add gradle.properties
 git add sdks/python/apache_beam/version.py
 git add sdks/go/pkg/beam/core/core.go
 git add runners/google-cloud-dataflow-java/build.gradle
-git commit -m "Create release branch for version ${RELEASE}."
+git commit -m "Set Dataflow container to release version."
 git push --set-upstream origin ${RELEASE_BRANCH}
 
 clean_up

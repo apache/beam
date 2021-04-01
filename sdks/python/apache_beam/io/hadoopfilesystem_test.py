@@ -24,7 +24,6 @@ from __future__ import absolute_import
 import io
 import logging
 import posixpath
-import sys
 import unittest
 from builtins import object
 
@@ -55,10 +54,6 @@ class FakeFile(io.BytesIO):
 
   def __eq__(self, other):
     return self.stat == other.stat and self.getvalue() == self.getvalue()
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def close(self):
     self.saved_data = self.getvalue()
@@ -209,12 +204,6 @@ class FakeHdfs(object):
 
 @parameterized_class(('full_urls', ), [(False, ), (True, )])
 class HadoopFileSystemTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
     hdfs.hdfs.InsecureClient = (lambda *args, **kwargs: self._fake_hdfs)

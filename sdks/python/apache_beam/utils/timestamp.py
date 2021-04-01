@@ -29,7 +29,6 @@ from __future__ import division
 import datetime
 import time
 from builtins import object
-from typing import Any
 from typing import Union
 from typing import overload
 
@@ -134,6 +133,10 @@ class Timestamp(object):
               rfc3339, e))
     return cls.from_utc_datetime(dt)
 
+  def seconds(self) -> int:
+    """Returns the timestamp in seconds."""
+    return self.micros // 1000000
+
   def predecessor(self):
     # type: () -> Timestamp
 
@@ -216,11 +219,6 @@ class Timestamp(object):
     else:
       # Support equality with other types
       return NotImplemented
-
-  def __ne__(self, other):
-    # type: (Any) -> bool
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __lt__(self, other):
     # type: (TimestampDurationTypes) -> bool
@@ -377,11 +375,6 @@ class Duration(object):
     else:
       # Support equality with other types
       return NotImplemented
-
-  def __ne__(self, other):
-    # type: (Any) -> bool
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __lt__(self, other):
     # type: (TimestampDurationTypes) -> bool

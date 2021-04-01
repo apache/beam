@@ -97,7 +97,12 @@ func main() {
 	// (2) Retrieve the staged user jars. We ignore any disk limit,
 	// because the staged jars are mandatory.
 
-	dir := filepath.Join(*semiPersistDir, "staged")
+	// Using the SDK Harness ID in the artifact destination path to make sure that dependencies used by multiple
+	// SDK Harnesses in the same VM do not conflict. This is needed since some runners (for example, Dataflow)
+	// may share the artifact staging directory across multiple SDK Harnesses
+	// TODO(BEAM-9455): consider removing the SDK Harness ID from the staging path after Dataflow can properly
+	// seperate out dependencies per environment.
+	dir := filepath.Join(*semiPersistDir, *id, "staged")
 
 	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {

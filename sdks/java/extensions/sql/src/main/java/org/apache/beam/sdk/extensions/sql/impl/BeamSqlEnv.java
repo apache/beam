@@ -19,13 +19,11 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
@@ -35,7 +33,6 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -148,7 +145,6 @@ public class BeamSqlEnv {
     private String currentSchemaName;
     private Map<String, TableProvider> schemaMap;
     private Set<Map.Entry<String, Function>> functionSet;
-    private boolean autoLoadBuiltinFunctions;
     private boolean autoLoadUdfs;
     private PipelineOptions pipelineOptions;
     private Collection<RuleSet> ruleSets;
@@ -161,7 +157,6 @@ public class BeamSqlEnv {
       schemaMap = new HashMap<>();
       functionSet = new HashSet<>();
       autoLoadUdfs = false;
-      autoLoadBuiltinFunctions = false;
       pipelineOptions = null;
       ruleSets = BeamRuleSets.getRuleSets();
     }
@@ -219,12 +214,6 @@ public class BeamSqlEnv {
       return this;
     }
 
-    /** Load Beam SQL built-in functions defined in {@link BeamBuiltinFunctionProvider}. */
-    public BeamSqlEnvBuilder autoLoadBuiltinFunctions() {
-      autoLoadBuiltinFunctions = true;
-      return this;
-    }
-
     public BeamSqlEnvBuilder setQueryPlannerClassName(String name) {
       queryPlannerClassName = name;
       return this;
@@ -247,13 +236,12 @@ public class BeamSqlEnv {
 
       configureSchemas(jdbcConnection);
 
-      loadBeamBuiltinFunctions();
-
-      loadUdfs();
-
-      addUdfsUdafs(jdbcConnection);
-
       QueryPlanner planner = instantiatePlanner(jdbcConnection, ruleSets);
+
+      // The planner may choose to add its own builtin functions to the schema, so load user-defined
+      // functions second, in case there's a conflict.
+      loadUdfs();
+      addUdfsUdafs(jdbcConnection);
 
       return new BeamSqlEnv(jdbcConnection, planner);
     }
@@ -272,25 +260,6 @@ public class BeamSqlEnv {
         jdbcConnection.setSchema(currentSchemaName);
       } catch (SQLException e) {
         throw new RuntimeException(e);
-      }
-    }
-
-    private void loadBeamBuiltinFunctions() {
-      if (!autoLoadBuiltinFunctions) {
-        return;
-      }
-
-      for (BeamBuiltinFunctionProvider provider :
-          ServiceLoader.load(BeamBuiltinFunctionProvider.class)) {
-        loadBuiltinUdf(provider.getBuiltinMethods());
-      }
-    }
-
-    private void loadBuiltinUdf(Map<String, List<Method>> methods) {
-      for (Map.Entry<String, List<Method>> entry : methods.entrySet()) {
-        for (Method method : entry.getValue()) {
-          functionSet.add(new SimpleEntry<>(entry.getKey(), UdfImpl.create(method)));
-        }
       }
     }
 

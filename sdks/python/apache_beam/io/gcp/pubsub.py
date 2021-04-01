@@ -33,6 +33,7 @@ from typing import Any
 from typing import List
 from typing import NamedTuple
 from typing import Optional
+from typing import Tuple
 
 from future.utils import iteritems
 from past.builtins import unicode
@@ -88,10 +89,6 @@ class PubsubMessage(object):
   def __eq__(self, other):
     return isinstance(other, PubsubMessage) and (
         self.data == other.data and self.attributes == other.attributes)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __repr__(self):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
@@ -341,7 +338,7 @@ SUBSCRIPTION_REGEXP = 'projects/([^/]+)/subscriptions/(.+)'
 TOPIC_REGEXP = 'projects/([^/]+)/topics/(.+)'
 
 
-def parse_topic(full_topic):
+def parse_topic(full_topic: str) -> Tuple[str, str]:
   match = re.match(TOPIC_REGEXP, full_topic)
   if not match:
     raise ValueError(
@@ -436,9 +433,9 @@ class _PubSubSink(dataflow_io.NativeSink):
   """
   def __init__(
       self,
-      topic,  # type: str
-      id_label,  # type: Optional[str]
-      timestamp_attribute  # type: Optional[str]
+      topic: str,
+      id_label: Optional[str],
+      timestamp_attribute: Optional[str],
   ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic

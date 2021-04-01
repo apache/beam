@@ -18,12 +18,15 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE_ARRAY_ENTRY_SCHEMA;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
@@ -38,6 +41,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
 /** Read side converter for {@link PubsubMessage} with JSON/AVRO payload. */
@@ -79,7 +83,7 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
   public abstract boolean useFlatSchema();
 
   // A provider for a PayloadSerializer given the expected payload schema.
-  public abstract SerializerProvider serializerProvider();
+  public abstract @Nullable SerializerProvider serializerProvider();
 
   public static Builder builder() {
     return new AutoValue_PubsubMessageToRow.Builder();
@@ -171,26 +175,51 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
 
     private final boolean useDlq;
 
-    private final PayloadSerializer payloadSerializer;
+    private final @Nullable PayloadSerializer payloadSerializer;
 
-    protected NestedSchemaPubsubMessageToRow(
-        Schema messageSchema, boolean useDlq, SerializerProvider serializerProvider) {
+    private NestedSchemaPubsubMessageToRow(
+        Schema messageSchema, boolean useDlq, @Nullable SerializerProvider serializerProvider) {
       this.messageSchema = messageSchema;
       this.useDlq = useDlq;
-      Schema payloadSchema = messageSchema.getField(PAYLOAD_FIELD).getType().getRowSchema();
-      this.payloadSerializer = serializerProvider.apply(payloadSchema);
+      if (serializerProvider == null) {
+        checkArgument(
+            messageSchema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.BYTES));
+        this.payloadSerializer = null;
+      } else {
+        checkArgument(
+            messageSchema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.ROW));
+        Schema payloadSchema = messageSchema.getField(PAYLOAD_FIELD).getType().getRowSchema();
+        this.payloadSerializer = serializerProvider.apply(payloadSchema);
+      }
+    }
+
+    private Object maybeDeserialize(byte[] payload) {
+      if (payloadSerializer == null) {
+        return payload;
+      }
+      return payloadSerializer.deserialize(payload);
+    }
+
+    private Object handleAttributes(Map<String, String> attributeMap) {
+      if (messageSchema.getField(ATTRIBUTES_FIELD).getType().getTypeName().isMapType()) {
+        return attributeMap;
+      }
+      ImmutableList.Builder<Row> rows = ImmutableList.builder();
+      attributeMap.forEach(
+          (k, v) -> rows.add(Row.withSchema(ATTRIBUTE_ARRAY_ENTRY_SCHEMA).attachValues(k, v)));
+      return rows.build();
     }
 
     /** Get the value for a field int the order they're specified in the nested schema. */
     private Object getValueForFieldNestedSchema(
-        Schema.Field field, Instant timestamp, Map<String, String> attributeMap, Row payload) {
+        Schema.Field field, Instant timestamp, Map<String, String> attributeMap, byte[] payload) {
       switch (field.getName()) {
         case TIMESTAMP_FIELD:
           return timestamp;
         case ATTRIBUTES_FIELD:
-          return attributeMap;
+          return handleAttributes(attributeMap);
         case PAYLOAD_FIELD:
-          return payload;
+          return maybeDeserialize(payload);
         default:
           throw new IllegalArgumentException(
               "Unexpected field '"
@@ -205,13 +234,12 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
     public void processElement(
         @Element PubsubMessage element, @Timestamp Instant timestamp, MultiOutputReceiver o) {
       try {
-        Row payload = payloadSerializer.deserialize(element.getPayload());
         List<Object> values =
             messageSchema.getFields().stream()
                 .map(
                     field ->
                         getValueForFieldNestedSchema(
-                            field, timestamp, element.getAttributeMap(), payload))
+                            field, timestamp, element.getAttributeMap(), element.getPayload()))
                 .collect(toList());
         o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
       } catch (Exception e) {

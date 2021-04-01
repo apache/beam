@@ -153,6 +153,13 @@ script which is part of the Beam repo:
 
 1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
    [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
+1. Clone the git repository. You can download it anywhere you like, however for Go development we recommend putting it in your [`$GOPATH`](https://golang.org/doc/gopath_code#GOPATH) (`$HOME/go` by default on Unix systems).
+
+       $ mkdir -p ~/go/src/github.com/apache
+       $ cd ~/go/src/github.com/apache
+       $ git clone https://github.com/apache/beam
+       $ cd beam
+
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
 
        $ ./gradlew projects
@@ -171,11 +178,7 @@ script which is part of the Beam repo:
 
 1. Make sure you can build and run tests
 
-    Run the entire set of tests with:
-
-       $ ./gradlew check
-
-   You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:
+   Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
 
        $ ./gradlew -p sdks/go check
        $ ./gradlew -p sdks/java/io/cassandra check

@@ -210,7 +210,7 @@ if [[ "$java_quickstart_spark_local" = true ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Spark local runner"
   echo "*************************************************************"
-  ./gradlew :runners:spark:runQuickstartJavaSpark \
+  ./gradlew :runners:spark:2:runQuickstartJavaSpark \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE_VER}
 else

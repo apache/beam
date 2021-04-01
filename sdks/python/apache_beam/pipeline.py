@@ -995,11 +995,25 @@ class ExternalTransformFinder(PipelineVisitor):
     pipeline.visit(visitor)
     return visitor._contains_external_transforms
 
+  def _perform_exernal_transform_test(self, transform):
+    if not transform:
+      return
+    from apache_beam.transforms import ExternalTransform
+    if isinstance(transform, ExternalTransform):
+      self._contains_external_transforms = True
+
   def visit_transform(self, transform_node):
     # type: (AppliedPTransform) -> None
-    from apache_beam.transforms import ExternalTransform
-    if isinstance(transform_node.transform, ExternalTransform):
-      self._contains_external_transforms = True
+    self._perform_exernal_transform_test(transform_node.transform)
+
+  def enter_composite_transform(self, transform_node):
+    # type: (AppliedPTransform) -> None
+    # Python SDK object graph may represent an external transform that is a leaf
+    # of the pipeline graph as a composite without sub-transforms.
+    # Note that this visitor is just used to identify pipelines with external
+    # transforms. A Runner API pipeline proto generated from the Pipeline object
+    # will include external sub-transform.
+    self._perform_exernal_transform_test(transform_node.transform)
 
 
 class AppliedPTransform(object):

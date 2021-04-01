@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 # cython: profile=True
+# cython: language_level=3
 
 """Worker operations executor.
 
@@ -92,10 +93,6 @@ class NameContext(object):
   def __eq__(self, other):
     return self.step_name == other.step_name
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __repr__(self):
     return 'NameContext(%s)' % self.__dict__
 
@@ -134,10 +131,6 @@ class DataflowNameContext(NameContext):
         self.step_name == other.step_name and
         self.user_name == other.user_name and
         self.system_name == other.system_name)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash((self.step_name, self.user_name, self.system_name))

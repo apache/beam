@@ -21,6 +21,6 @@ from log_elements import LogElements
 with beam.Pipeline() as p:
 
   (p | beam.Create(range(1, 11))
-     | beam.combiners.Top.Largest(1)
+     | beam.combiners.Top.Largest(2)
      | LogElements())
 

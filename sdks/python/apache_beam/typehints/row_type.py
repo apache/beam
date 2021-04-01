@@ -40,10 +40,6 @@ class RowTypeConstraint(typehints.TypeConstraint):
   def __eq__(self, other):
     return type(self) == type(other) and self._fields == other._fields
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash(self._fields)
 

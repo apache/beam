@@ -187,12 +187,14 @@ class _ReadFromPandas(beam.PTransform):
     self.splitter = splitter
 
   def expand(self, root):
-    # TODO(robertwb): Handle streaming (with explicit schema).
     paths_pcoll = root | beam.Create([self.path])
-    first = io.filesystems.FileSystems.match([self.path],
-                                             limits=[1
-                                                     ])[0].metadata_list[0].path
-    with io.filesystems.FileSystems.open(first) as handle:
+    match = io.filesystems.FileSystems.match([self.path], limits=[1])[0]
+    if not match.metadata_list:
+      # TODO(BEAM-12031): This should be allowed for streaming pipelines if
+      # user provides an explicit schema.
+      raise FileNotFoundError(f"Found no files that match {self.path!r}")
+    first_path = match.metadata_list[0].path
+    with io.filesystems.FileSystems.open(first_path) as handle:
       if not self.binary:
         handle = TextIOWrapper(handle)
       if self.incremental:
@@ -519,7 +521,7 @@ class _WriteToPandas(beam.PTransform):
     return pcoll | fileio.WriteToFiles(
         path=dir,
         file_naming=fileio.default_file_naming(name),
-        sink=_WriteToPandasFileSink(
+        sink=lambda _: _WriteToPandasFileSink(
             self.writer, self.args, self.kwargs, self.incremental, self.binary))
 
 

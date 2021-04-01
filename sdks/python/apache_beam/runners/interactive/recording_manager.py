@@ -25,6 +25,8 @@ import warnings
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam.dataframe.convert import to_pcollection
+from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -289,10 +291,16 @@ class RecordingManager:
     """
 
     watched_pcollections = set()
+    watched_dataframes = set()
     for watching in ie.current_env().watching():
       for _, val in watching:
         if isinstance(val, beam.pvalue.PCollection):
           watched_pcollections.add(val)
+        elif isinstance(val, DeferredBase):
+          watched_dataframes.add(val)
+    # Convert them all in a single step for efficiency.
+    for pcoll in to_pcollection(*watched_dataframes, always_return_tuple=True):
+      watched_pcollections.add(pcoll)
     for pcoll in pcolls:
       if pcoll not in watched_pcollections:
         ie.current_env().watch(

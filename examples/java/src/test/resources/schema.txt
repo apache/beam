@@ -1,0 +1,19 @@
+{
+  "fields": [
+    {
+      "mode": "REQUIRED",
+      "name": "Field1",
+      "type": "STRING"
+    },
+    {
+      "mode": "REQUIRED",
+      "name": "Field2",
+      "type": "STRING"
+    },
+    {
+      "mode": "REQUIRED",
+      "name": "Field3",
+      "type": "STRING"
+    }
+  ]
+}

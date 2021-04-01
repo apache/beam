@@ -105,8 +105,7 @@ dependencies {
   compile library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   compile library.java.proto_google_cloud_bigquery_storage_v1
-  compile library.java.proto_google_cloud_bigquerybeta2_storage_v1
-  permitUnusedDeclared library.java.proto_google_cloud_bigquerybeta2_storage_v1 // BEAM-11761
+  compile library.java.proto_google_cloud_bigquery_storage_v1beta2
   compile library.java.proto_google_cloud_bigtable_admin_v2
   compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
@@ -119,7 +118,7 @@ dependencies {
   compile library.java.protobuf_java
   compile library.java.protobuf_java_util
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile library.java.vendored_guava_26_0_jre
 
   compile "org.threeten:threetenbp:1.4.4"

@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableStrictDependencies: false, exportJavadoc: false, automaticModuleName: 'org.apache.beam.maven.archetypes.examples')
+applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.maven.archetypes.examples')
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
 ext.summary = """A Maven Archetype to create a project containing all the
@@ -74,8 +74,4 @@ sourceSets {
  main {
   output.dir('src', builtBy: 'generateSources')
  }
-}
-
-dependencies {
-  compile project(":examples:java")
 }
