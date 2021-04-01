@@ -191,10 +191,4 @@ public class QueryTest {
   public void query9MatchesModelStreaming() {
     queryMatchesModel("Query9TestStreaming", new Query9(CONFIG), new Query9Model(CONFIG), true);
   }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query13MatchesModelBatch() {
-    queryMatchesModel("Query13TestBatch", new Query13(CONFIG), new Query13Model(CONFIG), false);
-  }
 }

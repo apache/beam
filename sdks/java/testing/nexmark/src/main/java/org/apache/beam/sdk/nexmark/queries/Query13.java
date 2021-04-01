@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Query "13" is not in original suite.
+ * Query "13" PORTABILITY_BATCH (not in original suite).
  *
  * <p>This benchmark is created to stress the boundary of runner and SDK in portability world. The
  * basic shape of this benchmark is source + GBK + ParDo, in which the GBK read + ParDo will require
