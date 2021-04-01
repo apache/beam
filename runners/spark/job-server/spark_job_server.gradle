@@ -135,6 +135,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       // // Assertion error: empty iterable output
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombine'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterFixedWindowsAndGroupByKey'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSessionsAndGroupByKey'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSlidingWindowsAndGroupByKey'
