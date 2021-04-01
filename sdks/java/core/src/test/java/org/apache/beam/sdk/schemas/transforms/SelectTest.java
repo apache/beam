@@ -595,6 +595,22 @@ public class SelectTest {
     pipeline.run();
   }
 
+  /**
+   * Test that {@link Select#flattenedSchema()} transform is able to flatten the nested fields of an
+   * array.
+   *
+   * <p>Example:
+   *
+   * <pre>
+   * Row[] transactions {
+   *   String bank,
+   *   Double purchaseAmount
+   * }
+   * ->
+   * String[] transactions_bank,
+   * Double[] transactions_purchaseAmount
+   * </pre>
+   */
   @Test
   @Category(NeedsRunner.class)
   public void testFlatSchemaWithArrayNestedField() {
@@ -632,7 +648,7 @@ public class SelectTest {
     PCollection<Row> unnested =
         pipeline.apply(Create.of(row).withRowSchema(nestedSchema)).apply(Select.flattenedSchema());
 
-    Schema expectedUnnsetedSchema =
+    Schema expectedUnnestedSchema =
         Schema.builder()
             .addStringField("userId")
             .addStringField("shippingAddress_streetAddress")
@@ -640,7 +656,7 @@ public class SelectTest {
             .addArrayField("transactions_bank", FieldType.STRING)
             .addArrayField("transactions_purchaseAmount", FieldType.DOUBLE)
             .build();
-    assertEquals(expectedUnnsetedSchema, unnested.getSchema());
+    assertEquals(expectedUnnestedSchema, unnested.getSchema());
 
     Row expectedUnnestedRow =
         Row.withSchema(unnested.getSchema())
