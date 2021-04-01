@@ -42,8 +42,6 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import decorators
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-# TODO(BEAM-8371): Use tempfile.TemporaryDirectory.
-from apache_beam.utils.subprocess_server_test import TemporaryDirectory
 
 decorators._enable_from_callable = True
 
@@ -106,7 +104,7 @@ class RuntimeTypeCheckTest(unittest.TestCase):
     # We use a file to check the result because the MyDoFn instance passed is
     # not the same one that actually runs in the pipeline (it is serialized
     # here and deserialized in the worker).
-    with TemporaryDirectory() as tmp_dirname:
+    with tempfile.TemporaryDirectory() as tmp_dirname:
       path = os.path.join(tmp_dirname + "tmp_filename")
       dofn = MyDoFn(path)
       result = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
