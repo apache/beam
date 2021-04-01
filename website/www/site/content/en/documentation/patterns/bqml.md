@@ -24,6 +24,8 @@ Roughly, the sections below will go through the following steps in more detail:
 1. Export your BigQuery ML model
 1. Create a transform that uses the brand-new BigQuery ML model
 
+{{< language-switcher java py >}}
+
 ## Create and train your BigQuery ML model
 
 To be able to incorporate your BQML model into an Apache Beam pipeline using tfx_bsl, it has to be in the [TensorFlow SavedModel](https://www.tensorflow.org/guide/saved_model) format. An overview that maps different model types to their export model format for BQML can be found [here](https://cloud.google.com/bigquery-ml/docs/exporting-models#export_model_formats_and_samples).
@@ -32,7 +34,7 @@ For the sake of simplicity, we'll be training a (simplified version of the) logi
 
 After creating a BigQuery dataset, you continue to create the model, which is fully defined in SQL:
 
-```SQL
+```
 CREATE MODEL IF NOT EXISTS `bqml_tutorial.sample_model`
 OPTIONS(model_type='logistic_reg', input_label_cols=["label"]) AS
 SELECT
@@ -52,7 +54,7 @@ In order to incorporate your model in an Apache Beam pipeline, you will need to 
 
 Export the model using the following command:
 
-```bash
+```
 bq extract -m bqml_tutorial.sample_model gs://some/gcs/path
 ```
 
@@ -64,7 +66,7 @@ First, the model needs to be downloaded to a local directory where you will be d
 
 Then, you can start developing your pipeline like you would normally do. We will be using the `RunInference` PTransform from the [tfx_bsl](https://github.com/tensorflow/tfx-bsl) library, and we will point it to our local directory where the model is stored (see the `model_path` variable in the code example). The transform takes elements of the type `tf.train.Example` as inputs and outputs elements of the type [`tensorflow_serving.apis.prediction_log_pb2.PredictionLog`](https://github.com/tensorflow/serving/blob/master/tensorflow_serving/apis/prediction_log.proto). Depending on the signature of your model, you can extract values from the output; in our case we extract `label_probs`, `label_values` and the `predicted_label` as per the [docs on the logistic regression model](https://cloud.google.com/bigquery-ml/docs/exporting-models#logistic_reg) in the `extract_prediction` function.
 
-```python
+{{< highlight py >}}
 import apache_beam
 import tensorflow as tf
 from google.protobuf import text_format
@@ -97,4 +99,8 @@ with beam.Pipeline() as p:
                     model_path=model_path,
                     signature_name=['serving_default'])))
         | beam.ParDo(extract_prediction)
-```
+{{< /highlight >}}
+
+{{< highlight java >}}
+Implemented in Python.
+{{< /highlight >}}
