@@ -1014,6 +1014,7 @@ class TestBQJobNames(unittest.TestCase):
     self.assertRegex(job_name, base_pattern)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestCheckSchemaEqual(unittest.TestCase):
   def test_simple_schemas(self):
     schema1 = bigquery.TableSchema(fields=[])
