@@ -921,12 +921,12 @@ public class BigQueryIOWriteTest implements Serializable {
             new TableRow()
                 .set("strVal", "test")
                 .set("longVal", "1")
-                .set("doubleVal", 1.0D)
+                .set("doubleVal", "1.0")
                 .set("instantVal", "2019-01-01 00:00:00 UTC"),
             new TableRow()
                 .set("strVal", "test2")
                 .set("longVal", "2")
-                .set("doubleVal", 2.0D)
+                .set("doubleVal", "2.0")
                 .set("instantVal", "2019-02-01 00:00:00 UTC")));
   }
 
@@ -984,12 +984,12 @@ public class BigQueryIOWriteTest implements Serializable {
             new TableRow()
                 .set("strVal", "test_custom")
                 .set("longVal", "1")
-                .set("doubleVal", 1.0D)
+                .set("doubleVal", "1.0")
                 .set("instantVal", "2019-01-01 00:00:00 UTC"),
             new TableRow()
                 .set("strVal", "test2_custom")
                 .set("longVal", "2")
-                .set("doubleVal", 2.0D)
+                .set("doubleVal", "2.0")
                 .set("instantVal", "2019-02-01 00:00:00 UTC")));
   }
 
