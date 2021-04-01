@@ -1294,7 +1294,7 @@ class AppliedPTransform(object):
         transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
-        environment_id=proto.environment_id,
+        environment_id=None,
         annotations=proto.annotations)
 
     if result.transform and result.transform.side_inputs:
