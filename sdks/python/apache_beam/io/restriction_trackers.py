@@ -18,10 +18,6 @@
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
-from builtins import object
 from typing import Tuple
 
 from apache_beam.io.iobase import RestrictionProgress
