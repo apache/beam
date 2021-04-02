@@ -18,7 +18,8 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
+import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.isLocalSparkMaster;
+import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
 import java.util.Collection;
@@ -136,8 +137,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null
-        && !SparkPipelineOptions.isLocalSparkMaster(sparkOptions)) {
+    if (sparkOptions.getFilesToStage() == null && !isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
           detectClassPathResourcesToStage(SparkRunner.class.getClassLoader(), options));
       LOG.info(
