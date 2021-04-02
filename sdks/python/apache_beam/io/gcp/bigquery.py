@@ -1243,7 +1243,7 @@ class BigQueryWriteFn(DoFn):
     _KNOWN_TABLES.add(str_table_reference)
 
   def process(self, element, *schema_side_inputs):
-    destination = element[0]
+    destination = bigquery_tools.get_hashable_destination(element[0])
 
     if callable(self.schema):
       schema = self.schema(destination, *schema_side_inputs)
@@ -1254,8 +1254,6 @@ class BigQueryWriteFn(DoFn):
 
     self._create_table_if_needed(
         bigquery_tools.parse_table_reference(destination), schema)
-
-    destination = bigquery_tools.get_hashable_destination(destination)
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
@@ -1544,7 +1542,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         fields, repeated fields, or specifying a BigQuery mode for fields
         (mode will always be set to ``'NULLABLE'``).
         If a callable, then it should receive a destination (in the form of
-        a TableReference or a string, and return a str, dict or TableSchema.
+        a str, and return a str, dict or TableSchema).
         One may also pass ``SCHEMA_AUTODETECT`` here when using JSON-based
         file loads, and BigQuery will try to infer the schema for the files
         that are being loaded.
