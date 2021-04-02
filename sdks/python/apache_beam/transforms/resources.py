@@ -38,8 +38,9 @@ def _parse_int(value):
   return str(value).encode('ascii')
 
 
-def _parse_identity(value):
-  return value.encode('ascii')
+def _parse_any(_):
+  # For hints where only a key is relevant and value is set to None or any value
+  return b'1'
 
 
 # Describes how to parse known resource hints, and which URNs to assign.
