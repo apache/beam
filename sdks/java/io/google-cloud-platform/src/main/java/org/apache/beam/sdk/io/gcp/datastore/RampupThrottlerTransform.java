@@ -90,11 +90,11 @@ public class RampupThrottlerTransform<T> extends
 
     // 500 / numShards * 1.5^max(0, (x-5)/5)
     private int calcMaxOpsBudget(Instant first, Instant instant) {
-      long rampUpIntervalMinutes = RAMP_UP_INTERVAL.getStandardMinutes();
+      double rampUpIntervalMinutes = (double) RAMP_UP_INTERVAL.getStandardMinutes();
       Duration durationSinceFirst = new Duration(first, instant);
 
-      double calculatedGrowth =
-          (1.0 * durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
+      double calculatedGrowth = (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes)
+          / rampUpIntervalMinutes;
       double growth = Math.max(0, calculatedGrowth);
       double maxRequestCountBudget = BASE_BUDGET / numShards * Math.pow(1.5, growth);
       return (int) maxRequestCountBudget;
@@ -122,7 +122,8 @@ public class RampupThrottlerTransform<T> extends
       while (true) {
         Instant instant = Instant.now();
         int maxOpsBudget = calcMaxOpsBudget(nonNullableFirstInstant, instant);
-        LOG.info("Shard {}: Max budget is {} entities/s after {}s", shard_id, maxOpsBudget, new Duration(nonNullableFirstInstant, instant).getStandardSeconds());
+        LOG.debug("Shard {}: Max budget is {} entities/s after {}s", shard_id, maxOpsBudget,
+            new Duration(nonNullableFirstInstant, instant).getStandardSeconds());
         long currentOpCount = successfulOps.get(instant.getMillis());
         long availableOps = maxOpsBudget - currentOpCount;
 
