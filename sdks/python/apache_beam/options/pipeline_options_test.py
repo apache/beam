@@ -623,21 +623,30 @@ class PipelineOptionsTest(unittest.TestCase):
     mapping = options.view_as(GoogleCloudOptions).transform_name_mapping
     self.assertEqual(mapping['from'], 'to')
 
-  def test_service_options(self):
-    options = PipelineOptions(
-        ['--service_option', 'whizz=bang', '--service_option', 'beep=boop'])
+  def test_dataflow_service_options(self):
+    options = PipelineOptions([
+        '--dataflow_service_option',
+        'whizz=bang',
+        '--dataflow_service_option',
+        'beep=boop'
+    ])
     self.assertEqual(
-        sorted(options.get_all_options()['service_options']),
+        sorted(options.get_all_options()['dataflow_service_options']),
         ['beep=boop', 'whizz=bang'])
 
-    options = PipelineOptions(
-        ['--service_options', 'whizz=bang', '--service_options', 'beep=boop'])
+    options = PipelineOptions([
+        '--dataflow_service_options',
+        'whizz=bang',
+        '--dataflow_service_options',
+        'beep=boop'
+    ])
     self.assertEqual(
-        sorted(options.get_all_options()['service_options']),
+        sorted(options.get_all_options()['dataflow_service_options']),
         ['beep=boop', 'whizz=bang'])
 
     options = PipelineOptions(flags=[''])
-    self.assertEqual(options.get_all_options()['service_options'], None)
+    self.assertEqual(
+        options.get_all_options()['dataflow_service_options'], None)
 
 
 if __name__ == '__main__':
