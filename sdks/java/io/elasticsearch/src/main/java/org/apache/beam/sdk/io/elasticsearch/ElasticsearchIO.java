@@ -67,6 +67,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -347,8 +348,7 @@ public class ElasticsearchIO {
      *     Elasticsearch.
      */
     public ConnectionConfiguration withApiKey(String apiKey) {
-      checkArgument(apiKey != null, "apiKey can not be null");
-      checkArgument(!apiKey.isEmpty(), "apiKey can not be empty");
+      checkArgument(!Strings.isNullOrEmpty(apiKey), "apiKey can not be null or empty");
       return builder().setApiKey(apiKey).build();
     }
 
@@ -360,8 +360,7 @@ public class ElasticsearchIO {
      *     Elasticsearch.
      */
     public ConnectionConfiguration withBearerToken(String bearerToken) {
-      checkArgument(bearerToken != null, "bearerToken can not be null");
-      checkArgument(!bearerToken.isEmpty(), "bearerToken can not be empty");
+      checkArgument(!Strings.isNullOrEmpty(bearerToken), "bearerToken can not be null or empty");
       return builder().setBearerToken(bearerToken).build();
     }
 
