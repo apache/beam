@@ -129,7 +129,6 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
       case DECIMAL:
       case DOUBLE:
       case TIMESTAMP:
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
       case VARBINARY:
       case VARCHAR:
       case CHAR:
@@ -138,6 +137,7 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
         return true;
       case DATE: // BEAM-11990
       case TIME: // BEAM-12086
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE: // BEAM-12087
       default:
         return false;
     }
@@ -154,7 +154,6 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
       case DECIMAL:
       case DOUBLE:
       case TIMESTAMP:
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
       case VARBINARY:
       case VARCHAR:
         return true;
@@ -165,6 +164,7 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
             .allMatch((field) -> udfSupportsInputType(field.getType()));
       case DATE: // BEAM-11990
       case TIME: // BEAM-12086
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE: // BEAM-12087
       default:
         return false;
     }
