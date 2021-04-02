@@ -21,6 +21,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -30,6 +32,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -52,9 +55,14 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.schemas.TestAvro;
+import org.apache.beam.sdk.schemas.TestAvroNested;
+import org.apache.beam.sdk.schemas.TestEnum;
+import org.apache.beam.sdk.schemas.fixed4;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -68,6 +76,8 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -75,7 +85,7 @@ import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.Assert;
+import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -91,6 +101,23 @@ public class AvroCoderTest {
       new DateTime().withDate(1994, 10, 31).withZone(DateTimeZone.UTC);
   public static final DateTime DATETIME_B =
       new DateTime().withDate(1997, 4, 25).withZone(DateTimeZone.UTC);
+  private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
+  private static final TestAvro AVRO_SPECIFIC_RECORD =
+      new TestAvro(
+          true,
+          43,
+          44L,
+          44.1f,
+          44.2d,
+          "mystring",
+          ByteBuffer.wrap(new byte[] {1, 2, 3, 4}),
+          new fixed4(new byte[] {1, 2, 3, 4}),
+          new LocalDate(1979, 3, 14),
+          new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4),
+          TestEnum.abc,
+          AVRO_NESTED_SPECIFIC_RECORD,
+          ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
+          ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
 
   @DefaultCoder(AvroCoder.class)
   private static class Pojo {
@@ -295,6 +322,14 @@ public class AvroCoderTest {
   }
 
   @Test
+  public void testSpecificRecordEncoding() throws Exception {
+    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
+
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+  }
+
+  @Test
   public void testGenericRecordEncoding() throws Exception {
     String schemaString =
         "{\"namespace\": \"example.avro\",\n"
@@ -316,7 +351,7 @@ public class AvroCoderTest {
     AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, schema);
 
     CoderProperties.coderDecodeEncodeEqual(coder, before);
-    Assert.assertEquals(schema, coder.getSchema());
+    assertEquals(schema, coder.getSchema());
   }
 
   @Test
@@ -338,10 +373,10 @@ public class AvroCoderTest {
     ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
 
     Pojo after = coder.decode(inStream, context);
-    Assert.assertEquals(before, after);
+    assertEquals(before, after);
 
     Integer intAfter = intCoder.decode(inStream, context);
-    Assert.assertEquals(Integer.valueOf(10), intAfter);
+    assertEquals(Integer.valueOf(10), intAfter);
   }
 
   @Test
