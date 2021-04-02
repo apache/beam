@@ -18,6 +18,8 @@
 package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.isLocalSparkMaster;
+import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -112,8 +114,7 @@ public final class SparkStructuredStreamingRunner
     SparkStructuredStreamingPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null
-        && !PipelineTranslator.isLocalSparkMaster(sparkOptions)) {
+    if (sparkOptions.getFilesToStage() == null && !isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
           detectClassPathResourcesToStage(
               SparkStructuredStreamingRunner.class.getClassLoader(), options));
@@ -196,7 +197,7 @@ public final class SparkStructuredStreamingRunner
     }
 
     PipelineTranslator.replaceTransforms(pipeline, options);
-    PipelineTranslator.prepareFilesToStageForRemoteClusterExecution(options);
+    prepareFilesToStage(options);
     PipelineTranslator pipelineTranslator =
         options.isStreaming()
             ? new PipelineTranslatorStreaming(options)
