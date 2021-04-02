@@ -17,13 +17,18 @@
  */
 package org.apache.beam.runners.spark;
 
+import java.io.File;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
@@ -75,6 +80,37 @@ public interface SparkCommonPipelineOptions
     @Override
     public String create(PipelineOptions options) {
       return "/tmp/" + options.getJobName();
+    }
+  }
+
+  /** Detects if the pipeline is run in spark local mode. */
+  @Internal
+  static boolean isLocalSparkMaster(SparkCommonPipelineOptions options) {
+    return options.getSparkMaster().matches("local\\[?\\d*]?");
+  }
+
+  /**
+   * Classpath contains non jar files (eg. directories with .class files or empty directories) will
+   * cause exception in running log. Though the {@link org.apache.spark.SparkContext} can handle
+   * this when running in local master, it's better not to include non-jars files in classpath.
+   */
+  @Internal
+  static void prepareFilesToStage(SparkCommonPipelineOptions options) {
+    if (!isLocalSparkMaster(options)) {
+      List<String> filesToStage =
+          options.getFilesToStage().stream()
+              .map(File::new)
+              .filter(File::exists)
+              .map(
+                  file -> {
+                    return file.getAbsolutePath();
+                  })
+              .collect(Collectors.toList());
+      options.setFilesToStage(
+          PipelineResources.prepareFilesForStaging(
+              filesToStage,
+              MoreObjects.firstNonNull(
+                  options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
     }
   }
 }
