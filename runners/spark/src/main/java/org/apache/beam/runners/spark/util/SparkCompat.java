@@ -22,11 +22,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.metrics.SparkBeamMetric;
 import org.apache.beam.runners.spark.translation.SparkCombineFn;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -125,7 +125,7 @@ public class SparkCompat {
   }
 
   public static SparkListenerApplicationStart buildSparkListenerApplicationStart(
-      JavaSparkContext jsc, PipelineOptions options, long time, PortablePipelineResult result) {
+      final JavaSparkContext jsc, SparkPipelineOptions options, long time, PipelineResult result) {
     String appName = options.as(ApplicationNameOptions.class).getAppName();
     Option<String> appId = Option.apply(jsc.getConf().getAppId());
     Option<String> appAttemptId = Option.apply("1");
