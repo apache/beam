@@ -52,8 +52,8 @@ from apache_beam.transforms import FlatMap
 from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.transforms import resources
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms import resources
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue

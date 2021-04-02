@@ -37,8 +37,8 @@ from subprocess import DEVNULL
 from typing import TYPE_CHECKING
 from typing import List
 from urllib.parse import quote
-from urllib.parse import unquote_to_bytes
 from urllib.parse import quote_from_bytes
+from urllib.parse import unquote_to_bytes
 
 from future.utils import iteritems
 
