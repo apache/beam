@@ -95,7 +95,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -226,17 +225,28 @@ public class DatastoreV1 {
    * number of entities per request may be lower when we flush for the end of a bundle or if we hit
    * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
-  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;
+  @VisibleForTesting
+  static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;
 
   /**
    * Cloud Datastore has a limit of 10MB per RPC, so we also flush if the total size of mutations
    * exceeds this limit. This is set lower than the 10MB limit on the RPC, as this only accounts for
    * the mutations themselves and not the CommitRequest wrapper around them.
    */
-  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
+  @VisibleForTesting
+  static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
 
   /**
-   * Non-retryable errors. See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes .
+   * Default number of shards for ramp-up throttling step. The number of shards must be fixed to
+   * ensure the job follows documented best practices for ramp-up of write operations. This default
+   * can be reconfigured on the {@link Mutate} object to align with the expected worker count and
+   * improve throughput.
+   */
+  private static final int DEFAULT_NUM_THROTTLER_SHARDS = 1;
+
+  /**
+   * Non-retryable errors. See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
+   * .
    */
   private static final Set<Code> NON_RETRYABLE_ERRORS =
       ImmutableSet.of(
@@ -971,7 +981,7 @@ public class DatastoreV1 {
    * using {@link DatastoreV1.Write#withProjectId}.
    */
   public Write write() {
-    return new Write(null, null, true);
+    return new Write(null, null, true, 1);
   }
 
   /**
@@ -979,7 +989,7 @@ public class DatastoreV1 {
    * using {@link DeleteEntity#withProjectId}.
    */
   public DeleteEntity deleteEntity() {
-    return new DeleteEntity(null, null, true);
+    return new DeleteEntity(null, null, true, 1);
   }
 
   /**
@@ -987,7 +997,7 @@ public class DatastoreV1 {
    * {@link DeleteKey#withProjectId}.
    */
   public DeleteKey deleteKey() {
-    return new DeleteKey(null, null, true);
+    return new DeleteKey(null, null, true, DEFAULT_NUM_THROTTLER_SHARDS);
   }
 
   /**
@@ -996,12 +1006,14 @@ public class DatastoreV1 {
    * @see DatastoreIO
    */
   public static class Write extends Mutate<Entity> {
+
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
      */
-    Write(@Nullable ValueProvider<String> projectId, @Nullable String localhost, boolean throttleRampup) {
-      super(projectId, localhost, throttleRampup, new UpsertFn());
+    Write(@Nullable ValueProvider<String> projectId, @Nullable String localhost,
+        boolean throttleRampup, int numThrottlerShards) {
+      super(projectId, localhost, new UpsertFn(), throttleRampup, numThrottlerShards);
     }
 
     /** Returns a new {@link Write} that writes to the Cloud Datastore for the specified project. */
@@ -1013,7 +1025,7 @@ public class DatastoreV1 {
     /** Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}. */
     public Write withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new Write(projectId, localhost, throttleRampup);
+      return new Write(projectId, localhost, throttleRampup, numThrottlerShards);
     }
 
     /**
@@ -1022,12 +1034,22 @@ public class DatastoreV1 {
      */
     public Write withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new Write(projectId, localhost, throttleRampup);
+      return new Write(projectId, localhost, throttleRampup, numThrottlerShards);
     }
 
-    /** Returns a new {@link Write} that does not throttle during ramp-up. */
+    /**
+     * Returns a new {@link Write} that does not throttle during ramp-up.
+     */
     public Write withRampupThrottlingDisabled() {
-      return new Write(projectId, localhost, false);
+      return new Write(projectId, localhost, false, numThrottlerShards);
+    }
+
+    /**
+     * Returns a new {#link Write} with different parallelism during ramp-up throttling.
+     */
+    public Write withNumThrottlerShards(int numThrottlerShards) {
+      checkArgument(numThrottlerShards > 0, "numThrottlerShards must be positive");
+      return new Write(projectId, localhost, throttleRampup, numThrottlerShards);
     }
 
   }
@@ -1038,12 +1060,14 @@ public class DatastoreV1 {
    * @see DatastoreIO
    */
   public static class DeleteEntity extends Mutate<Entity> {
+
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteEntity(@Nullable ValueProvider<String> projectId, @Nullable String localhost, boolean throttleRampup) {
-      super(projectId, localhost, throttleRampup, new DeleteEntityFn());
+    DeleteEntity(@Nullable ValueProvider<String> projectId, @Nullable String localhost,
+        boolean throttleRampup, int numThrottlerShards) {
+      super(projectId, localhost, new DeleteEntityFn(), throttleRampup, numThrottlerShards);
     }
 
     /**
@@ -1060,7 +1084,7 @@ public class DatastoreV1 {
      */
     public DeleteEntity withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new DeleteEntity(projectId, localhost, throttleRampup);
+      return new DeleteEntity(projectId, localhost, throttleRampup, numThrottlerShards);
     }
 
     /**
@@ -1069,12 +1093,22 @@ public class DatastoreV1 {
      */
     public DeleteEntity withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new DeleteEntity(projectId, localhost, throttleRampup);
+      return new DeleteEntity(projectId, localhost, throttleRampup, numThrottlerShards);
     }
 
-    /** Returns a new {@link DeleteEntity} that does not throttle during ramp-up. */
+    /**
+     * Returns a new {@link DeleteEntity} that does not throttle during ramp-up.
+     */
     public DeleteEntity withRampupThrottlingDisabled() {
-      return new DeleteEntity(projectId, localhost, false);
+      return new DeleteEntity(projectId, localhost, false, numThrottlerShards);
+    }
+
+    /**
+     * Returns a new {#link DeleteEntity} with different parallelism during ramp-up throttling.
+     */
+    public DeleteEntity withNumThrottlerShards(int numThrottlerShards) {
+      checkArgument(numThrottlerShards > 0, "numThrottlerShards must be positive");
+      return new DeleteEntity(projectId, localhost, throttleRampup, numThrottlerShards);
     }
   }
 
@@ -1085,12 +1119,14 @@ public class DatastoreV1 {
    * @see DatastoreIO
    */
   public static class DeleteKey extends Mutate<Key> {
+
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteKey(@Nullable ValueProvider<String> projectId, @Nullable String localhost, boolean throttleRampup) {
-      super(projectId, localhost, throttleRampup, new DeleteKeyFn());
+    DeleteKey(@Nullable ValueProvider<String> projectId, @Nullable String localhost,
+        boolean throttleRampup, int numThrottlerShards) {
+      super(projectId, localhost, new DeleteKeyFn(), throttleRampup, numThrottlerShards);
     }
 
     /**
@@ -1108,7 +1144,7 @@ public class DatastoreV1 {
      */
     public DeleteKey withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new DeleteKey(projectId, localhost, throttleRampup);
+      return new DeleteKey(projectId, localhost, throttleRampup, numThrottlerShards);
     }
 
     /**
@@ -1116,12 +1152,22 @@ public class DatastoreV1 {
      */
     public DeleteKey withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new DeleteKey(projectId, localhost, throttleRampup);
+      return new DeleteKey(projectId, localhost, throttleRampup, numThrottlerShards);
     }
 
-    /** Returns a new {@link DeleteKey} that does not throttle during ramp-up. */
+    /**
+     * Returns a new {@link DeleteKey} that does not throttle during ramp-up.
+     */
     public DeleteKey withRampupThrottlingDisabled() {
-      return new DeleteKey(projectId, localhost, false);
+      return new DeleteKey(projectId, localhost, false, numThrottlerShards);
+    }
+
+    /**
+     * Returns a new {#link DeleteKey} with different parallelism during ramp-up throttling.
+     */
+    public DeleteKey withNumThrottlerShards(int numThrottlerShards) {
+      checkArgument(numThrottlerShards > 0, "numThrottlerShards must be positive");
+      return new DeleteKey(projectId, localhost, throttleRampup, numThrottlerShards);
     }
   }
 
@@ -1134,9 +1180,11 @@ public class DatastoreV1 {
    * provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
+
     protected ValueProvider<String> projectId;
     protected @Nullable String localhost;
     protected boolean throttleRampup;
+    protected int numThrottlerShards;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
     private final RampupThrottlerTransform<Mutation> rampupThrottlerTransform;
@@ -1148,13 +1196,15 @@ public class DatastoreV1 {
     Mutate(
         @Nullable ValueProvider<String> projectId,
         @Nullable String localhost,
+        SimpleFunction<T, Mutation> mutationFn,
         boolean throttleRampup,
-        SimpleFunction<T, Mutation> mutationFn) {
+        int numThrottlerShards) {
       this.projectId = projectId;
       this.localhost = localhost;
       this.throttleRampup = throttleRampup;
+      this.numThrottlerShards = numThrottlerShards;
       this.mutationFn = checkNotNull(mutationFn);
-      this.rampupThrottlerTransform = new RampupThrottlerTransform<>(1);
+      this.rampupThrottlerTransform = new RampupThrottlerTransform<>(numThrottlerShards);
     }
 
     @Override
@@ -1167,8 +1217,9 @@ public class DatastoreV1 {
 
       PCollection<Mutation> intermediateOutput = input
           .apply("Convert to Mutation", MapElements.via(mutationFn));
-      if(throttleRampup) {
-        intermediateOutput = intermediateOutput.apply("Enforce throttling during rampup", rampupThrottlerTransform);
+      if (throttleRampup) {
+        intermediateOutput = intermediateOutput
+            .apply("Enforce throttling during ramp-up", rampupThrottlerTransform);
       }
       intermediateOutput.apply(
               "Write Mutation to Datastore",
