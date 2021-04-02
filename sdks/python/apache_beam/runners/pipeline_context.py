@@ -55,6 +55,7 @@ if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.coders.coder_impl import IterableStateReader
   from apache_beam.coders.coder_impl import IterableStateWriter
+  from apache_beam.transforms import ptransform
 
 PortableObjectT = TypeVar('PortableObjectT', bound='PortableObject')
 
@@ -221,7 +222,7 @@ class PipelineContext(object):
       default_environment = environments.DefaultEnvironment()
 
     self._default_environment_id = self.environments.get_id(
-        default_environment, label='default_environment')  # type: Optional[str]
+        default_environment, label='default_environment')  # type: str
 
     self.use_fake_coders = use_fake_coders
     self.iterable_state_read = iterable_state_read
@@ -281,7 +282,7 @@ class PipelineContext(object):
     return context_proto
 
   def default_environment_id(self):
-    # type: () -> Optional[str]
+    # type: () -> str
     return self._default_environment_id
 
   def get_environment_id_for_transform(
@@ -290,7 +291,9 @@ class PipelineContext(object):
     if not transform or not transform.get_resource_hints():
       return self.default_environment_id()
 
-    def merge_resource_hints(environment_id, transform):
+    def merge_resource_hints(
+        environment_id,
+        transform):  # type: (str, ptransform.PTransform) -> Dict[str, bytes]
       # TODO: add test.
       # Hints already defined in the environment take precedence over hints
       # specified by a transform.
@@ -304,7 +307,8 @@ class PipelineContext(object):
     ):  # type: (str, Dict[str, bytes]) -> str
       """Creates an environment that has necessary hints and returns its id."""
       template_env = self.environments.get_proto_from_id(template_env_id)
-      cloned_env = type(template_env)()
+      cloned_env = type(template_env)(
+      )  # type: beam_runner_api_pb2.Environment  # type: ignore
       cloned_env.CopyFrom(template_env)
       cloned_env.resource_hints.clear()
       for hint, value in resource_hints.items():
