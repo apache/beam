@@ -167,6 +167,7 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
           ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
           ':sdks:java:container:java8:docker',
           ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
+          ':sdks:java:io:expansion-service:shadowJar',
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
           ':sdks:java:io:kinesis:expansion-service:shadowJar',
           ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
