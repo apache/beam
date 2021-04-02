@@ -74,7 +74,7 @@ public class Query13 extends NexmarkQueryTransform<Event> {
             name + ".Serialize",
             ParDo.of(
                 new DoFn<Event, Event>() {
-                  private final Counter bytesMetric = Metrics.counter(name, "bytes");
+                  private final Counter bytesMetric = Metrics.counter(name, "serde-bytes");
                   private long elementCount = 0;
                   private long opFrequency =
                       (configuration.pardoCPUFactor > 0.0 && configuration.pardoCPUFactor < 1.0)
@@ -85,7 +85,8 @@ public class Query13 extends NexmarkQueryTransform<Event> {
                   public void processElement(ProcessContext c) throws CoderException, IOException {
                     elementCount++;
                     Event event;
-                    if (opFrequency == 1L || elementCount % opFrequency == 0L) {
+                    if (configuration.pardoCPUFactor != 0
+                        && (opFrequency == 1L || elementCount % opFrequency == 0L)) {
                       event = encodeDecode(coder, c.element(), bytesMetric);
                     } else {
                       event = c.element();
