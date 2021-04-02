@@ -60,7 +60,7 @@ spec:
               name: influxdb-creds
               key: INFLUXDB_GRAPHITE_ENABLED
         - name: INFLUXDB_HTTP_AUTH_ENABLED
-	  value: false
+          value: false
         ports:
         - containerPort: 8086
 ---
