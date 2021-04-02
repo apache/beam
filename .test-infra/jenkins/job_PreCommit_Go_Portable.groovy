@@ -22,6 +22,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'GoPortable',
     gradleTask: ':goPortablePreCommit',
+    gradleSwitches: ['-Pjenkins'],
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/go/.*$',
