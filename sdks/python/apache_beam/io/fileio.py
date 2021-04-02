@@ -88,8 +88,6 @@ parameter can be anything, as long as elements can be grouped by it.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import random
@@ -104,8 +102,6 @@ from typing import Iterable
 from typing import List
 from typing import Tuple
 from typing import Union
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import filesystem
@@ -233,7 +229,7 @@ class _ReadMatchesFn(beam.DoFn):
   ) -> Iterable[ReadableFile]:
     metadata = (
         filesystem.FileMetadata(file_metadata, 0) if isinstance(
-            file_metadata, (str, unicode)) else file_metadata)
+            file_metadata, str) else file_metadata)
 
     if ((metadata.path.endswith('/') or metadata.path.endswith('\\')) and
         self._skip_directories):

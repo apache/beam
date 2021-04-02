@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.options import pipeline_options
 

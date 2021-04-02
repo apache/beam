@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import binascii
 import glob
 import gzip
@@ -30,11 +28,8 @@ import random
 import re
 import unittest
 import zlib
-from builtins import range
 
 import crcmod
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 
 import apache_beam as beam
 from apache_beam import Create
