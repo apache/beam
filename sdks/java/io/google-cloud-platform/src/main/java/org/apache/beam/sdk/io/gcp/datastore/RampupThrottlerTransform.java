@@ -3,8 +3,6 @@ package org.apache.beam.sdk.io.gcp.datastore;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
-import java.util.Optional;
-import jdk.internal.jline.internal.Log;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -26,6 +24,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of a client-side throttler that enforces a gradual ramp-up, broadly in line
@@ -34,8 +34,10 @@ import org.joda.time.Instant;
 public class RampupThrottlerTransform<T> extends
     PTransform<PCollection<T>, PCollection<T>> implements Serializable {
 
+  private static final Logger LOG = LoggerFactory.getLogger(RampupThrottlerTransform.class);
   private static final double BASE_BUDGET = 500.0;
   private static final Duration RAMP_UP_INTERVAL = Duration.standardMinutes(5);
+  private static final FluentBackoff fluentBackoff = FluentBackoff.DEFAULT;
 
   private final int numShards;
 
@@ -56,66 +58,71 @@ public class RampupThrottlerTransform<T> extends
             .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     return input
-        .apply(rewindow)
-        .apply(MapElements.via(new SimpleFunction<T, KV<Integer, T>>() {
+        .apply("Prepare window for sharding", rewindow)
+        .apply("Assign random shard keys", MapElements.via(new SimpleFunction<T, KV<Integer, T>>() {
           @Override
           public KV<Integer, T> apply(T input) {
             int shard_id = (int) (numShards * Math.random());
             return KV.of(shard_id, input);
           }
         }))
-        .apply(GroupByKey.create())
-        .apply(ParDo.of(new RampupThrottlingFn()))
-        .apply(Window.<T>into(new IdentityWindowFn<>(originalWindowFn.windowCoder())));
+        .apply("Throttler resharding", GroupByKey.create())
+        .apply("Throttle for ramp-up", ParDo.of(new RampupThrottlingFn()))
+        .apply("Reset window",
+            Window.<T>into(new IdentityWindowFn<>(originalWindowFn.windowCoder())));
   }
 
   class RampupThrottlingFn extends DoFn<KV<Integer, Iterable<T>>, T> implements Serializable {
 
-    private final FluentBackoff fluentBackoff;
-
-    private final transient MovingFunction successfulOps;
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    // Is initialized on first operation (e.g., write).
-    private Optional<Instant> firstOpInstant = Optional.empty();
+    // Initialized on Beam setup.
+    private transient MovingFunction successfulOps;
+    private Instant firstOpInstant;
 
     private RampupThrottlingFn() {
-      this.fluentBackoff = FluentBackoff.DEFAULT;
       this.successfulOps = new MovingFunction(
           Duration.standardSeconds(1).getMillis(),
           Duration.standardSeconds(1).getMillis(),
           1 /* numSignificantBuckets */,
           1 /* numSignificantSamples */,
           Sum.ofLongs());
+      this.firstOpInstant = Instant.now();
     }
 
     // 500 / numShards * 1.5^max(0, (x-5)/5)
     private int calcMaxOpsBudget(Instant first, Instant instant) {
       long rampUpIntervalMinutes = RAMP_UP_INTERVAL.getStandardMinutes();
-      Duration durationSinceFirst = new Duration(instant, first);
+      Duration durationSinceFirst = new Duration(first, instant);
 
-      long calculatedGrowth =
-          (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
-      long growth = Math.max(0, calculatedGrowth);
+      double calculatedGrowth =
+          (1.0 * durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
+      double growth = Math.max(0, calculatedGrowth);
       double maxRequestCountBudget = BASE_BUDGET / numShards * Math.pow(1.5, growth);
       return (int) maxRequestCountBudget;
     }
 
-    private void recordSuccessfulOps(Instant instant, int numOps) {
-      successfulOps.add(instant.getMillis(), numOps);
+    @Setup
+    public void setup() {
+      this.successfulOps = new MovingFunction(
+          Duration.standardSeconds(1).getMillis(),
+          Duration.standardSeconds(1).getMillis(),
+          1 /* numSignificantBuckets */,
+          1 /* numSignificantSamples */,
+          Sum.ofLongs());
+      this.firstOpInstant = Instant.now();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException, InterruptedException {
-      Instant instant = Instant.now();
-      if (!firstOpInstant.isPresent()) {
-        firstOpInstant = Optional.of(instant);
-      }
+      Instant nonNullableFirstInstant = firstOpInstant;
 
+      int shard_id = c.element().getKey();
       Iterator<T> elementsIter = c.element().getValue().iterator();
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = fluentBackoff.backoff();
       while (true) {
-        int maxOpsBudget = calcMaxOpsBudget(firstOpInstant.get(), instant);
+        Instant instant = Instant.now();
+        int maxOpsBudget = calcMaxOpsBudget(nonNullableFirstInstant, instant);
+        LOG.info("Shard {}: Max budget is {} entities/s after {}s", shard_id, maxOpsBudget, new Duration(nonNullableFirstInstant, instant).getStandardSeconds());
         long currentOpCount = successfulOps.get(instant.getMillis());
         long availableOps = maxOpsBudget - currentOpCount;
 
@@ -124,6 +131,7 @@ public class RampupThrottlerTransform<T> extends
           T element = elementsIter.next();
 
           c.output(element);
+          backoff.reset();
           i++;
           availableOps--;
         }
@@ -133,10 +141,11 @@ public class RampupThrottlerTransform<T> extends
           break;
         }
         long backoffMillis = backoff.nextBackOffMillis();
-        Log.info("Delaying by {} to conform to gradual ramp-up.", backoffMillis);
+        LOG.info("Delaying by {}ms to conform to gradual ramp-up.", backoffMillis);
         sleeper.sleep(backoffMillis);
       }
     }
+
 
   }
 
