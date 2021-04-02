@@ -46,7 +46,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -438,12 +437,12 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             .put(TypeName.ROW, Row.class)
             .build();
 
-    private static final Map<String, Class> LOGICAL_TYPE_TO_BASE_TYPE_MAP =
+    private static final Map<String, Class> LOGICAL_TYPE_TO_TYPE_MAP =
         ImmutableMap.<String, Class>builder()
-            .put(SqlTypes.DATE.getIdentifier(), Long.class)
-            .put(SqlTypes.TIME.getIdentifier(), Long.class)
+            .put(SqlTypes.DATE.getIdentifier(), LocalDate.class)
+            .put(SqlTypes.TIME.getIdentifier(), LocalTime.class)
             .put(TimeWithLocalTzType.IDENTIFIER, ReadableInstant.class)
-            .put(SqlTypes.DATETIME.getIdentifier(), Row.class)
+            .put(SqlTypes.DATETIME.getIdentifier(), LocalDateTime.class)
             .put(CharType.IDENTIFIER, String.class)
             .build();
 
@@ -473,7 +472,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       if (storageType == Object.class) {
         convertTo = Object.class;
       } else if (fromType.getTypeName().isLogicalType()) {
-        convertTo = LOGICAL_TYPE_TO_BASE_TYPE_MAP.get(fromType.getLogicalType().getIdentifier());
+        convertTo = LOGICAL_TYPE_TO_TYPE_MAP.get(fromType.getLogicalType().getIdentifier());
       } else {
         convertTo = TYPE_CONVERSION_MAP.get(fromType.getTypeName());
       }
@@ -483,12 +482,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
       Expression value =
           Expressions.convert_(
-              Expressions.call(
-                  expression,
-                  "getBaseValue",
-                  Expressions.constant(index),
-                  Expressions.constant(convertTo)),
-              convertTo);
+              Expressions.call(expression, "getValue", Expressions.constant(index)), convertTo);
       return (storageType != Object.class) ? value(value, fromType) : value;
     }
 
@@ -497,14 +491,17 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         String logicalId = type.getLogicalType().getIdentifier();
         if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
           return nullOr(
-              value, Expressions.divide(value, Expressions.constant(NANOS_PER_MILLISECOND)));
+              value,
+              Expressions.divide(
+                  Expressions.call(value, "toNanoOfDay"),
+                  Expressions.constant(NANOS_PER_MILLISECOND)));
         } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
-          return value;
+          return nullOr(value, Expressions.call(value, "toEpochDay"));
         } else if (SqlTypes.DATETIME.getIdentifier().equals(logicalId)) {
           Expression dateValue =
-              Expressions.call(value, "getInt64", Expressions.constant(DateTime.DATE_FIELD_NAME));
+              Expressions.call(Expressions.call(value, "toLocalDate"), "toEpochDay");
           Expression timeValue =
-              Expressions.call(value, "getInt64", Expressions.constant(DateTime.TIME_FIELD_NAME));
+              Expressions.call(Expressions.call(value, "toLocalTime"), "toNanoOfDay");
           Expression returnValue =
               Expressions.add(
                   Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
