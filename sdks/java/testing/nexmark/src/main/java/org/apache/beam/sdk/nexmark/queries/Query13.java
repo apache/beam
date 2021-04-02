@@ -75,17 +75,33 @@ public class Query13 extends NexmarkQueryTransform<Event> {
             ParDo.of(
                 new DoFn<Event, Event>() {
                   private final Counter bytesMetric = Metrics.counter(name, "bytes");
+                  private long elementCount = 0;
+                  private long opFrequency =
+                      (configuration.pardoCPUFactor > 0.0 && configuration.pardoCPUFactor < 1.0)
+                          ? (long) (1.0 / configuration.pardoCPUFactor)
+                          : 1L;
 
                   @ProcessElement
                   public void processElement(ProcessContext c) throws CoderException, IOException {
-                    ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                    coder.encode(c.element(), outStream, Coder.Context.OUTER);
-                    byte[] byteArray = outStream.toByteArray();
-                    bytesMetric.inc((long) byteArray.length);
-                    ByteArrayInputStream inStream = new ByteArrayInputStream(byteArray);
-                    Event event = coder.decode(inStream, Coder.Context.OUTER);
+                    elementCount++;
+                    Event event;
+                    if (opFrequency == 1L || elementCount % opFrequency == 0L) {
+                      event = encodeDecode(coder, c.element(), bytesMetric);
+                    } else {
+                      event = c.element();
+                    }
                     c.output(event);
                   }
                 }));
+  }
+
+  private static Event encodeDecode(Coder<Event> coder, Event e, Counter bytesMetric)
+      throws IOException {
+    ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+    coder.encode(e, outStream, Coder.Context.OUTER);
+    byte[] byteArray = outStream.toByteArray();
+    bytesMetric.inc((long) byteArray.length);
+    ByteArrayInputStream inStream = new ByteArrayInputStream(byteArray);
+    return coder.decode(inStream, Coder.Context.OUTER);
   }
 }

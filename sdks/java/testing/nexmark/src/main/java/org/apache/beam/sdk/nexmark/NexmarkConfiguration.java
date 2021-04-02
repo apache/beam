@@ -217,6 +217,13 @@ public class NexmarkConfiguration implements Serializable {
    */
   @JsonProperty public int numKeyBuckets = 20000;
 
+  /**
+   * Used by Query 13. This specifies CPU usage factor that the ParDo in query 13 should use. 1.0
+   * means ParDo should be the CPU expensive operation on every element and 0.0 means ParDo should
+   * pass through all elements directly.
+   */
+  @JsonProperty public double pardoCPUFactor = 1.0;
+
   /** Replace any properties of this configuration which have been supplied by the command line. */
   public void overrideFromOptions(NexmarkOptions options) {
     if (options.getDebug() != null) {
