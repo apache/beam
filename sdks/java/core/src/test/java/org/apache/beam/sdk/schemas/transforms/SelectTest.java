@@ -595,80 +595,6 @@ public class SelectTest {
     pipeline.run();
   }
 
-  /**
-   * Test that {@link Select#flattenedSchema()} transform is able to flatten the nested fields of an
-   * array.
-   *
-   * <p>Example:
-   *
-   * <pre>
-   * Row[] transactions {
-   *   String bank,
-   *   Double purchaseAmount
-   * }
-   * ->
-   * String[] transactions_bank,
-   * Double[] transactions_purchaseAmount
-   * </pre>
-   */
-  @Test
-  @Category(NeedsRunner.class)
-  public void testFlatSchemaWithArrayNestedField() {
-
-    Schema shippingAddressSchema =
-        Schema.builder().addStringField("streetAddress").addStringField("city").build();
-    Schema transactionSchema =
-        Schema.builder().addStringField("bank").addDoubleField("purchaseAmount").build();
-    Schema nestedSchema =
-        Schema.builder()
-            .addStringField("userId")
-            .addRowField("shippingAddress", shippingAddressSchema)
-            .addArrayField("transactions", Schema.FieldType.row(transactionSchema))
-            .build();
-
-    String user = "user";
-    String street = "street";
-    String city = "city";
-    String bank1 = "bank1";
-    String bank2 = "bank2";
-    double purchaseAmount1 = 1.0;
-    double purchaseAmount2 = 2.0;
-
-    Row transactionOne =
-        Row.withSchema(transactionSchema).addValues(bank1, purchaseAmount1).build();
-    Row transactionTwo =
-        Row.withSchema(transactionSchema).addValues(bank2, purchaseAmount2).build();
-    Row address = Row.withSchema(shippingAddressSchema).addValues(street, city).build();
-    Row row =
-        Row.withSchema(nestedSchema)
-            .addValues(user, address)
-            .addArray(transactionOne, transactionTwo)
-            .build();
-
-    PCollection<Row> unnested =
-        pipeline.apply(Create.of(row).withRowSchema(nestedSchema)).apply(Select.flattenedSchema());
-
-    Schema expectedUnnestedSchema =
-        Schema.builder()
-            .addStringField("userId")
-            .addStringField("shippingAddress_streetAddress")
-            .addStringField("shippingAddress_city")
-            .addArrayField("transactions_bank", FieldType.STRING)
-            .addArrayField("transactions_purchaseAmount", FieldType.DOUBLE)
-            .build();
-    assertEquals(expectedUnnestedSchema, unnested.getSchema());
-
-    Row expectedUnnestedRow =
-        Row.withSchema(unnested.getSchema())
-            .addValues(user, street, city)
-            .addArray(bank1, bank2)
-            .addArray(purchaseAmount1, purchaseAmount2)
-            .build();
-    PAssert.that(unnested).containsInAnyOrder(expectedUnnestedRow);
-
-    pipeline.run();
-  }
-
   @Test
   @Category(NeedsRunner.class)
   public void testSimpleFlattening() {
@@ -803,6 +729,80 @@ public class SelectTest {
             .apply(Create.of(rows).withRowSchema(NESTED_SCHEMA))
             .apply(Select.<Row>flattenedSchema().withOutputSchema(CLASHING_NAME_UNNESTED_SCHEMA));
     assertEquals(CLASHING_NAME_UNNESTED_SCHEMA, unnested.getSchema());
+    pipeline.run();
+  }
+
+  /**
+   * Test that {@link Select#flattenedSchema()} transform is able to flatten the nested fields of an
+   * array.
+   *
+   * <p>Example:
+   *
+   * <pre>
+   * Row[] transactions {
+   *   String bank,
+   *   Double purchaseAmount
+   * }
+   * ->
+   * String[] transactions_bank,
+   * Double[] transactions_purchaseAmount
+   * </pre>
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatSchemaWithArrayNestedField() {
+
+    Schema shippingAddressSchema =
+        Schema.builder().addStringField("streetAddress").addStringField("city").build();
+    Schema transactionSchema =
+        Schema.builder().addStringField("bank").addDoubleField("purchaseAmount").build();
+    Schema nestedSchema =
+        Schema.builder()
+            .addStringField("userId")
+            .addRowField("shippingAddress", shippingAddressSchema)
+            .addArrayField("transactions", Schema.FieldType.row(transactionSchema))
+            .build();
+
+    String userId = "user";
+    String street = "street";
+    String city = "city";
+    String bank1 = "bank1";
+    String bank2 = "bank2";
+    double purchaseAmount1 = 1.0;
+    double purchaseAmount2 = 2.0;
+
+    Row transactionOne =
+        Row.withSchema(transactionSchema).addValues(bank1, purchaseAmount1).build();
+    Row transactionTwo =
+        Row.withSchema(transactionSchema).addValues(bank2, purchaseAmount2).build();
+    Row address = Row.withSchema(shippingAddressSchema).addValues(street, city).build();
+    Row row =
+        Row.withSchema(nestedSchema)
+            .addValues(userId, address)
+            .addArray(transactionOne, transactionTwo)
+            .build();
+
+    PCollection<Row> unnested =
+        pipeline.apply(Create.of(row).withRowSchema(nestedSchema)).apply(Select.flattenedSchema());
+
+    Schema expectedUnnestedSchema =
+        Schema.builder()
+            .addStringField("userId")
+            .addStringField("shippingAddress_streetAddress")
+            .addStringField("shippingAddress_city")
+            .addArrayField("transactions_bank", FieldType.STRING)
+            .addArrayField("transactions_purchaseAmount", FieldType.DOUBLE)
+            .build();
+    assertEquals(expectedUnnestedSchema, unnested.getSchema());
+
+    Row expectedUnnestedRow =
+        Row.withSchema(unnested.getSchema())
+            .addValues(userId, street, city)
+            .addArray(bank1, bank2)
+            .addArray(purchaseAmount1, purchaseAmount2)
+            .build();
+    PAssert.that(unnested).containsInAnyOrder(expectedUnnestedRow);
+
     pipeline.run();
   }
 }
