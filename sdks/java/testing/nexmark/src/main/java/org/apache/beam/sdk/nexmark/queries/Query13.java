@@ -20,6 +20,7 @@ package org.apache.beam.sdk.nexmark.queries;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Random;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.metrics.Counter;
@@ -75,18 +76,16 @@ public class Query13 extends NexmarkQueryTransform<Event> {
             ParDo.of(
                 new DoFn<Event, Event>() {
                   private final Counter bytesMetric = Metrics.counter(name, "serde-bytes");
-                  private long elementCount = 0;
-                  private long opFrequency =
-                      (configuration.pardoCPUFactor > 0.0 && configuration.pardoCPUFactor < 1.0)
-                          ? (long) (1.0 / configuration.pardoCPUFactor)
-                          : 1L;
+                  private final Random random = new Random();
+                  private double pardoCPUFactor =
+                      (configuration.pardoCPUFactor >= 0.0 && configuration.pardoCPUFactor <= 1.0)
+                          ? configuration.pardoCPUFactor
+                          : 1.0;
 
                   @ProcessElement
                   public void processElement(ProcessContext c) throws CoderException, IOException {
-                    elementCount++;
                     Event event;
-                    if (configuration.pardoCPUFactor != 0
-                        && (opFrequency == 1L || elementCount % opFrequency == 0L)) {
+                    if (random.nextDouble() <= pardoCPUFactor) {
                       event = encodeDecode(coder, c.element(), bytesMetric);
                     } else {
                       event = c.element();
