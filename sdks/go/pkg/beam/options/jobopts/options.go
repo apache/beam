@@ -36,11 +36,14 @@ func init() {
 		"sdk_harness_container_image_override",
 		"Overrides for SDK harness container images. Could be for the "+
 			"local SDK or for a remote SDK that pipeline has to support due "+
-			"to a cross-language transform. Each entry consist of two values "+
+			"to a cross-language transform. Each entry consists of two values "+
 			"separated by a comma where first value gives a regex to "+
 			"identify the container image to override and the second value "+
 			"gives the replacement container image. Multiple entries can be "+
-			"specified by using this flag multiple times.")
+			"specified by using this flag multiple times. A container will "+
+			"have no more than 1 override applied to it. If multiple "+
+			"overrides match a container image it is arbitrary which "+
+			"will be applied.")
 }
 
 var (

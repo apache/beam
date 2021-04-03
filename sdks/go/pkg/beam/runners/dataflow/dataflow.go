@@ -185,7 +185,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	}
 	environment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
 	if err != nil {
-		return nil, errors.WithContext(err, "generating model pipeline")
+		return nil, errors.WithContext(err, "creating environment for model pipeline")
 	}
 	model, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
 	if err != nil {
@@ -193,7 +193,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	}
 	err = pipelinex.ApplySdkImageOverrides(model, jobopts.GetSdkImageOverrides())
 	if err != nil {
-		return nil, errors.WithContext(err, "generating model pipeline")
+		return nil, errors.WithContext(err, "applying container image overrides")
 	}
 
 	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".

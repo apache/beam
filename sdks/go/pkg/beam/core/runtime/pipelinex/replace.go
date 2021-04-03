@@ -248,10 +248,22 @@ func findFreeName(seen map[string]bool, name string) string {
 
 // ApplySdkImageOverrides takes a pipeline and a map of patterns to overrides,
 // and proceeds to replace matching ContainerImages in any Environments
-// present in the pipeline.
+// present in the pipeline. Each environment is expected to match at most one
+// pattern. If an environment matches two or more it is arbitrary which
+// pattern will be applied.
 func ApplySdkImageOverrides(p *pipepb.Pipeline, patterns map[string]string) error {
 	if len(patterns) == 0 {
 		return nil
+	}
+
+	// Precompile all patterns as regexes.
+	regexes := make(map[*regexp.Regexp]string, len(patterns))
+	for p, r := range patterns {
+		re, err := regexp.Compile(p)
+		if err != nil {
+			return err
+		}
+		regexes[re] = r
 	}
 
 	for _, env := range p.GetComponents().GetEnvironments() {
@@ -260,16 +272,16 @@ func ApplySdkImageOverrides(p *pipepb.Pipeline, patterns map[string]string) erro
 			return err
 		}
 		oldImg := payload.GetContainerImage()
-		for pattern, replacement := range patterns {
-			re, err := regexp.Compile(pattern)
-			if err != nil {
-				return err
-			}
+		for re, replacement := range regexes {
 			newImg := re.ReplaceAllLiteralString(oldImg, replacement)
 			if newImg != oldImg {
 				payload.ContainerImage = newImg
-				env.Payload, err = proto.Marshal(&payload)
-				break
+				pl, err := proto.Marshal(&payload)
+				if err != nil {
+					return err
+				}
+				env.Payload = pl
+				break // Apply at most one override to each environment.
 			}
 		}
 	}

@@ -83,7 +83,7 @@ func addNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) 
 
 	idMap := make(map[string]string)
 
-	// TODO: Currently environments are not namespaced. This works under the
+	// Note: Currently environments are not namespaced. This works under the
 	// assumption that the unexpanded transform is using the default Go SDK
 	// environment. If multiple Go SDK environments become possible, then
 	// namespacing of non-default environments should happen here.
