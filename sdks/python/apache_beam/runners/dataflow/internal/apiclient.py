@@ -705,6 +705,7 @@ class DataflowApplicationClient(object):
             pattern, override, docker_payload.container_image)
         if new_container_image != docker_payload.container_image:
           overridden = True
+          break
 
       # Container of the current (Python) SDK is overridden separately, hence
       # not updated here.
