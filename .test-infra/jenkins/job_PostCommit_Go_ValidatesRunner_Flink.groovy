@@ -32,6 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_VR_Flink',
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:go:test:flinkValidatesRunner')
+          switches("-Pjenkins")
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
