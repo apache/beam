@@ -202,8 +202,7 @@ class CompressedFile(object):
     if compressed:
       self._file.write(compressed)
 
-  def _fetch_to_internal_buffer(self, num_bytes):
-    # type: (int) -> None
+  def _fetch_to_internal_buffer(self, num_bytes: int) -> None:
 
     """Fetch up to num_bytes into the internal buffer."""
     if (not self._read_eof and self._read_position > 0 and
@@ -216,6 +215,7 @@ class CompressedFile(object):
       self._clear_read_buffer()
       self._read_buffer.write(data)
 
+    assert self._decompressor
     while not self._read_eof and (self._read_buffer.tell() -
                                   self._read_position) < num_bytes:
       # Continue reading from the underlying file object until enough bytes are
@@ -289,23 +289,23 @@ class CompressedFile(object):
 
     return bytes_io.getvalue()
 
-  def closed(self):
-    # type: () -> bool
-    return not self._file or self._file.closed()
+  def closed(self) -> bool:
+    return not self._file or self._file.closed
 
-  def close(self):
-    # type: () -> None
+  def close(self) -> None:
     if self.readable():
       self._read_buffer.close()
 
+
     if self.writeable():
+      assert self._compressor
       self._file.write(self._compressor.flush())
 
     self._file.close()
 
-  def flush(self):
-    # type: () -> None
+  def flush(self) -> None:
     if self.writeable():
+      assert self._compressor
       self._file.write(self._compressor.flush())
     self._file.flush()
 
