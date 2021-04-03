@@ -1436,9 +1436,9 @@ class AvroRowWriter(io.IOBase):
     try:
       self._avro_writer.write(row)
     except (TypeError, ValueError) as ex:
-      ex.__class__(
+      raise ex.__class__(
           "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
-              ex, self._avro_writer.schema, row)).with_trackback()
+              ex, self._avro_writer.schema, row)).with_traceback()
 
 
 class RetryStrategy(object):
