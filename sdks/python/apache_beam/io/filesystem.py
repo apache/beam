@@ -203,7 +203,6 @@ class CompressedFile(object):
       self._file.write(compressed)
 
   def _fetch_to_internal_buffer(self, num_bytes: int) -> None:
-
     """Fetch up to num_bytes into the internal buffer."""
     if (not self._read_eof and self._read_position > 0 and
         (self._read_buffer.tell() - self._read_position) < num_bytes):
@@ -295,7 +294,6 @@ class CompressedFile(object):
   def close(self) -> None:
     if self.readable():
       self._read_buffer.close()
-
 
     if self.writeable():
       assert self._compressor
