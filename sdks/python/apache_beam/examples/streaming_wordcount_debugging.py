@@ -34,14 +34,10 @@ gcloud alpha pubsub topics publish $PUBSUB_INPUT_TOPIC --message '210 213 151'
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
 import time
-
-from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.window as window
@@ -132,8 +128,7 @@ def run(argv=None, save_main_session=True):
 
     counts = (
         lines
-        | 'Split' >>
-        (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+        | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
         | 'AddTimestampFn' >> beam.ParDo(AddTimestampFn())
         | 'After AddTimestampFn' >> ParDo(PrintFn('After AddTimestampFn'))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
