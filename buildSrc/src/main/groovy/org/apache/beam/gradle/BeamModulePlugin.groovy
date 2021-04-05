@@ -446,7 +446,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.52.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
-    def protobuf_version = "3.12.0"
+    // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
+    def protobuf_version = "3.14.0"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
