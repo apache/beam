@@ -44,7 +44,7 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 BEAM_CONTAINER_VERSION = 'beam-master-20210331'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20210331'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20210404'
 
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
