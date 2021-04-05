@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from apache_beam import coders
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
@@ -182,6 +183,9 @@ class IPythonLogHandlerTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
+@pytest.mark.skipif(
+    not ie.current_env().is_interactive_ready,
+    reason='[interactive] dependency is not installed.')
 class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
@@ -199,24 +203,14 @@ class ProgressIndicatorTest(unittest.TestCase):
       mocked_display.assert_any_call('Done.')
 
   def test_progress_in_HTML_JS_when_in_notebook(self):
+    ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
 
-    pi_path = 'apache_beam.runners.interactive.utils.ProgressIndicator'
-    with patch('IPython.core.display.HTML') as mocked_html, \
-      patch('IPython.core.display.Javascript') as mocked_javascript, \
-      patch(pi_path + '.spinner_template') as enter_template, \
-      patch(pi_path + '.spinner_removal_template') as exit_template:
-
-      enter_template.format.return_value = 'enter'
-      exit_template.format.return_value = 'exit'
-
-      @utils.progress_indicated
-      def progress_indicated_dummy():
-        mocked_html.assert_any_call('enter')
-
-      progress_indicated_dummy()
-      mocked_javascript.assert_any_call(
-          ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(customized_script='exit'))
+    with patch('IPython.core.display.HTML') as mocked_html,\
+      patch('IPython.core.display.Javascript') as mocked_js:
+      with utils.ProgressIndicator('enter', 'exit'):
+        mocked_html.assert_called()
+      mocked_js.assert_called()
 
 
 @unittest.skipIf(
