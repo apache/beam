@@ -63,7 +63,7 @@ task dataflowValidatesRunner() {
             "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.hasProperty("jenkins")) { // Needed when running this task on Jenkins.
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
     }
     exec {
@@ -86,7 +86,7 @@ task flinkValidatesRunner {
             "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.hasProperty("jenkins")) { // Needed when running this task on Jenkins.
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
     }
     exec {
@@ -108,7 +108,7 @@ task sparkValidatesRunner {
             "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.hasProperty("jenkins")) { // Needed when running this task on Jenkins.
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
     }
     exec {
@@ -137,7 +137,7 @@ task ulrValidatesRunner {
             "--runner portable",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.hasProperty("jenkins")) { // Needed when running this task on Jenkins.
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
     }
     exec {
