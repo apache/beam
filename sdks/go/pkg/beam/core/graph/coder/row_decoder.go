@@ -339,7 +339,7 @@ func (b *RowDecoderBuilder) decoderForSingleTypeReflect(t reflect.Type) (func(re
 		}
 		return mapDecoder(t, decK, decV), nil
 	}
-	panic(fmt.Sprintf("unimplemented type to decode: %v", t))
+	return nil, errors.Errorf("unable to decode type: %v", t)
 }
 
 func (b *RowDecoderBuilder) containerDecoderForType(t reflect.Type) (func(reflect.Value, io.Reader) error, error) {
