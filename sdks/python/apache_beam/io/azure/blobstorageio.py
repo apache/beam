@@ -247,11 +247,11 @@ class BlobStorageIO(object):
 
       # Mismatched paths (one directory, one non-directory) get an error.
       else:
-        e = BlobStorageError(
+        err = BlobStorageError(
             "Unable to copy mismatched paths" +
             "(directory, non-directory): %s, %s" % (src_path, dest_path),
             400)
-        results.append((src_path, dest_path, e))
+        results.append((src_path, dest_path, err))
 
     return results
 

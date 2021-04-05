@@ -19,6 +19,7 @@
 Azure Blob Storage.
 """
 
+from typing import BinaryIO
 from apache_beam.io.azure import blobstorageio
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -144,9 +145,7 @@ class BlobStorageFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
-
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """Returns a write channel for the given file path.
 
     Args:
@@ -162,9 +161,7 @@ class BlobStorageFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
-
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """Returns a read channel for the given file path.
 
     Args:

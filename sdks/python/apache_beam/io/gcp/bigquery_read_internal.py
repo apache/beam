@@ -56,8 +56,8 @@ try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
-  DatasetReference = None
-  TableReference = None
+  DatasetReference = None # type: ignore
+  TableReference = None # type: ignore
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -141,15 +141,15 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def __init__(
       self,
       options: PipelineOptions,
-      gcs_location: Union[str, ValueProvider] = None,
+      gcs_location: Union[None, str, ValueProvider] = None,
       use_json_exports: bool = False,
-      bigquery_job_labels: Dict[str, str] = None,
-      step_name: str = None,
-      job_name: str = None,
-      unique_id: str = None,
-      kms_key: str = None,
-      project: str = None,
-      temp_dataset: Union[str, DatasetReference] = None):
+      bigquery_job_labels: Optional[Dict[str, str]] = None,
+      step_name: Optional[str] = None,
+      job_name: Optional[str] = None,
+      unique_id: Optional[str] = None,
+      kms_key: Optional[str] = None,
+      project: Optional[str] = None,
+      temp_dataset: Union[None, str, DatasetReference] = None):
     self.options = options
     self.use_json_exports = use_json_exports
     self.gcs_location = gcs_location
@@ -179,8 +179,12 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     else:
       return self.temp_dataset
 
-  def process(self,
-              element: 'ReadFromBigQueryRequest') -> Iterable[BoundedSource]:
+  def process(
+      self,
+      element: 'ReadFromBigQueryRequest',
+      *args: List[Any],
+      **kwargs: Dict[str, Any],
+  ) -> Iterable[BoundedSource]:
     bq = bigquery_tools.BigQueryWrapper(
         temp_dataset_id=self._get_temp_dataset().datasetId)
     # TODO(BEAM-11359): Clean up temp dataset at pipeline completion.
@@ -271,6 +275,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         bigquery_tools.BigQueryJobTypes.EXPORT,
         element.obj_id)
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
+    assert(not isinstance(self.gcs_location, str))
     gcs_location = bigquery_export_destination_uri(
         self.gcs_location,
         temp_location,

@@ -22,6 +22,8 @@ Beam Datastore types.
 # pytype: skip-file
 
 import copy
+from typing import Any
+from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
@@ -40,8 +42,8 @@ __all__ = ['Query', 'Key', 'Entity']
 class Query(object):
   def __init__(
       self,
-      kind=None,
-      project=None,
+      kind: Optional[str]=None,
+      project: Optional[str]=None,
       namespace=None,
       ancestor=None,
       filters=(),
@@ -52,8 +54,8 @@ class Query(object):
     """Represents a Datastore query.
 
     Args:
-      kind: (str) The kind to query.
-      project: (str) Required. Project associated with query.
+      kind: The kind to query.
+      project: Required. Project associated with query.
       namespace: (str, ValueProvider(str)) (Optional) Namespace to restrict
         results to.
       ancestor: (:class:`~apache_beam.io.gcp.datastore.v1new.types.Key`)
@@ -231,8 +233,8 @@ class Key(object):
 class Entity(object):
   def __init__(
       self,
-      key,  # type: Key
-      exclude_from_indexes=()  # type: Iterable[str]
+      key: Key,
+      exclude_from_indexes: Iterable[str]=()
   ):
     """
     Represents a Datastore entity.
@@ -240,13 +242,13 @@ class Entity(object):
     Does not support the property value "meaning" field.
 
     Args:
-      key: (Key) A complete Key representing this Entity.
-      exclude_from_indexes: (iterable of str) List of property keys whose values
+      key: A complete Key representing this Entity.
+      exclude_from_indexes: List of property keys whose values
         should not be indexed for this entity.
     """
     self.key = key
     self.exclude_from_indexes = set(exclude_from_indexes)
-    self.properties = {}
+    self.properties: Dict[Any, Any] = {}
 
   def set_properties(self, property_dict):
     """Sets a dictionary of properties on this entity.

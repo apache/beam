@@ -153,7 +153,13 @@ class _MatchAllFn(beam.DoFn):
   def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
 
-  def process(self, file_pattern: str) -> List[filesystem.FileMetadata]:
+  def process(
+      self,
+      element: str,
+      *args: List[Any],
+      **kwargs: Dict[str, Any],
+  ) -> List[filesystem.FileMetadata]:
+    file_pattern = element
     # TODO: Should we batch the lookups?
     match_results = filesystems.FileSystems.match([file_pattern])
     match_result = match_results[0]
@@ -225,8 +231,11 @@ class _ReadMatchesFn(beam.DoFn):
 
   def process(
       self,
-      file_metadata: Union[str, filesystem.FileMetadata],
+      element: Union[str, filesystem.FileMetadata],
+      *args: List[Any],
+      **kwargs: Dict[str, Any],
   ) -> Iterable[ReadableFile]:
+    file_metadata = element
     metadata = (
         filesystem.FileMetadata(file_metadata, 0) if isinstance(
             file_metadata, str) else file_metadata)

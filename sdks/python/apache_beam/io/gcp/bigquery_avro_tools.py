@@ -23,11 +23,16 @@ backwards compatibility guarantees.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
+from typing import Any
+from typing import List
+from typing import Dict
+from typing import Union
+
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 # with aliases (RECORD, BOOLEAN, FLOAT, INTEGER) as defined in
 # https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#setType-java.lang.String-
-BIG_QUERY_TO_AVRO_TYPES = {
+BIG_QUERY_TO_AVRO_TYPES: Dict[str, Union[str, Dict[str, Any]]] = {
     "STRUCT": "record",
     "RECORD": "record",
     "STRING": "string",
@@ -63,18 +68,18 @@ BIG_QUERY_TO_AVRO_TYPES = {
 
 
 def get_record_schema_from_dict_table_schema(
-    schema_name, table_schema, namespace="apache_beam.io.gcp.bigquery"):
-  # type: (Text, Dict[Text, Any], Text) -> Dict[Text, Any]
-
+    schema_name: str,
+    table_schema: Dict[str, Any],
+    namespace: str="apache_beam.io.gcp.bigquery") -> Dict[str, Any]:
   """Convert a table schema into an Avro schema.
 
   Args:
-    schema_name (Text): The name of the record.
-    table_schema (Dict[Text, Any]): A BigQuery table schema in dict form.
-    namespace (Text): The namespace of the Avro schema.
+    schema_name: The name of the record.
+    table_schema: A BigQuery table schema in dict form.
+    namespace: The namespace of the Avro schema.
 
   Returns:
-    Dict[Text, Any]: The schema as an Avro RecordSchema.
+    The schema as an Avro RecordSchema.
   """
   avro_fields = [
       table_field_to_avro_field(field, ".".join((namespace, schema_name)))
@@ -90,16 +95,16 @@ def get_record_schema_from_dict_table_schema(
   }
 
 
-def table_field_to_avro_field(table_field, namespace):
-  # type: (Dict[Text, Any], str) -> Dict[Text, Any]
-
+def table_field_to_avro_field(
+    table_field: Dict[str, Any],
+    namespace: str) -> Dict[str, Any]:
   """Convert a BigQuery field to an avro field.
 
   Args:
-    table_field (Dict[Text, Any]): A BigQuery field in dict form.
+    table_field: A BigQuery field in dict form.
 
   Returns:
-    Dict[Text, Any]: An equivalent Avro field in dict form.
+    An equivalent Avro field in dict form.
   """
   assert "type" in table_field, \
     "Unable to get type for table field {}".format(table_field)
@@ -108,6 +113,8 @@ def table_field_to_avro_field(table_field, namespace):
       table_field["type"])
 
   avro_type = BIG_QUERY_TO_AVRO_TYPES[table_field["type"]]
+
+  element_type: Union[str, Dict[str, Any]]
 
   if avro_type == "record":
     element_type = get_record_schema_from_dict_table_schema(
@@ -118,6 +125,8 @@ def table_field_to_avro_field(table_field, namespace):
     element_type = avro_type
 
   field_mode = table_field.get("mode", "NULLABLE")
+
+  field_type: Union[str, List[Any], Dict[str, Any]]
 
   if field_mode in (None, "NULLABLE"):
     field_type = ["null", element_type]

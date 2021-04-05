@@ -277,6 +277,8 @@ import random
 import time
 import uuid
 from typing import Dict
+from typing import Optional
+from typing import Set
 from typing import Union
 
 import apache_beam as beam
@@ -325,8 +327,8 @@ try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
-  DatasetReference = None
-  TableReference = None
+  DatasetReference = None # type: ignore
+  TableReference = None # type: ignore
 
 __all__ = [
     'TableRowJsonCoder',
@@ -1049,7 +1051,7 @@ bigquery_v2_messages.TableSchema` object.
         buffer_size=buffer_size)
 
 
-_KNOWN_TABLES = set()
+_KNOWN_TABLES: Set[str] = set()
 
 
 class BigQueryWriteFn(DoFn):
@@ -1964,9 +1966,9 @@ class ReadFromBigQueryRequest:
   """
   def __init__(
       self,
-      query: str = None,
+      query: Optional[str] = None,
       use_standard_sql: bool = True,
-      table: Union[str, TableReference] = None,
+      table: Union[None, str, TableReference] = None,
       flatten_results: bool = False):
     """
     Only one of query or table should be specified.
@@ -2036,11 +2038,11 @@ class ReadAllFromBigQuery(PTransform):
 
   def __init__(
       self,
-      gcs_location: Union[str, ValueProvider] = None,
+      gcs_location: Union[None, str, ValueProvider] = None,
       validate: bool = False,
-      kms_key: str = None,
-      temp_dataset: Union[str, DatasetReference] = None,
-      bigquery_job_labels: Dict[str, str] = None):
+      kms_key: Optional[str] = None,
+      temp_dataset: Union[None, str, DatasetReference] = None,
+      bigquery_job_labels: Optional[Dict[str, str]] = None):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(

@@ -473,8 +473,8 @@ class PubSubSourceDescriptor(NamedTuple):
         units smaller than milliseconds) may be ignored.
   """
   source: str
-  id_label: str = None
-  timestamp_attribute: str = None
+  id_label: Optional[str] = None
+  timestamp_attribute: Optional[str] = None
 
 
 PUBSUB_DESCRIPTOR_REGEXP = 'projects/([^/]+)/(topics|subscriptions)/(.+)'
