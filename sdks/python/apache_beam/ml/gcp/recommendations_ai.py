@@ -39,6 +39,7 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
+from apache_beam.transforms.util import GroupIntoBatches
 from cachetools.func import ttl_cache
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -173,57 +174,6 @@ class _CreateCatalogItemFn(DoFn):
           recommendationengine.CatalogItem.to_dict(catalog_item))
 
 
-class _BatchItems(DoFn):
-  """
-  DoFn that batches up CatalogItems to reduce the number of requests made
-  to the Recommendations API.
-
-  Maps a PCollection of KV<String, dict> to a
-  PCollection KV<String, List<dict>>
-  """
-
-  elements_bag = BagStateSpec('buffer', IterableCoder(PickleCoder()))
-  event_timer = TimerSpec('event_timer', TimeDomain.WATERMARK)
-
-  def __init__(self, max_batch_size=5000):
-    self.max_batch_size = max_batch_size
-
-  def process(
-      self,
-      element,
-      window=DoFn.WindowParam,
-      buffer_state=DoFn.StateParam(elements_bag),
-      event_timer=DoFn.TimerParam(event_timer)):
-
-    buffer_state.add(element)
-    event_timer.set(window.max_timestamp())
-
-  @on_timer(event_timer)
-  def expiry(
-      self,
-      buffer_state=DoFn.StateParam(elements_bag),
-      event_timer=DoFn.TimerParam(event_timer)):
-    batch = [element for element in buffer_state.read()]
-    if not batch:
-      return
-
-    key, _ = batch[0]
-    current_batch_size = itertools.count()
-    output = []
-
-    if batch:
-      for event in batch:
-        clear_buffer = next(current_batch_size) >= self.max_batch_size
-        if clear_buffer:
-          yield (key, output)
-          output.clear()
-          current_batch_size = itertools.count()
-        output.append(event[1])
-
-    if len(output) > 0:
-      yield (key, output)
-
-
 class ImportCatalogItems(PTransform):
   """Imports catalogitems in bulk.
     The ``PTransform returns a PCollectionTuple with PCollections of
@@ -273,7 +223,7 @@ class ImportCatalogItems(PTransform):
       raise ValueError(
           'GCP project name needs to be specified in "project" pipeline option')
     return (
-        pcoll | ParDo(_BatchItems(self.max_batch_size)) | ParDo(
+        pcoll | ParDo(GroupIntoBatches(self.max_batch_size)) | ParDo(
             _ImportCatalogItemsFn(
                 self.project,
                 self.retry,
@@ -476,7 +426,7 @@ class ImportUserEvents(PTransform):
       raise ValueError(
           'GCP project name needs to be specified in "project" pipeline option')
     return (
-        pcoll | ParDo(_BatchItems(self.max_batch_size)) | ParDo(
+        pcoll | ParDo(GroupIntoBatches(self.max_batch_size)) | ParDo(
             _ImportUserEventsFn(
                 self.project,
                 self.retry,
