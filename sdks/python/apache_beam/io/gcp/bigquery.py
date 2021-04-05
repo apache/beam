@@ -1243,7 +1243,7 @@ class BigQueryWriteFn(DoFn):
     _KNOWN_TABLES.add(str_table_reference)
 
   def process(self, element, *schema_side_inputs):
-    destination = element[0]
+    destination = bigquery_tools.get_hashable_destination(element[0])
 
     if callable(self.schema):
       schema = self.schema(destination, *schema_side_inputs)
@@ -1254,8 +1254,6 @@ class BigQueryWriteFn(DoFn):
 
     self._create_table_if_needed(
         bigquery_tools.parse_table_reference(destination), schema)
-
-    destination = bigquery_tools.get_hashable_destination(destination)
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
@@ -1431,7 +1429,7 @@ class _StreamToBigQuery(PTransform):
 
     def _restore_table_ref(sharded_table_ref_elems_kv):
       sharded_table_ref = sharded_table_ref_elems_kv[0]
-      table_ref = bigquery_tools.parse_table_reference(sharded_table_ref.key)
+      table_ref = bigquery_tools.parse_table_reference(sharded_table_ref)
       return (table_ref, sharded_table_ref_elems_kv[1])
 
     tagged_data = (
@@ -1439,7 +1437,8 @@ class _StreamToBigQuery(PTransform):
         | 'AppendDestination' >> beam.ParDo(
             bigquery_tools.AppendDestinationsFn(self.table_reference),
             *self.table_side_inputs)
-        | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn()))
+        | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
+        | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref))
 
     if not self.with_auto_sharding:
       tagged_data = (
@@ -1458,14 +1457,14 @@ class _StreamToBigQuery(PTransform):
       # references are restored.
       tagged_data = (
           tagged_data
-          | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref)
           | 'WithAutoSharding' >> beam.GroupIntoBatches.WithShardedKey(
               (self.batch_size or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS),
               DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
-          | 'FromHashableTableRefAndDropShard' >> beam.Map(_restore_table_ref))
+          | 'DropShard' >> beam.Map(lambda kv: (kv[0].key, kv[1])))
 
     return (
         tagged_data
+        | 'FromHashableTableRef' >> beam.Map(_restore_table_ref)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
                 BigQueryWriteFn.FAILED_ROWS, main='main'))
@@ -1543,7 +1542,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         fields, repeated fields, or specifying a BigQuery mode for fields
         (mode will always be set to ``'NULLABLE'``).
         If a callable, then it should receive a destination (in the form of
-        a TableReference or a string, and return a str, dict or TableSchema.
+        a str, and return a str, dict or TableSchema).
         One may also pass ``SCHEMA_AUTODETECT`` here when using JSON-based
         file loads, and BigQuery will try to infer the schema for the files
         that are being loaded.
@@ -1911,6 +1910,10 @@ class ReadFromBigQuery(PTransform):
       To learn more about type conversions between BigQuery and Avro, see:
       https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
               #avro_conversions
+    temp_dataset (``google.cloud.bigquery.dataset.DatasetReference``):
+        The dataset in which to create temporary tables when performing file
+        loads. By default, a new dataset is created in the execution project for
+        temporary tables.
    """
 
   COUNTER = 0

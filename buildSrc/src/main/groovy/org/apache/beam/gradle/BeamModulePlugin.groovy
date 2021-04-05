@@ -23,6 +23,7 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import org.gradle.api.attributes.Category
 import org.gradle.api.GradleException
+import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -512,7 +513,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20210219-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200807-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20210222-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20210217-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20210301-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20210217-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20210208-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20210127-$google_clients_version",
@@ -630,7 +631,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
-        vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
+        vendored_grpc_1_36_0                        : "org.apache.beam:beam-vendor-grpc-1_36_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
@@ -1855,7 +1856,7 @@ class BeamModulePlugin implements Plugin<Project> {
           archivesBaseName: configuration.archivesBaseName,
           automaticModuleName: configuration.automaticModuleName,
           shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-          shadowClosure: GrpcVendoring_1_26_0.shadowClosure() << {
+          shadowClosure: GrpcVendoring_1_36_0.shadowClosure() << {
             // We perform all the code relocations but don't include
             // any of the actual dependencies since they will be supplied
             // by org.apache.beam:beam-vendor-grpc-v1p26p0:0.1
@@ -1875,14 +1876,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_26_0.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_36_0.protobuf_version}" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_26_0.grpc_version}" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_36_0.grpc_version}" }
         }
 
         generateProtoTasks {
@@ -1896,7 +1897,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring_1_26_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_26_0 }
+      project.dependencies GrpcVendoring_1_36_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_36_0 }
     }
 
     /** ***********************************************************************************************/
@@ -2032,8 +2033,16 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
+      def javaContainerSuffix
+      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+        javaContainerSuffix = 'java8'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+        javaContainerSuffix = 'java11'
+      } else {
+        throw new GradleException("unsupported java version.")
+      }
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
-        dependsOn ':sdks:java:container:java8:docker'
+        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"

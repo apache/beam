@@ -1317,6 +1317,28 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(serviceOptions, job.getEnvironment().getServiceOptions());
   }
 
+  @Test
+  public void testHotKeyLoggingEnabledOption() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setHotKeyLoggingEnabled(true);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
+            .getJob();
+
+    assertTrue(job.getEnvironment().getDebugOptions().getEnableHotKeyLogging());
+  }
+
   private static void assertAllStepOutputsHaveUniqueIds(Job job) throws Exception {
     List<String> outputIds = new ArrayList<>();
     for (Step step : job.getSteps()) {

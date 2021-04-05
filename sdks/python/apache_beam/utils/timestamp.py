@@ -133,6 +133,10 @@ class Timestamp(object):
               rfc3339, e))
     return cls.from_utc_datetime(dt)
 
+  def seconds(self) -> int:
+    """Returns the timestamp in seconds."""
+    return self.micros // 1000000
+
   def predecessor(self):
     # type: () -> Timestamp
 

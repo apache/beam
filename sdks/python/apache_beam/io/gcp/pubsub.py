@@ -33,6 +33,7 @@ from typing import Any
 from typing import List
 from typing import NamedTuple
 from typing import Optional
+from typing import Tuple
 
 from future.utils import iteritems
 from past.builtins import unicode
@@ -337,7 +338,7 @@ SUBSCRIPTION_REGEXP = 'projects/([^/]+)/subscriptions/(.+)'
 TOPIC_REGEXP = 'projects/([^/]+)/topics/(.+)'
 
 
-def parse_topic(full_topic):
+def parse_topic(full_topic: str) -> Tuple[str, str]:
   match = re.match(TOPIC_REGEXP, full_topic)
   if not match:
     raise ValueError(
@@ -432,9 +433,9 @@ class _PubSubSink(dataflow_io.NativeSink):
   """
   def __init__(
       self,
-      topic,  # type: str
-      id_label,  # type: Optional[str]
-      timestamp_attribute  # type: Optional[str]
+      topic: str,
+      id_label: Optional[str],
+      timestamp_attribute: Optional[str],
   ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic

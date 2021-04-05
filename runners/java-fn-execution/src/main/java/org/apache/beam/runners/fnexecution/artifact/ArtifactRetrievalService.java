@@ -30,10 +30,10 @@ import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.DefaultArtifactResolver;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 
 /** An {@link ArtifactRetrievalService} that uses {@link FileSystems} as its backing storage. */
 @SuppressWarnings({

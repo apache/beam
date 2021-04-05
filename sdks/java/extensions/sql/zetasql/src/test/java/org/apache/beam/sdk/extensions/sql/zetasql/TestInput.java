@@ -291,6 +291,19 @@ class TestInput {
                       Row.withSchema(STRUCT_SCHEMA).addValues(3L, "3").build())
                   .build());
 
+  public static final TestBoundedTable TABLE_WITH_ARRAY_OF_STRUCT_OF_ARRAY =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("int_col")
+                  .addArrayField("array_col", FieldType.row(STRUCT_OF_ARRAY))
+                  .build())
+          .addRows(10L, ImmutableList.of(Row.withSchema(STRUCT_OF_ARRAY).addArray("a").build()))
+          .addRows(
+              20L,
+              Arrays.asList(
+                  Row.withSchema(STRUCT_OF_ARRAY).addArray("b").build(),
+                  Row.withSchema(STRUCT_OF_ARRAY).addArray("c", "d").build()));
+
   public static final TestBoundedTable TABLE_FOR_CASE_WHEN =
       TestBoundedTable.of(
               Schema.builder().addInt64Field("f_int").addStringField("f_string").build())

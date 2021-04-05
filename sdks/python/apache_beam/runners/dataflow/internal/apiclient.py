@@ -64,7 +64,6 @@ from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.environments import is_apache_beam_container
-from apache_beam.transforms.environments import is_beam_java_container_name
 from apache_beam.utils import retry
 from apache_beam.utils import proto_utils
 
@@ -350,6 +349,9 @@ class Environment(object):
     if self.google_cloud_options.service_options:
       for option in self.google_cloud_options.service_options:
         self.proto.serviceOptions.append(option)
+
+    if self.google_cloud_options.enable_hot_key_logging:
+      self.proto.debugOptions = dataflow.DebugOptions(enableHotKeyLogging=True)
 
   def _get_environments_from_tranforms(self):
     if not self._proto_pipeline:
@@ -719,28 +721,6 @@ class DataflowApplicationClient(object):
       new_payload = copy(docker_payload)
       new_payload.container_image = new_container_image
       environment.payload = new_payload.SerializeToString()
-
-    # De-dup environments that use Java SDK by Docker container image since
-    # currently running multiple Java SDK Harnesses with Dataflow could result
-    # in dependency conflicts.
-    # TODDO(BEAM-9455): remove following restriction when Dataflow supports
-    # environment specific dependency provisioning.
-    container_url_to_env_map = dict()
-    container_url_to_env_id_map = dict()
-    for transform in proto_pipeline.components.transforms.values():
-      environment_id = transform.environment_id
-      if not environment_id:
-        continue
-      environment = proto_pipeline.components.environments[environment_id]
-      docker_payload = proto_utils.parse_Bytes(
-          environment.payload, beam_runner_api_pb2.DockerPayload)
-      image = docker_payload.container_image
-      if is_beam_java_container_name(image):
-        if image in container_url_to_env_map:
-          transform.environment_id = container_url_to_env_id_map[image]
-        else:
-          container_url_to_env_map[image] = environment
-          container_url_to_env_id_map[image] = environment_id
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""

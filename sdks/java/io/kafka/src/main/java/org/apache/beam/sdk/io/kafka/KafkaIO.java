@@ -1212,7 +1212,9 @@ public class KafkaIO {
       // The Read will be expanded into SDF transform when "beam_fn_api" is enabled.
       if (!ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
           || ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
+          || getMaxNumRecords() < Long.MAX_VALUE
+          || getMaxReadTime() != null) {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(

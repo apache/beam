@@ -50,6 +50,7 @@ tasks.rat {
     "**/test.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
+    "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
 
     // Default eclipse excludes neglect subprojects
@@ -214,7 +215,7 @@ task("goPrecommitBuild") {
 }
 
 task("goPortablePreCommit") {
-  dependsOn(":sdks:go:test:ulrValidatesRunnerJenkins")
+  dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
 task("goPostCommit") {

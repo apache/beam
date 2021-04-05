@@ -36,43 +36,30 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
-import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.zetasql.unnest.BeamZetaSqlUncollectRule;
 import org.apache.beam.sdk.extensions.sql.zetasql.unnest.BeamZetaSqlUnnestRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.CallImplementor;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.CalciteCatalogReader;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.util.ChainedSqlOperatorTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
@@ -131,111 +118,6 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
 
   public static Collection<RuleSet> getZetaSqlRuleSets(Collection<RelOptRule> calc) {
     return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets(), calc);
-  }
-
-  /**
-   * Returns true if all the following are true: All RexCalls can be implemented by codegen, All
-   * RexCalls only contain ZetaSQL user-defined Java functions, All RexLiterals pass ZetaSQL
-   * compliance tests, All RexInputRefs pass ZetaSQL compliance tests, No other RexNode types
-   * Otherwise returns false. ZetaSQL user-defined Java functions are in the category whose function
-   * group is equal to {@code SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS}
-   */
-  static boolean hasOnlyJavaUdfInProjects(RelOptRuleCall x) {
-    List<RelNode> resList = x.getRelList();
-    for (RelNode relNode : resList) {
-      if (relNode instanceof LogicalCalc) {
-        LogicalCalc logicalCalc = (LogicalCalc) relNode;
-        for (RexNode rexNode : logicalCalc.getProgram().getExprList()) {
-          if (rexNode instanceof RexCall) {
-            RexCall call = (RexCall) rexNode;
-            final SqlOperator operator = call.getOperator();
-
-            CallImplementor implementor = RexImpTable.INSTANCE.get(operator);
-            if (implementor == null) {
-              // Reject methods with no implementation
-              return false;
-            }
-
-            if (operator instanceof SqlUserDefinedFunction) {
-              SqlUserDefinedFunction udf = (SqlUserDefinedFunction) call.op;
-              if (udf.function instanceof ZetaSqlScalarFunctionImpl) {
-                ZetaSqlScalarFunctionImpl scalarFunction = (ZetaSqlScalarFunctionImpl) udf.function;
-                if (!scalarFunction.functionGroup.equals(
-                    BeamZetaSqlCatalog.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
-                  // Reject ZetaSQL Builtin Scalar Functions
-                  return false;
-                }
-              } else {
-                // Reject other UDFs
-                return false;
-              }
-            } else {
-              // Reject Calcite implementations
-              return false;
-            }
-          } else if (rexNode instanceof RexLiteral) {
-            SqlTypeName typeName = ((RexLiteral) rexNode).getTypeName();
-            switch (typeName) {
-              case NULL:
-              case BOOLEAN:
-              case CHAR:
-              case BINARY:
-              case DECIMAL:
-                break;
-              default:
-                // Reject unsupported literals
-                return false;
-            }
-          } else if (rexNode instanceof RexInputRef) {
-            SqlTypeName typeName = ((RexInputRef) rexNode).getType().getSqlTypeName();
-            switch (typeName) {
-              case BIGINT:
-              case DOUBLE:
-              case BOOLEAN:
-              case VARCHAR:
-              case VARBINARY:
-              case DECIMAL:
-                break;
-              default:
-                // Reject unsupported input ref
-                return false;
-            }
-          } else {
-            // Reject everything else
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Returns false if the argument contains any user-defined Java functions, otherwise returns true.
-   */
-  static boolean hasNoJavaUdfInProjects(RelOptRuleCall x) {
-    List<RelNode> resList = x.getRelList();
-    for (RelNode relNode : resList) {
-      if (relNode instanceof LogicalCalc) {
-        LogicalCalc logicalCalc = (LogicalCalc) relNode;
-        for (RexNode rexNode : logicalCalc.getProgram().getExprList()) {
-          if (rexNode instanceof RexCall) {
-            RexCall call = (RexCall) rexNode;
-            if (call.getOperator() instanceof SqlUserDefinedFunction) {
-              SqlUserDefinedFunction udf = (SqlUserDefinedFunction) call.op;
-              if (udf.function instanceof ZetaSqlScalarFunctionImpl) {
-                ZetaSqlScalarFunctionImpl scalarFunction = (ZetaSqlScalarFunctionImpl) udf.function;
-                if (scalarFunction.functionGroup.equals(
-                    BeamZetaSqlCatalog.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
-                  return false;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    return true;
   }
 
   private static Collection<RuleSet> modifyRuleSetsForZetaSql(

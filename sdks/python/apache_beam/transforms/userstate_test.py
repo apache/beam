@@ -504,6 +504,45 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
     self.assertEqual(['extra'], StatefulDoFnOnDirectRunnerTest.all_records)
 
+  def test_two_timers_one_function(self):
+    class BagStateClearingStatefulDoFn(beam.DoFn):
+
+      BAG_STATE = BagStateSpec('bag_state', StrUtf8Coder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+      EMIT_TWICE_TIMER = TimerSpec('clear_timer', TimeDomain.WATERMARK)
+
+      def process(
+          self,
+          element,
+          bag_state=beam.DoFn.StateParam(BAG_STATE),
+          emit_timer=beam.DoFn.TimerParam(EMIT_TIMER),
+          emit_twice_timer=beam.DoFn.TimerParam(EMIT_TWICE_TIMER)):
+        value = element[1]
+        bag_state.add(value)
+        emit_twice_timer.set(100)
+        emit_timer.set(1000)
+
+      @on_timer(EMIT_TWICE_TIMER)
+      @on_timer(EMIT_TIMER)
+      def emit_values(self, bag_state=beam.DoFn.StateParam(BAG_STATE)):
+        for value in bag_state.read():
+          yield value
+
+    with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(0).add_elements([
+              ('key', 'value')
+          ]).advance_watermark_to(100))
+
+      _ = (
+          p
+          | test_stream
+          | beam.ParDo(BagStateClearingStatefulDoFn())
+          | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(['value', 'value'],
+                     StatefulDoFnOnDirectRunnerTest.all_records)
+
   def test_simple_read_modify_write_stateful_dofn(self):
     class SimpleTestReadModifyWriteStatefulDoFn(DoFn):
       VALUE_STATE = ReadModifyWriteStateSpec('value', StrUtf8Coder())
