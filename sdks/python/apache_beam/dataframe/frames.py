@@ -39,6 +39,7 @@ import math
 import re
 from typing import List
 from typing import Optional
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -948,34 +949,96 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   to_string = frame_base.wont_implement_method(
       pd.Series, 'to_string', reason="non-deferred-result")
 
-  def aggregate(self, func, axis=0, *args, **kwargs):
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def aggregate(self, func, axis, *args, **kwargs):
+    if kwargs.get('skipna', False):
+      # Eagerly generate a proxy to make sure skipna is a valid argument
+      # for this aggregation method
+      _ = self._expr.proxy().aggregate(func, axis, *args, **kwargs)
+      kwargs.pop('skipna')
+      self.dropna().aggregate(func, axis, *args, **kwargs)
+
+    if 'min_count' in kwargs and kwargs['min_count']:
+      # Eagerly generate a proxy to make sure min_count is a valid argument
+      # for this aggregation method
+      _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
+
+      raise NotImplementedError(
+          "aggregate with min_count is not yet supported (BEAM-XXXX)")
+
     if isinstance(func, list) and len(func) > 1:
-      # Aggregate each column separately, then stick them all together.
+      # level arg is ignored for multiple aggregations
+      _ = kwargs.pop('level', None)
+
+      # Aggregate with each method separately, then stick them all together.
       rows = [self.agg([f], *args, **kwargs) for f in func]
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'join_aggregate',
               lambda *rows: pd.concat(rows), [row._expr for row in rows]))
     else:
-      # We're only handling a single column.
+      # We're only handling a single column. It could be 'func' or ['func'],
+      # which produce different results. 'func' produces a scalar, ['func']
+      # produces a single element Series.
       base_func = func[0] if isinstance(func, list) else func
-      if _is_associative(base_func) and not args and not kwargs:
+
+      if (_is_numeric(base_func) and
+          not pd.core.dtypes.common.is_numeric_dtype(self.dtype)):
+        warnings.warn(
+            f"Performing a numeric aggregation, {base_func!r}, on "
+            f"Series {self._expr.proxy().name!r} with non-numeric type "
+            f"{self.dtype!r}. This can result in runtime errors or surprising "
+            "results.")
+
+      if 'level' in kwargs:
+        # Defer to groupby.agg for level= mode
+        return self.groupby(
+            level=kwargs.pop('level'), axis=axis).agg(func, *args, **kwargs)
+
+      agg_kwargs = kwargs.copy()
+      if _is_associative(base_func):
+        preserves = partitionings.Singleton()
+        agg_requires = partitionings.Singleton()
+
         intermediate = expressions.ComputedExpression(
             'pre_aggregate',
-            lambda s: s.agg([base_func], *args, **kwargs), [self._expr],
+            # Coerce to a Series, if the result is scalar we still want a Series
+            # so we can combine and do the final aggregation next.
+            lambda s: pd.Series(s.agg(func, *args, **kwargs)),
+            [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
-            preserves_partition_by=partitionings.Singleton())
+            preserves_partition_by=preserves)
         allow_nonparallel_final = True
+        agg_func = func
+      # TODO(BEAM-XXX): Lift count/size aggregations. Unfortunately this doesn't
+      # work as-is in every case because the final sum() drops N/A keys.  Users
+      # can accomplish the same thing with groupby(dropna=False).count
+      elif _is_liftable_with_sum(base_func):
+        preserves = partitionings.Singleton()
+        agg_requires = partitionings.Singleton()
+
+        intermediate = expressions.ComputedExpression(
+            'pre_aggregate',
+            # Coerce to a Series, if the result is scalar we still want a Series
+            # so we can combine and do the final aggregation later.
+            lambda s: pd.Series(s.agg(func, *args, **kwargs)),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=preserves)
+        allow_nonparallel_final = True
+        agg_func = ['sum'] if isinstance(func, list) else 'sum'
       else:
         intermediate = self._expr
         allow_nonparallel_final = None  # i.e. don't change the value
+        agg_requires = partitionings.Singleton()
+        agg_func = func
       with expressions.allow_non_parallel_operations(allow_nonparallel_final):
         return frame_base.DeferredFrame.wrap(
             expressions.ComputedExpression(
                 'aggregate',
-                lambda s: s.agg(func, *args, **kwargs),
-                [intermediate],
-                preserves_partition_by=partitionings.Arbitrary(),
+                lambda s: s.agg(agg_func, *args, **agg_kwargs), [intermediate],
+                preserves_partition_by=partitionings.Singleton(),
                 # TODO(BEAM-11839): This reason should be more specific. It's
                 # actually incorrect for the args/kwargs case above.
                 requires_partition_by=partitionings.Singleton(
@@ -994,6 +1057,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
+  # TODO(BEAM-11777): Document that Series.count(level=) will drop NaN's
   count = frame_base._agg_method('count')
   min = frame_base._agg_method('min')
   max = frame_base._agg_method('max')
@@ -1428,7 +1492,27 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=preserves,
             requires_partition_by=partitionings.Arbitrary()))
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   def aggregate(self, func, axis=0, *args, **kwargs):
+    if 'numeric_only' in kwargs and kwargs['numeric_only']:
+      # Eagerly generate a proxy to make sure numeric_only is a valid argument
+      # for this aggregation method
+      _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
+
+      projected = self[[name for name, dtype in self.dtypes.items() if pd.core.dtypes.common.is_numeric_dtype(dtype)]]
+      kwargs.pop('numeric_only')
+      return projected.agg(func, axis, *args, **kwargs)
+
+    if 'bool_only' in kwargs and kwargs['bool_only']:
+      # Eagerly generate a proxy to make sure bool_only is a valid argument
+      # for this aggregation method
+      _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
+
+      projected = self[[name for name, dtype in self.dtypes.items() if pd.core.dtypes.common.is_bool_dtype(dtype)]]
+      kwargs.pop('bool_only')
+      return projected.agg(func, axis, *args, **kwargs)
+
     if axis is None:
       # Aggregate across all elements by first aggregating across columns,
       # then across rows.
@@ -1442,8 +1526,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               lambda df: df.agg(func, axis=1, *args, **kwargs),
               [self._expr],
               requires_partition_by=partitionings.Arbitrary()))
-    elif len(self._expr.proxy().columns) == 0 or args or kwargs:
-      # For these corner cases, just colocate everything.
+    elif len(self._expr.proxy().columns) == 0: # or args or kwargs:
+      # For this corner case, just colocate everything.
       return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'aggregate',
@@ -1460,15 +1544,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         col_names = list(func.keys())
       aggregated_cols = []
+      has_lists = any(isinstance(f, list) for f in func.values())
       for col in col_names:
         funcs = func[col]
-        if not isinstance(funcs, list):
+        if has_lists and not isinstance(funcs, list):
+          # If any of the columns do multiple aggregations, they all must use
+          # "list" style output
           funcs = [funcs]
         aggregated_cols.append(self[col].agg(funcs, *args, **kwargs))
       # The final shape is different depending on whether any of the columns
       # were aggregated by a list of aggregators.
       with expressions.allow_non_parallel_operations():
-        if any(isinstance(funcs, list) for funcs in func.values()):
+        if any(isinstance(funcs, list) for funcs in func.values()) or 'level' in kwargs:
           return frame_base.DeferredFrame.wrap(
               expressions.ComputedExpression(
                   'join_aggregate',
@@ -1481,7 +1568,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             expressions.ComputedExpression(
                 'join_aggregate',
                   lambda *cols: pd.Series(
-                      {col: value[0] for col, value in zip(col_names, cols)}),
+                      {col: value for col, value in zip(col_names, cols)}),
                 [col._expr for col in aggregated_cols],
                 requires_partition_by=partitionings.Singleton(),
                 proxy=self._expr.proxy().agg(func, *args, **kwargs)))
@@ -2321,18 +2408,23 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._grouping_indexes,
         projection=name)
 
-  def agg(self, fn):
-    if not callable(fn):
-      # TODO: Add support for strings in (UN)LIFTABLE_AGGREGATIONS. Test by
-      # running doctests for pandas.core.groupby.generic
-      raise NotImplementedError('GroupBy.agg currently only supports callable '
-                                'arguments')
-    return DeferredDataFrame(
-        expressions.ComputedExpression(
-            'agg',
-            lambda gb: gb.agg(fn), [self._expr],
-            requires_partition_by=partitionings.Index(),
-            preserves_partition_by=partitionings.Singleton()))
+  def agg(self, fn, *args, **kwargs):
+    if callable(fn):
+      return DeferredDataFrame(
+          expressions.ComputedExpression(
+              'agg',
+              lambda gb: gb.agg(fn, *args, **kwargs), [self._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Singleton()))
+    elif _is_associative(fn):
+      return _liftable_agg(fn)(self, *args, **kwargs)
+    elif _is_liftable_with_sum(fn):
+      return _liftable_agg(fn, postagg_meth='sum')(self, *args, **kwargs)
+    elif _is_unliftable(fn):
+      return _unliftable_agg(fn)(self, *args, **kwargs)
+    else:
+      raise NotImplementedError(f"GroupBy.agg(func={fn!r})")
+
 
   def apply(self, fn, *args, **kwargs):
     if self._grouping_columns and not self._projection:
@@ -2529,12 +2621,26 @@ for meth in LIFTABLE_WITH_SUM_AGGREGATIONS:
 for meth in UNLIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
-
-def _is_associative(agg_func):
-  return agg_func in LIFTABLE_AGGREGATIONS or (
-      getattr(agg_func, '__name__', None) in LIFTABLE_AGGREGATIONS
+def _check_str_or_np_builtin(agg_func, func_list):
+  return agg_func in func_list or (
+      getattr(agg_func, '__name__', None) in func_list
       and agg_func.__module__ in ('numpy', 'builtins'))
 
+
+def _is_associative(agg_func):
+  return _check_str_or_np_builtin(agg_func, LIFTABLE_AGGREGATIONS)
+
+def _is_liftable_with_sum(agg_func):
+  return _check_str_or_np_builtin(agg_func, LIFTABLE_WITH_SUM_AGGREGATIONS)
+
+def _is_unliftable(agg_func):
+  return _check_str_or_np_builtin(agg_func, UNLIFTABLE_AGGREGATIONS)
+
+NUMERIC_AGGREGATIONS = ['max', 'min', 'prod', 'sum', 'mean', 'median', 'std',
+                        'var']
+
+def _is_numeric(agg_func):
+  return _check_str_or_np_builtin(agg_func, NUMERIC_AGGREGATIONS)
 
 
 @populate_not_implemented(DataFrameGroupBy)
