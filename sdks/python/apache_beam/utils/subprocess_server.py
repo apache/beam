@@ -205,12 +205,18 @@ class JavaJarServer(SubprocessServer):
     ])
 
   @classmethod
-  def path_to_beam_jar(cls, gradle_target, appendix=None, version=beam_version):
+  def path_to_beam_jar(
+      cls,
+      gradle_target,
+      appendix=None,
+      version=beam_version,
+      artifact_id=None):
     if gradle_target in cls._BEAM_SERVICES.replacements:
       return cls._BEAM_SERVICES.replacements[gradle_target]
 
     gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
-    artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    if not artifact_id:
+      artifact_id = 'beam-' + gradle_package.replace(':', '-')
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
     local_path = os.path.join(
