@@ -53,6 +53,23 @@ class ReadCache:
     """Reads cache of the cacheable PCollection and wires the cache into the
     pipeline proto. Returns the pipeline-scoped ids of the cacheable PCollection
     and the cache reading output PCollection that replaces it.
+
+    First, it creates a temporary pipeline instance on top of the existing
+    component_id_map from the self._pipeline's context so that both pipelines
+    share the context and have no conflict component ids.
+    Second, it instantiates a _ReadCacheTransform to build the temporary
+    pipeline with a subgraph under top level transforms that reads the cache of
+    a cacheable PCollection.
+    Third, it copies components of the subgraph from the temporary pipeline to
+    self._pipeline, skipping components that are not in the temporary pipeline
+    but presents in the component_id_map of self._pipeline. Since to_runner_api
+    generates components for all entries in the component_id_map, those
+    component ids from the context shared by self._pipeline need to be ignored.
+    Last, it replaces inputs of all transforms that consume the cacheable
+    PCollection with the output PCollection of the _ReadCacheTransform so that
+    the whole pipeline computes with data from the cache. The pipeline
+    fragment of reading the cacheable PCollection is now disconnected from the
+    rest of the pipeline and can be pruned later.
     """
     template, read_output = self._build_runner_api_template()
     output_id = self._context.pcollections.get_id(read_output)
@@ -69,8 +86,8 @@ class ReadCache:
       self._pipeline.components.coders[coder_id].CopyFrom(
           template.components.coders[coder_id])
     for windowing_strategy_id in template.components.windowing_strategies:
-      if windowing_strategy_id in \
-          self._pipeline.components.windowing_strategies:
+      if (windowing_strategy_id in
+          self._pipeline.components.windowing_strategies):
         continue
       self._pipeline.components.windowing_strategies[
           windowing_strategy_id].CopyFrom(

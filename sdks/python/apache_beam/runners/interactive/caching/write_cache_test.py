@@ -44,14 +44,15 @@ class WriteCacheTest(unittest.TestCase):
     ie.current_env().set_cache_manager(cache_manager, p)
     aug_p = ap.AugmentedPipeline(p)
     key = repr(aug_p._cacheables[pcoll].to_key())
+    pipeline_proto = p.to_runner_api()
 
     # Write cache on the pipeline proto.
     write_cache.WriteCache(
-        aug_p._pipeline,
+        pipeline_proto,
         aug_p._context,
         aug_p._cache_manager,
         aug_p._cacheables[pcoll]).write_cache()
-    actual_pipeline = aug_p._pipeline
+    actual_pipeline = pipeline_proto
 
     # Write cache directly on the piepline instance.
     label = '{}{}'.format('_cache_', key)

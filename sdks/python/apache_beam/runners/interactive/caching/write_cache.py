@@ -53,6 +53,24 @@ class WriteCache:
 
   def write_cache(self) -> None:
     """Writes cache for the cacheable PCollection that is being computed.
+
+    First, it creates a temporary pipeline instance on top of the existing
+    component_id_map from self._pipeline's context so that both pipelines
+    share the context and have no conflict component ids.
+    Second, it creates a _PCollectionPlaceHolder in the temporary pipeline that
+    mimics the attributes of the cacheable PCollection to be written into cache.
+    It also marks all components in the current temporary pipeline as
+    ignorable when later copying components to self._pipeline.
+    Third, it instantiates a _WriteCacheTransform that uses the
+    _PCollectionPlaceHolder as the input. This adds a subgraph under top level
+    transforms that writes the _PCollectionPlaceHolder into cache.
+    Fourth, it copies components of the subgraph from the temporary pipeline to
+    self._pipeline, skipping components that are ignored in the temporary
+    pipeline and components that are not in the temporary pipeline but presents
+    in the component_id_map of self._pipeline.
+    Last, it replaces inputs of all transforms that consume the
+    _PCollectionPlaceHolder with the cacheable PCollection to be written to
+    cache.
     """
     template, write_input_placeholder = self._build_runner_api_template()
     input_placeholder_id = self._context.pcollections.get_id(
