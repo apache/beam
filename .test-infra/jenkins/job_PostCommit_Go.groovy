@@ -36,7 +36,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go', 'Run Go PostCommit',
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':goPostCommit')
-          switches("-Pjenkins")
           commonJobProperties.setGradleSwitches(delegate)
           switches('--no-parallel')
         }
