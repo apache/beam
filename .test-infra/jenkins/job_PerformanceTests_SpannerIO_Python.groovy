@@ -93,7 +93,7 @@ def spannerio_read_test_2gb = [
     influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     input_options        : '\'{' +
-    '"num_records": 10485760,' +
+    '"num_records": 2097152,' +
     '"key_size": 1,' +
     '"value_size": 1024}\'',
     num_workers          : 5,
@@ -119,7 +119,7 @@ def spannerio_write_test_2gb = [
     influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     input_options        : '\'{' +
-    '"num_records": 10485760,' +
+    '"num_records": 2097152,' +
     '"key_size": 1,' +
     '"value_size": 1024}\'',
     num_workers          : 5,
