@@ -770,23 +770,17 @@ public class SelectTest {
     String userId = "user";
     String street = "street";
     String city = "city";
-    String bank1_1 = "bank1_1";
-    String bank1_2 = "bank1_2";
-    String bank2_1 = "bank2_1";
-    String bank2_2 = "bank2_2";
+    String bank1 = "bank1_1";
+    String bank2 = "bank1_2";
+    String bank3 = "bank2_1";
+    String bank4 = "bank2_2";
     double purchaseAmount1 = 1.0;
     double purchaseAmount2 = 2.0;
 
     Row transactionOne =
-        Row.withSchema(transactionSchema)
-            .addArray(bank1_1, bank1_2)
-            .addValue(purchaseAmount1)
-            .build();
+        Row.withSchema(transactionSchema).addArray(bank1, bank2).addValue(purchaseAmount1).build();
     Row transactionTwo =
-        Row.withSchema(transactionSchema)
-            .addArray(bank2_1, bank2_2)
-            .addValue(purchaseAmount2)
-            .build();
+        Row.withSchema(transactionSchema).addArray(bank3, bank4).addValue(purchaseAmount2).build();
     Row address = Row.withSchema(shippingAddressSchema).addValues(street, city).build();
     Row row =
         Row.withSchema(nestedSchema)
@@ -810,7 +804,7 @@ public class SelectTest {
     Row expectedUnnestedRow =
         Row.withSchema(unnested.getSchema())
             .addValues(userId, street, city)
-            .addArray(Arrays.asList(bank1_1, bank1_2), Arrays.asList(bank2_1, bank2_2))
+            .addArray(Arrays.asList(bank1, bank2), Arrays.asList(bank3, bank4))
             .addArray(purchaseAmount1, purchaseAmount2)
             .build();
     PAssert.that(unnested).containsInAnyOrder(expectedUnnestedRow);
@@ -853,31 +847,25 @@ public class SelectTest {
             .addArrayField("transactions", Schema.FieldType.row(transactionSchema))
             .build();
 
-    String bankName1_1 = "bank1_1";
-    String bankName1_2 = "bank1_2";
-    String bankName2_1 = "bank2_1";
-    String bankName2_2 = "bank2_2";
-    String bankAddress1_1 = "address1_1";
-    String bankAddress1_2 = "address1_2";
-    String bankAddress2_1 = "address2_1";
-    String bankAddress2_2 = "address2_2";
+    String bankName1 = "bank1_1";
+    String bankName2 = "bank1_2";
+    String bankName3 = "bank2_1";
+    String bankName4 = "bank2_2";
+    String bankAddress1 = "address1_1";
+    String bankAddress2 = "address1_2";
+    String bankAddress3 = "address2_1";
+    String bankAddress4 = "address2_2";
     double purchaseAmount1 = 1.0;
     double purchaseAmount2 = 2.0;
 
-    Row bank1_1 = Row.withSchema(banksSchema).addValues(bankName1_1, bankAddress1_1).build();
-    Row bank1_2 = Row.withSchema(banksSchema).addValues(bankName1_2, bankAddress1_2).build();
-    Row bank2_1 = Row.withSchema(banksSchema).addValues(bankName2_1, bankAddress2_1).build();
-    Row bank2_2 = Row.withSchema(banksSchema).addValues(bankName2_2, bankAddress2_2).build();
+    Row bank1 = Row.withSchema(banksSchema).addValues(bankName1, bankAddress1).build();
+    Row bank2 = Row.withSchema(banksSchema).addValues(bankName2, bankAddress2).build();
+    Row bank3 = Row.withSchema(banksSchema).addValues(bankName3, bankAddress3).build();
+    Row bank4 = Row.withSchema(banksSchema).addValues(bankName4, bankAddress4).build();
     Row transactionOne =
-        Row.withSchema(transactionSchema)
-            .addArray(bank1_1, bank1_2)
-            .addValue(purchaseAmount1)
-            .build();
+        Row.withSchema(transactionSchema).addArray(bank1, bank2).addValue(purchaseAmount1).build();
     Row transactionTwo =
-        Row.withSchema(transactionSchema)
-            .addArray(bank2_1, bank2_2)
-            .addValue(purchaseAmount2)
-            .build();
+        Row.withSchema(transactionSchema).addArray(bank3, bank4).addValue(purchaseAmount2).build();
     Row row = Row.withSchema(nestedSchema).addArray(transactionOne, transactionTwo).build();
 
     PCollection<Row> unnested =
@@ -894,11 +882,10 @@ public class SelectTest {
     Row expectedUnnestedRow =
         Row.withSchema(unnested.getSchema())
             .addArray(purchaseAmount1, purchaseAmount2)
+            .addArray(Arrays.asList(bankName1, bankName2), Arrays.asList(bankName3, bankName4))
             .addArray(
-                Arrays.asList(bankName1_1, bankName1_2), Arrays.asList(bankName2_1, bankName2_2))
-            .addArray(
-                Arrays.asList(bankAddress1_1, bankAddress1_2),
-                Arrays.asList(bankAddress2_1, bankAddress2_2))
+                Arrays.asList(bankAddress1, bankAddress2),
+                Arrays.asList(bankAddress3, bankAddress4))
             .build();
     PAssert.that(unnested).containsInAnyOrder(expectedUnnestedRow);
 
