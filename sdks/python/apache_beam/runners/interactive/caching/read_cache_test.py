@@ -52,8 +52,9 @@ class ReadCacheTest(unittest.TestCase):
     # Capture the applied transform of the consumer_transform.
     pcoll_id = aug_p._context.pcollections.get_id(pcoll)
     consumer_transform_id = None
-    for transform_id, transform in \
-        aug_p._pipeline.components.transforms.items():
+    pipeline_proto = p.to_runner_api()
+    for (transform_id,
+         transform) in pipeline_proto.components.transforms.items():
       if pcoll_id in transform.inputs.values():
         consumer_transform_id = transform_id
         break
@@ -61,9 +62,9 @@ class ReadCacheTest(unittest.TestCase):
 
     # Read cache on the pipeline proto.
     _, cache_id = read_cache.ReadCache(
-        aug_p._pipeline, aug_p._context, aug_p._cache_manager,
+        pipeline_proto, aug_p._context, aug_p._cache_manager,
         aug_p._cacheables[pcoll]).read_cache()
-    actual_pipeline = aug_p._pipeline
+    actual_pipeline = pipeline_proto
 
     # Read cache directly on the pipeline instance.
     label = '{}{}'.format('_cache_', key)

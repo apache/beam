@@ -63,17 +63,14 @@ class AugmentedPipeline:
     if background_caching_job.has_source_to_cache(self._user_pipeline):
       self._cache_manager = ie.current_env().get_cache_manager(
           self._user_pipeline)
-    self._pipeline, self._context = self._user_pipeline.to_runner_api(
-        return_context=True)
+    _, self._context = self._user_pipeline.to_runner_api(return_context=True)
     self._context.component_id_map = copy.copy(
         self._user_pipeline.component_id_map)
     self._cacheables = self.cacheables()
-    self._augmented = False
 
   @property
   def augmented_pipeline(self) -> beam_runner_api_pb2.Pipeline:
-    assert self._augmented, 'Call augment() before retrieving the value.'
-    return self._pipeline
+    return self.augment()
 
   # TODO(BEAM-10708): Support generating a background recording job that
   # contains unbound source recording transforms only.
@@ -100,14 +97,12 @@ class AugmentedPipeline:
               producer_version=str(id(val.producer)))
     return c
 
-  def augment(self) -> 'AugmentedPipeline':
-    """Augments the pipeline with cache. Idempotent and returns self.
+  def augment(self) -> beam_runner_api_pb2.Pipeline:
+    """Augments the pipeline with cache. Always calculates a new result.
 
     For a cacheable PCollection, if cache exists, read cache; else, write cache.
     """
-    if self._augmented:
-      return self
-    self._augmented = True
+    pipeline = self._user_pipeline.to_runner_api()
 
     # Find pcolls eligible for reading or writing cache.
     readcache_pcolls = set()
@@ -122,16 +117,16 @@ class AugmentedPipeline:
     # Wire in additional transforms to read cache and write cache.
     for readcache_pcoll in readcache_pcolls:
       ReadCache(
-          self._pipeline,
+          pipeline,
           self._context,
           self._cache_manager,
           self._cacheables[readcache_pcoll]).read_cache()
     for writecache_pcoll in writecache_pcolls:
       WriteCache(
-          self._pipeline,
+          pipeline,
           self._context,
           self._cache_manager,
           self._cacheables[writecache_pcoll]).write_cache()
     # TODO(BEAM-10708): Support streaming, add pruning logic, and integrate
     # pipeline fragment logic.
-    return self
+    return pipeline

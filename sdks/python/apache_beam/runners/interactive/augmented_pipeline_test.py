@@ -81,13 +81,6 @@ class AugmentTest(unittest.TestCase):
         AssertionError,
         lambda: ap.AugmentedPipeline(p, (cacheable_from_p, cacheable_from_p2)))
 
-  def test_error_retrieve_b4_augment(self):
-    p = beam.Pipeline()
-    ib.watch(locals())
-
-    aug_p = ap.AugmentedPipeline(p)
-    self.assertRaises(AssertionError, lambda: aug_p.augmented_pipeline)
-
 
 if __name__ == '__main__':
   unittest.main()
