@@ -60,6 +60,7 @@ import org.apache.beam.sdk.nexmark.queries.Query1;
 import org.apache.beam.sdk.nexmark.queries.Query10;
 import org.apache.beam.sdk.nexmark.queries.Query11;
 import org.apache.beam.sdk.nexmark.queries.Query12;
+import org.apache.beam.sdk.nexmark.queries.Query13;
 import org.apache.beam.sdk.nexmark.queries.Query1Model;
 import org.apache.beam.sdk.nexmark.queries.Query2;
 import org.apache.beam.sdk.nexmark.queries.Query2Model;
@@ -1407,6 +1408,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.SESSION_SIDE_INPUT_JOIN,
             new NexmarkQuery(configuration, new SessionSideInputJoin(configuration)))
+        .put(
+            NexmarkQueryName.PORTABILITY_BATCH,
+            new NexmarkQuery(configuration, new Query13(configuration)))
         .build();
   }
 
