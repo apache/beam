@@ -3840,4 +3840,69 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
+
+  @Test
+  public void testCountEmpty() {
+    String sql = "SELECT COUNT(x) FROM UNNEST([]) AS x";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValue(0L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testBitwiseOrEmpty() {
+    String sql = "SELECT BIT_OR(x) FROM UNNEST([]) AS x";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValue((Long) null).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testArrayAggNulls() {
+    String sql = "SELECT ARRAY_AGG(x) FROM UNNEST([1, NULL, 3]) AS x";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addField(Field.of("field1", FieldType.array(FieldType.of(Schema.TypeName.INT64).withNullable(true)))).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addArray(1L, (Long) null, 3L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testInt64SumOverflow() {
+    String sql = "SELECT SUM(col1)\n" +
+        "FROM (SELECT CAST(9223372036854775807 as int64) as col1 UNION ALL\n" +
+        "      SELECT CAST(1 as int64))\n";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    thrown.expect(RuntimeException.class);
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testInt64SumUnderflow() {
+    String sql = "SELECT SUM(col1)\n" +
+        "FROM (SELECT CAST(-9223372036854775808 as int64) as col1 UNION ALL\n" +
+        "      SELECT CAST(-1 as int64))\n";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    thrown.expect(RuntimeException.class);
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
 }
