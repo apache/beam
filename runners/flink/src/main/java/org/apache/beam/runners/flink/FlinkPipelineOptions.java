@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
-import java.util.List;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -32,25 +32,11 @@ import org.apache.beam.sdk.options.StreamingOptions;
  * requiring flink on the classpath (e.g. to use with the direct runner).
  */
 public interface FlinkPipelineOptions
-    extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
+    extends PipelineOptions, ApplicationNameOptions, StreamingOptions, FileStagingOptions {
 
   String AUTO = "[auto]";
   String PIPELINED = "PIPELINED";
   String EXACTLY_ONCE = "EXACTLY_ONCE";
-
-  /**
-   * List of local files to make available to workers.
-   *
-   * <p>Jars are placed on the worker's classpath.
-   *
-   * <p>The default value is the list of jars from the main program's classpath.
-   */
-  @Description(
-      "Jar-Files to send to all workers and put on the classpath. "
-          + "The default value is all files from the classpath.")
-  List<String> getFilesToStage();
-
-  void setFilesToStage(List<String> value);
 
   /**
    * The url of the Flink JobManager on which to execute pipelines. This can either be the the

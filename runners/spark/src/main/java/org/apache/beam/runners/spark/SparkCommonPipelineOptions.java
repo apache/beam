@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
@@ -35,7 +36,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
  * master address, and other user-related knobs.
  */
 public interface SparkCommonPipelineOptions
-    extends PipelineOptions, StreamingOptions, ApplicationNameOptions {
+    extends PipelineOptions, StreamingOptions, ApplicationNameOptions, FileStagingOptions {
+
   String DEFAULT_MASTER_URL = "local[4]";
 
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
@@ -51,20 +53,6 @@ public interface SparkCommonPipelineOptions
   String getCheckpointDir();
 
   void setCheckpointDir(String checkpointDir);
-
-  /**
-   * List of local files to make available to workers.
-   *
-   * <p>Jars are placed on the worker's classpath.
-   *
-   * <p>The default value is the list of jars from the main program's classpath.
-   */
-  @Description(
-      "Jar-Files to send to all workers and put on the classpath. "
-          + "The default value is all files from the classpath.")
-  List<String> getFilesToStage();
-
-  void setFilesToStage(List<String> value);
 
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
