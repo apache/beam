@@ -1105,10 +1105,12 @@ def get_container_image_from_options(pipeline_options):
   version = '%s%s' % (sys.version_info[0:2])
   tag = _get_required_container_version(use_fnapi)
 
+  # Use GCR SDK harness for FnAPI pipelines
   if use_fnapi:
     return f'{repository}/beam_python{version}_sdk:{tag}'
-  else: 
-    return f'{repository}/python{version}_sdk:{tag}'
+
+  # Legacy worker URL
+  return f'{repository}/python{version}_sdk:{tag}'
 
 def _get_required_container_version(use_fnapi):
   """For internal use only; no backwards-compatibility guarantees.
