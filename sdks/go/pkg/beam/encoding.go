@@ -270,7 +270,7 @@ func timeEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
 		t := iface.(time.Time)
 		// We use the text marshalling rather than the binary marshalling
 		// since it has more precision. Apparently some info isn't included
-		// in the binary marshal.g4d
+		// in the binary marshal.
 		data, err := t.MarshalText()
 		if err != nil {
 			return fmt.Errorf("marshalling time: %v", err)
