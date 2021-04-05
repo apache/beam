@@ -57,8 +57,9 @@ class DeferredFrameTest(unittest.TestCase):
 
     session_type = (
         expressions.PartitioningSession if distributed else expressions.Session)
+
     try:
-      actual = session_type({}).evaluate(func(*deferred_args)._expr)
+      expr = func(*deferred_args)._expr
     except Exception as e:
       if not expect_error:
         raise
@@ -66,8 +67,11 @@ class DeferredFrameTest(unittest.TestCase):
     else:
       if expect_error:
         raise AssertionError(
-            "Expected an error:\n{expected}\nbut successfully "
-            f"returned:\n{actual}")
+            "Expected an error:\n{expected}\nbut an expression was "
+            "successfully generated")
+      else:
+        # Successfully generated the expression, now execute it
+        actual = session_type({}).evaluate(expr)
 
     if expect_error:
       if not isinstance(actual,
@@ -85,14 +89,19 @@ class DeferredFrameTest(unittest.TestCase):
             expected = expected.sort_values(list(expected.columns))
             actual = actual.sort_values(list(actual.columns))
 
-        if isinstance(expected, pd.Series):
-          pd.testing.assert_series_equal(expected, actual)
-        elif isinstance(expected, pd.DataFrame):
-          pd.testing.assert_frame_equal(expected, actual)
-        else:
-          raise ValueError(
-              f"Expected value is a {type(expected)},"
-              "not a Series or DataFrame.")
+        try:
+          if isinstance(expected, pd.Series):
+            pd.testing.assert_series_equal(expected, actual)
+          elif isinstance(expected, pd.DataFrame):
+            pd.testing.assert_frame_equal(expected, actual)
+          else:
+            raise ValueError(
+                f"Expected value is a {type(expected)},"
+                "not a Series or DataFrame.")
+        except AssertionError as e:
+          raise AssertionError(
+              "Output isn't equal to the expected value!\n"
+              f"Expected:\n{expected}\n\nActual:\n{actual}") from e
       else:
         # Expectation is not a pandas object
         if isinstance(expected, float):
