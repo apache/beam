@@ -267,7 +267,7 @@ Pre-Commit Tests Status (on master branch)
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PreCommit_GoPortable_Cron/lastCompletedBuild/">
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PreCommit_GoPortable_Cron/lastCompletedBuild/badge/icon">
-        </a>  
+        </a>
       </td>
       <td>---</td>
       <td>---</td>
