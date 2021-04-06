@@ -27,9 +27,6 @@ when running the workflow for remote execution.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import subprocess
 from distutils.command.build import build as _build  # type: ignore
 
