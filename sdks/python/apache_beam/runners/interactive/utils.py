@@ -207,7 +207,7 @@ class ProgressIndicator(object):
       else:
         display(self._enter_text)
     except ImportError as e:
-      _LOGGER.warning(
+      _LOGGER.error(
           'Please use interactive Beam features in an IPython'
           'or notebook environment: %s' % e)
 
@@ -226,7 +226,7 @@ class ProgressIndicator(object):
       else:
         display(self._exit_text)
     except ImportError as e:
-      _LOGGER.warning(
+      _LOGGER.error(
           'Please use interactive Beam features in an IPython'
           'or notebook environment: %s' % e)
 

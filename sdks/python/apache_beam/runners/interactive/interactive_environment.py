@@ -195,7 +195,7 @@ class InteractiveEnvironment(object):
     if self._is_in_ipython and not self._is_in_notebook:
       _LOGGER.warning(
           'You have limited Interactive Beam features since your '
-          'ipython kernel is not connected any notebook frontend.')
+          'ipython kernel is not connected to any notebook frontend.')
     if self._is_in_notebook:
       self.load_jquery_with_datatable()
       register_ipython_log_handler()
