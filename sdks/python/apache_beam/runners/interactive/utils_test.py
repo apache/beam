@@ -20,6 +20,7 @@ from __future__ import absolute_import
 import json
 import logging
 import unittest
+from unittest.mock import PropertyMock
 from unittest.mock import patch
 
 import numpy as np
@@ -30,6 +31,7 @@ from apache_beam import coders
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
+from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
@@ -190,8 +192,14 @@ class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
 
-  def test_progress_in_plain_text_when_not_in_notebook(self):
-    ie.current_env()._is_in_notebook = False
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.is_in_notebook',
+      new_callable=PropertyMock)
+  def test_progress_in_plain_text_when_not_in_notebook(
+      self, mocked_is_in_notebook, unused):
+    mocked_is_in_notebook.return_value = False
 
     with patch('IPython.core.display.display') as mocked_display:
 
@@ -202,9 +210,14 @@ class ProgressIndicatorTest(unittest.TestCase):
       progress_indicated_dummy()
       mocked_display.assert_any_call('Done.')
 
-  def test_progress_in_HTML_JS_when_in_notebook(self):
-    ie.current_env()._is_in_ipython = True
-    ie.current_env()._is_in_notebook = True
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.is_in_notebook',
+      new_callable=PropertyMock)
+  def test_progress_in_HTML_JS_when_in_notebook(
+      self, mocked_is_in_notebook, unused):
+    mocked_is_in_notebook.return_value = True
 
     with patch('IPython.core.display.HTML') as mocked_html,\
       patch('IPython.core.display.Javascript') as mocked_js:
