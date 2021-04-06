@@ -920,10 +920,10 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.set_index(['group', 'foo']).agg(['min', 'max'], level=0),
         GROUPBY_DF)
 
-
   @parameterized.expand([(True, ), (False, ), (None, )])
-  @unittest.skipIf(PD_VERSION < (1, 2),
-                   "pandas 1.1.0 produces different dtypes for these examples")
+  @unittest.skipIf(
+      PD_VERSION < (1, 2),
+      "pandas 1.1.0 produces different dtypes for these examples")
   def test_dataframe_agg_numeric_only(self, numeric_only):
     # Note other aggregation functions can fail on this input with
     # numeric_only={False,None}. These are the only ones that actually work for
@@ -963,8 +963,7 @@ class DeferredFrameTest(unittest.TestCase):
   @unittest.skip(
       "pandas doesn't implement bool_only= with level= "
       "(https://github.com/pandas-dev/pandas/blob/"
-      "v1.2.3/pandas/core/generic.py#L10573)"
-  )
+      "v1.2.3/pandas/core/generic.py#L10573)")
   def test_dataframe_agg_level_bool_only(self):
     df = pd.DataFrame({
         'all': [True for i in range(10)],
