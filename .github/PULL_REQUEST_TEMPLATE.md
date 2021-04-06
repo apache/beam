@@ -32,11 +32,15 @@ Post-Commit Tests Status (on master branch)
       <td>Go</td>
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Go/lastCompletedBuild/">
-          <img src="https://ci-beam.apache.org/job/beam_PostCommit_Go/lastCompletedBuild/badge/icon">
+          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Go/lastCompletedBuild/badge/icon">
         </a>
       </td>
       <td>---</td>
-      <td>---</td>
+      <td>
+        <a href="https://ci-beam.apache.org/job/beam_PostCommit_Go/lastCompletedBuild/">
+          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Go/lastCompletedBuild/badge/icon">
+        </a>
+      </td>
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Go_VR_Flink/lastCompletedBuild/">
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Go_VR_Flink/lastCompletedBuild/badge/icon">
@@ -260,7 +264,11 @@ Pre-Commit Tests Status (on master branch)
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PreCommit_Portable_Python_Cron/lastCompletedBuild/badge/icon">
         </a>
       </td>
-      <td>---</td>
+      <td>
+        <a href="https://ci-beam.apache.org/job/beam_PreCommit_GoPortable_Cron/lastCompletedBuild/">
+          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PreCommit_GoPortable_Cron/lastCompletedBuild/badge/icon">
+        </a>
+      </td>
       <td>---</td>
       <td>---</td>
       <td>---</td>
