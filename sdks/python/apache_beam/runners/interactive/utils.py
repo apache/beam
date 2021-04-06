@@ -30,6 +30,8 @@ from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.typehints.schemas import named_fields_from_element_type
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def to_element_list(
     reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
@@ -204,8 +206,10 @@ class ProgressIndicator(object):
         display(HTML(self.spinner_template.format(id=self._id)))
       else:
         display(self._enter_text)
-    except ImportError:
-      pass  # NOOP when dependencies are not available.
+    except ImportError as e:
+      _LOGGER.error(
+          'Please use interactive Beam features in an IPython'
+          'or notebook environment: %s' % e)
 
   def __exit__(self, exc_type, exc_value, traceback):
     try:
@@ -221,8 +225,10 @@ class ProgressIndicator(object):
                     customized_script=script)))
       else:
         display(self._exit_text)
-    except ImportError:
-      pass  # NOOP when dependencies are not avaialble.
+    except ImportError as e:
+      _LOGGER.error(
+          'Please use interactive Beam features in an IPython'
+          'or notebook environment: %s' % e)
 
 
 def progress_indicated(func):
