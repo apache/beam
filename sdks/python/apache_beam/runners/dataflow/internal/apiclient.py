@@ -1101,7 +1101,7 @@ def get_container_image_from_options(pipeline_options):
 
   use_fnapi = _use_fnapi(pipeline_options)
 
-  repo =names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
+  repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
   version = '%s%s' % (sys.version_info[0:2])
   tag = _get_required_container_version(use_fnapi)
 
@@ -1111,6 +1111,7 @@ def get_container_image_from_options(pipeline_options):
 
   # Legacy worker URL
   return f'{repository}/python{version}_sdk:{tag}'
+
 
 def _get_required_container_version(use_fnapi):
   """For internal use only; no backwards-compatibility guarantees.
