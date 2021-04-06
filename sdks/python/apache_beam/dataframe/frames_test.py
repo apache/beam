@@ -921,9 +921,9 @@ class DeferredFrameTest(unittest.TestCase):
         GROUPBY_DF)
 
 
+  @parameterized.expand([(True, ), (False, ), (None, )])
   @unittest.skipIf(PD_VERSION < (1, 2),
                    "pandas 1.1.0 produces different dtypes for these examples")
-  @parameterized.expand([(True, ), (False, ), (None, )])
   def test_dataframe_agg_numeric_only(self, numeric_only):
     # Note other aggregation functions can fail on this input with
     # numeric_only={False,None}. These are the only ones that actually work for
