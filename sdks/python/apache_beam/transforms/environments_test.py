@@ -23,7 +23,6 @@
 from __future__ import absolute_import
 
 import logging
-import sys
 import unittest
 
 from apache_beam.options.pipeline_options import PortableOptions
@@ -40,12 +39,6 @@ from apache_beam.transforms.environments import SubprocessSDKEnvironment
 
 
 class RunnerApiTest(unittest.TestCase):
-
-  if sys.version_info <= (3, ):
-
-    def assertIn(self, first, second, msg=None):
-      self.assertTrue(first in second, msg)
-
   def test_environment_encoding(self):
     for environment in (DockerEnvironment(),
                         DockerEnvironment(container_image='img'),
