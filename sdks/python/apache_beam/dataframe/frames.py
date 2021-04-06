@@ -959,14 +959,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       kwargs.pop('skipna')
       self.dropna().aggregate(func, axis, *args, **kwargs)
 
-    if 'min_count' in kwargs and kwargs['min_count']:
-      # Eagerly generate a proxy to make sure min_count is a valid argument
-      # for this aggregation method
-      _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
-
-      raise NotImplementedError(
-          "aggregate with min_count is not yet supported (BEAM-XXXX)")
-
     if isinstance(func, list) and len(func) > 1:
       # level arg is ignored for multiple aggregations
       _ = kwargs.pop('level', None)
@@ -996,8 +988,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         return self.groupby(
             level=kwargs.pop('level'), axis=axis).agg(func, *args, **kwargs)
 
+      requires_singleton = False
+      if 'min_count' in kwargs:
+        # Eagerly generate a proxy to make sure min_count is a valid argument
+        # for this aggregation method
+        _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
+
+        requires_singleton = True
+
       agg_kwargs = kwargs.copy()
-      if _is_associative(base_func):
+      if ((_is_associative(base_func) or _is_liftable_with_sum(base_func)) and
+          not requires_singleton):
         preserves = partitionings.Singleton()
         agg_requires = partitionings.Singleton()
 
@@ -1010,24 +1011,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=preserves)
         allow_nonparallel_final = True
-        agg_func = func
-      # TODO(BEAM-XXX): Lift count/size aggregations. Unfortunately this doesn't
-      # work as-is in every case because the final sum() drops N/A keys.  Users
-      # can accomplish the same thing with groupby(dropna=False).count
-      elif _is_liftable_with_sum(base_func):
-        preserves = partitionings.Singleton()
-        agg_requires = partitionings.Singleton()
-
-        intermediate = expressions.ComputedExpression(
-            'pre_aggregate',
-            # Coerce to a Series, if the result is scalar we still want a Series
-            # so we can combine and do the final aggregation later.
-            lambda s: pd.Series(s.agg(func, *args, **kwargs)),
-            [self._expr],
-            requires_partition_by=partitionings.Arbitrary(),
-            preserves_partition_by=preserves)
-        allow_nonparallel_final = True
-        agg_func = ['sum'] if isinstance(func, list) else 'sum'
+        if _is_associative(base_func):
+          agg_func = func
+        else:
+          agg_func = ['sum'] if isinstance(func, list) else 'sum'
       else:
         intermediate = self._expr
         allow_nonparallel_final = None  # i.e. don't change the value
@@ -2541,6 +2528,9 @@ def _liftable_agg(meth, postagg_meth=None):
 
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
+
+    if 'min_count' in kwargs:
+      return _unliftable_agg(meth)(self, *args, **kwargs)
 
     to_group = self._ungrouped.proxy().index
     is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()

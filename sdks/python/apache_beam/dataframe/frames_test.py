@@ -990,6 +990,32 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.agg('any', numeric_only=True),
         GROUPBY_DF,
         expect_error=True)
+    self._run_test(
+        lambda df: df.median(min_count=4), GROUPBY_DF, expect_error=True)
+
+  def test_agg_min_count(self):
+    df = pd.DataFrame({
+        'good': [1, 2, 3, np.nan],
+        'bad': [np.nan, np.nan, np.nan, 4],
+    },
+                      index=['a', 'b', 'a', 'b'])
+
+    self._run_test(lambda df: df.sum(level=0, min_count=2), df)
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.sum(min_count=3), df)
+      self._run_test(lambda df: df.sum(min_count=1), df)
+      self._run_test(lambda df: df.good.sum(min_count=2), df)
+      self._run_test(lambda df: df.bad.sum(min_count=2), df)
+
+  def test_groupby_sum_min_count(self):
+    df = pd.DataFrame({
+        'good': [1, 2, 3, np.nan],
+        'bad': [np.nan, np.nan, np.nan, 4],
+        'group': ['a', 'b', 'a', 'b']
+    })
+
+    self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
 
 class AllowNonParallelTest(unittest.TestCase):
