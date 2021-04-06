@@ -206,10 +206,10 @@ class ProgressIndicator(object):
         display(HTML(self.spinner_template.format(id=self._id)))
       else:
         display(self._enter_text)
-    except ImportError:
+    except ImportError as e:
       _LOGGER.warning(
           'Please use interactive Beam features in an IPython'
-          'or notebook environment.')
+          'or notebook environment: %s' % e)
 
   def __exit__(self, exc_type, exc_value, traceback):
     try:
@@ -225,10 +225,10 @@ class ProgressIndicator(object):
                     customized_script=script)))
       else:
         display(self._exit_text)
-    except ImportError:
+    except ImportError as e:
       _LOGGER.warning(
           'Please use interactive Beam features in an IPython'
-          'or notebook environment.')
+          'or notebook environment: %s' % e)
 
 
 def progress_indicated(func):
