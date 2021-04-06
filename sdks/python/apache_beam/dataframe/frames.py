@@ -484,6 +484,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   hist = frame_base.wont_implement_method('plot')
 
+  attrs = property(frame_base.wont_implement_method('experimental'))
+
   first = last = frame_base.wont_implement_method('order-sensitive')
   head = tail = frame_base.wont_implement_method('order-sensitive')
 
@@ -580,6 +582,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     return aligned.iloc[:, 0], aligned.iloc[:, 1]
 
   array = property(frame_base.wont_implement_method('non-deferred value'))
+
+  argmax = frame_base.wont_implement_method('order-sensitive')
+  argmin = frame_base.wont_implement_method('order-sensitive')
+  ravel = frame_base.wont_implement_method('non-deferred value')
 
   rename = frame_base._elementwise_method('rename')
   between = frame_base._elementwise_method('between')
