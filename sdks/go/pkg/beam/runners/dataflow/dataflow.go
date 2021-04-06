@@ -31,6 +31,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -170,6 +171,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		WorkerRegion:        *workerRegion,
 		WorkerZone:          *workerZone,
 		TeardownPolicy:      *teardownPolicy,
+		ContainerImage:      getContainerImage(ctx),
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
@@ -181,13 +183,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, err
 	}
-	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
+	environment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
+	if err != nil {
+		return nil, errors.WithContext(err, "creating environment for model pipeline")
+	}
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
 	if err != nil {
 		return nil, errors.WithContext(err, "generating model pipeline")
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
+	err = pipelinex.ApplySdkImageOverrides(model, jobopts.GetSdkImageOverrides())
 	if err != nil {
-		return nil, errors.WithContext(err, "generating model pipeline")
+		return nil, errors.WithContext(err, "applying container image overrides")
 	}
 
 	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
