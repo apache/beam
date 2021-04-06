@@ -959,7 +959,8 @@ class DeferredFrameTest(unittest.TestCase):
 
   @unittest.skip(
       "pandas doesn't implement bool_only= with level= "
-      "(https://github.com/pandas-dev/pandas/blob/v1.2.3/pandas/core/generic.py#L10573)"
+      "(https://github.com/pandas-dev/pandas/blob/"
+      "v1.2.3/pandas/core/generic.py#L10573)"
   )
   def test_dataframe_agg_level_bool_only(self):
     df = pd.DataFrame({

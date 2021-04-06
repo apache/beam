@@ -37,9 +37,9 @@ import inspect
 import itertools
 import math
 import re
+import warnings
 from typing import List
 from typing import Optional
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -999,9 +999,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       agg_kwargs = kwargs.copy()
       if ((_is_associative(base_func) or _is_liftable_with_sum(base_func)) and
           not requires_singleton):
-        preserves = partitionings.Singleton()
-        agg_requires = partitionings.Singleton()
-
         intermediate = expressions.ComputedExpression(
             'pre_aggregate',
             # Coerce to a Series, if the result is scalar we still want a Series
@@ -1009,7 +1006,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             lambda s: pd.Series(s.agg(func, *args, **kwargs)),
             [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
-            preserves_partition_by=preserves)
+            preserves_partition_by=partitionings.Singleton())
         allow_nonparallel_final = True
         if _is_associative(base_func):
           agg_func = func
@@ -1018,7 +1015,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       else:
         intermediate = self._expr
         allow_nonparallel_final = None  # i.e. don't change the value
-        agg_requires = partitionings.Singleton()
         agg_func = func
       with expressions.allow_non_parallel_operations(allow_nonparallel_final):
         return frame_base.DeferredFrame.wrap(
@@ -1487,7 +1483,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       # for this aggregation method
       _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
 
-      projected = self[[name for name, dtype in self.dtypes.items() if pd.core.dtypes.common.is_numeric_dtype(dtype)]]
+      projected = self[[name for name, dtype in self.dtypes.items()
+                        if pd.core.dtypes.common.is_numeric_dtype(dtype)]]
       kwargs.pop('numeric_only')
       return projected.agg(func, axis, *args, **kwargs)
 
@@ -1496,7 +1493,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       # for this aggregation method
       _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
 
-      projected = self[[name for name, dtype in self.dtypes.items() if pd.core.dtypes.common.is_bool_dtype(dtype)]]
+      projected = self[[name for name, dtype in self.dtypes.items()
+                        if pd.core.dtypes.common.is_bool_dtype(dtype)]]
       kwargs.pop('bool_only')
       return projected.agg(func, axis, *args, **kwargs)
 
@@ -1542,7 +1540,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       # The final shape is different depending on whether any of the columns
       # were aggregated by a list of aggregators.
       with expressions.allow_non_parallel_operations():
-        if any(isinstance(funcs, list) for funcs in func.values()) or 'level' in kwargs:
+        if (any(isinstance(funcs, list) for funcs in func.values()) or
+            'level' in kwargs):
           return frame_base.DeferredFrame.wrap(
               expressions.ComputedExpression(
                   'join_aggregate',
