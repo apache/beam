@@ -29,11 +29,8 @@ a word that should be ignored when forming groups.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
-from builtins import range
 from random import randrange
 
 import apache_beam as beam
