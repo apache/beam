@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
 import numpy as np
@@ -554,7 +553,6 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df1, df2: df2.append(df1, sort=True), df1, df2)
     self._run_test(lambda df1, df2: df2.append(df1, sort=False), df1, df2)
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_dataframe_agg(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
@@ -565,7 +563,6 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_smallest_largest(self):
     df = pd.DataFrame({'A': [1, 1, 2, 2], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)

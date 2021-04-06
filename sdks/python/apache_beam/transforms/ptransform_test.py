@@ -28,7 +28,6 @@ import operator
 import pickle
 import random
 import re
-import sys
 import typing
 import unittest
 from builtins import map
@@ -74,12 +73,6 @@ from apache_beam.utils.windowed_value import WindowedValue
 class PTransformTest(unittest.TestCase):
   # Enable nose tests running in parallel
   _multiprocess_can_split_ = True
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   def assertStartswith(self, msg, prefix):
     self.assertTrue(
@@ -2024,16 +2017,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'C' >> beam.Create(['test']).with_output_types(str)
           | 'Mean' >> combine.Mean.Globally())
 
-    if sys.version_info[0] >= 3:
-      expected_msg = \
-        "Type hint violation for 'CombinePerKey': " \
-        "requires Tuple[TypeVariable[K], Union[float, int]] " \
-        "but got Tuple[None, str] for element"
-    else:
-      expected_msg = \
-        "Type hint violation for 'CombinePerKey': " \
-        "requires Tuple[TypeVariable[K], Union[float, int, long]] " \
-        "but got Tuple[None, str] for element"
+    expected_msg = \
+      "Type hint violation for 'CombinePerKey': " \
+      "requires Tuple[TypeVariable[K], Union[float, int]] " \
+      "but got Tuple[None, str] for element"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
@@ -2096,16 +2083,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'EvenMean' >> combine.Mean.PerKey())
       self.p.run()
 
-    if sys.version_info[0] >= 3:
-      expected_msg = \
-        "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
-        "requires Tuple[TypeVariable[K], Union[float, int]] " \
-        "but got Tuple[str, str] for element"
-    else:
-      expected_msg = \
-        "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
-        "requires Tuple[TypeVariable[K], Union[float, int, long]] " \
-        "but got Tuple[str, str] for element"
+    expected_msg = \
+      "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
+      "requires Tuple[TypeVariable[K], Union[float, int]] " \
+      "but got Tuple[str, str] for element"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
@@ -2140,22 +2121,13 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'OddMean' >> combine.Mean.PerKey())
       self.p.run()
 
-    if sys.version_info[0] >= 3:
-      expected_msg = \
-        "Runtime type violation detected within " \
-        "OddMean/CombinePerKey(MeanCombineFn): " \
-        "Type-hint for argument: 'element' violated: " \
-        "Union[float, int] type-constraint violated. " \
-        "Expected an instance of one of: ('float', 'int'), " \
-        "received str instead"
-    else:
-      expected_msg = \
-        "Runtime type violation detected within " \
-        "OddMean/CombinePerKey(MeanCombineFn): " \
-        "Type-hint for argument: 'element' violated: " \
-        "Union[float, int, long] type-constraint violated. " \
-        "Expected an instance of one of: ('float', 'int', 'long'), " \
-        "received str instead"
+    expected_msg = \
+      "Runtime type violation detected within " \
+      "OddMean/CombinePerKey(MeanCombineFn): " \
+      "Type-hint for argument: 'element' violated: " \
+      "Union[float, int] type-constraint violated. " \
+      "Expected an instance of one of: ('float', 'int'), " \
+      "received str instead"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
