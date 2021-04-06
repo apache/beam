@@ -992,15 +992,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     RunnerApi.Pipeline portablePipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
-    // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
-    // the options on the new job
-    // TODO: add an explicit `pipeline` parameter to the submission instead of pipeline options
-    LOG.info("Staging portable pipeline proto to {}", options.getStagingLocation());
-    byte[] serializedProtoPipeline = portablePipelineProto.toByteArray();
-
-    DataflowPackage stagedPipeline =
-        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
-    dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
     // Now rewrite things to be as needed for v1 (mutates the pipeline)
     replaceTransforms(pipeline);
     // Capture the SdkComponents for look up during step translations
@@ -1015,6 +1006,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PipelineTranslation.toProto(pipeline, dataflowV1Components, true);
     LOG.debug("Dataflow v1 pipeline proto:\n{}", TextFormat.printToString(dataflowV1PipelineProto));
     List<DataflowPackage> packages = stageArtifacts(dataflowV1PipelineProto);
+
+    RunnerApi.Pipeline pipelineToStage =
+        (useUnifiedWorker(options)
+                && options.getExperiments().contains("use_portable_job_submission"))
+            ? portablePipelineProto
+            : dataflowV1PipelineProto;
+    // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
+    // the options on the new job
+    LOG.info("Staging pipeline proto to {}", options.getStagingLocation());
+    byte[] serializedProtoPipeline = pipelineToStage.toByteArray();
+
+    DataflowPackage stagedPipeline =
+        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
+    dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
