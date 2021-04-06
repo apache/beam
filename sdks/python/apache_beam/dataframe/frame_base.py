@@ -22,6 +22,7 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import pandas as pd
@@ -123,7 +124,11 @@ class _DeferredScalar(DeferredBase):
 DeferredBase._pandas_type_map[None] = _DeferredScalar
 
 
-def name_and_func(method):
+def name_and_func(method: Union[str, Callable]) -> Tuple[str, Callable]:
+  """For the given method name or method, return the method name and the method
+  itself.
+
+  For internal use only. No backwards compatibility guarantees."""
   if isinstance(method, str):
     return method, lambda df, *args, **kwargs: getattr(df, method)(*args, **
                                                                    kwargs)
@@ -254,7 +259,7 @@ def _proxy_function(
     deferred_exprs = deferred_arg_exprs + deferred_kwarg_exprs
 
     if inplace:
-      actual_func = copy_and_mutate(func)
+      actual_func = _copy_and_mutate(func)
     else:
       actual_func = func
 
@@ -303,6 +308,9 @@ def _agg_method(func):
 
 
 def wont_implement_method(msg):
+  """Generate a stub method for `op` that simply raises a WontImplementError.
+
+  For internal use only. No backwards compatibility guarantees."""
   def wrapper(*args, **kwargs):
     raise WontImplementError(msg)
 
@@ -310,13 +318,16 @@ def wont_implement_method(msg):
 
 
 def not_implemented_method(op, jira='BEAM-9547'):
+  """Generate a stub method for `op` that simply raises a NotImplementedError.
+
+  For internal use only. No backwards compatibility guarantees."""
   def wrapper(*args, **kwargs):
     raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
 
   return wrapper
 
 
-def copy_and_mutate(func):
+def _copy_and_mutate(func):
   def wrapper(self, *args, **kwargs):
     copy = self.copy()
     func(copy, *args, **kwargs)
@@ -326,6 +337,17 @@ def copy_and_mutate(func):
 
 
 def maybe_inplace(func):
+  """Handles the inplace= kwarg available in many pandas operations.
+
+  This decorator produces a new function handles the inplace kwarg. When
+  `inplace=False`, the new function simply yields the result of `func`
+  directly.
+
+  When `inplace=True`, the output of `func` is used to replace this instances
+  expression. The result is that any operations applied to this instance after
+  the inplace operation will refernce the updated expression.
+
+  For internal use only. No backwards compatibility guarantees."""
   @functools.wraps(func)
   def wrapper(self, inplace=False, **kwargs):
     result = func(self, **kwargs)
@@ -338,6 +360,15 @@ def maybe_inplace(func):
 
 
 def args_to_kwargs(base_type):
+  """Convert all args to kwargs before calling the decorated function.
+
+  When applied to a function, this decorator creates a new function
+  that always calls the wrapped function with *only* keyword arguments. It
+  inspects the argspec for the identically-named method on `base_type` to
+  determine the name to use for arguments that are converted to keyword
+  arguments.
+
+  For internal use only. No backwards compatibility guarantees."""
   def wrap(func):
     arg_names = getfullargspec(unwrap(getattr(base_type, func.__name__))).args
 
@@ -357,6 +388,13 @@ def args_to_kwargs(base_type):
 
 
 def populate_defaults(base_type):
+  """Populate default values for keyword arguments in decorated function.
+
+  When applied to a function, this decorator creates a new function
+  with default values for all keyword arguments, based on the default values
+  for the identically-named method on `base_type`.
+
+  For internal use only. No backwards compatibility guarantees."""
   def wrap(func):
     base_argspec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
     if not base_argspec.defaults:
@@ -389,7 +427,7 @@ def populate_defaults(base_type):
 
 class WontImplementError(NotImplementedError):
   """An subclass of NotImplementedError to raise indicating that implementing
-  the given method is infeasible.
+  the given method is not planned.
 
   Raising this error will also prevent this doctests from being validated
   when run with the beam dataframe validation doctest runner.
