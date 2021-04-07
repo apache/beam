@@ -39,6 +39,7 @@ from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery_tools import check_schema_equal
 from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
 from apache_beam.io.gcp.bigquery_tools import parse_table_reference
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
@@ -1017,6 +1018,88 @@ class TestBQJobNames(unittest.TestCase):
     job_name = generate_bq_job_name(
         "beamapp-job-test", "abcd", BigQueryJobTypes.COPY)
     self.assertRegex(job_name, base_pattern)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestCheckSchemaEqual(unittest.TestCase):
+  def test_simple_schemas(self):
+    schema1 = bigquery.TableSchema(fields=[])
+    self.assertTrue(check_schema_equal(schema1, schema1))
+
+    schema2 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(name="a", mode="NULLABLE", type="INT64")
+        ])
+    self.assertTrue(check_schema_equal(schema2, schema2))
+    self.assertFalse(check_schema_equal(schema1, schema2))
+
+    schema3 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REPEATED",
+                type="RECORD",
+                fields=[
+                    bigquery.TableFieldSchema(
+                        name="c", mode="REQUIRED", type="BOOL")
+                ])
+        ])
+    self.assertTrue(check_schema_equal(schema3, schema3))
+    self.assertFalse(check_schema_equal(schema2, schema3))
+
+  def test_field_order(self):
+    """Test that field order is ignored when ignore_field_order=True."""
+    schema1 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a", mode="REQUIRED", type="FLOAT64"),
+            bigquery.TableFieldSchema(name="b", mode="REQUIRED", type="INT64"),
+        ])
+
+    schema2 = bigquery.TableSchema(fields=list(reversed(schema1.fields)))
+
+    self.assertFalse(check_schema_equal(schema1, schema2))
+    self.assertTrue(
+        check_schema_equal(schema1, schema2, ignore_field_order=True))
+
+  def test_descriptions(self):
+    """
+        Test that differences in description are ignored
+        when ignore_descriptions=True.
+        """
+    schema1 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a",
+                mode="REQUIRED",
+                type="FLOAT64",
+                description="Field A",
+            ),
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REQUIRED",
+                type="INT64",
+            ),
+        ])
+
+    schema2 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a",
+                mode="REQUIRED",
+                type="FLOAT64",
+                description="Field A is for Apple"),
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REQUIRED",
+                type="INT64",
+                description="Field B",
+            ),
+        ])
+
+    self.assertFalse(check_schema_equal(schema1, schema2))
+    self.assertTrue(
+        check_schema_equal(schema1, schema2, ignore_descriptions=True))
 
 
 if __name__ == '__main__':

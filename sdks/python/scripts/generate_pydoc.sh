@@ -155,6 +155,8 @@ ignore_identifiers = [
   'apache_beam.io.gcp.datastore.v1new.datastoreio._Mutate',
   'apache_beam.io.gcp.datastore.v1new.datastoreio.DatastoreMutateFn',
   'apache_beam.io.gcp.internal.clients.bigquery.'
+      'bigquery_v2_messages.TableFieldSchema',
+  'apache_beam.io.gcp.internal.clients.bigquery.'
       'bigquery_v2_messages.TableSchema',
   'apache_beam.io.iobase.SourceBase',
   'apache_beam.io.source_test_utils.ExpectedSplitOutcome',
