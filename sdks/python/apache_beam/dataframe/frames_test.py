@@ -993,8 +993,6 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.agg('any', numeric_only=True),
         GROUPBY_DF,
         expect_error=True)
-    self._run_test(
-        lambda df: df.median(min_count=4), GROUPBY_DF, expect_error=True)
 
   def test_agg_min_count(self):
     df = pd.DataFrame({
