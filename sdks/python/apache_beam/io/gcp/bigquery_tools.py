@@ -172,7 +172,7 @@ def parse_table_reference(table, dataset=None, project=None):
 
   Args:
     table: The ID of the table. The ID must contain only letters
-      (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is None
+      (a-z, A-Z), numbers (0-9), connectors (-_). If dataset argument is None
       then the table argument must contain the entire table reference:
       'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'. This argument can be a
       bigquery.TableReference instance in which case dataset and project are
@@ -211,7 +211,7 @@ def parse_table_reference(table, dataset=None, project=None):
   # table name.
   if dataset is None:
     match = re.match(
-        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[\w\$]+)$', table)
+        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[-\w\$]+)$', table)
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
