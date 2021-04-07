@@ -110,3 +110,14 @@ task startPortableRunner {
     }
   }
 }
+
+task wordCount {
+  dependsOn 'buildPython'
+  
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt"
+    }
+  }
+}

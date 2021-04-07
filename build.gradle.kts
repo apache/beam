@@ -336,6 +336,12 @@ task("pushAllDockerImages") {
   }
 }
 
+task("setUpCheck") {
+  dependsOn(":sdks:go:examples:wordCount")
+  dependsOn(":sdks:python:wordCount")
+  dependsOn(":examples:java:wordCount")
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {

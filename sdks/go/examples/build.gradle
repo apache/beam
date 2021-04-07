@@ -77,3 +77,8 @@ golang {
     continueOnFailure = true
   }
 }
+
+task wordCount(type: com.github.blindpirate.gogradle.Go) {
+  dependsOn goVendor
+  go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcount github.com/apache/beam/sdks/go/examples/wordcount'
+}

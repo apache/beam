@@ -161,3 +161,10 @@ task execute (type:JavaExec) {
   systemProperties System.getProperties()
   args System.getProperty("exec.args", "").split()
 }
+
+task wordCount(type:JavaExec) {
+  main = "org.apache.beam.examples.WordCount"
+  classpath = sourceSets.main.runtimeClasspath
+  systemProperties = System.getProperties()
+  args = ["--output=/tmp/ouput.txt"]
+}
