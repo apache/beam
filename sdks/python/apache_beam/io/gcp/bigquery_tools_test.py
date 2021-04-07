@@ -125,6 +125,17 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
 
+  def test_calling_with_hyphened_table_ref(self):
+    projectId = 'test_project'
+    datasetId = 'test_dataset'
+    tableId = 'test-table'
+    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
+    parsed_ref = parse_table_reference(fully_qualified_table)
+    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertEqual(parsed_ref.projectId, projectId)
+    self.assertEqual(parsed_ref.datasetId, datasetId)
+    self.assertEqual(parsed_ref.tableId, tableId)
+
   def test_calling_with_partially_qualified_table_ref(self):
     datasetId = 'test_dataset'
     tableId = 'test_table'
