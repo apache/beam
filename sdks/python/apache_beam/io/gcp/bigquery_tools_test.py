@@ -129,7 +129,7 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.projectId, projectId)
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
-    
+
   def test_calling_with_hyphened_table_ref(self):
     projectId = 'test_project'
     datasetId = 'test_dataset'
