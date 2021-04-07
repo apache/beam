@@ -36,6 +36,7 @@ import re
 import time
 import uuid
 from json.decoder import JSONDecodeError
+from typing import Union
 
 import fastavro
 
@@ -1645,3 +1646,75 @@ def generate_bq_job_name(job_name, step_id, job_type, random=None):
       job_id=job_name.replace("-", ""),
       step_id=step_id,
       random=random)
+
+
+def check_schema_equal(
+    left, right, *, ignore_descriptions=False, ignore_field_order=False):
+  # type: (Union[bigquery.TableSchema, bigquery.TableFieldSchema], Union[bigquery.TableSchema, bigquery.TableFieldSchema], bool, bool) -> bool
+
+  """Check whether schemas are equivalent.
+
+  This comparison function differs from using == to compare TableSchema
+  because it ignores categories, policy tags, descriptions (optionally), and
+  field ordering (optionally).
+
+  Args:
+    left (~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
+bigquery.bigquery_v2_messages.TableFieldSchema):
+      One schema to compare.
+    right (~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
+bigquery.bigquery_v2_messages.TableFieldSchema):
+      The other schema to compare.
+    ignore_descriptions (bool): (optional) Whether or not to ignore field
+      descriptions when comparing. Defaults to False.
+    ignore_field_order (bool): (optional) Whether or not to ignore struct field
+      order when comparing. Defaults to False.
+
+  Returns:
+    bool: True if the schemas are equivalent, False otherwise.
+  """
+  if type(left) != type(right) or not isinstance(
+      left, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+    return False
+
+  if isinstance(left, bigquery.TableFieldSchema):
+    if left.name != right.name:
+      return False
+
+    if left.type != right.type:
+      # Check for type aliases
+      if sorted(
+          (left.type, right.type)) not in (["BOOL", "BOOLEAN"], ["FLOAT",
+                                                                 "FLOAT64"],
+                                           ["INT64", "INTEGER"], ["RECORD",
+                                                                  "STRUCT"]):
+        return False
+
+    if left.mode != right.mode:
+      return False
+
+    if not ignore_descriptions and left.description != right.description:
+      return False
+
+  if isinstance(left,
+                bigquery.TableSchema) or left.type in ("RECORD", "STRUCT"):
+    if len(left.fields) != len(right.fields):
+      return False
+
+    if ignore_field_order:
+      left_fields = sorted(left.fields, key=lambda field: field.name)
+      right_fields = sorted(right.fields, key=lambda field: field.name)
+    else:
+      left_fields = left.fields
+      right_fields = right.fields
+
+    for left_field, right_field in zip(left_fields, right_fields):
+      if not check_schema_equal(left_field,
+                                right_field,
+                                ignore_descriptions=ignore_descriptions,
+                                ignore_field_order=ignore_field_order):
+        return False
+
+  return True
