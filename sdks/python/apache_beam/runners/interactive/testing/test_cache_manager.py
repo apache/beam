@@ -67,6 +67,10 @@ class InMemoryCache(CacheManager):
     self._cached = collections.defaultdict(list)
     self._pcoders = {}
 
+  def clear(self, *label):
+    # Noop because in-memory.
+    pass
+
   def source(self, *labels):
     vals = self._cached[self._key(*labels)]
     return beam.Create(vals)
