@@ -35,9 +35,11 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.slf4j_api
-  compile library.java.cassandra_driver_core
-  compile library.java.cassandra_driver_mapping
+  compile library.java.cassandra_driver4_core
+  compile library.java.cassandra_driver4_mapper_runtime
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile library.java.cassandra_driver3_core
+  testCompile library.java.cassandra_driver3_mapping
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

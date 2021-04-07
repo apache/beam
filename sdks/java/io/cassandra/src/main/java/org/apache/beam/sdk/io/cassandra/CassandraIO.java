@@ -20,30 +20,33 @@ package org.apache.beam.sdk.io.cassandra;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ColumnMetadata;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.PlainTextAuthProvider;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.ResultSetFuture;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SocketOptions;
-import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
-import com.datastax.driver.core.policies.TokenAwarePolicy;
+import com.datastax.oss.driver.api.core.CqlIdentifier;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.CqlSessionBuilder;
+import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.config.ProgrammaticDriverConfigLoaderBuilder;
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
 import com.google.auto.value.AutoValue;
 import java.math.BigInteger;
+import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -72,8 +75,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@code CassandraIO} provides a source to read and returns a bounded collection of entities as
  * {@code PCollection<Entity>}. An entity is built by Cassandra mapper ({@code
- * com.datastax.driver.mapping.EntityMapper}) based on a POJO containing annotations (as described
- * http://docs.datastax .com/en/developer/java-driver/2.1/manual/object_mapper/creating/").
+ * com.datastax.oss.driver.api.mapper.annotations.Mapper}) based on a POJO containing annotations
+ * (as described http://docs.datastax .com/en/developer/java-driver/4.9/manual/mapper/").
  *
  * <p>The following example illustrates various options for configuring the IO:
  *
@@ -184,7 +187,9 @@ public class CassandraIO {
 
     abstract @Nullable ValueProvider<Integer> readTimeout();
 
-    abstract @Nullable SerializableFunction<Session, Mapper> mapperFactoryFn();
+    abstract @Nullable SerializableFunction<CqlSession, BaseDao<T>> mapperFactoryFn();
+
+    abstract @Nullable SSLContext sslContext();
 
     abstract Builder<T> builder();
 
@@ -361,14 +366,22 @@ public class CassandraIO {
     }
 
     /**
-     * A factory to create a specific {@link Mapper} for a given Cassandra Session. This is useful
-     * to provide mappers that don't rely in Cassandra annotated objects.
+     * A factory to create a specific Mapper for a given Cassandra Session.
+     *
+     * @param mapperFactory
      */
-    public Read<T> withMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactory) {
+    public Read<T> withMapperFactoryFn(SerializableFunction<CqlSession, BaseDao<T>> mapperFactory) {
       checkArgument(
           mapperFactory != null,
           "CassandraIO.withMapperFactory" + "(withMapperFactory) called with null value");
       return builder().setMapperFactoryFn(mapperFactory).build();
+    }
+
+    public Read<T> withSslContext(SSLContext sslContext) {
+      checkArgument(
+          sslContext != null,
+          "CassandraIO.withSslContext" + "(withSslContext) called with null value");
+      return builder().setSslContext(sslContext).build();
     }
 
     @Override
@@ -414,16 +427,16 @@ public class CassandraIO {
 
       abstract Builder<T> setReadTimeout(ValueProvider<Integer> timeout);
 
-      abstract Builder<T> setMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn);
+      abstract Builder<T> setMapperFactoryFn(
+          SerializableFunction<CqlSession, BaseDao<T>> mapperFactoryFn);
 
-      abstract Optional<SerializableFunction<Session, Mapper>> mapperFactoryFn();
+      abstract Optional<SerializableFunction<CqlSession, BaseDao<T>>> mapperFactoryFn();
+
+      abstract Builder<T> setSslContext(SSLContext sslContext);
 
       abstract Read<T> autoBuild();
 
       public Read<T> build() {
-        if (!mapperFactoryFn().isPresent() && entity().isPresent()) {
-          setMapperFactoryFn(new DefaultObjectMapperFactory(entity().get()));
-        }
         return autoBuild();
       }
     }
@@ -460,8 +473,8 @@ public class CassandraIO {
     @Override
     public List<BoundedSource<T>> split(
         long desiredBundleSizeBytes, PipelineOptions pipelineOptions) {
-      try (Cluster cluster =
-          getCluster(
+      try (CqlSession session =
+          getSession(
               spec.hosts(),
               spec.port(),
               spec.username(),
@@ -469,11 +482,12 @@ public class CassandraIO {
               spec.localDc(),
               spec.consistencyLevel(),
               spec.connectTimeout(),
-              spec.readTimeout())) {
-        if (isMurmur3Partitioner(cluster)) {
+              spec.readTimeout(),
+              spec.sslContext())) {
+        if (isMurmur3Partitioner(session)) {
           LOG.info("Murmur3Partitioner detected, splitting");
           return splitWithTokenRanges(
-              spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
+              spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), session);
         } else {
           LOG.warn(
               "Only Murmur3Partitioner is supported for splitting, using a unique source for "
@@ -498,27 +512,32 @@ public class CassandraIO {
         CassandraIO.Read<T> spec,
         long desiredBundleSizeBytes,
         long estimatedSizeBytes,
-        Cluster cluster) {
+        CqlSession session) {
       long numSplits =
           getNumSplits(desiredBundleSizeBytes, estimatedSizeBytes, spec.minNumberOfSplits());
       LOG.info("Number of desired splits is {}", numSplits);
 
-      SplitGenerator splitGenerator = new SplitGenerator(cluster.getMetadata().getPartitioner());
+      SplitGenerator splitGenerator =
+          new SplitGenerator(session.getMetadata().getTokenMap().get().getPartitionerName());
       List<BigInteger> tokens =
-          cluster.getMetadata().getTokenRanges().stream()
-              .map(tokenRange -> new BigInteger(tokenRange.getEnd().getValue().toString()))
+          session.getMetadata().getTokenMap().get().getTokenRanges().stream()
+              // .map(tokenRange -> new
+              // BigInteger(((Murmur3Token)tokenRange.getEnd()).getValue().toString()))
+              .map(
+                  tokenRange -> BigInteger.valueOf(((Murmur3Token) tokenRange.getEnd()).getValue()))
               .collect(Collectors.toList());
       List<List<RingRange>> splits = splitGenerator.generateSplits(numSplits, tokens);
       LOG.info("{} splits were actually generated", splits.size());
 
       final String partitionKey =
-          cluster.getMetadata().getKeyspace(spec.keyspace().get()).getTable(spec.table().get())
-              .getPartitionKey().stream()
+          session.getMetadata().getKeyspace(spec.keyspace().get()).get()
+              .getTable(spec.table().get()).get().getPartitionKey().stream()
               .map(ColumnMetadata::getName)
+              .map(CqlIdentifier::toString)
               .collect(Collectors.joining(","));
 
       List<TokenRange> tokenRanges =
-          getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
+          getTokenRanges(session, spec.keyspace().get(), spec.table().get());
       final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges) / splits.size();
 
       List<BoundedSource<T>> sources = new ArrayList<>();
@@ -589,8 +608,8 @@ public class CassandraIO {
       if (estimatedSize != null) {
         return estimatedSize;
       } else {
-        try (Cluster cluster =
-            getCluster(
+        try (CqlSession session =
+            getSession(
                 spec.hosts(),
                 spec.port(),
                 spec.username(),
@@ -598,11 +617,12 @@ public class CassandraIO {
                 spec.localDc(),
                 spec.consistencyLevel(),
                 spec.connectTimeout(),
-                spec.readTimeout())) {
-          if (isMurmur3Partitioner(cluster)) {
+                spec.readTimeout(),
+                spec.sslContext())) {
+          if (isMurmur3Partitioner(session)) {
             try {
               List<TokenRange> tokenRanges =
-                  getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
+                  getTokenRanges(session, spec.keyspace().get(), spec.table().get());
               this.estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges);
               return this.estimatedSize;
             } catch (Exception e) {
@@ -648,36 +668,36 @@ public class CassandraIO {
      *
      * <p>NB: This method is compatible with Cassandra 2.1.5 and greater.
      */
-    private static List<TokenRange> getTokenRanges(Cluster cluster, String keyspace, String table) {
-      try (Session session = cluster.newSession()) {
-        ResultSet resultSet =
-            session.execute(
-                "SELECT range_start, range_end, partitions_count, mean_partition_size FROM "
-                    + "system.size_estimates WHERE keyspace_name = ? AND table_name = ?",
-                keyspace,
-                table);
+    private static List<TokenRange> getTokenRanges(
+        CqlSession session, String keyspace, String table) {
 
-        ArrayList<TokenRange> tokenRanges = new ArrayList<>();
-        for (Row row : resultSet) {
-          TokenRange tokenRange =
-              new TokenRange(
-                  row.getLong("partitions_count"),
-                  row.getLong("mean_partition_size"),
-                  new BigInteger(row.getString("range_start")),
-                  new BigInteger(row.getString("range_end")));
-          tokenRanges.add(tokenRange);
-        }
-        // The table may not contain the estimates yet
-        // or have partitions_count and mean_partition_size fields = 0
-        // if the data was just inserted and the amount of data in the table was small.
-        // This is very common situation during tests,
-        // when we insert a few rows and immediately query them.
-        // However, for tiny data sets the lack of size estimates is not a problem at all,
-        // because we don't want to split tiny data anyways.
-        // Therefore, we're not issuing a warning if the result set was empty
-        // or mean_partition_size and partitions_count = 0.
-        return tokenRanges;
+      ResultSet resultSet =
+          session.execute(
+              "SELECT range_start, range_end, partitions_count, mean_partition_size FROM "
+                  + "system.size_estimates WHERE keyspace_name = ? AND table_name = ?",
+              keyspace,
+              table);
+
+      ArrayList<TokenRange> tokenRanges = new ArrayList<>();
+      for (Row row : resultSet) {
+        TokenRange tokenRange =
+            new TokenRange(
+                row.getLong("partitions_count"),
+                row.getLong("mean_partition_size"),
+                new BigInteger(row.getString("range_start")),
+                new BigInteger(row.getString("range_end")));
+        tokenRanges.add(tokenRange);
       }
+      // The table may not contain the estimates yet
+      // or have partitions_count and mean_partition_size fields = 0
+      // if the data was just inserted and the amount of data in the table was small.
+      // This is very common situation during tests,
+      // when we insert a few rows and immediately query them.
+      // However, for tiny data sets the lack of size estimates is not a problem at all,
+      // because we don't want to split tiny data anyways.
+      // Therefore, we're not issuing a warning if the result set was empty
+      // or mean_partition_size and partitions_count = 0.
+      return tokenRanges;
     }
 
     /** Compute the percentage of token addressed compared with the whole tokens in the cluster. */
@@ -697,8 +717,10 @@ public class CassandraIO {
      * Check if the current partitioner is the Murmur3 (default in Cassandra version newer than 2).
      */
     @VisibleForTesting
-    static boolean isMurmur3Partitioner(Cluster cluster) {
-      return MURMUR3PARTITIONER.equals(cluster.getMetadata().getPartitioner());
+    static boolean isMurmur3Partitioner(CqlSession session) {
+      return MURMUR3PARTITIONER.equals(
+          session.getMetadata().getTokenMap().get().getPartitionerName());
+      // return false;
     }
 
     /** Measure distance between two tokens. */
@@ -731,8 +753,7 @@ public class CassandraIO {
 
     private class CassandraReader extends BoundedSource.BoundedReader<T> {
       private final CassandraIO.CassandraSource<T> source;
-      private Cluster cluster;
-      private Session session;
+      private CqlSession session;
       private Iterator<T> iterator;
       private T current;
 
@@ -743,8 +764,8 @@ public class CassandraIO {
       @Override
       public boolean start() {
         LOG.debug("Starting Cassandra reader");
-        cluster =
-            getCluster(
+        session =
+            getSession(
                 source.spec.hosts(),
                 source.spec.port(),
                 source.spec.username(),
@@ -752,25 +773,36 @@ public class CassandraIO {
                 source.spec.localDc(),
                 source.spec.consistencyLevel(),
                 source.spec.connectTimeout(),
-                source.spec.readTimeout());
-        session = cluster.connect(source.spec.keyspace().get());
+                source.spec.readTimeout(),
+                source.spec.sslContext());
         LOG.debug("Queries: " + source.splitQueries);
-        List<ResultSetFuture> futures = new ArrayList<>();
+        List<CompletionStage<AsyncResultSet>> futures = new ArrayList<>();
         for (String query : source.splitQueries) {
           futures.add(session.executeAsync(query));
         }
 
-        final Mapper<T> mapper = getMapper(session, source.spec.entity());
-
-        for (ResultSetFuture result : futures) {
+        final BaseDao<T> dao = getDao(session, source.spec.entity());
+        for (CompletionStage<AsyncResultSet> result : futures) {
+          AsyncResultSet rs = result.toCompletableFuture().join();
+          MappedAsyncPagingIterable<T> mappedIterable = dao.map(rs);
           if (iterator == null) {
-            iterator = mapper.map(result.getUninterruptibly());
+            iterator = mappedIterable.currentPage().iterator();
           } else {
-            iterator = Iterators.concat(iterator, mapper.map(result.getUninterruptibly()));
+            iterator = Iterators.concat(iterator, mappedIterable.currentPage().iterator());
           }
+          processRemainingPages(mappedIterable);
         }
 
         return advance();
+      }
+
+      void processRemainingPages(MappedAsyncPagingIterable<T> mappedIterable) {
+        if (mappedIterable.hasMorePages()) {
+          MappedAsyncPagingIterable<T> iterable =
+              mappedIterable.fetchNextPage().toCompletableFuture().join();
+          // Iterators.concat(iterator, iterable.currentPage().iterator());
+          processRemainingPages(iterable);
+        }
       }
 
       @Override
@@ -789,9 +821,6 @@ public class CassandraIO {
         if (session != null) {
           session.close();
         }
-        if (cluster != null) {
-          cluster.close();
-        }
       }
 
       @Override
@@ -807,7 +836,7 @@ public class CassandraIO {
         return source;
       }
 
-      private Mapper<T> getMapper(Session session, Class<T> enitity) {
+      private BaseDao<T> getDao(CqlSession session, Class<T> entity) {
         return source.spec.mapperFactoryFn().apply(session);
       }
     }
@@ -850,7 +879,9 @@ public class CassandraIO {
 
     abstract @Nullable ValueProvider<Integer> readTimeout();
 
-    abstract @Nullable SerializableFunction<Session, Mapper> mapperFactoryFn();
+    abstract @Nullable SerializableFunction<CqlSession, BaseDao<T>> mapperFactoryFn();
+
+    abstract @Nullable SSLContext sslContext();
 
     abstract Builder<T> builder();
 
@@ -1022,7 +1053,8 @@ public class CassandraIO {
       return builder().setReadTimeout(timeout).build();
     }
 
-    public Write<T> withMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn) {
+    public Write<T> withMapperFactoryFn(
+        SerializableFunction<CqlSession, BaseDao<T>> mapperFactoryFn) {
       checkArgument(
           mapperFactoryFn != null,
           "CassandraIO."
@@ -1030,6 +1062,13 @@ public class CassandraIO {
               + "().mapperFactoryFn"
               + "(mapperFactoryFn) called with null value");
       return builder().setMapperFactoryFn(mapperFactoryFn).build();
+    }
+
+    public Write<T> withSslContext(SSLContext sslContext) {
+      checkArgument(
+          sslContext != null,
+          "CassandraIO.withSslContext" + "(withSslContext) called with null value");
+      return builder().setSslContext(sslContext).build();
     }
 
     @Override
@@ -1057,6 +1096,12 @@ public class CassandraIO {
               + getMutationTypeName()
               + "() requires an entity to be set via "
               + "withEntity(entity)");
+      checkState(
+          mapperFactoryFn() != null,
+          "CassandraIO."
+              + getMutationTypeName()
+              + "() requires mapperFactoryFn to be set via "
+              + "withMapperFactoryFn(mapperFactoryFn)");
     }
 
     @Override
@@ -1102,17 +1147,16 @@ public class CassandraIO {
 
       abstract Builder<T> setReadTimeout(ValueProvider<Integer> timeout);
 
-      abstract Builder<T> setMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn);
+      abstract Builder<T> setMapperFactoryFn(
+          SerializableFunction<CqlSession, BaseDao<T>> mapperFactoryFn);
 
-      abstract Optional<SerializableFunction<Session, Mapper>> mapperFactoryFn();
+      abstract Optional<SerializableFunction<CqlSession, BaseDao<T>>> mapperFactoryFn();
 
       abstract Write<T> autoBuild(); // not public
 
-      public Write<T> build() {
+      abstract Builder<T> setSslContext(SSLContext sslContext);
 
-        if (!mapperFactoryFn().isPresent() && entity().isPresent()) {
-          setMapperFactoryFn(new DefaultObjectMapperFactory(entity().get()));
-        }
+      public Write<T> build() {
         return autoBuild();
       }
     }
@@ -1128,17 +1172,12 @@ public class CassandraIO {
 
     @Setup
     public void setup() {
-      writer = new Mutator<>(spec, Mapper::saveAsync, "writes");
+      writer = new Mutator<>(spec, BaseDao::saveAsync, "writes");
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws ExecutionException, InterruptedException {
       writer.mutate(c.element());
-    }
-
-    @FinishBundle
-    public void finishBundle() throws Exception {
-      writer.flush();
     }
 
     @Teardown
@@ -1158,17 +1197,12 @@ public class CassandraIO {
 
     @Setup
     public void setup() {
-      deleter = new Mutator<>(spec, Mapper::deleteAsync, "deletes");
+      deleter = new Mutator<>(spec, BaseDao::deleteAsync, "deletes");
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws ExecutionException, InterruptedException {
       deleter.mutate(c.element());
-    }
-
-    @FinishBundle
-    public void finishBundle() throws Exception {
-      deleter.flush();
     }
 
     @Teardown
@@ -1179,7 +1213,7 @@ public class CassandraIO {
   }
 
   /** Get a Cassandra cluster using hosts and port. */
-  private static Cluster getCluster(
+  private static CqlSession getSession(
       ValueProvider<List<String>> hosts,
       ValueProvider<Integer> port,
       ValueProvider<String> username,
@@ -1187,39 +1221,38 @@ public class CassandraIO {
       ValueProvider<String> localDc,
       ValueProvider<String> consistencyLevel,
       ValueProvider<Integer> connectTimeout,
-      ValueProvider<Integer> readTimeout) {
+      ValueProvider<Integer> readTimeout,
+      SSLContext sslContext) {
 
-    Cluster.Builder builder =
-        Cluster.builder().addContactPoints(hosts.get().toArray(new String[0])).withPort(port.get());
-
-    if (username != null) {
-      builder.withAuthProvider(new PlainTextAuthProvider(username.get(), password.get()));
+    List<InetSocketAddress> contactPoints = new ArrayList<InetSocketAddress>();
+    List<String> hostNames = hosts.get();
+    for (String host : hostNames) {
+      contactPoints.add(new InetSocketAddress(host, port.get()));
     }
 
-    DCAwareRoundRobinPolicy.Builder dcAwarePolicyBuilder = new DCAwareRoundRobinPolicy.Builder();
-    if (localDc != null) {
-      dcAwarePolicyBuilder.withLocalDc(localDc.get());
+    CqlSessionBuilder builder =
+        CqlSession.builder().addContactPoints(contactPoints).withLocalDatacenter(localDc.get());
+
+    if (sslContext != null) {
+      builder.withSslContext(sslContext);
     }
 
-    builder.withLoadBalancingPolicy(new TokenAwarePolicy(dcAwarePolicyBuilder.build()));
+    if (username != null && password != null) {
+      builder.withAuthCredentials(username.get(), password.get());
+    }
 
+    ProgrammaticDriverConfigLoaderBuilder configLoaderBuilder =
+        DriverConfigLoader.programmaticBuilder();
+    configLoaderBuilder.withDuration(
+        DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofMillis(connectTimeout.get()));
+
+    /*
     if (consistencyLevel != null) {
       builder.withQueryOptions(
           new QueryOptions().setConsistencyLevel(ConsistencyLevel.valueOf(consistencyLevel.get())));
     }
-
-    SocketOptions socketOptions = new SocketOptions();
-
-    builder.withSocketOptions(socketOptions);
-
-    if (connectTimeout != null) {
-      socketOptions.setConnectTimeoutMillis(connectTimeout.get());
-    }
-
-    if (readTimeout != null) {
-      socketOptions.setReadTimeoutMillis(readTimeout.get());
-    }
-
+     */
+    builder.withConfigLoader(configLoaderBuilder.build());
     return builder.build();
   }
 
@@ -1231,16 +1264,18 @@ public class CassandraIO {
      */
     private static final int CONCURRENT_ASYNC_QUERIES = 100;
 
-    private final Cluster cluster;
-    private final Session session;
-    private final SerializableFunction<Session, Mapper> mapperFactoryFn;
-    private List<Future<Void>> mutateFutures;
-    private final BiFunction<Mapper<T>, T, Future<Void>> mutator;
+    private final CqlSession session;
+    private final SerializableFunction<CqlSession, BaseDao<T>> mapperFactoryFn;
+    private List<CompletionStage<Void>> mutateFutures;
+    private final BiFunction<BaseDao<T>, T, CompletionStage<Void>> mutator;
     private final String operationName;
 
-    Mutator(Write<T> spec, BiFunction<Mapper<T>, T, Future<Void>> mutator, String operationName) {
-      this.cluster =
-          getCluster(
+    Mutator(
+        Write<T> spec,
+        BiFunction<BaseDao<T>, T, CompletionStage<Void>> mutator,
+        String operationName) {
+      this.session =
+          getSession(
               spec.hosts(),
               spec.port(),
               spec.username(),
@@ -1248,8 +1283,9 @@ public class CassandraIO {
               spec.localDc(),
               spec.consistencyLevel(),
               spec.connectTimeout(),
-              spec.readTimeout());
-      this.session = cluster.connect(spec.keyspace().get());
+              spec.readTimeout(),
+              spec.sslContext());
+
       this.mapperFactoryFn = spec.mapperFactoryFn();
       this.mutateFutures = new ArrayList<>();
       this.mutator = mutator;
@@ -1257,15 +1293,13 @@ public class CassandraIO {
     }
 
     /**
-     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the the
-     * Mapper factory, the DefaultObjectMapperFactory uses {@link
-     * com.datastax.driver.mapping.MappingManager}. This method uses {@link
-     * Mapper#saveAsync(Object)} method, which is asynchronous. Beam will wait for all futures to
-     * complete, to guarantee all writes have succeeded.
+     * Mutate the entity to the Cassandra instance, using Mapper obtained with the the Mapper
+     * factory. This method uses {@link BaseDao#saveAsync(Object)} method, which is asynchronous.
+     * Beam will wait for all futures to complete, to guarantee all writes have succeeded.
      */
     void mutate(T entity) throws ExecutionException, InterruptedException {
-      Mapper<T> mapper = mapperFactoryFn.apply(session);
-      this.mutateFutures.add(mutator.apply(mapper, entity));
+      BaseDao<T> dao = mapperFactoryFn.apply(session);
+      this.mutateFutures.add(mutator.apply(dao, entity));
       if (this.mutateFutures.size() == CONCURRENT_ASYNC_QUERIES) {
         // We reached the max number of allowed in flight queries.
         // Write methods are synchronous in Beam,
@@ -1279,25 +1313,20 @@ public class CassandraIO {
       }
     }
 
-    void flush() throws ExecutionException, InterruptedException {
+    void close() throws ExecutionException, InterruptedException {
       if (this.mutateFutures.size() > 0) {
         // Waiting for the last in flight async queries to return before finishing the bundle.
         waitForFuturesToFinish();
       }
-    }
 
-    void close() {
       if (session != null) {
         session.close();
-      }
-      if (cluster != null) {
-        cluster.close();
       }
     }
 
     private void waitForFuturesToFinish() throws ExecutionException, InterruptedException {
-      for (Future<Void> future : mutateFutures) {
-        future.get();
+      for (CompletionStage<Void> future : mutateFutures) {
+        future.toCompletableFuture().join();
       }
     }
   }

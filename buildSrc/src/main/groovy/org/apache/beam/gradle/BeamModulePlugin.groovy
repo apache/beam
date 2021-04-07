@@ -420,7 +420,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def autovalue_version = "1.7.4"
     def aws_java_sdk_version = "1.11.974"
     def aws_java_sdk2_version = "2.15.31"
-    def cassandra_driver_version = "3.10.2"
+    def cassandra_driver3_version = "3.10.2"
+    def cassandra_driver4_version = "4.9.0"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.65"
     def errorprone_version = "2.3.4"
@@ -494,8 +495,10 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_utils                         : "software.amazon.awssdk:utils:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
-        cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
-        cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
+        cassandra_driver3_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver3_version",
+        cassandra_driver3_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver3_version",
+        cassandra_driver4_core                  : "com.datastax.oss:java-driver-core:$cassandra_driver4_version",
+        cassandra_driver4_mapper_runtime             : "com.datastax.oss:java-driver-mapper-runtime:$cassandra_driver4_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.14",
         commons_compress                            : "org.apache.commons:commons-compress:1.20",
@@ -928,6 +931,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def annotationProcessorDeps = [
           "com.google.auto.value:auto-value:$autovalue_version",
           "com.google.auto.service:auto-service:1.0-rc6",
+          "com.datastax.oss:java-driver-mapper-processor:$cassandra_driver4_version",
         ]
 
         annotationProcessorDeps.each { dep ->

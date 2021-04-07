@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.io.cassandra;
 
-import com.datastax.driver.core.ResultSet;
-import java.util.Iterator;
-import java.util.concurrent.Future;
+import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable;
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
+import com.datastax.oss.driver.api.mapper.annotations.Delete;
+import com.datastax.oss.driver.api.mapper.annotations.GetEntity;
+import com.datastax.oss.driver.api.mapper.annotations.Insert;
+import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -28,10 +31,10 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  * This interface allows you to implement a custom mapper to read and persist elements from/to
  * Cassandra.
  *
- * <p>To Implement a custom mapper you need to: 1) Create an implementation of {@link Mapper}. 2)
- * Create a {@link SerializableFunction} that instantiates the {@link Mapper} for a given Session,
- * for an example see {@link DefaultObjectMapperFactory}). 3) Pass this function to {@link
- * CassandraIO.Read#withMapperFactoryFn(SerializableFunction)} in the CassandraIO builder. <br>
+ * <p>To Implement a custom mapper you need to: 1) Create an implementation of {@link BaseDao}. 2)
+ * Create a {@link SerializableFunction} that instantiates the {@link BaseDao} for a given Session.
+ * 3) Pass this function to {@link CassandraIO.Read#withMapperFactoryFn(SerializableFunction)} in
+ * the CassandraIO builder. <br>
  * Example:
  *
  * <pre>{@code
@@ -43,7 +46,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
-public interface Mapper<T> {
+public interface BaseDao<T> {
 
   /**
    * This method is called when reading data from Cassandra. It should map a ResultSet into the
@@ -53,7 +56,8 @@ public interface Mapper<T> {
    * @return An iterator containing the objects that you want to provide to your downstream
    *     pipeline.
    */
-  Iterator<T> map(ResultSet resultSet);
+  @GetEntity
+  MappedAsyncPagingIterable<T> map(AsyncResultSet resultSet);
 
   /**
    * This method is called for each delete event. The input argument is the Object that should be
@@ -62,7 +66,8 @@ public interface Mapper<T> {
    *
    * @param entity Entity to be deleted.
    */
-  Future<Void> deleteAsync(T entity);
+  @Delete
+  CompletionStage<Void> deleteAsync(T entity);
 
   /**
    * This method is called for each save event. The input argument is the Object that should be
@@ -71,5 +76,6 @@ public interface Mapper<T> {
    *
    * @param entity Entity to be saved.
    */
-  Future<Void> saveAsync(T entity);
+  @Insert
+  CompletionStage<Void> saveAsync(T entity);
 }

@@ -87,8 +87,8 @@ dependencies {
   testCompile "org.apache.httpcomponents:httpclient:4.5.13"
   testCompile library.java.commons_lang3
   testCompile library.java.commons_io
-  testCompile library.java.cassandra_driver_core
-  testCompile library.java.cassandra_driver_mapping
+  testCompile library.java.cassandra_driver3_core
+  testCompile library.java.cassandra_driver3_mapping
   testCompile "org.apache.cassandra:cassandra-all:3.11.8"
   testCompile library.java.postgres
   testCompile library.java.junit

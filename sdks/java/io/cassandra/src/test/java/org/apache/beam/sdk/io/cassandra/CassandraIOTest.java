@@ -27,33 +27,34 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
-import com.datastax.driver.mapping.annotations.Column;
-import com.datastax.driver.mapping.annotations.Computed;
-import com.datastax.driver.mapping.annotations.PartitionKey;
-import com.datastax.driver.mapping.annotations.Table;
+import com.datastax.oss.driver.api.core.CqlIdentifier;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.CqlSessionBuilder;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.mapper.annotations.Computed;
+import com.datastax.oss.driver.api.mapper.annotations.CqlName;
+import com.datastax.oss.driver.api.mapper.annotations.Dao;
+import com.datastax.oss.driver.api.mapper.annotations.DaoFactory;
+import com.datastax.oss.driver.api.mapper.annotations.DaoKeyspace;
+import com.datastax.oss.driver.api.mapper.annotations.Entity;
+import com.datastax.oss.driver.api.mapper.annotations.Mapper;
+import com.datastax.oss.driver.api.mapper.annotations.PartitionKey;
+import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
 import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
 import info.archinnov.achilles.embedded.CassandraShutDownHook;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -77,8 +78,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
@@ -97,6 +96,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 20L;
@@ -112,7 +112,7 @@ public class CassandraIOTest implements Serializable {
   private static int cassandraPort;
 
   private static Cluster cluster;
-  private static Session session;
+  private static CqlSession session;
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -146,7 +146,14 @@ public class CassandraIOTest implements Serializable {
     cluster = buildCluster(builder);
 
     cassandraPort = cluster.getConfiguration().getProtocolOptions().getPort();
-    session = CassandraIOTest.cluster.newSession();
+
+    CqlSessionBuilder cqlSessionBuilder =
+        CqlSession.builder()
+            .addContactPoint(new InetSocketAddress(CASSANDRA_HOST, cassandraPort))
+            .withLocalDatacenter("datacenter1");
+
+    session = cqlSessionBuilder.build();
+
     insertData();
     disableAutoCompaction();
   }
@@ -278,12 +285,24 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testEstimatedSizeBytes() throws Exception {
+    SerializableFunction<CqlSession, BaseDao<Scientist>> daoMapperFunction =
+        (session) -> {
+          ScientistMapper scientistMapper =
+              new CassandraIOTest_ScientistMapperBuilder(session).build();
+          ScientistDao dao =
+              scientistMapper.scientistDao(CqlIdentifier.fromCql(CASSANDRA_KEYSPACE));
+          return dao;
+        };
+
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     CassandraIO.Read<Scientist> read =
         CassandraIO.<Scientist>read()
             .withHosts(Collections.singletonList(CASSANDRA_HOST))
             .withPort(cassandraPort)
             .withKeyspace(CASSANDRA_KEYSPACE)
+            .withMapperFactoryFn(daoMapperFunction)
+            .withLocalDc("datacenter1")
+            .withConnectTimeout(5000)
             .withTable(CASSANDRA_TABLE);
     CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(read, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
@@ -297,6 +316,15 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testRead() throws Exception {
+    SerializableFunction<CqlSession, BaseDao<Scientist>> daoMapperFunction =
+        (session) -> {
+          ScientistMapper scientistMapper =
+              new CassandraIOTest_ScientistMapperBuilder(session).build();
+          ScientistDao dao =
+              scientistMapper.scientistDao(CqlIdentifier.fromCql(CASSANDRA_KEYSPACE));
+          return dao;
+        };
+
     PCollection<Scientist> output =
         pipeline.apply(
             CassandraIO.<Scientist>read()
@@ -304,6 +332,9 @@ public class CassandraIOTest implements Serializable {
                 .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withTable(CASSANDRA_TABLE)
+                .withMapperFactoryFn(daoMapperFunction)
+                .withLocalDc("datacenter1")
+                .withConnectTimeout(5000)
                 .withCoder(SerializableCoder.of(Scientist.class))
                 .withEntity(Scientist.class));
 
@@ -329,35 +360,48 @@ public class CassandraIOTest implements Serializable {
 
     pipeline.run();
   }
+  /*
+    @Test
+    public void testReadWithQuery() throws Exception {
+      SerializableFunction<CqlSession, BaseDao<Scientist>> daoMapperFunction =
+          (session) -> {
+            ScientistMapper scientistMapper =
+                new CassandraIOTest_ScientistMapperBuilder(session).build();
+            ScientistDao dao =
+                scientistMapper.scientistDao(CqlIdentifier.fromCql(CASSANDRA_KEYSPACE));
+            return dao;
+          };
 
-  @Test
-  public void testReadWithQuery() throws Exception {
-    PCollection<Scientist> output =
-        pipeline.apply(
-            CassandraIO.<Scientist>read()
-                .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(cassandraPort)
-                .withKeyspace(CASSANDRA_KEYSPACE)
-                .withTable(CASSANDRA_TABLE)
-                .withQuery(
-                    "select person_id, writetime(person_name) from beam_ks.scientist where person_id=10")
-                .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class));
+      PCollection<Scientist> output =
+          pipeline.apply(
+              CassandraIO.<Scientist>read()
+                  .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                  .withPort(cassandraPort)
+                  .withKeyspace(CASSANDRA_KEYSPACE)
+                  .withTable(CASSANDRA_TABLE)
+                  .withQuery(
+                      "select person_id,writetime(person_name) as name_ts from beam_ks.scientist where person_id=10")
+                  .withMapperFactoryFn(daoMapperFunction)
+                  .withLocalDc("datacenter1")
+                  .withConnectTimeout(5000)
+                  .withCoder(SerializableCoder.of(Scientist.class))
+                  .withEntity(Scientist.class));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
-    PAssert.that(output)
-        .satisfies(
-            input -> {
-              for (Scientist sci : input) {
-                assertNull(sci.name);
-                assertTrue(sci.nameTs != null && sci.nameTs > 0);
-              }
-              return null;
-            });
+      PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
+      PAssert.that(output)
+          .satisfies(
+              input -> {
+                for (Scientist sci : input) {
+                  LOG.info("TO CHECK:" + sci.name + ":" + sci.id + ":" + sci.nameTs);
+                  assertNull(sci.name);
+                  assertTrue(sci.nameTs > 0);
+                }
+                return null;
+              });
 
-    pipeline.run();
-  }
-
+      pipeline.run();
+    }
+  */
   @Test
   public void testWrite() {
     ArrayList<ScientistWrite> data = new ArrayList<>();
@@ -367,7 +411,14 @@ public class CassandraIOTest implements Serializable {
       scientist.name = "Name " + i;
       data.add(scientist);
     }
-
+    SerializableFunction<CqlSession, BaseDao<ScientistWrite>> daoMapperFunction =
+        (session) -> {
+          ScientistWriteMapper scientistWriteMapper =
+              new CassandraIOTest_ScientistWriteMapperBuilder(session).build();
+          ScientistWriteDao dao =
+              scientistWriteMapper.scientistWriteDao(CqlIdentifier.fromCql(CASSANDRA_KEYSPACE));
+          return dao;
+        };
     pipeline
         .apply(Create.of(data))
         .apply(
@@ -375,6 +426,9 @@ public class CassandraIOTest implements Serializable {
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
                 .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
+                .withMapperFactoryFn(daoMapperFunction)
+                .withLocalDc("datacenter1")
+                .withConnectTimeout(5000)
                 .withEntity(ScientistWrite.class));
     // table to write to is specified in the entity in @Table annotation (in that case
     // scientist_write)
@@ -387,106 +441,17 @@ public class CassandraIOTest implements Serializable {
     }
   }
 
-  private static final AtomicInteger counter = new AtomicInteger();
-
-  private static class NOOPMapperFactory implements SerializableFunction<Session, Mapper> {
-
-    @Override
-    public Mapper apply(Session input) {
-      return new NOOPMapper();
-    }
-  }
-
-  private static class NOOPMapper implements Mapper<String>, Serializable {
-
-    private final ListeningExecutorService executor =
-        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
-
-    final Callable<Void> asyncTask = () -> (null);
-
-    @Override
-    public Iterator map(ResultSet resultSet) {
-      if (!resultSet.isExhausted()) {
-        resultSet.iterator().forEachRemaining(r -> counter.getAndIncrement());
-      }
-      return Collections.emptyIterator();
-    }
-
-    @Override
-    public Future<Void> deleteAsync(String entity) {
-      counter.incrementAndGet();
-      return executor.submit(asyncTask);
-    }
-
-    @Override
-    public Future<Void> saveAsync(String entity) {
-      counter.incrementAndGet();
-      return executor.submit(asyncTask);
-    }
-  }
-
-  @Test
-  public void testReadWithMapper() throws Exception {
-    counter.set(0);
-
-    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
-
-    pipeline.apply(
-        CassandraIO.<String>read()
-            .withHosts(Collections.singletonList(CASSANDRA_HOST))
-            .withPort(cassandraPort)
-            .withKeyspace(CASSANDRA_KEYSPACE)
-            .withTable(CASSANDRA_TABLE)
-            .withCoder(SerializableCoder.of(String.class))
-            .withEntity(String.class)
-            .withMapperFactoryFn(factory));
-    pipeline.run();
-
-    assertEquals(NUM_ROWS, counter.intValue());
-  }
-
-  @Test
-  public void testCustomMapperImplWrite() throws Exception {
-    counter.set(0);
-
-    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
-
-    pipeline
-        .apply(Create.of(""))
-        .apply(
-            CassandraIO.<String>write()
-                .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(cassandraPort)
-                .withKeyspace(CASSANDRA_KEYSPACE)
-                .withMapperFactoryFn(factory)
-                .withEntity(String.class));
-    pipeline.run();
-
-    assertEquals(1, counter.intValue());
-  }
-
-  @Test
-  public void testCustomMapperImplDelete() {
-    counter.set(0);
-
-    SerializableFunction<Session, Mapper> factory = new NOOPMapperFactory();
-
-    pipeline
-        .apply(Create.of(""))
-        .apply(
-            CassandraIO.<String>delete()
-                .withHosts(Collections.singletonList(CASSANDRA_HOST))
-                .withPort(cassandraPort)
-                .withKeyspace(CASSANDRA_KEYSPACE)
-                .withMapperFactoryFn(factory)
-                .withEntity(String.class));
-    pipeline.run();
-
-    assertEquals(1, counter.intValue());
-  }
-
   @Test
   public void testSplit() throws Exception {
+    SerializableFunction<CqlSession, BaseDao<Scientist>> daoMapperFunction =
+        (session) -> {
+          ScientistMapper scientistMapper =
+              new CassandraIOTest_ScientistMapperBuilder(session).build();
+          ScientistDao dao =
+              scientistMapper.scientistDao(CqlIdentifier.fromCql(CASSANDRA_KEYSPACE));
+          return dao;
+        };
+
     PipelineOptions options = PipelineOptionsFactory.create();
     CassandraIO.Read<Scientist> read =
         CassandraIO.<Scientist>read()
@@ -494,12 +459,17 @@ public class CassandraIOTest implements Serializable {
             .withPort(cassandraPort)
             .withKeyspace(CASSANDRA_KEYSPACE)
             .withTable(CASSANDRA_TABLE)
+            .withMapperFactoryFn(daoMapperFunction)
+            .withLocalDc("datacenter1")
+            .withConnectTimeout(5000)
             .withEntity(Scientist.class)
             .withCoder(SerializableCoder.of(Scientist.class));
 
     // initialSource will be read without splitting (which does not happen in production)
     // so we need to provide splitQueries to avoid NPE in source.reader.start()
-    String splitQuery = QueryBuilder.select().from(CASSANDRA_KEYSPACE, CASSANDRA_TABLE).toString();
+    String splitQuery =
+        QueryBuilder.selectFrom(CASSANDRA_KEYSPACE, CASSANDRA_TABLE).all().toString();
+
     CassandraIO.CassandraSource<Scientist> initialSource =
         new CassandraIO.CassandraSource<>(read, Collections.singletonList(splitQuery));
     int desiredBundleSizeBytes = 2048;
@@ -546,12 +516,25 @@ public class CassandraIOTest implements Serializable {
     Scientist einstein = new Scientist();
     einstein.id = 0;
     einstein.name = "Einstein";
+
+    SerializableFunction<CqlSession, BaseDao<Scientist>> daoMapperFunction =
+        (session) -> {
+          ScientistMapper scientistMapper =
+              new CassandraIOTest_ScientistMapperBuilder(session).build();
+          ScientistDao dao =
+              scientistMapper.scientistDao(CqlIdentifier.fromCql(CASSANDRA_KEYSPACE));
+          return dao;
+        };
+
     pipeline
         .apply(Create.of(einstein))
         .apply(
             CassandraIO.<Scientist>delete()
                 .withHosts(Collections.singletonList(CASSANDRA_HOST))
                 .withPort(cassandraPort)
+                .withMapperFactoryFn(daoMapperFunction)
+                .withConnectTimeout(5000)
+                .withLocalDc("datacenter1")
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(Scientist.class));
 
@@ -572,7 +555,7 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testValidPartitioner() {
-    Assert.assertTrue(isMurmur3Partitioner(cluster));
+    Assert.assertTrue(isMurmur3Partitioner(session));
   }
 
   @Test
@@ -623,18 +606,52 @@ public class CassandraIOTest implements Serializable {
   }
 
   /** Simple Cassandra entity used in read tests. */
-  @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
-  static class Scientist implements Serializable {
+  @Entity(defaultKeyspace = CASSANDRA_KEYSPACE)
+  @CqlName(CASSANDRA_TABLE)
+  public static class Scientist implements Serializable {
 
-    @Column(name = "person_name")
-    String name;
+    @CqlName("person_name")
+    public String name;
 
     @Computed("writetime(person_name)")
-    Long nameTs;
+    @CqlName("name_ts")
+    public Long nameTs;
 
-    @PartitionKey()
-    @Column(name = "person_id")
-    int id;
+    @CqlName("person_id")
+    @PartitionKey
+    public Integer id;
+
+    public Scientist() {}
+
+    public Scientist(int id, String name) {
+      super();
+      this.id = id;
+      this.name = name;
+    }
+
+    public Integer getId() {
+      return id;
+    }
+
+    public void setId(Integer id) {
+      this.id = id;
+    }
+
+    /*    public Long getNameTs() {
+      return nameTs;
+    }
+
+    public void setNameTs(Long nameTs) {
+      this.nameTs = nameTs;
+    }*/
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
 
     @Override
     public String toString() {
@@ -650,7 +667,7 @@ public class CassandraIOTest implements Serializable {
         return false;
       }
       Scientist scientist = (Scientist) o;
-      return id == scientist.id && Objects.equal(name, scientist.name);
+      return id.equals(scientist.id) && Objects.equal(name, scientist.name);
     }
 
     @Override
@@ -659,8 +676,30 @@ public class CassandraIOTest implements Serializable {
     }
   }
 
+  @Dao
+  public interface ScientistDao extends BaseDao<Scientist> {}
+
+  @Mapper
+  public interface ScientistMapper {
+    @DaoFactory
+    ScientistDao scientistDao(@DaoKeyspace CqlIdentifier keyspace);
+  }
+
   private static final String CASSANDRA_TABLE_WRITE = "scientist_write";
+
   /** Simple Cassandra entity used in write tests. */
-  @Table(name = CASSANDRA_TABLE_WRITE, keyspace = CASSANDRA_KEYSPACE)
-  static class ScientistWrite extends Scientist {}
+  @Entity(defaultKeyspace = CASSANDRA_KEYSPACE)
+  @CqlName(CASSANDRA_TABLE_WRITE)
+  public static class ScientistWrite extends Scientist implements Serializable {
+    public ScientistWrite() {}
+  }
+
+  @Dao
+  public interface ScientistWriteDao extends BaseDao<ScientistWrite> {}
+
+  @Mapper
+  public interface ScientistWriteMapper {
+    @DaoFactory
+    ScientistWriteDao scientistWriteDao(@DaoKeyspace CqlIdentifier keyspace);
+  }
 }
