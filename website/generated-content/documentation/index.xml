@@ -9736,7 +9736,97 @@ assert_that(res, equal_to([&amp;#39;0a&amp;#39;, &amp;#39;0b&amp;#39;]))
 &lt;/ol>
 &lt;h3 id="x-lang-transform-runner-support">13.3. Runner Support&lt;/h3>
 &lt;p>Currently, portable runners such as Flink, Spark, and the Direct runner can be used with multi-language pipelines.&lt;/p>
-&lt;p>Google Cloud Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.&lt;/p></description></item><item><title>Documentation: BigQuery patterns</title><link>/documentation/patterns/bigqueryio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bigqueryio/</guid><description>
+&lt;p>Google Cloud Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="bigquery-ml-integration">BigQuery ML integration&lt;/h1>
+&lt;p>With the samples on this page we will demonstrate how to integrate models exported from &lt;a href="https://cloud.google.com/bigquery-ml/docs">BigQuery ML (BQML)&lt;/a> into your Apache Beam pipeline using &lt;a href="https://github.com/tensorflow/tfx-bsl">TFX Basic Shared Libraries (tfx_bsl)&lt;/a>.&lt;/p>
+&lt;p>Roughly, the sections below will go through the following steps in more detail:&lt;/p>
+&lt;ol>
+&lt;li>Create and train your BigQuery ML model&lt;/li>
+&lt;li>Export your BigQuery ML model&lt;/li>
+&lt;li>Create a transform that uses the brand-new BigQuery ML model&lt;/li>
+&lt;/ol>
+&lt;nav class="language-switcher">
+&lt;strong>Adapt for:&lt;/strong>
+&lt;ul>
+&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
+&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;h2 id="create-and-train-your-bigquery-ml-model">Create and train your BigQuery ML model&lt;/h2>
+&lt;p>To be able to incorporate your BQML model into an Apache Beam pipeline using tfx_bsl, it has to be in the &lt;a href="https://www.tensorflow.org/guide/saved_model">TensorFlow SavedModel&lt;/a> format. An overview that maps different model types to their export model format for BQML can be found &lt;a href="https://cloud.google.com/bigquery-ml/docs/exporting-models#export_model_formats_and_samples">here&lt;/a>.&lt;/p>
+&lt;p>For the sake of simplicity, we&amp;rsquo;ll be training a (simplified version of the) logistic regression model in the &lt;a href="https://cloud.google.com/bigquery-ml/docs/bigqueryml-web-ui-start">BQML quickstart guide&lt;/a>, using the publicly available Google Analytics sample dataset (which is a &lt;a href="https://cloud.google.com/bigquery/docs/partitioned-tables#dt_partition_shard">date-sharded table&lt;/a> - alternatively, you might encounter &lt;a href="https://cloud.google.com/bigquery/docs/partitioned-tables">partitioned tables&lt;/a>). An overview of all models you can create using BQML can be found &lt;a href="https://cloud.google.com/bigquery-ml/docs/introduction#supported_models_in">here&lt;/a>.&lt;/p>
+&lt;p>After creating a BigQuery dataset, you continue to create the model, which is fully defined in SQL:&lt;/p>
+&lt;pre>&lt;code>CREATE MODEL IF NOT EXISTS `bqml_tutorial.sample_model`
+OPTIONS(model_type='logistic_reg', input_label_cols=[&amp;quot;label&amp;quot;]) AS
+SELECT
+IF(totals.transactions IS NULL, 0, 1) AS label,
+IFNULL(geoNetwork.country, &amp;quot;&amp;quot;) AS country
+FROM
+`bigquery-public-data.google_analytics_sample.ga_sessions_*`
+WHERE
+_TABLE_SUFFIX BETWEEN '20160801' AND '20170630'
+&lt;/code>&lt;/pre>&lt;p>The model will predict if a purchase will be made given the country of the visitor on data gathered between 2016-08-01 and 2017-06-30.&lt;/p>
+&lt;h2 id="export-your-bigquery-ml-model">Export your BigQuery ML model&lt;/h2>
+&lt;p>In order to incorporate your model in an Apache Beam pipeline, you will need to export it. Prerequisites to do so are &lt;a href="https://cloud.google.com/bigquery/docs/bq-command-line-tool">installing the &lt;code>bq&lt;/code> command-line tool&lt;/a> and &lt;a href="https://cloud.google.com/storage/docs/creating-buckets">creating a Google Cloud Storage bucket&lt;/a> to store your exported model.&lt;/p>
+&lt;p>Export the model using the following command:&lt;/p>
+&lt;pre>&lt;code>bq extract -m bqml_tutorial.sample_model gs://some/gcs/path
+&lt;/code>&lt;/pre>&lt;h2 id="create-an-apache-beam-transform-that-uses-your-bigquery-ml-model">Create an Apache Beam transform that uses your BigQuery ML model&lt;/h2>
+&lt;p>In this section we will construct an Apache Beam pipeline that will use the BigQuery ML model we just created and exported. The model can be served using Google Cloud AI Platform Prediction - for this please refer to the &lt;a href="https://beam.apache.org/documentation/patterns/ai-platform/">AI Platform patterns&lt;/a>. In this case, we&amp;rsquo;ll be illustrating how to use the tfx_bsl library to do local predictions (on your Apache Beam workers).&lt;/p>
+&lt;p>First, the model needs to be downloaded to a local directory where you will be developing the rest of your pipeline (e.g. to &lt;code>serving_dir/sample_model/1&lt;/code>).&lt;/p>
+&lt;p>Then, you can start developing your pipeline like you would normally do. We will be using the &lt;code>RunInference&lt;/code> PTransform from the &lt;a href="https://github.com/tensorflow/tfx-bsl">tfx_bsl&lt;/a> library, and we will point it to our local directory where the model is stored (see the &lt;code>model_path&lt;/code> variable in the code example). The transform takes elements of the type &lt;code>tf.train.Example&lt;/code> as inputs and outputs elements of the type &lt;a href="https://github.com/tensorflow/serving/blob/master/tensorflow_serving/apis/prediction_log.proto">&lt;code>tensorflow_serving.apis.prediction_log_pb2.PredictionLog&lt;/code>&lt;/a>. Depending on the signature of your model, you can extract values from the output; in our case we extract &lt;code>label_probs&lt;/code>, &lt;code>label_values&lt;/code> and the &lt;code>predicted_label&lt;/code> as per the &lt;a href="https://cloud.google.com/bigquery-ml/docs/exporting-models#logistic_reg">docs on the logistic regression model&lt;/a> in the &lt;code>extract_prediction&lt;/code> function.&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">tensorflow&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">tf&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">google.protobuf&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">text_format&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">tensorflow.python.framework&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">tensor_util&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">tfx_bsl.beam&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">run_inference&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">tfx_bsl.public.beam&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">RunInference&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">tfx_bsl.public.proto&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">model_spec_pb2&lt;/span>
+&lt;span class="n">inputs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Example&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">features&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Features&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">feature&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;span class="s1">&amp;#39;os&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Feature&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bytes_list&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BytesList&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">b&lt;/span>&lt;span class="s2">&amp;#34;Microsoft&amp;#34;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="p">})&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="n">model_path&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;serving_dir/sample_model/1&amp;#34;&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">extract_prediction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">yield&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">predict_log&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">outputs&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;label_values&amp;#39;&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">string_val&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">tensor_util&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MakeNdarray&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">predict_log&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">outputs&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;label_probs&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
+&lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">predict_log&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">outputs&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;predicted_label&amp;#39;&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">string_val&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">res&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">inputs&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">RunInference&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">model_spec_pb2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">InferenceSpecType&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">saved_model_spec&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">model_spec_pb2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SavedModelSpec&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">model_path&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">model_path&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">signature_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;serving_default&amp;#39;&lt;/span>&lt;span class="p">])))&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">extract_prediction&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">Implemented&lt;/span> &lt;span class="n">in&lt;/span> &lt;span class="n">Python&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div></description></item><item><title>Documentation: BigQuery patterns</title><link>/documentation/patterns/bigqueryio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bigqueryio/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16118,70 +16208,4 @@ which summarizes the union of the inputs that were aggregated in the merged sket
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/java/aggregation/approximateunique">ApproximateUnique&lt;/a>
 estimates the number of distinct elements or values in key-value pairs (but does not expose sketches; also less accurate than &lt;code>HllCount&lt;/code>).&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: Java transform catalog overview</title><link>/documentation/transforms/java/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/overview/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="java-transform-catalog-overview">Java transform catalog overview&lt;/h1>
-&lt;h2 id="element-wise">Element-wise&lt;/h2>
-&lt;table class="table-bordered table-striped">
-&lt;tr>&lt;th>Transform&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/filter">Filter&lt;/a>&lt;/td>&lt;td>Given a predicate, filter out all elements that don't satisfy the predicate.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/flatmapelements">FlatMapElements&lt;/a>&lt;/td>&lt;td>Applies a function that returns a collection to every element in the input and
-outputs all resulting elements.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/keys">Keys&lt;/a>&lt;/td>&lt;td>Extracts the key from each element in a collection of key-value pairs.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/kvswap">KvSwap&lt;/a>&lt;/td>&lt;td>Swaps the key and value of each element in a collection of key-value pairs.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/mapelements">MapElements&lt;/a>&lt;/td>&lt;td>Applies a function to every element in the input and outputs the result.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/pardo">ParDo&lt;/a>&lt;/td>&lt;td>The most-general mechanism for applying a user-defined &lt;code>DoFn&lt;/code> to every element
-in the input collection.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/partition">Partition&lt;/a>&lt;/td>&lt;td>Routes each input element to a specific output collection based on some partition
-function.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/regex">Regex&lt;/a>&lt;/td>&lt;td>Filters input string elements based on a regex. May also transform them based on the matching groups.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/reify">Reify&lt;/a>&lt;/td>&lt;td>Transforms for converting between explicit and implicit form of various Beam values.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/tostring">ToString&lt;/a>&lt;/td>&lt;td>Transforms every element in an input collection to a string.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/withkeys">WithKeys&lt;/a>&lt;/td>&lt;td>Produces a collection containing each element from the input collection converted to a key-value pair, with a key selected by applying a function to the input element.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/withtimestamps">WithTimestamps&lt;/a>&lt;/td>&lt;td>Applies a function to determine a timestamp to each element in the output collection,
-and updates the implicit timestamp associated with each input. Note that it is only safe to adjust timestamps forwards.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/elementwise/values">Values&lt;/a>&lt;/td>&lt;td>Extracts the value from each element in a collection of key-value pairs.&lt;/td>&lt;/tr>
-&lt;/table>
-&lt;h2 id="aggregation">Aggregation&lt;/h2>
-&lt;table class="table-bordered table-striped">
-&lt;tr>&lt;th>Transform&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/approximatequantiles">ApproximateQuantiles&lt;/a>&lt;/td>&lt;td>Uses an approximation algorithm to estimate the data distribution within each aggregation using a specified number of quantiles.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/approximateunique">ApproximateUnique&lt;/a>&lt;/td>&lt;td>Uses an approximation algorithm to estimate the number of unique elements within each aggregation.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/cogroupbykey/">CoGroupByKey&lt;/a>&lt;/td>&lt;td>Similar to &lt;code>GroupByKey&lt;/code>, but groups values associated with each key into a batch of a given size&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/combine">Combine&lt;/a>&lt;/td>&lt;td>Transforms to combine elements according to a provided &lt;code>CombineFn&lt;/code>.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/combinewithcontext">CombineWithContext&lt;/a>&lt;/td>&lt;td>An extended version of Combine which allows accessing side-inputs and other context.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/count">Count&lt;/a>&lt;/td>&lt;td>Counts the number of elements within each aggregation.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/distinct">Distinct&lt;/a>&lt;/td>&lt;td>Produces a collection containing distinct elements from the input collection.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/groupbykey">GroupByKey&lt;/a>&lt;/td>&lt;td>Takes a keyed collection of elements and produces a collection where each element
-consists of a key and all values associated with that key.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/groupintobatches">GroupIntoBatches&lt;/a>&lt;/td>&lt;td>Batches values associated with keys into &lt;code>Iterable&lt;/code> batches of some size. Each batch contains elements associated with a specific key.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/hllcount">HllCount&lt;/a>&lt;/td>&lt;td>Estimates the number of distinct elements and creates re-aggregatable sketches using the HyperLogLog++ algorithm.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/latest">Latest&lt;/a>&lt;/td>&lt;td>Selects the latest element within each aggregation according to the implicit timestamp.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/max">Max&lt;/a>&lt;/td>&lt;td>Outputs the maximum element within each aggregation.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/mean">Mean&lt;/a>&lt;/td>&lt;td>Computes the average within each aggregation.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/min">Min&lt;/a>&lt;/td>&lt;td>Outputs the minimum element within each aggregation.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/sample">Sample&lt;/a>&lt;/td>&lt;td>Randomly select some number of elements from each aggregation.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/sum">Sum&lt;/a>&lt;/td>&lt;td>Compute the sum of elements in each aggregation.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/aggregation/top">Top&lt;/a>&lt;/td>&lt;td>Compute the largest element(s) in each aggregation.&lt;/td>&lt;/tr>
-&lt;/table>
-&lt;h2 id="other">Other&lt;/h2>
-&lt;table class="table-bordered table-striped">
-&lt;tr>&lt;th>Transform&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/other/create">Create&lt;/a>&lt;/td>&lt;td>Creates a collection from an in-memory list.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/other/flatten">Flatten&lt;/a>&lt;/td>&lt;td>Given multiple input collections, produces a single output collection containing
-all elements from all of the input collections.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/other/passert">PAssert&lt;/a>&lt;/td>&lt;td>A transform to assert the contents of a &lt;code>PCollection&lt;/code> used as part of testing a pipeline either locally or with a runner.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/other/view">View&lt;/a>&lt;/td>&lt;td>Operations for turning a collection into view that may be used as a side-input to a &lt;code>ParDo&lt;/code>.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;a href="/documentation/transforms/java/other/window">Window&lt;/a>&lt;/td>&lt;td>Logically divides up or groups the elements of a collection into finite
-windows according to a provided &lt;code>WindowFn&lt;/code>.&lt;/td>&lt;/tr>
-&lt;/table></description></item></channel></rss>
+&lt;/ul></description></item></channel></rss>
