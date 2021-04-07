@@ -451,7 +451,10 @@ class TestParquet(unittest.TestCase):
     orig = self._records_as_arrow()
     name_column = self.SCHEMA.field('name')
     expected_result = [
-        pa.Table.from_arrays([orig.column('name')], schema=pa.schema([('name', name_column.type, name_column.nullable)]))
+        pa.Table.from_arrays(
+            [orig.column('name')],
+            schema=pa.schema([('name', name_column.type, name_column.nullable)
+                              ]))
     ]
     self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
