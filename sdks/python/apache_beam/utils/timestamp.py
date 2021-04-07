@@ -66,7 +66,6 @@ class Timestamp(object):
       raise TypeError(
           'Cannot interpret %s %s as micros.' % (micros, type(micros)))
     self.micros = int(seconds * 1000000) + int(micros)
-    self.seconds = seconds + micros / 1000000
 
   @staticmethod
   def of(seconds):
@@ -291,7 +290,6 @@ class Duration(object):
   def __init__(self, seconds=0, micros=0):
     # type: (Union[int, float], Union[int, float]) -> None
     self.micros = int(seconds * 1000000) + int(micros)
-    self.seconds = seconds + micros / 1000000
 
   @staticmethod
   def of(seconds):

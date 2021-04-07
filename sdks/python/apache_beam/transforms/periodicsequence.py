@@ -38,9 +38,9 @@ class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def initial_restriction(self, element):
     start, end, interval = element
     if isinstance(start, Timestamp):
-      start = start.seconds
+      start = start.micros / 1000000
     if isinstance(end, Timestamp):
-      end = end.seconds
+      end = end.micros / 1000000
 
     assert start <= end
     assert interval > 0
@@ -87,7 +87,7 @@ class ImpulseSeqGenDoFn(beam.DoFn):
     start, _, interval = element
 
     if isinstance(start, Timestamp):
-      start = start.seconds
+      start = start.micros / 1000000
 
     assert isinstance(restriction_tracker, sdf_utils.RestrictionTrackerView)
 
