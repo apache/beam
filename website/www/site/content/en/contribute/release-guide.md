@@ -538,7 +538,7 @@ The final state of the repository should match this diagram:
       ./beam/release/src/main/scripts/choose_rc_commit.sh \
           --release "${RELEASE_VERSION}" \
           --rc "${RC_NUM}" \
-          --commit "${COMMIT_REF}" \
+	  --commit "${COMMIT_REF}" \
           --clone \
           --push-tag
 
@@ -597,6 +597,35 @@ See the source of the script for more details, or to run commands manually in ca
          They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
          Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
          Carefully review any new artifacts.
+
+### Upload release candidate to PyPi
+
+* **Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
+
+* **Usage**
+
+		./release/src/main/scripts/deploy_release_candidate_pypi.sh \
+		    --release "${RELEASE_VERSION}" \
+		    --rc "${RC_NUM}" \
+		    --user "${GITHUB_USER}" \
+		    --deploy
+
+* **The script will:**
+	1. Download python binary artifacts
+	1. Deploy release candidate to PyPI
+
+__Attention:__ Verify that:
+* The File names version include ``rc-#`` suffix
+* [Download Files](https://pypi.org/project/apache-beam/#files) have:
+  * All wheels uploaded as artifacts
+  * Release source's zip published
+  * Signatures and hashes do not need to be uploaded
+
+You can do a dry run by omitting the `--deploy` flag. Then it will only download the release candidate binaries. If it looks good, rerun it with `--deploy`.
+
+See the source of the script for more details or to run commands manually in case of a problem.
+
+
 
 **********
 

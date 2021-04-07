@@ -124,7 +124,7 @@ public class TableDestination implements Serializable {
     return tableSpec;
   }
 
-  /** Return the tablespec in projects/>project>/datasets/datset/tables/table format. */
+  /** Return the tablespec in projects/[project]/datasets/[dataset]/tables/[table] format. */
   public String getTableUrn() {
     TableReference table = getTableReference();
     return String.format(

@@ -50,6 +50,7 @@ tasks.rat {
     "**/test.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
+    "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
 
     // Default eclipse excludes neglect subprojects
@@ -162,15 +163,12 @@ task("javaPreCommitPortabilityApi") {
 }
 
 task("javaPostCommit") {
-  dependsOn(":runners:google-cloud-dataflow-java:postCommit")
-  dependsOn(":runners:google-cloud-dataflow-java:postCommitRunnerV2")
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
   dependsOn(":sdks:java:io:debezium:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
-  dependsOn(":javaHadoopVersionsTest")
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
 }
 
@@ -217,7 +215,7 @@ task("goPrecommitBuild") {
 }
 
 task("goPortablePreCommit") {
-  dependsOn(":sdks:go:test:ulrValidatesRunnerJenkins")
+  dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
 task("goPostCommit") {

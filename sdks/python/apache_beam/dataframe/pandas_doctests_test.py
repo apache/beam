@@ -66,6 +66,13 @@ class DoctestTest(unittest.TestCase):
                 "df.fillna(method='ffill')",
                 'df.fillna(value=values, limit=1)',
             ],
+            'pandas.core.generic.NDFrame.sort_values': ['*'],
+            'pandas.core.generic.NDFrame.mask': [
+                'df.where(m, -df) == np.where(m, df, -df)'
+            ],
+            'pandas.core.generic.NDFrame.where': [
+                'df.where(m, -df) == np.where(m, df, -df)'
+            ],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.add_prefix': ['*'],
@@ -78,7 +85,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
             'pandas.core.generic.NDFrame.interpolate': ['*'],
-            'pandas.core.generic.NDFrame.mask': ['*'],
             'pandas.core.generic.NDFrame.pct_change': ['*'],
             'pandas.core.generic.NDFrame.rank': ['*'],
             'pandas.core.generic.NDFrame.reindex': ['*'],
@@ -91,7 +97,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.squeeze': ['*'],
             'pandas.core.generic.NDFrame.transform': ['*'],
             'pandas.core.generic.NDFrame.truncate': ['*'],
-            'pandas.core.generic.NDFrame.where': ['*'],
             'pandas.core.generic.NDFrame.xs': ['*'],
             # argsort unimplemented
             'pandas.core.generic.NDFrame.abs': [
@@ -203,6 +208,8 @@ class DoctestTest(unittest.TestCase):
                 "for i in range(5):\n" +
                 "    df = df.append({'A': i}, ignore_index=True)",
             ],
+            'pandas.core.frame.DataFrame.sort_index': ['*'],
+            'pandas.core.frame.DataFrame.sort_values': ['*'],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
@@ -278,7 +285,6 @@ class DoctestTest(unittest.TestCase):
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
             'pandas.core.frame.DataFrame.set_axis': ['*'],
-            'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
             'pandas.core.frame.DataFrame.value_counts': ['*'],
@@ -395,6 +401,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.append': [
                 's1.append(s2, ignore_index=True)',
             ],
+            'pandas.core.series.Series.sort_index': ['*'],
+            'pandas.core.series.Series.sort_values': ['*'],
+            'pandas.core.series.Series.argmax': ['*'],
+            'pandas.core.series.Series.argmin': ['*'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -414,8 +424,6 @@ class DoctestTest(unittest.TestCase):
             ],
             # Throws NotImplementedError when modifying df
             'pandas.core.series.Series.transform': ['df'],
-            'pandas.core.series.Series.argmax': ['*'],
-            'pandas.core.series.Series.argmin': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
@@ -441,8 +449,6 @@ class DoctestTest(unittest.TestCase):
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
             ],
             'pandas.core.series.Series.set_axis': ['*'],
-            'pandas.core.series.Series.sort_index': ['*'],
-            'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
             'pandas.core.series.Series.to_markdown': ['*'],
             'pandas.core.series.Series.update': ['*'],

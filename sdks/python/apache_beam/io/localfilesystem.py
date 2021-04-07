@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import io
 import os
 import shutil
-from builtins import zip
 from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
@@ -162,9 +159,7 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
-    if not os.path.exists(os.path.dirname(path)):
-      # TODO(Py3): Add exist_ok parameter.
-      os.makedirs(os.path.dirname(path))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(

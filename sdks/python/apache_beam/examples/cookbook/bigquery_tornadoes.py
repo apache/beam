@@ -34,8 +34,6 @@ represents table rows as plain Python dictionaries.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 

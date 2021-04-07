@@ -23,18 +23,14 @@ https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import errno
 import io
 import logging
 import multiprocessing
 import re
-import sys
 import threading
 import time
 import traceback
-from builtins import object
 from itertools import islice
 
 from apache_beam.internal.http_client import get_new_http
@@ -154,7 +150,7 @@ class GcsIO(object):
           credentials=auth.get_service_credentials(),
           get_credentials=False,
           http=get_new_http(),
-          response_encoding=None if sys.version_info[0] < 3 else 'utf8')
+          response_encoding='utf8')
     self.client = storage_client
     self._rewrite_cb = None
 

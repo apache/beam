@@ -63,6 +63,9 @@ task dataflowValidatesRunner() {
             "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
+      options.add("--jenkins")
+    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -83,6 +86,9 @@ task flinkValidatesRunner {
             "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
+      options.add("--jenkins")
+    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -102,6 +108,9 @@ task sparkValidatesRunner {
             "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
+      options.add("--jenkins")
+    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -128,34 +137,9 @@ task ulrValidatesRunner {
             "--runner portable",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    exec {
-      executable "sh"
-      workingDir "${project.rootDir}/sdks/python"
-      args "-c", ". ${envdir}/bin/activate && pip install -e ."
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
+      options.add("--jenkins")
     }
-    exec {
-      executable "sh"
-      args "-c", ". ${envdir}/bin/activate && ./run_validatesrunner_tests.sh ${options.join(' ')}"
-    }
-  }
-}
-
-// A slightly modified version of the normal ulrValidatesRunner task, this
-// one passes in an extra flag to the script so it is configured to run on
-// Jenkins.
-task ulrValidatesRunnerJenkins {
-  dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":sdks:go:container:docker"
-  dependsOn ":sdks:java:container:java11:docker"
-  dependsOn "setupVirtualenv"
-  dependsOn ":sdks:python:buildPython"
-  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
-  doLast {
-    def options = [
-            "--runner portable",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
-            "--jenkins",
-    ]
     exec {
       executable "sh"
       workingDir "${project.rootDir}/sdks/python"

@@ -69,7 +69,7 @@ class FakePandasObject(object):
   def __call__(self, *args, **kwargs):
     result = self._pandas_obj(*args, **kwargs)
     if type(result) in DeferredBase._pandas_type_map.keys():
-      placeholder = expressions.PlaceholderExpression(result[0:0])
+      placeholder = expressions.PlaceholderExpression(result.iloc[0:0])
       self._test_env._inputs[placeholder] = result
       return DeferredBase.wrap(placeholder)
     else:
@@ -589,7 +589,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
       if output:
         # Strip the prompt.
         # TODO(robertwb): Figure out how to suppress this.
-        output = re.sub(r'^Out\[\d+\]:\s*', '', output)
+        output = re.sub(r'^Out\[\d+\]:[ \t]*\n?', '', output)
       examples.append(doctest.Example(src, output, lineno=lineno))
 
   finally:

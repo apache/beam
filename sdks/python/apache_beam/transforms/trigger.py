@@ -277,26 +277,24 @@ class DefaultTrigger(TriggerFn):
     return 'DefaultTrigger()'
 
   def on_element(self, element, window, context):
-    context.set_timer('', TimeDomain.WATERMARK, window.end)
+    context.set_timer(str(window), TimeDomain.WATERMARK, window.end)
 
   def on_merge(self, to_be_merged, merge_result, context):
-    # Note: Timer clearing solely an optimization.
     for window in to_be_merged:
-      if window.end != merge_result.end:
-        context.clear_timer('', TimeDomain.WATERMARK)
+      context.clear_timer(str(window), TimeDomain.WATERMARK)
 
   def should_fire(self, time_domain, watermark, window, context):
     if watermark >= window.end:
       # Explicitly clear the timer so that late elements are not emitted again
       # when the timer is fired.
-      context.clear_timer('', TimeDomain.WATERMARK)
+      context.clear_timer(str(window), TimeDomain.WATERMARK)
     return watermark >= window.end
 
   def on_fire(self, watermark, window, context):
     return False
 
   def reset(self, window, context):
-    context.clear_timer('', TimeDomain.WATERMARK)
+    context.clear_timer(str(window), TimeDomain.WATERMARK)
 
   def __eq__(self, other):
     return type(self) == type(other)
@@ -1118,6 +1116,7 @@ class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
     pass
 
   def process_entire_key(self, key, windowed_values):
+    # This state holds per-key, multi-window state.
     state = InMemoryUnmergedState()
     for wvalue in self.process_elements(state,
                                         windowed_values,

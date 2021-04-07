@@ -269,8 +269,6 @@ encoding when writing to BigQuery.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import itertools
 import json
@@ -278,13 +276,8 @@ import logging
 import random
 import time
 import uuid
-from builtins import object
-from builtins import zip
 from typing import Dict
 from typing import Union
-
-from future.utils import itervalues
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -437,7 +430,7 @@ class TableRowJsonCoder(coders.Coder):
     od = json.loads(
         encoded_table_row, object_pairs_hook=collections.OrderedDict)
     return bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e)) for e in itervalues(od)])
+        f=[bigquery.TableCell(v=to_json_value(e)) for e in od.values()])
 
 
 class BigQueryDisposition(object):
@@ -673,7 +666,7 @@ class _CustomBigQuerySource(BoundedSource):
       self.query = None
       self.use_legacy_sql = True
     else:
-      if isinstance(query, (str, unicode)):
+      if isinstance(query, str):
         query = StaticValueProvider(str, query)
       self.query = query
       # TODO(BEAM-1082): Change the internal flag to be standard_sql
@@ -984,7 +977,7 @@ bigquery_v2_messages.TableSchema` object.
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
-    if isinstance(schema, (str, unicode)):
+    if isinstance(schema, str):
       # TODO(silviuc): Should add a regex-based validation of the format.
       table_schema = bigquery.TableSchema()
       schema_list = [s.strip(' ') for s in schema.split(',')]
@@ -1188,7 +1181,7 @@ class BigQueryWriteFn(DoFn):
     """
     if schema is None:
       return schema
-    elif isinstance(schema, (str, unicode)):
+    elif isinstance(schema, str):
       return bigquery_tools.parse_table_schema_from_json(schema)
     elif isinstance(schema, dict):
       return bigquery_tools.parse_table_schema_from_json(json.dumps(schema))
@@ -1243,7 +1236,7 @@ class BigQueryWriteFn(DoFn):
     _KNOWN_TABLES.add(str_table_reference)
 
   def process(self, element, *schema_side_inputs):
-    destination = element[0]
+    destination = bigquery_tools.get_hashable_destination(element[0])
 
     if callable(self.schema):
       schema = self.schema(destination, *schema_side_inputs)
@@ -1254,8 +1247,6 @@ class BigQueryWriteFn(DoFn):
 
     self._create_table_if_needed(
         bigquery_tools.parse_table_reference(destination), schema)
-
-    destination = bigquery_tools.get_hashable_destination(destination)
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
@@ -1431,7 +1422,7 @@ class _StreamToBigQuery(PTransform):
 
     def _restore_table_ref(sharded_table_ref_elems_kv):
       sharded_table_ref = sharded_table_ref_elems_kv[0]
-      table_ref = bigquery_tools.parse_table_reference(sharded_table_ref.key)
+      table_ref = bigquery_tools.parse_table_reference(sharded_table_ref)
       return (table_ref, sharded_table_ref_elems_kv[1])
 
     tagged_data = (
@@ -1439,7 +1430,8 @@ class _StreamToBigQuery(PTransform):
         | 'AppendDestination' >> beam.ParDo(
             bigquery_tools.AppendDestinationsFn(self.table_reference),
             *self.table_side_inputs)
-        | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn()))
+        | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
+        | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref))
 
     if not self.with_auto_sharding:
       tagged_data = (
@@ -1458,14 +1450,14 @@ class _StreamToBigQuery(PTransform):
       # references are restored.
       tagged_data = (
           tagged_data
-          | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref)
           | 'WithAutoSharding' >> beam.GroupIntoBatches.WithShardedKey(
               (self.batch_size or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS),
               DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
-          | 'FromHashableTableRefAndDropShard' >> beam.Map(_restore_table_ref))
+          | 'DropShard' >> beam.Map(lambda kv: (kv[0].key, kv[1])))
 
     return (
         tagged_data
+        | 'FromHashableTableRef' >> beam.Map(_restore_table_ref)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
                 BigQueryWriteFn.FAILED_ROWS, main='main'))
@@ -1543,7 +1535,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         fields, repeated fields, or specifying a BigQuery mode for fields
         (mode will always be set to ``'NULLABLE'``).
         If a callable, then it should receive a destination (in the form of
-        a TableReference or a string, and return a str, dict or TableSchema.
+        a str, and return a str, dict or TableSchema).
         One may also pass ``SCHEMA_AUTODETECT`` here when using JSON-based
         file loads, and BigQuery will try to infer the schema for the files
         that are being loaded.
@@ -1911,19 +1903,23 @@ class ReadFromBigQuery(PTransform):
       To learn more about type conversions between BigQuery and Avro, see:
       https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
               #avro_conversions
+    temp_dataset (``google.cloud.bigquery.dataset.DatasetReference``):
+        The dataset in which to create temporary tables when performing file
+        loads. By default, a new dataset is created in the execution project for
+        temporary tables.
    """
 
   COUNTER = 0
 
   def __init__(self, gcs_location=None, *args, **kwargs):
     if gcs_location:
-      if not isinstance(gcs_location, (str, unicode, ValueProvider)):
+      if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
             '%s: gcs_location must be of type string'
             ' or ValueProvider; got %r instead' %
             (self.__class__.__name__, type(gcs_location)))
 
-      if isinstance(gcs_location, (str, unicode)):
+      if isinstance(gcs_location, str):
         gcs_location = StaticValueProvider(str, gcs_location)
 
     self.gcs_location = gcs_location

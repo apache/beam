@@ -171,7 +171,7 @@ class UtilTest(unittest.TestCase):
             dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
             FLEXRS_SPEED_OPTIMIZED))
 
-  def test_sdk_harness_container_images_get_set(self):
+  def test_default_environment_get_set(self):
 
     pipeline_options = PipelineOptions([
         '--experiments=beam_fn_api',
@@ -210,16 +210,13 @@ class UtilTest(unittest.TestCase):
         })
     worker_pool = env.proto.workerPools[0]
 
-    # For the test, a third environment get added since actual default
-    # container image for Dataflow is different from 'test_default_image'
-    # we've provided above.
-    self.assertEqual(3, len(worker_pool.sdkHarnessContainerImages))
+    self.assertEqual(2, len(worker_pool.sdkHarnessContainerImages))
 
-    # Container image should be overridden by a Dataflow specific URL.
-    self.assertTrue(
-        str.startswith(
-            (worker_pool.sdkHarnessContainerImages[0]).containerImage,
-            'gcr.io/cloud-dataflow/v1beta3/python'))
+    images_from_proto = [
+        sdk_info.containerImage
+        for sdk_info in worker_pool.sdkHarnessContainerImages
+    ]
+    self.assertIn('test_default_image', images_from_proto)
 
   def test_sdk_harness_container_image_overrides(self):
     test_environment = DockerEnvironment(
@@ -1144,6 +1141,29 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.serviceOptions, ['whizz=bang'])
+
+  def test_enable_hot_key_logging(self):
+    # Tests that the enable_hot_key_logging is not set by default.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertIsNone(env.proto.debugOptions)
+
+    # Now test that it is set when given.
+    pipeline_options = PipelineOptions([
+        '--enable_hot_key_logging', '--temp_location', 'gs://any-location/temp'
+    ])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.debugOptions, dataflow.DebugOptions(enableHotKeyLogging=True))
 
 
 if __name__ == '__main__':

@@ -30,8 +30,6 @@ Parquet file.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from functools import partial
 
 from apache_beam.io import filebasedsink

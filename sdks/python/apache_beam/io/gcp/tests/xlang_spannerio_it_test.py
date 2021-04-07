@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import os
@@ -27,8 +25,6 @@ import unittest
 import uuid
 from typing import NamedTuple
 from typing import Optional
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -56,17 +52,17 @@ except ImportError:
 
 
 class SpannerTestKey(NamedTuple):
-  f_string: unicode
+  f_string: str
 
 
 class SpannerTestRow(NamedTuple):
-  f_string: unicode
+  f_string: str
   f_int64: Optional[int]
   f_boolean: Optional[bool]
 
 
 class SpannerPartTestRow(NamedTuple):
-  f_string: unicode
+  f_string: str
   f_int64: Optional[int]
 
 

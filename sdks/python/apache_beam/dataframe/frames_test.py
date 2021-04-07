@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
 import numpy as np
@@ -76,8 +75,12 @@ class DeferredFrameTest(unittest.TestCase):
     else:
       if isinstance(expected, pd.core.generic.NDFrame):
         if distributed:
-          expected = expected.sort_index()
-          actual = actual.sort_index()
+          if expected.index.is_unique:
+            expected = expected.sort_index()
+            actual = actual.sort_index()
+          else:
+            expected = expected.sort_values(list(expected.columns))
+            actual = actual.sort_values(list(actual.columns))
 
         if isinstance(expected, pd.Series):
           pd.testing.assert_series_equal(expected, actual)
@@ -87,7 +90,6 @@ class DeferredFrameTest(unittest.TestCase):
           raise ValueError(
               f"Expected value is a {type(expected)},"
               "not a Series or DataFrame.")
-
       else:
         # Expectation is not a pandas object
         if isinstance(expected, float):
@@ -166,6 +168,34 @@ class DeferredFrameTest(unittest.TestCase):
         ambiguous: s.tz_localize('CET', ambiguous=ambiguous),
         s,
         ambiguous)
+
+  def test_sort_index_columns(self):
+    df = pd.DataFrame({
+        'c': range(10),
+        'a': range(10),
+        'b': range(10),
+        np.nan: range(10),
+    })
+
+    self._run_test(lambda df: df.sort_index(axis=1), df)
+    self._run_test(lambda df: df.sort_index(axis=1, ascending=False), df)
+    self._run_test(lambda df: df.sort_index(axis=1, na_position='first'), df)
+
+  def test_where_callable_args(self):
+    df = pd.DataFrame(np.arange(10).reshape(-1, 2), columns=['A', 'B'])
+
+    self._run_test(
+        lambda df: df.where(lambda df: df % 2 == 0, lambda df: df * 10), df)
+
+  def test_where_concrete_args(self):
+    df = pd.DataFrame(np.arange(10).reshape(-1, 2), columns=['A', 'B'])
+
+    self._run_test(
+        lambda df: df.where(
+            df % 2 == 0, pd.Series({
+                'A': 123, 'B': 456
+            }), axis=1),
+        df)
 
   def test_groupby(self):
     df = pd.DataFrame({
@@ -315,6 +345,42 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.drop(index='cow', columns='small', errors='ignore'), df)
 
+  def test_groupby_apply(self):
+    df = GROUPBY_DF
+
+    def median_sum_fn(x):
+      return (x.foo + x.bar).median()
+
+    # Note this is the same as DataFrameGroupBy.describe. Using it here is
+    # just a convenient way to test apply() with a user fn that returns a Series
+    describe = lambda df: df.describe()
+
+    self._run_test(lambda df: df.groupby('group').foo.apply(describe), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['foo', 'bar']].apply(describe), df)
+    self._run_test(lambda df: df.groupby('group').apply(median_sum_fn), df)
+    self._run_test(
+        lambda df: df.set_index('group').foo.groupby(level=0).apply(describe),
+        df)
+    self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
+
+  @unittest.skip('BEAM-11710')
+  def test_groupby_aggregate_grouped_column(self):
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'foo': [None if i % 11 == 0 else i for i in range(100)],
+        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
+        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    })
+
+    self._run_test(lambda df: df.groupby('group').group.count(), df)
+    self._run_test(lambda df: df.groupby('group')[['group', 'bar']].count(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['group', 'bar']].apply(
+            lambda x: x.describe()),
+        df)
+
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
     # order-sensitive.
@@ -328,7 +394,7 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(
           lambda df1,
           df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
-              index=lambda x: '*').sort_values(['value_x', 'value_y']),
+              index=lambda x: '*'),
           df1,
           df2)
       self._run_test(
@@ -337,8 +403,7 @@ class DeferredFrameTest(unittest.TestCase):
               df2,
               left_on='lkey',
               right_on='rkey',
-              suffixes=('_left', '_right')).rename(index=lambda x: '*').
-          sort_values(['value_left', 'value_right']),
+              suffixes=('_left', '_right')).rename(index=lambda x: '*'),
           df1,
           df2)
 
@@ -351,8 +416,7 @@ class DeferredFrameTest(unittest.TestCase):
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*').
-          sort_values(['b', 'c']),
+          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
           df1,
           df2)
 
@@ -368,8 +432,7 @@ class DeferredFrameTest(unittest.TestCase):
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, left_index=True, right_index=True).sort_values(
-              ['value_x', 'value_y']),
+          df2: df1.merge(df2, left_index=True, right_index=True),
           df1,
           df2)
 
@@ -383,14 +446,13 @@ class DeferredFrameTest(unittest.TestCase):
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, on='key').rename(index=lambda x: '*').sort_values(
-              ['value_x', 'value_y']),
+          df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
           df1,
           df2)
       self._run_test(
           lambda df1,
           df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
-              index=lambda x: '*').sort_values(['value_left', 'value_right']),
+              index=lambda x: '*'),
           df1,
           df2)
 
@@ -401,15 +463,13 @@ class DeferredFrameTest(unittest.TestCase):
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*').
-          sort_values(['b', 'c']),
+          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
           df1,
           df2)
       # Test without specifying 'on'
       self._run_test(
           lambda df1,
-          df2: df1.merge(df2, how='left').rename(index=lambda x: '*').
-          sort_values(['b', 'c']),
+          df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
           df1,
           df2)
 
@@ -422,14 +482,14 @@ class DeferredFrameTest(unittest.TestCase):
           lambda df1,
           df2: df1.merge(
               df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).
-          rename(index=lambda x: '*').sort_values(['b', 'c']),
+          rename(index=lambda x: '*'),
           df1,
           df2)
       # Test without specifying 'on'
       self._run_test(
           lambda df1,
           df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
-          rename(index=lambda x: '*').sort_values(['b', 'c']),
+          rename(index=lambda x: '*'),
           df1,
           df2)
 
@@ -493,7 +553,6 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df1, df2: df2.append(df1, sort=True), df1, df2)
     self._run_test(lambda df1, df2: df2.append(df1, sort=False), df1, df2)
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_dataframe_agg(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
@@ -504,7 +563,6 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_smallest_largest(self):
     df = pd.DataFrame({'A': [1, 1, 2, 2], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)

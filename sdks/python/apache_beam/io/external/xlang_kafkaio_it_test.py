@@ -17,8 +17,6 @@
 
 """Integration test for Python cross-language pipelines for Java KafkaIO."""
 
-from __future__ import absolute_import
-
 import contextlib
 import logging
 import os
@@ -110,7 +108,6 @@ class CrossLanguageKafkaIO(object):
     pipeline.run(False)
 
 
-@unittest.skip('BEAM-10663')
 @unittest.skipUnless(
     os.environ.get('LOCAL_KAFKA_JAR'),
     "LOCAL_KAFKA_JAR environment var is not provided.")

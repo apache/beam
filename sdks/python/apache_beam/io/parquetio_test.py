@@ -16,13 +16,10 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 
@@ -65,12 +62,6 @@ except ImportError:
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 @pytest.mark.uses_pyarrow
 class TestParquet(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.

@@ -88,6 +88,8 @@ def looks_like_json(s):
 
 APACHE_BEAM_DOCKER_IMAGE_PREFIX = 'apache/beam'
 
+APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX = 'beam_java'
+
 
 def is_apache_beam_container(container_image):
   return container_image and container_image.startswith(

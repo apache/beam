@@ -55,10 +55,10 @@ import dill
 from fastavro import parse_schema
 from fastavro import schemaless_reader
 from fastavro import schemaless_writer
-from google.protobuf.message import Message
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -418,7 +418,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
 
   def encode_special_deterministic(self, value, stream):
-    if isinstance(value, Message):
+    if isinstance(value, proto_utils.message_types):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)

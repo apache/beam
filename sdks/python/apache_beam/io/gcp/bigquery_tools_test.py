@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import io
@@ -30,11 +28,8 @@ import time
 import unittest
 
 import fastavro
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import,ungrouped-imports
 import mock
 import pytz
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
@@ -385,6 +380,35 @@ class TestBigQueryWrapper(unittest.TestCase):
     location = wrapper.get_query_location(
         project_id="second_project_id", query=query, use_legacy_sql=False)
     self.assertEqual("US", location)
+
+  def test_perform_load_job_source_mutual_exclusivity(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    # Both source_uri and source_stream specified.
+    with self.assertRaises(ValueError):
+      wrapper.perform_load_job(
+          destination=parse_table_reference('project:dataset.table'),
+          job_id='job_id',
+          source_uris=['gs://example.com/*'],
+          source_stream=io.BytesIO())
+
+    # Neither source_uri nor source_stream specified.
+    with self.assertRaises(ValueError):
+      wrapper.perform_load_job(destination='P:D.T', job_id='J')
+
+  def test_perform_load_job_with_source_stream(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    wrapper.perform_load_job(
+        destination=parse_table_reference('project:dataset.table'),
+        job_id='job_id',
+        source_stream=io.BytesIO(b'some,data'))
+
+    client.jobs.Insert.assert_called_once()
+    upload = client.jobs.Insert.call_args[1]["upload"]
+    self.assertEqual(b'some,data', upload.stream.read())
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -826,7 +850,7 @@ class TestBigQueryWriter(unittest.TestCase):
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
     expected_rows = []
     json_object = bigquery.JsonObject()
-    for k, v in iteritems(sample_row):
+    for k, v in sample_row.items():
       json_object.additionalProperties.append(
           bigquery.JsonObject.AdditionalProperty(key=k, value=to_json_value(v)))
     expected_rows.append(

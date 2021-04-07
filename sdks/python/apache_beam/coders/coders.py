@@ -933,7 +933,7 @@ class ProtoCoder(FastCoder):
 
   @staticmethod
   def from_type_hint(typehint, unused_registry):
-    if issubclass(typehint, google.protobuf.message.Message):
+    if issubclass(typehint, proto_utils.message_types):
       return ProtoCoder(typehint)
     else:
       raise ValueError((
@@ -1192,7 +1192,7 @@ Coder.register_structured_urn(common_urns.coders.ITERABLE.urn, IterableCoder)
 class ListCoder(ListLikeCoder):
   """Coder of Python lists."""
   def to_type_hint(self):
-    return List[self._elem_coder.to_type_hint()]
+    return typehints.List[self._elem_coder.to_type_hint()]
 
 
 class GlobalWindowCoder(SingletonCoder):

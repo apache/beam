@@ -20,18 +20,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import filecmp
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 from parameterized import param
 from parameterized import parameterized
@@ -62,12 +57,6 @@ def _gen_fake_split(separator):
 
 
 class LocalFileSystemTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
     pipeline_options = PipelineOptions()

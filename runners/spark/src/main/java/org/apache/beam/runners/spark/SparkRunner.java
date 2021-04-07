@@ -18,7 +18,9 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
+import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.isLocalSparkMaster;
+import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
+import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -43,6 +45,7 @@ import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarkAdvancingStreamingListener;
+import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -67,9 +70,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
+import org.apache.spark.scheduler.EventLoggingListener;
+import org.apache.spark.scheduler.SparkListenerApplicationEnd;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +103,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SparkRunner.class);
 
   /** Options used in this pipeline runner. */
-  private final SparkPipelineOptions mOptions;
+  private final SparkPipelineOptions pipelineOptions;
 
   /**
    * Creates and returns a new SparkRunner with default options. In particular, against a spark
@@ -131,8 +137,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null
-        && !SparkPipelineOptions.isLocalSparkMaster(sparkOptions)) {
+    if (sparkOptions.getFilesToStage() == null && !isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
           detectClassPathResourcesToStage(SparkRunner.class.getClassLoader(), options));
       LOG.info(
@@ -151,7 +156,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * thread.
    */
   private SparkRunner(SparkPipelineOptions options) {
-    mOptions = options;
+    pipelineOptions = options;
   }
 
   @Override
@@ -172,24 +177,29 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded if we are
     // executing an unbounded pipeline or the user specifically requested it.
-    if (mOptions.isStreaming()
+    if (pipelineOptions.isStreaming()
         || ExperimentalOptions.hasExperiment(
             pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
         || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     }
 
-    pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
+    pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(pipelineOptions.isStreaming()));
 
-    prepareFilesToStage(mOptions);
+    prepareFilesToStage(pipelineOptions);
 
-    if (mOptions.isStreaming()) {
-      CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
+    final long startTime = Instant.now().getMillis();
+    EventLoggingListener eventLoggingListener = null;
+    JavaSparkContext jsc = null;
+    if (pipelineOptions.isStreaming()) {
+      CheckpointDir checkpointDir = new CheckpointDir(pipelineOptions.getCheckpointDir());
       SparkRunnerStreamingContextFactory streamingContextFactory =
-          new SparkRunnerStreamingContextFactory(pipeline, mOptions, checkpointDir);
+          new SparkRunnerStreamingContextFactory(pipeline, pipelineOptions, checkpointDir);
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(
               checkpointDir.getSparkCheckpointDir().toString(), streamingContextFactory);
+      jsc = jssc.sparkContext();
+      eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
 
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
@@ -200,7 +210,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
               new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
 
       // register user-defined listeners.
-      for (JavaStreamingListener listener : mOptions.as(SparkContextOptions.class).getListeners()) {
+      for (JavaStreamingListener listener :
+          pipelineOptions.as(SparkContextOptions.class).getListeners()) {
         LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
@@ -213,7 +224,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // SparkRunnerStreamingContextFactory is because the factory is not called when resuming
       // from checkpoint (When not resuming from checkpoint initAccumulators will be called twice
       // but this is fine since it is idempotent).
-      initAccumulators(mOptions, jssc.sparkContext());
+      initAccumulators(pipelineOptions, jssc.sparkContext());
 
       startPipeline =
           executorService.submit(
@@ -225,15 +236,16 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
-      // create the evaluation context
-      final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
-      final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline, mOptions);
+      jsc = SparkContextFactory.getSparkContext(pipelineOptions);
+      eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
+      final EvaluationContext evaluationContext =
+          new EvaluationContext(jsc, pipeline, pipelineOptions);
       translator = new TransformTranslator.Translator();
 
       // update the cache candidates
       updateCacheCandidates(pipeline, translator, evaluationContext);
 
-      initAccumulators(mOptions, jsc);
+      initAccumulators(pipelineOptions, jsc);
       startPipeline =
           executorService.submit(
               () -> {
@@ -246,8 +258,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       result = new SparkPipelineResult.BatchMode(startPipeline, jsc);
     }
 
-    if (mOptions.getEnableSparkMetricSinks()) {
-      registerMetricsSource(mOptions.getAppName());
+    if (pipelineOptions.getEnableSparkMetricSinks()) {
+      registerMetricsSource(pipelineOptions.getAppName());
     }
 
     // it would have been better to create MetricsPusher from runner-core but we need
@@ -255,8 +267,19 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     // MetricsContainerStepMap
     MetricsPusher metricsPusher =
         new MetricsPusher(
-            MetricsAccumulator.getInstance().value(), mOptions.as(MetricsOptions.class), result);
+            MetricsAccumulator.getInstance().value(),
+            pipelineOptions.as(MetricsOptions.class),
+            result);
     metricsPusher.start();
+
+    if (eventLoggingListener != null && jsc != null) {
+      eventLoggingListener.onApplicationStart(
+          SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
+      eventLoggingListener.onApplicationEnd(
+          new SparkListenerApplicationEnd(Instant.now().getMillis()));
+      eventLoggingListener.stop();
+    }
+
     return result;
   }
 
@@ -288,7 +311,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     pipeline.traverseTopologically(detector);
     if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
       // set streaming mode if it's a streaming pipeline
-      this.mOptions.setStreaming(true);
+      this.pipelineOptions.setStreaming(true);
     }
   }
 
