@@ -11,8 +11,10 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.BackOff;
@@ -50,15 +52,15 @@ public class RampupThrottlerTransform<T> extends
     // We want to reshard the collection to enforce a parallelization limit, but not hold up
     // processing. To do that, we need to set the window to trigger on every element.
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
-    Window<T> rewindow =
-        Window.<T>into(
+    Duration originalLateness = input.getWindowingStrategy().getAllowedLateness();
+    Window<KV<Integer, T>> throttlerWindow =
+        Window.<KV<Integer, T>>into(
             new IdentityWindowFn<>(originalWindowFn.windowCoder()))
             .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
             .discardingFiredPanes()
             .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     return input
-        .apply("Prepare window for sharding", rewindow)
         .apply("Assign random shard keys", MapElements.via(new SimpleFunction<T, KV<Integer, T>>() {
           @Override
           public KV<Integer, T> apply(T input) {
@@ -66,19 +68,24 @@ public class RampupThrottlerTransform<T> extends
             return KV.of(shard_id, input);
           }
         }))
+        .apply("Prepare window for sharding", throttlerWindow)
         .apply("Throttler resharding", GroupByKey.create())
-        .apply("Throttle for ramp-up", ParDo.of(new RampupThrottlingFn()))
+        .apply("Throttle for ramp-up", ParDo.of(new RampupThrottlingFn(numShards)))
         .apply("Reset window",
-            Window.<T>into(new IdentityWindowFn<>(originalWindowFn.windowCoder())));
+            Window.<T>into(new IdentityWindowFn<>(originalWindowFn.windowCoder()))
+                .withAllowedLateness(originalLateness));
   }
 
   class RampupThrottlingFn extends DoFn<KV<Integer, Iterable<T>>, T> implements Serializable {
+
+    private final int numShards;
 
     // Initialized on Beam setup.
     private transient MovingFunction successfulOps;
     private Instant firstOpInstant;
 
-    private RampupThrottlingFn() {
+    private RampupThrottlingFn(int numShards) {
+      this.numShards = numShards;
       this.successfulOps = new MovingFunction(
           Duration.standardSeconds(1).getMillis(),
           Duration.standardSeconds(1).getMillis(),
@@ -96,8 +103,8 @@ public class RampupThrottlerTransform<T> extends
       double calculatedGrowth = (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes)
           / rampUpIntervalMinutes;
       double growth = Math.max(0, calculatedGrowth);
-      double maxRequestCountBudget = BASE_BUDGET / numShards * Math.pow(1.5, growth);
-      return (int) maxRequestCountBudget;
+      double maxOpsBudget = BASE_BUDGET / this.numShards * Math.pow(1.5, growth);
+      return (int) maxOpsBudget;
     }
 
     @Setup
@@ -119,7 +126,7 @@ public class RampupThrottlerTransform<T> extends
       Iterator<T> elementsIter = c.element().getValue().iterator();
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = fluentBackoff.backoff();
-      while (true) {
+      while (elementsIter.hasNext()) {
         Instant instant = Instant.now();
         int maxOpsBudget = calcMaxOpsBudget(nonNullableFirstInstant, instant);
         LOG.debug("Shard {}: Max budget is {} entities/s after {}s", shard_id, maxOpsBudget,
@@ -127,23 +134,22 @@ public class RampupThrottlerTransform<T> extends
         long currentOpCount = successfulOps.get(instant.getMillis());
         long availableOps = maxOpsBudget - currentOpCount;
 
-        int i = 0;
-        while (availableOps > 0 && elementsIter.hasNext()) {
-          T element = elementsIter.next();
+        if(availableOps > 0) {
+          int emittedOps = 0;
+          while (availableOps > 0 && elementsIter.hasNext()) {
+            T element = elementsIter.next();
 
-          c.output(element);
-          backoff.reset();
-          i++;
-          availableOps--;
+            c.output(element);
+            backoff.reset();
+            emittedOps++;
+            availableOps--;
+          }
+          successfulOps.add(instant.getMillis(), emittedOps);
+        } else {
+          long backoffMillis = backoff.nextBackOffMillis();
+          LOG.info("Delaying by {}ms to conform to gradual ramp-up.", backoffMillis);
+          sleeper.sleep(backoffMillis);
         }
-        successfulOps.add(instant.getMillis(), i);
-
-        if (!elementsIter.hasNext()) {
-          break;
-        }
-        long backoffMillis = backoff.nextBackOffMillis();
-        LOG.info("Delaying by {}ms to conform to gradual ramp-up.", backoffMillis);
-        sleeper.sleep(backoffMillis);
       }
     }
 
