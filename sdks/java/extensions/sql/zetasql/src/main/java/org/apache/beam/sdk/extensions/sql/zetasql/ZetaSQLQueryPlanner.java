@@ -41,6 +41,7 @@ import org.apache.beam.sdk.extensions.sql.zetasql.unnest.BeamZetaSqlUnnestRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDef;
@@ -213,9 +214,13 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     RelMetadataQuery.THREAD_PROVIDERS.set(
         JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
     root.rel.getCluster().invalidateMetadataQuery();
-    BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
-    LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
-    return beamRelNode;
+    try {
+      BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
+      LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
+      return beamRelNode;
+    } catch (RelOptPlanner.CannotPlanException e) {
+      throw new SqlConversionException("Failed to produce plan for query " + sql, e);
+    }
   }
 
   private static FrameworkConfig defaultConfig(
