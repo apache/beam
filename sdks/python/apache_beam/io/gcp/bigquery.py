@@ -1515,8 +1515,6 @@ class WriteToBigQuery(PTransform):
          or ``'PROJECT:DATASET.TABLE'``. If it's a callable, it must receive one
          argument representing an element to be written to BigQuery, and return
          a TableReference, or a string table name as specified above.
-         Multiple destinations are only supported on Batch pipelines at the
-         moment.
       dataset (str): The ID of the dataset containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
