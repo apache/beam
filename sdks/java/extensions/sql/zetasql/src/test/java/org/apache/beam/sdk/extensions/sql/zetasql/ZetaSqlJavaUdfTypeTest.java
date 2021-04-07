@@ -25,6 +25,7 @@ import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -55,6 +56,56 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   private Method stringUdf;
   private Method bytesUdf;
   private Method doubleUdf;
+
+  private static final TestBoundedTable table =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addBooleanField("boolean_true")
+                  .addBooleanField("boolean_false")
+                  .addInt64Field("int64_0")
+                  .addInt64Field("int64_pos")
+                  .addInt64Field("int64_neg")
+                  .addInt64Field("int64_max")
+                  .addInt64Field("int64_min")
+                  .addStringField("string_empty")
+                  .addStringField("string_ascii")
+                  .addStringField("string_unicode")
+                  .addByteArrayField("bytes_empty")
+                  .addByteArrayField("bytes_ascii")
+                  .addByteArrayField("bytes_unicode")
+                  .addDoubleField("float64_0")
+                  .addDoubleField("float64_noninteger")
+                  .addDoubleField("float64_pos")
+                  .addDoubleField("float64_neg")
+                  .addDoubleField("float64_max")
+                  .addDoubleField("float64_min_pos")
+                  .addDoubleField("float64_inf")
+                  .addDoubleField("float64_neg_inf")
+                  .addDoubleField("float64_nan")
+                  .build())
+          .addRows(
+              true /* boolean_true */,
+              false /* boolean_false */,
+              0L /* int64_0 */,
+              123L /* int64_pos */,
+              -123L /* int64_neg */,
+              9223372036854775807L /* int64_max */,
+              -9223372036854775808L /* int64_min */,
+              "" /* string_empty */,
+              "abc" /* string_ascii */,
+              "スタリング" /* string_unicode */,
+              new byte[] {} /* bytes_empty */,
+              new byte[] {'a', 'b', 'c'} /* bytes_ascii */,
+              new byte[] {-29, -126, -71} /* bytes_unicode */,
+              0.0 /* float64_0 */,
+              0.123 /* float64_noninteger */,
+              123.0 /* float64_pos */,
+              -123.0 /* float64_neg */,
+              1.7976931348623157e+308 /* float64_max */,
+              2.2250738585072014e-308 /* float64_min_pos */,
+              Double.POSITIVE_INFINITY /* float64_inf */,
+              Double.NEGATIVE_INFINITY /* float64_neg_inf */,
+              Double.NaN /* float64_nan */);
 
   @Before
   public void setUp() throws NoSuchMethodException {
@@ -112,7 +163,7 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
     // Add UDF to Calcite schema.
     JdbcConnection jdbcConnection =
         JdbcDriver.connect(
-            new ReadOnlyTableProvider("empty_table_provider", ImmutableMap.of()),
+            new ReadOnlyTableProvider("table_provider", ImmutableMap.of("table", table)),
             PipelineOptionsFactory.create());
     jdbcConnection.getCurrentSchemaPlus().add("test", ScalarFunctionImpl.create(udf));
     config =
@@ -135,8 +186,19 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testTrueInput() throws NoSuchMethodException {
+    runUdfTypeTest("SELECT test(boolean_true) FROM table;", true, Schema.TypeName.BOOLEAN, boolUdf);
+  }
+
+  @Test
   public void testFalseLiteral() throws NoSuchMethodException {
     runUdfTypeTest("SELECT test(false);", false, Schema.TypeName.BOOLEAN, boolUdf);
+  }
+
+  @Test
+  public void testFalseInput() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(boolean_false) FROM table;", false, Schema.TypeName.BOOLEAN, boolUdf);
   }
 
   @Test
@@ -145,8 +207,18 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testZeroInt64Input() throws NoSuchMethodException {
+    runUdfTypeTest("SELECT test(int64_0) FROM table;", 0L, Schema.TypeName.INT64, longUdf);
+  }
+
+  @Test
   public void testPosInt64Literal() throws NoSuchMethodException {
     runUdfTypeTest("SELECT test(123);", 123L, Schema.TypeName.INT64, longUdf);
+  }
+
+  @Test
+  public void testPosInt64Input() throws NoSuchMethodException {
+    runUdfTypeTest("SELECT test(int64_pos) FROM table;", 123L, Schema.TypeName.INT64, longUdf);
   }
 
   @Test
@@ -155,9 +227,20 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testNegInt64Input() throws NoSuchMethodException {
+    runUdfTypeTest("SELECT test(int64_neg) FROM table;", -123L, Schema.TypeName.INT64, longUdf);
+  }
+
+  @Test
   public void testMaxInt64Literal() throws NoSuchMethodException {
     runUdfTypeTest(
         "SELECT test(9223372036854775807);", 9223372036854775807L, Schema.TypeName.INT64, longUdf);
+  }
+
+  @Test
+  public void testMaxInt64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(int64_max) FROM table;", 9223372036854775807L, Schema.TypeName.INT64, longUdf);
   }
 
   @Test
@@ -170,8 +253,22 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testMinInt64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(int64_min) FROM table;",
+        -9223372036854775808L,
+        Schema.TypeName.INT64,
+        longUdf);
+  }
+
+  @Test
   public void testEmptyStringLiteral() throws NoSuchMethodException {
     runUdfTypeTest("SELECT test('');", "", Schema.TypeName.STRING, stringUdf);
+  }
+
+  @Test
+  public void testEmptyStringInput() throws NoSuchMethodException {
+    runUdfTypeTest("SELECT test(string_empty) FROM table;", "", Schema.TypeName.STRING, stringUdf);
   }
 
   @Test
@@ -180,13 +277,31 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testAsciiStringInput() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(string_ascii) FROM table;", "abc", Schema.TypeName.STRING, stringUdf);
+  }
+
+  @Test
   public void testUnicodeStringLiteral() throws NoSuchMethodException {
     runUdfTypeTest("SELECT test('スタリング');", "スタリング", Schema.TypeName.STRING, stringUdf);
   }
 
   @Test
+  public void testUnicodeStringInput() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(string_unicode) FROM table;", "スタリング", Schema.TypeName.STRING, stringUdf);
+  }
+
+  @Test
   public void testEmptyBytesLiteral() throws NoSuchMethodException {
     runUdfTypeTest("SELECT test(b'');", new byte[] {}, Schema.TypeName.BYTES, bytesUdf);
+  }
+
+  @Test
+  public void testEmptyBytesInput() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(bytes_empty) FROM table;", new byte[] {}, Schema.TypeName.BYTES, bytesUdf);
   }
 
   @Test
@@ -196,9 +311,27 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testAsciiBytesInput() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(bytes_ascii) FROM table;",
+        new byte[] {'a', 'b', 'c'},
+        Schema.TypeName.BYTES,
+        bytesUdf);
+  }
+
+  @Test
   public void testUnicodeBytesLiteral() throws NoSuchMethodException {
     runUdfTypeTest(
         "SELECT test(b'ス');", new byte[] {-29, -126, -71}, Schema.TypeName.BYTES, bytesUdf);
+  }
+
+  @Test
+  public void testUnicodeBytesInput() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(bytes_unicode) FROM table;",
+        new byte[] {-29, -126, -71},
+        Schema.TypeName.BYTES,
+        bytesUdf);
   }
 
   @Test
@@ -207,8 +340,19 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testZeroFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest("SELECT test(float64_0) FROM table;", 0.0, Schema.TypeName.DOUBLE, doubleUdf);
+  }
+
+  @Test
   public void testNonIntegerFloat64Literal() throws NoSuchMethodException {
     runUdfTypeTest("SELECT test(0.123);", 0.123, Schema.TypeName.DOUBLE, doubleUdf);
+  }
+
+  @Test
+  public void testNonIntegerFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(float64_noninteger) FROM table;", 0.123, Schema.TypeName.DOUBLE, doubleUdf);
   }
 
   @Test
@@ -217,8 +361,20 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testPosFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(float64_pos) FROM table;", 123.0, Schema.TypeName.DOUBLE, doubleUdf);
+  }
+
+  @Test
   public void testNegFloat64Literal() throws NoSuchMethodException {
     runUdfTypeTest("SELECT test(-123.0);", -123.0, Schema.TypeName.DOUBLE, doubleUdf);
+  }
+
+  @Test
+  public void testNegFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(float64_neg) FROM table;", -123.0, Schema.TypeName.DOUBLE, doubleUdf);
   }
 
   @Test
@@ -231,9 +387,27 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testMaxFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(float64_max) FROM table;",
+        1.7976931348623157e+308,
+        Schema.TypeName.DOUBLE,
+        doubleUdf);
+  }
+
+  @Test
   public void testMinPosFloat64Literal() throws NoSuchMethodException {
     runUdfTypeTest(
         "SELECT test(2.2250738585072014e-308);",
+        2.2250738585072014e-308,
+        Schema.TypeName.DOUBLE,
+        doubleUdf);
+  }
+
+  @Test
+  public void testMinPosFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(float64_min_pos) FROM table;",
         2.2250738585072014e-308,
         Schema.TypeName.DOUBLE,
         doubleUdf);
@@ -251,11 +425,29 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testPosInfFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(float64_inf) FROM table;",
+        Double.POSITIVE_INFINITY,
+        Schema.TypeName.DOUBLE,
+        doubleUdf);
+  }
+
+  @Test
   @Ignore(
       "-inf is implemented as a ZetaSQL builtin function, so combining it with a UDF requires Calc splitting (BEAM-12009).")
   public void testNegInfFloat64Literal() throws NoSuchMethodException {
     runUdfTypeTest(
         "SELECT test(CAST('-inf' AS FLOAT64));",
+        Double.NEGATIVE_INFINITY,
+        Schema.TypeName.DOUBLE,
+        doubleUdf);
+  }
+
+  @Test
+  public void testNegInfFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(float64_neg_inf) FROM table;",
         Double.NEGATIVE_INFINITY,
         Schema.TypeName.DOUBLE,
         doubleUdf);
@@ -269,8 +461,13 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
         "SELECT test(CAST('NaN' AS FLOAT64));", Double.NaN, Schema.TypeName.DOUBLE, doubleUdf);
   }
 
+  @Test
+  public void testNaNFloat64Input() throws NoSuchMethodException {
+    runUdfTypeTest(
+        "SELECT test(float64_nan) FROM table;", Double.NaN, Schema.TypeName.DOUBLE, doubleUdf);
+  }
+
   // TODO(ibzib) Test that dates and times are rejected.
   // TODO(ibzib) Test arrays.
   // TODO(ibzib) Test structs.
-  // TODO(ibzib) Test input refs.
 }
