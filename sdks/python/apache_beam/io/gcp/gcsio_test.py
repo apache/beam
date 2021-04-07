@@ -18,9 +18,6 @@
 """Tests for Google Cloud Storage client."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import datetime
 import errno
 import io
@@ -29,12 +26,8 @@ import os
 import random
 import time
 import unittest
-from builtins import object
-from builtins import range
 from email.message import Message
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import httplib2
 import mock
 
