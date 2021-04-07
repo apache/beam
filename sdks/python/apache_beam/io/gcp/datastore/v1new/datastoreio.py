@@ -35,7 +35,10 @@ from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
 from apache_beam.io.gcp.datastore.v1new import util
-from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import AdaptiveThrottler
+from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import \
+  AdaptiveThrottler
+from apache_beam.io.gcp.datastore.v1new.rampup_throttler_transform import \
+  RampupThrottlerTransform
 from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
@@ -280,15 +283,24 @@ class _Mutate(PTransform):
   Only idempotent Datastore mutation operations (upsert and delete) are
   supported, as the commits are retried when failures occur.
   """
-  def __init__(self, mutate_fn):
+
+  def __init__(self, mutate_fn, throttle_rampup=True, num_throttler_shards=1):
     """Initializes a Mutate transform.
 
      Args:
        mutate_fn: Instance of `DatastoreMutateFn` to use.
+       throttle_rampup: Whether to enforce a gradual ramp-up.
+       num_throttler_shards: The number of shards to use for ramp-up throttling.
      """
     self._mutate_fn = mutate_fn
+    self._throttle_rampup = throttle_rampup
+    self._num_throttler_shards = num_throttler_shards
 
   def expand(self, pcoll):
+    if self._throttle_rampup:
+      pcoll = (
+          pcoll | 'Enforce throttling during ramp-up' >> RampupThrottlerTransform(
+          self._num_throttler_shards))
     return pcoll | 'Write Batch to Datastore' >> ParDo(self._mutate_fn)
 
   class DatastoreMutateFn(DoFn):
@@ -444,14 +456,16 @@ class WriteToDatastore(_Mutate):
   property key is empty then it is filled with the project ID passed to this
   transform.
   """
-  def __init__(self, project):
+  def __init__(self, project, throttle_rampup=True, num_throttler_shards=1):
     """Initialize the `WriteToDatastore` transform.
 
     Args:
       project: (:class:`str`) The ID of the project to write entities to.
+      throttle_rampup: Whether to enforce a gradual ramp-up.
+      num_throttler_shards: The number of shards to use for ramp-up throttling.
     """
     mutate_fn = WriteToDatastore._DatastoreWriteFn(project)
-    super(WriteToDatastore, self).__init__(mutate_fn)
+    super(WriteToDatastore, self).__init__(mutate_fn, throttle_rampup, num_throttler_shards)
 
   class _DatastoreWriteFn(_Mutate.DatastoreMutateFn):
     def element_to_client_batch_item(self, element):
@@ -489,15 +503,17 @@ class DeleteFromDatastore(_Mutate):
   project ID passed to this transform. If ``project`` field in key is empty then
   it is filled with the project ID passed to this transform.
   """
-  def __init__(self, project):
+  def __init__(self, project, throttle_rampup=True, num_throttler_shards=1):
     """Initialize the `DeleteFromDatastore` transform.
 
     Args:
       project: (:class:`str`) The ID of the project from which the entities will
         be deleted.
+      throttle_rampup: Whether to enforce a gradual ramp-up.
+      num_throttler_shards: The number of shards to use for ramp-up throttling.
     """
     mutate_fn = DeleteFromDatastore._DatastoreDeleteFn(project)
-    super(DeleteFromDatastore, self).__init__(mutate_fn)
+    super(DeleteFromDatastore, self).__init__(mutate_fn, throttle_rampup, num_throttler_shards)
 
   class _DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
     def element_to_client_batch_item(self, element):
