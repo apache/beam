@@ -21,27 +21,27 @@
 from __future__ import absolute_import
 
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam.runners.interactive import augmented_pipeline as ap
 from apache_beam.runners.interactive import interactive_beam as ib
-from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.caching import write_cache
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
 from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
 
 
 class WriteCacheTest(unittest.TestCase):
-  def setUp(self):
-    ie.new_env()
-
-  def test_write_cache(self):
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.get_cache_manager')
+  def test_write_cache(self, mocked_get_cache_manager):
     p = beam.Pipeline()
     pcoll = p | beam.Create([1, 2, 3])
     ib.watch(locals())
 
     cache_manager = InMemoryCache()
-    ie.current_env().set_cache_manager(cache_manager, p)
+    mocked_get_cache_manager.return_value = cache_manager
     aug_p = ap.AugmentedPipeline(p)
     key = repr(aug_p._cacheables[pcoll].to_key())
     pipeline_proto = p.to_runner_api()
