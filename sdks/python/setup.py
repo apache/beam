@@ -206,7 +206,9 @@ INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'ipython>=5.8.0,<8',
     'ipykernel>=5.2.0,<6',
-    'jupyter-client>=6.1.11,<7',
+    # Skip version 6.1.13 due to
+    # https://github.com/jupyter/jupyter_client/issues/637
+    'jupyter-client>=6.1.11,<6.1.13',
     'timeloop>=1.0.2,<2',
 ]
 
