@@ -33,6 +33,9 @@ public interface InboundDataClient {
    */
   void awaitCompletion() throws InterruptedException, Exception;
 
+  /** Runs the runnable once the client has completed reading from the inbound stream. */
+  void runWhenComplete(Runnable completeRunnable);
+
   /**
    * Returns true if the client is done, either via completing successfully or by being cancelled.
    */

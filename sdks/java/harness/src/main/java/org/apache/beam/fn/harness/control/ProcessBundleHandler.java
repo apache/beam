@@ -116,6 +116,8 @@ public class ProcessBundleHandler {
   private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
+  private static final int DATA_QUEUE_SIZE = 1000;
+
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   @VisibleForTesting static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;
 
@@ -425,7 +427,8 @@ public class ProcessBundleHandler {
     // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
     // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
     // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
-    QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
+    QueueingBeamFnDataClient queueingClient =
+        new QueueingBeamFnDataClient(this.beamFnDataClient, DATA_QUEUE_SIZE);
 
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
