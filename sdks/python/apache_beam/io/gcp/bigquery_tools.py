@@ -27,8 +27,6 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import io
@@ -37,13 +35,9 @@ import logging
 import re
 import time
 import uuid
-from builtins import object
 from json.decoder import JSONDecodeError
 
 import fastavro
-from future.utils import iteritems
-from future.utils import raise_with_traceback
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
@@ -1101,7 +1095,7 @@ class BigQueryWrapper(object):
 
   def _convert_to_json_row(self, row):
     json_object = bigquery.JsonObject()
-    for k, v in iteritems(row):
+    for k, v in row.items():
       if isinstance(v, decimal.Decimal):
         # decimal values are converted into string because JSON does not
         # support the precision that decimal supports. BQ is able to handle
@@ -1480,10 +1474,9 @@ class AvroRowWriter(io.IOBase):
     try:
       self._avro_writer.write(row)
     except (TypeError, ValueError) as ex:
-      raise_with_traceback(
-          ex.__class__(
-              "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
-                  ex, self._avro_writer.schema, row)))
+      raise ex.__class__(
+          "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
+              ex, self._avro_writer.schema, row)).with_traceback()
 
 
 class RetryStrategy(object):
@@ -1610,7 +1603,7 @@ bigquery_v2_messages.TableSchema):
   if (isinstance(schema, (dict, value_provider.ValueProvider)) or
       callable(schema) or schema is None):
     return schema
-  elif isinstance(schema, (str, unicode)):
+  elif isinstance(schema, str):
     table_schema = get_table_schema_from_string(schema)
     return table_schema_to_dict(table_schema)
   elif isinstance(schema, bigquery.TableSchema):
