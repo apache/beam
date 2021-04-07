@@ -309,7 +309,7 @@ def _agg_method(func):
 
 
 def wont_implement_method(msg):
-  """Generate a stub method for `op` that simply raises a WontImplementError.
+  """Generate a stub method that simply raises WontImplementError(msg).
 
   For internal use only. No backwards compatibility guarantees."""
   def wrapper(*args, **kwargs):
