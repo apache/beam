@@ -998,6 +998,20 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "Aggregation with min_count= requires collecting all data on a "
             "single node.")
 
+      # We have specialized distributed implementations for std and var
+      if base_func in ('std', 'var'):
+        result = getattr(self, base_func)(*args, **kwargs)
+        if isinstance(func, list):
+          with expressions.allow_non_parallel_operations(True):
+            return frame_base.DeferredFrame.wrap(
+                expressions.ComputedExpression(
+                    'wrap_aggregate',
+                    lambda x: pd.Series(x, index=[base_func]), [result._expr],
+                    requires_partition_by=partitionings.Singleton(),
+                    preserves_partition_by=partitionings.Singleton()))
+        else:
+          return result
+
       agg_kwargs = kwargs.copy()
       if ((_is_associative(base_func) or _is_liftable_with_sum(base_func)) and
           singleton_reason is None):
@@ -2317,6 +2331,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   sum = frame_base._agg_method('sum')
   mean = frame_base._agg_method('mean')
   median = frame_base._agg_method('median')
+  std = frame_base._agg_method('std')
+  var = frame_base._agg_method('var')
 
   take = frame_base.wont_implement_method(pd.DataFrame, 'take',
                                           reason='deprecated')

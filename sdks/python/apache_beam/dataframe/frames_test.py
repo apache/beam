@@ -1059,6 +1059,18 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.insert(0, 'foo', pd.Series([8], index=[1])), df)
     self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
 
+  def test_series_agg_std(self):
+    s = pd.Series(range(10))
+
+    self._run_test(lambda s: s.agg('std'), s)
+    self._run_test(lambda s: s.agg('var'), s)
+    self._run_test(lambda s: s.agg(['std', 'sum']), s)
+    self._run_test(lambda s: s.agg(['var']), s)
+
+  def test_dataframe_std(self):
+    self._run_test(lambda df: df.std(numeric_only=True), GROUPBY_DF)
+    self._run_test(lambda df: df.var(numeric_only=True), GROUPBY_DF)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
