@@ -26,12 +26,16 @@ from unittest.mock import patch
 import apache_beam as beam
 from apache_beam.runners.interactive import augmented_pipeline as ap
 from apache_beam.runners.interactive import interactive_beam as ib
+from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.caching import read_cache
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
 from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
 
 
 class ReadCacheTest(unittest.TestCase):
+  def setUp(self):
+    ie.new_env()
+
   @patch(
       'apache_beam.runners.interactive.interactive_environment'
       '.InteractiveEnvironment.get_cache_manager')
