@@ -874,7 +874,9 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).count(level=0), GROUPBY_DF)
     self._run_test(
-        lambda df: df.set_index(['group', 'foo']).max(level=0), GROUPBY_DF)
+        lambda df: df.set_index(['group', 'foo']).max(
+            level=0, numeric_only=False),
+        GROUPBY_DF)
     # pandas implementation doesn't respect numeric_only argument here
     # (https://github.com/pandas-dev/pandas/issues/40788), it
     # always acts as if numeric_only=True. Our implmentation respects it so we
@@ -890,7 +892,9 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).count(level=1), GROUPBY_DF)
     self._run_test(
-        lambda df: df.set_index(['group', 'foo']).max(level=1), GROUPBY_DF)
+        lambda df: df.set_index(['group', 'foo']).max(
+            level=1, numeric_only=False),
+        GROUPBY_DF)
     # sum with str columns is order-sensitive
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).sum(
@@ -920,7 +924,7 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.set_index(['group', 'foo']).agg(['min', 'max'], level=0),
         GROUPBY_DF)
 
-  @parameterized.expand([(True, ), (False, ), (None, )])
+  @parameterized.expand([(True, ), (False, )])
   @unittest.skipIf(
       PD_VERSION < (1, 2),
       "pandas 1.1.0 produces different dtypes for these examples")
@@ -1017,6 +1021,17 @@ class DeferredFrameTest(unittest.TestCase):
     })
 
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
+
+  def test_dataframe_sum_nonnumeric_raises(self):
+    # Attempting a numeric aggregation with the str column present should
+    # raise, and suggest the numeric_only argument
+    with self.assertRaisesRegex(frame_base.WontImplementError, 'numeric_only'):
+      self._run_test(lambda df: df.sum(), GROUPBY_DF)
+
+    # numeric_only=True should work
+    self._run_test(lambda df: df.sum(numeric_only=True), GROUPBY_DF)
+    # projecting only numeric columns should too
+    self._run_test(lambda df: df[['foo', 'bar']].sum(), GROUPBY_DF)
 
 
 class AllowNonParallelTest(unittest.TestCase):

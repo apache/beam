@@ -1040,7 +1040,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
-  # TODO(BEAM-11777): Document that Series.count(level=) will drop NaN's
+  # TODO(BEAM-12074): Document that Series.count(level=) will drop NaN's
   count = frame_base._agg_method('count')
   min = frame_base._agg_method('min')
   max = frame_base._agg_method('max')
@@ -1497,6 +1497,22 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                         if pd.core.dtypes.common.is_bool_dtype(dtype)]]
       kwargs.pop('bool_only')
       return projected.agg(func, axis, *args, **kwargs)
+
+    nonnumeric_columns = [name for (name, dtype) in self.dtypes.items()
+                          if not pd.core.dtypes.common.is_numeric_dtype(dtype)]
+    if _is_numeric(func) and len(nonnumeric_columns):
+      if 'numeric_only' in kwargs and kwargs['numeric_only'] == False:
+        # User has opted in to execution with non-numeric columns, they
+        # will accept runtime errors
+        pass
+      else:
+        raise frame_base.WontImplementError(
+            f"Numeric aggregation ({func!r}) on a DataFrame containing "
+            f"non-numeric columns ({*nonnumeric_columns,!r} is not supported, "
+            "unless `numeric_only=` is specified.\n"
+            "Use `numeric_only=True` to only aggregate over numeric columns.\n"
+            "Use `numeric_only=False` to aggregate over all columns. Note this "
+            "is not recommended, as it could result in execution time errors.")
 
     if axis is None:
       # Aggregate across all elements by first aggregating across columns,
