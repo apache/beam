@@ -130,8 +130,9 @@ def name_and_func(method: Union[str, Callable]) -> Tuple[str, Callable]:
 
   For internal use only. No backwards compatibility guarantees."""
   if isinstance(method, str):
-    return method, lambda df, *args, **kwargs: getattr(df, method)(*args, **
-                                                                   kwargs)
+    method_str = method
+    func = lambda df, *args, **kwargs: getattr(df, method_str)(*args, **kwargs)
+    return method, func
   else:
     return method.__name__, method
 
