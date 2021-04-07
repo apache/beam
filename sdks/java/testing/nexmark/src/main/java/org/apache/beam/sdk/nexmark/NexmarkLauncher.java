@@ -1164,7 +1164,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       }
 
       if (configuration.query == PORTABILITY_BATCH && options.isStreaming()) {
-        NexmarkUtils.console("Query 13 does not support streaming mode");
+        NexmarkUtils.console("PORTABILITY_BATCH does not support streaming mode");
         return null;
       }
 
