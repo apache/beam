@@ -179,15 +179,49 @@ script which is part of the Beam repo:
 
 ### Development Setup {#development-setup}
 
-1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
-   [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
-1. Clone the git repository. You can download it anywhere you like, however for Go development we recommend putting it in your [`$GOPATH`](https://golang.org/doc/gopath_code#GOPATH) (`$HOME/go` by default on Unix systems).
+1. Check [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips) if you need help with git forking, cloning, branching, committing, pull requests, and squashing commits.
+1. Clone the git repository. You can download it anywhere you like.
 
        $ mkdir -p ~/go/src/github.com/apache
        $ cd ~/go/src/github.com/apache
        $ git clone https://github.com/apache/beam
        $ cd beam
 
+       - For Go development:
+       We recommend putting it in your [`$GOPATH`](https://golang.org/doc/gopath_code#GOPATH) (`$HOME/go` by default on Unix systems).
+          1. Clone the repo, and update your branch as normal
+                  $ git clone https://github.com/apache/beam.git
+                  $ cd beam
+                  $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
+                  $ git fetch --all
+          1. Get or Update all the Go SDK dependencies
+                  $ go get -u ./...
+
+1. Check the environment was setup correctly.
+    - **Option 1**: Run independent checks:
+        - For **Go development**:
+          1. Execute:
+              ```
+              export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
+              ./gradlew :sdks:go:examples:wordCount
+              ```
+        - For **Python development**:
+          1. Activate your environment:
+              ```
+              python3 -m venv ~/.virtualenvs/env
+              . ~/.virtualenvs/bin/activate
+              ```
+          1. Execute:
+              `./gradlew :sdks:python:wordCount`
+
+        - For **Java development**:
+          1. Execute:
+              `./gradlew :examples:java:wordCount`
+    - **Option 2**: validate the Go, Java, and Python environments:
+          ```
+          ./gradlew :checkSetUp
+          ```
+        **Important**: Make sure you have activated Python development.
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
 
        $ ./gradlew projects
