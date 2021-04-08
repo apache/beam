@@ -40,14 +40,12 @@ dependencies {
     compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.11.3'
     compile 'org.slf4j:slf4j-simple:1.7.9'
     compile group: 'junit', name: 'junit', version: '4.12'
-    compile group: 'org.apache.beam', name: 'beam-sdks-java-core', version: '2.26.0'
-    compile group: 'org.apache.beam', name: 'beam-sdks-java-core', version: '2.26.0', classifier: 'tests'
-    compile group: 'org.apache.beam', name: 'beam-runners-flink_2.11', version: '2.16.0'
-    compile group: 'org.apache.beam', name: 'beam-runners-flink_2.11', version: '2.16.0', classifier: 'tests'
-    compile group: 'org.apache.beam', name: 'beam-runners-spark', version: '2.28.0'
-    compile group: 'org.apache.beam', name: 'beam-runners-spark', version: '2.28.0', classifier: 'tests'
-    compile group: 'org.apache.beam', name: 'beam-runners-core-java', version: '2.26.0'
-    compile group: 'org.apache.beam', name: 'beam-runners-core-java', version: '2.26.0', classifier: 'tests'
+    compile project(path: ":sdks:java:core")
+    compile project(path: ":sdks:java:core", configuration: "shadowTest")
+    compile project(path: ":runners:spark:3")
+    compile project(path: ":runners:flink:${latestFlinkVersion}")
+    compile project(path: ":runners:core-java")
+    compile project(path: ":runners:core-java", configuration: "testRuntime")
 }
 
 
