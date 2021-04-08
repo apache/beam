@@ -199,16 +199,12 @@ script, which is part of the Beam repo:
 
   1. For Go development, prepare your environment to check it was set sucessfully.
       1. Clone the repo, and update your branch as normal
-      
               $ git clone https://github.com/apache/beam.git
               $ cd beam
               $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
               $ git fetch --all
-              
       1. Get or Update all the Go SDK dependencies
-              
               $ go get -u ./...
-
 1. Check the environment was setup correctly.
     - **Option 1**: Run independent checks:
         - For **Go development**:
@@ -233,9 +229,7 @@ script, which is part of the Beam repo:
           ```
           ./gradlew :checkSetUp
           ```
-      
         **Important**: Make sure you have activated Python development.
-
 1. Familiarize yourself with gradle and the project structure.
     1. At the root of the git repository, run:
 
