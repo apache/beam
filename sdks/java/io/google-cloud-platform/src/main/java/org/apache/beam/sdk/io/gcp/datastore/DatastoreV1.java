@@ -66,6 +66,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -1281,8 +1282,14 @@ public class DatastoreV1 {
    */
   @VisibleForTesting
   static class WriteBatcherImpl implements WriteBatcher, Serializable {
-    /** Target time per RPC for writes. */
-    static final int DATASTORE_BATCH_TARGET_LATENCY_MS = 8000;
+
+    /**
+     * Target time per RPC for writes.
+     */
+    static final int DATASTORE_BATCH_TARGET_LATENCY_MS = 5000;
+
+    private final Distribution batchSizeMetric = Metrics
+        .distribution(WriteBatcherImpl.class, "datastoreTargetBatchSize");
 
     @Override
     public void start() {
@@ -1303,12 +1310,10 @@ public class DatastoreV1 {
         return DATASTORE_BATCH_UPDATE_ENTITIES_START;
       }
       long recentMeanLatency = Math.max(meanLatencyPerEntityMs.get(timeSinceEpochMillis), 1);
-      return (int)
-          Math.max(
-              DATASTORE_BATCH_UPDATE_ENTITIES_MIN,
-              Math.min(
-                  DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT,
-                  DATASTORE_BATCH_TARGET_LATENCY_MS / recentMeanLatency));
+      long targetBatchSize = DATASTORE_BATCH_TARGET_LATENCY_MS / recentMeanLatency;
+      batchSizeMetric.update(targetBatchSize);
+      return (int) Math.max(DATASTORE_BATCH_UPDATE_ENTITIES_MIN,
+          Math.min(DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT, targetBatchSize));
     }
 
     private transient MovingAverage meanLatencyPerEntityMs;
@@ -1346,6 +1351,10 @@ public class DatastoreV1 {
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
+    private final Counter entitiesWritten = Metrics
+        .counter(DatastoreWriterFn.class, "datastoreEntitiesWritten");
+    private final Distribution latencyMsPerMutation = Metrics
+        .distribution(DatastoreWriterFn.class, "datastoreLatencyMsPerMutation");
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -1380,6 +1389,7 @@ public class DatastoreV1 {
     @StartBundle
     public void startBundle(StartBundleContext c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
+      LOG.info("Setting up new writer");
       writeBatcher.start();
       if (adaptiveThrottler == null) {
         // Initialize throttler at first use, because it is not serializable.
@@ -1444,7 +1454,9 @@ public class DatastoreV1 {
 
           writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
           adaptiveThrottler.successfulRequest(startTime);
+          latencyMsPerMutation.update((endTime - startTime) / mutations.size());
           rpcSuccesses.inc();
+          entitiesWritten.inc(mutations.size());
 
           // Break if the commit threw no exception.
           break;
@@ -1455,6 +1467,7 @@ public class DatastoreV1 {
              * consideration, though. */
             endTime = System.currentTimeMillis();
             writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
+            latencyMsPerMutation.update((endTime - startTime) / mutations.size());
           }
           // Only log the code and message for potentially-transient errors. The entire exception
           // will be propagated upon the last retry.
