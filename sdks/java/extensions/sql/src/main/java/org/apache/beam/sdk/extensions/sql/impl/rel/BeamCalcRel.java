@@ -429,10 +429,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     @Override
     public Expression field(BlockBuilder list, int index, Type storageType) {
-      return value(list, index, storageType, input, inputSchema);
+      return getBeamField(list, index, storageType, input, inputSchema);
     }
 
-    private static Expression value(
+    // Read field from Beam Row
+    private static Expression getBeamField(
         BlockBuilder list, int index, Type storageType, Expression input, Schema schema) {
       if (index >= schema.getFieldCount() || index < 0) {
         throw new IllegalArgumentException("Unable to find value #" + index);
@@ -531,10 +532,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           throw new UnsupportedOperationException("Unable to get " + fieldType.getTypeName());
       }
 
-      return value(value, fieldType);
+      return toCalciteValue(value, fieldType);
     }
 
-    private static Expression value(Expression value, FieldType fieldType) {
+    // Value conversion: Beam => Calcite
+    private static Expression toCalciteValue(Expression value, FieldType fieldType) {
       switch (fieldType.getTypeName()) {
         case BYTE:
           return Expressions.convert_(value, Byte.class);
@@ -561,11 +563,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           return nullOr(
               value, Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));
         case ARRAY:
-          return nullOr(value, list(value, fieldType.getCollectionElementType()));
+          return nullOr(value, toCalciteList(value, fieldType.getCollectionElementType()));
         case MAP:
-          return nullOr(value, map(value, fieldType.getMapValueType()));
+          return nullOr(value, toCalciteMap(value, fieldType.getMapValueType()));
         case ROW:
-          return nullOr(value, row(value, fieldType.getRowSchema()));
+          return nullOr(value, toCalciteRow(value, fieldType.getRowSchema()));
         case LOGICAL_TYPE:
           String identifier = fieldType.getLogicalType().getIdentifier();
           if (CharType.IDENTIFIER.equals(identifier)) {
@@ -610,11 +612,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       }
     }
 
-    private static Expression list(Expression input, FieldType elementType) {
+    private static Expression toCalciteList(Expression input, FieldType elementType) {
       ParameterExpression value = Expressions.parameter(Object.class);
 
       BlockBuilder block = new BlockBuilder();
-      block.add(value(value, elementType));
+      block.add(toCalciteValue(value, elementType));
 
       return Expressions.new_(
           WrappedList.class,
@@ -628,11 +630,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                   block.toBlock())));
     }
 
-    private static Expression map(Expression input, FieldType mapValueType) {
+    private static Expression toCalciteMap(Expression input, FieldType mapValueType) {
       ParameterExpression value = Expressions.parameter(Object.class);
 
       BlockBuilder block = new BlockBuilder();
-      block.add(value(value, mapValueType));
+      block.add(toCalciteValue(value, mapValueType));
 
       return Expressions.new_(
           WrappedMap.class,
@@ -646,14 +648,14 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                   block.toBlock())));
     }
 
-    private static Expression row(Expression input, Schema schema) {
+    private static Expression toCalciteRow(Expression input, Schema schema) {
       ParameterExpression row = Expressions.parameter(Row.class);
       ParameterExpression index = Expressions.parameter(int.class);
       BlockBuilder body = new BlockBuilder(/* optimizing= */ false);
 
       for (int i = 0; i < schema.getFieldCount(); i++) {
         BlockBuilder list = new BlockBuilder(/* optimizing= */ false, body);
-        Expression returnValue = value(list, i, /* storageType= */ null, row, schema);
+        Expression returnValue = getBeamField(list, i, /* storageType= */ null, row, schema);
 
         list.append(returnValue);
 
