@@ -113,7 +113,6 @@ task startPortableRunner {
 
 task wordCount {
   dependsOn 'buildPython'
-  
   doLast {
     exec {
       executable 'sh'
