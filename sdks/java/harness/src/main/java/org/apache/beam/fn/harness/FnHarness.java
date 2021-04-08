@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
@@ -37,6 +39,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -177,6 +180,7 @@ public class FnHarness {
       OutboundObserverFactory outboundObserverFactory)
       throws Exception {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
+    ShortIdMap metricsShortIds = new ShortIdMap();
     ExecutorService executorService = options.as(GcsOptions.class).getExecutorService();
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
@@ -228,7 +232,8 @@ public class FnHarness {
               processBundleDescriptors::getUnchecked,
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
-              finalizeBundleHandler);
+              finalizeBundleHandler,
+              metricsShortIds);
       // TODO(BEAM-9729): Remove once runners no longer send this instruction.
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.REGISTER,
@@ -247,6 +252,23 @@ public class FnHarness {
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
           processBundleHandler::trySplit);
+      handlers.put(
+          InstructionRequest.RequestCase.MONITORING_INFOS,
+          request ->
+              BeamFnApi.InstructionResponse.newBuilder()
+                  .setMonitoringInfos(
+                      BeamFnApi.MonitoringInfosMetadataResponse.newBuilder()
+                          .putAllMonitoringInfo(
+                              StreamSupport.stream(
+                                      request
+                                          .getMonitoringInfos()
+                                          .getMonitoringInfoIdList()
+                                          .spliterator(),
+                                      false)
+                                  .collect(
+                                      Collectors.toMap(
+                                          Function.identity(), metricsShortIds::get)))));
+
       BeamFnControlClient control =
           new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
 

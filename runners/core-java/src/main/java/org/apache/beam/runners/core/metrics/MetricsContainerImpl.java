@@ -23,14 +23,19 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeU
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -41,7 +46,9 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsLogger;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +88,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
   public MetricsContainerImpl(@Nullable String stepName) {
     this.stepName = stepName;
   }
+
+  private static Map<MetricKey, Optional<String>> shortIdsByMetricKey = new HashMap<>();
 
   /** Reset the metrics. */
   @Override
@@ -187,11 +196,12 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
         extractUpdates(counters), extractUpdates(distributions), extractUpdates(gauges));
   }
 
-  /** @return The MonitoringInfo generated from the metricUpdate. */
-  private @Nullable MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
+  /** @return The MonitoringInfo metadata from the metric. */
+  private @Nullable SimpleMonitoringInfoBuilder metricToMonitoringMetadata(
+      MetricKey metricKey, String userUrn) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
 
-    MetricName metricName = metricUpdate.getKey().metricName();
+    MetricName metricName = metricKey.metricName();
     if (metricName instanceof MonitoringInfoMetricName) {
       MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
       // Represents a specific MonitoringInfo for a specific URN.
@@ -207,52 +217,45 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       }
 
       builder
-          .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
-          .setLabel(
-              MonitoringInfoConstants.Labels.NAMESPACE,
-              metricUpdate.getKey().metricName().getNamespace())
-          .setLabel(
-              MonitoringInfoConstants.Labels.NAME, metricUpdate.getKey().metricName().getName())
-          .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
+          .setUrn(userUrn)
+          .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, metricKey.metricName().getNamespace())
+          .setLabel(MonitoringInfoConstants.Labels.NAME, metricKey.metricName().getName())
+          .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricKey.stepName());
     }
+    return builder;
+  }
 
+  /** @return The MonitoringInfo metadata from the counter metric. */
+  private @Nullable SimpleMonitoringInfoBuilder counterToMonitoringMetadata(MetricKey metricKey) {
+    return metricToMonitoringMetadata(metricKey, MonitoringInfoConstants.Urns.USER_SUM_INT64);
+  }
+
+  /** @return The MonitoringInfo generated from the counter metricUpdate. */
+  private @Nullable MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
+    SimpleMonitoringInfoBuilder builder = counterToMonitoringMetadata(metricUpdate.getKey());
+    if (builder == null) {
+      return null;
+    }
     builder.setInt64SumValue(metricUpdate.getUpdate());
-
     return builder.build();
+  }
+
+  /** @return The MonitoringInfo metadata from the distribution metric. */
+  private @Nullable SimpleMonitoringInfoBuilder distributionToMonitoringMetadata(
+      MetricKey metricKey) {
+    return metricToMonitoringMetadata(
+        metricKey, MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64);
   }
 
   /**
    * @param metricUpdate
-   * @return The MonitoringInfo generated from the metricUpdate.
+   * @return The MonitoringInfo generated from the distribution metricUpdate.
    */
   private @Nullable MonitoringInfo distributionUpdateToMonitoringInfo(
       MetricUpdate<org.apache.beam.runners.core.metrics.DistributionData> metricUpdate) {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-    MetricName metricName = metricUpdate.getKey().metricName();
-    if (metricName instanceof MonitoringInfoMetricName) {
-      MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
-      // Represents a specific MonitoringInfo for a specific URN.
-      builder.setUrn(monitoringInfoName.getUrn());
-      for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
-        builder.setLabel(e.getKey(), e.getValue());
-      }
-    } else { // Note: (metricName instanceof MetricName) is always True.
-      // Represents a user counter.
-      builder
-          .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
-          .setLabel(
-              MonitoringInfoConstants.Labels.NAMESPACE,
-              metricUpdate.getKey().metricName().getNamespace())
-          .setLabel(
-              MonitoringInfoConstants.Labels.NAME, metricUpdate.getKey().metricName().getName());
-
-      // Drop if the stepname is not set. All user counters must be
-      // defined for a PTransform. They must be defined on a container bound to a step.
-      if (this.stepName == null) {
-        // TODO(BEAM-7191): Consider logging a warning with a quiet logging API.
-        return null;
-      }
-      builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
+    SimpleMonitoringInfoBuilder builder = distributionToMonitoringMetadata(metricUpdate.getKey());
+    if (builder == null) {
+      return null;
     }
     builder.setInt64DistributionValue(metricUpdate.getUpdate());
     return builder.build();
@@ -279,6 +282,47 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       }
     }
     return monitoringInfos;
+  }
+
+  public Map<String, ByteString> getMonitoringData(ShortIdMap shortIds) {
+    ImmutableMap.Builder<String, ByteString> builder = ImmutableMap.builder();
+    MetricUpdates metricUpdates = this.getUpdates();
+    for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
+      String shortId =
+          getShortId(metricUpdate.getKey(), this::counterToMonitoringMetadata, shortIds);
+      if (shortId != null) {
+        builder.put(shortId, encodeInt64Counter(metricUpdate.getUpdate()));
+      }
+    }
+    for (MetricUpdate<org.apache.beam.runners.core.metrics.DistributionData> metricUpdate :
+        metricUpdates.distributionUpdates()) {
+      String shortId =
+          getShortId(metricUpdate.getKey(), this::distributionToMonitoringMetadata, shortIds);
+      if (shortId != null) {
+        builder.put(shortId, encodeInt64Distribution(metricUpdate.getUpdate()));
+      }
+    }
+    return builder.build();
+  }
+
+  private String getShortId(
+      MetricKey key, Function<MetricKey, SimpleMonitoringInfoBuilder> toInfo, ShortIdMap shortIds) {
+    Optional<String> shortId = shortIdsByMetricKey.get(key);
+    if (shortId == null) {
+      SimpleMonitoringInfoBuilder monitoringInfoBuilder = toInfo.apply(key);
+      if (monitoringInfoBuilder == null) {
+        shortId = Optional.empty();
+      } else {
+        MonitoringInfo monitoringInfo = monitoringInfoBuilder.build();
+        if (monitoringInfo == null) {
+          shortId = Optional.empty();
+        } else {
+          shortId = Optional.of(shortIds.getOrCreateShortId(monitoringInfo));
+        }
+      }
+      shortIdsByMetricKey.put(key, shortId);
+    }
+    return shortId.orElse(null);
   }
 
   private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
