@@ -396,6 +396,13 @@ EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
 
 
 def with_docs_from(base_type, name=None):
+  """Decorator that updates the documentation from the wrapped function to
+  duplicate the documentation from the identically-named method in `base_type`.
+
+  Any docstring on the original function will be included in the new function
+  under a "Differences from pandas" heading.
+  """
+
   def wrap(func):
     fn_name = name or func.__name__
     orig_doc = getattr(base_type, fn_name).__doc__
