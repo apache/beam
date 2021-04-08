@@ -394,13 +394,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def sort_values(self, axis, **kwargs):
-    """``sort_values`` will not be implemented.
+    """``sort_values`` is not implemented.
 
-    It cannot be implemented for ``axis=index`` because it imposes an ordering on
+    It is not implemented for ``axis=index`` because it imposes an ordering on
     the dataset, and we cannot guarantee it will be maintained (see
     https://s.apache.org/dataframe-order-sensitive-operations).
 
-    It cannot be implemented for ``axis=columns`` because it makes the order of
+    It is not implemented for ``axis=columns`` because it makes the order of
     the columns depend on the data (see
     https://s.apache.org/dataframe-non-deferred-column-names)."""
     if axis in (0, 'index'):
@@ -612,7 +612,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     """Aligning per-level is not yet supported. Only the default, ``level=None``,
     is allowed.
 
-    Filling NaN values via ``method`` will not be supported, because it is
+    Filling NaN values via ``method`` is not supported, because it is
     sensitive to the order of the data
     (see https://s.apache.org/dataframe-order-sensitive-operations). Only the
     default, ``method=None``, is allowed.
@@ -1280,9 +1280,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   clip = frame_base._elementwise_method(
       'clip', restrictions={'axis': lambda axis: axis in (0, 'index')}, base=pd.DataFrame)
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def corr(self, method, min_periods):
+    """Only ``method="pearson"`` can be parallelized, other methods require
+    collecting all data on a single worker (see
+    https://s.apache.org/dataframe-non-parallelizable-operations for details)
+    """
     if method == 'pearson':
       proxy = self._expr.proxy().corr()
       columns = list(proxy.columns)

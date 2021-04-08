@@ -26,6 +26,7 @@ from typing import Optional
 from typing import Union
 
 import pandas as pd
+import re
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import partitionings
@@ -373,9 +374,25 @@ def args_to_kwargs(base_type):
   return wrap
 
 
-BEAM_SPECIFIC_HEADER = cleandoc(
-    """Divergences from pandas
-    ------------------------------""")
+BEAM_SPECIFIC = "Differences from pandas"
+
+SECTION_ORDER = [
+    'Parameters',
+    'Returns',
+    'Raises',
+    BEAM_SPECIFIC,
+    'See Also',
+    'Notes',
+    'Examples'
+]
+
+EXAMPLES_DISCLAIMER = (
+    "**NOTE:** These examples are pulled directly from the pandas documentation "
+    "for convenience. The Beam DataFrame API will look different because it is "
+    "a deferred API.")
+EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
+    " In addition, some arguments shown here may not be supported, see "
+    f"**{BEAM_SPECIFIC!r}** for details.")
 
 
 def with_docs_from(base_type, name=None):
@@ -385,25 +402,41 @@ def with_docs_from(base_type, name=None):
     if orig_doc is None:
       return func
 
-    orig_doc = cleandoc(orig_doc).replace('DataFrame',
-                                          'DeferredDataFrame').replace(
-                                              'Series', 'DeferredSeries')
-    # TODO(BEAM-12074): "Examples" section can be misleading as it shows pandas
-    # usage, not Beam usage. We should either add a disclaimer, or remove the
-    # examples section.
+    orig_doc = cleandoc(orig_doc)
+
+    section_splits = re.split(r'^(.*)$\n^-+$\n', orig_doc, flags=re.MULTILINE)
+    intro = section_splits[0].strip()
+    sections = dict(zip(section_splits[1::2], section_splits[2::2]))
+
+    beam_has_differences = bool(func.__doc__)
+
+    for header, content in sections.items():
+      content = content.strip()
+      if header == "Examples":
+        content = (
+            EXAMPLES_DIFFERENCES
+            if beam_has_differences else EXAMPLES_DISCLAIMER) + '\n\n' + content
+        pass
+      else:
+        content = content.replace('DataFrame', 'DeferredDataFrame').replace(
+            'Series', 'DeferredSeries')
+      sections[header] = content
+
     # TODO(BEAM-12074): Make sure "See also" references so that link to Beam
     # methods
-    if func.__doc__:
-      beam_specific = cleandoc(func.__doc__)
+    if beam_has_differences:
+      sections[BEAM_SPECIFIC] = cleandoc(func.__doc__)
     else:
-      beam_specific = (
+      sections[BEAM_SPECIFIC] = (
           "This operation has no known divergences from the "
           "pandas API.")
 
-    # TODO(BEAM-12074): This section should be inserted earlier, the user may
-    # miss it if we put it at the end like this.
-    func.__doc__ = '\n'.join(
-        (orig_doc, "", BEAM_SPECIFIC_HEADER, beam_specific))
+    def format_section(header):
+      return '\n'.join([header, ''.join('-' for _ in header), sections[header]])
+
+    func.__doc__ = '\n\n'.join([intro] + [
+        format_section(header) for header in SECTION_ORDER if header in sections
+    ])
 
     return func
 
