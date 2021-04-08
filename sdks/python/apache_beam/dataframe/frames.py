@@ -470,11 +470,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def dtype(self):
     return self._expr.proxy().dtype
 
+  isin = frame_base._elementwise_method('isin')
+
   @property
   def ndim(self):
     return self._expr.proxy().ndim
-
-  dtypes = dtype
 
   def _get_index(self):
     return _DeferredIndex(self)
@@ -488,11 +488,35 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   first = last = frame_base.wont_implement_method('order-sensitive')
   head = tail = frame_base.wont_implement_method('order-sensitive')
+  interpolate = frame_base.wont_implement_method('order-sensitive')
 
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(DeferredDataFrameOrSeries):
+  @property
+  def name(self):
+    return self._expr.proxy().name
+
+  @name.setter
+  def name(self, value):
+    def fn(s):
+      s = s.copy()
+      s.name = value
+      return s
+
+    self._expr = expressions.ComputedExpression(
+        'series_set_name',
+        fn, [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Arbitrary())
+
+  @property
+  def dtype(self):
+    return self._expr.proxy().dtype
+
+  dtypes = dtype
+
   def __getitem__(self, key):
     if _is_null_slice(key) or key is Ellipsis:
       return self
@@ -769,8 +793,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Arbitrary()))
 
   items = iteritems = frame_base.wont_implement_method('non-lazy')
-
-  isin = frame_base._elementwise_method('isin')
 
   isnull = isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
@@ -2169,6 +2191,20 @@ class _DeferredIndex(object):
   @property
   def names(self):
     return self._frame._expr.proxy().index.names
+
+  @names.setter
+  def names(self, value):
+    def set_index_names(df):
+      df = df.copy()
+      df.index.names = value
+      return df
+
+    self._frame._expr = expressions.ComputedExpression(
+      'set_index_names',
+      set_index_names,
+      [self._frame._expr],
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Arbitrary())
 
   @property
   def ndim(self):
