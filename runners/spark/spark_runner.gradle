@@ -166,7 +166,7 @@ dependencies {
   provided "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   provided "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
   provided "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
-  runtimeOnly "com.fasterxml.jackson.module:jackson-module-scala_$spark_scala_version:2.10.2"
+  runtimeOnly "com.fasterxml.jackson.module:jackson-module-scala_$spark_scala_version:2.12.2"
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
   provided library.java.hadoop_common
