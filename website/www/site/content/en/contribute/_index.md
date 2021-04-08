@@ -101,21 +101,21 @@ You have two options for configuring your development environment:
 To install these in a Debian-based distribution:
 1. Execute:
 
-    ```
-    sudo apt-get install \
-       openjdk-8-jdk \
-       python-setuptools \
-       python-pip \
-       virtualenv \
-       tox \
-       docker-ce
-    ```
+```
+sudo apt-get install \
+   openjdk-8-jdk \
+   python-setuptools \
+   python-pip \
+   virtualenv \
+   tox \
+   docker-ce
+```
 
 2. On some systems (like Ubuntu 20.04) these need to be installed also
 
-    ```
-    pip3 install grpcio-tools mypy-protobuf
-    ```
+```
+pip3 install grpcio-tools mypy-protobuf
+```
 
 3. If you you develop in GO:
     1. Install [Go](https://golang.org/doc/install).
@@ -123,10 +123,10 @@ To install these in a Debian-based distribution:
     1. At the end, it should look like this: `$GOPATH/src/github.com/apache/beam`
 4. Once Go is installed, install goavro:
 
-    ```
-    $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-    $ go get github.com/linkedin/goavro
-    ```
+```
+$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+$ go get github.com/linkedin/goavro
+```
 
 **Important**: gLinux users should configure their machines for sudoless Docker.
 
@@ -136,9 +136,9 @@ You can install these in a Debian-based distribution for Linux or macOs using th
 script, which is part of the Beam repo:
 
 1. Execute:
-    ```
-    ./local-env-setup.sh
-    ```
+```
+./local-env-setup.sh
+```
 
 #### Container: Docker-based
 
