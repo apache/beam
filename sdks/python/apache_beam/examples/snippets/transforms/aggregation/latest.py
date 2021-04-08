@@ -18,9 +18,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 
 def latest_globally(test=None):
   # [START latest_globally]

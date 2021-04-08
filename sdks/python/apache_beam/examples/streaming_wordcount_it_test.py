@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 import uuid
-from builtins import range
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
