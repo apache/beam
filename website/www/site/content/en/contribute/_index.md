@@ -73,46 +73,74 @@ detail.
 
 ### Prerequisites
 
- - a GitHub account
- - a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
- - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
-   changes locally
- - [Go](https://golang.org) 1.12 or later installed for Go SDK development
+ - A GitHub account.
+ - A Linux, macOS, or Microsoft Windows development environment
+      - Required *only* For Windows:
+         - Java JDK 8 installed
+         - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
+   changes locally.
+ - For SDK Development:
+      - [Go](https://golang.org) 1.12 or later installed for Go SDK development
  - Python 3.6, 3.7, and 3.8. Yes, you need all three versions installed.
-    - pip, setuptools, virtualenv, and tox installed for Python development
- - for large contributions, a signed [Individual Contributor License
+      - Required *only* For Windows:
+        - pip, setuptools, virtualenv, and tox installed for Python development
+ - For large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
 
 
+### Configuration options
+You have two options for configuring your development environment:
+- Local: Debian-based Distribution
+    - Manual steps
+    - Automated script (*only* for Linux and macOS)
+- Container: Docker-based
 
+#### Local: Debian-based Distribution
+##### Manual steps
 To install these in a Debian-based distribution:
+1. Execute:
 
-```
-sudo apt-get install \
-   openjdk-8-jdk \
-   python-setuptools \
-   python-pip \
-   virtualenv \
-   tox \
-   docker-ce
-```
+    ```
+    sudo apt-get install \
+       openjdk-8-jdk \
+       python-setuptools \
+       python-pip \
+       virtualenv \
+       tox \
+       docker-ce
+    ```
 
-On some systems (like Ubuntu 20.04) these need to be installed also
-```
-pip3 install grpcio-tools mypy-protobuf
-```
+2. On some systems (like Ubuntu 20.04) these need to be installed also
 
-You also need to [install Go](https://golang.org/doc/install).
+    ```
+    pip3 install grpcio-tools mypy-protobuf
+    ```
 
-Once Go is installed, install goavro:
+3. If you you develop in GO:
+    1. Install [Go](https://golang.org/doc/install).
+    1. Check BEAM repo is in: `$GOPATH/src/github.com/apache/`
+    1. At the end, it should look like this: `$GOPATH/src/github.com/apache/beam`
+4. Once Go is installed, install goavro:
 
-```
-$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-$ go get github.com/linkedin/goavro
-```
+    ```
+    $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+    $ go get github.com/linkedin/goavro
+    ```
 
-gLinux users should configure their machines for sudoless Docker.
+**Important**: gLinux users should configure their machines for sudoless Docker.
+
+##### Automated script for Linux and macOS
+
+You can install these in a Debian-based distribution for Linux or macOs using the [local-env-setup.sh](https://github.com/apache/beam/blob/master/local-env-setup.sh)
+script, which is part of the Beam repo:
+
+1. Execute:
+    ```
+    ./local-env-setup.sh
+    ```
+
+#### Container: Docker-based
 
 Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
 into a container meeting the requirements above.
