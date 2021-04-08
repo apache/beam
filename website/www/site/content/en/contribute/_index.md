@@ -108,32 +108,29 @@ You have two options for configuring your development environment:
 
 To install these in a Debian-based distribution using manual steps:
 1. Execute:
-
-```
-sudo apt-get install \
-   openjdk-8-jdk \
-   python-setuptools \
-   python-pip \
-   virtualenv \
-   tox \
-   docker-ce
-```
-
+    ```
+       sudo apt-get install \
+       openjdk-8-jdk \
+       python-setuptools \
+       python-pip \
+       virtualenv \
+       tox \
+       docker-ce
+    ```
 1. On some systems (like Ubuntu 20.04) these need to be installed also
-```
-pip3 install grpcio-tools mypy-protobuf
-```
+    ```
+    pip3 install grpcio-tools mypy-protobuf
+    ```
 1. If you you develop in GO:
-  1. [Install Go](https://golang.org/doc/install).
-  1. BEAM repo should be in: `$GOPATH/src/github.com/apache/`
-  At the end, it should look like this:
-  `$GOPATH/src/github.com/apache/beam`
+    1. [Install Go](https://golang.org/doc/install).
+    1. BEAM repo should be in: `$GOPATH/src/github.com/apache/`
+    At the end, it should look like this:
+    `$GOPATH/src/github.com/apache/beam`
 1. Install goavro:
-
-```
-$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-$ go get github.com/linkedin/goavro
-```
+    ```
+    $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+    $ go get github.com/linkedin/goavro
+    ```
 
 ##### Automated script for Linux and macOS
 
@@ -141,9 +138,9 @@ You can install these in a Debian-based distribution for Linux or macOs using th
 script, which is part of the Beam repo:
 
 1. Execute:
-```
-./local-env-setup.sh
-```
+    ```
+    ./local-env-setup.sh
+    ```
 
 #### Container: Docker-based
 
@@ -155,9 +152,9 @@ You can start this container using the [start-build-env.sh](https://github.com/a
 script, which is part of the Beam repo:
 
 1. Execute:
-```
-./start-build-env.sh
-```
+    ```
+    ./start-build-env.sh
+    ```
 
 ### Connect With the Beam community
 
@@ -183,9 +180,9 @@ script, which is part of the Beam repo:
    [discuss it on the dev@ mailing list](/community/contact-us/).
 1. For large changes:
   1. Create a design doc using this
-   ([template](https://s.apache.org/beam-design-doc-template).
+   [template](https://s.apache.org/beam-design-doc-template).
   1. Check these
-   [examples](https://s.apache.org/beam-design-docs)).
+   [examples](https://s.apache.org/beam-design-docs).
   1. Email it to the [dev@ mailing list](/community/contact-us).
 
 ### Development Setup {#development-setup}
@@ -201,60 +198,64 @@ script, which is part of the Beam repo:
        $ cd beam
 
   1. For Go development, prepare your environment to check it was set sucessfully.
-    1. Execute:
-        # Clone the repo, and update your branch as normal
-        $ git clone https://github.com/apache/beam.git
-        $ cd beam
-        $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
-        $ git fetch --all
-        # Get or Update all the Go SDK dependencies
-        $ go get -u ./...
+      1. Clone the repo, and update your branch as normal
+      
+              $ git clone https://github.com/apache/beam.git
+              $ cd beam
+              $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
+              $ git fetch --all
+              
+      1. Get or Update all the Go SDK dependencies
+              
+              $ go get -u ./...
 
 1. Check the environment was setup correctly.
-  - Run independent checks:
-    - For **Go development**:
-      1. Execute:
-      ```
-      export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
-      ./gradlew :sdks:go:examples:wordCount
-      ```
-    - For **Python development**:
-      1. Activate your environment:
-      ```python3 -m venv ~/.virtualenvs/env
-      . ~/.virtualenvs/bin/activate
-      ```
-      1. Execute:
-      `./gradlew :sdks:python:wordCount`
+    - **Option 1**: Run independent checks:
+        - For **Go development**:
+          1. Execute:
+              ```
+              export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
+              ./gradlew :sdks:go:examples:wordCount
+              ```
+        - For **Python development**:
+          1. Activate your environment:
+              ```
+              python3 -m venv ~/.virtualenvs/env
+              . ~/.virtualenvs/bin/activate
+              ```
+          1. Execute:
+              `./gradlew :sdks:python:wordCount`
 
-    - For **Java development**:
-        1. Execute:
-        `./gradlew :examples:java:wordCount`
-  - Or validate the Go, Java, and Python environments:
-    ```
-    ./gradlew :checkSetUp
-    ```
-    **Important**: Make sure you have activated Python development.
+        - For **Java development**:
+          1. Execute:
+              `./gradlew :examples:java:wordCount`
+   - **Option 2**: validate the Go, Java, and Python environments:
+          ```
+          ./gradlew :checkSetUp
+          ```
+      
+        **Important**: Make sure you have activated Python development.
 
 1. Familiarize yourself with gradle and the project structure.
-  1. At the root of the git repository, run:
+    1. At the root of the git repository, run:
 
-       $ ./gradlew projects
+            $ ./gradlew projects
 
-   1. Examine the available tasks in a project. For the default set of tasks, use:
+    1. Examine the available tasks in a project. For the default set of tasks, use:
 
-       $ ./gradlew tasks
+            $ ./gradlew tasks
 
-   1. For a given module, use:
+    1. For a given module, use:
 
-       $ ./gradlew -p sdks/java/io/cassandra tasks
+            $ ./gradlew -p sdks/java/io/cassandra tasks
 
     1. For an exhaustive list of tasks, use:
 
-       $ ./gradlew tasks --all
+            $ ./gradlew tasks --all
 
 1. Make sure you can build and run tests
 
-          Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
+   Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
 
               $ ./gradlew -p sdks/go check
               $ ./gradlew -p sdks/java/io/cassandra check
@@ -274,22 +275,15 @@ script, which is part of the Beam repo:
 ### Make your change
 
 1. Make your code change.
-  **Notes**:
-  - Every source file needs to include the Apache license header.
-  - Every new dependency needs to
-   have an open-source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
-
+      - Every source file needs to include the Apache license header.
+      - Every new dependency needs to have an open-source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
 1. Add unit tests for your change.
-
 1. Use descriptive commit messages that make it easy to identify changes and provide a clear history.
-
 1. When your change is ready to be reviewed and merged, create a pull request.
-
 1. Format commit messages and the pull request title like this:
-  `[BEAM-XXX] Fixes bug in ApproximateQuantiles`
-  **Important**: Replace BEAM-XXX with the appropriate JIRA issue.
-   This will automatically link the pull request to the issue.
-
+        `[BEAM-XXX] Fixes bug in ApproximateQuantiles`
+    **Important**: Replace BEAM-XXX with the appropriate JIRA issue.
+    This will automatically link the pull request to the issue.
 1. The pull request and any changes pushed to it will trigger [pre-commit
    jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
@@ -299,31 +293,26 @@ script, which is part of the Beam repo:
 
    Pull request template has a link to a [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
    that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
-
 1. Pull requests can only be merged by a
    [Beam committer](https://home.apache.org/phonebook.html?pmc=beam).
    To find a committer for your area, either:
-    - Look in the OWNERS file of the directory where you changed files.
-    - Look for similar code merges.
-    - Ask on [dev@beam.apache.org](/community/contact-us/).
+      - Look in the OWNERS file of the directory where you changed files.
+      - Look for similar code merges.
+      - Ask on [dev@beam.apache.org](/community/contact-us/).
 
    **Note**: Use `R: @username` in the pull request to notify a reviewer.
-
 1. If you don't get any response in 3 business days, email the [dev@ mailing list](/community/contact-us) to ask for someone to look at your pull
    request.
 
 ### Make the reviewer's job easier
 
 1. **Provide context for your changes** in the associated JIRA issue and/or PR description.
-
 1. **Avoid huge mega-changes**.
-
 1. Review feedback typically leads to follow-up changes. Consider the following to make it easier to review follow-up changes:
    - **Add follow-up changes as additional "fixup" commits** to the
    existing PR/branch. This allows reviewer(s) to track the incremental progress, focus on new changes,
    and keeps comment threads attached to the code.
    - **Refrain from squashing new commits** into reviewed commits before review is completed. Reviewers may ask you to "unsquash" new changes because squashing reviewed and unreviewed commits make it harder to see the difference between the review iterations.
-
 1. After review is complete and the PR is accepted, **fixup commits should be squashed** (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
    Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
@@ -400,7 +389,7 @@ Check the following resources to have a significant contribution:
 - Join an existing effort, it is a great way to contribute. For the most
 intensive efforts, check out the [roadmap](/roadmap/).
 
-Fnd a more exhaustive list on the [Beam developers' wiki](
+Find a more exhaustive list on the [Beam developers' wiki](
 https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam)
 
 ## Troubleshooting
