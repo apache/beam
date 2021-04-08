@@ -42,14 +42,10 @@ public class Main {
             JSONArray outputDetails = new JSONArray();
 
             logger.info("Processing Batch Jobs:");
-//            BatchTestService batchTestService = new BatchTestService();
-//            outputDetails.add(batchTestService.getBatchTests());
             ModeTestService batchTestService = new ModeTestService("batch");
             outputDetails.add(batchTestService.getTests());
 
             logger.info("Processing Stream Jobs:");
-//            StreamTestService streamTestService = new StreamTestService();
-//            outputDetails.add(streamTestService.getStreamTests());
             ModeTestService streamTestService = new ModeTestService("stream");
             outputDetails.add(streamTestService.getTests());
 
