@@ -147,6 +147,8 @@ into a container meeting the requirements above.
 
 You can start this container using the [start-build-env.sh](https://github.com/apache/beam/blob/master/start-build-env.sh)
 script which is part of the Beam repo:
+
+1. Execute:
 ```
 ./start-build-env.sh
 ```
@@ -201,26 +203,29 @@ script which is part of the Beam repo:
     - **Option 1**: Run independent checks:
         - For **Go development**:
           1. Execute:
-              ```
-              export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
-              ./gradlew :sdks:go:examples:wordCount
-              ```
+```
+export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
+./gradlew :sdks:go:examples:wordCount
+```
         - For **Python development**:
           1. Activate your environment:
-              ```
-              python3 -m venv ~/.virtualenvs/env
-              . ~/.virtualenvs/bin/activate
-              ```
-          1. Execute:
-              `./gradlew :sdks:python:wordCount`
-
+```
+python3 -m venv ~/.virtualenvs/env
+. ~/.virtualenvs/bin/activate
+```
+          2. Execute:
+```
+./gradlew :sdks:python:wordCount
+```
         - For **Java development**:
           1. Execute:
-              `./gradlew :examples:java:wordCount`
+```
+./gradlew :examples:java:wordCount
+```
     - **Option 2**: validate the Go, Java, and Python environments:
-          ```
-          ./gradlew :checkSetUp
-          ```
+```
+./gradlew :checkSetUp
+```
         **Important**: Make sure you have activated Python development.
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
 
