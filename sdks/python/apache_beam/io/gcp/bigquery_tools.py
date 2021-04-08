@@ -27,8 +27,6 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import io
@@ -37,13 +35,10 @@ import logging
 import re
 import time
 import uuid
-from builtins import object
 from json.decoder import JSONDecodeError
+from typing import Union
 
 import fastavro
-from future.utils import iteritems
-from future.utils import raise_with_traceback
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
@@ -178,7 +173,7 @@ def parse_table_reference(table, dataset=None, project=None):
 
   Args:
     table: The ID of the table. The ID must contain only letters
-      (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is None
+      (a-z, A-Z), numbers (0-9), connectors (-_). If dataset argument is None
       then the table argument must contain the entire table reference:
       'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'. This argument can be a
       bigquery.TableReference instance in which case dataset and project are
@@ -217,7 +212,7 @@ def parse_table_reference(table, dataset=None, project=None):
   # table name.
   if dataset is None:
     match = re.match(
-        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[\w\$]+)$', table)
+        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[-\w\$]+)$', table)
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
@@ -1101,7 +1096,7 @@ class BigQueryWrapper(object):
 
   def _convert_to_json_row(self, row):
     json_object = bigquery.JsonObject()
-    for k, v in iteritems(row):
+    for k, v in row.items():
       if isinstance(v, decimal.Decimal):
         # decimal values are converted into string because JSON does not
         # support the precision that decimal supports. BQ is able to handle
@@ -1480,10 +1475,9 @@ class AvroRowWriter(io.IOBase):
     try:
       self._avro_writer.write(row)
     except (TypeError, ValueError) as ex:
-      raise_with_traceback(
-          ex.__class__(
-              "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
-                  ex, self._avro_writer.schema, row)))
+      raise ex.__class__(
+          "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
+              ex, self._avro_writer.schema, row)).with_traceback()
 
 
 class RetryStrategy(object):
@@ -1610,7 +1604,7 @@ bigquery_v2_messages.TableSchema):
   if (isinstance(schema, (dict, value_provider.ValueProvider)) or
       callable(schema) or schema is None):
     return schema
-  elif isinstance(schema, (str, unicode)):
+  elif isinstance(schema, str):
     table_schema = get_table_schema_from_string(schema)
     return table_schema_to_dict(table_schema)
   elif isinstance(schema, bigquery.TableSchema):
@@ -1652,3 +1646,75 @@ def generate_bq_job_name(job_name, step_id, job_type, random=None):
       job_id=job_name.replace("-", ""),
       step_id=step_id,
       random=random)
+
+
+def check_schema_equal(
+    left, right, *, ignore_descriptions=False, ignore_field_order=False):
+  # type: (Union[bigquery.TableSchema, bigquery.TableFieldSchema], Union[bigquery.TableSchema, bigquery.TableFieldSchema], bool, bool) -> bool
+
+  """Check whether schemas are equivalent.
+
+  This comparison function differs from using == to compare TableSchema
+  because it ignores categories, policy tags, descriptions (optionally), and
+  field ordering (optionally).
+
+  Args:
+    left (~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
+bigquery.bigquery_v2_messages.TableFieldSchema):
+      One schema to compare.
+    right (~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
+bigquery.bigquery_v2_messages.TableFieldSchema):
+      The other schema to compare.
+    ignore_descriptions (bool): (optional) Whether or not to ignore field
+      descriptions when comparing. Defaults to False.
+    ignore_field_order (bool): (optional) Whether or not to ignore struct field
+      order when comparing. Defaults to False.
+
+  Returns:
+    bool: True if the schemas are equivalent, False otherwise.
+  """
+  if type(left) != type(right) or not isinstance(
+      left, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+    return False
+
+  if isinstance(left, bigquery.TableFieldSchema):
+    if left.name != right.name:
+      return False
+
+    if left.type != right.type:
+      # Check for type aliases
+      if sorted(
+          (left.type, right.type)) not in (["BOOL", "BOOLEAN"], ["FLOAT",
+                                                                 "FLOAT64"],
+                                           ["INT64", "INTEGER"], ["RECORD",
+                                                                  "STRUCT"]):
+        return False
+
+    if left.mode != right.mode:
+      return False
+
+    if not ignore_descriptions and left.description != right.description:
+      return False
+
+  if isinstance(left,
+                bigquery.TableSchema) or left.type in ("RECORD", "STRUCT"):
+    if len(left.fields) != len(right.fields):
+      return False
+
+    if ignore_field_order:
+      left_fields = sorted(left.fields, key=lambda field: field.name)
+      right_fields = sorted(right.fields, key=lambda field: field.name)
+    else:
+      left_fields = left.fields
+      right_fields = right.fields
+
+    for left_field, right_field in zip(left_fields, right_fields):
+      if not check_schema_equal(left_field,
+                                right_field,
+                                ignore_descriptions=ignore_descriptions,
+                                ignore_field_order=ignore_field_order):
+        return False
+
+  return True

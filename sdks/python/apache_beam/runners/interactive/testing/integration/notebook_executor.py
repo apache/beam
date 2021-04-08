@@ -82,7 +82,8 @@ class NotebookExecutor(object):
     for path in self._paths:
       with open(path, 'r') as nb_f:
         nb = nbformat.read(nb_f, as_version=4)
-        ep = ExecutePreprocessor(allow_errors=True, kernel_name='test')
+        ep = ExecutePreprocessor(
+            timeout=-1, allow_errors=True, kernel_name='test')
         ep.preprocess(nb, {'metadata': {'path': os.path.dirname(path)}})
 
       execution_id = obfuscate(path)

@@ -23,8 +23,6 @@ https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import errno
 import io
 import logging
@@ -33,7 +31,6 @@ import re
 import threading
 import time
 import traceback
-from builtins import object
 from itertools import islice
 
 from apache_beam.internal.http_client import get_new_http

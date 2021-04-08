@@ -60,14 +60,6 @@ include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
 /* Begin Flink Runner related settings */
-// Flink 1.8
-include(":runners:flink:1.8")
-include(":runners:flink:1.8:job-server")
-include(":runners:flink:1.8:job-server-container")
-// Flink 1.9
-include(":runners:flink:1.9")
-include(":runners:flink:1.9:job-server")
-include(":runners:flink:1.9:job-server-container")
 // Flink 1.10
 include(":runners:flink:1.10")
 include(":runners:flink:1.10:job-server")
@@ -214,6 +206,7 @@ include(":sdks:python:test-suites:tox:pycommon")
 include(":sdks:python:test-suites:tox:py36")
 include(":sdks:python:test-suites:tox:py37")
 include(":sdks:python:test-suites:tox:py38")
+include(":vendor:grpc-1_26_0")
 include(":vendor:grpc-1_36_0")
 include(":vendor:bytebuddy-1_10_8")
 include(":vendor:calcite-1_26_0")

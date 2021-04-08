@@ -18,8 +18,6 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import json
@@ -32,8 +30,6 @@ import time
 import unittest
 import uuid
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 import pytz

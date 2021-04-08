@@ -403,6 +403,8 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.series.Series.sort_index': ['*'],
             'pandas.core.series.Series.sort_values': ['*'],
+            'pandas.core.series.Series.argmax': ['*'],
+            'pandas.core.series.Series.argmin': ['*'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -422,8 +424,6 @@ class DoctestTest(unittest.TestCase):
             ],
             # Throws NotImplementedError when modifying df
             'pandas.core.series.Series.transform': ['df'],
-            'pandas.core.series.Series.argmax': ['*'],
-            'pandas.core.series.Series.argmin': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],

@@ -51,8 +51,6 @@ python -m apache_beam.io.gcp.bigquery_read_perf_test \
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 
 from apache_beam import Map

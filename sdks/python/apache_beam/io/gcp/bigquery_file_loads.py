@@ -28,16 +28,12 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import hashlib
 import io
 import logging
 import random
 import time
 import uuid
-
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -271,7 +267,7 @@ class WriteRecordsToFile(beam.DoFn):
 
   def finish_bundle(self):
     for destination, file_path_writer in \
-      iteritems(self._destination_to_file_writer):
+        self._destination_to_file_writer.items():
       (file_path, writer) = file_path_writer
       file_size = writer.tell()
       writer.close()
@@ -403,10 +399,10 @@ class UpdateDestinationSchema(beam.DoFn):
         location=temp_table_load_job_reference.location)
     temp_table_schema = temp_table_load_job.configuration.load.schema
 
-    # FIXME: This short-circuit lacks specificity. Schemas differing only in
-    #        the order of fields are not equivalent according to == but do not
-    #        need a schema modification job to precede the copy job.
-    if temp_table_schema == destination_table.schema:
+    if bigquery_tools.check_schema_equal(temp_table_schema,
+                                         destination_table.schema,
+                                         ignore_descriptions=True,
+                                         ignore_field_order=True):
       # Destination table schema is already the same as the temp table schema,
       # so no need to run a job to update the destination table schema.
       return

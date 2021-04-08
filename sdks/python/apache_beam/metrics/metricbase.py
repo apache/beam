@@ -34,9 +34,6 @@ Available classes:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from builtins import object
 from typing import Dict
 from typing import Optional
 

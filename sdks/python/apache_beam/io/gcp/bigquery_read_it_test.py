@@ -20,8 +20,6 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
 import datetime
 import logging
@@ -31,7 +29,6 @@ import unittest
 from decimal import Decimal
 from functools import wraps
 
-from future.utils import iteritems
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -245,7 +242,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
 
     table_data = [row_data]
     # add rows with only one key value pair and None values for all other keys
-    for key, value in iteritems(row_data):
+    for key, value in row_data.items():
       table_data.append({key: value})
 
     cls.bigquery_client.insert_rows(
@@ -267,7 +264,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     expected_data = [expected_row]
 
     # add rows with only one key value pair and None values for all other keys
-    for key, value in iteritems(expected_row):
+    for key, value in expected_row.items():
       row = {k: None for k in expected_row}
       row[key] = value
       expected_data.append(row)

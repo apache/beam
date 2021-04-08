@@ -29,8 +29,6 @@ Docker must also be available to run this pipeline locally.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 

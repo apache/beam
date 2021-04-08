@@ -32,7 +32,6 @@ import future.tests.base  # pylint: disable=unused-import
 
 import apache_beam.typehints.typehints as typehints
 from apache_beam.typehints import Any
-from apache_beam.typehints import Dict
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
@@ -1181,13 +1180,6 @@ class DecoratorHelpers(TypeHintTestCase):
         typehints.Tuple[int, typehints.Any],
         _positional_arg_hints(['x', 'y'], {'x': int}))
 
-  @staticmethod
-  def relax_for_py2(tuple_hint):
-    if sys.version_info >= (3, ):
-      return tuple_hint
-    else:
-      return Tuple[Any, ...]
-
   def test_getcallargs_forhints(self):
     def func(a, b_c, *d):
       return a, b_c, d
@@ -1197,9 +1189,7 @@ class DecoratorHelpers(TypeHintTestCase):
     },
                      getcallargs_forhints(func, *[Any, Any]))
     self.assertEqual({
-        'a': Any,
-        'b_c': Any,
-        'd': self.relax_for_py2(Tuple[Union[int, str], ...])
+        'a': Any, 'b_c': Any, 'd': Tuple[Union[int, str], ...]
     },
                      getcallargs_forhints(func, *[Any, Any, str, int]))
     self.assertEqual({
@@ -1207,51 +1197,14 @@ class DecoratorHelpers(TypeHintTestCase):
     },
                      getcallargs_forhints(func, *[int, Tuple[str, Any]]))
     self.assertEqual({
-        'a': Any, 'b_c': Any, 'd': self.relax_for_py2(Tuple[str, ...])
+        'a': Any, 'b_c': Any, 'd': Tuple[str, ...]
     },
                      getcallargs_forhints(func, *[Any, Any, Tuple[str, ...]]))
     self.assertEqual({
-        'a': Any,
-        'b_c': Any,
-        'd': self.relax_for_py2(Tuple[Union[Tuple[str, ...], int], ...])
+        'a': Any, 'b_c': Any, 'd': Tuple[Union[Tuple[str, ...], int], ...]
     },
                      getcallargs_forhints(
                          func, *[Any, Any, Tuple[str, ...], int]))
-
-  @unittest.skipIf(
-      sys.version_info < (3, ),
-      'kwargs not supported in Py2 version of this function')
-  def test_getcallargs_forhints_varkw(self):
-    def func(a, b_c, *d, **e):
-      return a, b_c, d, e
-
-    self.assertEqual({
-        'a': Any,
-        'b_c': Any,
-        'd': Tuple[Any, ...],
-        'e': Dict[str, Union[str, int]]
-    },
-                     getcallargs_forhints(
-                         func, *[Any, Any], **{
-                             'kw1': str, 'kw2': int
-                         }))
-    self.assertEqual({
-        'a': Any,
-        'b_c': Any,
-        'd': Tuple[Any, ...],
-        'e': Dict[str, Union[str, int]]
-    },
-                     getcallargs_forhints(
-                         func, *[Any, Any], e=Dict[str, Union[int, str]]))
-    self.assertEqual(
-        {
-            'a': Any,
-            'b_c': Any,
-            'd': Tuple[Any, ...],
-            'e': Dict[str, Dict[str, Union[str, int]]]
-        },
-        # keyword is not 'e', thus the Dict is considered a value hint.
-        getcallargs_forhints(func, *[Any, Any], kw1=Dict[str, Union[int, str]]))
 
   def test_getcallargs_forhints_builtins(self):
     if sys.version_info < (3, 7):
@@ -1264,14 +1217,13 @@ class DecoratorHelpers(TypeHintTestCase):
                        getcallargs_forhints(str.upper, str))
       self.assertEqual({
           '_': str,
-          '__unknown__varargs': self.relax_for_py2(Tuple[str, ...]),
+          '__unknown__varargs': Tuple[str, ...],
           '__unknown__keywords': typehints.Dict[Any, Any]
       },
                        getcallargs_forhints(str.strip, str, str))
       self.assertEqual({
           '_': str,
-          '__unknown__varargs': self.relax_for_py2(
-              Tuple[typehints.List[int], ...]),
+          '__unknown__varargs': Tuple[typehints.List[int], ...],
           '__unknown__keywords': typehints.Dict[Any, Any]
       },
                        getcallargs_forhints(str.join, str, typehints.List[int]))

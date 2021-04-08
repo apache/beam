@@ -57,6 +57,14 @@ class JavaJarServerTest(unittest.TestCase):
         'beam-sdks-java-fake/VERSION/beam-sdks-java-fake-A-VERSION.jar',
         subprocess_server.JavaJarServer.path_to_beam_jar(
             ':sdks:java:fake:fatJar', appendix='A', version='VERSION'))
+    self.assertEqual(
+        'https://repo.maven.apache.org/maven2/org/apache/beam/'
+        'beam-sdks-java-fake/VERSION/beam-sdks-java-fake-A-VERSION.jar',
+        subprocess_server.JavaJarServer.path_to_beam_jar(
+            ':gradle:target:doesnt:matter',
+            appendix='A',
+            version='VERSION',
+            artifact_id='beam-sdks-java-fake'))
 
   def test_gradle_jar_dev(self):
     with self.assertRaisesRegex(
@@ -81,6 +89,20 @@ class JavaJarServerTest(unittest.TestCase):
         ' not found.'):
       subprocess_server.JavaJarServer.path_to_beam_jar(
           ':sdks:java:fake:fatJar', appendix='A', version='VERSION.dev')
+    with self.assertRaisesRegex(
+        Exception,
+        re.escape(os.path.join('sdks',
+                               'java',
+                               'fake',
+                               'build',
+                               'libs',
+                               'fake-artifact-id-A-VERSION-SNAPSHOT.jar')) +
+        ' not found.'):
+      subprocess_server.JavaJarServer.path_to_beam_jar(
+          ':sdks:java:fake:fatJar',
+          appendix='A',
+          version='VERSION.dev',
+          artifact_id='fake-artifact-id')
 
   def test_beam_services(self):
     with subprocess_server.JavaJarServer.beam_services({':some:target': 'foo'}):

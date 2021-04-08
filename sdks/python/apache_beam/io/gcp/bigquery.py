@@ -269,8 +269,6 @@ encoding when writing to BigQuery.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import itertools
 import json
@@ -278,13 +276,8 @@ import logging
 import random
 import time
 import uuid
-from builtins import object
-from builtins import zip
 from typing import Dict
 from typing import Union
-
-from future.utils import itervalues
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -437,7 +430,7 @@ class TableRowJsonCoder(coders.Coder):
     od = json.loads(
         encoded_table_row, object_pairs_hook=collections.OrderedDict)
     return bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e)) for e in itervalues(od)])
+        f=[bigquery.TableCell(v=to_json_value(e)) for e in od.values()])
 
 
 class BigQueryDisposition(object):
@@ -673,7 +666,7 @@ class _CustomBigQuerySource(BoundedSource):
       self.query = None
       self.use_legacy_sql = True
     else:
-      if isinstance(query, (str, unicode)):
+      if isinstance(query, str):
         query = StaticValueProvider(str, query)
       self.query = query
       # TODO(BEAM-1082): Change the internal flag to be standard_sql
@@ -984,7 +977,7 @@ bigquery_v2_messages.TableSchema` object.
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
-    if isinstance(schema, (str, unicode)):
+    if isinstance(schema, str):
       # TODO(silviuc): Should add a regex-based validation of the format.
       table_schema = bigquery.TableSchema()
       schema_list = [s.strip(' ') for s in schema.split(',')]
@@ -1188,7 +1181,7 @@ class BigQueryWriteFn(DoFn):
     """
     if schema is None:
       return schema
-    elif isinstance(schema, (str, unicode)):
+    elif isinstance(schema, str):
       return bigquery_tools.parse_table_schema_from_json(schema)
     elif isinstance(schema, dict):
       return bigquery_tools.parse_table_schema_from_json(json.dumps(schema))
@@ -1516,14 +1509,12 @@ class WriteToBigQuery(PTransform):
     Args:
       table (str, callable, ValueProvider): The ID of the table, or a callable
          that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
-         numbers ``0-9``, or underscores ``_``. If dataset argument is
+         numbers ``0-9``, or connectors ``-_``. If dataset argument is
          :data:`None` then the table argument must contain the entire table
          reference specified as: ``'DATASET.TABLE'``
          or ``'PROJECT:DATASET.TABLE'``. If it's a callable, it must receive one
          argument representing an element to be written to BigQuery, and return
          a TableReference, or a string table name as specified above.
-         Multiple destinations are only supported on Batch pipelines at the
-         moment.
       dataset (str): The ID of the dataset containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
@@ -1920,13 +1911,13 @@ class ReadFromBigQuery(PTransform):
 
   def __init__(self, gcs_location=None, *args, **kwargs):
     if gcs_location:
-      if not isinstance(gcs_location, (str, unicode, ValueProvider)):
+      if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
             '%s: gcs_location must be of type string'
             ' or ValueProvider; got %r instead' %
             (self.__class__.__name__, type(gcs_location)))
 
-      if isinstance(gcs_location, (str, unicode)):
+      if isinstance(gcs_location, str):
         gcs_location = StaticValueProvider(str, gcs_location)
 
     self.gcs_location = gcs_location

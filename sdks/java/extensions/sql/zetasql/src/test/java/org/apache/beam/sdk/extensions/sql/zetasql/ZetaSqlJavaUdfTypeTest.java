@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import java.lang.reflect.Method;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -25,12 +24,14 @@ import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -50,31 +51,93 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private Method boolUdf;
-  private Method longUdf;
-  private Method stringUdf;
-  private Method bytesUdf;
-  private Method doubleUdf;
+  private static final TestBoundedTable table =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addBooleanField("boolean_true")
+                  .addBooleanField("boolean_false")
+                  .addInt64Field("int64_0")
+                  .addInt64Field("int64_pos")
+                  .addInt64Field("int64_neg")
+                  .addInt64Field("int64_max")
+                  .addInt64Field("int64_min")
+                  .addStringField("string_empty")
+                  .addStringField("string_ascii")
+                  .addStringField("string_unicode")
+                  .addByteArrayField("bytes_empty")
+                  .addByteArrayField("bytes_ascii")
+                  .addByteArrayField("bytes_unicode")
+                  .addDoubleField("float64_0")
+                  .addDoubleField("float64_noninteger")
+                  .addDoubleField("float64_pos")
+                  .addDoubleField("float64_neg")
+                  .addDoubleField("float64_max")
+                  .addDoubleField("float64_min_pos")
+                  .addDoubleField("float64_inf")
+                  .addDoubleField("float64_neg_inf")
+                  .addDoubleField("float64_nan")
+                  .build())
+          .addRows(
+              true /* boolean_true */,
+              false /* boolean_false */,
+              0L /* int64_0 */,
+              123L /* int64_pos */,
+              -123L /* int64_neg */,
+              9223372036854775807L /* int64_max */,
+              -9223372036854775808L /* int64_min */,
+              "" /* string_empty */,
+              "abc" /* string_ascii */,
+              "スタリング" /* string_unicode */,
+              new byte[] {} /* bytes_empty */,
+              new byte[] {'a', 'b', 'c'} /* bytes_ascii */,
+              new byte[] {-29, -126, -71} /* bytes_unicode */,
+              0.0 /* float64_0 */,
+              0.123 /* float64_noninteger */,
+              123.0 /* float64_pos */,
+              -123.0 /* float64_neg */,
+              1.7976931348623157e+308 /* float64_max */,
+              2.2250738585072014e-308 /* float64_min_pos */,
+              Double.POSITIVE_INFINITY /* float64_inf */,
+              Double.NEGATIVE_INFINITY /* float64_neg_inf */,
+              Double.NaN /* float64_nan */);
 
   @Before
   public void setUp() throws NoSuchMethodException {
     initialize();
 
-    // Add BeamJavaUdfCalcRule to planner to enable UDFs.
+    // Register test table.
+    JdbcConnection jdbcConnection =
+        JdbcDriver.connect(
+            new ReadOnlyTableProvider("table_provider", ImmutableMap.of("table", table)),
+            PipelineOptionsFactory.create());
+
+    // Register UDFs.
+    SchemaPlus schema = jdbcConnection.getCurrentSchemaPlus();
+    schema.add(
+        "test_boolean",
+        ScalarFunctionImpl.create(BooleanIdentityFn.class.getMethod("eval", Boolean.class)));
+    schema.add(
+        "test_int64",
+        ScalarFunctionImpl.create(Int64IdentityFn.class.getMethod("eval", Long.class)));
+    schema.add(
+        "test_string",
+        ScalarFunctionImpl.create(StringIdentityFn.class.getMethod("eval", String.class)));
+    schema.add(
+        "test_bytes",
+        ScalarFunctionImpl.create(BytesIdentityFn.class.getMethod("eval", byte[].class)));
+    schema.add(
+        "test_float64",
+        ScalarFunctionImpl.create(DoubleIdentityFn.class.getMethod("eval", Double.class)));
+
     this.config =
         Frameworks.newConfigBuilder(config)
+            .defaultSchema(schema)
+            // Add BeamJavaUdfCalcRule to planner to enable UDFs.
             .ruleSets(
                 ZetaSQLQueryPlanner.getZetaSqlRuleSets(
                         ImmutableList.of(BeamJavaUdfCalcRule.INSTANCE))
                     .toArray(new RuleSet[0]))
             .build();
-
-    // Look up UDF methods.
-    this.boolUdf = BooleanIdentityFn.class.getMethod("eval", Boolean.class);
-    this.longUdf = Int64IdentityFn.class.getMethod("eval", Long.class);
-    this.stringUdf = StringIdentityFn.class.getMethod("eval", String.class);
-    this.bytesUdf = BytesIdentityFn.class.getMethod("eval", byte[].class);
-    this.doubleUdf = DoubleIdentityFn.class.getMethod("eval", Double.class);
   }
 
   public static class BooleanIdentityFn implements BeamSqlUdf {
@@ -107,19 +170,7 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
     }
   }
 
-  private void runUdfTypeTest(String query, Object result, Schema.TypeName typeName, Method udf)
-      throws NoSuchMethodException {
-    // Add UDF to Calcite schema.
-    JdbcConnection jdbcConnection =
-        JdbcDriver.connect(
-            new ReadOnlyTableProvider("empty_table_provider", ImmutableMap.of()),
-            PipelineOptionsFactory.create());
-    jdbcConnection.getCurrentSchemaPlus().add("test", ScalarFunctionImpl.create(udf));
-    config =
-        Frameworks.newConfigBuilder(config)
-            .defaultSchema(jdbcConnection.getCurrentSchemaPlus())
-            .build();
-
+  private void runUdfTypeTest(String query, Object result, Schema.TypeName typeName) {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(query);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
@@ -130,147 +181,268 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testTrueLiteral() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(true);", true, Schema.TypeName.BOOLEAN, boolUdf);
+  public void testTrueLiteral() {
+    runUdfTypeTest("SELECT test_boolean(true);", true, Schema.TypeName.BOOLEAN);
   }
 
   @Test
-  public void testFalseLiteral() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(false);", false, Schema.TypeName.BOOLEAN, boolUdf);
+  public void testTrueInput() {
+    runUdfTypeTest("SELECT test_boolean(boolean_true) FROM table;", true, Schema.TypeName.BOOLEAN);
   }
 
   @Test
-  public void testZeroInt64Literal() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(0);", 0L, Schema.TypeName.INT64, longUdf);
+  public void testFalseLiteral() {
+    runUdfTypeTest("SELECT test_boolean(false);", false, Schema.TypeName.BOOLEAN);
   }
 
   @Test
-  public void testPosInt64Literal() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(123);", 123L, Schema.TypeName.INT64, longUdf);
-  }
-
-  @Test
-  public void testNegInt64Literal() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(-123);", -123L, Schema.TypeName.INT64, longUdf);
-  }
-
-  @Test
-  public void testMaxInt64Literal() throws NoSuchMethodException {
+  public void testFalseInput() {
     runUdfTypeTest(
-        "SELECT test(9223372036854775807);", 9223372036854775807L, Schema.TypeName.INT64, longUdf);
+        "SELECT test_boolean(boolean_false) FROM table;", false, Schema.TypeName.BOOLEAN);
   }
 
   @Test
-  public void testMinInt64Literal() throws NoSuchMethodException {
+  public void testZeroInt64Literal() {
+    runUdfTypeTest("SELECT test_int64(0);", 0L, Schema.TypeName.INT64);
+  }
+
+  @Test
+  public void testZeroInt64Input() {
+    runUdfTypeTest("SELECT test_int64(int64_0) FROM table;", 0L, Schema.TypeName.INT64);
+  }
+
+  @Test
+  public void testPosInt64Literal() {
+    runUdfTypeTest("SELECT test_int64(123);", 123L, Schema.TypeName.INT64);
+  }
+
+  @Test
+  public void testPosInt64Input() {
+    runUdfTypeTest("SELECT test_int64(int64_pos) FROM table;", 123L, Schema.TypeName.INT64);
+  }
+
+  @Test
+  public void testNegInt64Literal() {
+    runUdfTypeTest("SELECT test_int64(-123);", -123L, Schema.TypeName.INT64);
+  }
+
+  @Test
+  public void testNegInt64Input() {
+    runUdfTypeTest("SELECT test_int64(int64_neg) FROM table;", -123L, Schema.TypeName.INT64);
+  }
+
+  @Test
+  public void testMaxInt64Literal() {
     runUdfTypeTest(
-        "SELECT test(-9223372036854775808);",
-        -9223372036854775808L,
-        Schema.TypeName.INT64,
-        longUdf);
+        "SELECT test_int64(9223372036854775807);", 9223372036854775807L, Schema.TypeName.INT64);
   }
 
   @Test
-  public void testEmptyStringLiteral() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test('');", "", Schema.TypeName.STRING, stringUdf);
-  }
-
-  @Test
-  public void testAsciiStringLiteral() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test('abc');", "abc", Schema.TypeName.STRING, stringUdf);
-  }
-
-  @Test
-  public void testUnicodeStringLiteral() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test('スタリング');", "スタリング", Schema.TypeName.STRING, stringUdf);
-  }
-
-  @Test
-  public void testEmptyBytesLiteral() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(b'');", new byte[] {}, Schema.TypeName.BYTES, bytesUdf);
-  }
-
-  @Test
-  public void testAsciiBytesLiteral() throws NoSuchMethodException {
+  public void testMaxInt64Input() {
     runUdfTypeTest(
-        "SELECT test(b'abc');", new byte[] {'a', 'b', 'c'}, Schema.TypeName.BYTES, bytesUdf);
+        "SELECT test_int64(int64_max) FROM table;", 9223372036854775807L, Schema.TypeName.INT64);
   }
 
   @Test
-  public void testUnicodeBytesLiteral() throws NoSuchMethodException {
+  public void testMinInt64Literal() {
     runUdfTypeTest(
-        "SELECT test(b'ス');", new byte[] {-29, -126, -71}, Schema.TypeName.BYTES, bytesUdf);
+        "SELECT test_int64(-9223372036854775808);", -9223372036854775808L, Schema.TypeName.INT64);
   }
 
   @Test
-  public void testZeroFloat64Literal() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(0.0);", 0.0, Schema.TypeName.DOUBLE, doubleUdf);
-  }
-
-  @Test
-  public void testNonIntegerFloat64Literal() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(0.123);", 0.123, Schema.TypeName.DOUBLE, doubleUdf);
-  }
-
-  @Test
-  public void testPosFloat64Literal() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(123.0);", 123.0, Schema.TypeName.DOUBLE, doubleUdf);
-  }
-
-  @Test
-  public void testNegFloat64Literal() throws NoSuchMethodException {
-    runUdfTypeTest("SELECT test(-123.0);", -123.0, Schema.TypeName.DOUBLE, doubleUdf);
-  }
-
-  @Test
-  public void testMaxFloat64Literal() throws NoSuchMethodException {
+  public void testMinInt64Input() {
     runUdfTypeTest(
-        "SELECT test(1.7976931348623157e+308);",
+        "SELECT test_int64(int64_min) FROM table;", -9223372036854775808L, Schema.TypeName.INT64);
+  }
+
+  @Test
+  public void testEmptyStringLiteral() {
+    runUdfTypeTest("SELECT test_string('');", "", Schema.TypeName.STRING);
+  }
+
+  @Test
+  public void testEmptyStringInput() {
+    runUdfTypeTest("SELECT test_string(string_empty) FROM table;", "", Schema.TypeName.STRING);
+  }
+
+  @Test
+  public void testAsciiStringLiteral() {
+    runUdfTypeTest("SELECT test_string('abc');", "abc", Schema.TypeName.STRING);
+  }
+
+  @Test
+  public void testAsciiStringInput() {
+    runUdfTypeTest("SELECT test_string(string_ascii) FROM table;", "abc", Schema.TypeName.STRING);
+  }
+
+  @Test
+  public void testUnicodeStringLiteral() {
+    runUdfTypeTest("SELECT test_string('スタリング');", "スタリング", Schema.TypeName.STRING);
+  }
+
+  @Test
+  public void testUnicodeStringInput() {
+    runUdfTypeTest(
+        "SELECT test_string(string_unicode) FROM table;", "スタリング", Schema.TypeName.STRING);
+  }
+
+  @Test
+  public void testEmptyBytesLiteral() {
+    runUdfTypeTest("SELECT test_bytes(b'');", new byte[] {}, Schema.TypeName.BYTES);
+  }
+
+  @Test
+  public void testEmptyBytesInput() {
+    runUdfTypeTest(
+        "SELECT test_bytes(bytes_empty) FROM table;", new byte[] {}, Schema.TypeName.BYTES);
+  }
+
+  @Test
+  public void testAsciiBytesLiteral() {
+    runUdfTypeTest("SELECT test_bytes(b'abc');", new byte[] {'a', 'b', 'c'}, Schema.TypeName.BYTES);
+  }
+
+  @Test
+  public void testAsciiBytesInput() {
+    runUdfTypeTest(
+        "SELECT test_bytes(bytes_ascii) FROM table;",
+        new byte[] {'a', 'b', 'c'},
+        Schema.TypeName.BYTES);
+  }
+
+  @Test
+  public void testUnicodeBytesLiteral() {
+    runUdfTypeTest("SELECT test_bytes(b'ス');", new byte[] {-29, -126, -71}, Schema.TypeName.BYTES);
+  }
+
+  @Test
+  public void testUnicodeBytesInput() {
+    runUdfTypeTest(
+        "SELECT test_bytes(bytes_unicode) FROM table;",
+        new byte[] {-29, -126, -71},
+        Schema.TypeName.BYTES);
+  }
+
+  @Test
+  public void testZeroFloat64Literal() {
+    runUdfTypeTest("SELECT test_float64(0.0);", 0.0, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testZeroFloat64Input() {
+    runUdfTypeTest("SELECT test_float64(float64_0) FROM table;", 0.0, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testNonIntegerFloat64Literal() {
+    runUdfTypeTest("SELECT test_float64(0.123);", 0.123, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testNonIntegerFloat64Input() {
+    runUdfTypeTest(
+        "SELECT test_float64(float64_noninteger) FROM table;", 0.123, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testPosFloat64Literal() {
+    runUdfTypeTest("SELECT test_float64(123.0);", 123.0, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testPosFloat64Input() {
+    runUdfTypeTest("SELECT test_float64(float64_pos) FROM table;", 123.0, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testNegFloat64Literal() {
+    runUdfTypeTest("SELECT test_float64(-123.0);", -123.0, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testNegFloat64Input() {
+    runUdfTypeTest("SELECT test_float64(float64_neg) FROM table;", -123.0, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testMaxFloat64Literal() {
+    runUdfTypeTest(
+        "SELECT test_float64(1.7976931348623157e+308);",
         1.7976931348623157e+308,
-        Schema.TypeName.DOUBLE,
-        doubleUdf);
+        Schema.TypeName.DOUBLE);
   }
 
   @Test
-  public void testMinPosFloat64Literal() throws NoSuchMethodException {
+  public void testMaxFloat64Input() {
     runUdfTypeTest(
-        "SELECT test(2.2250738585072014e-308);",
+        "SELECT test_float64(float64_max) FROM table;",
+        1.7976931348623157e+308,
+        Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testMinPosFloat64Literal() {
+    runUdfTypeTest(
+        "SELECT test_float64(2.2250738585072014e-308);",
         2.2250738585072014e-308,
-        Schema.TypeName.DOUBLE,
-        doubleUdf);
+        Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testMinPosFloat64Input() {
+    runUdfTypeTest(
+        "SELECT test_float64(float64_min_pos) FROM table;",
+        2.2250738585072014e-308,
+        Schema.TypeName.DOUBLE);
   }
 
   @Test
   @Ignore(
       "+inf is implemented as a ZetaSQL builtin function, so combining it with a UDF requires Calc splitting (BEAM-12009).")
-  public void testPosInfFloat64Literal() throws NoSuchMethodException {
+  public void testPosInfFloat64Literal() {
     runUdfTypeTest(
-        "SELECT test(CAST('+inf' AS FLOAT64));",
+        "SELECT test_float64(CAST('+inf' AS FLOAT64));",
         Double.POSITIVE_INFINITY,
-        Schema.TypeName.DOUBLE,
-        doubleUdf);
+        Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testPosInfFloat64Input() {
+    runUdfTypeTest(
+        "SELECT test_float64(float64_inf) FROM table;",
+        Double.POSITIVE_INFINITY,
+        Schema.TypeName.DOUBLE);
   }
 
   @Test
   @Ignore(
       "-inf is implemented as a ZetaSQL builtin function, so combining it with a UDF requires Calc splitting (BEAM-12009).")
-  public void testNegInfFloat64Literal() throws NoSuchMethodException {
+  public void testNegInfFloat64Literal() {
     runUdfTypeTest(
-        "SELECT test(CAST('-inf' AS FLOAT64));",
+        "SELECT test_float64(CAST('-inf' AS FLOAT64));",
         Double.NEGATIVE_INFINITY,
-        Schema.TypeName.DOUBLE,
-        doubleUdf);
+        Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testNegInfFloat64Input() {
+    runUdfTypeTest(
+        "SELECT test_float64(float64_neg_inf) FROM table;",
+        Double.NEGATIVE_INFINITY,
+        Schema.TypeName.DOUBLE);
   }
 
   @Test
   @Ignore(
       "NaN is implemented as a ZetaSQL builtin function, so combining it with a UDF requires Calc splitting (BEAM-12009).")
-  public void testNaNFloat64Literal() throws NoSuchMethodException {
+  public void testNaNFloat64Literal() {
     runUdfTypeTest(
-        "SELECT test(CAST('NaN' AS FLOAT64));", Double.NaN, Schema.TypeName.DOUBLE, doubleUdf);
+        "SELECT test_float64(CAST('NaN' AS FLOAT64));", Double.NaN, Schema.TypeName.DOUBLE);
   }
 
-  // TODO(ibzib) Test that dates and times are rejected.
-  // TODO(ibzib) Test arrays.
-  // TODO(ibzib) Test structs.
-  // TODO(ibzib) Test input refs.
+  @Test
+  public void testNaNFloat64Input() {
+    runUdfTypeTest(
+        "SELECT test_float64(float64_nan) FROM table;", Double.NaN, Schema.TypeName.DOUBLE);
+  }
 }
