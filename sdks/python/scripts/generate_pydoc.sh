@@ -85,6 +85,9 @@ excluded_patterns=(
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
     "${excluded_patterns[@]}"
 
+# Include inherited memebers for the DataFrame API
+echo "    :inherited-members:" >> target/docs/source/apache_beam.dataframe.frames.rst
+
 # Create the configuration and index files
 #=== conf.py ===#
 cat > target/docs/source/conf.py <<'EOF'
