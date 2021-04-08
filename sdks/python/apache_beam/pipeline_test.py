@@ -27,6 +27,7 @@ import unittest
 from builtins import object
 from builtins import range
 
+from apache_beam.transforms.display import DisplayDataItem
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -972,6 +973,60 @@ class RunnerApiTest(unittest.TestCase):
 
     for transform_id in runner_api_proto.components.transforms:
       self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
+
+  def test_display_data(self):
+    class MyParentTransform(beam.PTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def display_data(self):  # type: () -> dict
+        parent_dd = super(MyParentTransform, self).display_data()
+        parent_dd['p_dd1'] = DisplayDataItem('p_dd1_value', label='p_dd1_label')
+        return parent_dd
+
+    class MyPTransform(MyParentTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def display_data(self):  # type: () -> dict
+        parent_dd = super(MyPTransform, self).display_data()
+        parent_dd['dd1'] = DisplayDataItem('dd1_value', label='dd1_label')
+        parent_dd['dd2'] = DisplayDataItem('dd2_value', label='dd2_label')
+        return parent_dd
+
+    p = beam.Pipeline()
+    p | MyPTransform()  # pylint: disable=expression-not-assigned
+    from apache_beam.portability.api import beam_runner_api_pb2
+
+    proto_pipeline = Pipeline.to_runner_api(p, use_fake_coders=True)
+    my_transform, = [
+        transform
+        for transform in proto_pipeline.components.transforms.values()
+        if transform.unique_name == 'MyPTransform'
+    ]
+    self.assertIsNotNone(my_transform)
+    self.assertListEqual(
+        list(my_transform.display_data),
+        [
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED_STRING.
+                urn,
+                payload=beam_runner_api_pb2.LabelledStringPayload(
+                    label='p_dd1_label',
+                    value='p_dd1_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED_STRING.
+                urn,
+                payload=beam_runner_api_pb2.LabelledStringPayload(
+                    label='dd1_label', value='dd1_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED_STRING.
+                urn,
+                payload=beam_runner_api_pb2.LabelledStringPayload(
+                    label='dd2_label', value='dd2_value').SerializeToString()),
+        ])
 
 
 if __name__ == '__main__':
