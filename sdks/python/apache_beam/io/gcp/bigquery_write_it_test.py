@@ -31,7 +31,6 @@ from decimal import Decimal
 import hamcrest as hc
 import mock
 import pytz
-from future.utils import iteritems
 import pytest
 
 import apache_beam as beam
