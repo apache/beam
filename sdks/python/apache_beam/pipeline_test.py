@@ -61,6 +61,7 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
 
+
 class FakeSource(NativeSource):
   """Fake source returning a fixed list of values."""
   class _Reader(object):
