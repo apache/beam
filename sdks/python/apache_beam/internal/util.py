@@ -22,12 +22,9 @@ For internal use only. No backwards compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import threading
 import weakref
-from builtins import object
 from multiprocessing.pool import ThreadPool
 from typing import Any
 from typing import Dict
