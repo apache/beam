@@ -419,6 +419,11 @@ def with_docs_from(base_type, name=None):
 
     for header, content in sections.items():
       content = content.strip()
+
+      # Replace references to version numbers so its clear they reference
+      # *pandas* versions
+      content = re.sub(r'([Vv]ersion\s+[\d\.]+)', r'pandas \1', content)
+
       if header == "Examples":
         content = (
             EXAMPLES_DIFFERENCES
@@ -429,8 +434,6 @@ def with_docs_from(base_type, name=None):
             'Series', 'DeferredSeries')
       sections[header] = content
 
-    # TODO(BEAM-12074): Make sure "See also" references so that link to Beam
-    # methods
     if beam_has_differences:
       sections[BEAM_SPECIFIC] = cleandoc(func.__doc__)
     else:
