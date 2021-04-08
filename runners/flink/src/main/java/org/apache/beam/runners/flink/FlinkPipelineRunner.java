@@ -46,7 +46,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -75,13 +74,6 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
   @Override
   public PortablePipelineResult run(final Pipeline pipeline, JobInfo jobInfo) throws Exception {
     MetricsEnvironment.setMetricsSupported(false);
-
-    final String flinkVersion = EnvironmentInformation.getVersion();
-    if (flinkVersion.startsWith("1.8") || flinkVersion.startsWith("1.9")) {
-      LOG.warn(
-          "You are running Flink {}. Support for Flink 1.8.x and 1.9.x will be removed from Beam in version 2.30.0. Please consider upgrading to a more recent Flink version.",
-          flinkVersion);
-    }
 
     FlinkPortablePipelineTranslator<?> translator;
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
