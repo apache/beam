@@ -29,7 +29,7 @@ import uuid
 import warnings
 
 from hamcrest.library.text import stringmatches
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.io import fileio
@@ -290,7 +290,7 @@ class MatchIntegrationTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_transform_on_gcs(self):
     args = self.test_pipeline.get_full_options_as_args()
 

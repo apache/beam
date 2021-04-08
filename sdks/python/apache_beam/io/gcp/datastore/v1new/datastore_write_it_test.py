@@ -33,7 +33,7 @@ import unittest
 from datetime import datetime
 
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
+import pytest
 
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -66,7 +66,7 @@ class DatastoreWriteIT(unittest.TestCase):
     datastore_write_it_pipeline.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   @unittest.skipIf(
       datastore_write_it_pipeline is None, 'GCP dependencies are not installed')
   def test_datastore_write_limit(self):

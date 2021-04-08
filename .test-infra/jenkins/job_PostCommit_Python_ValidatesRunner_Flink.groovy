@@ -27,6 +27,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Flink',
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+      publishers {
+        archiveJunit('**/pytest*.xml')
+      }
+
       // Gradle goals for this job.
       steps {
         gradle {

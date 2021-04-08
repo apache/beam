@@ -21,7 +21,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import runners
@@ -228,7 +228,7 @@ class TranslationsTest(unittest.TestCase):
     assert_is_topologically_sorted(
         optimized_pipeline_proto.root_transform_ids[0], set())
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_per_key(self):
     class MultipleCombines(beam.PTransform):
       def expand(self, pcoll):

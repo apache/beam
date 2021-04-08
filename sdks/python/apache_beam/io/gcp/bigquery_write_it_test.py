@@ -31,7 +31,8 @@ from decimal import Decimal
 import hamcrest as hc
 import mock
 import pytz
-from nose.plugins.attrib import attr
+from future.utils import iteritems
+import pytest
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -105,7 +106,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_write(self):
     table_name = 'python_write_table'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
@@ -164,7 +165,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_write_schema_autodetect(self):
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest('DataflowRunner does not support schema autodetection')
@@ -209,7 +210,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
               temp_file_format=FileFormat.JSON))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_write_new_types(self):
     table_name = 'python_new_types_table'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
@@ -290,7 +291,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_write_without_schema(self):
     table_name = 'python_no_schema_table'
     self.create_table(table_name)
@@ -352,7 +353,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
               temp_file_format=FileFormat.JSON))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   @mock.patch(
       "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)
   def test_big_query_write_temp_table_append_schema_update(self):
