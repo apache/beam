@@ -67,6 +67,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -78,6 +80,7 @@ import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
@@ -109,8 +112,8 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  *
- * <p>The connection configuration also accepts optional configuration: {@code withUsername()} and
- * {@code withPassword()}.
+ * <p>The connection configuration also accepts optional configuration: {@code withUsername()},
+ * {@code withPassword()}, {@code withApiKey()} and {@code withBearerToken()}.
  *
  * <p>You can also specify a query on the {@code read()} using {@code withQuery()}.
  *
@@ -241,6 +244,10 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getPassword();
 
+    public abstract @Nullable String getApiKey();
+
+    public abstract @Nullable String getBearerToken();
+
     public abstract @Nullable String getKeystorePath();
 
     public abstract @Nullable String getKeystorePassword();
@@ -264,6 +271,10 @@ public class ElasticsearchIO {
       abstract Builder setUsername(String username);
 
       abstract Builder setPassword(String password);
+
+      abstract Builder setApiKey(String apiKey);
+
+      abstract Builder setBearerToken(String bearerToken);
 
       abstract Builder setKeystorePath(String keystorePath);
 
@@ -327,6 +338,30 @@ public class ElasticsearchIO {
       checkArgument(password != null, "password can not be null");
       checkArgument(!password.isEmpty(), "password can not be empty");
       return builder().setPassword(password).build();
+    }
+
+    /**
+     * If Elasticsearch authentication is enabled, provide an API key.
+     *
+     * @param apiKey the API key used to authenticate to Elasticsearch
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withApiKey(String apiKey) {
+      checkArgument(!Strings.isNullOrEmpty(apiKey), "apiKey can not be null or empty");
+      return builder().setApiKey(apiKey).build();
+    }
+
+    /**
+     * If Elasticsearch authentication is enabled, provide a bearer token.
+     *
+     * @param bearerToken the bearer token used to authenticate to Elasticsearch
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withBearerToken(String bearerToken) {
+      checkArgument(!Strings.isNullOrEmpty(bearerToken), "bearerToken can not be null or empty");
+      return builder().setBearerToken(bearerToken).build();
     }
 
     /**
@@ -423,6 +458,14 @@ public class ElasticsearchIO {
         restClientBuilder.setHttpClientConfigCallback(
             httpAsyncClientBuilder ->
                 httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
+      }
+      if (getApiKey() != null) {
+        restClientBuilder.setDefaultHeaders(
+            new Header[] {new BasicHeader("Authorization", "ApiKey " + getApiKey())});
+      }
+      if (getBearerToken() != null) {
+        restClientBuilder.setDefaultHeaders(
+            new Header[] {new BasicHeader("Authorization", "Bearer " + getBearerToken())});
       }
       if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
         try {
