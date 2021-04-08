@@ -23,6 +23,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.auth.Credentials;
@@ -89,10 +90,14 @@ class V1TestUtil {
   /**
    * Build an entity for the given ancestorKey, kind, namespace and value.
    *
-   * @param largePropertySize if greater than 0, add an unindexed property of the given size.
+   * @param indexedProperties Number of indexed properties.
+   * @param unindexedProperties Number of unindexed properties.
+   * @param propertySize Length of each property.
    */
-  static Entity makeEntity(
-      Long value, Key ancestorKey, String kind, @Nullable String namespace, int largePropertySize) {
+  static Entity makeEntity(Key ancestorKey, String kind, @Nullable String namespace,
+      int indexedProperties, int unindexedProperties, int propertySize) {
+    checkArgument(indexedProperties > 0 || unindexedProperties > 0,
+        "Entity must have at least one property");
     Entity.Builder entityBuilder = Entity.newBuilder();
     Key.Builder keyBuilder = makeKey(ancestorKey, kind, UUID.randomUUID().toString());
     // NOTE: Namespace is not inherited between keys created with DatastoreHelper.makeKey, so
@@ -103,36 +108,48 @@ class V1TestUtil {
     }
 
     entityBuilder.setKey(keyBuilder.build());
-    entityBuilder.putProperties("value", makeValue(value).build());
-    if (largePropertySize > 0) {
-      entityBuilder.putProperties(
-          "unindexed_value",
-          makeValue(new String(new char[largePropertySize]).replace("\0", "A"))
-              .setExcludeFromIndexes(true)
-              .build());
+
+    String value = new String(new char[propertySize]).replace("\0", "A");
+    for (int i = 0; i <= indexedProperties; i++) {
+      entityBuilder.putProperties("indexed_value" + i, makeValue(value).build());
     }
+    for (int i = 0; i <= unindexedProperties; i++) {
+      entityBuilder.putProperties("unindexed_value" + i, makeValue(value)
+          .setExcludeFromIndexes(true)
+          .build());
+    }
+
     return entityBuilder.build();
   }
 
-  /** A DoFn that creates entity for a long number. */
+  /**
+   * A DoFn that creates entity for a long number.
+   */
   static class CreateEntityFn extends DoFn<Long, Entity> {
+
     private final String kind;
     private final @Nullable String namespace;
-    private final int largePropertySize;
+    private final int indexedProperties;
+    private final int unindexedProperties;
+    private final int propertySize;
     private com.google.datastore.v1.Key ancestorKey;
 
     CreateEntityFn(
-        String kind, @Nullable String namespace, String ancestor, int largePropertySize) {
+        String kind, @Nullable String namespace, String ancestor, int indexedProperties,
+        int unindexedProperties, int propertySize) {
       this.kind = kind;
       this.namespace = namespace;
-      this.largePropertySize = largePropertySize;
       // Build the ancestor key for all created entities once, including the namespace.
       ancestorKey = makeAncestorKey(namespace, kind, ancestor);
+      this.indexedProperties = indexedProperties;
+      this.unindexedProperties = unindexedProperties;
+      this.propertySize = propertySize;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      c.output(makeEntity(c.element(), ancestorKey, kind, namespace, largePropertySize));
+      c.output(makeEntity(ancestorKey, kind, namespace, indexedProperties, unindexedProperties,
+          propertySize));
     }
   }
 
