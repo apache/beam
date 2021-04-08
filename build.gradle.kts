@@ -336,7 +336,8 @@ task("pushAllDockerImages") {
   }
 }
 
-task("setUpCheck") {
+// Use this task to validate the environment set up for Go, Python and Java
+task("checkSetUp") {
   dependsOn(":sdks:go:examples:wordCount")
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")

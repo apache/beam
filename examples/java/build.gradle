@@ -162,6 +162,7 @@ task execute (type:JavaExec) {
   args System.getProperty("exec.args", "").split()
 }
 
+// Run this task to validate the Java environment setup for contributors
 task wordCount(type:JavaExec) {
   main = "org.apache.beam.examples.WordCount"
   classpath = sourceSets.main.runtimeClasspath
