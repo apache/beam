@@ -14,6 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Contains analogs for :class:`pandas.DataFrame` and :class:`pandas.Series` -
+:class:`DeferredDataFrame` and :class:`DeferredSeries`.
+
+These classes are effectively wrappers around a
+`schema-aware`_
+:class:`~apache_beam.pvalue.PCollection` that provide a set of operations
+compatible with the `pandas`_ API.
+
+Note that we aim for the Beam DataFrame API to be completely compatible with
+the pandas API, but there are some features that are currently unimplemented
+for various reasons. Pay particular attention to the **'Differences from
+pandas'** section for each operation to understand where we diverge.
+
+.. _schema-aware: https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
+.. _pandas: https://pandas.pydata.org/
+"""
+
 import collections
 import inspect
 import math

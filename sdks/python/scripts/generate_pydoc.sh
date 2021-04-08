@@ -134,6 +134,7 @@ intersphinx_mapping = {
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
   'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
   'numpy': ('http://docs.scipy.org/doc/numpy', None),
+  'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
