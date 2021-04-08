@@ -42,8 +42,8 @@ __all__ = ['Query', 'Key', 'Entity']
 class Query(object):
   def __init__(
       self,
-      kind: Optional[str]=None,
-      project: Optional[str]=None,
+      kind: Optional[str] = None,
+      project: Optional[str] = None,
       namespace=None,
       ancestor=None,
       filters=(),
@@ -234,7 +234,7 @@ class Entity(object):
   def __init__(
       self,
       key: Key,
-      exclude_from_indexes: Iterable[str]=()
+      exclude_from_indexes: Iterable[str] = ()
   ):
     """
     Represents a Datastore entity.

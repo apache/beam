@@ -275,7 +275,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         bigquery_tools.BigQueryJobTypes.EXPORT,
         element.obj_id)
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
-    assert(not isinstance(self.gcs_location, str))
+    assert not isinstance(self.gcs_location, str)
     gcs_location = bigquery_export_destination_uri(
         self.gcs_location,
         temp_location,

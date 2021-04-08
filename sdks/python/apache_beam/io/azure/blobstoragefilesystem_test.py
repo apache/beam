@@ -88,8 +88,8 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = blobstorageio_mock
+      return blobstorageio_mock
+    blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     blobstorageio_mock.list_prefix.return_value = {
         'azfs://storageaccount/container/file1': 1,
         'azfs://storageaccount/container/file2': 2,
@@ -110,7 +110,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstorageio_mock = mock.MagicMock()
     limit = 1
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     blobstorageio_mock.list_prefix.return_value = {
         'azfs://storageaccount/container/file1': 1
@@ -129,7 +129,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     exception = IOError('Failed')
     blobstorageio_mock.list_prefix.side_effect = exception
@@ -149,7 +149,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     blobstorageio_mock.list_prefix.side_effect = [
         {
@@ -174,7 +174,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     # Issue file copy.
     _ = self.fs.create(
@@ -190,7 +190,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     # Issue file copy.
     _ = self.fs.open(
@@ -206,7 +206,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     sources = [
         'azfs://storageaccount/container/from1',
@@ -228,7 +228,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     sources = [
         'azfs://storageaccount/container/from1',
@@ -249,7 +249,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     blobstorageio_mock.size.return_value = 0
     files = [
@@ -266,7 +266,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
     nonexistent_directory = 'azfs://storageaccount/nonexistent-container/tree/'
     exception = blobstorageio.BlobStorageError('Not found', 404)
@@ -298,7 +298,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     def mock_construct() -> blobstorageio.BlobStorageIO:
-        return blobstorageio_mock
+      return blobstorageio_mock
     blobstoragefilesystem.blobstorageio.BlobStorageIO = mock_construct
 
     sources = [

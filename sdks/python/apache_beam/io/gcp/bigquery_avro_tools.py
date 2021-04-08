@@ -70,7 +70,7 @@ BIG_QUERY_TO_AVRO_TYPES: Dict[str, Union[str, Dict[str, Any]]] = {
 def get_record_schema_from_dict_table_schema(
     schema_name: str,
     table_schema: Dict[str, Any],
-    namespace: str="apache_beam.io.gcp.bigquery") -> Dict[str, Any]:
+    namespace: str = "apache_beam.io.gcp.bigquery") -> Dict[str, Any]:
   """Convert a table schema into an Avro schema.
 
   Args:
