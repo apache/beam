@@ -276,7 +276,9 @@ import logging
 import random
 import time
 import uuid
+from typing import Any
 from typing import Dict
+from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -1431,7 +1433,8 @@ class _StreamToBigQuery(PTransform):
             bigquery_tools.AppendDestinationsFn(self.table_reference),
             *self.table_side_inputs)
         | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
-        | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref))
+        | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref)
+    ).with_output_types(Tuple[str, Any])
 
     if not self.with_auto_sharding:
       tagged_data = (

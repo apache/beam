@@ -34,6 +34,8 @@ import logging
 import random
 import time
 import uuid
+from typing import Any
+from typing import Tuple
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -941,7 +943,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
     destination_files_kv_pc = (
         destination_data_kv_pc
         | 'ToHashableTableRef' >> beam.Map(
-            lambda kv: (bigquery_tools.get_hashable_destination(kv[0]), kv[1]))
+            lambda kv: (bigquery_tools.get_hashable_destination(kv[0]), kv[1])).
+        with_output_types(Tuple[str, Any])
         | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
             batch_size=_FILE_TRIGGERING_RECORD_COUNT,
             max_buffering_duration_secs=_FILE_TRIGGERING_BATCHING_DURATION_SECS,

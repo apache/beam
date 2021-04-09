@@ -1502,6 +1502,9 @@ class ShardedKeyCoder(FastCoder):
   def __hash__(self):
     return hash(type(self)) + hash(self._key_coder)
 
+  def __repr__(self):
+    return 'ShardedKeyCoder[%s]' % self._key_coder
+
 
 Coder.register_structured_urn(
     common_urns.coders.SHARDED_KEY.urn, ShardedKeyCoder)
