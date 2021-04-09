@@ -26,7 +26,7 @@ import static org.mockito.Mockito.verify;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.joda.time.Duration;
 import org.junit.Before;

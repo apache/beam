@@ -25,7 +25,7 @@ import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * The {@link BeamFnDataClient} is able to forward inbound elements to a {@link FnDataReceiver} and

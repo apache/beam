@@ -19,8 +19,8 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 
 import java.util.concurrent.Phaser;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link StreamObserver} which uses synchronization on the underlying {@link CallStreamObserver}
