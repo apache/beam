@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.HistogramData;
@@ -53,5 +54,10 @@ public interface MetricsContainer extends Serializable {
    */
   default Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
     throw new RuntimeException("Histogram metric is not supported yet.");
+  }
+
+  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  default Iterable<MetricsApi.MonitoringInfo> getMonitoringInfos() {
+    throw new RuntimeException("getMonitoringInfos is not implemented on this MetricsContainer.");
   }
 }
