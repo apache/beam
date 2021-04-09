@@ -79,24 +79,26 @@ public class DirectMetricsTest {
         bundle1,
         MetricUpdates.create(
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
-                MetricUpdate.create(MetricKey.create("step1", NAME2), 8L)),
+                MetricUpdate.create(MetricKey.create("step1", NAME1), 5L, null),
+                MetricUpdate.create(MetricKey.create("step1", NAME2), 8L, null)),
             ImmutableList.of(
                 MetricUpdate.create(
-                    MetricKey.create("step1", NAME1), DistributionData.create(8, 2, 3, 5))),
+                    MetricKey.create("step1", NAME1), DistributionData.create(8, 2, 3, 5), null)),
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(15L)))));
+                MetricUpdate.create(
+                    MetricKey.create("step1", NAME4), GaugeData.create(15L), null))));
     metrics.commitLogical(
         bundle1,
         MetricUpdates.create(
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
-                MetricUpdate.create(MetricKey.create("step1", NAME2), 4L)),
+                MetricUpdate.create(MetricKey.create("step2", NAME1), 7L, null),
+                MetricUpdate.create(MetricKey.create("step1", NAME2), 4L, null)),
             ImmutableList.of(
                 MetricUpdate.create(
-                    MetricKey.create("step1", NAME1), DistributionData.create(4, 1, 4, 4))),
+                    MetricKey.create("step1", NAME1), DistributionData.create(4, 1, 4, 4), null)),
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(27L)))));
+                MetricUpdate.create(
+                    MetricKey.create("step1", NAME4), GaugeData.create(27L), null))));
 
     MetricQueryResults results = metrics.allMetrics();
     assertThat(
@@ -137,16 +139,16 @@ public class DirectMetricsTest {
         bundle1,
         MetricUpdates.create(
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
-                MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
+                MetricUpdate.create(MetricKey.create("step1", NAME1), 5L, null),
+                MetricUpdate.create(MetricKey.create("step1", NAME3), 8L, null)),
             ImmutableList.of(),
             ImmutableList.of()));
     metrics.updatePhysical(
         bundle1,
         MetricUpdates.create(
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
-                MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
+                MetricUpdate.create(MetricKey.create("step2", NAME1), 7L, null),
+                MetricUpdate.create(MetricKey.create("step1", NAME3), 4L, null)),
             ImmutableList.of(),
             ImmutableList.of()));
 
@@ -173,16 +175,16 @@ public class DirectMetricsTest {
         bundle1,
         MetricUpdates.create(
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
-                MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
+                MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L, null),
+                MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L, null)),
             ImmutableList.of(),
             ImmutableList.of()));
     metrics.updatePhysical(
         bundle1,
         MetricUpdates.create(
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L),
-                MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
+                MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L, null),
+                MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L, null)),
             ImmutableList.of(),
             ImmutableList.of()));
 
@@ -209,16 +211,16 @@ public class DirectMetricsTest {
         bundle1,
         MetricUpdates.create(
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L),
-                MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L)),
+                MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L, null),
+                MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L, null)),
             ImmutableList.of(),
             ImmutableList.of()));
     metrics.updatePhysical(
         bundle1,
         MetricUpdates.create(
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L),
-                MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L)),
+                MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L, null),
+                MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L, null)),
             ImmutableList.of(),
             ImmutableList.of()));
 

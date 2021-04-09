@@ -18,6 +18,8 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
 
 /**
  * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
@@ -36,4 +38,9 @@ public interface MetricCell<DataT> extends Serializable {
 
   /** Reset this metric. */
   void reset();
+
+  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  default @Nullable DateTime getStartTime() {
+    return null;
+  }
 }

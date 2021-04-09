@@ -81,6 +81,9 @@ public class MetricsEnvironment {
    */
   public static @Nullable MetricsContainer setProcessWideContainer(
       @Nullable MetricsContainer container) {
+    if (container != null) {
+      container.setIsProcessWide(true);
+    }
     return PROCESS_WIDE_METRICS_CONTAINER.getAndSet(container);
   }
 

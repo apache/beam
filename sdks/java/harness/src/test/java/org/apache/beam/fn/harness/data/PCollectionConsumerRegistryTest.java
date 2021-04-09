@@ -123,7 +123,15 @@ public class PCollectionConsumerRegistryTest {
             metricsContainerRegistry.getMonitoringInfos(),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
 
-    assertThat(result, containsInAnyOrder(expected.toArray()));
+    ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
+    for (MonitoringInfo mi : result) {
+      // Clear timestamps before comparing.
+      MonitoringInfo.Builder b = MonitoringInfo.newBuilder(mi);
+      b.clearStartTime();
+      actualMonitoringInfos.add(b.build());
+    }
+
+    assertThat(actualMonitoringInfos, containsInAnyOrder(expected.toArray()));
   }
 
   @Test
@@ -191,11 +199,15 @@ public class PCollectionConsumerRegistryTest {
     builder.setInt64SumValue(numElements);
     MonitoringInfo expected = builder.build();
 
-    // Clear the timestamp before comparison.
     MonitoringInfo result =
         Iterables.find(
             metricsContainerRegistry.getMonitoringInfos(),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
+
+    // Clear timestamps before comparing.
+    MonitoringInfo.Builder b = MonitoringInfo.newBuilder(result);
+    b.clearStartTime();
+    result = b.build();
     assertEquals(expected, result);
   }
 

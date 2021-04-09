@@ -183,7 +183,10 @@ public class MetricsContainerImplTest {
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(mi);
+      // Clear timestamps before comparing.
+      MonitoringInfo.Builder b = MonitoringInfo.newBuilder(mi);
+      b.clearStartTime();
+      actualMonitoringInfos.add(b.build());
     }
 
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
@@ -262,7 +265,10 @@ public class MetricsContainerImplTest {
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actualMonitoringInfos.add(mi);
+      // Clear timestamps before comparing.
+      MonitoringInfo.Builder b = MonitoringInfo.newBuilder(mi);
+      b.clearStartTime();
+      actualMonitoringInfos.add(b.build());
     }
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
   }

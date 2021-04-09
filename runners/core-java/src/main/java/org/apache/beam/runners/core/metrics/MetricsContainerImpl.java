@@ -74,6 +74,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   protected final @Nullable String stepName;
 
+  private boolean isProcessWide = false;
+
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
   private MetricsMap<MetricName, DistributionCell> distributions =
@@ -84,7 +86,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> histograms =
       new MetricsMap<>(HistogramCell::new);
 
-  /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
+  /**
+   * Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. If
+   * stepName is null, this MetricsContainer is not bound to a step.
+   */
   public MetricsContainerImpl(@Nullable String stepName) {
     this.stepName = stepName;
   }
@@ -96,6 +101,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   /** Reset the metrics. */
   public void reset() {
+    if (isProcessWide()) {
+      throw new RuntimeException("Process Wide metric containers must not be reset");
+    }
     reset(counters);
     reset(distributions);
     reset(gauges);
@@ -106,6 +114,16 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     for (MetricCell<?> cell : cells.values()) {
       cell.reset();
     }
+  }
+
+  @Override
+  public boolean isProcessWide() {
+    return this.isProcessWide;
+  }
+
+  @Override
+  public void setIsProcessWide(boolean processWide) {
+    this.isProcessWide = processWide;
   }
 
   /**
@@ -183,7 +201,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       if (cell.getValue().getDirty().beforeCommit()) {
         updates.add(
             MetricUpdate.create(
-                MetricKey.create(stepName, cell.getKey()), cell.getValue().getCumulative()));
+                MetricKey.create(stepName, cell.getKey()),
+                cell.getValue().getCumulative(),
+                cell.getValue().getStartTime()));
       }
     }
     return updates.build();
@@ -242,6 +262,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     if (builder == null) {
       return null;
     }
+    builder.setStartTime(metricUpdate.getStartTime());
     builder.setInt64SumValue(metricUpdate.getUpdate());
     return builder.build();
   }
@@ -270,6 +291,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  @Override
   public Iterable<MonitoringInfo> getMonitoringInfos() {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
@@ -354,7 +376,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       UpdateT update = checkNotNull(cell.getValue().getCumulative());
-      updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
+      updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update, null));
     }
     return updates.build();
   }

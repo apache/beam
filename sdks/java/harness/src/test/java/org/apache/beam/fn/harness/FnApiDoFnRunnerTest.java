@@ -802,7 +802,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     /** @return a test MetricUpdate for expected metrics to compare against */
     public MetricUpdate create(String stepName, MetricName name, long value) {
-      return MetricUpdate.create(MetricKey.create(stepName, name), value);
+      return MetricUpdate.create(MetricKey.create(stepName, name), value, null);
     }
 
     @Test
@@ -957,10 +957,20 @@ public class FnApiDoFnRunnerTest implements Serializable {
       builder.setInt64DistributionValue(DistributionData.create(10, 2, 5, 5));
       expected.add(builder.build());
 
+      for (int i = 0; i < expected.size(); i++) {
+        // Clear timestamps before comparing.
+        MonitoringInfo.Builder b = MonitoringInfo.newBuilder();
+        b.clearStartTime();
+        expected.set(i, b.build());
+      }
+
       closeable.close();
       List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
       for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
-        result.add(mi);
+        // Clear timestamps before comparing.
+        MonitoringInfo.Builder b = MonitoringInfo.newBuilder();
+        b.clearStartTime();
+        result.add(b.build());
       }
       assertThat(result, containsInAnyOrder(expected.toArray()));
     }

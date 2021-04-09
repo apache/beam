@@ -19,8 +19,11 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 import org.apache.beam.sdk.metrics.MetricName;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -79,6 +82,14 @@ public class CounterCellTest {
     CounterCell differentName = new CounterCell(MetricName.named("DIFFERENT", "DIFFERENT"));
     Assert.assertNotEquals(counterCell, differentName);
     Assert.assertNotEquals(counterCell.hashCode(), differentName.hashCode());
+  }
+
+  @Test
+  public void testStartTimeSet() {
+    DateTime before = new DateTime(DateTimeZone.UTC);
+    CounterCell counterCell = new CounterCell(MetricName.named("namespace", "name"));
+    counterCell.inc();
+    assertThat(counterCell.getStartTime(), greaterThanOrEqualTo(before));
   }
 
   @Test

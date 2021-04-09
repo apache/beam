@@ -23,6 +23,8 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 /**
  * Tracks the current value (and delta) for a Counter metric for a specific context and bundle.
@@ -37,6 +39,7 @@ public class CounterCell implements Counter, MetricCell<Long> {
   private final DirtyState dirty = new DirtyState();
   private final AtomicLong value = new AtomicLong();
   private final MetricName name;
+  private final DateTime startTime;
 
   /**
    * Generally, runners should construct instances using the methods in {@link
@@ -45,6 +48,8 @@ public class CounterCell implements Counter, MetricCell<Long> {
    */
   public CounterCell(MetricName name) {
     this.name = name;
+    // The start time of when this cell was first instantied by the container.
+    this.startTime = new DateTime(DateTimeZone.UTC);
   }
 
   @Override
@@ -92,6 +97,11 @@ public class CounterCell implements Counter, MetricCell<Long> {
   @Override
   public MetricName getName() {
     return name;
+  }
+
+  @Override
+  public @Nullable DateTime getStartTime() {
+    return startTime;
   }
 
   @Override
