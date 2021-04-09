@@ -960,6 +960,19 @@ class RunnerApiTest(unittest.TestCase):
             transform.annotations['proto'], some_proto.SerializeToString())
     self.assertEqual(seen, 2)
 
+  def test_transform_ids(self):
+    class MyPTransform(beam.PTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+    p = beam.Pipeline()
+    p | MyPTransform()  # pylint: disable=expression-not-assigned
+    runner_api_proto = Pipeline.to_runner_api(p)
+
+    for transform_id in runner_api_proto.components.transforms:
+      self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
+
 
 if __name__ == '__main__':
   unittest.main()
