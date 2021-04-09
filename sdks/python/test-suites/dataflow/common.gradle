@@ -30,7 +30,7 @@ def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
-    "--log-cli-level=info",  // print stdout instantly
+    "--capture=no",  // print stdout instantly
     "--numprocesses=8", // run tests in parallel
     "--timeout=4500", // timeout of whole command execution
     "--color=yes", // console color
@@ -55,7 +55,7 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
       ]
       def testOpts = [
               "${precommitTests.join(' ')}",
-              "--log-cli-level=info",    // Print stdout instantly
+              "--capture=no",    // Print stdout instantly
               "--numprocesses=2",    // Number of tests running in parallel
               "--timeout=1800",   // Timeout of whole command execution
       ]

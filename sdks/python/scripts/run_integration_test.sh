@@ -283,8 +283,7 @@ fi
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 if [[ "$PYTEST" = true ]]; then
     echo ">>>   pytest options: $TEST_OPTS"
-    suite_name="it-$SUITE"
-    ARGS="-o junit_suite_name=$suite_name --junitxml=pytest_${suite_name}.xml $TEST_OPTS"
+    ARGS="-o junit_suite_name=$SUITE --junitxml=pytest_$SUITE.xml $TEST_OPTS"
 #   Handle markers as an independient argument from $TEST_OPTS to prevent errors in space separeted flags
     if [ -z "$COLLECT_MARKERS" ]; then
         pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS"

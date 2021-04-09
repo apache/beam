@@ -21,7 +21,7 @@ def pythonContainerVersion = project.ext.pythonVersion == '2.7' ? '2' : project.
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
-    "--log-cli-level=info",  // print stdout instantly
+    "--capture=no",  // print stdout instantly
     "--numprocesses=8", // run tests in parallel
     "--timeout=4500", // timeout of whole command execution
     "--color=yes", // console color
