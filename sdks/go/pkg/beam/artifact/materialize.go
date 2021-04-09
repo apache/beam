@@ -204,7 +204,7 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 	}
 	w := bufio.NewWriter(fd)
 
-	err = writeChunks(stream, w)
+	sha256Hash, err := writeChunks(stream, w)
 	if err != nil {
 		fd.Close() // drop any buffered content
 		return errors.Wrapf(err, "failed to retrieve chunk for %v", filename)
@@ -213,24 +213,30 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		fd.Close()
 		return errors.Wrapf(err, "failed to flush chunks for %v", filename)
 	}
+	stat, _ := fd.Stat()
+	log.Printf("Downloaded: %v (sha256: %v, size: %v)", filename, sha256Hash, stat.Size())
+
 	return fd.Close()
 }
 
-func writeChunks(stream jobpb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) error {
+func writeChunks(stream jobpb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
+	sha256W := sha256.New()
 	for {
 		chunk, err := stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return err
+			return "", err
 		}
-
+		if _, err := sha256W.Write(chunk.Data); err != nil {
+			panic(err) // cannot fail
+		}
 		if _, err := w.Write(chunk.Data); err != nil {
-			return errors.Wrapf(err, "chunk write failed")
+			return "", errors.Wrapf(err, "chunk write failed")
 		}
 	}
-	return nil
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
 func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest string) ([]*pipepb.ArtifactInformation, error) {
