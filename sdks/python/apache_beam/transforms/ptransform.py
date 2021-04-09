@@ -71,9 +71,9 @@ from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.portability import python_urns
 from apache_beam.pvalue import DoOutputsTuple
+from apache_beam.transforms import resources
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.transforms import resources
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
