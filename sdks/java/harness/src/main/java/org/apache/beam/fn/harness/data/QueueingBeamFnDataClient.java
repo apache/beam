@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness.data;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
@@ -29,17 +28,19 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed in the
  * thread which calls @{link #drainAndBlock}.
+ *
+ * <p>This class is ready for use after creation or after a call to {@link #reset}. During usage it
+ * is expected that possibly multiple threads will register clients with {@link #receive}. After all
+ * clients have been registered a single thread should call {@link #drainAndBlock}.
  */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
   private static final int QUEUE_SIZE = 1000;
@@ -47,13 +48,14 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClient.class);
 
   private final BeamFnDataClient mainClient;
-  private final LinkedBlockingQueue<ConsumerAndData> queue;
   private final ConcurrentHashMap<InboundDataClient, Object> inboundDataClients;
+
+  private LinkedBlockingQueue<ConsumerAndData<?>> queue;
 
   public QueueingBeamFnDataClient(BeamFnDataClient mainClient) {
     this.mainClient = mainClient;
-    this.queue = new LinkedBlockingQueue<ConsumerAndData>(QUEUE_SIZE);
     this.inboundDataClients = new ConcurrentHashMap<>();
+    this.queue = new LinkedBlockingQueue<>(QUEUE_SIZE);
   }
 
   @Override
@@ -67,7 +69,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
         inputLocation.getTransformId());
 
     QueueingFnDataReceiver<ByteString> queueingConsumer =
-        new QueueingFnDataReceiver<ByteString>(consumer);
+        new QueueingFnDataReceiver<>(consumer, this.queue);
     InboundDataClient inboundDataClient =
         this.mainClient.receive(apiServiceDescriptor, inputLocation, queueingConsumer);
     queueingConsumer.inboundDataClient = inboundDataClient;
@@ -98,17 +100,16 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
    *
    * <p>All {@link InboundDataClient}s will be failed if processing throws an exception.
    *
-   * <p>This method is NOT thread safe. This should only be invoked by a single thread, and is
-   * intended for use with a newly constructed QueueingBeamFnDataClient in {@link
-   * ProcessBundleHandler#processBundle}.
+   * <p>This method is NOT thread safe. This should only be invoked once by a single thread. See
+   * class comment.
    */
   public void drainAndBlock() throws Exception {
     while (true) {
       try {
-        ConsumerAndData tuple = queue.poll(200, TimeUnit.MILLISECONDS);
+        ConsumerAndData<?> tuple = queue.poll(200, TimeUnit.MILLISECONDS);
         if (tuple != null) {
           // Forward to the consumers who cares about this data.
-          tuple.consumer.accept(tuple.data);
+          tuple.accept();
         } else {
           // Note: We do not expect to ever hit this point without receiving all values
           // as (1) The InboundObserver will not be set to Done until the
@@ -141,19 +142,30 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     return this.mainClient.send(apiServiceDescriptor, outputLocation, coder);
   }
 
+  /** Resets this object so that it may be reused. */
+  public void reset() {
+    inboundDataClients.clear();
+    // It is possible that previous inboundClients were failed but could still be adding
+    // additional elements to their bound queue. For this reason we create a new queue.
+    this.queue = new LinkedBlockingQueue<>(QUEUE_SIZE);
+  }
+
   /**
    * The QueueingFnDataReceiver is a a FnDataReceiver used by the QueueingBeamFnDataClient.
    *
    * <p>All {@link #accept accept()ed} values will be put onto a synchronous queue which will cause
-   * the calling thread to block until {@link QueueingBeamFnDataClient#drainAndBlock} is called.
-   * {@link QueueingBeamFnDataClient#drainAndBlock} is responsible for processing values from the
-   * queue.
+   * the calling thread to block until {@link QueueingBeamFnDataClient#drainAndBlock} is called or
+   * the inboundClient is failed. {@link QueueingBeamFnDataClient#drainAndBlock} is responsible for
+   * processing values from the queue.
    */
-  public class QueueingFnDataReceiver<T> implements FnDataReceiver<T> {
+  public static class QueueingFnDataReceiver<T> implements FnDataReceiver<T> {
     private final FnDataReceiver<T> consumer;
-    public InboundDataClient inboundDataClient;
+    private final LinkedBlockingQueue<ConsumerAndData<?>> queue;
+    public @Nullable InboundDataClient inboundDataClient; // Null only during initialization.
 
-    public QueueingFnDataReceiver(FnDataReceiver<T> consumer) {
+    public QueueingFnDataReceiver(
+        FnDataReceiver<T> consumer, LinkedBlockingQueue<ConsumerAndData<?>> queue) {
+      this.queue = queue;
       this.consumer = consumer;
     }
 
@@ -163,29 +175,35 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
      */
     @Override
     public void accept(T value) throws Exception {
+      @SuppressWarnings("nullness")
+      final @NonNull InboundDataClient client = this.inboundDataClient;
       try {
-        ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
-        while (!queue.offer(offering, 200, TimeUnit.MILLISECONDS)) {
-          if (inboundDataClient.isDone()) {
+        ConsumerAndData<T> offering = new ConsumerAndData<>(this.consumer, value);
+        while (!this.queue.offer(offering, 200, TimeUnit.MILLISECONDS)) {
+          if (client.isDone()) {
             // If it was cancelled by the consuming side of the queue.
             break;
           }
         }
       } catch (Exception e) {
         LOG.error("Failed to insert the value into the queue", e);
-        inboundDataClient.fail(e);
+        client.fail(e);
         throw e;
       }
     }
   }
 
   static class ConsumerAndData<T> {
-    public FnDataReceiver<T> consumer;
-    public T data;
+    private final FnDataReceiver<T> consumer;
+    private final T data;
 
     public ConsumerAndData(FnDataReceiver<T> receiver, T data) {
       this.consumer = receiver;
       this.data = data;
+    }
+
+    void accept() throws Exception {
+      consumer.accept(data);
     }
   }
 }
