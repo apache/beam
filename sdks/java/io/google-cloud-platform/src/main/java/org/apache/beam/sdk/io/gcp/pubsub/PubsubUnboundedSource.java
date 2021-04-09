@@ -893,7 +893,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         throw new NoSuchElementException();
       }
       if (this.outer.outer.getNeedsMessageId() || this.outer.outer.getNeedsAttributes()) {
-        return current.message().toByteArray();
+        com.google.pubsub.v1.PubsubMessage output =
+            current.message().toBuilder().setMessageId(current.recordId()).build();
+        return output.toByteArray();
       }
       return current.message().getData().toByteArray();
     }
@@ -1340,6 +1342,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     } else {
       function = new DeserializeBytesIntoPubsubMessagePayloadOnly();
     }
+    Coder<PubsubMessage> messageCoder;
+    if (getNeedsMessageId()) {
+      messageCoder =
+          getNeedsAttributes()
+              ? PubsubMessageWithAttributesAndMessageIdCoder.of()
+              : PubsubMessageWithMessageIdCoder.of();
+    } else {
+      messageCoder =
+          getNeedsAttributes()
+              ? PubsubMessageWithAttributesCoder.of()
+              : PubsubMessagePayloadOnlyCoder.of();
+    }
     PCollection<PubsubMessage> messages =
         input
             .getPipeline()
@@ -1347,7 +1361,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
             .apply(Read.from(new PubsubSource(this)))
             .apply(
                 "MapBytesToPubsubMessages",
-                MapElements.into(TypeDescriptor.of(PubsubMessage.class)).via(function));
+                MapElements.into(TypeDescriptor.of(PubsubMessage.class)).via(function))
+            .setCoder(messageCoder);
     if (usesStatsFn(input.getPipeline().getOptions())) {
       messages =
           messages.apply(
