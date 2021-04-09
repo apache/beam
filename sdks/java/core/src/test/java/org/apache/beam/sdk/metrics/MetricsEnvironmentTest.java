@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.io.Closeable;
+import java.io.IOException;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,11 +50,38 @@ public class MetricsEnvironmentTest {
     when(c1.getCounter(MetricName.named("ns", "name"))).thenReturn(counter1);
     when(c2.getCounter(MetricName.named("ns", "name"))).thenReturn(counter2);
 
-    MetricsEnvironment.setCurrentContainer(c1);
+    assertNull(MetricsEnvironment.setCurrentContainer(c1));
     counter.inc();
-    MetricsEnvironment.setCurrentContainer(c2);
+    assertEquals(c1, MetricsEnvironment.setCurrentContainer(c2));
     counter.dec();
-    MetricsEnvironment.setCurrentContainer(null);
+    assertEquals(c2, MetricsEnvironment.setCurrentContainer(null));
+
+    verify(counter1).inc(1L);
+    verify(counter2).inc(-1L);
+    verifyNoMoreInteractions(counter1, counter2);
+  }
+
+  @Test
+  public void testScopedMetricsContainers() throws IOException {
+    Counter counter = Metrics.counter("ns", "name");
+
+    MetricsContainer c1 = Mockito.mock(MetricsContainer.class);
+    MetricsContainer c2 = Mockito.mock(MetricsContainer.class);
+    Counter counter1 = Mockito.mock(Counter.class);
+    Counter counter2 = Mockito.mock(Counter.class);
+    when(c2.getCounter(MetricName.named("ns", "name"))).thenReturn(counter2);
+    when(c1.getCounter(MetricName.named("ns", "name"))).thenReturn(counter1);
+
+    try (Closeable close = MetricsEnvironment.scopedMetricsContainer(c1)) {
+      try (Closeable close2 = MetricsEnvironment.scopedMetricsContainer(null)) {
+        counter.inc(1000);
+        try (Closeable close3 = MetricsEnvironment.scopedMetricsContainer(c2)) {
+          counter.dec();
+        }
+      }
+      counter.inc();
+    }
+    assertEquals(null, MetricsEnvironment.setCurrentContainer(null));
 
     verify(counter1).inc(1L);
     verify(counter2).inc(-1L);
