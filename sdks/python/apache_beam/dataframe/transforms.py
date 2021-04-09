@@ -50,15 +50,15 @@ class DataframeTransform(transforms.PTransform):
   """A PTransform for applying function that takes and returns dataframes
   to one or more PCollections.
 
-  DataframeTransform will accept a PCollection with a schema and batch it
-  into dataframes if necessary. In this case the proxy can be omitted:
+  :class:`DataframeTransform` will accept a PCollection with a `schema`_ and
+  batch it into :class:`~pandas.DataFrame` instances if necessary::
 
-      (pcoll | beam.Row(key=..., foo=..., bar=...)
+      (pcoll | beam.Select(key=..., foo=..., bar=...)
              | DataframeTransform(lambda df: df.group_by('key').sum()))
 
-  It is also possible to process a PCollection of dataframes directly, in this
-  case a proxy must be provided. For example, if pcoll is a PCollection of
-  dataframes, one could write::
+  It is also possible to process a PCollection of :class:`~pandas.DataFrame`
+  instances directly, in this case a "proxy" must be provided. For example, if
+  ``pcoll`` is a PCollection of DataFrames, one could write::
 
       pcoll | DataframeTransform(lambda df: df.group_by('key').sum(), proxy=...)
 
@@ -67,17 +67,26 @@ class DataframeTransform(transforms.PTransform):
   PCollections, in which case they will be passed as keyword arguments.
 
   Args:
-    yield_elements: (optional, default: "schemas") If set to "pandas", return
-        PCollections containing the raw Pandas objects (DataFrames or Series),
-        if set to "schemas", return an element-wise PCollection, where DataFrame
-        and Series instances are expanded to one element per row. DataFrames are
-        converted to schema-aware PCollections, where column values can be
-        accessed by attribute.
-    include_indexes: (optional, default: False) When yield_elements="schemas",
-        if include_indexes=True, attempt to include index columns in the output
-        schema for expanded DataFrames. Raises an error if any of the index
-        levels are unnamed (name=None), or if any of the names are not unique
-        among all column and index names.
+    yield_elements: (optional, default: "schemas") If set to ``"pandas"``,
+        return PCollection(s) containing the raw Pandas objects
+        (:class:`~pandas.DataFrame` or :class:`~pandas.Series` as appropriate).
+        If set to ``"schemas"``, return an element-wise PCollection, where
+        DataFrame and Series instances are expanded to one element per row.
+        DataFrames are converted to `schema-aware`_ PCollections, where column
+        values can be accessed by attribute.
+    include_indexes: (optional, default: False) When
+       ``yield_elements="schemas"``, if ``include_indexes=True``, attempt to
+       include index columns in the output schema for expanded DataFrames.
+       Raises an error if any of the index levels are unnamed (name=None), or if
+       any of the names are not unique among all column and index names.
+    proxy: (optional) An empty :class:`~pandas.DataFrame` or
+        :class:`~pandas.Series` instance with the same ``dtype`` and ``name``
+        as the elements of the input PCollection. Required when input
+        PCollection :class:`~pandas.DataFrame` or :class:`~pandas.Series`
+        elements. Ignored when input PCollection has a `schema`_.
+
+  .. _schema: https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
+  .. _schema-aware: https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
   """
   def __init__(
       self, func, proxy=None, yield_elements="schemas", include_indexes=False):

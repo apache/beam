@@ -388,8 +388,8 @@ SECTION_ORDER = [
 
 EXAMPLES_DISCLAIMER = (
     "**NOTE:** These examples are pulled directly from the pandas documentation "
-    "for convenience. The Beam DataFrame API will look different because it is "
-    "a deferred API.")
+    "for convenience. Usage of the Beam DataFrame API will look different "
+    "because it is a deferred API.")
 EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
     " In addition, some arguments shown here may not be supported, see "
     f"**{BEAM_SPECIFIC!r}** for details.")

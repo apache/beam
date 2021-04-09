@@ -14,11 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Contains analogs for :class:`pandas.DataFrame` and :class:`pandas.Series` -
+"""Analogs for :class:`pandas.DataFrame` and :class:`pandas.Series`:
 :class:`DeferredDataFrame` and :class:`DeferredSeries`.
 
-These classes are effectively wrappers around a
-`schema-aware`_
+These classes are effectively wrappers around a `schema-aware`_
 :class:`~apache_beam.pvalue.PCollection` that provide a set of operations
 compatible with the `pandas`_ API.
 
@@ -1301,9 +1300,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def corr(self, method, min_periods):
-    """Only ``method="pearson"`` can be parallelized, other methods require
+    """Only ``method="pearson"`` can be parallelized. Other methods require
     collecting all data on a single worker (see
-    https://s.apache.org/dataframe-non-parallelizable-operations for details)
+    https://s.apache.org/dataframe-non-parallelizable-operations for details).
     """
     if method == 'pearson':
       proxy = self._expr.proxy().corr()
