@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""A word-counting workflow using dataframes."""
+"""A word-counting workflow using the DataFrame API."""
 
 # pytype: skip-file
 
@@ -31,7 +31,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument(
       '--input',
       dest='input',
