@@ -32,6 +32,8 @@ GROUPBY_DF = pd.DataFrame({
     'foo': [None if i % 11 == 0 else i for i in range(100)],
     'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
     'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    'bool': [i % 17 == 0 for i in range(100)],
+    'str': [str(i) for i in range(100)],
 })
 
 
@@ -365,6 +367,10 @@ class DeferredFrameTest(unittest.TestCase):
         df)
     self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
     self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
+    self._run_test(
+        lambda df: df.set_index(['str', 'group', 'bool']).groupby(
+            level='group').apply(median_sum_fn),
+        df)
 
   @unittest.skip('BEAM-11710')
   def test_groupby_aggregate_grouped_column(self):
@@ -639,6 +645,26 @@ class DeferredFrameTest(unittest.TestCase):
       return df
 
     self._run_test(change_index_names, df)
+
+  @parameterized.expand((x, ) for x in [
+      0,
+      [1],
+      3,
+      [0, 3],
+      [2, 1],
+      ['foo', 0],
+      [1, 'str'],
+      [3, 0, 2, 1],
+  ])
+  def test_groupby_level_agg(self, level):
+    df = GROUPBY_DF.set_index(['group', 'foo', 'bar', 'str'], drop=False)
+    self._run_test(lambda df: df.groupby(level=level).bar.max(), df)
+    self._run_test(
+        lambda df: df.groupby(level=level).sum(numeric_only=True), df)
+    self._run_test(
+        lambda df: df.groupby(level=level).apply(
+            lambda x: (x.foo + x.bar).median()),
+        df)
 
 
 class AllowNonParallelTest(unittest.TestCase):

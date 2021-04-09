@@ -176,17 +176,36 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         grouping_indexes = level
       else:
         grouping_indexes = [level]
-      all_levels = self._expr.proxy().index.names
-      levels = [
-          all_levels[i] if isinstance(i, int) else i for i in grouping_indexes
-      ]
-      levels_to_drop = self._expr.proxy().index.names.difference(levels)
-      if levels_to_drop:
-        to_group = self.droplevel(levels_to_drop)._expr
-      else:
-        to_group = self._expr
-      to_group_with_index = self._expr
+
       grouping_columns = []
+
+      index = self._expr.proxy().index
+
+      # Translate to level numbers only
+      grouping_indexes = [
+          l if isinstance(l, int) else index.names.index(l)
+          for l in grouping_indexes
+      ]
+
+      if index.nlevels == 1:
+        to_group_with_index = self._expr
+        to_group = self._expr
+      else:
+        levels_to_drop = [
+            i for i in range(index.nlevels) if i not in grouping_indexes
+        ]
+
+        # Reorder so the grouped indexes are first
+        to_group_with_index = self.reorder_levels(
+            grouping_indexes + levels_to_drop)
+
+        grouping_indexes = list(range(len(grouping_indexes)))
+        levels_to_drop = list(range(len(grouping_indexes), index.nlevels))
+        if levels_to_drop:
+          to_group = to_group_with_index.droplevel(levels_to_drop)._expr
+        else:
+          to_group = to_group_with_index._expr
+        to_group_with_index = to_group_with_index._expr
 
     elif callable(by):
 
@@ -489,6 +508,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   first = last = frame_base.wont_implement_method('order-sensitive')
   head = tail = frame_base.wont_implement_method('order-sensitive')
   interpolate = frame_base.wont_implement_method('order-sensitive')
+
+  reorder_levels = frame_base._proxy_method(
+      'reorder_levels',
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Singleton())
 
 
 @populate_not_implemented(pd.Series)
