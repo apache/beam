@@ -222,7 +222,6 @@ public class BeamFnStatusClient {
     @Override
     public void onError(Throwable t) {
       LOG.error("Error getting SDK harness status", t);
-      outboundObserver.onError(t);
     }
 
     @Override
