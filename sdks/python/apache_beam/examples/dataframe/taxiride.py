@@ -76,7 +76,8 @@ def run_enrich_pipeline(
 
 def run(argv=None):
   """Main entry point."""
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument(
       '--input',
       dest='input',
@@ -92,7 +93,13 @@ def run(argv=None):
       dest='zone_lookup_path',
       default=ZONE_LOOKUP_PATH,
       help='Location for taxi zone lookup CSV.')
-  parser.add_argument('--pipeline', dest='pipeline', default='location_id_agg')
+  parser.add_argument(
+      '--pipeline',
+      dest='pipeline',
+      default='location_id_agg',
+      help=(
+          "Choice of pipeline to run. Must be one of "
+          "(location_id_agg, borough_enrich)."))
 
   known_args, pipeline_args = parser.parse_known_args(argv)
 
