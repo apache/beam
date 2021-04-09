@@ -402,7 +402,6 @@ def with_docs_from(base_type, name=None):
   Any docstring on the original function will be included in the new function
   under a "Differences from pandas" heading.
   """
-
   def wrap(func):
     fn_name = name or func.__name__
     orig_doc = getattr(base_type, fn_name).__doc__
@@ -425,10 +424,17 @@ def with_docs_from(base_type, name=None):
       content = re.sub(r'([Vv]ersion\s+[\d\.]+)', r'pandas \1', content)
 
       if header == "Examples":
-        content = (
-            EXAMPLES_DIFFERENCES
-            if beam_has_differences else EXAMPLES_DISCLAIMER) + '\n\n' + content
-        pass
+        content = '\n\n'.join([
+            (
+                EXAMPLES_DIFFERENCES
+                if beam_has_differences else EXAMPLES_DISCLAIMER),
+            # Indent the examples under a doctest heading,
+            # add skipif option. This makes sure our doctest
+            # framework doesn't run these pandas tests.
+            (".. doctest::\n"
+             "    :skipif: True"),
+            re.sub(r"^", "    ", content, flags=re.MULTILINE),
+        ])
       else:
         content = content.replace('DataFrame', 'DeferredDataFrame').replace(
             'Series', 'DeferredSeries')
