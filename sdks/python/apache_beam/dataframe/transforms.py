@@ -33,6 +33,10 @@ from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import partitionings
 from apache_beam.utils import windowed_value
 
+__all__ = [
+    'DataframeTransform',
+]
+
 if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
   from apache_beam.pvalue import PCollection
@@ -333,11 +337,11 @@ class _DataframeExpressionsTransform(transforms.PTransform):
           if all(stage in other for other in stage_lists[1:]):
             yield stage
 
-    @memoize
+    @_memoize
     def is_scalar(expr):
       return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
 
-    @memoize
+    @_memoize
     def expr_to_stages(expr):
       assert expr not in inputs
       # First attempt to compute this expression as part of an existing stage,
@@ -380,19 +384,19 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       if expr not in inputs:
         expr_to_stage(expr).outputs.add(expr)
 
-    @memoize
+    @_memoize
     def stage_to_result(stage):
       return {expr._id: expr_to_pcoll(expr)
               for expr in stage.inputs} | ComputeStage(stage)
 
-    @memoize
+    @_memoize
     def expr_to_pcoll(expr):
       if expr in inputs:
         return inputs[expr]
       else:
         return stage_to_result(expr_to_stage(expr))[expr._id]
 
-    @memoize
+    @_memoize
     def estimate_size(expr, same_stage_ok):
       # Returns a pcollection of ints whose sum is the estimated size of the
       # given expression.
@@ -511,7 +515,7 @@ class _ReBatch(beam.DoFn):
     self.start_bundle()
 
 
-def memoize(f):
+def _memoize(f):
   cache = {}
 
   def wrapper(*args, **kwargs):
