@@ -58,6 +58,10 @@ message BeamConstants {
 // on any proto message that may contain references needing resolution.
 message Components {
   // (Required) A map from pipeline-scoped id to PTransform.
+  //
+  // Keys of the transforms map may be used by runners to identify pipeline
+  // steps. Hence it's recommended to use strings that are not too long that
+  // match regex '[A-Za-z0-9-_]+'.
   map<string, PTransform> transforms = 1;
 
   // (Required) A map from pipeline-scoped id to PCollection.
