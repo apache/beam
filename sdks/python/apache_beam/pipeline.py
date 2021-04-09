@@ -52,8 +52,10 @@ from __future__ import absolute_import
 import abc
 import logging
 import os
+import re
 import shutil
 import tempfile
+import unicodedata
 from builtins import object
 from builtins import zip
 from collections import defaultdict
@@ -1416,10 +1418,14 @@ class ComponentIdMap(object):
 
     return self._obj_to_id[obj]
 
+  def _normalize(self, str_value):
+    str_value = unicodedata.normalize('NFC', str_value)
+    return re.sub(r'[^a-zA-Z0-9-_]+', '-', str_value)
+
   def _unique_ref(self, obj=None, obj_type=None, label=None):
+    # Normalize, trim, and uniqify.
+    prefix = self._normalize(
+        '%s_%s_%s' %
+        (self.namespace, obj_type.__name__, label or type(obj).__name__))[0:100]
     self._counters[obj_type] += 1
-    return "%s_%s_%s_%d" % (
-        self.namespace,
-        obj_type.__name__,
-        label or type(obj).__name__,
-        self._counters[obj_type])
+    return '%s_%d' % (prefix, self._counters[obj_type])
