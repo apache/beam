@@ -74,7 +74,9 @@ public class BeamFnStatusClientTest {
       when(executionStateTracker.getMillisSinceLastTransition())
           .thenReturn(Integer.toUnsignedLong((10 - i) * 1000));
       when(executionStateTracker.getTrackedThread()).thenReturn(Thread.currentThread());
-      bundleProcessorMap.put(Integer.toString(i), processor);
+      String instruction = Integer.toString(i);
+      when(processorCache.find(instruction)).thenReturn(processor);
+      bundleProcessorMap.put(instruction, processor);
     }
     when(handler.getBundleProcessorCache()).thenReturn(processorCache);
     when(processorCache.getActiveBundleProcessors()).thenReturn(bundleProcessorMap);

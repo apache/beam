@@ -55,7 +55,6 @@ public class BeamFnStatusClient {
       PipelineOptions options) {
     BeamFnWorkerStatusGrpc.BeamFnWorkerStatusStub stub =
         BeamFnWorkerStatusGrpc.newStub(channelFactory.apply(apiServiceDescriptor));
-    stub.workerStatus(new InboundObserver());
     this.outboundObserver = stub.workerStatus(new InboundObserver());
     this.processBundleCache = processBundleCache;
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
@@ -136,6 +135,30 @@ public class BeamFnStatusClient {
     memory.add(memoryMonitor.describeMemory());
     return memory.toString();
   }
+  /** Class representing the execution state of a bundle. */
+  static class BundleState {
+    final String instruction;
+    final String trackedThreadName;
+    final long timeSinceTransition;
+
+    public String getInstruction() {
+      return instruction;
+    }
+
+    public String getTrackedThreadName() {
+      return trackedThreadName;
+    }
+
+    public long getTimeSinceTransition() {
+      return timeSinceTransition;
+    }
+
+    public BundleState(String instruction, String trackedThreadName, long timeSinceTransition) {
+      this.instruction = instruction;
+      this.trackedThreadName = trackedThreadName;
+      this.timeSinceTransition = timeSinceTransition;
+    }
+  }
 
   @VisibleForTesting
   String getActiveProcessBundleState() {
@@ -144,24 +167,37 @@ public class BeamFnStatusClient {
     if (processBundleCache.getActiveBundleProcessors().isEmpty()) {
       activeBundlesState.add("No active processing bundles.");
     } else {
-      processBundleCache.getActiveBundleProcessors().entrySet().stream()
-          .sorted(
-              Comparator.comparingLong(
-                      (Map.Entry<String, BundleProcessor> bundle) ->
-                          bundle.getValue().getStateTracker().getMillisSinceLastTransition())
-                  .reversed()) // reverse sort active bundle by time since last transition.
-          .limit(10) // only keep top 10
+      List<BundleState> bundleStates = new ArrayList<>();
+      processBundleCache.getActiveBundleProcessors().keySet().stream()
           .forEach(
-              entry -> {
-                ExecutionStateTracker executionStateTracker = entry.getValue().getStateTracker();
-                activeBundlesState.add(String.format("---- Instruction %s ----", entry.getKey()));
+              instruction -> {
+                BundleProcessor bundleProcessor = processBundleCache.find(instruction);
+                if (bundleProcessor != null) {
+                  ExecutionStateTracker executionStateTracker = bundleProcessor.getStateTracker();
+                  Thread trackedTread = executionStateTracker.getTrackedThread();
+                  if (trackedTread != null) {
+                    bundleStates.add(
+                        new BundleState(
+                            instruction,
+                            trackedTread.getName(),
+                            executionStateTracker.getMillisSinceLastTransition()));
+                  }
+                }
+              });
+      bundleStates.stream()
+          // reverse sort active bundle by time since last transition.
+          .sorted(Comparator.comparing(BundleState::getTimeSinceTransition).reversed())
+          .limit(10) // only keep top 10
+          .forEachOrdered(
+              bundleState -> {
                 activeBundlesState.add(
-                    String.format(
-                        "Tracked thread: %s", executionStateTracker.getTrackedThread().getName()));
+                    String.format("---- Instruction %s ----", bundleState.getInstruction()));
+                activeBundlesState.add(
+                    String.format("Tracked thread: %s", bundleState.getTrackedThreadName()));
                 activeBundlesState.add(
                     String.format(
                         "Time since transition: %.2f seconds%n",
-                        executionStateTracker.getMillisSinceLastTransition() / 1000.0));
+                        bundleState.getTimeSinceTransition() / 1000.0));
               });
     }
     return activeBundlesState.toString();

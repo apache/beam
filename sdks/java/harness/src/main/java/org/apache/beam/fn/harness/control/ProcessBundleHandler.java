@@ -615,7 +615,7 @@ public class ProcessBundleHandler {
      * Finds an active bundle processor for the specified {@code instructionId} or null if one could
      * not be found.
      */
-    BundleProcessor find(String instructionId) {
+    public BundleProcessor find(String instructionId) {
       return activeBundleProcessors.get(instructionId);
     }
 
