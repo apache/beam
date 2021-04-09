@@ -1004,7 +1004,7 @@ class RunnerApiTest(unittest.TestCase):
         },
     })
     resources._HINTS_WITH_CUSTOM_MERGING_LOGIC.update(
-        {'use_max_value_urn': resources._return_max})
+        {'use_max_value_urn': resources._use_max})
 
     @beam.ptransform_fn
     def SubTransform(pcoll):
