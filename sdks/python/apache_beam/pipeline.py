@@ -494,6 +494,9 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
+  def _propagate_resource_hints(self):
+    ResourceHintsPropagator.propagate_hints_to_subtransforms(self)
+
   def run(self, test_runner_api='AUTO'):
     # type: (Union[bool, str]) -> PipelineResult
 
@@ -502,6 +505,8 @@ class Pipeline(object):
     # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
+    # Move in to_runner_api instead?
+    self._propagate_resource_hints()
 
     try:
       if test_runner_api == 'AUTO':
@@ -976,6 +981,28 @@ class PipelineVisitor(object):
     pass
 
 
+class ResourceHintsPropagator(PipelineVisitor):
+  """Propagates resource hints set on composite transforms to subtransforms.
+  """
+  def visit_transform(self, transform_node):
+    # type: (AppliedPTransform) -> None
+    if (transform_node.parent is not None and
+        transform_node.parent.transform is not None and
+        transform_node.parent.transform.get_resource_hints()):
+      transform_node.transform._merge_hints_from_outer_composite(
+          transform_node.parent.transform.get_resource_hints())
+
+  def enter_composite_transform(self, transform_node):
+    # type: (AppliedPTransform) -> None
+    self.visit_transform(transform_node)
+
+  @staticmethod
+  def propagate_hints_to_subtransforms(pipeline):
+    # type: (Pipeline) -> None
+    visitor = ResourceHintsPropagator()
+    pipeline.visit(visitor)
+
+
 class ExternalTransformFinder(PipelineVisitor):
   """Looks for any external transforms in the pipeline and if found records
   it.
@@ -1199,6 +1226,7 @@ class AppliedPTransform(object):
     from apache_beam.transforms import external
     if isinstance(self.transform, external.ExternalTransform):
       # TODO(BEAM-12082): Support resource hints in XLang transforms.
+      # In particular, make sure hints on composites are properly propagated.
       return self.transform.to_runner_api_transform(context, self.full_label)
 
     from apache_beam.portability.api import beam_runner_api_pb2

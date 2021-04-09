@@ -73,7 +73,7 @@ from apache_beam.portability import python_urns
 from apache_beam.pvalue import DoOutputsTuple
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.transforms.resources import parse_resource_hints
+from apache_beam.transforms import resources
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
@@ -444,7 +444,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       PTransform: A reference to the instance of this particular
       :class:`PTransform` object.
     """
-    self._resource_hints = parse_resource_hints(kwargs)
+    self._resource_hints = resources.parse_resource_hints(kwargs)
     return self
 
   def get_resource_hints(self):
@@ -787,6 +787,16 @@ class PTransform(WithTypeHints, HasDisplayData):
     constraints, which is used during performance runtime type-checking.
     """
     pass
+
+  def _merge_hints_from_outer_composite(
+      self, outer_hints):  # type: (Dict[str, bytes]) -> None
+    for urn, value in outer_hints.items():
+      if urn in self._resource_hints:
+        merged_value = resources.get_merged_hint_value(
+            urn, outer_value=value, inner_value=self._resource_hints[urn])
+      else:
+        merged_value = value
+      self._resource_hints[urn] = merged_value
 
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)

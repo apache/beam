@@ -34,6 +34,7 @@ from apache_beam import typehints
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
@@ -45,6 +46,7 @@ from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.environments import ProcessEnvironment
 from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
@@ -970,7 +972,7 @@ class RunnerApiTest(unittest.TestCase):
     p = TestPipeline()
     _ = (
         p | beam.Create([1, 2])
-        | beam.Map(lambda x: x + 1).with_resource_hints(foo_hint=b"bar",
+        | beam.Map(lambda x: x + 1).with_resource_hints(foo_hint=b'bar',
                                                         ))
 
     self.assertEqual(
@@ -985,6 +987,68 @@ class RunnerApiTest(unittest.TestCase):
       self.assertEqual(
           p.transforms_stack[0].parts[1].transform.get_resource_hints(),
           {'foo_urn': b'bar'})
+
+  def test_hints_on_composite_transforms_are_propagated_to_subtransforms(self):
+    resources._KNOWN_HINTS.update({
+        'foo_hint': lambda value: {
+            'foo_urn': value
+        },
+        'bar_hint': lambda value: {
+            'bar_urn': value
+        },
+        'baz_hint': lambda value: {
+            'baz_urn': resources._parse_str(value)
+        },
+        'use_max_value_hint': lambda value: {
+            'use_max_value_urn': resources._parse_int(value)
+        },
+    })
+    resources._HINTS_WITH_CUSTOM_MERGING_LOGIC.update(
+        {'use_max_value_urn': resources._return_max})
+
+    @beam.ptransform_fn
+    def SubTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x + 1).with_resource_hints(
+          foo_hint=b'set_on_subtransform',
+          bar_hint=b'set_on_subtransform_only',
+          use_max_value_hint=10)
+
+    @beam.ptransform_fn
+    def CompositeTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x * 2) | SubTransform()
+
+    p = TestPipeline()
+    _ = (
+        p | beam.Create([1, 2])
+        | CompositeTransform().with_resource_hints(
+            foo_hint=b'set_on_composite',
+            baz_hint='set_on_compostite',
+            use_max_value_hint=100))
+    p._propagate_resource_hints()
+    options = PortableOptions([
+        '--resource_hint=baz_hint=set_via_options',
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container',
+    ])
+    environment = ProcessEnvironment.from_options(options)
+    proto = Pipeline.to_runner_api(
+        p, use_fake_coders=True, default_environment=environment)
+
+    for t in proto.components.transforms.values():
+      if "CompositeTransform/SubTransform/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            environment.resource_hints.get('foo_urn'), b'set_on_composite')
+        self.assertEqual(
+            environment.resource_hints.get('bar_urn'),
+            b'set_on_subtransform_only')
+        self.assertEqual(
+            environment.resource_hints.get('baz_urn'), b'set_via_options')
+        self.assertEqual(
+            environment.resource_hints.get('use_max_value_urn'), b'100')
+        found = True
+    assert found
 
 
 if __name__ == '__main__':
