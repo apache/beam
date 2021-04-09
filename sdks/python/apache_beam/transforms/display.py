@@ -51,6 +51,9 @@ from typing import List
 
 from past.builtins import unicode
 
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
+
 if TYPE_CHECKING:
   from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -127,6 +130,22 @@ class DisplayData(object):
       # nor a dictionary, then it's a simple value
       self.items.append(
           DisplayDataItem(element, namespace=self.namespace, key=key))
+
+  def to_proto(self):
+    # type: (...) -> List[beam_runner_api_pb2.DisplayData]
+
+    """Returns a List of Beam proto representation of Display data."""
+    return [
+        beam_runner_api_pb2.DisplayData(
+            urn=common_urns.StandardDisplayData.DisplayData.LABELLED_STRING.urn,
+            payload=beam_runner_api_pb2.LabelledStringPayload(
+                label=dd.get_dict()['label']
+                if 'label' in dd.get_dict() else None,
+                value=str(
+                    dd.get_dict()['value'] if 'value' in
+                    dd.get_dict() else None)).SerializeToString())
+        for dd in self.items if dd.label
+    ]
 
   @classmethod
   def create_from_options(cls, pipeline_options):

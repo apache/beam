@@ -1251,18 +1251,8 @@ class AppliedPTransform(object):
         environment_id=environment_id,
         annotations=self.annotations,
         # TODO(BEAM-366): Add display_data.
-        display_data=[
-            beam_runner_api_pb2.DisplayData(
-                urn=common_urns.StandardDisplayData.DisplayData.LABELLED_STRING.
-                urn,
-                payload=beam_runner_api_pb2.LabelledStringPayload(
-                    label=dd.get_dict()['label']
-                    if 'label' in dd.get_dict() else None,
-                    value=str(
-                        dd.get_dict()['value'] if 'value' in
-                        dd.get_dict() else None)).SerializeToString())
-            for dd in DisplayData.create_from(self.transform).items if dd.label
-        ] if self.transform else None)
+        display_data=DisplayData.create_from(self.transform).to_proto()
+        if self.transform else None)
 
   @staticmethod
   def from_runner_api(
