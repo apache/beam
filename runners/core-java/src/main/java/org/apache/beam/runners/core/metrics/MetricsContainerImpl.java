@@ -74,6 +74,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   protected final @Nullable String stepName;
 
+  private final boolean isProcessWide;
+
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
   private MetricsMap<MetricName, DistributionCell> distributions =
@@ -84,9 +86,25 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> histograms =
       new MetricsMap<>(HistogramCell::new);
 
-  /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
-  public MetricsContainerImpl(@Nullable String stepName) {
+  private MetricsContainerImpl(@Nullable String stepName, boolean isProcessWide) {
     this.stepName = stepName;
+    this.isProcessWide = isProcessWide;
+  }
+
+  /**
+   * Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. If
+   * stepName is null, this MetricsContainer is not bound to a step.
+   */
+  public MetricsContainerImpl(@Nullable String stepName) {
+    this(stepName, false);
+  }
+
+  /**
+   * Create a new {@link MetricsContainerImpl} associated with the entire process. Used for
+   * collecting processWide metrics for HarnessMonitoringInfoRequest/Response.
+   */
+  public static MetricsContainerImpl createProcessWideContainer() {
+    return new MetricsContainerImpl(null, true);
   }
 
   @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
@@ -96,6 +114,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   /** Reset the metrics. */
   public void reset() {
+    if (this.isProcessWide) {
+      throw new RuntimeException("Process Wide metric containers must not be reset");
+    }
     reset(counters);
     reset(distributions);
     reset(gauges);
@@ -270,6 +291,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  @Override
   public Iterable<MonitoringInfo> getMonitoringInfos() {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
