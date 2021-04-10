@@ -1870,6 +1870,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 for io_func in dir(io):
   if io_func.startswith('to_'):
     setattr(DeferredDataFrame, io_func, getattr(io, io_func))
+    setattr(DeferredSeries, io_func, getattr(io, io_func))
 
 
 for meth in ('filter', ):
