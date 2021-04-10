@@ -82,7 +82,6 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -142,9 +141,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   // The record count and buffering duration to trigger flushing records to a tmp file. Mainly used
   // for writing unbounded data to avoid generating too many small files.
-  private static final int FILE_TRIGGERING_RECORD_COUNT = 10000;
+  private static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
   private static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
-      Duration.standardSeconds(1);
+      Duration.standardSeconds(5);
 
   static final int UNKNOWN_SHARDNUM = -1;
   static final int DUMMY_SHARDNUM = 0;
@@ -164,7 +163,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
-        .setWithRunnerDeterminedShardingUnbounded(false)
         .build();
   }
 
@@ -185,9 +183,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   abstract List<PCollectionView<?>> getSideInputs();
 
   public abstract @Nullable ShardingFunction<UserT, DestinationT> getShardingFunction();
-
-  @VisibleForTesting
-  public abstract boolean getWithRunnerDeterminedShardingUnbounded();
 
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
@@ -212,9 +207,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setShardingFunction(
         @Nullable ShardingFunction<UserT, DestinationT> shardingFunction);
-
-    abstract Builder<UserT, DestinationT, OutputT> setWithRunnerDeterminedShardingUnbounded(
-        boolean withRunnerDeterminedShardingUnbounded);
 
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
@@ -322,21 +314,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setMaxNumWritersPerBundle(-1).build();
   }
 
-  /**
-   * Returns a new {@link WriteFiles} that will write to the current {@link FileBasedSink} with
-   * runner-determined sharding for unbounded data specifically. Currently manual sharding is
-   * required for writing unbounded data with a fixed number of shards or a predefined sharding
-   * function. This option allows the runners to get around that requirement and perform automatic
-   * sharding.
-   *
-   * <p>Intended to only be used by runners. Users should use {@link
-   * #withRunnerDeterminedSharding()} instead.
-   */
-  @VisibleForTesting
-  public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedShardingUnboundedInternal() {
-    return toBuilder().setWithRunnerDeterminedShardingUnbounded(true).build();
-  }
-
   @Override
   public void validate(PipelineOptions options) {
     getSink().validate(options);
@@ -349,15 +326,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           getWindowedWrites(),
           "Must use windowed writes when applying %s to an unbounded PCollection",
           WriteFiles.class.getSimpleName());
-      // The reason for this is https://issues.apache.org/jira/browse/BEAM-1438
-      // and similar behavior in other runners. Runners can choose to ignore this check and perform
-      // runner determined sharding for unbounded data by overriding the option
-      // `withRunnerDeterminedShardingUnboundedInternal`.
-      if (!getWithRunnerDeterminedShardingUnbounded()) {
+      // Sharding used to be required due to https://issues.apache.org/jira/browse/BEAM-1438 and
+      // similar behavior in other runners. Some runners may support runner determined sharding now.
+      // Check merging window here due to https://issues.apache.org/jira/browse/BEAM-12040.
+      if (input.getWindowingStrategy().needsMerge()) {
         checkArgument(
             getComputeNumShards() != null || getNumShardsProvider() != null,
-            "When applying %s to an unbounded PCollection, "
-                + "must specify number of output shards explicitly",
+            "When applying %s to an unbounded PCollection with merging windows,"
+                + " must specify number of output shards explicitly",
             WriteFiles.class.getSimpleName());
       }
     }
@@ -402,18 +378,20 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                   new WriteShardedBundlesToTempFiles(
                       destinationCoder, fileResultCoder, numShardsView))
               .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
-    } else if (getWithRunnerDeterminedShardingUnbounded()) {
-      tempFileResults =
-          input.apply(
-              "WriteAutoShardedBundlesToTempFiles",
-              new WriteAutoShardedBundlesToTempFiles(destinationCoder, fileResultCoder));
     } else {
-      tempFileResults =
-          input
-              .apply(
-                  "WriteUnshardedBundlesToTempFiles",
-                  new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
-              .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
+      if (input.isBounded() == IsBounded.BOUNDED) {
+        tempFileResults =
+            input
+                .apply(
+                    "WriteUnshardedBundlesToTempFiles",
+                    new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
+                .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
+      } else {
+        tempFileResults =
+            input.apply(
+                "WriteAutoShardedBundlesToTempFiles",
+                new WriteAutoShardedBundlesToTempFiles(destinationCoder, fileResultCoder));
+      }
     }
 
     return tempFileResults.apply(
@@ -743,16 +721,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @Override
     public PCollection<List<FileResult<DestinationT>>> expand(PCollection<UserT> input) {
-      checkArgument(
-          getWithRunnerDeterminedShardingUnbounded(),
-          "Runner determined sharding for unbounded data is not supported by the runner.");
       // Auto-sharding is achieved via GroupIntoBatches.WithShardedKey which shards, groups and at
       // the same time batches the input records. The sharding behavior depends on runners. The
       // batching is per window and we also emit the batches if there are a certain number of
       // records buffered or they have been buffered for a certain time, controlled by
       // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
       //
-      // TODO(BEAM-12040): The implementation doesn't currently work with session windows.
+      // TODO(BEAM-12040): The implementation doesn't currently work with merging windows.
       PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
           input
               .apply(
