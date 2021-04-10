@@ -504,6 +504,16 @@ class DeferredFrameTest(unittest.TestCase):
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
 
+  @parameterized.expand([
+      (pd.Series(range(10)), ),  # unique
+      (pd.Series(list(range(100)) + [0]), ),  # non-unique int
+      (pd.Series(list(range(100)) + [0]) / 100, ),  # non-unique flt
+      (pd.Series(['a', 'b', 'c', 'd']), ),  # unique str
+      (pd.Series(['a', 'b', 'a', 'c', 'd']), ),  # non-unique str
+  ])
+  def test_series_is_unique(self, series):
+    self._run_test(lambda s: s.is_unique, series)
+
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
     self._run_test(lambda df: df['A'], df)
