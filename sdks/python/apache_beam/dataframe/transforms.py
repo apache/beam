@@ -89,8 +89,10 @@ class DataframeTransform(transforms.PTransform):
         PCollection :class:`~pandas.DataFrame` or :class:`~pandas.Series`
         elements. Ignored when input PCollection has a `schema`_.
 
-  .. _schema: https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
-  .. _schema-aware: https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
+  .. _schema:
+    https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
+  .. _schema-aware:
+    https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
   """
   def __init__(
       self, func, proxy=None, yield_elements="schemas", include_indexes=False):

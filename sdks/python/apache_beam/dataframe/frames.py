@@ -26,8 +26,10 @@ the pandas API, but there are some features that are currently unimplemented
 for various reasons. Pay particular attention to the **'Differences from
 pandas'** section for each operation to understand where we diverge.
 
-.. _schema-aware: https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
-.. _pandas: https://pandas.pydata.org/
+.. _schema-aware:
+  https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
+.. _pandas:
+  https://pandas.pydata.org/
 """
 
 import collections
@@ -39,6 +41,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from pandas.core.groupby.generic import DataFrameGroupBy
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
@@ -625,8 +628,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def align(self, other, join, axis, level, method, **kwargs):
-    """Aligning per-level is not yet supported. Only the default, ``level=None``,
-    is allowed.
+    """Aligning per-level is not yet supported. Only the default,
+    ``level=None``, is allowed.
 
     Filling NaN values via ``method`` is not supported, because it is
     sensitive to the order of the data
@@ -1294,7 +1297,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   info = frame_base.wont_implement_method('non-deferred value')
 
   clip = frame_base._elementwise_method(
-      'clip', restrictions={'axis': lambda axis: axis in (0, 'index')}, base=pd.DataFrame)
+      'clip', restrictions={'axis': lambda axis: axis in (0, 'index')},
+      base=pd.DataFrame)
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -1859,7 +1863,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         )
     )
 
-  select_dtypes = frame_base._elementwise_method('select_dtypes', base=pd.DataFrame)
+  select_dtypes = frame_base._elementwise_method('select_dtypes',
+                                                 base=pd.DataFrame)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -1899,7 +1904,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   to_records = to_dict = to_numpy = to_string = (
       frame_base.wont_implement_method('non-deferred value'))
 
-  to_sparse = to_string # frame_base._elementwise_method('to_sparse', base=pd.DataFrame)
+  to_sparse = frame_base.wont_implement_method('non-deferred value')
 
   transpose = frame_base.wont_implement_method('non-deferred column values')
 
@@ -1930,10 +1935,11 @@ for io_func in dir(io):
 
 
 for meth in ('filter', ):
-  setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth, base=pd.DataFrame))
+  setattr(DeferredDataFrame, meth,
+          frame_base._elementwise_method(meth, base=pd.DataFrame))
 
 
-@populate_not_implemented(pd.core.groupby.generic.DataFrameGroupBy)
+@populate_not_implemented(DataFrameGroupBy)
 class DeferredGroupBy(frame_base.DeferredFrame):
   def __init__(self, expr, kwargs,
                ungrouped: expressions.Expression,
@@ -2186,42 +2192,42 @@ def _is_associative(agg_func):
 
 
 
-@populate_not_implemented(pd.core.groupby.generic.DataFrameGroupBy)
+@populate_not_implemented(DataFrameGroupBy)
 class _DeferredGroupByCols(frame_base.DeferredFrame):
   # It's not clear that all of these make sense in Pandas either...
-  agg = aggregate = frame_base._elementwise_method('agg', base=pd.core.groupby.generic.DataFrameGroupBy)
-  any = frame_base._elementwise_method('any', base=pd.core.groupby.generic.DataFrameGroupBy)
-  all = frame_base._elementwise_method('all', base=pd.core.groupby.generic.DataFrameGroupBy)
+  agg = aggregate = frame_base._elementwise_method('agg', base=DataFrameGroupBy)
+  any = frame_base._elementwise_method('any', base=DataFrameGroupBy)
+  all = frame_base._elementwise_method('all', base=DataFrameGroupBy)
   boxplot = frame_base.wont_implement_method('plot')
   describe = frame_base.wont_implement_method('describe')
-  diff = frame_base._elementwise_method('diff', base=pd.core.groupby.generic.DataFrameGroupBy)
-  fillna = frame_base._elementwise_method('fillna', base=pd.core.groupby.generic.DataFrameGroupBy)
-  filter = frame_base._elementwise_method('filter', base=pd.core.groupby.generic.DataFrameGroupBy)
+  diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
+  fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
+  filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
   first = frame_base.wont_implement_method('order sensitive')
-  get_group = frame_base._elementwise_method('get_group', base=pd.core.groupby.generic.DataFrameGroupBy)
+  get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
   head = frame_base.wont_implement_method('order sensitive')
   hist = frame_base.wont_implement_method('plot')
-  idxmax = frame_base._elementwise_method('idxmax', base=pd.core.groupby.generic.DataFrameGroupBy)
-  idxmin = frame_base._elementwise_method('idxmin', base=pd.core.groupby.generic.DataFrameGroupBy)
+  idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
+  idxmin = frame_base._elementwise_method('idxmin', base=DataFrameGroupBy)
   last = frame_base.wont_implement_method('order sensitive')
-  mad = frame_base._elementwise_method('mad', base=pd.core.groupby.generic.DataFrameGroupBy)
-  max = frame_base._elementwise_method('max', base=pd.core.groupby.generic.DataFrameGroupBy)
-  mean = frame_base._elementwise_method('mean', base=pd.core.groupby.generic.DataFrameGroupBy)
-  median = frame_base._elementwise_method('median', base=pd.core.groupby.generic.DataFrameGroupBy)
-  min = frame_base._elementwise_method('min', base=pd.core.groupby.generic.DataFrameGroupBy)
-  nunique = frame_base._elementwise_method('nunique', base=pd.core.groupby.generic.DataFrameGroupBy)
+  mad = frame_base._elementwise_method('mad', base=DataFrameGroupBy)
+  max = frame_base._elementwise_method('max', base=DataFrameGroupBy)
+  mean = frame_base._elementwise_method('mean', base=DataFrameGroupBy)
+  median = frame_base._elementwise_method('median', base=DataFrameGroupBy)
+  min = frame_base._elementwise_method('min', base=DataFrameGroupBy)
+  nunique = frame_base._elementwise_method('nunique', base=DataFrameGroupBy)
   plot = frame_base.wont_implement_method('plot')
-  prod = frame_base._elementwise_method('prod', base=pd.core.groupby.generic.DataFrameGroupBy)
-  quantile = frame_base._elementwise_method('quantile', base=pd.core.groupby.generic.DataFrameGroupBy)
-  shift = frame_base._elementwise_method('shift', base=pd.core.groupby.generic.DataFrameGroupBy)
-  size = frame_base._elementwise_method('size', base=pd.core.groupby.generic.DataFrameGroupBy)
-  skew = frame_base._elementwise_method('skew', base=pd.core.groupby.generic.DataFrameGroupBy)
-  std = frame_base._elementwise_method('std', base=pd.core.groupby.generic.DataFrameGroupBy)
-  sum = frame_base._elementwise_method('sum', base=pd.core.groupby.generic.DataFrameGroupBy)
+  prod = frame_base._elementwise_method('prod', base=DataFrameGroupBy)
+  quantile = frame_base._elementwise_method('quantile', base=DataFrameGroupBy)
+  shift = frame_base._elementwise_method('shift', base=DataFrameGroupBy)
+  size = frame_base._elementwise_method('size', base=DataFrameGroupBy)
+  skew = frame_base._elementwise_method('skew', base=DataFrameGroupBy)
+  std = frame_base._elementwise_method('std', base=DataFrameGroupBy)
+  sum = frame_base._elementwise_method('sum', base=DataFrameGroupBy)
   tail = frame_base.wont_implement_method('order sensitive')
   take = frame_base.wont_implement_method('deprectated')
-  tshift = frame_base._elementwise_method('tshift', base=pd.core.groupby.generic.DataFrameGroupBy)
-  var = frame_base._elementwise_method('var', base=pd.core.groupby.generic.DataFrameGroupBy)
+  tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
+  var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
 
   @property
   def groups(self):
@@ -2491,7 +2497,9 @@ def make_str_func(method):
 for method in ELEMENTWISE_STRING_METHODS:
   setattr(_DeferredStringMethods,
           method,
-          frame_base._elementwise_method(make_str_func(method), name=method, base=pd.core.strings.StringMethods))
+          frame_base._elementwise_method(make_str_func(method),
+                                         name=method,
+                                         base=pd.core.strings.StringMethods))
 
 for base in ['add',
              'sub',
@@ -2511,34 +2519,42 @@ for base in ['add',
       setattr(
           DeferredSeries,
           name,
-          frame_base._elementwise_method(name, restrictions={'level': None}, base=pd.Series))
+          frame_base._elementwise_method(name, restrictions={'level': None},
+                                         base=pd.Series))
     if hasattr(pd.DataFrame, name):
       setattr(
           DeferredDataFrame,
           name,
-          frame_base._elementwise_method(name, restrictions={'level': None}, base=pd.DataFrame))
+          frame_base._elementwise_method(name, restrictions={'level': None},
+                                         base=pd.DataFrame))
   inplace_name = '__i%s__' % base
   if hasattr(pd.Series, inplace_name):
     setattr(
         DeferredSeries,
         inplace_name,
-        frame_base._elementwise_method(inplace_name, inplace=True, base=pd.Series))
+        frame_base._elementwise_method(inplace_name, inplace=True,
+                                       base=pd.Series))
   if hasattr(pd.DataFrame, inplace_name):
     setattr(
         DeferredDataFrame,
         inplace_name,
-        frame_base._elementwise_method(inplace_name, inplace=True, base=pd.DataFrame))
+        frame_base._elementwise_method(inplace_name, inplace=True,
+                                       base=pd.DataFrame))
 
 for name in ['lt', 'le', 'gt', 'ge', 'eq', 'ne']:
   for p in '%s', '__%s__':
     # Note that non-underscore name is used for both as the __xxx__ methods are
     # order-sensitive.
-    setattr(DeferredSeries, p % name, frame_base._elementwise_method(name, base=pd.Series))
-    setattr(DeferredDataFrame, p % name, frame_base._elementwise_method(name, base=pd.DataFrame))
+    setattr(DeferredSeries, p % name,
+            frame_base._elementwise_method(name, base=pd.Series))
+    setattr(DeferredDataFrame, p % name,
+            frame_base._elementwise_method(name, base=pd.DataFrame))
 
 for name in ['__neg__', '__pos__', '__invert__']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name, base=pd.Series))
-  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name, base=pd.DataFrame))
+  setattr(DeferredSeries, name,
+          frame_base._elementwise_method(name, base=pd.Series))
+  setattr(DeferredDataFrame, name,
+          frame_base._elementwise_method(name, base=pd.DataFrame))
 
 DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
 DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore

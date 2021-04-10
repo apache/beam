@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import functools
+import re
 from inspect import cleandoc
 from inspect import getfullargspec
 from inspect import unwrap
@@ -26,7 +27,6 @@ from typing import Optional
 from typing import Union
 
 import pandas as pd
-import re
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import partitionings
@@ -73,7 +73,8 @@ class DeferredBase(object):
     return wrapper_type(expr)
 
   def _elementwise(
-      self, func, name=None, other_args=(), other_kwargs={}, inplace=False):
+      self, func, name=None, other_args=(), other_kwargs=None, inplace=False):
+    other_kwargs = other_kwargs or {}
     return _elementwise_function(
         func, name, inplace=inplace)(self, *other_args, **other_kwargs)
 
@@ -387,9 +388,9 @@ SECTION_ORDER = [
 ]
 
 EXAMPLES_DISCLAIMER = (
-    "**NOTE:** These examples are pulled directly from the pandas documentation "
-    "for convenience. Usage of the Beam DataFrame API will look different "
-    "because it is a deferred API.")
+    "**NOTE:** These examples are pulled directly from the pandas "
+    "documentation for convenience. Usage of the Beam DataFrame API will look "
+    "different because it is a deferred API.")
 EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
     " In addition, some arguments shown here may not be supported, see "
     f"**{BEAM_SPECIFIC!r}** for details.")
