@@ -265,6 +265,11 @@ public class JdbcIO {
     return new Write();
   }
 
+  /** Write Beam {@link Row}s to a JDBC datasource. */
+  public static WriteRows writeRows() {
+    return new WriteRows();
+  }
+
   public static <T> WriteVoid<T> writeVoid() {
     return new AutoValue_JdbcIO_WriteVoid.Builder<T>()
         .setBatchSize(DEFAULT_BATCH_SIZE)
@@ -1208,6 +1213,159 @@ public class JdbcIO {
                   }
                 });
       }
+    }
+  }
+
+  /** Implementation of {@link #writeRows()} ()}. */
+  public static class WriteRows extends PTransform<PCollection<Row>, PDone> {
+    private WriteVoid<Row> inner;
+
+    WriteRows() {
+      this(JdbcIO.writeVoid());
+    }
+
+    public WriteRows(WriteVoid<Row> writeVoid) {
+      this.inner = writeVoid;
+    }
+
+    /** See {@link WriteVoid#withStatement(String)}. */
+    public WriteRows withStatement(String statement) {
+      return new WriteRows(inner.withStatement(statement));
+    }
+
+    /** See {@link WriteVoid#withPreparedStatementSetter(PreparedStatementSetter)}. */
+    public WriteRows withPreparedStatementSetter(PreparedStatementSetter<Row> setter) {
+      return new WriteRows(inner.withPreparedStatementSetter(setter));
+    }
+
+    /** See {@link WriteVoid#withDataSourceConfiguration(DataSourceConfiguration)}. */
+    public WriteRows withDataSourceConfiguration(DataSourceConfiguration config) {
+      return new WriteRows(inner.withDataSourceConfiguration(config));
+    }
+
+    /** See {@link WriteVoid#withDataSourceProviderFn(SerializableFunction)}. */
+    public WriteRows withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return new WriteRows(inner.withDataSourceProviderFn(dataSourceProviderFn));
+    }
+
+    /** See {@link WriteVoid#withBatchSize(long)}. */
+    public WriteRows withBatchSize(long batchSize) {
+      return new WriteRows(inner.withBatchSize(batchSize));
+    }
+
+    /** See {@link WriteVoid#withRetryStrategy(RetryStrategy)}. */
+    public WriteRows withRetryStrategy(RetryStrategy retryStrategy) {
+      return new WriteRows(inner.withRetryStrategy(retryStrategy));
+    }
+
+    /** See {@link WriteVoid#withRetryConfiguration(RetryConfiguration)}. */
+    public WriteRows withRetryConfiguration(RetryConfiguration retryConfiguration) {
+      return new WriteRows(inner.withRetryConfiguration(retryConfiguration));
+    }
+
+    /** See {@link WriteVoid#withTable(String)}. */
+    public WriteRows withTable(String tableName) {
+      return new WriteRows(inner.withTable(tableName));
+    }
+
+    /**
+     * Returns {@link WriteVoid} transform which can be used in {@link Wait#on(PCollection[])} to
+     * wait until all data is written.
+     *
+     * <p>Example: write a {@link PCollection} to one database and then to another database, making
+     * sure that writing a window of data to the second database starts only after the respective
+     * window has been fully written to the first database.
+     *
+     * <pre>{@code
+     * PCollection<Void> firstWriteRowsResults = data.apply(JdbcIO.writeRows()
+     *     .withDataSourceConfiguration(CONF_DB_1).withResults());
+     * data.apply(Wait.on(firstWriteRowsResults))
+     *     .apply(JdbcIO.writeRows().withDataSourceConfiguration(CONF_DB_2));
+     * }</pre>
+     *
+     * @return
+     */
+    public WriteVoid<Row> withResults() {
+      if (!hasStatementAndSetter()) {
+        checkArgument(
+            inner.getTable() != null, "table cannot be null if statement is not provided");
+        List<Schema.Field> fields = inferBeamSchema(inner.getTable()).getFields();
+        inner = inner.withStatement(JdbcUtil.generateStatement(inner.getTable(), fields));
+        inner = inner.withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
+      }
+
+      return inner;
+    }
+
+    @Override
+    public PDone expand(PCollection<Row> input) {
+      if (!hasStatementAndSetter()) {
+        checkArgument(
+            inner.getTable() != null, "table cannot be null if statement is not provided");
+        List<Schema.Field> fields =
+            input.hasSchema()
+                ? getFilteredFields(input.getSchema())
+                : inferBeamSchema(inner.getTable()).getFields();
+        inner = inner.withStatement(JdbcUtil.generateStatement(inner.getTable(), fields));
+        inner = inner.withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
+      }
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
+    }
+
+    private boolean hasStatementAndSetter() {
+      return inner.getStatement() != null && inner.getPreparedStatementSetter() != null;
+    }
+
+    private Schema inferBeamSchema(String tableName) {
+      DataSource ds = inner.getDataSourceProviderFn().apply(null);
+      try (Connection connection = ds.getConnection();
+          PreparedStatement statement =
+              connection.prepareStatement((String.format("SELECT * FROM %s", tableName)))) {
+        return SchemaUtil.toBeamSchema(statement.getMetaData());
+      } catch (SQLException e) {
+        throw new RuntimeException("Failed to infer Beam schema", e);
+      }
+    }
+
+    private List<Schema.Field> getFilteredFields(Schema schema) {
+      Schema tableSchema = inferBeamSchema(inner.getTable());
+
+      if (tableSchema.getFieldCount() < schema.getFieldCount()) {
+        throw new RuntimeException("Input schema has more fields than actual table.");
+      }
+
+      // filter out missing fields from output table
+      List<Schema.Field> missingFields =
+          tableSchema.getFields().stream()
+              .filter(
+                  line ->
+                      schema.getFields().stream()
+                          .noneMatch(s -> s.getName().equalsIgnoreCase(line.getName())))
+              .collect(Collectors.toList());
+
+      // allow insert only if missing fields are nullable
+      if (checkNullabilityForFields(missingFields)) {
+        throw new RuntimeException("Non nullable fields are not allowed without schema.");
+      }
+
+      List<Schema.Field> tableFilteredFields =
+          tableSchema.getFields().stream()
+              .map(
+                  (tableField) ->
+                      schema.getFields().stream()
+                          .filter((f) -> SchemaUtil.compareSchemaField(tableField, f))
+                          .findFirst()
+                          .orElse(null))
+              .filter(Objects::nonNull)
+              .collect(Collectors.toList());
+
+      if (tableFilteredFields.size() != schema.getFieldCount()) {
+        throw new RuntimeException("Provided schema doesn't match with database schema.");
+      }
+
+      return tableFilteredFields;
     }
   }
 

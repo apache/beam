@@ -139,9 +139,8 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PCollection<Row>, PDone>() {
         @Override
         public PDone expand(PCollection<Row> input) {
-          // TODO: BEAM-10396 use writeRows() when it's available
           return input.apply(
-              JdbcIO.<Row>write()
+              JdbcIO.writeRows()
                   .withDataSourceConfiguration(getDataSourceConfiguration())
                   .withStatement(generateWriteStatement(input.getSchema()))
                   .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter()));

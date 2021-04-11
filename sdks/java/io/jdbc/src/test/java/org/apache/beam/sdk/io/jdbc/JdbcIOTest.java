@@ -174,7 +174,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testSetConnectoinInitSqlFailWithDerbyDB() {
+  public void testSetConnectionInitSqlFailWithDerbyDB() {
     String username = "sa";
     String password = "sa";
     JdbcIO.DataSourceConfiguration config =
@@ -897,5 +897,126 @@ public class JdbcIOTest implements Serializable {
 
     // Since the pipeline was unable to write, only the row from insertStatement was written.
     assertRowCount(tableName, 1);
+  }
+
+  @Test
+  public void testWriteRows() throws Exception {
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ROWS");
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
+    Schema schema = Schema.builder().addInt32Field("id").addStringField("name").build();
+    try {
+      ArrayList<Row> data = getRowsToWrite(EXPECTED_ROW_COUNT, schema);
+      pipeline
+          .apply(Create.of(data))
+          .apply(
+              JdbcIO.writeRows()
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                  .withStatement(String.format("insert into %s values(?, ?)", tableName))
+                  .withBatchSize(10L)
+                  .withPreparedStatementSetter(
+                      (element, statement) -> {
+                        statement.setInt(1, element.getInt32("id"));
+                        statement.setString(2, element.getString("name"));
+                      }));
+
+      pipeline.run();
+
+      assertRowCount(tableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
+    }
+  }
+
+  @Test
+  public void testWriteRowsWithoutPreparedStatement() throws Exception {
+    final int rowsToAdd = 10;
+
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addField(Schema.Field.of("column_boolean", Schema.FieldType.BOOLEAN));
+    schemaBuilder.addField(Schema.Field.of("column_string", Schema.FieldType.STRING));
+    schemaBuilder.addField(Schema.Field.of("column_int", Schema.FieldType.INT32));
+    schemaBuilder.addField(Schema.Field.of("column_long", Schema.FieldType.INT64));
+    schemaBuilder.addField(Schema.Field.of("column_float", Schema.FieldType.FLOAT));
+    schemaBuilder.addField(Schema.Field.of("column_double", Schema.FieldType.DOUBLE));
+    schemaBuilder.addField(Schema.Field.of("column_bigdecimal", Schema.FieldType.DECIMAL));
+    schemaBuilder.addField(Schema.Field.of("column_date", LogicalTypes.JDBC_DATE_TYPE));
+    schemaBuilder.addField(Schema.Field.of("column_time", LogicalTypes.JDBC_TIME_TYPE));
+    schemaBuilder.addField(
+        Schema.Field.of("column_timestamptz", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE));
+    schemaBuilder.addField(Schema.Field.of("column_timestamp", Schema.FieldType.DATETIME));
+    schemaBuilder.addField(Schema.Field.of("column_short", Schema.FieldType.INT16));
+    Schema schema = schemaBuilder.build();
+
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ROWS_PS");
+    StringBuilder stmt = new StringBuilder("CREATE TABLE ");
+    stmt.append(tableName);
+    stmt.append(" (");
+    stmt.append("column_boolean       BOOLEAN,"); // boolean
+    stmt.append("column_string        VARCHAR(254),"); // String
+    stmt.append("column_int           INTEGER,"); // int
+    stmt.append("column_long          BIGINT,"); // long
+    stmt.append("column_float         REAL,"); // float
+    stmt.append("column_double        DOUBLE PRECISION,"); // double
+    stmt.append("column_bigdecimal    DECIMAL(13,0),"); // BigDecimal
+    stmt.append("column_date          DATE,"); // Date
+    stmt.append("column_time          TIME,"); // Time
+    stmt.append("column_timestamptz   TIMESTAMP,"); // Timestamp
+    stmt.append("column_timestamp     TIMESTAMP,"); // Timestamp
+    stmt.append("column_short         SMALLINT"); // short
+    stmt.append(" )");
+    DatabaseTestHelper.createTableWithStatement(DATA_SOURCE, stmt.toString());
+    try {
+      ArrayList<Row> data = getRowsToWrite(rowsToAdd, schema);
+      pipeline
+          .apply(Create.of(data))
+          .apply(
+              JdbcIO.writeRows()
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                  .withBatchSize(10L)
+                  .withTable(tableName));
+      pipeline.run();
+      assertRowCount(tableName, rowsToAdd);
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
+    }
+  }
+
+  @Test
+  public void testWriteRowsResultsAndWaitOn() throws Exception {
+    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ROWS_PS");
+    String secondTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ROWS_PS_AFTER_WAIT");
+    DatabaseTestHelper.createTable(DATA_SOURCE, firstTableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, secondTableName);
+
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addField(Schema.Field.of("id", Schema.FieldType.INT32));
+    schemaBuilder.addField(Schema.Field.of("name", Schema.FieldType.STRING));
+    Schema schema = schemaBuilder.build();
+    try {
+      ArrayList<Row> data = getRowsToWrite(EXPECTED_ROW_COUNT, schema);
+
+      PCollection<Row> dataCollection = pipeline.apply(Create.of(data));
+      PCollection<Void> rowsWritten =
+          dataCollection.apply(
+              JdbcIO.writeRows()
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                  .withBatchSize(10L)
+                  .withTable(firstTableName)
+                  .withResults());
+      dataCollection
+          .apply(Wait.on(rowsWritten))
+          .apply(
+              JdbcIO.writeRows()
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                  .withBatchSize(10L)
+                  .withTable(secondTableName));
+
+      pipeline.run();
+
+      assertRowCount(firstTableName, EXPECTED_ROW_COUNT);
+      assertRowCount(secondTableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, firstTableName);
+    }
   }
 }
