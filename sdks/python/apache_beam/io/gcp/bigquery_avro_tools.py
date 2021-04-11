@@ -95,9 +95,8 @@ def get_record_schema_from_dict_table_schema(
   }
 
 
-def table_field_to_avro_field(
-    table_field: Dict[str, Any],
-    namespace: str) -> Dict[str, Any]:
+def table_field_to_avro_field(table_field: Dict[str, Any],
+                              namespace: str) -> Dict[str, Any]:
   """Convert a BigQuery field to an avro field.
 
   Args:
