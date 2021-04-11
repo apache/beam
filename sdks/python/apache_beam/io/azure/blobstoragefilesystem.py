@@ -20,6 +20,7 @@ Azure Blob Storage.
 """
 
 from typing import BinaryIO
+
 from apache_beam.io.azure import blobstorageio
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile

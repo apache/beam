@@ -24,8 +24,8 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 from typing import Any
-from typing import List
 from typing import Dict
+from typing import List
 from typing import Union
 
 # BigQuery types as listed in
