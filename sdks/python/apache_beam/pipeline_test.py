@@ -1050,6 +1050,72 @@ class RunnerApiTest(unittest.TestCase):
         found = True
     assert found
 
+  def test_environments_with_same_resource_hints_are_reused(self):
+    resources._KNOWN_HINTS.update({
+        'X': lambda value: {
+            'X_urn': str(value).encode('ascii')
+        },
+        'Y': lambda value: {
+            'Y_urn': str(value).encode('ascii')
+        },
+        'IsOdd': lambda value: {
+            'IsOdd_urn': str(value).encode('ascii')
+        },
+    })
+
+    p = TestPipeline()
+    num_iter = 4
+    for i in range(num_iter):
+      _ = (
+          p
+          | f'NoHintCreate_{i}' >> beam.Create([1, 2])
+          | f'NoHint_{i}' >> beam.Map(lambda x: x + 1))
+      _ = (
+          p
+          | f'XCreate_{i}' >> beam.Create([1, 2])
+          |
+          f'HintX_{i}' >> beam.Map(lambda x: x + 1).with_resource_hints(X='X'))
+      _ = (
+          p
+          | f'XYCreate_{i}' >> beam.Create([1, 2])
+          | f'HintXY_{i}' >> beam.Map(lambda x: x + 1).with_resource_hints(
+              X='X', Y='Y'))
+      _ = (
+          p
+          | f'IsOddCreate_{i}' >> beam.Create([1, 2])
+          | f'IsOdd_{i}' >>
+          beam.Map(lambda x: x + 1).with_resource_hints(IsOdd=i % 2 != 0))
+
+    proto = Pipeline.to_runner_api(p, use_fake_coders=True)
+    count_x = count_xy = count_is_odd = count_no_hints = 0
+    env_ids = set()
+    for _, t in proto.components.transforms.items():
+      env = proto.components.environments[t.environment_id]
+      if t.unique_name.startswith('HintX_'):
+        count_x += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {'X_urn': b'X'})
+
+      if t.unique_name.startswith('HintXY_'):
+        count_xy += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {'X_urn': b'X', 'Y_urn': b'Y'})
+
+      if t.unique_name.startswith('NoHint_'):
+        count_no_hints += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {})
+
+      if t.unique_name.startswith('IsOdd_'):
+        count_is_odd += 1
+        env_ids.add(t.environment_id)
+        self.assertTrue(
+            env.resource_hints == {'IsOdd_urn': b'True'} or
+            env.resource_hints == {'IsOdd_urn': b'False'})
+    assert count_x == count_is_odd == count_xy == count_no_hints == num_iter
+
+    self.assertEqual(len(env_ids), 5)
+
 
 if __name__ == '__main__':
   unittest.main()
