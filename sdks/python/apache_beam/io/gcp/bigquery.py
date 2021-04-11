@@ -327,8 +327,8 @@ try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
-  DatasetReference = None # type: ignore
-  TableReference = None # type: ignore
+  DatasetReference = None  # type: ignore
+  TableReference = None  # type: ignore
 
 __all__ = [
     'TableRowJsonCoder',

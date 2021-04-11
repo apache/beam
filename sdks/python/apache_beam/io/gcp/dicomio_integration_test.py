@@ -45,7 +45,7 @@ try:
   from google.auth import default
   from google.auth.transport import requests
 except ImportError:
-  DicomSearch = None # type: ignore
+  DicomSearch = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 REGION = 'us-central1'
