@@ -63,8 +63,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoService(TableProvider.class)
 public class KafkaTableProvider extends InMemoryMetaTableProvider {
   private static class ParsedLocation {
-    String brokerLocation;
-    String topic;
+    String brokerLocation = "";
+    String topic = "";
   }
 
   private static ParsedLocation parseLocation(String location) {
@@ -94,7 +94,7 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     Schema schema = table.getSchema();
     JSONObject properties = table.getProperties();
 
-    ParsedLocation parsedLocation = parseLocation(table.getLocation());
+    ParsedLocation parsedLocation = parseLocation(checkArgumentNotNull(table.getLocation()));
     List<String> topics = mergeParam(parsedLocation.topic, properties.getJSONArray("topics"));
     List<String> allBootstrapServers =
         mergeParam(parsedLocation.brokerLocation, properties.getJSONArray("bootstrap_servers"));
