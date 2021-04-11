@@ -63,7 +63,7 @@ from apache_beam.testing.util import equal_to
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
-  GCSFileSystem = None # type: ignore
+  GCSFileSystem = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 SCHEMA_STRING = """
