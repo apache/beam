@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -447,15 +448,27 @@ public class MetricsTest implements Serializable {
                 DistributionResult.create(52L, 6L, 5L, 13L),
                 isCommitted)));
     assertThat(
-        metrics.getDistributions(),
+        (Iterable<MetricResult<DistributionResult>>) metrics.getDistributions(),
         anyOf(
             // Step names are different for portable and non-portable runners.
             hasItem(
-                distributionMinMax(
-                    NAMESPACE, "bundle", "MyStep1/ParMultiDo(Anonymous)", 10L, 40L, isCommitted)),
+                (Matcher<MetricResult<DistributionResult>>)
+                    distributionMinMax(
+                        NAMESPACE,
+                        "bundle",
+                        "MyStep1/ParMultiDo(Anonymous)",
+                        10L,
+                        40L,
+                        isCommitted)),
             hasItem(
-                distributionMinMax(
-                    NAMESPACE, "bundle", "MyStep1-ParMultiDo-Anonymous-", 10L, 40L, isCommitted))));
+                (Matcher<MetricResult<DistributionResult>>)
+                    distributionMinMax(
+                        NAMESPACE,
+                        "bundle",
+                        "MyStep1-ParMultiDo-Anonymous-",
+                        10L,
+                        40L,
+                        isCommitted))));
   }
 
   private static void assertAllMetrics(MetricQueryResults metrics, boolean isCommitted) {
