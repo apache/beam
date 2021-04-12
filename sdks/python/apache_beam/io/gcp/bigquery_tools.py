@@ -70,7 +70,9 @@ try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
 except ImportError:
   pass
+# pylint: enable=wrong-import-order, wrong-import-position
 
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
