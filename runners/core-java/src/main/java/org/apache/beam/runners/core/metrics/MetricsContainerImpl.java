@@ -198,8 +198,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
 
   /** @return The MonitoringInfo metadata from the metric. */
   private @Nullable SimpleMonitoringInfoBuilder metricToMonitoringMetadata(
-      MetricKey metricKey, String userUrn) {
+      MetricKey metricKey, String typeUrn, String userUrn) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+    builder.setType(typeUrn);
 
     MetricName metricName = metricKey.metricName();
     if (metricName instanceof MonitoringInfoMetricName) {
@@ -227,7 +228,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
 
   /** @return The MonitoringInfo metadata from the counter metric. */
   private @Nullable SimpleMonitoringInfoBuilder counterToMonitoringMetadata(MetricKey metricKey) {
-    return metricToMonitoringMetadata(metricKey, MonitoringInfoConstants.Urns.USER_SUM_INT64);
+    return metricToMonitoringMetadata(
+        metricKey,
+        MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE,
+        MonitoringInfoConstants.Urns.USER_SUM_INT64);
   }
 
   /** @return The MonitoringInfo generated from the counter metricUpdate. */
@@ -244,7 +248,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
   private @Nullable SimpleMonitoringInfoBuilder distributionToMonitoringMetadata(
       MetricKey metricKey) {
     return metricToMonitoringMetadata(
-        metricKey, MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64);
+        metricKey,
+        MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64_TYPE,
+        MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64);
   }
 
   /**
