@@ -98,6 +98,7 @@ def patch_retry(testcase, module):
     module: The module that uses retry and need to be replaced with mock
       clock and logger in test.
   """
+  # Import mock here to avoid execution time errors for other utilities
   from mock import Mock
   from mock import patch
 
