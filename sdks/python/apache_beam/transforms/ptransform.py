@@ -347,9 +347,6 @@ class PTransform(WithTypeHints, HasDisplayData):
   # Default is unset.
   _user_label = None  # type: Optional[str]
 
-  # By default, transforms don't have any resource hints.
-  _resource_hints = {}  # type: Dict[str, bytes]
-
   def __init__(self, label=None):
     # type: (Optional[str]) -> None
     super(PTransform, self).__init__()
@@ -448,6 +445,11 @@ class PTransform(WithTypeHints, HasDisplayData):
     return self
 
   def get_resource_hints(self):
+    # type: () -> Dict[str, bytes]
+    if '_resource_hints' not in self.__dict__:
+      # PTransform subclasses don't always call super(), so prefer lazy
+      # initialization. By default, transforms don't have any resource hints.
+      self._resource_hints = {}  # type: Dict[str, bytes]
     return self._resource_hints
 
   def type_check_inputs(self, pvalueish):
@@ -791,12 +793,12 @@ class PTransform(WithTypeHints, HasDisplayData):
   def _merge_hints_from_outer_composite(
       self, outer_hints):  # type: (Dict[str, bytes]) -> None
     for urn, value in outer_hints.items():
-      if urn in self._resource_hints:
+      if urn in self.get_resource_hints():
         merged_value = resources.get_merged_hint_value(
-            urn, outer_value=value, inner_value=self._resource_hints[urn])
+            urn, outer_value=value, inner_value=self.get_resource_hints()[urn])
       else:
         merged_value = value
-      self._resource_hints[urn] = merged_value
+      self.get_resource_hints()[urn] = merged_value
 
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
