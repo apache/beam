@@ -118,15 +118,13 @@ public class BeamFnDataWriteRunnerTest {
   public void testCreatingAndProcessingBeamFnDataWriteRunner() throws Exception {
     String bundleId = "57L";
 
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class));
+    MetricsContainerStepMap metricMap = new MetricsContainerStepMap();
+    ExecutionStateTracker tracker = mock(ExecutionStateTracker.class);
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry(metricMap, tracker);
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+        new PTransformFunctionRegistry(metricMap, tracker, "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+        new PTransformFunctionRegistry(metricMap, tracker, "finish");
     List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     String localInputId = "inputPC";
