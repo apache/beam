@@ -289,6 +289,7 @@ public class MetricsTest implements Serializable {
       assertThat(
           metrics.getCounters(),
           anyOf(
+              // Step names are different for portable and non-portable runners.
               hasItem(
                   attemptedMetricsResult(
                       ELEMENTS_READ.getNamespace(),
@@ -327,6 +328,7 @@ public class MetricsTest implements Serializable {
       assertThat(
           metrics.getCounters(),
           anyOf(
+              // Step names are different for portable and non-portable runners.
               hasItem(
                   attemptedMetricsResult(
                       ELEMENTS_READ.getNamespace(),
@@ -390,7 +392,10 @@ public class MetricsTest implements Serializable {
     assertThat(
         metrics.getCounters(),
         anyOf(
-            hasItem(metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)),
+            // Step names are different for portable and non-portable runners.
+            hasItem(
+                metricsResult(
+                    NAMESPACE, "count", "MyStep1/ParMultiDo(Anonymous)", 3L, isCommitted)),
             hasItem(
                 metricsResult(
                     NAMESPACE, "count", "MyStep1-ParMultiDo-Anonymous-", 3L, isCommitted))));
@@ -416,11 +421,12 @@ public class MetricsTest implements Serializable {
     assertThat(
         metrics.getDistributions(),
         anyOf(
+            // Step names are different for portable and non-portable runners.
             hasItem(
                 metricsResult(
                     NAMESPACE,
                     "input",
-                    "MyStep1",
+                    "MyStep1/ParMultiDo(Anonymous)",
                     DistributionResult.create(26L, 3L, 5L, 13L),
                     isCommitted)),
             hasItem(
@@ -443,7 +449,10 @@ public class MetricsTest implements Serializable {
     assertThat(
         metrics.getDistributions(),
         anyOf(
-            hasItem(distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)),
+            // Step names are different for portable and non-portable runners.
+            hasItem(
+                distributionMinMax(
+                    NAMESPACE, "bundle", "MyStep1/ParMultiDo(Anonymous)", 10L, 40L, isCommitted)),
             hasItem(
                 distributionMinMax(
                     NAMESPACE, "bundle", "MyStep1-ParMultiDo-Anonymous-", 10L, 40L, isCommitted))));
