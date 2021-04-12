@@ -449,7 +449,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     if '_resource_hints' not in self.__dict__:
       # PTransform subclasses don't always call super(), so prefer lazy
       # initialization. By default, transforms don't have any resource hints.
-      self._resource_hints = {}  # type: Dict[str, bytes]
+      self._resource_hints = {}
     return self._resource_hints
 
   def type_check_inputs(self, pvalueish):
