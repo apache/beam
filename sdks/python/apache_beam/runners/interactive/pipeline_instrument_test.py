@@ -797,7 +797,7 @@ class PipelineInstrumentTest(unittest.TestCase):
                 'ref_AppliedPTransform_AppliedPTransform_1'].subtransforms),
         6)
     assert_pipeline_proto_contain_top_level_transform(
-        self, full_proto, 'Init Source')
+        self, full_proto, 'Init-Source')
 
   def test_side_effect_pcoll_is_included(self):
     pipeline_with_side_effect = beam.Pipeline(
