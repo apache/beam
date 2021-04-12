@@ -91,10 +91,10 @@ detail.
 
 ### Configuration options
 You have two options for configuring your development environment:
-- Local: Debian-based Distribution
-    - Manual steps
-    - Automated script (*only* for Linux and macOS)
-- Container: Docker-based
+- Local:
+    - Manually installing the prerequisites listed above.
+    - Using the automated script for Linux and macOS.
+- Container: using a Docker image.
 
 #### Local: Debian-based Distribution
 ##### Manual steps
