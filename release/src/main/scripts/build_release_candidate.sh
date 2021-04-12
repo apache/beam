@@ -66,10 +66,9 @@ echo "Which release candidate number(e.g. 1) are you going to create: "
 read RC_NUM
 echo "Please enter your github username(ID): "
 read USER_GITHUB_ID
-RC_TAG="v${RELEASE}-RC${RC_NUM}"
 
-USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
 RC_TAG="v${RELEASE}-RC${RC_NUM}"
+USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
 
 echo "=================Pre-requirements===================="
 echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
@@ -92,14 +91,6 @@ if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
   exit
 fi
-
-echo "================Checking Environment Variables=============="
-echo "Pushing tagged commit for RC${RC_NUM}"
-sh $SCRIPT_DIR/set_version.sh ${RELEASE} --release"
-git add -u
-git commit -m "Set version for ${RELEASE} RC${RC_NUM}"
-git tag -s "$RC_TAG" HEAD
-git push --follow-tags origin "$RC_TAG"
 
 echo "[Current Step]: Build and stage java artifacts"
 echo "Do you want to proceed? [y|N]"
