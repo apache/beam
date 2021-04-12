@@ -1022,7 +1022,7 @@ class RunnerApiTest(unittest.TestCase):
         p | beam.Create([1, 2])
         | CompositeTransform().with_resource_hints(
             foo_hint=b'set_on_composite',
-            baz_hint='set_on_compostite',
+            baz_hint='set_on_composite',
             use_max_value_hint=100))
     p._propagate_resource_hints()
     options = PortableOptions([

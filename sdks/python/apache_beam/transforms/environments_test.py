@@ -122,14 +122,14 @@ class EnvironmentOptionsTest(unittest.TestCase):
 
   def test_environments_with_same_hints_are_equal(self):
     resources._KNOWN_HINTS.update(
-        {'foo_hint': lambda value: {
-            'foo_urn': str(value).encode('ascii')
+        {'a_hint': lambda value: {
+            'a_urn': str(value).encode('ascii')
         }})
     options = PortableOptions([
         '--environment_type=PROCESS',
         '--environment_option=process_command=foo',
         '--sdk_location=container',
-        '--foo_hint=foo_value',
+        '--a_hint=a_value',
     ])
     environment1 = ProcessEnvironment.from_options(options)
     environment2 = ProcessEnvironment.from_options(options)
