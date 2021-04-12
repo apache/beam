@@ -333,7 +333,7 @@ public class ProcessBundleHandler {
         if (runnerAcceptsShortIds) {
           response.putAllMonitoringData(monitoringData);
         } else {
-          for (Map.Entry<String, ByteString> metric : response.getMonitoringDataMap().entrySet()) {
+          for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
             response.addMonitoringInfos(
                 shortIds.get(metric.getKey()).toBuilder().setPayload(metric.getValue()));
           }
@@ -375,7 +375,7 @@ public class ProcessBundleHandler {
     if (runnerAcceptsShortIds) {
       response.putAllMonitoringData(monitoringData);
     } else {
-      for (Map.Entry<String, ByteString> metric : response.getMonitoringDataMap().entrySet()) {
+      for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
         response.addMonitoringInfos(
             shortIds.get(metric.getKey()).toBuilder().setPayload(metric.getValue()));
       }
@@ -401,7 +401,7 @@ public class ProcessBundleHandler {
     // Add any additional monitoring infos that the "runners" report explicitly.
     for (ProgressRequestCallback progressRequestCallback :
         bundleProcessor.getProgressRequestCallbacks()) {
-      // TODO(BEAM-6597): This should be reporting monitoring infos using the short id system.
+      // TODO(BEAM-6597): Plumb reporting monitoring infos using the short id system upstream.
       for (MetricsApi.MonitoringInfo monitoringInfo :
           progressRequestCallback.getMonitoringInfos()) {
         ByteString payload = monitoringInfo.getPayload();
