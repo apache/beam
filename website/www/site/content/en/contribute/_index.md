@@ -200,14 +200,19 @@ script which is part of the Beam repo:
                   $ go get -u ./...
 
 1. Check the environment was setup correctly.
-    - **Option 1**: Run independent checks:
+    - **Option 1**: validate the Go, Java, and Python environments:
+        **Important**: Make sure you have activated Python development.
+```
+./gradlew :checkSetUp
+```
+    - **Option 2**: Run independent checks:
         - For **Go development**:
           1. Execute:
 ```
 export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
 ./gradlew :sdks:go:examples:wordCount
 ```
-        - For **Python development**:
+         - For **Python development**:
           1. Activate your environment:
 ```
 python3 -m venv ~/.virtualenvs/env
@@ -222,11 +227,7 @@ python3 -m venv ~/.virtualenvs/env
 ```
 ./gradlew :examples:java:wordCount
 ```
-    - **Option 2**: validate the Go, Java, and Python environments:
-```
-./gradlew :checkSetUp
-```
-        **Important**: Make sure you have activated Python development.
+
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
 
        $ ./gradlew projects
