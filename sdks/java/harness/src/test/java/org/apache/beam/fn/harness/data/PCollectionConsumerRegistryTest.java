@@ -32,6 +32,7 @@ import static org.mockito.Mockito.withSettings;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -41,6 +42,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -268,7 +270,7 @@ public class PCollectionConsumerRegistryTest {
   }
 
   @Test
-  public void testScopedMetricContainerInvokedUponAccept() throws Exception {
+  public void testUnboundedCountersUponAccept() throws Exception {
     mockStatic(MetricsEnvironment.class, withSettings().verboseLogging());
     final String pCollectionA = "pCollectionA";
     final String pTransformIdA = "pTransformIdA";
@@ -291,9 +293,14 @@ public class PCollectionConsumerRegistryTest {
 
     verify(consumer, times(1)).accept(element);
 
-    // Verify that static scopedMetricsContainer is called with unbound container.
-    PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));
-    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getUnboundContainer());
+    HashMap<String, String> labels = new HashMap<String, String>();
+    labels.put(Labels.PCOLLECTION, "pCollectionA");
+    MonitoringInfoMetricName counterName =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
+    assertEquals(
+        1L,
+        (long)
+            metricsContainerRegistry.getUnboundContainer().getCounter(counterName).getCumulative());
   }
 
   @Test

@@ -27,7 +27,6 @@ import java.util.Set;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -201,9 +200,8 @@ public class PCollectionConsumerRegistry {
     private final FnDataReceiver<WindowedValue<T>> delegate;
     private final String pTransformId;
     private final SimpleExecutionState state;
-    private final Counter elementCountCounter;
-    private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
-    private final MetricsContainer unboundMetricContainer;
+    private final Counter unboundedElementCountCounter;
+    private final SampleByteSizeDistribution<T> unboundSampledByteSizeDistribution;
     private final Coder<T> coder;
 
     public MetricTrackingFnDataReceiver(
@@ -213,38 +211,39 @@ public class PCollectionConsumerRegistry {
       this.pTransformId = consumerAndMetadata.getPTransformId();
       HashMap<String, String> labels = new HashMap<String, String>();
       labels.put(Labels.PCOLLECTION, pCollectionId);
-      MonitoringInfoMetricName elementCountMetricName =
-          MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
-      this.elementCountCounter = LabeledMetrics.counter(elementCountMetricName);
-      MonitoringInfoMetricName sampledByteSizeMetricName =
-          MonitoringInfoMetricName.named(Urns.SAMPLED_BYTE_SIZE, labels);
-      this.sampledByteSizeDistribution =
-          new SampleByteSizeDistribution<>(LabeledMetrics.distribution(sampledByteSizeMetricName));
-      this.coder = consumerAndMetadata.getValueCoder();
 
       // Collect the metric in a metric container which is not bound to the step name.
       // This is required to count elements from impulse steps, which will produce elements outside
       // of a pTransform context.
-      this.unboundMetricContainer = metricsContainerRegistry.getUnboundContainer();
+      MetricsContainer unboundMetricContainer = metricsContainerRegistry.getUnboundContainer();
+
+      MonitoringInfoMetricName elementCountMetricName =
+          MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
+      this.unboundedElementCountCounter = unboundMetricContainer.getCounter(elementCountMetricName);
+
+      MonitoringInfoMetricName sampledByteSizeMetricName =
+          MonitoringInfoMetricName.named(Urns.SAMPLED_BYTE_SIZE, labels);
+      this.unboundSampledByteSizeDistribution =
+          new SampleByteSizeDistribution<>(
+              unboundMetricContainer.getDistribution(sampledByteSizeMetricName));
+
+      this.coder = consumerAndMetadata.getValueCoder();
     }
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
-      try (Closeable close =
-          MetricsEnvironment.scopedMetricsContainer(this.unboundMetricContainer)) {
-        // Increment the counter for each window the element occurs in.
-        this.elementCountCounter.inc(input.getWindows().size());
-        // TODO(BEAM-11879): Consider updating size per window when we have window optimization.
-        this.sampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
-        // Wrap the consumer with extra logic to set the metric container with the appropriate
-        // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
-        // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
-        // Process Bundle Execution time metric.
-        MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
-        try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
-          try (Closeable trackerCloseable = stateTracker.enterState(state)) {
-            this.delegate.accept(input);
-          }
+      // Increment the counter for each window the element occurs in.
+      this.unboundedElementCountCounter.inc(input.getWindows().size());
+      // TODO(BEAM-11879): Consider updating size per window when we have window optimization.
+      this.unboundSampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
+      // Wrap the consumer with extra logic to set the metric container with the appropriate
+      // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
+      // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
+      // Process Bundle Execution time metric.
+      MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
+        try (Closeable trackerCloseable = stateTracker.enterState(state)) {
+          this.delegate.accept(input);
         }
       }
     }
@@ -260,52 +259,51 @@ public class PCollectionConsumerRegistry {
   private class MultiplexingMetricTrackingFnDataReceiver<T>
       implements FnDataReceiver<WindowedValue<T>> {
     private final List<ConsumerAndMetadata> consumerAndMetadatas;
-    private final Counter elementCountCounter;
-    private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
-    private final MetricsContainer unboundMetricContainer;
+    private final Counter unboundedElementCountCounter;
+    private final SampleByteSizeDistribution<T> unboundedSampledByteSizeDistribution;
 
     public MultiplexingMetricTrackingFnDataReceiver(
         String pCollectionId, List<ConsumerAndMetadata> consumerAndMetadatas) {
       this.consumerAndMetadatas = consumerAndMetadatas;
       HashMap<String, String> labels = new HashMap<String, String>();
       labels.put(Labels.PCOLLECTION, pCollectionId);
-      MonitoringInfoMetricName elementCountMetricName =
-          MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
-      this.elementCountCounter = LabeledMetrics.counter(elementCountMetricName);
-      MonitoringInfoMetricName sampledByteSizeMetricName =
-          MonitoringInfoMetricName.named(Urns.SAMPLED_BYTE_SIZE, labels);
-      this.sampledByteSizeDistribution =
-          new SampleByteSizeDistribution<>(LabeledMetrics.distribution(sampledByteSizeMetricName));
+
       // Collect the metric in a metric container which is not bound to the step name.
       // This is required to count elements from impulse steps, which will produce elements outside
       // of a pTransform context.
-      this.unboundMetricContainer = metricsContainerRegistry.getUnboundContainer();
+      MetricsContainer unboundMetricContainer = metricsContainerRegistry.getUnboundContainer();
+      MonitoringInfoMetricName elementCountMetricName =
+          MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
+      this.unboundedElementCountCounter = unboundMetricContainer.getCounter(elementCountMetricName);
+
+      MonitoringInfoMetricName sampledByteSizeMetricName =
+          MonitoringInfoMetricName.named(Urns.SAMPLED_BYTE_SIZE, labels);
+      this.unboundedSampledByteSizeDistribution =
+          new SampleByteSizeDistribution<>(
+              unboundMetricContainer.getDistribution(sampledByteSizeMetricName));
     }
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
-      try (Closeable close =
-          MetricsEnvironment.scopedMetricsContainer(this.unboundMetricContainer)) {
-        // Increment the counter for each window the element occurs in.
-        this.elementCountCounter.inc(input.getWindows().size());
-        // Wrap the consumer with extra logic to set the metric container with the appropriate
-        // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
-        // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
-        // Process Bundle Execution time metric.
-        for (ConsumerAndMetadata consumerAndMetadata : consumerAndMetadatas) {
+      // Increment the counter for each window the element occurs in.
+      this.unboundedElementCountCounter.inc(input.getWindows().size());
+      // Wrap the consumer with extra logic to set the metric container with the appropriate
+      // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
+      // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
+      // Process Bundle Execution time metric.
+      for (ConsumerAndMetadata consumerAndMetadata : consumerAndMetadatas) {
 
-          if (consumerAndMetadata.getValueCoder() != null) {
-            // TODO(BEAM-11879): Consider updating size per window when we have window optimization.
-            this.sampledByteSizeDistribution.tryUpdate(
-                input.getValue(), consumerAndMetadata.getValueCoder());
-          }
-          MetricsContainerImpl container =
-              metricsContainerRegistry.getContainer(consumerAndMetadata.getPTransformId());
-          try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
-            try (Closeable trackerCloseable =
-                stateTracker.enterState(consumerAndMetadata.getExecutionState())) {
-              consumerAndMetadata.getConsumer().accept(input);
-            }
+        if (consumerAndMetadata.getValueCoder() != null) {
+          // TODO(BEAM-11879): Consider updating size per window when we have window optimization.
+          this.unboundedSampledByteSizeDistribution.tryUpdate(
+              input.getValue(), consumerAndMetadata.getValueCoder());
+        }
+        MetricsContainerImpl container =
+            metricsContainerRegistry.getContainer(consumerAndMetadata.getPTransformId());
+        try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
+          try (Closeable trackerCloseable =
+              stateTracker.enterState(consumerAndMetadata.getExecutionState())) {
+            consumerAndMetadata.getConsumer().accept(input);
           }
         }
       }
