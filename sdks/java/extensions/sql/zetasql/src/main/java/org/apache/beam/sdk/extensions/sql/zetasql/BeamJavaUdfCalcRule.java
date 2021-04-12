@@ -122,7 +122,7 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
    * Returns true only if the literal can be correctly implemented by {@link
    * org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel} in ZetaSQL.
    */
-  private static boolean udfSupportsLiteralType(RelDataType type) {
+  static boolean udfSupportsLiteralType(RelDataType type) {
     switch (type.getSqlTypeName()) {
       case BIGINT:
       case BOOLEAN:
@@ -147,7 +147,7 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
    * Returns true only if the input type can be correctly implemented by {@link
    * org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel} in ZetaSQL.
    */
-  private static boolean udfSupportsInputType(RelDataType type) {
+  static boolean udfSupportsInputType(RelDataType type) {
     switch (type.getSqlTypeName()) {
       case BIGINT:
       case BOOLEAN:

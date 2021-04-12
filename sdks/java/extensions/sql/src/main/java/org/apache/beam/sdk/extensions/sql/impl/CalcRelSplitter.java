@@ -56,8 +56,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 
 /**
- * CalcRelSplitter operates on a {@link org.apache.calcite.rel.core.Calc} with multiple {@link
- * RexCall} sub-expressions that cannot all be implemented by a single concrete {@link RelNode}.
+ * CalcRelSplitter operates on a {@link Calc} with multiple {@link RexCall} sub-expressions that
+ * cannot all be implemented by a single concrete {@link RelNode}.
+ *
+ * <p>This is a copy of {@link
+ * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcRelSplitter} modified to
+ * work with Beam. TODO(CALCITE-4538) consider contributing these changes back upstream.
  *
  * <p>For example, the Java and Fennel calculator do not implement an identical set of operators.
  * The Calc can be used to split a single Calc with mixed Java- and Fennel-only operators into a
@@ -69,6 +73,7 @@ import org.slf4j.Logger;
  *
  * <p>See {@link ProjectToWindowRule} for an example of how this class is used.
  */
+@SuppressWarnings({"all", "OperatorPrecedence"})
 public abstract class CalcRelSplitter {
   // ~ Static fields/initializers ---------------------------------------------
 
@@ -93,7 +98,7 @@ public abstract class CalcRelSplitter {
    * @param calc Calc to split
    * @param relTypes Array of rel types, e.g. {Java, Fennel}. Must be distinct.
    */
-  CalcRelSplitter(Calc calc, RelBuilder relBuilder, RelType[] relTypes) {
+  public CalcRelSplitter(Calc calc, RelBuilder relBuilder, RelType[] relTypes) {
     this.relBuilder = relBuilder;
     for (int i = 0; i < relTypes.length; i++) {
       assert relTypes[i] != null;
@@ -111,7 +116,7 @@ public abstract class CalcRelSplitter {
 
   // ~ Methods ----------------------------------------------------------------
 
-  RelNode execute() {
+  public RelNode execute() {
     // Check that program is valid. In particular, this means that every
     // expression is trivial (either an atom, or a function applied to
     // references to atoms) and every expression depends only on
@@ -211,12 +216,6 @@ public abstract class CalcRelSplitter {
               conditionExprOrdinal,
               outputRowType);
       rel = relType.makeRel(cluster, traits, relBuilder, rel, program1);
-
-      // Sometimes a level's program merely projects its inputs. We don't
-      // want these. They cause an explosion in the search space.
-      if (rel instanceof LogicalCalc && ((LogicalCalc) rel).getProgram().isTrivial()) {
-        rel = rel.getInput(0);
-      }
 
       rel = handle(rel);
 
@@ -352,16 +351,9 @@ public abstract class CalcRelSplitter {
         }
       }
     }
-    if (levelCount > 0) {
-      // The latest level should be CalcRelType otherwise literals cannot be
-      // implemented.
-      assert "CalcRelType".equals(relTypes[0].name)
-          : "The first RelType should be CalcRelType for proper RexLiteral"
-              + " implementation at the last level, got "
-              + relTypes[0].name;
-      if (levelTypeOrdinals[levelCount - 1] != 0) {
-        levelCount++;
-      }
+    if (levelCount == 0) {
+      // At least one level is always required.
+      levelCount = 1;
     }
     return levelCount;
   }
