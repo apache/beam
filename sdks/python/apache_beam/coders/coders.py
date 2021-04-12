@@ -302,7 +302,7 @@ class Coder(object):
   def register_urn(
       cls,
       urn,  # type: str
-      parameter_type,  # type: Optional[Type[T]]
+      parameter_type: Optional[Type[T]],
   ):
     # type: (...) -> Callable[[Callable[[T, List[Coder], PipelineContext], Any]], Callable[[T, List[Coder], PipelineContext], Any]]
     pass
@@ -312,14 +312,18 @@ class Coder(object):
   def register_urn(
       cls,
       urn,  # type: str
-      parameter_type,  # type: Optional[Type[T]]
-      fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
+      parameter_type: Optional[Type[T]],
+      fn: Callable[[T, List[Coder], PipelineContext], Any],
   ):
     # type: (...) -> None
     pass
 
   @classmethod
-  def register_urn(cls, urn, parameter_type, fn=None):
+  def register_urn(
+      cls,
+      urn,
+      parameter_type: Optional[Type[T]],
+      fn=None) -> Optional[Callable[[T, List[Coder], PipelineContext], Any]]:
     """Registers a urn with a constructor.
 
     For example, if 'beam:fn:foo' had parameter type FooPayload, one could
@@ -331,7 +335,9 @@ class Coder(object):
     A corresponding to_runner_api_parameter method would be expected that
     returns the tuple ('beam:fn:foo', FooPayload)
     """
-    def register(fn):
+    def register(
+        fn: Callable[[T, List[Coder], PipelineContext], Any]
+    ) -> Callable[[T, List[Coder], PipelineContext], Any]:
       cls._known_urns[urn] = parameter_type, fn
       return fn
 
