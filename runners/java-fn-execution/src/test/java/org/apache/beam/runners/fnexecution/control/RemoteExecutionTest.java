@@ -640,7 +640,7 @@ public class RemoteExecutionTest implements Serializable {
               (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
-    final String testPTransformId = "create/ParMultiDo(Metrics)";
+    final String testPTransformId = "create-ParMultiDo-Metrics-";
     BundleProgressHandler progressHandler =
         new BundleProgressHandler() {
           @Override
@@ -802,7 +802,7 @@ public class RemoteExecutionTest implements Serializable {
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(
-                MonitoringInfoConstants.Labels.PCOLLECTION, testPTransformId + ".output");
+                MonitoringInfoConstants.Labels.PCOLLECTION, "create/ParMultiDo(Metrics).output");
             builder.setInt64SumValue(3);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 

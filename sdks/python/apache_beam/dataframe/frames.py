@@ -903,6 +903,33 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary(),
               requires_partition_by=partitionings.Singleton()))
 
+  @property
+  def is_unique(self):
+    def set_index(s):
+      s = s[:]
+      s.index = s
+      return s
+
+    self_index = expressions.ComputedExpression(
+        'set_index',
+        set_index, [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    is_unique_distributed = expressions.ComputedExpression(
+        'is_unique_distributed',
+        lambda s: pd.Series(s.is_unique), [self_index],
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations():
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine',
+              lambda s: s.all(), [is_unique_distributed],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
   plot = property(frame_base.wont_implement_method('plot'))
   pop = frame_base.wont_implement_method('non-lazy')
 
@@ -1870,6 +1897,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 for io_func in dir(io):
   if io_func.startswith('to_'):
     setattr(DeferredDataFrame, io_func, getattr(io, io_func))
+    setattr(DeferredSeries, io_func, getattr(io, io_func))
 
 
 for meth in ('filter', ):
