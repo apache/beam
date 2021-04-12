@@ -124,7 +124,7 @@ class BeamCalcRelType extends CalcRelSplitter.RelType {
       RelBuilder relBuilder,
       RelNode input,
       RexProgram program) {
-    RexProgram normalizedProgram = program.normalize(cluster.getRexBuilder(), null);
+    RexProgram normalizedProgram = program.normalize(cluster.getRexBuilder(), false);
     return new BeamCalcRel(
         cluster,
         traitSet.replace(BeamLogicalConvention.INSTANCE),
