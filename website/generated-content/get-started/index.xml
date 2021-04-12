@@ -2089,11 +2089,11 @@ sure it is the same as ours.&lt;/p>
 &lt;h2 id="api-stability">API stability&lt;/h2>
 &lt;p>Apache Beam generally follows the rules of
 &lt;a href="https://semver.org/">semantic versioning&lt;/a> with exceptions. Version numbers use
-the form &lt;code>major.minor.incremental&lt;/code> and are incremented as follows:&lt;/p>
+the form &lt;code>major.minor.patch&lt;/code> and are incremented as follows:&lt;/p>
 &lt;ul>
 &lt;li>major version for incompatible API changes&lt;/li>
 &lt;li>minor version for new functionality added in a backward-compatible manner, infrequent incompatible API changes&lt;/li>
-&lt;li>incremental version for forward-compatible bug fixes&lt;/li>
+&lt;li>patch version for forward-compatible bug fixes&lt;/li>
 &lt;/ul>
 &lt;p>Please note that APIs marked &lt;a href="https://beam.apache.org/releases/javadoc/2.28.0/org/apache/beam/sdk/annotations/Experimental.html">&lt;code>@Experimental&lt;/code>&lt;/a>
 may change at any point and are not guaranteed to remain compatible across versions.&lt;/p>
