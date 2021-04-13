@@ -716,8 +716,7 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.RESOURCE_HINTS,
           {
               hint: quote_from_bytes(value)
-              for hint,
-              value in resource_hints.items()
+              for (hint, value) in resource_hints.items()
           })
 
     return step
