@@ -36,7 +36,7 @@ public class TpcdsSchemasTest {
   }
 
   @Test
-  public void testCallCenterSchema() throws Exception {
+  public void testCallCenterSchema() {
     Schema callCenterSchema =
         Schema.builder()
             .addField("cc_call_center_sk", Schema.FieldType.INT64)
@@ -77,7 +77,7 @@ public class TpcdsSchemasTest {
   }
 
   @Test
-  public void testCatalogPageSchemaNullable() throws Exception {
+  public void testCatalogPageSchemaNullable() {
     Schema catalogPageSchemaNullable =
         Schema.builder()
             .addNullableField("cp_catalog_page_sk", Schema.FieldType.INT64)
@@ -97,7 +97,7 @@ public class TpcdsSchemasTest {
   }
 
   @Test
-  public void testCustomerAddressSchemaNullable() throws Exception {
+  public void testCustomerAddressSchemaNullable() {
     Schema customerAddressSchemaNullable =
         Schema.builder()
             .addNullableField("ca_address_sk", Schema.FieldType.INT64)

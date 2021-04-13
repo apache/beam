@@ -50,14 +50,12 @@ public class TpcdsRunResult {
 
   public Date getStartDate() {
     Timestamp startTimeStamp = new Timestamp(startTime);
-    Date startDate = new Date(startTimeStamp.getTime());
-    return startDate;
+    return new Date(startTimeStamp.getTime());
   }
 
   public Date getEndDate() {
     Timestamp endTimeStamp = new Timestamp(endTime);
-    Date endDate = new Date(endTimeStamp.getTime());
-    return endDate;
+    return new Date(endTimeStamp.getTime());
   }
 
   public double getElapsedTime() {
@@ -80,8 +78,7 @@ public class TpcdsRunResult {
   public String getQueryName() {
     String jobName = getJobName();
     int endIndex = jobName.indexOf("result");
-    String queryName = jobName.substring(0, endIndex);
-    return queryName;
+    return jobName.substring(0, endIndex);
   }
 
   public String getDataSize() throws Exception {
@@ -89,7 +86,7 @@ public class TpcdsRunResult {
     return TpcdsParametersReader.getAndCheckDataSize(pipelineOptions.as(TpcdsOptions.class));
   }
 
-  public String getDialect() throws Exception {
+  public String getDialect() {
     PipelineOptions pipelineOptions = getPipelineOptions();
     String queryPlannerClassName =
         pipelineOptions.as(BeamSqlPipelineOptions.class).getPlannerName();

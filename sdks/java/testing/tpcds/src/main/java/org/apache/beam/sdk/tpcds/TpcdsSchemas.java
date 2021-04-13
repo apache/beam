@@ -73,34 +73,32 @@ public class TpcdsSchemas {
    * @return A map of all tpcds table schemas with their table names as keys.
    */
   public static Map<String, Schema> getTpcdsSchemasImmutableMap() {
-    ImmutableMap<String, Schema> immutableSchemaMap =
-        ImmutableMap.<String, Schema>builder()
-            .put("call_center", callCenterSchema)
-            .put("catalog_page", catalogPageSchema)
-            .put("catalog_returns", catalogReturnsSchema)
-            .put("catalog_sales", catalogSalesSchema)
-            .put("customer", customerSchema)
-            .put("customer_address", customerAddressSchema)
-            .put("customer_demographics", customerDemographicsSchema)
-            .put("date_dim", dateDimSchema)
-            .put("household_demographics", householdDemographicsSchema)
-            .put("income_band", incomeBandSchema)
-            .put("inventory", inventorySchema)
-            .put("item", itemSchema)
-            .put("promotion", promotionSchema)
-            .put("reason", reasonSchema)
-            .put("ship_mode", shipModeSchema)
-            .put("store", storeSchema)
-            .put("store_returns", storeReturnsSchema)
-            .put("store_sales", storeSalesSchema)
-            .put("time_dim", timeDimSchema)
-            .put("warehouse", warehouseSchema)
-            .put("web_page", webPageSchema)
-            .put("web_returns", webReturnsSchema)
-            .put("web_sales", webSalesSchema)
-            .put("web_site", webSiteSchema)
-            .build();
-    return immutableSchemaMap;
+    return ImmutableMap.<String, Schema>builder()
+        .put("call_center", callCenterSchema)
+        .put("catalog_page", catalogPageSchema)
+        .put("catalog_returns", catalogReturnsSchema)
+        .put("catalog_sales", catalogSalesSchema)
+        .put("customer", customerSchema)
+        .put("customer_address", customerAddressSchema)
+        .put("customer_demographics", customerDemographicsSchema)
+        .put("date_dim", dateDimSchema)
+        .put("household_demographics", householdDemographicsSchema)
+        .put("income_band", incomeBandSchema)
+        .put("inventory", inventorySchema)
+        .put("item", itemSchema)
+        .put("promotion", promotionSchema)
+        .put("reason", reasonSchema)
+        .put("ship_mode", shipModeSchema)
+        .put("store", storeSchema)
+        .put("store_returns", storeReturnsSchema)
+        .put("store_sales", storeSalesSchema)
+        .put("time_dim", timeDimSchema)
+        .put("warehouse", warehouseSchema)
+        .put("web_page", webPageSchema)
+        .put("web_returns", webReturnsSchema)
+        .put("web_sales", webSalesSchema)
+        .put("web_site", webSiteSchema)
+        .build();
   }
 
   public static Schema getCallCenterSchema() {
@@ -199,7 +197,7 @@ public class TpcdsSchemas {
     return webSiteSchema;
   }
 
-  private static Schema callCenterSchema =
+  private static final Schema callCenterSchema =
       Schema.builder()
           .addField("cc_call_center_sk", Schema.FieldType.INT64)
           .addField("cc_call_center_id", Schema.FieldType.STRING)
@@ -234,7 +232,7 @@ public class TpcdsSchemas {
           .addNullableField("cc_tax_percentage", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema catalogPageSchema =
+  private static final Schema catalogPageSchema =
       Schema.builder()
           .addField("cp_catalog_page_sk", Schema.FieldType.INT64)
           .addField("cp_catalog_page_id", Schema.FieldType.STRING)
@@ -247,7 +245,7 @@ public class TpcdsSchemas {
           .addNullableField("cp_type", Schema.FieldType.STRING)
           .build();
 
-  private static Schema catalogReturnsSchema =
+  private static final Schema catalogReturnsSchema =
       Schema.builder()
           .addNullableField("cr_returned_date_sk", Schema.FieldType.INT64)
           .addNullableField("cr_returned_time_sk", Schema.FieldType.INT64)
@@ -278,7 +276,7 @@ public class TpcdsSchemas {
           .addNullableField("cr_net_loss", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema catalogSalesSchema =
+  private static final Schema catalogSalesSchema =
       Schema.builder()
           .addNullableField("cs_sold_date_sk", Schema.FieldType.INT64)
           .addNullableField("cs_sold_time_sk", Schema.FieldType.INT64)
@@ -316,7 +314,7 @@ public class TpcdsSchemas {
           .addNullableField("cs_net_profit", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema customerSchema =
+  private static final Schema customerSchema =
       Schema.builder()
           .addField("c_customer_sk", Schema.FieldType.INT64)
           .addField("c_customer_id", Schema.FieldType.STRING)
@@ -338,7 +336,7 @@ public class TpcdsSchemas {
           .addNullableField("c_last_review_date_sk", Schema.FieldType.INT64)
           .build();
 
-  private static Schema customerAddressSchema =
+  private static final Schema customerAddressSchema =
       Schema.builder()
           .addField("ca_address_sk", Schema.FieldType.INT64)
           .addField("ca_address_id", Schema.FieldType.STRING)
@@ -355,7 +353,7 @@ public class TpcdsSchemas {
           .addNullableField("ca_location_type", Schema.FieldType.STRING)
           .build();
 
-  private static Schema customerDemographicsSchema =
+  private static final Schema customerDemographicsSchema =
       Schema.builder()
           .addField("cd_demo_sk", Schema.FieldType.INT64)
           .addNullableField("cd_gender", Schema.FieldType.STRING)
@@ -368,7 +366,7 @@ public class TpcdsSchemas {
           .addNullableField("cd_dep_college_count", Schema.FieldType.INT64)
           .build();
 
-  private static Schema dateDimSchema =
+  private static final Schema dateDimSchema =
       Schema.builder()
           .addField("d_date_sk", Schema.FieldType.INT64)
           .addField("d_date_id", Schema.FieldType.STRING)
@@ -400,7 +398,7 @@ public class TpcdsSchemas {
           .addNullableField("d_current_year", Schema.FieldType.STRING)
           .build();
 
-  private static Schema householdDemographicsSchema =
+  private static final Schema householdDemographicsSchema =
       Schema.builder()
           .addField("hd_demo_sk", Schema.FieldType.INT64)
           .addNullableField("hd_income_band_sk", Schema.FieldType.INT64)
@@ -409,14 +407,14 @@ public class TpcdsSchemas {
           .addNullableField("hd_vehicle_count", Schema.FieldType.INT64)
           .build();
 
-  private static Schema incomeBandSchema =
+  private static final Schema incomeBandSchema =
       Schema.builder()
           .addField("ib_income_band_sk", Schema.FieldType.INT64)
           .addNullableField("ib_lower_bound", Schema.FieldType.INT64)
           .addNullableField("ib_upper_bound", Schema.FieldType.INT64)
           .build();
 
-  private static Schema inventorySchema =
+  private static final Schema inventorySchema =
       Schema.builder()
           .addField("inv_date_sk", Schema.FieldType.INT32)
           .addField("inv_item_sk", Schema.FieldType.INT32)
@@ -424,7 +422,7 @@ public class TpcdsSchemas {
           .addNullableField("inv_quantity_on_hand", Schema.FieldType.INT32)
           .build();
 
-  private static Schema itemSchema =
+  private static final Schema itemSchema =
       Schema.builder()
           .addField("i_item_sk", Schema.FieldType.INT64)
           .addField("i_item_id", Schema.FieldType.STRING)
@@ -450,7 +448,7 @@ public class TpcdsSchemas {
           .addNullableField("i_product_name", Schema.FieldType.STRING)
           .build();
 
-  private static Schema promotionSchema =
+  private static final Schema promotionSchema =
       Schema.builder()
           .addField("p_promo_sk", Schema.FieldType.INT64)
           .addField("p_promo_id", Schema.FieldType.STRING)
@@ -473,14 +471,14 @@ public class TpcdsSchemas {
           .addNullableField("p_discount_active", Schema.FieldType.STRING)
           .build();
 
-  private static Schema reasonSchema =
+  private static final Schema reasonSchema =
       Schema.builder()
           .addField("r_reason_sk", Schema.FieldType.INT64)
           .addField("r_reason_id", Schema.FieldType.STRING)
           .addNullableField("r_reason_desc", Schema.FieldType.STRING)
           .build();
 
-  private static Schema shipModeSchema =
+  private static final Schema shipModeSchema =
       Schema.builder()
           .addField("sm_ship_mode_sk", Schema.FieldType.INT64)
           .addField("sm_ship_mode_id", Schema.FieldType.STRING)
@@ -490,7 +488,7 @@ public class TpcdsSchemas {
           .addNullableField("sm_contract", Schema.FieldType.STRING)
           .build();
 
-  private static Schema storeSchema =
+  private static final Schema storeSchema =
       Schema.builder()
           .addField("s_store_sk", Schema.FieldType.INT64)
           .addField("s_store_id", Schema.FieldType.STRING)
@@ -523,7 +521,7 @@ public class TpcdsSchemas {
           .addNullableField("s_tax_percentage", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema storeReturnsSchema =
+  private static final Schema storeReturnsSchema =
       Schema.builder()
           .addNullableField("sr_returned_date_sk", Schema.FieldType.INT64)
           .addNullableField("sr_return_time_sk", Schema.FieldType.INT64)
@@ -547,7 +545,7 @@ public class TpcdsSchemas {
           .addNullableField("sr_net_loss", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema storeSalesSchema =
+  private static final Schema storeSalesSchema =
       Schema.builder()
           .addNullableField("ss_sold_date_sk", Schema.FieldType.INT64)
           .addNullableField("ss_sold_time_sk", Schema.FieldType.INT64)
@@ -574,7 +572,7 @@ public class TpcdsSchemas {
           .addNullableField("ss_net_profit", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema timeDimSchema =
+  private static final Schema timeDimSchema =
       Schema.builder()
           .addField("t_time_sk", Schema.FieldType.INT64)
           .addField("t_time_id", Schema.FieldType.STRING)
@@ -588,7 +586,7 @@ public class TpcdsSchemas {
           .addNullableField("t_meal_time", Schema.FieldType.STRING)
           .build();
 
-  private static Schema warehouseSchema =
+  private static final Schema warehouseSchema =
       Schema.builder()
           .addField("w_warehouse_sk", Schema.FieldType.INT64)
           .addField("w_warehouse_id", Schema.FieldType.STRING)
@@ -606,7 +604,7 @@ public class TpcdsSchemas {
           .addNullableField("w_gmt_offset", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema webPageSchema =
+  private static final Schema webPageSchema =
       Schema.builder()
           .addField("wp_web_page_sk", Schema.FieldType.INT64)
           .addField("wp_web_page_id", Schema.FieldType.STRING)
@@ -624,7 +622,7 @@ public class TpcdsSchemas {
           .addNullableField("wp_max_ad_count", Schema.FieldType.INT64)
           .build();
 
-  private static Schema webReturnsSchema =
+  private static final Schema webReturnsSchema =
       Schema.builder()
           .addNullableField("wr_returned_date_sk", Schema.FieldType.INT64)
           .addNullableField("wr_returned_time_sk", Schema.FieldType.INT64)
@@ -652,7 +650,7 @@ public class TpcdsSchemas {
           .addNullableField("wr_net_loss", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema webSalesSchema =
+  private static final Schema webSalesSchema =
       Schema.builder()
           .addNullableField("ws_sold_date_sk", Schema.FieldType.INT32)
           .addNullableField("ws_sold_time_sk", Schema.FieldType.INT32)
@@ -690,7 +688,7 @@ public class TpcdsSchemas {
           .addNullableField("ws_net_profit", Schema.FieldType.DOUBLE)
           .build();
 
-  private static Schema webSiteSchema =
+  private static final Schema webSiteSchema =
       Schema.builder()
           .addField("web_site_sk", Schema.FieldType.STRING)
           .addField("web_site_id", Schema.FieldType.STRING)

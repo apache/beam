@@ -47,7 +47,7 @@ public class TpcdsParametersReader {
 
   /**
    * Get and check queries entered by user. This has to be a string of numbers separated by commas
-   * or "all" which means run all 99 queiries. All query numbers have to be between 1 and 99.
+   * or "all" which means run all 99 queries. All query numbers have to be between 1 and 99.
    *
    * @param tpcdsOptions TpcdsOptions object constructed from user input
    * @return An array of query names, for example "1,2,7" will be output as "query1,query2,query7"
@@ -57,7 +57,7 @@ public class TpcdsParametersReader {
     String queryNums = tpcdsOptions.getQueries();
 
     String[] queryNumArr;
-    if (queryNums.toLowerCase().equals("all")) {
+    if (queryNums.equalsIgnoreCase("all")) {
       // All 99 TPC-DS queries need to be executed.
       queryNumArr = new String[99];
       for (int i = 0; i < 99; i++) {

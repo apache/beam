@@ -33,7 +33,7 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class RowToCsv extends PTransform<PCollection<Row>, PCollection<String>>
     implements Serializable {
-  private CSVFormat csvFormat;
+  private final CSVFormat csvFormat;
 
   public RowToCsv(CSVFormat csvFormat) {
     this.csvFormat = csvFormat;
