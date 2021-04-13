@@ -558,10 +558,6 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   attrs = property(frame_base.wont_implement_method('experimental'))
 
-  first = last = frame_base.wont_implement_method('order-sensitive')
-  head = tail = frame_base.wont_implement_method('order-sensitive')
-  interpolate = frame_base.wont_implement_method('order-sensitive')
-
   reorder_levels = frame_base._proxy_method(
       'reorder_levels',
       requires_partition_by=partitionings.Arbitrary(),
@@ -704,8 +700,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   array = property(frame_base.wont_implement_method('non-deferred value'))
 
-  argmax = frame_base.wont_implement_method('order-sensitive')
-  argmin = frame_base.wont_implement_method('order-sensitive')
   ravel = frame_base.wont_implement_method('non-deferred value')
 
   rename = frame_base._elementwise_method('rename', base=pd.Series)
@@ -948,9 +942,20 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   mean = frame_base._agg_method('mean')
   median = frame_base._agg_method('median')
 
-  cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
-      'order-sensitive')
-  diff = frame_base.wont_implement_method('order-sensitive')
+  argmax = frame_base.order_sensitive_method(pd.Series, 'argmax')
+  argmin = frame_base.order_sensitive_method(pd.Series, 'argmin')
+  cummax = frame_base.order_sensitive_method(pd.Series, 'cummax')
+  cummin = frame_base.order_sensitive_method(pd.Series, 'cummin')
+  cumprod = frame_base.order_sensitive_method(pd.Series, 'cumprod')
+  cumsum = frame_base.order_sensitive_method(pd.Series, 'cumsum')
+  diff = frame_base.order_sensitive_method(pd.Series, 'diff')
+  first = frame_base.order_sensitive_method(pd.Series, 'first')
+  head = frame_base.order_sensitive_method(pd.Series, 'head')
+  interpolate = frame_base.order_sensitive_method(pd.Series, 'interpolate')
+  last = frame_base.order_sensitive_method(pd.Series, 'last')
+  searchsorted = frame_base.order_sensitive_method(pd.Series, 'searchsorted')
+  shift = frame_base.order_sensitive_method(pd.Series, 'shift')
+  tail = frame_base.order_sensitive_method(pd.Series, 'tail')
 
   filter = frame_base._elementwise_method('filter', base=pd.Series)
 
@@ -1072,10 +1077,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             requires_partition_by=requires_partition_by))
 
   round = frame_base._elementwise_method('round', base=pd.Series)
-
-  searchsorted = frame_base.wont_implement_method('order-sensitive')
-
-  shift = frame_base.wont_implement_method('order-sensitive')
 
   take = frame_base.wont_implement_method('deprecated')
 
@@ -1517,9 +1518,16 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
 
 
-  cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
-      'order-sensitive')
-  diff = frame_base.wont_implement_method('order-sensitive')
+  cummax = frame_base.order_sensitive_method(pd.DataFrame, 'cummax')
+  cummin = frame_base.order_sensitive_method(pd.DataFrame, 'cummin')
+  cumprod = frame_base.order_sensitive_method(pd.DataFrame, 'cumprod')
+  cumsum = frame_base.order_sensitive_method(pd.DataFrame, 'cumsum')
+  diff = frame_base.order_sensitive_method(pd.DataFrame, 'diff')
+  first = frame_base.order_sensitive_method(pd.DataFrame, 'first')
+  head = frame_base.order_sensitive_method(pd.DataFrame, 'head')
+  interpolate = frame_base.order_sensitive_method(pd.DataFrame, 'interpolate')
+  last = frame_base.order_sensitive_method(pd.DataFrame, 'last')
+  tail = frame_base.order_sensitive_method(pd.DataFrame, 'tail')
 
   def dot(self, other):
     # We want to broadcast the right hand side to all partitions of the left.
@@ -2174,16 +2182,26 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   hist = frame_base.wont_implement_method('plot')
   plot = frame_base.wont_implement_method('plot')
 
-  first = frame_base.wont_implement_method('order sensitive')
-  last = frame_base.wont_implement_method('order sensitive')
-  head = frame_base.wont_implement_method('order sensitive')
-  tail = frame_base.wont_implement_method('order sensitive')
-  nth = frame_base.wont_implement_method('order sensitive')
-  cumcount = frame_base.wont_implement_method('order sensitive')
-  cummax = frame_base.wont_implement_method('order sensitive')
-  cummin = frame_base.wont_implement_method('order sensitive')
-  cumsum = frame_base.wont_implement_method('order sensitive')
-  cumprod = frame_base.wont_implement_method('order sensitive')
+  first = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'first')
+  last = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'last')
+  head = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'head')
+  tail = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'tail')
+  nth = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'nth')
+  cumcount = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'cumcount')
+  cummax = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'cummax')
+  cummin = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'cummin')
+  cumsum = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'cumsum')
+  cumprod = frame_base.order_sensitive_method(
+      pd.core.groupby.generic.DataFrameGroupBy, 'cumprod')
 
   # TODO(robertwb): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method('non-deferred')

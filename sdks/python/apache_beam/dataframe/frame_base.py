@@ -337,6 +337,24 @@ def wont_implement_method(msg):
   return wrapper
 
 
+def order_sensitive_method(base_type, name):
+  def wrapper(*args, **kwargs):
+    raise WontImplementError(
+        f"'{name}' is not supported because it is "
+        "order sensitive.",
+        reason="order-sensitive")
+
+  wrapper.__name__ = name
+  wrapper.__doc__ = f"""pandas.{base_type.__name__}.{name} is not supported in
+                    the Beam DataFrame API because it is order-sensitive.
+
+                    For more information see
+                    https://s.apache.org/dataframe-order-sensitive-operations.
+                    """
+
+  return wrapper
+
+
 def not_implemented_method(op, jira='BEAM-9547'):
   """Generate a stub method for `op` that simply raises a NotImplementedError.
 
