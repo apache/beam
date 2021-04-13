@@ -250,7 +250,7 @@ public class ReflectHelpers {
   /**
    * Finds the appropriate {@code ClassLoader} to be used by the {@link ServiceLoader#load} call,
    * which by default would use the context {@code ClassLoader}, which can be null. The fallback is
-   * as follows: context ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   * as follows: context ClassLoader, class ClassLoader and finally the system ClassLoader.
    */
   public static ClassLoader findClassLoader() {
     return findClassLoader(Thread.currentThread().getContextClassLoader());
