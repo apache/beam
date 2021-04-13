@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -49,7 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * )
  * COMMENT 'this is the table orders'
  * TYPE kafka
- * // One broker host:port pair to bootstrap with and a topic.
+ * // Optional. One broker host:port pair to bootstrap with and a topic.
  * // Only one topic overall may be provided for writing.
  * LOCATION 'my.company.url.com:2181/topic1'
  * // Extra bootstrap_servers and topics can be provided explicitly. These will be merged
@@ -79,13 +80,12 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     return parsed;
   }
 
-  private static List<String> mergeParam(String initial, @Nullable List<Object> toMerge) {
-    if (toMerge == null) {
-      return ImmutableList.of(initial);
-    }
+  private static List<String> mergeParam(Optional<String> initial, @Nullable List<Object> toMerge) {
     ImmutableList.Builder<String> merged = ImmutableList.builder();
-    merged.add(initial);
-    toMerge.forEach(o -> merged.add(o.toString()));
+    initial.ifPresent(merged::add);
+    if (toMerge != null) {
+      toMerge.forEach(o -> merged.add(o.toString()));
+    }
     return merged.build();
   }
 
@@ -94,10 +94,16 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     Schema schema = table.getSchema();
     JSONObject properties = table.getProperties();
 
-    ParsedLocation parsedLocation = parseLocation(checkArgumentNotNull(table.getLocation()));
-    List<String> topics = mergeParam(parsedLocation.topic, properties.getJSONArray("topics"));
+    Optional<ParsedLocation> parsedLocation = Optional.empty();
+    if (!Strings.isNullOrEmpty(table.getLocation())) {
+      parsedLocation = Optional.of(parseLocation(checkArgumentNotNull(table.getLocation())));
+    }
+    List<String> topics =
+        mergeParam(parsedLocation.map(loc -> loc.topic), properties.getJSONArray("topics"));
     List<String> allBootstrapServers =
-        mergeParam(parsedLocation.brokerLocation, properties.getJSONArray("bootstrap_servers"));
+        mergeParam(
+            parsedLocation.map(loc -> loc.brokerLocation),
+            properties.getJSONArray("bootstrap_servers"));
     String bootstrapServers = String.join(",", allBootstrapServers);
 
     Optional<String> payloadFormat =
