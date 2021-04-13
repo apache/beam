@@ -41,6 +41,7 @@ from future.moves import pickle
 from past.builtins import unicode
 
 from apache_beam.coders import coder_impl
+from apache_beam.coders import Coder
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
