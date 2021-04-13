@@ -72,13 +72,12 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
   TableReference = None
-
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 
