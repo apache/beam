@@ -15,19 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** TPC-DS test suite. */
 package org.apache.beam.sdk.tpcds;
-
-/** Main driver program to run TPC-DS benchmark. */
-public class BeamTpcds {
-  /**
-   * The main method can choose to run either SqlTransformRunner.runUsingSqlTransform() or
-   * BeamSqlEnvRunner.runUsingBeamSqlEnv() Currently the former has better performance so it is
-   * chosen.
-   *
-   * @param args Command line arguments
-   * @throws Exception
-   */
-  public static void main(String[] args) throws Exception {
-    SqlTransformRunner.runUsingSqlTransform(args);
-  }
-}
