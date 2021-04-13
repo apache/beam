@@ -449,7 +449,7 @@ class StandardOptions(PipelineOptions):
         '--resource_hint',
         dest='resource_hints',
         action='append',
-        default=None,
+        default=[],
         help=(
             'Resource hint to set in the pipeline execution environment.'
             'Hints specified via this option override hints specified '

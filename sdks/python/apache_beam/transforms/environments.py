@@ -809,7 +809,7 @@ def python_sdk_dependencies(options, tmp_dir=None):
 def resource_hints_from_options(options):
   # type: (PipelineOptions) -> Dict[str, bytes]
   resource_hints = {}
-  option_specified_hints = options.view_as(StandardOptions).resource_hints or []
+  option_specified_hints = options.view_as(StandardOptions).resource_hints
   for hint in option_specified_hints:
     if '=' in hint:
       k, v = hint.split('=', maxsplit=1)
