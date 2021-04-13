@@ -27,7 +27,6 @@ import java.util.Set;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
@@ -73,9 +72,10 @@ public class PCollectionConsumerRegistry {
         FnDataReceiver consumer,
         String pTransformId,
         SimpleExecutionState state,
-        Coder valueCoder) {
+        Coder valueCoder,
+        MetricsContainer metricsContainer) {
       return new AutoValue_PCollectionConsumerRegistry_ConsumerAndMetadata(
-          consumer, pTransformId, state, valueCoder);
+          consumer, pTransformId, state, valueCoder, metricsContainer);
     }
 
     public abstract FnDataReceiver getConsumer();
@@ -85,6 +85,8 @@ public class PCollectionConsumerRegistry {
     public abstract SimpleExecutionState getExecutionState();
 
     public abstract Coder getValueCoder();
+
+    public abstract MetricsContainer getMetricsContainer();
   }
 
   private ListMultimap<String, ConsumerAndMetadata> pCollectionIdsToConsumers;
@@ -140,7 +142,13 @@ public class PCollectionConsumerRegistry {
     executionStates.register(state);
 
     pCollectionIdsToConsumers.put(
-        pCollectionId, ConsumerAndMetadata.forConsumer(consumer, pTransformId, state, valueCoder));
+        pCollectionId,
+        ConsumerAndMetadata.forConsumer(
+            consumer,
+            pTransformId,
+            state,
+            valueCoder,
+            metricsContainerRegistry.getContainer(pTransformId)));
   }
 
   /** Reset the execution states of the registered functions. */
@@ -210,6 +218,7 @@ public class PCollectionConsumerRegistry {
     private final Counter unboundedElementCountCounter;
     private final SampleByteSizeDistribution<T> unboundSampledByteSizeDistribution;
     private final Coder<T> coder;
+    private final MetricsContainer metricsContainer;
 
     public MetricTrackingFnDataReceiver(
         String pCollectionId, ConsumerAndMetadata consumerAndMetadata) {
@@ -235,6 +244,7 @@ public class PCollectionConsumerRegistry {
               unboundMetricContainer.getDistribution(sampledByteSizeMetricName));
 
       this.coder = consumerAndMetadata.getValueCoder();
+      this.metricsContainer = consumerAndMetadata.getMetricsContainer();
     }
 
     @Override
@@ -247,8 +257,7 @@ public class PCollectionConsumerRegistry {
       // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
       // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric.
-      MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
-      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
+      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
         try (Closeable trackerCloseable = stateTracker.enterState(state)) {
           this.delegate.accept(input);
         }
@@ -305,9 +314,8 @@ public class PCollectionConsumerRegistry {
           this.unboundedSampledByteSizeDistribution.tryUpdate(
               input.getValue(), consumerAndMetadata.getValueCoder());
         }
-        MetricsContainerImpl container =
-            metricsContainerRegistry.getContainer(consumerAndMetadata.getPTransformId());
-        try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
+        try (Closeable closeable =
+            MetricsEnvironment.scopedMetricsContainer(consumerAndMetadata.getMetricsContainer())) {
           try (Closeable trackerCloseable =
               stateTracker.enterState(consumerAndMetadata.getExecutionState())) {
             consumerAndMetadata.getConsumer().accept(input);
@@ -404,7 +412,8 @@ public class PCollectionConsumerRegistry {
       samplingToken++;
       // Use traditional sampling until the threshold of 30
       if (nextSamplingToken == 0) {
-        if (randomGenerator.nextInt((int) samplingToken) <= RESERVOIR_SIZE) {
+        if (samplingToken <= RESERVOIR_SIZE
+            || randomGenerator.nextInt((int) samplingToken) < RESERVOIR_SIZE) {
           if (samplingToken > SAMPLING_THRESHOLD) {
             nextSamplingToken = getNextSamplingToken(samplingToken);
           }
