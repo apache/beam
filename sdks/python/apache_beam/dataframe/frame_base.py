@@ -537,4 +537,16 @@ class WontImplementError(NotImplementedError):
   Raising this error will also prevent this doctests from being validated
   when run with the beam dataframe validation doctest runner.
   """
-  pass
+
+  _REASONS = {
+      'order-sensitive': 'https://s.apache.org/dataframe-order-sensitive-operations',  # pylint: disable=line-too-long
+  }
+
+  def __init__(self, msg, reason=None):
+    if reason is not None:
+      if reason not in self._REASONS:
+        raise AssertionError(
+            f"type must be one of {list(self._REASONS.keys())}, got {reason!r}")
+      msg = f"{msg}\nFor more information see {self._REASONS[reason]}."
+
+    super(WontImplementError, self).__init__(msg)

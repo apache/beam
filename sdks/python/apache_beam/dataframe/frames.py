@@ -143,7 +143,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     # Default value is None, but is overriden with index.
     axis = axis or 'index'
     if method is not None and axis in (0, 'index'):
-      raise frame_base.WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError(
+          f"fillna(method={method!r}) is not supported because it is "
+          "order-sensitive. Only fillna(method=None) is supported.",
+          reason="order-sensitive")
     if isinstance(value, frame_base.DeferredBase):
       value_expr = value._expr
     else:
@@ -270,7 +273,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           "DataFrame column by specifying its name.")
 
     elif isinstance(by, np.ndarray):
-      raise frame_base.WontImplementError('order sensitive')
+      raise frame_base.WontImplementError(
+          "Grouping by a concrete ndarray is order sensitive.",
+          reason="order-sensitive")
 
     elif isinstance(self, DeferredDataFrame):
       if not isinstance(by, list):
@@ -336,8 +341,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def tz_localize(self, ambiguous, **kwargs):
     if isinstance(ambiguous, np.ndarray):
       raise frame_base.WontImplementError(
-          "ambiguous=ndarray is not supported, please use a deferred Series "
-          "instead.")
+          "tz_localize(ambiguous=ndarray) is not supported because it makes "
+          "this operation sensitive to the order of the data. Please use a "
+          "DeferredSeries instead.",
+          reason="order-sensitive")
     elif isinstance(ambiguous, frame_base.DeferredFrame):
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
@@ -349,7 +356,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
               preserves_partition_by=partitionings.Singleton()))
     elif ambiguous == 'infer':
       # infer attempts to infer based on the order of the timestamps
-      raise frame_base.WontImplementError("order-sensitive")
+      raise frame_base.WontImplementError(
+          f"tz_localize(ambiguous={ambiguous!r}) is not allowed because it "
+          "makes this operation sensitive to the order of the data.",
+          reason="order-sensitive")
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -449,7 +459,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if axis in (0, 'index'):
       # axis=index imposes an ordering on the DataFrame rows which we do not
       # support
-      raise frame_base.WontImplementError("order-sensitive")
+      raise frame_base.WontImplementError("imposes ordering")
     else:
       # axis=columns will reorder the columns based on the data
       raise frame_base.WontImplementError("non-deferred column values")
@@ -464,8 +474,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     https://s.apache.org/dataframe-order-sensitive-operations). Only
     ``axis=columns`` is allowed."""
     if axis in (0, 'index'):
-      # axis=index imposes an ordering on the DataFrame which we do not support
-      raise frame_base.WontImplementError("order-sensitive")
+      # axis=rows imposes an ordering on the DataFrame which we do not support
+      raise frame_base.WontImplementError("imposes ordering")
 
     # axis=columns reorders the columns by name
     return frame_base.DeferredFrame.wrap(
@@ -590,7 +600,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     elif (isinstance(key, int) or _is_integer_slice(key)
           ) and self._expr.proxy().index._should_fallback_to_positional():
-      raise frame_base.WontImplementError('order sensitive')
+      raise frame_base.WontImplementError(
+          "Accessing an item by an integer key is order sensitive for this "
+          "Series.",
+          reason="order-sensitive")
 
     elif isinstance(key, slice) or callable(key):
       return frame_base.DeferredFrame.wrap(
@@ -614,7 +627,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary()))
 
     elif pd.core.series.is_iterator(key) or pd.core.common.is_bool_indexer(key):
-      raise frame_base.WontImplementError('order sensitive')
+      raise frame_base.WontImplementError(
+          "Accessing a DeferredSeries with an iterator is sensitive to the "
+          "order of the data.",
+          reason="order-sensitive")
 
     else:
       # We could consider returning a deferred scalar, but that might
@@ -633,7 +649,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           str(type(to_append)))
     if ignore_index:
       raise frame_base.WontImplementError(
-          "append(ignore_index=True) is order sensitive")
+          "append(ignore_index=True) is order sensitive because it requires "
+          "generating a new index based on the order of the data.",
+          reason="order-sensitive")
 
     if verify_integrity:
       # verifying output has a unique index requires global index.
@@ -668,7 +686,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     if level is not None:
       raise NotImplementedError('per-level align')
     if method is not None:
-      raise frame_base.WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError(
+          f"align(method={method!r}) is not supported because it is "
+          "order sensitive. Only align(method=None) is supported.",
+          reason="order-sensitive")
     # We're using pd.concat here as expressions don't yet support
     # multiple return values.
     aligned = frame_base.DeferredFrame.wrap(
@@ -947,7 +968,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
-      raise frame_base.WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError(
+          "nlargest(keep={keep!r}) is not supported because it is "
+          "order sensitive. Only keep=\"all\" is supported.",
+          reason="order-sensitive")
     kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
         'nlargest-per-partition',
@@ -968,7 +992,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
-      raise frame_base.WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError(
+          "nsmallest(keep={keep!r}) is not supported because it is "
+          "order sensitive. Only keep=\"all\" is supported.",
+          reason="order-sensitive")
     kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
         'nsmallest-per-partition',
@@ -1021,10 +1048,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def replace(self, to_replace, value, limit, method, **kwargs):
     if method is not None and not isinstance(to_replace,
                                              dict) and value is None:
-      # Can't rely on method for replacement, it's order-sensitive
       # pandas only relies on method if to_replace is not a dictionary, and
       # value is None
-      raise frame_base.WontImplementError("order-sensitive")
+      raise frame_base.WontImplementError(
+          f"replace(method={method!r}) is not supported because it is "
+          "order sensitive. Only replace(method=None) is supported.",
+          reason="order-sensitive")
 
     if limit is None:
       requires_partition_by = partitionings.Arbitrary()
@@ -1057,7 +1086,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def unique(self, as_series=False):
     if not as_series:
       raise frame_base.WontImplementError(
-          'pass as_series=True to get the result as a (deferred) Series')
+          "unique() is not supported by default because it produces a "
+          "non-deferred result, a numpy array. You may call it with "
+          "unique(as_series=True) to get the result as a DeferredSeries",
+          reason="non-deferred-result")
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'unique',
@@ -1181,7 +1213,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if not copy:
       raise frame_base.WontImplementError('align(copy=False)')
     if method is not None:
-      raise frame_base.WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError(
+          f"align(method={method!r}) is not supported because it is "
+          "order sensitive. Only align(method=None) is supported.",
+          reason="order-sensitive")
     if kwargs:
       raise NotImplementedError('align(%s)' % ', '.join(kwargs.keys()))
 
@@ -1209,7 +1244,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           str(type(other)))
     if ignore_index:
       raise frame_base.WontImplementError(
-          "append(ignore_index=True) is order sensitive")
+          "append(ignore_index=True) is order sensitive because it requires "
+          "generating a new index based on the order of the data.",
+          reason="order-sensitive")
     if verify_integrity:
       raise frame_base.WontImplementError(
           "append(verify_integrity=True) produces an execution time error")
@@ -1263,10 +1300,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def assign(self, **kwargs):
     for name, value in kwargs.items():
       if not callable(value) and not isinstance(value, DeferredSeries):
-        raise frame_base.WontImplementError("Unsupported value for new "
-                                            f"column '{name}': '{value}'. "
-                                            "Only callables and Series "
-                                            "instances are supported.")
+        raise frame_base.WontImplementError(
+            f"Unsupported value for new column '{name}': '{value}'. Only "
+            "callables and DeferredSeries instances are supported. Other types "
+            "make this operation sensitive to the order of the data",
+            reason="order-sensitive")
     return self._elementwise(
         lambda df, *args, **kwargs: df.assign(*args, **kwargs),
         'assign',
@@ -1726,7 +1764,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
-      raise frame_base.WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError(
+          "nlargest(keep={keep!r}) is not supported because it is "
+          "order sensitive. Only keep=\"all\" is supported.",
+          reason="order-sensitive")
     kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
             'nlargest-per-partition',
@@ -1749,7 +1790,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
-      raise frame_base.WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError(
+          "nsmallest(keep={keep!r}) is not supported because it is "
+          "order sensitive. Only keep=\"all\" is supported.",
+          reason="order-sensitive")
     kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
             'nsmallest-per-partition',
@@ -1879,7 +1923,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.maybe_inplace
   def reset_index(self, level=None, **kwargs):
     # TODO: Docs should note that the index is not in the same order as it would
-    # be with pandas. Technically an order-sensitive operation
+    # be with pandas. Technically an order sensitive operation
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
     if level is None or len(level) == self._expr.proxy().index.nlevels:
@@ -2257,13 +2301,13 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
   fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
   filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
-  first = frame_base.wont_implement_method('order sensitive')
+  first = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'first', reason="order-sensitive")
   get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
-  head = frame_base.wont_implement_method('order sensitive')
+  head = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'head', reason="order-sensitive")
   hist = frame_base.wont_implement_method('plot')
   idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
   idxmin = frame_base._elementwise_method('idxmin', base=DataFrameGroupBy)
-  last = frame_base.wont_implement_method('order sensitive')
+  last = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'last', reason="order-sensitive")
   mad = frame_base._elementwise_method('mad', base=DataFrameGroupBy)
   max = frame_base._elementwise_method('max', base=DataFrameGroupBy)
   mean = frame_base._elementwise_method('mean', base=DataFrameGroupBy)
@@ -2279,6 +2323,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   std = frame_base._elementwise_method('std', base=DataFrameGroupBy)
   sum = frame_base._elementwise_method('sum', base=DataFrameGroupBy)
   tail = frame_base.wont_implement_method('order sensitive')
+  tail = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'tail', reason="order-sensitive")
   take = frame_base.wont_implement_method('deprectated')
   tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
   var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
@@ -2398,7 +2443,10 @@ class _DeferredILoc(object):
     if isinstance(index, tuple):
       rows, _ = index
       if rows != slice(None, None, None):
-        raise frame_base.WontImplementError('order-sensitive')
+        raise frame_base.WontImplementError(
+            "Using iloc to select rows is not supported because it's "
+            "position-based indexing is sensitive to the order of the data.",
+            reason="order-sensitive")
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'iloc',
@@ -2407,9 +2455,16 @@ class _DeferredILoc(object):
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Arbitrary()))
     else:
-      raise frame_base.WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError(
+          "Using iloc to select rows is not supported because it's "
+          "position-based indexing is sensitive to the order of the data.",
+          reason="order-sensitive")
 
-  __setitem__ = frame_base.wont_implement_method('iloc.setitem')
+  def __setitem__(self, index, value):
+    raise frame_base.WontImplementError(
+        "Using iloc to mutate a frame is not supported because it's "
+        "position-based indexing is sensitive to the order of the data.",
+        reason="order-sensitive")
 
 
 class _DeferredStringMethods(frame_base.DeferredBase):
@@ -2439,9 +2494,11 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       args = [self._expr] + [other._expr for other in others]
 
     else:
-      raise frame_base.WontImplementError("others must be None, Series, or "
-                                          "List[Series]. List[str] is not "
-                                          "supported.")
+      raise frame_base.WontImplementError(
+          "others must be None, DeferredSeries, or List[DeferredSeries] "
+          f"(encountered {type(others)}). Other types are not supported "
+          "because they make this operation sensitive to the order of the "
+          "data.", reason= "order-sensitive")
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -2478,8 +2535,13 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Arbitrary()))
     elif isinstance(repeats, list):
-      raise frame_base.WontImplementError("repeats must be an integer or a "
-                                          "Series.")
+      raise frame_base.WontImplementError(
+          "str.repeat(repeats=) repeats must be an int or a DeferredSeries. "
+          "Lists are not supported because they make this operation sensitive "
+          "to the order of the data.", reason="order-sensitive")
+    else:
+      raise TypeError("str.repeat(repeats=) value must be an int or a "
+                      f"DeferredSeries (encountered {type(repeats)}).")
 
   get_dummies = frame_base.wont_implement_method('non-deferred column values')
 
