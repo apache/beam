@@ -28,11 +28,11 @@ To execute TPC-DS benchmark for 1Gb dataset on Google Dataflow, run the followin
   --runner=DataflowRunner \
   --queries=3,26,55 \
   --tpcParallel=2 \
-  --dataDirectory=/path/to/tpcds_data/ \  
+  --dataDirectory=/path/to/tpcds_data/ \
   --project=apache-beam-testing \
   --stagingLocation=gs://beamsql_tpcds_1/staging \
   --tempLocation=gs://beamsql_tpcds_2/temp \
-  --dataDirectory=/path/to/tpcds_data/ \  
+  --dataDirectory=/path/to/tpcds_data/ \
   --region=us-west1 \
   --maxNumWorkers=10"
 ```
@@ -44,7 +44,7 @@ To run a query using ZetaSQL planner (currently Query96 can be run using ZetaSQL
   --runner=DataflowRunner \
   --queries=96 \
   --tpcParallel=2 \
-  --dataDirectory=/path/to/tpcds_data/ \  
+  --dataDirectory=/path/to/tpcds_data/ \
   --plannerName=org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner \
   --project=apache-beam-testing \
   --stagingLocation=gs://beamsql_tpcds_1/staging \
