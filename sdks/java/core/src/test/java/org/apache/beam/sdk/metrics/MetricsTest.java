@@ -394,9 +394,7 @@ public class MetricsTest implements Serializable {
         metrics.getCounters(),
         anyOf(
             // Step names are different for portable and non-portable runners.
-            hasItem(
-                metricsResult(
-                    NAMESPACE, "count", "MyStep1/ParMultiDo(Anonymous)", 3L, isCommitted)),
+            hasItem(metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)),
             hasItem(
                 metricsResult(
                     NAMESPACE, "count", "MyStep1-ParMultiDo-Anonymous-", 3L, isCommitted))));
@@ -427,7 +425,7 @@ public class MetricsTest implements Serializable {
                 metricsResult(
                     NAMESPACE,
                     "input",
-                    "MyStep1/ParMultiDo(Anonymous)",
+                    "MyStep1",
                     DistributionResult.create(26L, 3L, 5L, 13L),
                     isCommitted)),
             hasItem(
@@ -453,13 +451,7 @@ public class MetricsTest implements Serializable {
             // Step names are different for portable and non-portable runners.
             hasItem(
                 (Matcher<MetricResult<DistributionResult>>)
-                    distributionMinMax(
-                        NAMESPACE,
-                        "bundle",
-                        "MyStep1/ParMultiDo(Anonymous)",
-                        10L,
-                        40L,
-                        isCommitted)),
+                    distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)),
             hasItem(
                 (Matcher<MetricResult<DistributionResult>>)
                     distributionMinMax(
