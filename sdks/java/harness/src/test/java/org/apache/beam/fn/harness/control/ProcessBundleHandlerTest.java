@@ -227,7 +227,7 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
-    ExecutionStateTracker getStateTracker() {
+    public ExecutionStateTracker getStateTracker() {
       return wrappedBundleProcessor.getStateTracker();
     }
 
