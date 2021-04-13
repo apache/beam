@@ -313,7 +313,7 @@ class Coder(object):
       cls,
       urn,  # type: str
       parameter_type: Optional[Type[T]],
-      fn: Callable[[T, List[Coder], PipelineContext], Any],
+      fn: Callable[[T, List['__class__'], PipelineContext], Any],
   ):
     # type: (...) -> None
     pass
@@ -323,7 +323,7 @@ class Coder(object):
       cls,
       urn,
       parameter_type: Optional[Type[T]],
-      fn=None) -> Optional[Callable[[T, List[Coder], PipelineContext], Any]]:
+      fn=None) -> Optional[Callable[[T, List['__class__'], PipelineContext], Any]]:
     """Registers a urn with a constructor.
 
     For example, if 'beam:fn:foo' had parameter type FooPayload, one could
@@ -336,8 +336,8 @@ class Coder(object):
     returns the tuple ('beam:fn:foo', FooPayload)
     """
     def register(
-        fn: Callable[[T, List[Coder], PipelineContext], Any]
-    ) -> Callable[[T, List[Coder], PipelineContext], Any]:
+        fn: Callable[[T, List['__class__'], PipelineContext], Any]
+    ) -> Callable[[T, List['__class__'], PipelineContext], Any]:
       cls._known_urns[urn] = parameter_type, fn
       return fn
 
