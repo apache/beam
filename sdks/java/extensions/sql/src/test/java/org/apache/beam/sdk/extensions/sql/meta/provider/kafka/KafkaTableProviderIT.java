@@ -137,9 +137,7 @@ public class KafkaTableProviderIT {
   }
 
   private static String buildLocation() {
-    return String.format(
-        "%s?topics=%s",
-        kafkaOptions.getKafkaBootstrapServerAddress(), kafkaOptions.getKafkaTopic());
+    return kafkaOptions.getKafkaBootstrapServerAddress() + "/" + kafkaOptions.getKafkaTopic();
   }
 
   @Test
