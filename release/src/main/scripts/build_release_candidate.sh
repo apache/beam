@@ -36,7 +36,7 @@ else
   exit 1
 fi
 
-SCRIPT_DIR=$(dirname $0)
+SCRIPT_DIR="${PWD}/$(dirname $0)"
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
