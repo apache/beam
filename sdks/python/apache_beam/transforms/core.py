@@ -36,7 +36,6 @@ from past.builtins import unicode
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.options.pipeline_options import TypeOptions
@@ -2932,6 +2931,7 @@ class Create(PTransform):
         self.infer_output_type(None))
 
   def expand(self, pbegin):
+    from apache_beam.coders import typecoders
     assert isinstance(pbegin, pvalue.PBegin)
     coder = typecoders.registry.get_coder(self.get_output_type())
     serialized_values = [coder.encode(v) for v in self.values]
@@ -2958,6 +2958,7 @@ class Create(PTransform):
 
   def as_read(self):
     from apache_beam.io import iobase
+    from apache_beam.coders import typecoders
     coder = typecoders.registry.get_coder(self.get_output_type())
     source = self._create_source_from_iterable(self.values, coder)
     return iobase.Read(source).with_output_types(self.get_output_type())

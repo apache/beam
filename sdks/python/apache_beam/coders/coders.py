@@ -51,7 +51,6 @@ from apache_beam.utils import proto_utils
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.coders.typecoders import CoderRegistry
-  from apache_beam.runners.pipeline_context import PipelineContext
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -119,6 +118,7 @@ def deserialize_coder(serialized):
 
 class Coder(object):
   """Base class for coders."""
+  from apache_beam.runners.pipeline_context import PipelineContext
   def encode(self, value):
     # type: (Any) -> bytes
 
