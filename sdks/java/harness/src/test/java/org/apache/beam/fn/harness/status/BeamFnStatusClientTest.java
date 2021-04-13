@@ -34,7 +34,6 @@ import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
@@ -105,8 +104,6 @@ public class BeamFnStatusClientTest {
     BlockingQueue<WorkerStatusResponse> values = new LinkedBlockingQueue<>();
     BlockingQueue<StreamObserver<WorkerStatusRequest>> requestObservers =
         new LinkedBlockingQueue<>();
-    AtomicReference<StreamObserver<WorkerStatusRequest>> outboundServerObserver =
-        new AtomicReference<>();
     StreamObserver<WorkerStatusResponse> inboundServerObserver =
         TestStreams.withOnNext(values::add).build();
     Server server =
@@ -117,7 +114,6 @@ public class BeamFnStatusClientTest {
                   public StreamObserver<WorkerStatusResponse> workerStatus(
                       StreamObserver<WorkerStatusRequest> responseObserver) {
                     Uninterruptibles.putUninterruptibly(requestObservers, responseObserver);
-                    outboundServerObserver.set(responseObserver);
                     return inboundServerObserver;
                   }
                 })
@@ -136,7 +132,6 @@ public class BeamFnStatusClientTest {
               PipelineOptionsFactory.create());
       StreamObserver<WorkerStatusRequest> requestObserver = requestObservers.take();
       requestObserver.onNext(WorkerStatusRequest.newBuilder().setId("id").build());
-      requestObserver.onCompleted();
       WorkerStatusResponse response = values.take();
       assertThat(response.getStatusInfo(), containsString("No active processing bundles."));
       assertThat(response.getId(), is("id"));
