@@ -448,7 +448,7 @@ public class MetricsTest implements Serializable {
                 DistributionResult.create(52L, 6L, 5L, 13L),
                 isCommitted)));
     assertThat(
-        (Iterable<MetricResult<DistributionResult>>) metrics.getDistributions(),
+        metrics.getDistributions(),
         anyOf(
             // Step names are different for portable and non-portable runners.
             hasItem(
