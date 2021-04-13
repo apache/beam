@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.tpcds;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -69,8 +68,7 @@ public class TableSchemaJSONLoader {
           // If the key of the pair is "type", make some modification before appending it to the
           // schemaStringBuilder, then append a comma.
           String typeName = (String) pair.getValue();
-          if (typeName.toLowerCase().equals("identifier")
-              || typeName.toLowerCase().equals("integer")) {
+          if (typeName.equalsIgnoreCase("identifier") || typeName.equalsIgnoreCase("integer")) {
             // Use long type to represent int, prevent overflow
             schemaStringBuilder.append("bigint");
           } else if (typeName.contains("decimal")) {
@@ -106,7 +104,7 @@ public class TableSchemaJSONLoader {
    *
    * @return The list of names of all tables.
    */
-  public static List<String> getAllTableNames() throws IOException, URISyntaxException {
+  public static List<String> getAllTableNames() throws IOException {
     ClassLoader classLoader = TableSchemaJSONLoader.class.getClassLoader();
     if (classLoader == null) {
       throw new RuntimeException("Can't get classloader from TableSchemaJSONLoader.");

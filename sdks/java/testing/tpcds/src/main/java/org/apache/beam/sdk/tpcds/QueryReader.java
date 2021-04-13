@@ -35,7 +35,6 @@ public class QueryReader {
    */
   public static String readQuery(String queryFileName) throws Exception {
     String path = "queries/" + queryFileName + ".sql";
-    String query = Resources.toString(Resources.getResource(path), Charsets.UTF_8);
-    return query;
+    return Resources.toString(Resources.getResource(path), Charsets.UTF_8);
   }
 }

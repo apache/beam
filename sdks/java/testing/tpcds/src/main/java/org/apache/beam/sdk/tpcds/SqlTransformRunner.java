@@ -189,7 +189,7 @@ public class SqlTransformRunner {
       try {
         tables
             .apply(SqlTransform.query(queryString))
-            .apply(MapElements.into(TypeDescriptors.strings()).via((Row row) -> row.toString()))
+            .apply(MapElements.into(TypeDescriptors.strings()).via(Row::toString))
             .apply(
                 TextIO.write()
                     .to(

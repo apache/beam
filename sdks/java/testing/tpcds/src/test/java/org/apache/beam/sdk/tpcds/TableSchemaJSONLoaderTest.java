@@ -20,7 +20,6 @@ package org.apache.beam.sdk.tpcds;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -140,7 +139,7 @@ public class TableSchemaJSONLoaderTest {
   }
 
   @Test
-  public void testGetAllTableNames() throws IOException, URISyntaxException {
+  public void testGetAllTableNames() throws IOException {
     List<String> tableNames = TableSchemaJSONLoader.getAllTableNames();
     Collections.sort(tableNames);
     List<String> expectedTableNames =

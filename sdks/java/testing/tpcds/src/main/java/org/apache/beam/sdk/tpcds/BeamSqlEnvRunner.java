@@ -211,8 +211,7 @@ public class BeamSqlEnvRunner {
         // Transform the result from PCollection<Row> into PCollection<String>, and write it to the
         // location where results are stored.
         PCollection<String> rowStrings =
-            rows.apply(
-                MapElements.into(TypeDescriptors.strings()).via((Row row) -> row.toString()));
+            rows.apply(MapElements.into(TypeDescriptors.strings()).via(Row::toString));
         rowStrings.apply(
             TextIO.write()
                 .to(

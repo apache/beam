@@ -33,8 +33,8 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class CsvToRow extends PTransform<PCollection<String>, PCollection<Row>>
     implements Serializable {
-  private Schema schema;
-  private CSVFormat csvFormat;
+  private final Schema schema;
+  private final CSVFormat csvFormat;
 
   public CSVFormat getCsvFormat() {
     return csvFormat;
