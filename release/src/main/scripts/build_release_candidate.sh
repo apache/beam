@@ -139,7 +139,7 @@ fi
 
 
 RC_TAG="v${RELEASE}-RC${RC_NUM}"
-USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
+USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
 
 echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
