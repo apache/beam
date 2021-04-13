@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.twister2;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-
 import edu.iu.dsc.tws.api.JobConfig;
 import edu.iu.dsc.tws.api.Twister2Job;
 import edu.iu.dsc.tws.api.config.Config;
@@ -43,7 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
@@ -57,7 +54,6 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
@@ -83,18 +79,8 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
   }
 
   public static Twister2Runner fromOptions(PipelineOptions options) {
-    Twister2PipelineOptions pipelineOptions =
-        PipelineOptionsValidator.validate(Twister2PipelineOptions.class, options);
-    if (pipelineOptions.getFilesToStage() == null) {
-      pipelineOptions.setFilesToStage(
-          detectClassPathResourcesToStage(Twister2Runner.class.getClassLoader(), pipelineOptions));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. "
-              + "Defaulting to files from the classpath: will stage {} files. "
-              + "Enable logging at DEBUG level to see which files will be staged"
-              + pipelineOptions.getFilesToStage().size());
-    }
-    return new Twister2Runner(pipelineOptions);
+    return new Twister2Runner(
+        PipelineOptionsValidator.validate(Twister2PipelineOptions.class, options));
   }
 
   @Override
@@ -269,20 +255,7 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
    * cause exception in running log.
    */
   private void prepareFilesToStage(Twister2PipelineOptions options) {
-    List<String> filesToStage =
-        options.getFilesToStage().stream()
-            .map(File::new)
-            .filter(File::exists)
-            .map(
-                file -> {
-                  return file.getAbsolutePath();
-                })
-            .collect(Collectors.toList());
-    options.setFilesToStage(
-        PipelineResources.prepareFilesForStaging(
-            filesToStage,
-            MoreObjects.firstNonNull(
-                options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
+    PipelineResources.prepareFilesForStaging(options);
   }
 
   /**
