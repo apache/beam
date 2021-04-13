@@ -151,18 +151,22 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     if limit is not None and method is None:
       # If method is not None (and axis is 'columns'), we can do limit in
-      # a distributed way. Else, it is order sensitive.
-      raise frame_base.WontImplementError('order-sensitive')
+      # a distributed way. Otherwise the limit is global, so it requires
+      # Singleton partitioning.
+      requires = partitionings.Singleton()
+    else:
+      requires = partitionings.Arbitrary()
 
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
         expressions.ComputedExpression(
             'fillna',
             lambda df,
-            value: df.fillna(value, method=method, axis=axis, **kwargs),
+            value: df.fillna(
+                value, method=method, axis=axis, limit=limit, **kwargs),
             [self._expr, value_expr],
             preserves_partition_by=partitionings.Arbitrary(),
-            requires_partition_by=partitionings.Arbitrary()))
+            requires_partition_by=requires))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
