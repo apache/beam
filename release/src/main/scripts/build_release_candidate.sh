@@ -81,7 +81,6 @@ read SIGNING_KEY
 echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
 echo "working on release version: ${RELEASE}"
-echo "working on release branch: ${RELEASE_BRANCH}"
 echo "will create release candidate: RC${RC_NUM} from commit tagged ${RC_TAG}"
 echo "Your forked beam-site URL: ${USER_REMOTE_URL}"
 echo "Your signing key: ${SIGNING_KEY}"
@@ -97,7 +96,7 @@ echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Building and Staging Java Artifacts============="
-  echo "--------Cloning Beam Repo and Checkout Release Branch-------"
+  echo "--------Cloning Beam Repo and Checkout Release Tag-------"
   cd ~
   if [[ -d ${LOCAL_CLONE_DIR} ]]; then
     rm -rf ${LOCAL_CLONE_DIR}
@@ -175,10 +174,9 @@ if [[ $confirmation = "y" ]]; then
   cd "${LOCAL_PYTHON_STAGING_DIR}"
 
   echo '-------------------Cloning Beam Release Branch-----------------'
-  git clone "${GIT_REPO_URL}"
+  git clone --branch "${RC_TAG}" --depth 1 "${GIT_REPO_URL}"
   cd "${BEAM_ROOT_DIR}"
-  git checkout "${RELEASE_BRANCH}"
-  RELEASE_COMMIT=$(git rev-parse --verify HEAD)
+  RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
 
   echo '-------------------Creating Python Virtualenv-----------------'
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
@@ -192,7 +190,7 @@ if [[ $confirmation = "y" ]]; then
   python release/src/main/scripts/download_github_actions_artifacts.py \
     --github-user "${USER_GITHUB_ID}" \
     --repo-url "${GIT_REPO_BASE_URL}" \
-    --release-branch "${RELEASE_BRANCH}" \
+    --rc-tag "${RC_TAG}" \
     --release-commit "${RELEASE_COMMIT}" \
     --artifacts_dir "${SVN_ARTIFACTS_DIR}"
 
@@ -239,10 +237,10 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
 
-  echo '-------------------Cloning Beam Release Branch-----------------'
-  git clone ${GIT_REPO_URL}
+  echo '-------------------Cloning Beam RC Tag-----------------'
+  git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
+  git checkout ${RC_TAG}
 
   ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
@@ -269,19 +267,17 @@ if [[ $confirmation = "y" ]]; then
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
   cd ${LOCAL_PYTHON_DOC}
   pip install tox
-  git clone ${GIT_REPO_URL}
+  git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
-  RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
+  RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
   cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 
   echo "----------------------Building Java Doc----------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
-  git clone ${GIT_REPO_URL}
+  git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
   ./gradlew :sdks:java:javadoc:aggregateJavadoc
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
