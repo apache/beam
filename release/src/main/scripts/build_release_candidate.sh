@@ -58,25 +58,88 @@ PYTHON_ARTIFACTS_DIR=python
 BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
 
-echo "================Setting Up Environment Variables==========="
-echo "Which release version are you working on: "
-read RELEASE
-RELEASE_BRANCH=release-${RELEASE}
-echo "Which release candidate number(e.g. 1) are you going to create: "
-read RC_NUM
-echo "Please enter your github username(ID): "
-read USER_GITHUB_ID
+function usage() {
+  echo 'Usage: build_release_candidate.sh --release <version> --rc <rc> --github-user <username> --signing-key <sig> [--debug]'
+}
+
+RELEASE=
+RC_NUM=
+SIGNING_KEY=
+USER_GITHUB_ID=
+DEBUG=
+
+while [[ $# -gt 0 ]] ; do
+  arg="$1"
+
+  case $arg in
+      --release)
+      shift; RELEASE=$1; shift
+      ;;
+
+      --rc)
+      shift; RC_NUM=$1; shift
+      ;;
+
+      --debug)
+      DEBUG=--debug
+      set -x; shift
+      ;;
+
+      --signing-key)
+      shift; SIGNING_KEY=$1; shift
+      ;;
+
+      --github-user)
+      shift; USER_GITHUB_ID=$1; shift
+      ;;
+
+      *)
+      echo "Unrecognized argument: $1"
+      usage
+      exit 1
+      ;;
+   esac
+done
+
+if [[ -z "$RELEASE" ]] ; then
+  echo 'No release version supplied.'
+  usage
+  exit 1
+fi
+
+if [[ -z "$RC_NUM" ]] ; then
+  echo 'No RC number supplied.'
+  usage
+  exit 1
+fi
+
+if [[ -z "$RC_NUM" ]] ; then
+  echo 'No RC number supplied.'
+  usage
+  exit 1
+fi
+
+if [[ -z "$USER_GITHUB_ID" ]] ; then
+  echo 'Please provide your github username(ID)'
+  usage
+  exit 1
+fi
+
+if [[ -z "$SIGNING_KEY" ]] ; then
+  echo "=================Pre-requirements===================="
+  echo "Please make sure you have configured and started your gpg-agent by running ./preparation_before_release.sh."
+  echo "================Listing all GPG keys================="
+  echo "Please provide the public key to sign the release artifacts with. You can list them with this command:"
+  echo ""
+  echo "    gpg --list-keys --keyid-format LONG --fingerprint --fingerprint"
+  echo ""
+  usage
+  exit 1
+fi
+
 
 RC_TAG="v${RELEASE}-RC${RC_NUM}"
 USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
-
-echo "=================Pre-requirements===================="
-echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
-echo "================Listing all GPG keys================="
-gpg --list-keys --keyid-format LONG --fingerprint --fingerprint
-echo "Please copy the public key which is associated with your Apache account:"
-
-read SIGNING_KEY
 
 echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
