@@ -184,7 +184,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
       DisplayDataValidator.validatePipeline(pipeline);
       DisplayDataValidator.validateOptions(options);
-      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
 
       ExecutorService metricsPool =
           Executors.newCachedThreadPool(
@@ -253,6 +252,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     // The last set of overrides includes GBK overrides used in WriteView
     pipeline.replaceAll(groupByKeyOverrides());
+
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
   }
 
   @SuppressWarnings("rawtypes")

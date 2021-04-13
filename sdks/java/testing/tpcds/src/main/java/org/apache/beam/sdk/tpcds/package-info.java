@@ -15,30 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/*
- * Protocol Buffer messages used for kafka table provider tests
- */
-
-syntax = "proto3";
-
-option java_package = "org.apache.beam.sdk.extensions.protobuf";
-
-message TestMessage {
-  int64 f_long = 1;
-  int32 f_int = 2;
-  double f_double = 3;
-  string f_string = 4;
-  repeated float f_float_array = 5;
-}
-
-message ItMessage {
-  int64 f_long = 1;
-  int32 f_int = 2;
-  string f_string = 3;
-}
-
-message SimpleMessage {
-  int32 id = 1;
-  string name = 2;
-}
+/** TPC-DS test suite. */
+package org.apache.beam.sdk.tpcds;

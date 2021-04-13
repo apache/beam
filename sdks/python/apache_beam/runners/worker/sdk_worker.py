@@ -117,11 +117,11 @@ class ShortIdCache(object):
   def __init__(self):
     # type: () -> None
     self._lock = threading.Lock()
-    self._lastShortId = 0
-    self._infoKeyToShortId = {}  # type: Dict[FrozenSet, str]
-    self._shortIdToInfo = {}  # type: Dict[str, metrics_pb2.MonitoringInfo]
+    self._last_short_id = 0
+    self._info_key_to_short_id = {}  # type: Dict[FrozenSet, str]
+    self._short_id_to_info = {}  # type: Dict[str, metrics_pb2.MonitoringInfo]
 
-  def getShortId(self, monitoring_info):
+  def get_short_id(self, monitoring_info):
     # type: (metrics_pb2.MonitoringInfo) -> str
 
     """ Returns the assigned shortId for a given MonitoringInfo, assigns one if
@@ -130,29 +130,32 @@ class ShortIdCache(object):
     key = monitoring_infos.to_key(monitoring_info)
     with self._lock:
       try:
-        return self._infoKeyToShortId[key]
+        return self._info_key_to_short_id[key]
       except KeyError:
-        self._lastShortId += 1
+        self._last_short_id += 1
 
         # Convert to a hex string (and drop the '0x') for some compression
-        shortId = hex(self._lastShortId)[2:]
+        shortId = hex(self._last_short_id)[2:]
 
         payload_cleared = metrics_pb2.MonitoringInfo()
         payload_cleared.CopyFrom(monitoring_info)
         payload_cleared.ClearField('payload')
 
-        self._infoKeyToShortId[key] = shortId
-        self._shortIdToInfo[shortId] = payload_cleared
+        self._info_key_to_short_id[key] = shortId
+        self._short_id_to_info[shortId] = payload_cleared
         return shortId
 
-  def getInfos(self, short_ids):
+  def get_infos(self, short_ids):
     #type: (Iterable[str]) -> Dict[str, metrics_pb2.MonitoringInfo]
 
     """ Gets the base MonitoringInfo (with payload cleared) for each short ID.
 
     Throws KeyError if an unassigned short ID is encountered.
     """
-    return {short_id: self._shortIdToInfo[short_id] for short_id in short_ids}
+    return {
+        short_id: self._short_id_to_info[short_id]
+        for short_id in short_ids
+    }
 
 
 SHORT_ID_CACHE = ShortIdCache()
@@ -339,7 +342,7 @@ class SdkHarness(object):
             harness_monitoring_infos=(
                 beam_fn_api_pb2.HarnessMonitoringInfosResponse(
                     monitoring_data={
-                        SHORT_ID_CACHE.getShortId(info): info.payload
+                        SHORT_ID_CACHE.get_short_id(info): info.payload
                         for info in process_wide_monitoring_infos
                     }))),
         request)
@@ -350,7 +353,7 @@ class SdkHarness(object):
         lambda: beam_fn_api_pb2.InstructionResponse(
             instruction_id=request.instruction_id,
             monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataResponse(
-                monitoring_info=SHORT_ID_CACHE.getInfos(
+                monitoring_info=SHORT_ID_CACHE.get_infos(
                     request.monitoring_infos.monitoring_info_id))),
         request)
 
@@ -650,7 +653,7 @@ class SdkWorker(object):
                   residual_roots=delayed_applications,
                   monitoring_infos=monitoring_infos,
                   monitoring_data={
-                      SHORT_ID_CACHE.getShortId(info): info.payload
+                      SHORT_ID_CACHE.get_short_id(info): info.payload
                       for info in monitoring_infos
                   },
                   requires_finalization=requests_finalization))
@@ -755,7 +758,7 @@ class SdkWorker(object):
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
             monitoring_infos=monitoring_infos,
             monitoring_data={
-                SHORT_ID_CACHE.getShortId(info): info.payload
+                SHORT_ID_CACHE.get_short_id(info): info.payload
                 for info in monitoring_infos
             }))
 
