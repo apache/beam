@@ -135,16 +135,30 @@ class DisplayData(object):
     # type: (...) -> List[beam_runner_api_pb2.DisplayData]
 
     """Returns a List of Beam proto representation of Display data."""
+    def create_payload(dd):
+      if 'value' not in dd.get_dict() or 'label' not in dd.get_dict():
+        return None
+      label = dd.get_dict()['label']
+      value = dd.get_dict()['value']
+      if isinstance(value, str):
+        return beam_runner_api_pb2.LabelledPayload(
+            label=label, string_value=value)
+      elif isinstance(value, bool):
+        return beam_runner_api_pb2.LabelledPayload(
+            label=label, bool_value=value)
+      elif isinstance(value, (int, float, complex)):
+        return beam_runner_api_pb2.LabelledPayload(
+            label=label, double_value=value)
+      else:
+        raise ValueError(
+            'Unsupported type %s for value of display data %s' %
+            (type(value), label))
+
     return [
         beam_runner_api_pb2.DisplayData(
-            urn=common_urns.StandardDisplayData.DisplayData.LABELLED_STRING.urn,
-            payload=beam_runner_api_pb2.LabelledStringPayload(
-                label=dd.get_dict()['label']
-                if 'label' in dd.get_dict() else None,
-                value=str(
-                    dd.get_dict()['value'] if 'value' in
-                    dd.get_dict() else None)).SerializeToString())
-        for dd in self.items if dd.label
+            urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+            payload=create_payload(dd).SerializeToString()) for dd in self.items
+        if dd.label
     ]
 
   @classmethod
