@@ -323,7 +323,8 @@ class Coder(object):
       cls,
       urn,
       parameter_type: Optional[Type[T]],
-      fn=None) -> Optional[Callable[[T, List['__class__'], PipelineContext], Any]]:
+      fn=None
+  ) -> Optional[Callable[[T, List['__class__'], PipelineContext], Any]]:
     """Registers a urn with a constructor.
 
     For example, if 'beam:fn:foo' had parameter type FooPayload, one could
