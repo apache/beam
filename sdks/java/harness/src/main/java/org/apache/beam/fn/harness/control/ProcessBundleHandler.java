@@ -538,6 +538,10 @@ public class ProcessBundleHandler {
     return bundleProcessor;
   }
 
+  public BundleProcessorCache getBundleProcessorCache() {
+    return bundleProcessorCache;
+  }
+
   /** A cache for {@link BundleProcessor}s. */
   public static class BundleProcessorCache {
 
@@ -579,6 +583,10 @@ public class ProcessBundleHandler {
       return ImmutableMap.copyOf(cachedBundleProcessors.asMap());
     }
 
+    public Map<String, BundleProcessor> getActiveBundleProcessors() {
+      return ImmutableMap.copyOf(activeBundleProcessors);
+    }
+
     /**
      * Get a {@link BundleProcessor} from the cache if it's available. Otherwise, create one using
      * the specified {@code bundleProcessorSupplier}. The {@link BundleProcessor} that is returned
@@ -607,7 +615,7 @@ public class ProcessBundleHandler {
      * Finds an active bundle processor for the specified {@code instructionId} or null if one could
      * not be found.
      */
-    BundleProcessor find(String instructionId) {
+    public BundleProcessor find(String instructionId) {
       return activeBundleProcessors.get(instructionId);
     }
 
@@ -686,7 +694,7 @@ public class ProcessBundleHandler {
 
     abstract MetricsContainerStepMap getMetricsContainerRegistry();
 
-    abstract ExecutionStateTracker getStateTracker();
+    public abstract ExecutionStateTracker getStateTracker();
 
     abstract HandleStateCallsForBundle getBeamFnStateClient();
 
