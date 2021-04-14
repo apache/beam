@@ -33,6 +33,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import enum
 import json
 import pickle
 from builtins import chr
@@ -324,6 +325,7 @@ ITERABLE_LIKE_TYPE = 10
 PROTO_TYPE = 100
 DATACLASS_TYPE = 101
 NAMED_TUPLE_TYPE = 102
+ENUM_TYPE = 103
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -434,11 +436,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
           [getattr(value, field.name) for field in dataclasses.fields(value)],
           stream,
           True)
-    elif isinstance(value, tuple) and type(value).__base__ is tuple and hasattr(
-        type(value), '_fields'):
+    elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
       stream.write_byte(NAMED_TUPLE_TYPE)
       self.encode_type(type(value), stream)
       self.iterable_coder_impl.encode_to_stream(value, stream, True)
+    elif isinstance(value, enum.Enum):
+      stream.write_byte(ENUM_TYPE)
+      self.encode_type(type(value), stream)
+      # Enum values can be of any type.
+      self.encode_to_stream(value.value, stream, True)
     else:
       raise TypeError(
           "Unable to deterministically encode '%s' of type '%s', "
@@ -491,6 +497,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
       cls = self.decode_type(stream)
       return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))
+    elif t == ENUM_TYPE:
+      cls = self.decode_type(stream)
+      return cls(self.decode_from_stream(stream, True))
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:
