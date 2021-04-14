@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelFieldCollation;
 
 /**
  * The {@code OrderKey} class stores the information to sort a column.

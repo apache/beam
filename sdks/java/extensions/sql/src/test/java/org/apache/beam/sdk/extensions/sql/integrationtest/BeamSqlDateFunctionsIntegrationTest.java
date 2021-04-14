@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_SECOND;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_SECOND;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
