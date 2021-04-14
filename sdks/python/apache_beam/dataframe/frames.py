@@ -459,10 +459,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if axis in (0, 'index'):
       # axis=index imposes an ordering on the DataFrame rows which we do not
       # support
-      raise frame_base.WontImplementError("imposes ordering")
+      raise frame_base.WontImplementError('imposes ordering')
     else:
       # axis=columns will reorder the columns based on the data
-      raise frame_base.WontImplementError("non-deferred column values")
+      raise frame_base.WontImplementError(
+          "sort_values(axis=columns) is not supported because the order of the "
+          "columns in the result depends on the data.",
+          reason="non-deferred-columns")
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -1579,7 +1582,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if axis == 1 or axis == 'columns':
       # Number of columns is max(number mode values for each row), so we can't
       # determine how many there will be before looking at the data.
-      raise frame_base.WontImplementError('non-deferred column values')
+      raise frame_base.WontImplementError(
+          "mode(axis=columns) is not supported because it produces a variable "
+          "number of columns depending on the data.",
+          reason="non-deferred-columns")
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'mode',
@@ -2038,7 +2044,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             [self._expr],
             requires_partition_by=partitionings.Index()))
     else:
-      raise frame_base.WontImplementError('non-deferred column values')
+      raise frame_base.WontImplementError(
+          "unstack() is not supported on DataFrames with a multiple indexes, "
+          "because the columns in the output depend on the input data.",
+          reason="non-deferred-columns")
 
   update = frame_base._proxy_method(
       'update',
