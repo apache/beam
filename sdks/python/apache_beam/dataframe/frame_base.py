@@ -337,12 +337,18 @@ def wont_implement_method(msg):
   return wrapper
 
 
-def wont_implement_method_with_reason(base_type, name, reason=None):
-  if reason not in _WONT_IMPLEMENT_REASONS:
-    raise AssertionError(
-        f"reason must be one of {list(_WONT_IMPLEMENT_REASONS.keys())}, "
-        f"got {reason!r}")
-  reason_data = _WONT_IMPLEMENT_REASONS[reason]
+def wont_implement_method_with_reason(
+    base_type, name, reason=None, explanation=None):
+  if reason is not None:
+    if reason not in _WONT_IMPLEMENT_REASONS:
+      raise AssertionError(
+          f"reason must be one of {list(_WONT_IMPLEMENT_REASONS.keys())}, "
+          f"got {reason!r}")
+    reason_data = _WONT_IMPLEMENT_REASONS[reason]
+  elif explanation is not None:
+    reason_data = {'explanation': explanation}
+  else:
+    raise ValueError("One of (reason, explanation) must be specified")
 
   def wrapper(*args, **kwargs):
     raise WontImplementError(

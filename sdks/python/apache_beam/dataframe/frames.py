@@ -1151,7 +1151,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       frame_base.wont_implement_method_with_reason(
           pd.Series, 'values', reason="non-deferred-result"))
 
-  view = frame_base.wont_implement_method('memory sharing semantics')
+  view = frame_base.wont_implement_method_with_reason(
+      pd.Series,
+      'view',
+      explanation=(
+          "because it relies on memory-sharing semantics that are "
+          "not compatible with the Beam model"))
 
   @property
   def str(self):
