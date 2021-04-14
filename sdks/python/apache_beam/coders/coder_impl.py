@@ -342,7 +342,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
     self.requires_deterministic_step_label = requires_deterministic_step_label
-    self.warn_deterministic_fallback = False
+    self.warn_deterministic_fallback = True
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -422,12 +422,12 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
 
   def encode_special_deterministic(self, value, stream):
-    if not self.warn_deterministic_fallback:
+    if self.warn_deterministic_fallback:
       _LOGGER.warning(
           "Using fallback deterministic coder for type '%s' in '%s'. ",
           type(value),
           self.requires_deterministic_step_label)
-      self.warn_deterministic_fallback = True
+      self.warn_deterministic_fallback = False
     if isinstance(value, proto_utils.message_types):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
