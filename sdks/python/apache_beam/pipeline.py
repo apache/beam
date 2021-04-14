@@ -88,6 +88,7 @@ from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.resources import merge_resource_hints
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
@@ -987,10 +988,10 @@ class ResourceHintsPropagator(PipelineVisitor):
   def visit_transform(self, transform_node):
     # type: (AppliedPTransform) -> None
     if (transform_node.parent is not None and
-        transform_node.parent.transform is not None and
-        transform_node.parent.transform.get_resource_hints()):
-      transform_node.transform._merge_hints_from_outer_composite(
-          transform_node.parent.transform.get_resource_hints())
+        transform_node.parent.resource_hints):
+      merge_resource_hints(
+          outer_hints=transform_node.parent.resource_hints,
+          mutable_inner_hints=transform_node.resource_hints)
 
   def enter_composite_transform(self, transform_node):
     # type: (AppliedPTransform) -> None
@@ -1067,6 +1068,12 @@ class AppliedPTransform(object):
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
     self.environment_id = environment_id if environment_id else None  # type: Optional[str]
+    # We may need to merge the hints with environment-provided hints here
+    # once environment is a first-class citizen in Beam graph and we have
+    # access to actual environment, not just an id.
+    self.resource_hints = dict(
+        transform.get_resource_hints()) if transform else {
+        }  # type: Dict[str, bytes]
 
     if annotations is None and transform:
 
@@ -1255,7 +1262,8 @@ class AppliedPTransform(object):
     transform_urn = transform_spec.urn if transform_spec else None
     if (not environment_id and
         (transform_urn not in Pipeline.runner_implemented_transforms())):
-      environment_id = context.get_environment_id_for_transform(self.transform)
+      environment_id = context.get_environment_id_for_resource_hints(
+          self.resource_hints)
 
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,

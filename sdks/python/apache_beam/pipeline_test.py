@@ -992,6 +992,9 @@ class RunnerApiTest(unittest.TestCase):
     class BazHint(ResourceHint):
       urn = 'baz_urn'
 
+    class QuxHint(ResourceHint):
+      urn = 'qux_urn'
+
     class UseMaxValueHint(ResourceHint):
       urn = 'use_max_value_urn'
 
@@ -1003,6 +1006,7 @@ class RunnerApiTest(unittest.TestCase):
     ResourceHint.register_resource_hint('foo_hint', FooHint)
     ResourceHint.register_resource_hint('bar_hint', BarHint)
     ResourceHint.register_resource_hint('baz_hint', BazHint)
+    ResourceHint.register_resource_hint('qux_hint', QuxHint)
     ResourceHint.register_resource_hint('use_max_value_hint', UseMaxValueHint)
 
     @beam.ptransform_fn
@@ -1018,13 +1022,14 @@ class RunnerApiTest(unittest.TestCase):
     _ = (
         p | beam.Create([1, 2])
         | CompositeTransform().with_resource_hints(
-            foo_hint='set_on_composite',
-            bar_hint='set_on_composite_only',
+            foo_hint='should_be_overriden_by_subtransform',
+            bar_hint='set_on_composite',
             baz_hint='set_on_composite',
             use_max_value_hint='100'))
     p._propagate_resource_hints()
     options = PortableOptions([
-        '--resource_hint=baz_hint=set_via_options',
+        '--resource_hint=baz_hint=should_be_overriden_by_composite',
+        '--resource_hint=qux_hint=set_via_options',
         '--environment_type=PROCESS',
         '--environment_option=process_command=foo',
         '--sdk_location=container',
@@ -1039,10 +1044,11 @@ class RunnerApiTest(unittest.TestCase):
         self.assertEqual(
             environment.resource_hints.get('foo_urn'), b'set_on_subtransform')
         self.assertEqual(
-            environment.resource_hints.get('bar_urn'), b'set_on_composite_only')
-        # TODO - incorrect, fix the behavior and the test.
+            environment.resource_hints.get('bar_urn'), b'set_on_composite')
         self.assertEqual(
-            environment.resource_hints.get('baz_urn'), b'set_via_options')
+            environment.resource_hints.get('baz_urn'), b'set_on_composite')
+        self.assertEqual(
+            environment.resource_hints.get('qux_urn'), b'set_via_options')
         self.assertEqual(
             environment.resource_hints.get('use_max_value_urn'), b'100')
         found = True
@@ -1114,6 +1120,51 @@ class RunnerApiTest(unittest.TestCase):
     assert count_x == count_is_odd == count_xy == count_no_hints == num_iter
 
     self.assertEqual(len(env_ids), 5)
+
+  def test_multiple_application_of_the_same_transform_set_different_hints(self):
+    class FooHint(ResourceHint):
+      urn = 'foo_urn'
+
+    class UseMaxValueHint(ResourceHint):
+      urn = 'use_max_value_urn'
+
+      @classmethod
+      def get_merged_value(
+          cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+        return ResourceHint._use_max(outer_value, inner_value)
+
+    ResourceHint.register_resource_hint('foo_hint', FooHint)
+    ResourceHint.register_resource_hint('use_max_value_hint', UseMaxValueHint)
+
+    @beam.ptransform_fn
+    def SubTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x + 1)
+
+    @beam.ptransform_fn
+    def CompositeTransform(pcoll):
+      sub = SubTransform()
+      return (
+          pcoll
+          | 'first' >> sub.with_resource_hints(foo_hint='first_application')
+          | 'second' >> sub.with_resource_hints(foo_hint='second_application'))
+
+    p = TestPipeline()
+    _ = (p | beam.Create([1, 2]) | CompositeTransform())
+    p._propagate_resource_hints()
+    proto = Pipeline.to_runner_api(p, use_fake_coders=True)
+    count = 0
+    for t in proto.components.transforms.values():
+      if "CompositeTransform/first/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            b'first_application', environment.resource_hints.get('foo_urn'))
+        count += 1
+      if "CompositeTransform/second/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            b'second_application', environment.resource_hints.get('foo_urn'))
+        count += 1
+    assert count == 2
 
 
 if __name__ == '__main__':

@@ -867,7 +867,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     runner = DataflowRunner()
 
     self.default_properties.append('--experiments=use_legacy_bq_sink')
-    self.default_properties.append('--resource_hint=min_ram=10GB')
+    self.default_properties.append('--resource_hint=accelerator=some_gpu')
+    self.default_properties.append('--resource_hint=min_ram=20GB')
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
@@ -875,7 +876,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           p
           | beam.Create([1])
           | 'MapWithHints' >> beam.Map(lambda x: x + 1).with_resource_hints(
-              min_ram='20GB',
+              min_ram='10GB',
               accelerator='type:nvidia-tesla-k80;count:1;install-nvidia-drivers'
           ))
 
@@ -883,7 +884,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(
         step['properties']['resource_hints'],
         {
-            'beam:resources:min_ram_bytes:v1': '10000000000',
+            'beam:resources:min_ram_bytes:v1': '20000000000',
             'beam:resources:accelerator:v1': \
                 'type%3Anvidia-tesla-k80%3Bcount%3A1%3Binstall-nvidia-drivers'
         })

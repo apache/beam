@@ -790,16 +790,6 @@ class PTransform(WithTypeHints, HasDisplayData):
     """
     pass
 
-  def _merge_hints_from_outer_composite(
-      self, outer_hints):  # type: (Dict[str, bytes]) -> None
-    for urn, outer_value in outer_hints.items():
-      if urn in self.get_resource_hints():
-        merged_value = resources.ResourceHint.get_by_urn(urn).get_merged_value(
-            outer_value=outer_value, inner_value=self.get_resource_hints()[urn])
-      else:
-        merged_value = outer_value
-      self.get_resource_hints()[urn] = merged_value
-
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
 def _create_transform(unused_ptransform, payload, unused_context):

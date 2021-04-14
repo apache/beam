@@ -49,6 +49,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
+from apache_beam.transforms.resources import merge_resource_hints
 from apache_beam.typehints import native_type_compatibility
 
 if TYPE_CHECKING:
@@ -285,21 +286,11 @@ class PipelineContext(object):
     # type: () -> str
     return self._default_environment_id
 
-  def get_environment_id_for_transform(
-      self, transform):  # type: (Optional[ptransform.PTransform]) -> str
-    """Returns an environment id where the transform can be executed."""
-    if not transform or not transform.get_resource_hints():
+  def get_environment_id_for_resource_hints(
+      self, hints):  # type: (Dict[str, bytes]) -> str
+    """Returns an environment id that has necessary resource hints."""
+    if not hints:
       return self.default_environment_id()
-
-    def merge_resource_hints(
-        environment_id,
-        transform):  # type: (str, ptransform.PTransform) -> Dict[str, bytes]
-      # TODO: add test.
-      # Hints already defined in the environment take precedence over hints
-      # specified by a transform.
-      return dict(
-          transform.get_resource_hints(),
-          **self.environments.get_by_id(environment_id).resource_hints())
 
     def get_or_create_environment_with_resource_hints(
         template_env_id,
@@ -318,8 +309,10 @@ class PipelineContext(object):
           cloned_env, label='environment_with_resource_hints', deduplicate=True)
 
     default_env_id = self.default_environment_id()
-    merged_hints = merge_resource_hints(default_env_id, transform)
+    env_hints = self.environments.get_by_id(default_env_id).resource_hints()
+    hints = dict(hints)
+    merge_resource_hints(outer_hints=env_hints, mutable_inner_hints=hints)
     maybe_new_env_id = get_or_create_environment_with_resource_hints(
-        default_env_id, merged_hints)
+        default_env_id, hints)
 
     return maybe_new_env_id

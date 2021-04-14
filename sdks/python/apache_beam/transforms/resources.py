@@ -164,3 +164,15 @@ def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]
       raise ValueError(f"Unknown resource hint: {hint}.")
 
   return parsed_hints
+
+
+def merge_resource_hints(
+    outer_hints,
+    mutable_inner_hints):  # type: (Dict[str, bytes], Dict[str, bytes]) -> None
+  for urn, outer_value in outer_hints.items():
+    if urn in mutable_inner_hints:
+      merged_value = ResourceHint.get_by_urn(urn).get_merged_value(
+          outer_value=outer_value, inner_value=mutable_inner_hints[urn])
+    else:
+      merged_value = outer_value
+    mutable_inner_hints[urn] = merged_value
