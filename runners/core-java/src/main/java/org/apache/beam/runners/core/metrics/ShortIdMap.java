@@ -38,7 +38,7 @@ public class ShortIdMap {
     return shortId;
   }
 
-  public MonitoringInfo get(String shortId) {
+  public synchronized MonitoringInfo get(String shortId) {
     MonitoringInfo monitoringInfo = monitoringInfoMap.get(shortId);
     if (monitoringInfo == null) {
       throw new NoSuchElementException(shortId);

@@ -29,12 +29,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -89,7 +89,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     this.stepName = stepName;
   }
 
-  private static Map<MetricKey, Optional<String>> shortIdsByMetricKey = new HashMap<>();
+  private Map<MetricKey, Optional<String>> shortIdsByMetricKey = new ConcurrentHashMap<>();
 
   /** Reset the metrics. */
   @Override
