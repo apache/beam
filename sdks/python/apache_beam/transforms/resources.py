@@ -25,10 +25,10 @@ or globally via --resource_hint pipeline option.
 See also: PTransforms.with_resource_hints().
 """
 
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Optional
-from typing import TYPE_CHECKING
 
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.common_urns import resource_hints
