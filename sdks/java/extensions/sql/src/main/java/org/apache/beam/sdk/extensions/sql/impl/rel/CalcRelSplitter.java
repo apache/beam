@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl;
+package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
