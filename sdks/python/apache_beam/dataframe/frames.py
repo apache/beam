@@ -78,9 +78,9 @@ def populate_not_implemented(pd_type):
 
 
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
-  def __array__(self, dtype=None):
-    raise frame_base.WontImplementError(
-        'Conversion to a non-deferred a numpy array.')
+
+  __array__ = frame_base.wont_implement_method_with_reason(
+      pd.Series, '__array__', reason="non-deferred-result")
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -634,7 +634,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     else:
       # We could consider returning a deferred scalar, but that might
       # be more surprising than a clear error.
-      raise frame_base.WontImplementError('non-deferred')
+      raise frame_base.WontImplementError(
+          f"Indexing a series with key of type {type(key)} is not supported "
+          "because it produces a non-deferred result.",
+          reason="non-deferred-result")
 
   def keys(self):
     return self.index
@@ -701,9 +704,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Arbitrary()))
     return aligned.iloc[:, 0], aligned.iloc[:, 1]
 
-  array = property(frame_base.wont_implement_method('non-deferred value'))
+  array = property(
+      frame_base.wont_implement_method_with_reason(
+          pd.Series, 'array', reason="non-deferred-result"))
 
-  ravel = frame_base.wont_implement_method('non-deferred value')
+  ravel = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'ravel', reason="non-deferred-result")
 
   rename = frame_base._elementwise_method('rename', base=pd.Series)
   between = frame_base._elementwise_method('between', base=pd.Series)
@@ -890,13 +896,19 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=partitionings.Arbitrary()))
 
-  items = iteritems = frame_base.wont_implement_method('non-lazy')
-
   isnull = isna = frame_base._elementwise_method('isna', base=pd.Series)
   notnull = notna = frame_base._elementwise_method('notna', base=pd.Series)
 
-  tolist = to_numpy = to_string = frame_base.wont_implement_method(
-      'non-deferred value')
+  items = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'items', reason="non-deferred-result")
+  iteritems = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'iteritems', reason="non-deferred-result")
+  tolist = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'tolist', reason="non-deferred-result")
+  to_numpy = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'to_numpy', reason="non-deferred-result")
+  to_string = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'to_string', reason="non-deferred-result")
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if isinstance(func, list) and len(func) > 1:
@@ -976,10 +988,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   filter = frame_base._elementwise_method('filter', base=pd.Series)
 
-  memory_usage = frame_base.wont_implement_method('non-deferred value')
+  memory_usage = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'memory_usage', reason="non-deferred-result")
 
   # In Series __contains__ checks the index
-  __contains__ = frame_base.wont_implement_method('non-deferred value')
+  __contains__ = frame_base.wont_implement_method_with_reason(
+      pd.Series, '__contains__', reason="non-deferred-result")
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -1097,7 +1111,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   take = frame_base.wont_implement_method('deprecated')
 
-  to_dict = frame_base.wont_implement_method('non-deferred')
+  to_dict = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'to_dict', reason="non-deferred-result")
 
   to_frame = frame_base._elementwise_method('to_frame', base=pd.Series)
 
@@ -1126,7 +1141,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   unstack = frame_base.wont_implement_method_with_reason(
       pd.Series, 'unstack', reason='non-deferred-columns')
 
-  values = property(frame_base.wont_implement_method('non-deferred'))
+  values = property(
+      frame_base.wont_implement_method_with_reason(
+          pd.Series, 'values', reason="non-deferred-result"))
 
   view = frame_base.wont_implement_method('memory sharing semantics')
 
@@ -1406,8 +1423,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
 
-  memory_usage = frame_base.wont_implement_method('non-deferred value')
-  info = frame_base.wont_implement_method('non-deferred value')
+  memory_usage = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'memory_usage', reason="non-deferred-result")
+  info = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'info', reason="non-deferred-result")
 
   clip = frame_base._elementwise_method(
       'clip', restrictions={'axis': lambda axis: axis in (0, 'index')},
@@ -1648,8 +1665,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   isnull = isna = frame_base._elementwise_method('isna', base=pd.DataFrame)
   notnull = notna = frame_base._elementwise_method('notna', base=pd.DataFrame)
 
-  items = itertuples = iterrows = iteritems = frame_base.wont_implement_method(
-      'non-lazy')
+  items      = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'items', reason="non-deferred-result")
+  itertuples = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'itertuples', reason="non-deferred-result")
+  iterrows   = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'iterrows', reason="non-deferred-result")
+  iteritems  = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'iteritems', reason="non-deferred-result")
 
   def _cols_as_temporary_index(self, cols, suffix=''):
     original_index_names = list(self._expr.proxy().index.names)
@@ -2016,9 +2035,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
-  @property
-  def shape(self):
-    raise frame_base.WontImplementError('scalar value')
+  shape = property(frame_base.wont_implement_method_with_reason(pd.DataFrame, 'shape', reason="non-deferred-result"))
 
   stack = frame_base._elementwise_method('stack', base=pd.DataFrame)
 
@@ -2034,8 +2051,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   take = frame_base.wont_implement_method('deprecated')
 
-  to_records = to_dict = to_numpy = to_string = (
-      frame_base.wont_implement_method('non-deferred value'))
+  to_records = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'to_records', reason="non-deferred-result")
+  to_dict    = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'to_dict', reason="non-deferred-result")
+  to_numpy   = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'to_numpy', reason="non-deferred-result")
+  to_string  = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'to_string', reason="non-deferred-result")
 
   to_sparse = frame_base.wont_implement_method('non-deferred value')
 
@@ -2063,7 +2082,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       requires_partition_by=partitionings.Index(),
       preserves_partition_by=partitionings.Arbitrary())
 
-  values = property(frame_base.wont_implement_method('non-deferred value'))
+  values = property(frame_base.wont_implement_method_with_reason(pd.DataFrame, 'values', reason="non-deferred-result"))
 
 
 for io_func in dir(io):
@@ -2235,9 +2254,11 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   cumprod = frame_base.wont_implement_method_with_reason(
       pd.core.groupby.generic.DataFrameGroupBy, 'cumprod', reason='order-sensitive')
 
-  # TODO(robertwb): Consider allowing this for categorical keys.
-  __len__ = frame_base.wont_implement_method('non-deferred')
-  groups = property(frame_base.wont_implement_method('non-deferred'))
+  # TODO(BEAM-12169): Consider allowing this for categorical keys.
+  __len__ = frame_base.wont_implement_method_with_reason(
+      pd.core.groupby.generic.DataFrameGroupBy, '__len__', reason="non-deferred-result")
+  groups = property(frame_base.wont_implement_method_with_reason(
+      pd.core.groupby.generic.DataFrameGroupBy, 'groups', reason="non-deferred-result"))
 
 def _maybe_project_func(projection: Optional[List[str]]):
   """ Returns identity func if projection is empty or None, else returns
