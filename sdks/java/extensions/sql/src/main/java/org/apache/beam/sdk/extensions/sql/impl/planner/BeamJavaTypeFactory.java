@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
 import java.lang.reflect.Type;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.BasicSqlType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.IntervalSqlType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.IntervalSqlType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
 
 /** customized data type in Beam. */
 public class BeamJavaTypeFactory extends JavaTypeFactoryImpl {
