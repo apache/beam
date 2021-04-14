@@ -337,19 +337,23 @@ def wont_implement_method(msg):
   return wrapper
 
 
-def order_sensitive_method(base_type, name):
+def wont_implement_method_with_reason(base_type, name, reason=None):
+  if reason not in _WONT_IMPLEMENT_REASONS:
+    raise AssertionError(
+        f"reason must be one of {list(_WONT_IMPLEMENT_REASONS.keys())}, "
+        f"got {reason!r}")
+  reason_data = _WONT_IMPLEMENT_REASONS[reason]
+
   def wrapper(*args, **kwargs):
     raise WontImplementError(
-        f"'{name}' is not supported because it is "
-        "order sensitive.",
-        reason="order-sensitive")
+        f"'{name}' is not supported {reason_data['explanation']}.",
+        reason=reason)
 
   wrapper.__name__ = name
   wrapper.__doc__ = f"""pandas.{base_type.__name__}.{name} is not supported in
-                    the Beam DataFrame API because it is order-sensitive.
+                    the Beam DataFrame API {reason_data['explanation']}.
 
-                    For more information see
-                    https://s.apache.org/dataframe-order-sensitive-operations.
+                    For more information see {reason_data['url']}.
                     """
 
   return wrapper
@@ -547,6 +551,17 @@ def populate_defaults(base_type):
 
   return wrap
 
+_WONT_IMPLEMENT_REASONS = {
+    'order-sensitive': {
+        'explanation': "because it is order sensitive",
+        'url': 'https://s.apache.org/dataframe-order-sensitive-operations',
+    },
+    'non-deferred-columns': {
+        'explanation': ("because the columns in the output DataFrame depend on "
+                        "the data"),
+        'url': 'https://s.apache.org/dataframe-non-deferred-columns',
+    }
+}
 
 class WontImplementError(NotImplementedError):
   """An subclass of NotImplementedError to raise indicating that implementing
@@ -556,15 +571,12 @@ class WontImplementError(NotImplementedError):
   when run with the beam dataframe validation doctest runner.
   """
 
-  _REASONS = {
-      'order-sensitive': 'https://s.apache.org/dataframe-order-sensitive-operations',  # pylint: disable=line-too-long
-  }
-
   def __init__(self, msg, reason=None):
     if reason is not None:
-      if reason not in self._REASONS:
+      if reason not in _WONT_IMPLEMENT_REASONS:
         raise AssertionError(
-            f"type must be one of {list(self._REASONS.keys())}, got {reason!r}")
-      msg = f"{msg}\nFor more information see {self._REASONS[reason]}."
+            f"reason must be one of {list(_WONT_IMPLEMENT_REASONS.keys())}, "
+            f"got {reason!r}")
+      msg = f"{msg}\nFor more information see {_WONT_IMPLEMENT_REASONS[reason]['url']}."
 
     super(WontImplementError, self).__init__(msg)
