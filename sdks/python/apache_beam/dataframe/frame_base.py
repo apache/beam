@@ -551,17 +551,26 @@ def populate_defaults(base_type):
 
   return wrap
 
+
 _WONT_IMPLEMENT_REASONS = {
     'order-sensitive': {
-        'explanation': "because it is order sensitive",
+        'explanation': "because it is sensitive to the order of the data",
         'url': 'https://s.apache.org/dataframe-order-sensitive-operations',
     },
     'non-deferred-columns': {
-        'explanation': ("because the columns in the output DataFrame depend on "
-                        "the data"),
+        'explanation': (
+            "because the columns in the output DataFrame depend on "
+            "the data"),
         'url': 'https://s.apache.org/dataframe-non-deferred-columns',
-    }
+    },
+    'non-deferred-result': {
+        'explanation': (
+            "because it produces an output type that is not "
+            "deferred"),
+        'url': 'https://s.apache.org/dataframe-non-deferred-result',
+    },
 }
+
 
 class WontImplementError(NotImplementedError):
   """An subclass of NotImplementedError to raise indicating that implementing
@@ -570,7 +579,6 @@ class WontImplementError(NotImplementedError):
   Raising this error will also prevent this doctests from being validated
   when run with the beam dataframe validation doctest runner.
   """
-
   def __init__(self, msg, reason=None):
     if reason is not None:
       if reason not in _WONT_IMPLEMENT_REASONS:
