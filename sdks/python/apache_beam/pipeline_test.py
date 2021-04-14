@@ -964,7 +964,7 @@ class RunnerApiTest(unittest.TestCase):
     self.assertEqual(seen, 2)
 
   def test_runner_api_roundtrip_preserves_resource_hints(self):
-    p = TestPipeline()
+    p = beam.Pipeline()
     _ = (
         p | beam.Create([1, 2])
         | beam.Map(lambda x: x + 1).with_resource_hints(accelerator='gpu'))
@@ -1018,7 +1018,7 @@ class RunnerApiTest(unittest.TestCase):
     def CompositeTransform(pcoll):
       return pcoll | beam.Map(lambda x: x * 2) | SubTransform()
 
-    p = TestPipeline()
+    p = beam.Pipeline()
     _ = (
         p | beam.Create([1, 2])
         | CompositeTransform().with_resource_hints(
@@ -1067,7 +1067,7 @@ class RunnerApiTest(unittest.TestCase):
     ResourceHint.register_resource_hint('Y', HintY)
     ResourceHint.register_resource_hint('IsOdd', HintIsOdd)
 
-    p = TestPipeline()
+    p = beam.Pipeline()
     num_iter = 4
     for i in range(num_iter):
       _ = (
@@ -1147,7 +1147,7 @@ class RunnerApiTest(unittest.TestCase):
           | 'first' >> sub.with_resource_hints(foo_hint='first_application')
           | 'second' >> sub.with_resource_hints(foo_hint='second_application'))
 
-    p = TestPipeline()
+    p = beam.Pipeline()
     _ = (p | beam.Create([1, 2]) | CompositeTransform())
     proto = Pipeline.to_runner_api(p, use_fake_coders=True)
     count = 0
