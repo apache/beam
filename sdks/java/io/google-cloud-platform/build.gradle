@@ -133,8 +133,8 @@ dependencies {
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntime")
 }
-
 
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.
@@ -142,11 +142,16 @@ dependencies {
 task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: "gs://${gcpProject}.appspot.com/temp"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=DirectRunner",
+          "--runner=dataflow",
+          "--region=us-central1",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
+          "--gcpTempLocation=${gcpTempRoot}",
+          "--numWorkers=20",
+          "--autoscalingAlgorithm=NONE",
+          "--experiments=shuffle_mode=service"
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"

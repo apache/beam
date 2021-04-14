@@ -94,12 +94,14 @@ class V1TestUtil {
    * @param unindexedProperties Number of unindexed properties.
    * @param propertySize Length of each property.
    */
-  static Entity makeEntity(Key ancestorKey, String kind, @Nullable String namespace,
+  static Entity makeEntity(@Nullable Key ancestorKey, String kind, @Nullable String namespace,
       int indexedProperties, int unindexedProperties, int propertySize) {
     checkArgument(indexedProperties > 0 || unindexedProperties > 0,
         "Entity must have at least one property");
     Entity.Builder entityBuilder = Entity.newBuilder();
-    Key.Builder keyBuilder = makeKey(ancestorKey, kind, UUID.randomUUID().toString());
+    Key.Builder keyBuilder =
+        ancestorKey != null ? makeKey(ancestorKey, kind, UUID.randomUUID().toString())
+            : makeKey(kind, UUID.randomUUID().toString());
     // NOTE: Namespace is not inherited between keys created with DatastoreHelper.makeKey, so
     // we must set the namespace on keyBuilder. TODO: Once partitionId inheritance is added,
     // we can simplify this code.
@@ -110,11 +112,11 @@ class V1TestUtil {
     entityBuilder.setKey(keyBuilder.build());
 
     String value = new String(new char[propertySize]).replace("\0", "A");
-    for (int i = 0; i <= indexedProperties; i++) {
-      entityBuilder.putProperties("indexed_value" + i, makeValue(value).build());
+    for (int i = 0; i < indexedProperties; i++) {
+      entityBuilder.putProperties("idx" + i, makeValue(value).build());
     }
-    for (int i = 0; i <= unindexedProperties; i++) {
-      entityBuilder.putProperties("unindexed_value" + i, makeValue(value)
+    for (int i = 0; i < unindexedProperties; i++) {
+      entityBuilder.putProperties("uidx" + i, makeValue(value)
           .setExcludeFromIndexes(true)
           .build());
     }
@@ -135,15 +137,19 @@ class V1TestUtil {
     private com.google.datastore.v1.Key ancestorKey;
 
     CreateEntityFn(
-        String kind, @Nullable String namespace, String ancestor, int indexedProperties,
+        String kind, @Nullable String namespace, @Nullable String ancestor, int indexedProperties,
         int unindexedProperties, int propertySize) {
       this.kind = kind;
       this.namespace = namespace;
-      // Build the ancestor key for all created entities once, including the namespace.
-      ancestorKey = makeAncestorKey(namespace, kind, ancestor);
+      if (ancestor != null) {
+        // Build the ancestor key for all created entities once, including the namespace.
+        ancestorKey = makeAncestorKey(namespace, kind, ancestor);
+      }
       this.indexedProperties = indexedProperties;
       this.unindexedProperties = unindexedProperties;
       this.propertySize = propertySize;
+      LOG.info("Example entity: {}", makeEntity(ancestorKey, kind, namespace, indexedProperties, unindexedProperties,
+          propertySize));
     }
 
     @ProcessElement

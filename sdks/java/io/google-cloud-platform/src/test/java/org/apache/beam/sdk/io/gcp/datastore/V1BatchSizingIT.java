@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.datastore;
 
-import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.countEntities;
 import static org.junit.Assert.assertEquals;
 
-import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.CreateEntityFn;
@@ -32,6 +31,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * End-to-end tests for Datastore DatastoreV1.Write.
@@ -39,9 +40,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class V1BatchSizingIT {
 
+  private static final Logger LOG = LoggerFactory.getLogger(V1BatchSizingIT.class);
+
   private V1TestOptions options;
   private String project;
-  private String ancestor;
   private final long numEntities = 1_000_000;
 
   @Before
@@ -49,62 +51,82 @@ public class V1BatchSizingIT {
     PipelineOptionsFactory.register(V1TestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    ancestor = UUID.randomUUID().toString();
   }
 
   @Test
-  public void testE2EV1Write() throws Exception {
+  public void testE2EV1Write() {
     Pipeline p = Pipeline.create(options);
 
     // Write to datastore
     p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo
-            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), ancestor, 1, 0, 4)))
+            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 1, 0, 4)))
         .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
 
-    p.run().waitUntilFinish();
-
-    // Count number of entities written to datastore.
-    long numEntitiesWritten = countEntities(options, project, ancestor);
-
-    assertEquals(numEntities, numEntitiesWritten);
+    // Completed successfully.
+    State state = p.run().waitUntilFinish();
+    assertEquals(state, State.DONE);
   }
 
   @Test
-  public void testE2EV1WriteIndexFanout() throws Exception {
+  public void testE2EV1WriteMediumIndexFanout() {
     Pipeline p = Pipeline.create(options);
 
     // Write to datastore
     p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo
-            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), ancestor, 100, 0, 4)))
+            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 20, 0, 4)))
         .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
 
-    p.run().waitUntilFinish();
-
-    // Count number of entities written to datastore.
-    long numEntitiesWritten = countEntities(options, project, ancestor);
-
-    assertEquals(numEntities, numEntitiesWritten);
+    // Completed successfully.
+    State state = p.run().waitUntilFinish();
+    assertEquals(state, State.DONE);
   }
 
   @Test
-  public void testE2EV1WriteLargeEntities() throws Exception {
+  public void testE2EV1WriteHighIndexFanout() {
+    Pipeline p = Pipeline.create(options);
+
+    // Write to datastore
+    p.apply(GenerateSequence.from(0).to(10_000_000))
+        .apply(ParDo
+            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 100, 0, 4)))
+        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
+
+    // Completed successfully.
+    State state = p.run().waitUntilFinish();
+    assertEquals(state, State.DONE);
+  }
+
+  @Test
+  public void testE2EV1WriteExtremeIndexFanout() {
     Pipeline p = Pipeline.create(options);
 
     // Write to datastore
     p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo
-            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), ancestor, 0, 100,
+            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 500, 0, 4)))
+        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
+
+    // Completed successfully.
+    State state = p.run().waitUntilFinish();
+    assertEquals(state, State.DONE);
+  }
+
+  @Test
+  public void testE2EV1WriteLargeEntities() {
+    Pipeline p = Pipeline.create(options);
+
+    // Write to datastore
+    p.apply(GenerateSequence.from(0).to(numEntities))
+        .apply(ParDo
+            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 0, 500,
                 1_000)))
         .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
 
-    p.run().waitUntilFinish();
-
-    // Count number of entities written to datastore.
-    long numEntitiesWritten = countEntities(options, project, ancestor);
-
-    assertEquals(numEntities, numEntitiesWritten);
+    // Completed successfully.
+    State state = p.run().waitUntilFinish();
+    assertEquals(state, State.DONE);
   }
 
   // @After
