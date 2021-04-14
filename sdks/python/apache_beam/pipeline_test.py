@@ -1026,7 +1026,6 @@ class RunnerApiTest(unittest.TestCase):
             bar_hint='set_on_composite',
             baz_hint='set_on_composite',
             use_max_value_hint='100'))
-    p._propagate_resource_hints()
     options = PortableOptions([
         '--resource_hint=baz_hint=should_be_overriden_by_composite',
         '--resource_hint=qux_hint=set_via_options',
@@ -1150,7 +1149,6 @@ class RunnerApiTest(unittest.TestCase):
 
     p = TestPipeline()
     _ = (p | beam.Create([1, 2]) | CompositeTransform())
-    p._propagate_resource_hints()
     proto = Pipeline.to_runner_api(p, use_fake_coders=True)
     count = 0
     for t in proto.components.transforms.values():

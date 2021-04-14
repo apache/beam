@@ -497,9 +497,6 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
-  def _propagate_resource_hints(self):
-    ResourceHintsPropagator.propagate_hints_to_subtransforms(self)
-
   def run(self, test_runner_api='AUTO'):
     # type: (Union[bool, str]) -> PipelineResult
 
@@ -508,8 +505,6 @@ class Pipeline(object):
     # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
-    # Move in to_runner_api instead?
-    self._propagate_resource_hints()
 
     try:
       if test_runner_api == 'AUTO':
@@ -984,28 +979,6 @@ class PipelineVisitor(object):
     pass
 
 
-class ResourceHintsPropagator(PipelineVisitor):
-  """Propagates resource hints set on composite transforms to subtransforms.
-  """
-  def visit_transform(self, transform_node):
-    # type: (AppliedPTransform) -> None
-    if (transform_node.parent is not None and
-        transform_node.parent.resource_hints):
-      merge_resource_hints(
-          outer_hints=transform_node.parent.resource_hints,
-          mutable_inner_hints=transform_node.resource_hints)
-
-  def enter_composite_transform(self, transform_node):
-    # type: (AppliedPTransform) -> None
-    self.visit_transform(transform_node)
-
-  @staticmethod
-  def propagate_hints_to_subtransforms(pipeline):
-    # type: (Pipeline) -> None
-    visitor = ResourceHintsPropagator()
-    pipeline.visit(visitor)
-
-
 class ExternalTransformFinder(PipelineVisitor):
   """Looks for any external transforms in the pipeline and if found records
   it.
@@ -1142,6 +1115,7 @@ class AppliedPTransform(object):
   def add_part(self, part):
     # type: (AppliedPTransform) -> None
     assert isinstance(part, AppliedPTransform)
+    part._merge_outer_resource_hints()
     self.parts.append(part)
 
   def is_composite(self):
@@ -1344,7 +1318,7 @@ class AppliedPTransform(object):
     for transform_id in proto.subtransforms:
       part = context.transforms.get_by_id(transform_id)
       part.parent = result
-      result.parts.append(part)
+      result.add_part(part)
     result.outputs = {
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
         for tag,
@@ -1361,6 +1335,15 @@ class AppliedPTransform(object):
           pc.producer = result
           pc.tag = None if tag == 'None' else tag
     return result
+
+  def _merge_outer_resource_hints(self):
+    if (self.parent is not None and self.parent.resource_hints):
+      merge_resource_hints(
+          outer_hints=self.parent.resource_hints,
+          mutable_inner_hints=self.resource_hints)
+    if self.resource_hints:
+      for part in self.parts:
+        part._merge_outer_resource_hints()
 
 
 class PTransformOverride(with_metaclass(abc.ABCMeta,
