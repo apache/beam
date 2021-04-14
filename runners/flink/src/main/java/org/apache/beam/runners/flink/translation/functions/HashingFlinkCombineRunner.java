@@ -59,6 +59,7 @@ public class HashingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
 
     @SuppressWarnings("unchecked")
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
+    WindowFn<Object, W> windowFn = windowingStrategy.getWindowFn();
 
     // Flink Iterable can be iterated over only once.
     List<WindowedValue<KV<K, InputT>>> inputs = new ArrayList<>();
@@ -85,7 +86,8 @@ public class HashingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
               flinkCombiner.firstInput(
                   key, currentValue.getValue().getValue(), options, sideInputReader, singletonW);
           Instant windowTimestamp =
-              timestampCombiner.assign(mergedWindow, currentValue.getTimestamp());
+              timestampCombiner.assign(
+                  mergedWindow, windowFn.getOutputTime(currentValue.getTimestamp(), mergedWindow));
           accumAndInstant = new Tuple2<>(accumT, windowTimestamp);
           mapState.put(mergedWindow, accumAndInstant);
         } else {
@@ -100,7 +102,11 @@ public class HashingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
           accumAndInstant.f1 =
               timestampCombiner.combine(
                   accumAndInstant.f1,
-                  timestampCombiner.assign(mergedWindow, currentValue.getTimestamp()));
+                  timestampCombiner.assign(
+                      mergedWindow,
+                      windowingStrategy
+                          .getWindowFn()
+                          .getOutputTime(currentValue.getTimestamp(), mergedWindow)));
         }
       }
       if (iterator.hasNext()) {

@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -55,6 +56,7 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
     @SuppressWarnings("unchecked")
     TimestampCombiner timestampCombiner =
         (TimestampCombiner) windowingStrategy.getTimestampCombiner();
+    WindowFn<Object, W> windowFn = windowingStrategy.getWindowFn();
 
     // get all elements so that we can sort them, has to fit into
     // memory
@@ -88,7 +90,9 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
             key, firstValue, options, sideInputReader, currentValue.getWindows());
 
     // we use this to keep track of the timestamps assigned by the TimestampCombiner
-    Instant windowTimestamp = timestampCombiner.assign(currentWindow, currentValue.getTimestamp());
+    Instant windowTimestamp =
+        timestampCombiner.assign(
+            currentWindow, windowFn.getOutputTime(currentValue.getTimestamp(), currentWindow));
 
     while (iterator.hasNext()) {
       WindowedValue<KV<K, InputT>> nextValue = iterator.next();
@@ -104,7 +108,10 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
 
         windowTimestamp =
             timestampCombiner.combine(
-                windowTimestamp, timestampCombiner.assign(currentWindow, nextValue.getTimestamp()));
+                windowTimestamp,
+                timestampCombiner.assign(
+                    currentWindow,
+                    windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow)));
 
       } else {
         // emit the value that we currently have
@@ -124,7 +131,9 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
         accumulator =
             flinkCombiner.firstInput(
                 key, value, options, sideInputReader, currentValue.getWindows());
-        windowTimestamp = timestampCombiner.assign(currentWindow, nextValue.getTimestamp());
+        windowTimestamp =
+            timestampCombiner.assign(
+                currentWindow, windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow));
       }
     }
 
