@@ -382,7 +382,7 @@ In nested mode, the following fields hold topic metadata. The presence of the
     `deadLeaderQueue` field of the `tblProperties` blob. If no dead-letter queue
     is specified in this case, an exception is thrown and the pipeline will
     crash.
-    
+
 
 *   `LOCATION`:
     *   `PROJECT`: ID of the Google Cloud Project
@@ -435,7 +435,7 @@ LOCATION 'projects/testing-integration/topics/user-location'
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
     publish_timestamp DATETIME,
     event_timestamp DATETIME,
-    message_key BYTES, 
+    message_key BYTES,
     attributes ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>,
     payload [BYTES, ROW<tableElement [, tableElement ]*>]
 )
@@ -502,7 +502,7 @@ TBLPROPERTIES '{
 ```
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (
   event_timestamp DATETIME,
-  message_key BYTES, 
+  message_key BYTES,
   headers ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>,
   payload [BYTES, ROW<tableElement [, tableElement ]*>]
 )
