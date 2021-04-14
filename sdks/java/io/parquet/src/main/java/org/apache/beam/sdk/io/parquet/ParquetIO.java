@@ -1205,6 +1205,7 @@ public class ParquetIO {
 
       AvroParquetWriter.Builder<GenericRecord> builder =
           AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
+              .withDataModel(GenericData.get())
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
               .withWriteMode(OVERWRITE)
