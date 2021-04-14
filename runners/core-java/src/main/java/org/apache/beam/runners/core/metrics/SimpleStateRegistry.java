@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.
@@ -55,5 +57,13 @@ public class SimpleStateRegistry {
       monitoringInfos.add(builder.build());
     }
     return monitoringInfos;
+  }
+
+  public Map<String, ByteString> getExecutionTimeMonitoringData(ShortIdMap shortIds) {
+    ImmutableMap.Builder<String, ByteString> builder = ImmutableMap.builder();
+    for (SimpleExecutionState state : executionStates) {
+      builder.put(state.getTotalMillisShortId(shortIds), state.getTotalMillisPayload());
+    }
+    return builder.build();
   }
 }
