@@ -1120,7 +1120,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         preserves_partition_by=partitionings.Arbitrary(),
         requires_partition_by=partitionings.Index())
 
-  unstack = frame_base.wont_implement_method('non-deferred column values')
+  unstack = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'unstack', reason='non-deferred-columns')
 
   values = property(frame_base.wont_implement_method('non-deferred'))
 
@@ -2025,7 +2026,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   to_sparse = frame_base.wont_implement_method('non-deferred value')
 
-  transpose = frame_base.wont_implement_method('non-deferred column values')
+  transpose = frame_base.wont_implement_method_with_reason(
+      pd.DataFrame, 'transpose', reason='non-deferred-columns')
 
   def unstack(self, *args, **kwargs):
     if self._expr.proxy().index.nlevels == 1:
@@ -2575,7 +2577,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       raise TypeError("str.repeat(repeats=) value must be an int or a "
                       f"DeferredSeries (encountered {type(repeats)}).")
 
-  get_dummies = frame_base.wont_implement_method('non-deferred column values')
+  get_dummies = frame_base.wont_implement_method_with_reason(
+      pd.core.strings.StringMethods, 'get_dummies',
+      reason='non-deferred-columns')
 
 
 ELEMENTWISE_STRING_METHODS = [
