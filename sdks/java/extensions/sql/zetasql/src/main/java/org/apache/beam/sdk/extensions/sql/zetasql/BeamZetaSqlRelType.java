@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import org.apache.beam.sdk.extensions.sql.impl.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
+import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
@@ -32,10 +32,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilder;
 
-/**
- * {@link org.apache.beam.sdk.extensions.sql.impl.CalcRelSplitter.RelType} for {@link
- * BeamZetaSqlCalcRel}.
- */
+/** {@link CalcRelSplitter.RelType} for {@link BeamZetaSqlCalcRel}. */
 class BeamZetaSqlRelType extends CalcRelSplitter.RelType {
   BeamZetaSqlRelType(String name) {
     super(name);

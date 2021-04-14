@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import org.apache.beam.sdk.extensions.sql.impl.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
+import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.CallImplementor;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable;
@@ -40,9 +40,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilde
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * {@link org.apache.beam.sdk.extensions.sql.impl.CalcRelSplitter.RelType} for {@link BeamCalcRel}.
- */
+/** {@link CalcRelSplitter.RelType} for {@link BeamCalcRel}. */
 class BeamCalcRelType extends CalcRelSplitter.RelType {
   private static final Logger LOG = LoggerFactory.getLogger(BeamCalcRelType.class);
 
