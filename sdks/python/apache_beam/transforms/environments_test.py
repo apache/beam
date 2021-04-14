@@ -29,7 +29,6 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import environments
-from apache_beam.transforms import resources
 from apache_beam.transforms.environments import DockerEnvironment
 from apache_beam.transforms.environments import EmbeddedPythonEnvironment
 from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
@@ -121,15 +120,11 @@ class EnvironmentOptionsTest(unittest.TestCase):
       ProcessEnvironment.from_options(options)
 
   def test_environments_with_same_hints_are_equal(self):
-    resources._KNOWN_HINTS.update(
-        {'a_hint': lambda value: {
-            'a_urn': str(value).encode('ascii')
-        }})
     options = PortableOptions([
         '--environment_type=PROCESS',
         '--environment_option=process_command=foo',
         '--sdk_location=container',
-        '--a_hint=a_value',
+        '--resource_hint=accelerator=gpu',
     ])
     environment1 = ProcessEnvironment.from_options(options)
     environment2 = ProcessEnvironment.from_options(options)
