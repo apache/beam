@@ -1830,7 +1830,10 @@ message ExecutableStagePayload {
 
 message StandardResourceHints {
   enum Enum {
+    // Describes hardware accelerators that are desired to have in the execution environment.
     ACCELERATOR = 0 [(beam_urn) = "beam:resources:accelerator:v1"];
+    // Describes desired minimal available RAM size in transform's execution environment.
+    // SDKs should convert the size to bytes, but can allow users to specify human-friendly units (e.g. GiB).
     MIN_RAM_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_bytes:v1"];
   }
 }
