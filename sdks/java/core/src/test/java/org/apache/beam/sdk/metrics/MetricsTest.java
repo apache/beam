@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetrics
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.distributionMinMax;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -287,12 +289,20 @@ public class MetricsTest implements Serializable {
 
       assertThat(
           metrics.getCounters(),
-          hasItem(
-              attemptedMetricsResult(
-                  ELEMENTS_READ.getNamespace(),
-                  ELEMENTS_READ.getName(),
-                  "Read(BoundedCountingSource)",
-                  1000L)));
+          anyOf(
+              // Step names are different for portable and non-portable runners.
+              hasItem(
+                  attemptedMetricsResult(
+                      ELEMENTS_READ.getNamespace(),
+                      ELEMENTS_READ.getName(),
+                      "Read(BoundedCountingSource)",
+                      1000L)),
+              hasItem(
+                  attemptedMetricsResult(
+                      ELEMENTS_READ.getNamespace(),
+                      ELEMENTS_READ.getName(),
+                      "Read-BoundedCountingSource-",
+                      1000L))));
     }
 
     @Test
@@ -318,12 +328,20 @@ public class MetricsTest implements Serializable {
 
       assertThat(
           metrics.getCounters(),
-          hasItem(
-              attemptedMetricsResult(
-                  ELEMENTS_READ.getNamespace(),
-                  ELEMENTS_READ.getName(),
-                  "Read(UnboundedCountingSource)",
-                  1000L)));
+          anyOf(
+              // Step names are different for portable and non-portable runners.
+              hasItem(
+                  attemptedMetricsResult(
+                      ELEMENTS_READ.getNamespace(),
+                      ELEMENTS_READ.getName(),
+                      "Read(UnboundedCountingSource)",
+                      1000L)),
+              hasItem(
+                  attemptedMetricsResult(
+                      ELEMENTS_READ.getNamespace(),
+                      ELEMENTS_READ.getName(),
+                      "Read-UnboundedCountingSource-",
+                      1000L))));
     }
   }
 
@@ -374,7 +392,15 @@ public class MetricsTest implements Serializable {
   private static void assertCounterMetrics(MetricQueryResults metrics, boolean isCommitted) {
     assertThat(
         metrics.getCounters(),
-        hasItem(metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)));
+        anyOf(
+            // Step names are different for portable and non-portable runners.
+            hasItem(
+                metricsResult(
+                    NAMESPACE, "count", "MyStep1/ParMultiDo(Anonymous)", 3L, isCommitted)),
+            hasItem(
+                metricsResult(
+                    NAMESPACE, "count", "MyStep1-ParMultiDo-Anonymous-", 3L, isCommitted))));
+
     assertThat(
         metrics.getCounters(),
         hasItem(metricsResult(NAMESPACE, "count", "MyStep2", 6L, isCommitted)));
@@ -395,13 +421,22 @@ public class MetricsTest implements Serializable {
   private static void assertDistributionMetrics(MetricQueryResults metrics, boolean isCommitted) {
     assertThat(
         metrics.getDistributions(),
-        hasItem(
-            metricsResult(
-                NAMESPACE,
-                "input",
-                "MyStep1",
-                DistributionResult.create(26L, 3L, 5L, 13L),
-                isCommitted)));
+        anyOf(
+            // Step names are different for portable and non-portable runners.
+            hasItem(
+                metricsResult(
+                    NAMESPACE,
+                    "input",
+                    "MyStep1/ParMultiDo(Anonymous)",
+                    DistributionResult.create(26L, 3L, 5L, 13L),
+                    isCommitted)),
+            hasItem(
+                metricsResult(
+                    NAMESPACE,
+                    "input",
+                    "MyStep1-ParMultiDo-Anonymous-",
+                    DistributionResult.create(26L, 3L, 5L, 13L),
+                    isCommitted))));
 
     assertThat(
         metrics.getDistributions(),
@@ -414,7 +449,26 @@ public class MetricsTest implements Serializable {
                 isCommitted)));
     assertThat(
         metrics.getDistributions(),
-        hasItem(distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)));
+        anyOf(
+            // Step names are different for portable and non-portable runners.
+            hasItem(
+                (Matcher<MetricResult<DistributionResult>>)
+                    distributionMinMax(
+                        NAMESPACE,
+                        "bundle",
+                        "MyStep1/ParMultiDo(Anonymous)",
+                        10L,
+                        40L,
+                        isCommitted)),
+            hasItem(
+                (Matcher<MetricResult<DistributionResult>>)
+                    distributionMinMax(
+                        NAMESPACE,
+                        "bundle",
+                        "MyStep1-ParMultiDo-Anonymous-",
+                        10L,
+                        40L,
+                        isCommitted))));
   }
 
   private static void assertAllMetrics(MetricQueryResults metrics, boolean isCommitted) {

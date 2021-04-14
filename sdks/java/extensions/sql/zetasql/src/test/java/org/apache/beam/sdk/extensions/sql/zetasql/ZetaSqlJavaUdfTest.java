@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.fail;
 
+import com.google.zetasql.SqlException;
 import java.lang.reflect.Method;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
@@ -288,6 +289,20 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 containsString(
                     "No applicable constructor/method found for actual parameters \"long\""))));
     BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+  }
+
+  @Test
+  public void testJavaUdfWithNoReturnTypeIsRejected() {
+    String sql =
+        String.format(
+            "CREATE FUNCTION helloWorld() LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT helloWorld();",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(SqlException.class);
+    thrown.expectMessage("Non-SQL functions must specify a return type");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test

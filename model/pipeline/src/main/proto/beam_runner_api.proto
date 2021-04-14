@@ -58,6 +58,10 @@ message BeamConstants {
 // on any proto message that may contain references needing resolution.
 message Components {
   // (Required) A map from pipeline-scoped id to PTransform.
+  //
+  // Keys of the transforms map may be used by runners to identify pipeline
+  // steps. Hence it's recommended to use strings that are not too long that
+  // match regex '[A-Za-z0-9-_]+'.
   map<string, PTransform> transforms = 1;
 
   // (Required) A map from pipeline-scoped id to PCollection.
@@ -696,6 +700,8 @@ message WriteFilesPayload {
 // with a native implementation.
 // The SDK should guarantee that only one of topic, subscription,
 // topic_runtime_overridden and subscription_runtime_overridden is set.
+// The output of PubSubReadPayload should be bytes of serialized PubsubMessage
+// proto if with_attributes == true. Otherwise, the bytes is the raw payload.
 message PubSubReadPayload {
 
   // Topic to read from. Exactly one of topic or subscription should be set.
@@ -727,6 +733,8 @@ message PubSubReadPayload {
 // with a native implementation.
 // The SDK should guarantee that only one of topic and topic_runtime_overridden
 // is set.
+// The output of PubSubWritePayload should be bytes if serialized PubsubMessage
+// proto.
 message PubSubWritePayload {
 
   // Topic to write to.

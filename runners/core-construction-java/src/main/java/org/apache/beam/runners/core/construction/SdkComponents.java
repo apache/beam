@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
+import java.text.Normalizer;
+import java.text.Normalizer.Form;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -191,6 +193,10 @@ public class SdkComponents {
     if (name.isEmpty()) {
       name = "unnamed-ptransform";
     }
+    // Normalize, trim, and uniqify.
+    int maxNameLength = 100;
+    name = Normalizer.normalize(name, Form.NFC).replaceAll("[^A-Za-z0-9-_]", "-");
+    name = (name.length() > maxNameLength) ? name.substring(0, maxNameLength) : name;
     name = uniqify(name, transformIds.values());
     transformIds.put(appliedPTransform, name);
     return name;

@@ -25,8 +25,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PubSubWritePayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.sdk.io.gcp.pubsub.PubSubPayloadTranslation.PubSubWritePayloadTranslator;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
-import org.apache.beam.sdk.io.gcp.pubsub.RunnerImplementedSinkTranslation.RunnerImplementedSinkTranslator;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink.PubsubSink;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -44,18 +45,18 @@ import org.junit.runners.JUnit4;
 
 /** Test RunnerImplementedSinkTranslator. */
 @RunWith(JUnit4.class)
-public class RunnerImplementedSinkTranslationTest {
+public class PubSubWritePayloadTranslationTest {
   private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
   private static final String ID_ATTRIBUTE = "id";
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
-  private final RunnerImplementedSinkTranslator sinkTranslator =
-      new RunnerImplementedSinkTranslator();
+  private final PubSubPayloadTranslation.PubSubWritePayloadTranslator sinkTranslator =
+      new PubSubWritePayloadTranslator();
 
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void testTranslateSinkWithTopic() throws Exception {
-    PubsubUnboundedSink pubsubSink =
+    PubsubUnboundedSink pubsubUnboundedSink =
         new PubsubUnboundedSink(
             null,
             StaticValueProvider.of(TOPIC),
@@ -66,16 +67,12 @@ public class RunnerImplementedSinkTranslationTest {
             0,
             Duration.ZERO,
             null);
-    RunnerImplementedSink runnerImplementedSink = new RunnerImplementedSink(pubsubSink);
+    PubsubUnboundedSink.PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSink);
     PCollection<byte[]> input = pipeline.apply(Create.of(new byte[0]));
-    PDone output = input.apply(runnerImplementedSink);
-    AppliedPTransform<?, ?, RunnerImplementedSink> appliedPTransform =
+    PDone output = input.apply(pubsubSink);
+    AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(
-            "sink",
-            PValues.expandInput(input),
-            PValues.expandOutput(output),
-            runnerImplementedSink,
-            pipeline);
+            "sink", PValues.expandInput(input), PValues.expandOutput(output), pubsubSink, pipeline);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.FunctionSpec spec = sinkTranslator.translate(appliedPTransform, components);
@@ -91,19 +88,15 @@ public class RunnerImplementedSinkTranslationTest {
   @Test
   public void testTranslateSinkWithTopicOverridden() throws Exception {
     ValueProvider<TopicPath> runtimeProvider = pipeline.newProvider(TOPIC);
-    PubsubUnboundedSink pubsubSink =
+    PubsubUnboundedSink pubsubUnboundedSinkSink =
         new PubsubUnboundedSink(
             null, runtimeProvider, TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 0, 0, 0, Duration.ZERO, null);
-    RunnerImplementedSink runnerImplementedSink = new RunnerImplementedSink(pubsubSink);
+    PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSinkSink);
     PCollection<byte[]> input = pipeline.apply(Create.of(new byte[0]));
-    PDone output = input.apply(runnerImplementedSink);
-    AppliedPTransform<?, ?, RunnerImplementedSink> appliedPTransform =
+    PDone output = input.apply(pubsubSink);
+    AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(
-            "sink",
-            PValues.expandInput(input),
-            PValues.expandOutput(output),
-            runnerImplementedSink,
-            pipeline);
+            "sink", PValues.expandInput(input), PValues.expandOutput(output), pubsubSink, pipeline);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.FunctionSpec spec = sinkTranslator.translate(appliedPTransform, components);

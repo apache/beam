@@ -670,6 +670,10 @@ class CodersTest(unittest.TestCase):
           'component_encodings': [key_coder.as_cloud_object()]
       },
                        coder.as_cloud_object())
+
+      # Test str repr
+      self.assertEqual('%s' % coder, 'ShardedKeyCoder[%s]' % key_coder)
+
       self.assertEqual(b'\x00' + bytes_repr, coder.encode(ShardedKey(key, b'')))
       self.assertEqual(
           b'\x03123' + bytes_repr, coder.encode(ShardedKey(key, b'123')))
