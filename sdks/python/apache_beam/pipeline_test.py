@@ -54,8 +54,8 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
-from apache_beam.transforms import resources
 from apache_beam.transforms.environments import ProcessEnvironment
+from apache_beam.transforms.resources import ResourceHint
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
@@ -964,20 +964,14 @@ class RunnerApiTest(unittest.TestCase):
     self.assertEqual(seen, 2)
 
   def test_runner_api_roundtrip_preserves_resource_hints(self):
-    resources._KNOWN_HINTS.update(
-        {'foo_hint': lambda value: {
-            'foo_urn': value
-        }})
-
     p = TestPipeline()
     _ = (
         p | beam.Create([1, 2])
-        | beam.Map(lambda x: x + 1).with_resource_hints(foo_hint=b'bar',
-                                                        ))
+        | beam.Map(lambda x: x + 1).with_resource_hints(accelerator='gpu'))
 
     self.assertEqual(
         p.transforms_stack[0].parts[1].transform.get_resource_hints(),
-        {'foo_urn': b'bar'})
+        {common_urns.resource_hints.ACCELERATOR.urn: b'gpu'})
 
     for _ in range(3):
       # Verify that DEFAULT environments are recreated during multiple RunnerAPI
@@ -986,32 +980,35 @@ class RunnerApiTest(unittest.TestCase):
           Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
       self.assertEqual(
           p.transforms_stack[0].parts[1].transform.get_resource_hints(),
-          {'foo_urn': b'bar'})
+          {common_urns.resource_hints.ACCELERATOR.urn: b'gpu'})
 
   def test_hints_on_composite_transforms_are_propagated_to_subtransforms(self):
-    resources._KNOWN_HINTS.update({
-        'foo_hint': lambda value: {
-            'foo_urn': value
-        },
-        'bar_hint': lambda value: {
-            'bar_urn': value
-        },
-        'baz_hint': lambda value: {
-            'baz_urn': resources._parse_str(value)
-        },
-        'use_max_value_hint': lambda value: {
-            'use_max_value_urn': resources._parse_int(value)
-        },
-    })
-    resources._HINTS_WITH_CUSTOM_MERGING_LOGIC.update(
-        {'use_max_value_urn': resources._use_max})
+    class FooHint(ResourceHint):
+      urn = 'foo_urn'
+
+    class BarHint(ResourceHint):
+      urn = 'bar_urn'
+
+    class BazHint(ResourceHint):
+      urn = 'baz_urn'
+
+    class UseMaxValueHint(ResourceHint):
+      urn = 'use_max_value_urn'
+
+      @classmethod
+      def get_merged_value(
+          cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+        return ResourceHint._use_max(outer_value, inner_value)
+
+    ResourceHint.register_resource_hint('foo_hint', FooHint)
+    ResourceHint.register_resource_hint('bar_hint', BarHint)
+    ResourceHint.register_resource_hint('baz_hint', BazHint)
+    ResourceHint.register_resource_hint('use_max_value_hint', UseMaxValueHint)
 
     @beam.ptransform_fn
     def SubTransform(pcoll):
       return pcoll | beam.Map(lambda x: x + 1).with_resource_hints(
-          foo_hint=b'set_on_subtransform',
-          bar_hint=b'set_on_subtransform_only',
-          use_max_value_hint=10)
+          foo_hint='set_on_subtransform', use_max_value_hint='10')
 
     @beam.ptransform_fn
     def CompositeTransform(pcoll):
@@ -1021,9 +1018,10 @@ class RunnerApiTest(unittest.TestCase):
     _ = (
         p | beam.Create([1, 2])
         | CompositeTransform().with_resource_hints(
-            foo_hint=b'set_on_composite',
+            foo_hint='set_on_composite',
+            bar_hint='set_on_composite_only',
             baz_hint='set_on_composite',
-            use_max_value_hint=100))
+            use_max_value_hint='100'))
     p._propagate_resource_hints()
     options = PortableOptions([
         '--resource_hint=baz_hint=set_via_options',
@@ -1039,10 +1037,10 @@ class RunnerApiTest(unittest.TestCase):
       if "CompositeTransform/SubTransform/Map" in t.unique_name:
         environment = proto.components.environments.get(t.environment_id)
         self.assertEqual(
-            environment.resource_hints.get('foo_urn'), b'set_on_composite')
+            environment.resource_hints.get('foo_urn'), b'set_on_subtransform')
         self.assertEqual(
-            environment.resource_hints.get('bar_urn'),
-            b'set_on_subtransform_only')
+            environment.resource_hints.get('bar_urn'), b'set_on_composite_only')
+        # TODO - incorrect, fix the behavior and the test.
         self.assertEqual(
             environment.resource_hints.get('baz_urn'), b'set_via_options')
         self.assertEqual(
@@ -1051,17 +1049,18 @@ class RunnerApiTest(unittest.TestCase):
     assert found
 
   def test_environments_with_same_resource_hints_are_reused(self):
-    resources._KNOWN_HINTS.update({
-        'X': lambda value: {
-            'X_urn': str(value).encode('ascii')
-        },
-        'Y': lambda value: {
-            'Y_urn': str(value).encode('ascii')
-        },
-        'IsOdd': lambda value: {
-            'IsOdd_urn': str(value).encode('ascii')
-        },
-    })
+    class HintX(ResourceHint):
+      urn = 'X_urn'
+
+    class HintY(ResourceHint):
+      urn = 'Y_urn'
+
+    class HintIsOdd(ResourceHint):
+      urn = 'IsOdd_urn'
+
+    ResourceHint.register_resource_hint('X', HintX)
+    ResourceHint.register_resource_hint('Y', HintY)
+    ResourceHint.register_resource_hint('IsOdd', HintIsOdd)
 
     p = TestPipeline()
     num_iter = 4
@@ -1084,7 +1083,7 @@ class RunnerApiTest(unittest.TestCase):
           p
           | f'IsOddCreate_{i}' >> beam.Create([1, 2])
           | f'IsOdd_{i}' >>
-          beam.Map(lambda x: x + 1).with_resource_hints(IsOdd=i % 2 != 0))
+          beam.Map(lambda x: x + 1).with_resource_hints(IsOdd=str(i % 2 != 0)))
 
     proto = Pipeline.to_runner_api(p, use_fake_coders=True)
     count_x = count_xy = count_is_odd = count_no_hints = 0

@@ -26,19 +26,19 @@ from apache_beam import PTransform
 class ResourcesTest(unittest.TestCase):
   @parameterized.expand([
       param(
-          name='min_ram_per_vcpu',
+          name='min_ram',
           val='100 MiB',
-          urn='beam:resources:min_ram_per_vcpu_bytes:v1',
+          urn='beam:resources:min_ram_bytes:v1',
           bytestr=b'104857600'),
       param(
-          name='min_ram_per_vcpu',
+          name='min_ram',
           val='100MB',
-          urn='beam:resources:min_ram_per_vcpu_bytes:v1',
+          urn='beam:resources:min_ram_bytes:v1',
           bytestr=b'100000000'),
       param(
-          name='min_ram_per_vcpu',
+          name='min_ram',
           val='6.5 GiB',
-          urn='beam:resources:min_ram_per_vcpu_bytes:v1',
+          urn='beam:resources:min_ram_bytes:v1',
           bytestr=b'6979321856'),
       param(
           name='accelerator',
@@ -52,7 +52,7 @@ class ResourcesTest(unittest.TestCase):
     self.assertEqual(t.get_resource_hints(), {urn: bytestr})
 
   @parameterized.expand([
-      param(name='min_ram_per_vcpu', val='3,500G'),
+      param(name='min_ram', val='3,500G'),
       param(name='accelerator', val=1),
       param(name='unknown_hint', val=1)
   ])

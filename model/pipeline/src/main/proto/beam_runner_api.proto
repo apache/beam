@@ -1831,6 +1831,6 @@ message ExecutableStagePayload {
 message StandardResourceHints {
   enum Enum {
     ACCELERATOR = 0 [(beam_urn) = "beam:resources:accelerator:v1"];
-    MIN_RAM_PER_VCPU_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_per_vcpu_bytes:v1"];
+    MIN_RAM_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_bytes:v1"];
   }
 }

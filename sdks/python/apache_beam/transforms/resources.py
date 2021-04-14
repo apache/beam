@@ -26,100 +26,138 @@ See also: PTransforms.with_resource_hints().
 """
 
 from typing import Any
-from typing import Callable
 from typing import Dict
+from typing import Optional
 
 from apache_beam.portability.common_urns import resource_hints
 
-__all__ = ['parse_resource_hints', 'get_merged_hint_value']
+__all__ = [
+    'ResourceHint', 'AcceleratorHint', 'MinRamHint', 'parse_resource_hints'
+]
 
 
-def _parse_str(value):
-  if not isinstance(value, str):
-    raise ValueError()
-  return value.encode('ascii')
+class ResourceHint(object):
+  """A superclass to define resource hints."""
+  # A unique URN, one per Resource Hint class.
+  urn = None  # type: Optional[str]
+
+  _urn_to_known_hints = {}  # type: Dict[str, type]
+  _name_to_known_hints = {}  # type: Dict[str, type]
+
+  @classmethod
+  def parse(cls, value):  # type: (str) -> Dict[str, bytes]
+    """Describes how to parse the hint.
+    Override to specify a custom parsing logic."""
+    assert cls.urn is not None
+    # Override this method to have a custom parsing logic.
+    return {cls.urn: ResourceHint._parse_str(value)}
+
+  @classmethod
+  def get_merged_value(
+      cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+    """Reconciles values of a hint when the hint specified on a transform is
+    also defined in an outer context, for example on a composite transform, or
+    specified in the transform's execution environment.
+    Override to specify a custom merging logic.
+    """
+    # Defaults to the inner value as it is the most specific one.
+    return inner_value
+
+  @staticmethod
+  def get_by_urn(urn):
+    return ResourceHint._urn_to_known_hints[urn]
+
+  @staticmethod
+  def get_by_name(name):
+    return ResourceHint._name_to_known_hints[name]
+
+  @staticmethod
+  def register_resource_hint(
+      hint_name, hint_class):  # type: (str, type) -> None
+    assert issubclass(hint_class, ResourceHint)
+    assert hint_class.urn is not None
+    ResourceHint._name_to_known_hints[hint_name] = hint_class
+    ResourceHint._urn_to_known_hints[hint_class.urn] = hint_class
+
+  @staticmethod
+  def _parse_str(value):
+    if not isinstance(value, str):
+      raise ValueError()
+    return value.encode('ascii')
+
+  @staticmethod
+  def _parse_int(value):
+    if isinstance(value, str):
+      value = int(value)
+    if not isinstance(value, int):
+      raise ValueError()
+    return str(value).encode('ascii')
+
+  @staticmethod
+  def _parse_storage_size_str(value):  # type: (str) -> bytes
+    """Parses a human-friendly storage size string into a number of bytes.
+    """
+    if not isinstance(value, str):
+      value = str(value)
+    value = value.strip().replace(" ", "")
+    units = {
+        'PiB': 2**50,
+        'TiB': 2**40,
+        'GiB': 2**30,
+        'MiB': 2**20,
+        'KiB': 2**10,
+        'PB': 10**15,
+        'TB': 10**12,
+        'GB': 10**9,
+        'MB': 10**6,
+        'KB': 10**3,
+    }
+    multiplier = 1
+    for suffix in units:
+      if value.endswith(suffix):
+        multiplier = units[suffix]
+        value = value[:-len(suffix)]
+        break
+
+    return str(round(float(value) * multiplier)).encode('ascii')
+
+  @staticmethod
+  def _use_max(v1, v2):
+    return str(max(int(v1), int(v2))).encode('ascii')
 
 
-def _parse_int(value):
-  if isinstance(value, str):
-    value = int(value)
-  if not isinstance(value, int):
-    raise ValueError()
-  return str(value).encode('ascii')
+class AcceleratorHint(ResourceHint):
+  """Describes desired hardware accelerators in execution environment."""
+  urn = resource_hints.ACCELERATOR.urn
 
 
-def _parse_any(_):
-  # For hints where only a key is relevant and value is set to None or any value
-  return b'1'
+ResourceHint.register_resource_hint('accelerator', AcceleratorHint)
 
 
-def _parse_storage_size_str(value):  # type: (str) -> bytes
-  """Parses a human-friendly storage size string into a number of bytes.
-  """
-  if not isinstance(value, str):
-    value = str(value)
-  value = value.strip().replace(" ", "")
-  units = {
-      'PiB': 2**50,
-      'TiB': 2**40,
-      'GiB': 2**30,
-      'MiB': 2**20,
-      'KiB': 2**10,
-      'PB': 10**15,
-      'TB': 10**12,
-      'GB': 10**9,
-      'MB': 10**6,
-      'KB': 10**3,
-  }
-  multiplier = 1
-  for suffix in units:
-    if value.endswith(suffix):
-      multiplier = units[suffix]
-      value = value[:-len(suffix)]
-      break
+class MinRamHint(ResourceHint):
+  """Describes min RAM requirements for transform's execution environment."""
+  urn = resource_hints.MIN_RAM_BYTES.urn
 
-  return str(round(float(value) * multiplier)).encode('ascii')
+  @classmethod
+  def parse(cls, value):  # type: (str) -> Dict[str, bytes]
+    return {cls.urn: ResourceHint._parse_storage_size_str(value)}
+
+  @classmethod
+  def get_merged_value(
+      cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+    return ResourceHint._use_max(outer_value, inner_value)
 
 
-def _use_max(v1, v2):
-  return str(max(int(v1), int(v2))).encode('ascii')
-
-
-def get_merged_hint_value(
-    hint_urn, outer_value, inner_value):  # type: (str, bytes, bytes) -> bytes
-  """Reconciles values of a hint defined on a composite and its subtransform."""
-  if (outer_value == inner_value or
-      hint_urn not in _HINTS_WITH_CUSTOM_MERGING_LOGIC):
-    return outer_value
-  else:
-    return _HINTS_WITH_CUSTOM_MERGING_LOGIC[hint_urn](outer_value, inner_value)
-
-
-# Describes how to parse known resource hints, and which URNs to assign.
-_KNOWN_HINTS = dict(
-    accelerator=lambda value:
-    {resource_hints.ACCELERATOR.urn: _parse_str(value)},
-    min_ram_per_vcpu=lambda value:
-    {resource_hints.MIN_RAM_PER_VCPU_BYTES.urn: _parse_storage_size_str(value)},
-)  # type: Dict[str, Callable[[Any], Dict[str, bytes]]]
-
-# Describes how resource hint values should be reconciled when the same hint
-# is defined on a composite transform and its downstream parts.
-# Note that hint values predefined by environments (such as values of
-# command-line specified hints) will override pipeline-defined hints and are not
-# subject to the merging logic.
-_HINTS_WITH_CUSTOM_MERGING_LOGIC = {
-    resource_hints.MIN_RAM_PER_VCPU_BYTES.urn: _use_max
-}  # type: Dict[str, Callable[[bytes, bytes], bytes]]
+ResourceHint.register_resource_hint('min_ram', MinRamHint)
 
 
 def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]
   parsed_hints = {}
   for hint, value in hints.items():
     try:
-      hint_parser = _KNOWN_HINTS[hint]
+      hint_cls = ResourceHint.get_by_name(hint)
       try:
-        parsed_hints.update(hint_parser(value))
+        parsed_hints.update(hint_cls.parse(value))
       except ValueError:
         raise ValueError(f"Resource hint {hint} has invalid value {value}.")
     except KeyError:
