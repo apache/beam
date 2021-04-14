@@ -675,6 +675,17 @@ class DeferredFrameTest(unittest.TestCase):
             lambda x: (x.foo + x.bar).median()),
         df)
 
+  def test_quantile_axis_columns(self):
+    df = pd.DataFrame(np.array([[1, 1], [2, 10], [3, 100], [4, 100]]),
+                      columns=['a', 'b'])
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"df\.quantile\(q=0\.1, axis='columns'\)"):
+      self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
