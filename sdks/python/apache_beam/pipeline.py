@@ -72,7 +72,6 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 
-from apache_beam.transforms.display import DisplayData
 from future.utils import with_metaclass
 from google.protobuf import message
 
@@ -91,6 +90,7 @@ from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints

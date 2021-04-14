@@ -27,7 +27,6 @@ import unittest
 from builtins import object
 from builtins import range
 
-from apache_beam.transforms.display import DisplayDataItem
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -54,6 +53,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue

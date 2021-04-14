@@ -37,8 +37,7 @@ public class DisplayDataTranslation {
   public static final String LABELLED = "beam:display_data:labelled:v1";
 
   static {
-    checkState(
-        LABELLED.equals(BeamUrns.getUrn(StandardDisplayData.DisplayData.LABELLED)));
+    checkState(LABELLED.equals(BeamUrns.getUrn(StandardDisplayData.DisplayData.LABELLED)));
   }
 
   private static final Map<String, Function<DisplayData.Item, ByteString>>

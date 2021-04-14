@@ -1651,7 +1651,7 @@ message StandardDisplayData {
     // Some samples that are being considered to become standard display data
     // types follow:
 
-    // A path/location of a resource that this transform accaesses. Encoded as
+    // A path/location of a resource that this transform accesses. Encoded as
     // the well known google.protobuf.StringValue type.
     // INPUT_PATH = 1 [(beam_urn) = "beam:display_data:input_path:v1"];
 
@@ -1690,7 +1690,7 @@ message DisplayData {
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  optional bytes payload = 2;
+  bytes payload = 2;
 }
 
 
