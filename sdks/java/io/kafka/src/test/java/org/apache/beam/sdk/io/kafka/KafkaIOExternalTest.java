@@ -128,8 +128,10 @@ public class KafkaIOExternalTest {
     assertThat(transform.getInputsCount(), Matchers.is(0));
     assertThat(transform.getOutputsCount(), Matchers.is(1));
 
-    RunnerApi.PTransform kafkaComposite =
+    RunnerApi.PTransform kafkaReadComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
+    RunnerApi.PTransform kafkaComposite =
+        result.getComponents().getTransformsOrThrow(kafkaReadComposite.getSubtransforms(0));
     assertThat(
         kafkaComposite.getSubtransformsList(),
         Matchers.hasItem(MatchesPattern.matchesPattern(".*Impulse.*")));
