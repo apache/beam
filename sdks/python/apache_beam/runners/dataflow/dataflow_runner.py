@@ -308,7 +308,7 @@ class DataflowRunner(PipelineRunner):
                     is_bounded=side_input.pvalue.is_bounded)
                 parent = transform_node.parent or pipeline._root_transform()
                 map_to_void_key = beam.pipeline.AppliedPTransform(
-                    pipeline,
+                    parent,
                     beam.Map(lambda x: (b'', x)),
                     transform_node.full_label + '/MapToVoidKey%s' % ix,
                     (side_input.pvalue, ))
