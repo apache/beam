@@ -63,6 +63,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     'Environment',
+    'DefaultEnvironment',
     'DockerEnvironment',
     'ProcessEnvironment',
     'ExternalEnvironment',
@@ -112,9 +113,9 @@ class Environment(object):
   _urn_to_env_cls = {}  # type: Dict[str, type]
 
   def __init__(self,
-      capabilities,  # type: Iterable[str]
-      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints,  # type: Optional[Mapping[str, bytes]]
+      capabilities=(),  # type: Iterable[str]
+      artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
                ):
     # type: (...) -> None
     self._capabilities = capabilities
@@ -259,15 +260,6 @@ class Environment(object):
 @Environment.register_urn(common_urns.environments.DEFAULT.urn, None)
 class DefaultEnvironment(Environment):
   """Used as a stub when context is missing a default environment."""
-  def __init__(
-      self,
-      capabilities=(),  # type: Iterable[str]
-      artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
-  ):
-    super(DefaultEnvironment,
-          self).__init__(capabilities, artifacts, resource_hints)
-
   def to_runner_api_parameter(self, context):
     return common_urns.environments.DEFAULT.urn, None
 
@@ -578,15 +570,6 @@ class ExternalEnvironment(Environment):
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedPythonEnvironment(Environment):
-  def __init__(
-      self,
-      capabilities=(),  # type: Iterable[str]
-      artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-      resource_hints=None  # type: Optional[Mapping[str, bytes]]
-  ):
-    super(EmbeddedPythonEnvironment,
-          self).__init__(capabilities, artifacts, resource_hints)
-
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, None]
     return python_urns.EMBEDDED_PYTHON, None
