@@ -2551,10 +2551,6 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     elif (isinstance(others, frame_base.DeferredBase) or
          (isinstance(others, list) and
           all(isinstance(other, frame_base.DeferredBase) for other in others))):
-      if join is None:
-        raise frame_base.WontImplementError("cat with others=Series or "
-                                            "others=List[Series] requires "
-                                            "join to be specified.")
 
       if isinstance(others, frame_base.DeferredBase):
         others = [others]
