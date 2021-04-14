@@ -27,7 +27,11 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
@@ -132,6 +136,56 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PCollection<Row> result =
         boundedInput1.apply(
             "testTimeUdf", SqlTransform.query(sql).registerUdf("PRE_DAY", PreviousDay.class));
+    PAssert.that(result).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /** GROUP-BY with UDAF that returns Map. */
+  @Test
+  public void testUdafWithMapOutput() throws Exception {
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addMapField("squareAndAccumulateInMap", FieldType.STRING, FieldType.INT32)
+            .build();
+
+    Map<String, Integer> resultMap = new HashMap<String, Integer>();
+    resultMap.put("squareOf-1", 1);
+    resultMap.put("squareOf-2", 4);
+    resultMap.put("squareOf-3", 9);
+    resultMap.put("squareOf-4", 16);
+    Row row = Row.withSchema(resultType).addValues(0, resultMap).build();
+
+    String sql =
+        "SELECT f_int2,squareAndAccumulateInMap(f_int) AS `squareAndAccumulateInMap` FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result =
+        boundedInput1.apply(
+            "testUdafWithMapOutput",
+            SqlTransform.query(sql)
+                .registerUdaf("squareAndAccumulateInMap", new SquareAndAccumulateInMap()));
+    PAssert.that(result).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /** GROUP-BY with UDAF that returns List. */
+  @Test
+  public void testUdafWithListOutput() throws Exception {
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addArrayField("squareAndAccumulateInList", FieldType.INT32)
+            .build();
+    Row row = Row.withSchema(resultType).addValue(0).addArray(Arrays.asList(1, 4, 9, 16)).build();
+
+    String sql =
+        "SELECT f_int2,squareAndAccumulateInList(f_int) AS `squareAndAccumulateInList` FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result =
+        boundedInput1.apply(
+            "testUdafWithListOutput",
+            SqlTransform.query(sql)
+                .registerUdaf("squareAndAccumulateInList", new SquareAndAccumulateInList()));
     PAssert.that(result).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
@@ -456,6 +510,66 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
       Schema schema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT32));
       Object[] values = IntStream.range(startInclusive, endExclusive).boxed().toArray();
       return BeamCalciteTable.of(new TestBoundedTable(schema).addRows(values));
+    }
+  }
+
+  /** UDAF(CombineFn) for test, which squares each input, tags it and returns them all in a Map. */
+  public static class SquareAndAccumulateInMap
+      extends CombineFn<Integer, Map<String, Integer>, Map<String, Integer>> {
+    @Override
+    public Map<String, Integer> createAccumulator() {
+      return new HashMap<String, Integer>();
+    }
+
+    @Override
+    public Map<String, Integer> addInput(Map<String, Integer> accumulator, Integer input) {
+      accumulator.put("squareOf-" + input, input * input);
+      return accumulator;
+    }
+
+    @Override
+    public Map<String, Integer> mergeAccumulators(Iterable<Map<String, Integer>> accumulators) {
+      Map<String, Integer> merged = createAccumulator();
+      for (Map<String, Integer> accumulator : accumulators) {
+        merged.putAll(accumulator);
+      }
+      return merged;
+    }
+
+    @Override
+    public Map<String, Integer> extractOutput(Map<String, Integer> accumulator) {
+      return accumulator;
+    }
+  }
+
+  /** UDAF(CombineFn) for test, which squares each input and returns them all in a List. */
+  public static class SquareAndAccumulateInList
+      extends CombineFn<Integer, List<Integer>, List<Integer>> {
+
+    @Override
+    public List<Integer> createAccumulator() {
+      return new ArrayList<Integer>();
+    }
+
+    @Override
+    public List<Integer> addInput(List<Integer> accumulator, Integer input) {
+      accumulator.add(input * input);
+      return accumulator;
+    }
+
+    @Override
+    public List<Integer> mergeAccumulators(Iterable<List<Integer>> accumulators) {
+      List<Integer> merged = createAccumulator();
+      for (List<Integer> accumulator : accumulators) {
+        merged.addAll(accumulator);
+      }
+      return merged;
+    }
+
+    @Override
+    public List<Integer> extractOutput(List<Integer> accumulator) {
+      Collections.sort(accumulator);
+      return accumulator;
     }
   }
 }
