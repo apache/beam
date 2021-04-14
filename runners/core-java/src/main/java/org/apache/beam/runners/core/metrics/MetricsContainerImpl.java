@@ -89,6 +89,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     this.stepName = stepName;
   }
 
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      justification = "No bug",
+      value = "SE_BAD_FIELD")
   private Map<MetricKey, Optional<String>> shortIdsByMetricKey = new ConcurrentHashMap<>();
 
   /** Reset the metrics. */
