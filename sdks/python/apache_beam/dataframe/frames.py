@@ -557,9 +557,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   index = property(
       _get_index, frame_base.not_implemented_method('index (setter)'))
 
-  hist = frame_base.wont_implement_method('plot')
+  hist = frame_base.wont_implement_method_with_reason(
+      pd.DataFrame, 'hist', reason="plotting-tools")
 
-  attrs = property(frame_base.wont_implement_method('experimental'))
+  attrs = property(
+      frame_base.wont_implement_method_with_reason(
+          pd.DataFrame, 'attrs', reason='experimental'))
 
   reorder_levels = frame_base._proxy_method(
       'reorder_levels',
@@ -1073,8 +1076,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
 
-  plot = property(frame_base.wont_implement_method('plot'))
-  pop = frame_base.wont_implement_method('non-lazy')
+  plot = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'plot', reason="plotting-tools")
+  pop = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'pop', reason="non-deferred-result")
 
   rename_axis = frame_base._elementwise_method('rename_axis', base=pd.Series)
 
@@ -1109,7 +1114,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   round = frame_base._elementwise_method('round', base=pd.Series)
 
-  take = frame_base.wont_implement_method('deprecated')
+  take = frame_base.wont_implement_method_with_reason(
+      pd.Series, 'take', reason='deprecated')
 
   to_dict = frame_base.wont_implement_method_with_reason(
       pd.Series, 'to_dict', reason="non-deferred-result")
@@ -1875,7 +1881,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=preserves_partition_by,
             requires_partition_by=requires_partition_by))
 
-  plot = property(frame_base.wont_implement_method('plot'))
+  plot = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'plot',
+                                                      reason="plotting-tools")
 
   def pop(self, item):
     result = self[item]
@@ -2049,7 +2056,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   mean = frame_base._agg_method('mean')
   median = frame_base._agg_method('median')
 
-  take = frame_base.wont_implement_method('deprecated')
+  take = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'take', reason='deprecated')
 
   to_records = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'to_records', reason="non-deferred-result")
   to_dict    = frame_base.wont_implement_method_with_reason(pd.DataFrame, 'to_dict', reason="non-deferred-result")
@@ -2230,8 +2237,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   aggregate = agg
 
-  hist = frame_base.wont_implement_method('plot')
-  plot = frame_base.wont_implement_method('plot')
+  hist = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'plot', reason="plotting-tools")
+  plot = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'hist', reason="plotting-tools")
 
   first = frame_base.wont_implement_method_with_reason(
       pd.core.groupby.generic.DataFrameGroupBy, 'first', reason='order-sensitive')
@@ -2367,15 +2374,15 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   agg = aggregate = frame_base._elementwise_method('agg', base=DataFrameGroupBy)
   any = frame_base._elementwise_method('any', base=DataFrameGroupBy)
   all = frame_base._elementwise_method('all', base=DataFrameGroupBy)
-  boxplot = frame_base.wont_implement_method('plot')
-  describe = frame_base.wont_implement_method('describe')
+  boxplot = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'boxplot', reason="plotting-tools")
+  describe = frame_base.not_implemented_method('describe')
   diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
   fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
   filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
   first = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'first', reason="order-sensitive")
   get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
   head = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'head', reason="order-sensitive")
-  hist = frame_base.wont_implement_method('plot')
+  hist = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'hist', reason="plotting-tools")
   idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
   idxmin = frame_base._elementwise_method('idxmin', base=DataFrameGroupBy)
   last = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'last', reason="order-sensitive")
@@ -2385,7 +2392,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   median = frame_base._elementwise_method('median', base=DataFrameGroupBy)
   min = frame_base._elementwise_method('min', base=DataFrameGroupBy)
   nunique = frame_base._elementwise_method('nunique', base=DataFrameGroupBy)
-  plot = frame_base.wont_implement_method('plot')
+  plot = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'plot', reason="plotting-tools")
   prod = frame_base._elementwise_method('prod', base=DataFrameGroupBy)
   quantile = frame_base._elementwise_method('quantile', base=DataFrameGroupBy)
   shift = frame_base._elementwise_method('shift', base=DataFrameGroupBy)
@@ -2393,9 +2400,8 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   skew = frame_base._elementwise_method('skew', base=DataFrameGroupBy)
   std = frame_base._elementwise_method('std', base=DataFrameGroupBy)
   sum = frame_base._elementwise_method('sum', base=DataFrameGroupBy)
-  tail = frame_base.wont_implement_method('order sensitive')
   tail = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'tail', reason="order-sensitive")
-  take = frame_base.wont_implement_method('deprectated')
+  take = frame_base.wont_implement_method_with_reason(pd.core.groupby.generic.DataFrameGroupBy, 'take', reason='deprecated')
   tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
   var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
 

@@ -351,7 +351,10 @@ def wont_implement_method_with_reason(base_type, name, reason=None):
 
   wrapper.__name__ = name
   wrapper.__doc__ = f"""pandas.{base_type.__name__}.{name} is not supported in
-                    the Beam DataFrame API {reason_data['explanation']}.
+                    the Beam DataFrame API {reason_data['explanation']}."""
+
+  if 'url' in reason_data:
+    wrapper.__doc__ += """
 
                     For more information see {reason_data['url']}.
                     """
@@ -558,16 +561,24 @@ _WONT_IMPLEMENT_REASONS = {
         'url': 'https://s.apache.org/dataframe-order-sensitive-operations',
     },
     'non-deferred-columns': {
-        'explanation': (
-            "because the columns in the output DataFrame depend on "
-            "the data"),
+        'explanation':
+            "because the columns in the output DataFrame depend on the data",
         'url': 'https://s.apache.org/dataframe-non-deferred-columns',
     },
     'non-deferred-result': {
-        'explanation': (
-            "because it produces an output type that is not "
-            "deferred"),
+        'explanation':
+            "because it produces an output type that is not deferred",
         'url': 'https://s.apache.org/dataframe-non-deferred-result',
+    },
+    'plotting-tools': {
+        'explanation': "because it is a plotting tool",
+        'url': 'https://s.apache.org/dataframe-plotting-tools',
+    },
+    'deprecated': {
+        'explanation': "because it is deprecated in pandas",
+    },
+    'experimental': {
+        'explanation': "because it is experimental in pandas",
     },
 }
 
@@ -585,6 +596,9 @@ class WontImplementError(NotImplementedError):
         raise AssertionError(
             f"reason must be one of {list(_WONT_IMPLEMENT_REASONS.keys())}, "
             f"got {reason!r}")
-      msg = f"{msg}\nFor more information see {_WONT_IMPLEMENT_REASONS[reason]['url']}."
+
+      reason_data = _WONT_IMPLEMENT_REASONS[reason]
+      if 'url' in reason_data:
+        msg = f"{msg}\nFor more information see {reason_data['url']}."
 
     super(WontImplementError, self).__init__(msg)
