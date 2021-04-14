@@ -28,11 +28,21 @@ See also: PTransforms.with_resource_hints().
 from typing import Any
 from typing import Dict
 from typing import Optional
+from typing import TYPE_CHECKING
 
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.common_urns import resource_hints
 
+if TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
+
 __all__ = [
-    'ResourceHint', 'AcceleratorHint', 'MinRamHint', 'parse_resource_hints'
+    'ResourceHint',
+    'AcceleratorHint',
+    'MinRamHint',
+    'merge_resource_hints',
+    'parse_resource_hints',
+    'resource_hints_from_options',
 ]
 
 
@@ -164,6 +174,22 @@ def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]
       raise ValueError(f"Unknown resource hint: {hint}.")
 
   return parsed_hints
+
+
+def resource_hints_from_options(options):
+  # type: (Optional[PipelineOptions]) -> Dict[str, bytes]
+  if options is None:
+    return {}
+  hints = {}
+  option_specified_hints = options.view_as(StandardOptions).resource_hints
+  for hint in option_specified_hints:
+    if '=' in hint:
+      k, v = hint.split('=', maxsplit=1)
+      hints[k] = v
+    else:
+      hints[hint] = None
+
+  return parse_resource_hints(hints)
 
 
 def merge_resource_hints(

@@ -47,14 +47,13 @@ from google.protobuf import message
 
 from apache_beam import coders
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import stager
 from apache_beam.runners.portability.sdk_container_builder import SdkContainerImageBuilder
-from apache_beam.transforms.resources import parse_resource_hints
+from apache_beam.transforms.resources import resource_hints_from_options
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
@@ -804,17 +803,3 @@ def python_sdk_dependencies(options, tmp_dir=None):
           for artifact in PyPIArtifactRegistry.get_artifacts()
       ],
       skip_prestaged_dependencies=skip_prestaged_dependencies)
-
-
-def resource_hints_from_options(options):
-  # type: (PipelineOptions) -> Dict[str, bytes]
-  resource_hints = {}
-  option_specified_hints = options.view_as(StandardOptions).resource_hints
-  for hint in option_specified_hints:
-    if '=' in hint:
-      k, v = hint.split('=', maxsplit=1)
-      resource_hints[k] = v
-    else:
-      resource_hints[hint] = None
-
-  return parse_resource_hints(resource_hints)

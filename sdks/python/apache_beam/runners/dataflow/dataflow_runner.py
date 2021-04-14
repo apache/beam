@@ -69,7 +69,6 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.resources import merge_resource_hints
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import typehints
 from apache_beam.utils import processes
@@ -710,15 +709,12 @@ class DataflowRunner(PipelineRunner):
             for item in DisplayData.create_from(transform_node.transform).items
         ])
 
-    resource_hints = transform_node.resource_hints or {}
-    merge_resource_hints(
-        self._default_environment.resource_hints(), resource_hints)
-    if resource_hints:
+    if transform_node.resource_hints:
       step.add_property(
           PropertyNames.RESOURCE_HINTS,
           {
               hint: quote_from_bytes(value)
-              for (hint, value) in resource_hints.items()
+              for (hint, value) in transform_node.resource_hints.items()
           })
 
     return step
