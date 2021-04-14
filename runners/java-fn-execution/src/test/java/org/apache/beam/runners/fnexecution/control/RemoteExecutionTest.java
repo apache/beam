@@ -70,6 +70,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
@@ -563,6 +564,7 @@ public class RemoteExecutionTest implements Serializable {
     public void startBundle() throws InterruptedException {
       Metrics.counter(RemoteExecutionTest.class, START_USER_COUNTER_NAME).inc(10);
       Metrics.distribution(RemoteExecutionTest.class, START_USER_DISTRIBUTION_NAME).update(10);
+      ExecutionStateSampler.instance().doSampling(1);
     }
 
     @ProcessElement
@@ -572,6 +574,7 @@ public class RemoteExecutionTest implements Serializable {
       ctxt.output("two");
       Metrics.counter(RemoteExecutionTest.class, PROCESS_USER_COUNTER_NAME).inc();
       Metrics.distribution(RemoteExecutionTest.class, PROCESS_USER_DISTRIBUTION_NAME).update(1);
+      ExecutionStateSampler.instance().doSampling(2);
       AFTER_PROCESS.get(uuid).countDown();
       checkState(
           ALLOW_COMPLETION.get(uuid).await(60, TimeUnit.SECONDS),
@@ -582,6 +585,7 @@ public class RemoteExecutionTest implements Serializable {
     public void finishBundle() throws InterruptedException {
       Metrics.counter(RemoteExecutionTest.class, FINISH_USER_COUNTER_NAME).inc(100);
       Metrics.distribution(RemoteExecutionTest.class, FINISH_USER_DISTRIBUTION_NAME).update(100);
+      ExecutionStateSampler.instance().doSampling(3);
     }
   }
 
@@ -831,7 +835,7 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(1)));
 
             // Check for execution time metrics for the testPTransformId
             builder = new SimpleMonitoringInfoBuilder();
@@ -841,7 +845,7 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(2)));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(Urns.FINISH_BUNDLE_MSECS);
@@ -850,7 +854,7 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(3)));
 
             assertThat(
                 response.getMonitoringInfosList(),
