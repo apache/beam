@@ -127,7 +127,11 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
           windows.put(window.maxTimestamp(), window);
           output.outputWindowedValue(
               KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
-              strategy.getTimestampCombiner().assign(typedWindow, e.getTimestamp()),
+              strategy
+                  .getTimestampCombiner()
+                  .assign(
+                      typedWindow,
+                      strategy.getWindowFn().getOutputTime(e.getTimestamp(), typedWindow)),
               Arrays.asList(window),
               PaneInfo.ON_TIME_AND_ONLY_FIRING);
         }

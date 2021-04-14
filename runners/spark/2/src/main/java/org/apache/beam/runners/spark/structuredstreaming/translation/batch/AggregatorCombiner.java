@@ -161,7 +161,11 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
         Tuple2<AccumT, Instant> accumAndInstant =
             new Tuple2<>(
                 accumT,
-                timestampCombiner.assign(mergedWindowForAccumulator, accumulatorWv.getTimestamp()));
+                timestampCombiner.assign(
+                    mergedWindowForAccumulator,
+                    windowingStrategy
+                        .getWindowFn()
+                        .getOutputTime(accumulatorWv.getTimestamp(), mergedWindowForAccumulator)));
         if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null) {
           mergedWindowToAccumulators.put(
               mergedWindowForAccumulator, Lists.newArrayList(accumAndInstant));

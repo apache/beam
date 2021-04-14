@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 
 /**
  * A {@link WindowFn} that leaves all associations between elements and windows unchanged.
@@ -103,6 +104,11 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
                 + " It is a private implementation detail of sdk utilities."
                 + " This message indicates a bug in the Beam SDK.",
             getClass().getCanonicalName()));
+  }
+
+  @Override
+  public Instant getOutputTime(Instant inputTimestamp, BoundedWindow window) {
+    return inputTimestamp;
   }
 
   @Override
