@@ -327,18 +327,22 @@ def _agg_method(func):
   return wrapper
 
 
-def wont_implement_method(msg):
-  """Generate a stub method that simply raises WontImplementError(msg).
+def wont_implement_method(base_type, name, reason=None, explanation=None):
+  """Generate a stub method that raises WontImplementError.
 
-  For internal use only. No backwards compatibility guarantees."""
-  def wrapper(*args, **kwargs):
-    raise WontImplementError(msg)
+  Note either reason or explanation must be specified. If both are specified,
+  explanation is ignored.
 
-  return wrapper
-
-
-def wont_implement_method_with_reason(
-    base_type, name, reason=None, explanation=None):
+  Args:
+      base_type: The pandas type of the method that this is trying to replicate.
+      name: The name of the method that this is aiming to replicate.
+      reason: If specified, use data from the corresponding entry in
+           ``_WONT_IMPLEMENT_REASONS`` to generate a helpful exception message
+           and docstring for the method.
+      explanation: If specified, use this string as an explanation for why
+           this operation is not supported when generating an exception message
+           and docstring.
+  """
   if reason is not None:
     if reason not in _WONT_IMPLEMENT_REASONS:
       raise AssertionError(
