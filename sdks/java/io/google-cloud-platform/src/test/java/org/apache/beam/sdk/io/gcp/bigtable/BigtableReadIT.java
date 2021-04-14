@@ -57,4 +57,29 @@ public class BigtableReadIT {
     PAssert.thatSingleton(count).isEqualTo(numRows);
     p.run();
   }
+
+  @Test
+  public void testE2EBigtableRead100M() throws Exception {
+    PipelineOptionsFactory.register(BigtableTestOptions.class);
+    BigtableTestOptions options =
+        TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
+
+    String project = options.getBigtableProject();
+    if (project.equals("")) {
+      project = options.as(GcpOptions.class).getProject();
+    }
+
+    BigtableOptions.Builder bigtableOptionsBuilder =
+        new BigtableOptions.Builder().setProjectId(project).setInstanceId(options.getInstanceId());
+
+    final String tableId = "BigtableRead_100M";
+    final long numRows = 100000000L;
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<Long> count =
+        p.apply(BigtableIO.read().withBigtableOptions(bigtableOptionsBuilder).withTableId(tableId))
+            .apply(Count.globally());
+    PAssert.thatSingleton(count).isEqualTo(numRows);
+    p.run();
+  }
 }
