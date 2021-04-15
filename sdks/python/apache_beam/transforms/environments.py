@@ -27,6 +27,7 @@ import json
 import logging
 import sys
 import tempfile
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -119,14 +120,18 @@ class Environment(object):
                ):
     # type: (...) -> None
     self._capabilities = capabilities
-    self._artifacts = artifacts
-    self._resource_hints = dict(resource_hints) if resource_hints else {}
+    self._artifacts = sorted(artifacts, key=lambda x: x.SerializeToString())
+    # Hints on created environments should be immutable since pipeline context
+    # stores environments in hash maps and we use hints to compute the hash.
+    self._resource_hints = MappingProxyType(
+        dict(resource_hints) if resource_hints else {})
 
   def __eq__(self, other):
     return (
-        self.__class__ == other.__class__
+        self.__class__ == other.__class__ and
+        self._artifacts == other._artifacts
         # Assuming that we don't have instances of the same Environment subclass
-        # with different set of artifacts or capabilities.
+        # with different set of capabilities.
         and self._resource_hints == other._resource_hints)
 
   def __hash__(self):
@@ -146,7 +151,7 @@ class Environment(object):
     return self._capabilities
 
   def resource_hints(self):
-    # type: () -> Dict[str, bytes]
+    # type: () -> Mapping[str, bytes]
     return self._resource_hints
 
   @classmethod
@@ -287,8 +292,7 @@ class DockerEnvironment(Environment):
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
-    super(DockerEnvironment,
-          self).__init__(capabilities, artifacts, resource_hints)
+    super().__init__(capabilities, artifacts, resource_hints)
     if container_image:
       logging.info(
           'Using provided Python SDK container image: %s' % (container_image))
@@ -306,7 +310,7 @@ class DockerEnvironment(Environment):
         super().__eq__(other) and self.container_image == other.container_image)
 
   def __hash__(self):
-    return hash((self.__class__, self.container_image))
+    return hash((super().__hash__(), self.container_image))
 
   def __repr__(self):
     return 'DockerEnvironment(container_image=%s)' % self.container_image
@@ -393,8 +397,7 @@ class ProcessEnvironment(Environment):
       resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
     # type: (...) -> None
-    super(ProcessEnvironment,
-          self).__init__(capabilities, artifacts, resource_hints)
+    super().__init__(capabilities, artifacts, resource_hints)
     self.command = command
     self.os = os
     self.arch = arch
@@ -409,7 +412,7 @@ class ProcessEnvironment(Environment):
   def __hash__(self):
     # type: () -> int
     return hash((
-        self.__class__,
+        super().__hash__(),
         self.command,
         self.os,
         self.arch,
@@ -500,8 +503,7 @@ class ExternalEnvironment(Environment):
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
-    super(ExternalEnvironment,
-          self).__init__(capabilities, artifacts, resource_hints)
+    super().__init__(capabilities, artifacts, resource_hints)
     self.url = url
     self.params = params
 
@@ -513,7 +515,7 @@ class ExternalEnvironment(Environment):
   def __hash__(self):
     # type: () -> int
     return hash((
-        self.__class__,
+        super().__hash__(),
         self.url,
         frozenset(self.params.items()) if self.params is not None else None))
 
@@ -604,8 +606,7 @@ class EmbeddedPythonGrpcEnvironment(Environment):
       artifacts=(),
       resource_hints=None,
   ):
-    super(EmbeddedPythonGrpcEnvironment,
-          self).__init__(capabilities, artifacts, resource_hints)
+    super().__init__(capabilities, artifacts, resource_hints)
     self.state_cache_size = state_cache_size
     self.data_buffer_time_limit_ms = data_buffer_time_limit_ms
 
@@ -617,8 +618,10 @@ class EmbeddedPythonGrpcEnvironment(Environment):
 
   def __hash__(self):
     # type: () -> int
-    return hash(
-        (self.__class__, self.state_cache_size, self.data_buffer_time_limit_ms))
+    return hash((
+        super().__hash__(),
+        self.state_cache_size,
+        self.data_buffer_time_limit_ms))
 
   def __repr__(self):
     # type: () -> str
@@ -700,8 +703,7 @@ class SubprocessSDKEnvironment(Environment):
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
       resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
-    super(SubprocessSDKEnvironment,
-          self).__init__(capabilities, artifacts, resource_hints)
+    super().__init__(capabilities, artifacts, resource_hints)
     self.command_string = command_string
 
   def __eq__(self, other):
@@ -710,7 +712,7 @@ class SubprocessSDKEnvironment(Environment):
 
   def __hash__(self):
     # type: () -> int
-    return hash((self.__class__, self.command_string))
+    return hash((super().__hash__(), self.command_string))
 
   def __repr__(self):
     # type: () -> str

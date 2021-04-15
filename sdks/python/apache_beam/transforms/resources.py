@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.common_urns import resource_hints
 
 if TYPE_CHECKING:
+  from typing import Mapping
   from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = [
@@ -193,8 +194,8 @@ def resource_hints_from_options(options):
 
 
 def merge_resource_hints(
-    outer_hints,
-    mutable_inner_hints):  # type: (Dict[str, bytes], Dict[str, bytes]) -> None
+    outer_hints, mutable_inner_hints
+):  # type: (Mapping[str, bytes], Dict[str, bytes]) -> None
   for urn, outer_value in outer_hints.items():
     if urn in mutable_inner_hints:
       merged_value = ResourceHint.get_by_urn(urn).get_merged_value(
