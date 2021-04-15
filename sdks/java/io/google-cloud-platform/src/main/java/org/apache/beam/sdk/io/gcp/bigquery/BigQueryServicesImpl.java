@@ -633,7 +633,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                       table.getTableReference().getProjectId(),
                       table.getTableReference().getDatasetId(),
                       table.getTableReference().getTableId(),
-                      TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
+                      TimeUnit.MILLISECONDS.toMinutes(RETRY_CREATE_TABLE_DURATION_MILLIS));
                   retry = true;
                 }
                 continue;
