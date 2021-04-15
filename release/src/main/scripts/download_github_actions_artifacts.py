@@ -30,7 +30,7 @@ import dateutil.parser
 import requests
 
 GH_API_URL_WORKLOW_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/build_wheels.yml"
-GH_API_URL_WORKFLOW_RUNS_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/{workflow_id}/runs"
+GH_API_URL_WORKFLOW_RUNS_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/{workflow_id}/runs?branch={ref}"
 GH_API_URL_WORKFLOW_RUN_FMT = "https://api.github.com/repos/{repo_url}/actions/runs/{run_id}"
 GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/{repo_url}/actions/runs/{run_id}"
 
@@ -135,7 +135,7 @@ def get_last_run_id(
   Raises exception when no run found.
   """
   url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
-      repo_url=repo_url, workflow_id=workflow_id)
+      repo_url=repo_url, workflow_id=workflow_id, ref=rc_tag)
   data = request_url(
       url,
       github_token,
@@ -151,7 +151,7 @@ def get_last_run_id(
 
   if not filtered_commit_runs:
     workflow_run_web_url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
-        repo_url=repo_url, workflow_id=workflow_id)
+        repo_url=repo_url, workflow_id=workflow_id, ref=rc_tag)
     raise Exception(
         f"No runs for workflow (tag {rc_tag}, commit {release_commit}). Verify at {workflow_run_web_url}"
     )
