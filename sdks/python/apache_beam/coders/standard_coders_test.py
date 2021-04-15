@@ -35,7 +35,6 @@ import yaml
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import schema_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
@@ -227,6 +226,7 @@ class StandardCodersTest(unittest.TestCase):
               decode_nested(coder, expected_encoded, nested), value)
 
   def parse_coder(self, spec):
+    from apache_beam.pipeline import context as pipeline_context
     context = pipeline_context.PipelineContext()
     coder_id = str(hash(str(spec)))
     component_ids = [

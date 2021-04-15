@@ -45,7 +45,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import TestWindowedValue
@@ -802,6 +801,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
               typehints.Iterable[str]])
 
   def _test_runner_api_round_trip(self, transform, urn):
+    from apache_beam.pipeline import context as pipeline_context
     context = pipeline_context.PipelineContext()
     proto = transform.to_runner_api(context)
     self.assertEqual(urn, proto.urn)

@@ -31,7 +31,6 @@ import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.util import assert_that
@@ -212,6 +211,7 @@ class ExternalTransformTest(unittest.TestCase):
       assert_that(p | FibTransform(6), equal_to([8]))
 
   def test_external_empty_spec_translation(self):
+    from apache_beam.pipeline import context as pipeline_context
     pipeline = beam.Pipeline()
     external_transform = beam.ExternalTransform(
         'beam:transforms:xlang:test:prefix',

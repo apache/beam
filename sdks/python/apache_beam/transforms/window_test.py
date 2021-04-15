@@ -26,7 +26,6 @@ from builtins import range
 
 import apache_beam as beam
 from apache_beam.coders import coders
-from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -358,6 +357,7 @@ class RunnerApiTest(unittest.TestCase):
                       FixedWindows(37),
                       SlidingWindows(2, 389),
                       Sessions(5077)):
+      from apache_beam.pipeline import context as pipeline_context
       context = pipeline_context.PipelineContext()
       self.assertEqual(
           window_fn,

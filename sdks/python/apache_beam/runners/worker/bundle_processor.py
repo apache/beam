@@ -68,7 +68,6 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import common
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
@@ -1154,6 +1153,7 @@ class BeamTransformFactory(object):
                state_sampler,  # type: statesampler.StateSampler
                state_handler  # type: sdk_worker.CachingStateHandler
               ):
+    from apache_beam.pipeline import context as pipeline_context
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
     self.counter_factory = counter_factory

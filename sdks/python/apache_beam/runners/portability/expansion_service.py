@@ -28,7 +28,6 @@ from apache_beam import pipeline as beam_pipeline
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import portable_runner
 from apache_beam.transforms import external
 from apache_beam.transforms import ptransform
@@ -43,6 +42,7 @@ class ExpansionServiceServicer(
         portable_runner.PortableRunner._create_environment(self._options))
 
   def Expand(self, request, context=None):
+    from apache_beam.pipeline import context as pipeline_context
     try:
       pipeline = beam_pipeline.Pipeline(options=self._options)
 

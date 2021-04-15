@@ -26,8 +26,8 @@ import logging
 import unittest
 
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.pipeline import context as pipeline_context
 from apache_beam.portability import common_urns
-from apache_beam.runners import pipeline_context
 from apache_beam.transforms import environments
 from apache_beam.transforms.environments import DockerEnvironment
 from apache_beam.transforms.environments import EmbeddedPythonEnvironment
@@ -40,6 +40,7 @@ from apache_beam.transforms.environments import SubprocessSDKEnvironment
 
 class RunnerApiTest(unittest.TestCase):
   def test_environment_encoding(self):
+    from apache_beam.pipeline import context as pipeline_context
     for environment in (DockerEnvironment(),
                         DockerEnvironment(container_image='img'),
                         DockerEnvironment(capabilities=['x, y, z']),
@@ -74,6 +75,7 @@ class RunnerApiTest(unittest.TestCase):
     self.assertIn(common_urns.primitives.TO_STRING.urn, sdk_capabilities)
 
   def test_default_capabilities(self):
+    from apache_beam.pipeline import context as pipeline_context
     environment = DockerEnvironment.from_options(
         PortableOptions(sdk_location='container'))
     context = pipeline_context.PipelineContext()

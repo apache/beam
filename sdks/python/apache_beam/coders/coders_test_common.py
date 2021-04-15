@@ -36,7 +36,6 @@ from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
-from apache_beam.runners import pipeline_context
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
@@ -163,6 +162,7 @@ class CodersTest(unittest.TestCase):
         cls._observe_nested(c)
 
   def check_coder(self, coder, *values, **kwargs):
+    from apache_beam.pipeline import context as pipeline_context
     context = kwargs.pop('context', pipeline_context.PipelineContext())
     test_size_estimation = kwargs.pop('test_size_estimation', True)
     assert not kwargs
@@ -652,6 +652,7 @@ class CodersTest(unittest.TestCase):
         read_state=iterable_state_read,
         write_state=iterable_state_write,
         write_state_threshold=1)
+    from apache_beam.pipeline import context as pipeline_context
     context = pipeline_context.PipelineContext(
         iterable_state_read=iterable_state_read,
         iterable_state_write=iterable_state_write)

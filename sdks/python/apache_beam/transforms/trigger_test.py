@@ -39,7 +39,6 @@ from apache_beam import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct.clock import TestClock
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -441,6 +440,7 @@ class TriggerTest(unittest.TestCase):
 
 class RunnerApiTest(unittest.TestCase):
   def test_trigger_encoding(self):
+    from apache_beam.pipeline import context as pipeline_context
     for trigger_fn in (DefaultTrigger(),
                        AfterAll(AfterCount(1), AfterCount(10)),
                        AfterAny(AfterCount(10), AfterCount(100)),

@@ -40,7 +40,6 @@ from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
@@ -257,6 +256,7 @@ class ExternalTransform(ptransform.PTransform):
     return '%s_%d' % (cls.get_local_namespace(), cls._namespace_counter)
 
   def expand(self, pvalueish):
+    from apache_beam.pipeline import context as pipeline_context
     # type: (pvalue.PCollection) -> pvalue.PCollection
     if isinstance(pvalueish, pvalue.PBegin):
       self._inputs = {}

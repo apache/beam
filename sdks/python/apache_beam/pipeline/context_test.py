@@ -24,7 +24,7 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam import coders
-from apache_beam.runners import pipeline_context
+from apache_beam.pipeline import context as pipeline_context
 
 
 class PipelineContextTest(unittest.TestCase):

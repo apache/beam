@@ -50,7 +50,6 @@ from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
@@ -578,6 +577,7 @@ class FnApiRunnerExecutionContext(object):
     :param safe_coders:
     :param data_channel_coders:
     """
+    from apache_beam.pipeline import context as pipeline_context
     self.stages = stages
     self.side_input_descriptors_by_stage = (
         self._build_data_side_inputs_map(stages))
