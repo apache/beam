@@ -459,7 +459,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if axis in (0, 'index'):
       # axis=index imposes an ordering on the DataFrame rows which we do not
       # support
-      raise frame_base.WontImplementError('imposes ordering')
+      raise frame_base.WontImplementError(
+          "sort_values(axis=index) is not supported because it imposes an "
+          "ordering on the dataset which we cannot guarantee will be "
+          "preserved.",
+          reason="order-sensitive")
     else:
       # axis=columns will reorder the columns based on the data
       raise frame_base.WontImplementError(
@@ -478,7 +482,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     ``axis=columns`` is allowed."""
     if axis in (0, 'index'):
       # axis=rows imposes an ordering on the DataFrame which we do not support
-      raise frame_base.WontImplementError("imposes ordering")
+      raise frame_base.WontImplementError(
+          "sort_index(axis=index) is not supported because it imposes an "
+          "ordering on the dataset which we cannot guarantee will be "
+          "preserved.",
+          reason="order-sensitive")
 
     # axis=columns reorders the columns by name
     return frame_base.DeferredFrame.wrap(
