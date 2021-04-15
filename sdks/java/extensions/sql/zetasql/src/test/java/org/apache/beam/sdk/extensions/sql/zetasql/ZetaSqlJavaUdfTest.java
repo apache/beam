@@ -93,7 +93,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
         Frameworks.newConfigBuilder(config)
             .ruleSets(
                 ZetaSQLQueryPlanner.getZetaSqlRuleSets(
-                        ImmutableList.of(BeamCalcSplittingRule.INSTANCE))
+                        ImmutableList.of(BeamZetaSqlCalcSplittingRule.INSTANCE))
                     .toArray(new RuleSet[0]))
             .build();
   }

@@ -134,7 +134,7 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
             // Add BeamJavaUdfCalcRule to planner to enable UDFs.
             .ruleSets(
                 ZetaSQLQueryPlanner.getZetaSqlRuleSets(
-                        ImmutableList.of(BeamCalcSplittingRule.INSTANCE))
+                        ImmutableList.of(BeamZetaSqlCalcSplittingRule.INSTANCE))
                     .toArray(new RuleSet[0]))
             .build();
   }

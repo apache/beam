@@ -74,7 +74,7 @@ import org.slf4j.Logger;
  * <p>See {@link ProjectToWindowRule} for an example of how this class is used.
  */
 @SuppressWarnings({"all", "OperatorPrecedence"})
-public abstract class CalcRelSplitter {
+public class CalcRelSplitter {
   // ~ Static fields/initializers ---------------------------------------------
 
   private static final Logger RULE_LOGGER = RelOptPlanner.LOGGER;

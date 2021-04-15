@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.impl.rule;
 
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
@@ -25,22 +24,15 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilder;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
- * {@link RelOptRule} that converts a {@link LogicalCalc} to a chain of {@link BeamZetaSqlCalcRel}
- * and/or {@link BeamCalcRel} via {@link CalcRelSplitter}.
- *
- * <p>Only Java UDFs are implemented using {@link BeamCalcRel}. All other expressions are
- * implemented using {@link BeamZetaSqlCalcRel}.
+ * A {@link RelOptRule} that converts a {@link LogicalCalc} into a chain of {@link
+ * org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel} nodes via {@link
+ * CalcRelSplitter}.
  */
-public class BeamCalcSplittingRule extends RelOptRule {
-  public static final BeamCalcSplittingRule INSTANCE =
-      new BeamCalcSplittingRule(RelFactories.LOGICAL_BUILDER);
-
-  private BeamCalcSplittingRule(RelBuilderFactory relBuilderFactory) {
-    super(operand(LogicalCalc.class, any()), relBuilderFactory, "BeamCalcSplittingRule");
+public abstract class BeamCalcSplittingRule extends RelOptRule {
+  protected BeamCalcSplittingRule(String description) {
+    super(operand(LogicalCalc.class, any()), RelFactories.LOGICAL_BUILDER, description);
   }
 
   @Override
@@ -51,20 +43,11 @@ public class BeamCalcSplittingRule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall relOptRuleCall) {
     final Calc calc = (Calc) relOptRuleCall.rel(0);
-    final BeamCalcSplitter transform = new BeamCalcSplitter(calc, relOptRuleCall.builder());
+    final CalcRelSplitter transform =
+        new CalcRelSplitter(calc, relOptRuleCall.builder(), getRelTypes());
     RelNode newRel = transform.execute();
     relOptRuleCall.transformTo(newRel);
   }
 
-  static class BeamCalcSplitter extends CalcRelSplitter {
-    // Order matters here. Putting BeamZetaSqlRelType first means it will be used for all
-    // expressions except Java UDFs.
-    private static final RelType[] REL_TYPES = {
-      new BeamZetaSqlRelType("BeamZetaSqlRelType"), new BeamCalcRelType("BeamCalcRelType")
-    };
-
-    BeamCalcSplitter(Calc calc, RelBuilder relBuilder) {
-      super(calc, relBuilder, REL_TYPES);
-    }
-  }
+  protected abstract CalcRelSplitter.RelType[] getRelTypes();
 }
