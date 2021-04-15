@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 
 import java.util.Collections;
@@ -95,6 +96,10 @@ public class SimpleExecutionState extends ExecutionState {
 
   public ByteString getTotalMillisPayload() {
     return encodeInt64Counter(getTotalMillis());
+  }
+
+  public ByteString mergeTotalMillisPayload(ByteString other) {
+    return encodeInt64Counter(getTotalMillis() + decodeInt64Counter(other));
   }
 
   private MonitoringInfo getTotalMillisMonitoringMetadata() {
