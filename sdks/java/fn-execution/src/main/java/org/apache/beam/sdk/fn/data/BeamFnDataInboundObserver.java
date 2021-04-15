@@ -74,6 +74,11 @@ public class BeamFnDataInboundObserver
   }
 
   @Override
+  public void runWhenComplete(Runnable completeRunnable) {
+    readFuture.runWhenComplete(completeRunnable);
+  }
+
+  @Override
   public boolean isDone() {
     return readFuture.isDone();
   }
