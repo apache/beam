@@ -865,8 +865,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def test_resource_hints_translation(self):
     runner = DataflowRunner()
-
-    self.default_properties.append('--experiments=use_legacy_bq_sink')
     self.default_properties.append('--resource_hint=accelerator=some_gpu')
     self.default_properties.append('--resource_hint=min_ram=20GB')
     with beam.Pipeline(runner=runner,
