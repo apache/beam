@@ -131,8 +131,9 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
     // Note that the SerializablePipelineOptions already initialize FileSystems in the readObject()
     // deserialization method. However, this is a hack, and we want to properly initialize the
     // options where they are needed.
-    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
-    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
+    PipelineOptions options = serializedOptions.get();
+    FileSystems.setDefaultPipelineOptions(options);
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, options);
     metricContainer = new FlinkMetricContainer(getRuntimeContext());
 
     // setup DoFnRunner
@@ -149,7 +150,7 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
 
     DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
-            serializedOptions.get(),
+            options,
             doFn,
             new FlinkSideInputReader(sideInputs, runtimeContext),
             outputManager,
