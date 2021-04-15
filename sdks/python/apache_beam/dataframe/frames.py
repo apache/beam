@@ -574,6 +574,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   reorder_levels = frame_base._proxy_method(
       'reorder_levels',
+      base=pd.DataFrame,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
@@ -2078,7 +2079,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   to_numpy   = frame_base.wont_implement_method(pd.DataFrame, 'to_numpy', reason="non-deferred-result")
   to_string  = frame_base.wont_implement_method(pd.DataFrame, 'to_string', reason="non-deferred-result")
 
-  to_sparse = frame_base.wont_implement_method('non-deferred value')
+  to_sparse = frame_base.wont_implement_method(pd.DataFrame, 'to_sparse', reason="non-deferred-result")
 
   transpose = frame_base.wont_implement_method(
       pd.DataFrame, 'transpose', reason='non-deferred-columns')
