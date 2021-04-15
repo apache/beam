@@ -624,6 +624,35 @@ public class ParDoTest implements Serializable {
 
       pipeline.run();
     }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSetupParameter() {
+      PCollection<String> results =
+          pipeline
+              .apply(Create.of(1))
+              .apply(
+                  ParDo.of(
+                      new DoFn<Integer, String>() {
+                        transient String myOptionValue;
+
+                        @Setup
+                        public void setup(PipelineOptions options) {
+                          myOptionValue = options.as(MyOptions.class).getFakeOption();
+                        }
+
+                        @ProcessElement
+                        public void process(OutputReceiver<String> r) {
+                          r.output(myOptionValue);
+                        }
+                      }));
+
+      String testOptionValue = "my value";
+      pipeline.getOptions().as(MyOptions.class).setFakeOption(testOptionValue);
+      PAssert.that(results).containsInAnyOrder("my value");
+
+      pipeline.run();
+    }
   }
 
   /** Tests to validate behaviors around multiple inputs or outputs. */

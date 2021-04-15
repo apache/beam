@@ -134,9 +134,20 @@ public class SplittableParDoNaiveBounded {
     }
 
     @Setup
-    public void setup() {
+    public void setup(PipelineOptions options) {
       this.invoker = DoFnInvokers.invokerFor(fn);
-      invoker.invokeSetup();
+      invoker.invokeSetup(
+          new BaseArgumentProvider<InputT, OutputT>() {
+            @Override
+            public PipelineOptions pipelineOptions() {
+              return options;
+            }
+
+            @Override
+            public String getErrorContext() {
+              return "SplittableParDoNaiveBounded/Setup";
+            }
+          });
     }
 
     @StartBundle
@@ -574,7 +585,6 @@ public class SplittableParDoNaiveBounded {
       }
 
       // ----------- Unsupported methods --------------------
-
       @Override
       public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
           DoFn<InputT, OutputT> doFn) {

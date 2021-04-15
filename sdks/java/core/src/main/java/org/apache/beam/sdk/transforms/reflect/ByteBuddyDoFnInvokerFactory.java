@@ -117,6 +117,7 @@ import org.slf4j.LoggerFactory;
 })
 class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
+  public static final String SETUP_CONTEXT_PARAMETER_METHOD = "setupContext";
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
@@ -477,7 +478,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .intercept(
                 delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.finishBundle()))
             .method(ElementMatchers.named("invokeSetup"))
-            .intercept(delegateOrNoop(clazzDescription, signature.setup()))
+            .intercept(delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
             .intercept(delegateOrNoop(clazzDescription, signature.teardown()))
             .method(ElementMatchers.named("invokeOnWindowExpiration"))
@@ -870,7 +871,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     return parameter.match(
         new Cases<StackManipulation>() {
-
           @Override
           public StackManipulation dispatch(StartBundleContextParameter p) {
             return new StackManipulation.Compound(
