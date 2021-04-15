@@ -16,8 +16,10 @@
 # limitations under the License.
 
 darwin_install_pip3_packages() {
-    echo "Installing virtualenv, grpcio-tools, mypy-protobuf"
-    pip3 install setuptools virtualenv grpcio-tools mypy-protobuf --user
+    echo "Installing setuptools grpcio-tools virtualenv"
+    pip3 install setuptools grpcio-tools virtualenv
+    echo "Installing mypy-protobuf"
+    pip3 install --user mypy-protobuf
 }
 
 install_go_packages(){
@@ -35,8 +37,8 @@ if [ "$(uname -s)" = "Linux" ]; then
     # Assuming Debian based Linux and the prerequisites in https://beam.apache.org/contribute/ are met:
     apt-get update
 
-    echo "Installing openjdk-8-jdk, python-setuptools, python3-pip, virtualenv, tox, docker-ce"
-    apt-get install -y openjdk-8-jdk python-setuptools python3-pip virtualenv tox docker.io # using python3-pip as Python3 is required.
+    echo "Installing openjdk-8-jdk, python-setuptools, python3-pip, tox, docker.io"
+    apt-get install -y openjdk-8-jdk python-setuptools python3-pip tox docker.io # using python3-pip as Python3 is required.
 
     type -P python3 > /dev/null 2>&1
     python3Exists=$?
@@ -44,7 +46,7 @@ if [ "$(uname -s)" = "Linux" ]; then
     pip3Exists=$?
     if [ $python3Exists -eq 0  -a $pip3Exists -eq 0 ]; then
         echo "Installing grpcio-tools and mypy-protobuf"
-        pip3 install grpcio-tools mypy-protobuf
+        pip3 install grpcio-tools mypy-protobuf virtualenv
     else
         echo "Python3 and pip3 are required. Installation Failed."
         exit
