@@ -1248,13 +1248,17 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.Setup} or {@link DoFn.Teardown} method. */
   @AutoValue
-  public abstract static class LifecycleMethod implements DoFnMethod {
+  public abstract static class LifecycleMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
 
-    static LifecycleMethod create(Method targetMethod) {
-      return new AutoValue_DoFnSignature_LifecycleMethod(targetMethod);
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static LifecycleMethod create(Method targetMethod, List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_LifecycleMethod(null, targetMethod, extraParameters);
     }
   }
 
