@@ -136,10 +136,16 @@ class DisplayData(object):
 
     """Returns a List of Beam proto representation of Display data."""
     def create_payload(dd):
-      if 'value' not in dd.get_dict() or 'label' not in dd.get_dict():
+      display_data_dict = None
+      try:
+        display_data_dict = dd.get_dict()
+      except ValueError:
+        # Skip if the display data is invalid.
         return None
-      label = dd.get_dict()['label']
-      value = dd.get_dict()['value']
+      if 'value' not in display_data_dict or 'label' not in display_data_dict:
+        return None
+      label = display_data_dict['label']
+      value = display_data_dict['value']
       if isinstance(value, str):
         return beam_runner_api_pb2.LabelledPayload(
             label=label, string_value=value)
@@ -154,12 +160,15 @@ class DisplayData(object):
             'Unsupported type %s for value of display data %s' %
             (type(value), label))
 
-    return [
-        beam_runner_api_pb2.DisplayData(
-            urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
-            payload=create_payload(dd).SerializeToString()) for dd in self.items
-        if dd.label
-    ]
+    dd_protos = []
+    for dd in self.items:
+      dd_proto = create_payload(dd)
+      if dd_proto:
+        dd_protos.append(
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=create_payload(dd).SerializeToString()))
+    return dd_protos
 
   @classmethod
   def create_from_options(cls, pipeline_options):
