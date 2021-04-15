@@ -90,6 +90,7 @@ from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
@@ -1250,7 +1251,8 @@ class AppliedPTransform(object):
         environment_id=environment_id,
         annotations=self.annotations,
         # TODO(BEAM-366): Add display_data.
-        display_data=None)
+        display_data=DisplayData.create_from(self.transform).to_proto()
+        if self.transform else None)
 
   @staticmethod
   def from_runner_api(

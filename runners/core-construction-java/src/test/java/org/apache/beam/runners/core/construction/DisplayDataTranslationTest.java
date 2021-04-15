@@ -46,20 +46,20 @@ public class DisplayDataTranslationTest {
                 })),
         containsInAnyOrder(
             RunnerApi.DisplayData.newBuilder()
-                .setUrn(DisplayDataTranslation.LABELLED_STRING)
+                .setUrn(DisplayDataTranslation.LABELLED)
                 .setPayload(
-                    RunnerApi.LabelledStringPayload.newBuilder()
+                    RunnerApi.LabelledPayload.newBuilder()
                         .setLabel("foo")
-                        .setValue("value")
+                        .setStringValue("value")
                         .build()
                         .toByteString())
                 .build(),
             RunnerApi.DisplayData.newBuilder()
-                .setUrn(DisplayDataTranslation.LABELLED_STRING)
+                .setUrn(DisplayDataTranslation.LABELLED)
                 .setPayload(
-                    RunnerApi.LabelledStringPayload.newBuilder()
+                    RunnerApi.LabelledPayload.newBuilder()
                         .setLabel("label")
-                        .setValue("value2")
+                        .setStringValue("value2")
                         .build()
                         .toByteString())
                 .build()));
