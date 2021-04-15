@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.isLocalSparkMaster;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
@@ -136,21 +134,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * @return A pipeline runner that will execute with specified options.
    */
   public static SparkRunner fromOptions(PipelineOptions options) {
-    SparkPipelineOptions sparkOptions =
-        PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
-
-    if (sparkOptions.getFilesToStage() == null && !isLocalSparkMaster(sparkOptions)) {
-      sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkRunner.class.getClassLoader(), options));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. "
-              + "Defaulting to files from the classpath: will stage {} files. "
-              + "Enable logging at DEBUG level to see which files will be staged.",
-          sparkOptions.getFilesToStage().size());
-      LOG.debug("Classpath elements: {}", sparkOptions.getFilesToStage());
-    }
-
-    return new SparkRunner(sparkOptions);
+    return new SparkRunner(PipelineOptionsValidator.validate(SparkPipelineOptions.class, options));
   }
 
   /**
