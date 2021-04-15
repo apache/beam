@@ -47,7 +47,7 @@ __all__ = [
 ]
 
 
-class ResourceHint(object):
+class ResourceHint:
   """A superclass to define resource hints."""
   # A unique URN, one per Resource Hint class.
   urn = None  # type: Optional[str]
