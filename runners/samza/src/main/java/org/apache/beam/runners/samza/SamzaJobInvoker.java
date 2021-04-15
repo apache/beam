@@ -33,6 +33,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaJobInvoker extends JobInvoker {
 
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobInvoker.class);
