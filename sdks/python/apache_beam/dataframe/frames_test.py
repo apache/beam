@@ -38,7 +38,13 @@ GROUPBY_DF = pd.DataFrame({
 
 
 class DeferredFrameTest(unittest.TestCase):
-  def _run_test(self, func, *args, distributed=True, expect_error=False):
+  def _run_test(
+      self,
+      func,
+      *args,
+      distributed=True,
+      expect_error=False,
+      nonparallel=False):
     deferred_args = [
         frame_base.DeferredFrame.wrap(
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
@@ -58,59 +64,61 @@ class DeferredFrameTest(unittest.TestCase):
     session_type = (
         expressions.PartitioningSession if distributed else expressions.Session)
 
-    try:
-      expr = func(*deferred_args)._expr
-    except Exception as e:
-      if not expect_error:
-        raise
-      actual = e
-    else:
-      if expect_error:
+    assert not (expect_error and nonparallel), "Cannot specify both expect_error and allow_nonparallel"
+
+    if expect_error:
+      try:
+        expr = func(*deferred_args)._expr
+      except Exception as e:
+        actual = e
+        if not isinstance(actual,
+                          type(expected)) or not str(actual) == str(expected):
+          raise AssertionError(
+              f'Expected {expected!r} to be raised, but got {actual!r}'
+          ) from actual
+        return
+      else:
         raise AssertionError(
             "Expected an error:\n{expected}\nbut an expression was "
             "successfully generated")
-      else:
-        # Successfully generated the expression, now execute it
-        actual = session_type({}).evaluate(expr)
+    elif nonparallel:
+      # First run outside a nonparallel block to confirm this raises as expected
+      with self.assertRaises(expressions.NonParallelOperation):
+        func(*deferred_args)
 
-    if expect_error:
-      if not isinstance(actual,
-                        type(expected)) or not str(actual) == str(expected):
-        raise AssertionError(
-            f'Expected {expected!r} to be raised, but got {actual!r}'
-        ) from actual
+      # Re-run in an allow non parallel block to get an expression to verify
+      with beam.dataframe.allow_non_parallel_operations():
+        expr = func(*deferred_args)._expr
     else:
-      if isinstance(expected, pd.core.generic.NDFrame):
-        if distributed:
-          if expected.index.is_unique:
-            expected = expected.sort_index()
-            actual = actual.sort_index()
-          else:
-            expected = expected.sort_values(list(expected.columns))
-            actual = actual.sort_values(list(actual.columns))
+      expr = func(*deferred_args)._expr
 
-        try:
-          if isinstance(expected, pd.Series):
-            pd.testing.assert_series_equal(expected, actual)
-          elif isinstance(expected, pd.DataFrame):
-            pd.testing.assert_frame_equal(expected, actual)
-          else:
-            raise ValueError(
-                f"Expected value is a {type(expected)},"
-                "not a Series or DataFrame.")
-        except AssertionError as e:
-          raise AssertionError(
-              "Output isn't equal to the expected value!\n"
-              f"Expected:\n{expected}\n\nActual:\n{actual}") from e
-      else:
-        # Expectation is not a pandas object
-        if isinstance(expected, float):
-          cmp = lambda x: np.isclose(expected, x)
+    actual = session_type({}).evaluate(expr)
+
+    if isinstance(expected, pd.core.generic.NDFrame):
+      if distributed:
+        if expected.index.is_unique:
+          expected = expected.sort_index()
+          actual = actual.sort_index()
         else:
-          cmp = expected.__eq__
-        self.assertTrue(
-            cmp(actual),
-            'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+          expected = expected.sort_values(list(expected.columns))
+          actual = actual.sort_values(list(actual.columns))
+
+      if isinstance(expected, pd.Series):
+        pd.testing.assert_series_equal(expected, actual)
+      elif isinstance(expected, pd.DataFrame):
+        pd.testing.assert_frame_equal(expected, actual)
+      else:
+        raise ValueError(
+            f"Expected value is a {type(expected)},"
+            "not a Series or DataFrame.")
+    else:
+      # Expectation is not a pandas object
+      if isinstance(expected, float):
+        cmp = lambda x: np.isclose(expected, x)
+      else:
+        cmp = expected.__eq__
+      self.assertTrue(
+          cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
@@ -406,22 +414,21 @@ class DeferredFrameTest(unittest.TestCase):
     df2 = pd.DataFrame({
         'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
-              index=lambda x: '*'),
-          df1,
-          df2)
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(
-              df2,
-              left_on='lkey',
-              right_on='rkey',
-              suffixes=('_left', '_right')).rename(index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
+            index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(
+            df2, left_on='lkey', right_on='rkey', suffixes=('_left', '_right')).
+        rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_merge_left_join(self):
     # This is from the pandas doctests, but fails due to re-indexing being
@@ -429,12 +436,12 @@ class DeferredFrameTest(unittest.TestCase):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_merge_on_index(self):
     # This is from the pandas doctests, but fails due to re-indexing being
@@ -445,12 +452,12 @@ class DeferredFrameTest(unittest.TestCase):
     df2 = pd.DataFrame({
         'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     }).set_index('rkey')
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, left_index=True, right_index=True),
-          df1,
-          df2)
+
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, left_index=True, right_index=True),
+        df1,
+        df2)
 
   def test_merge_same_key(self):
     df1 = pd.DataFrame({
@@ -459,55 +466,58 @@ class DeferredFrameTest(unittest.TestCase):
     df2 = pd.DataFrame({
         'key': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
-          df1,
-          df2)
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
-              index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
+            index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_merge_same_key_doctest(self):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
-          df1,
-          df2)
-      # Test without specifying 'on'
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
+    # Test without specifying 'on'
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_merge_same_key_suffix_collision(self):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2], 'a_lsuffix': [5, 6]})
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4], 'a_rsuffix': [7, 8]})
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(
-              df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).
-          rename(index=lambda x: '*'),
-          df1,
-          df2)
-      # Test without specifying 'on'
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
-          rename(index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(
+            df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).rename(
+                index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
+    # Test without specifying 'on'
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
+        rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
@@ -559,10 +569,9 @@ class DeferredFrameTest(unittest.TestCase):
     s = pd.Series(list(range(16)))
     self._run_test(lambda s: s.agg('sum'), s)
     self._run_test(lambda s: s.agg(['sum']), s)
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda s: s.agg(['sum', 'mean']), s)
-      self._run_test(lambda s: s.agg(['mean']), s)
-      self._run_test(lambda s: s.agg('mean'), s)
+    self._run_test(lambda s: s.agg(['sum', 'mean']), s, nonparallel=True)
+    self._run_test(lambda s: s.agg(['mean']), s, nonparallel=True)
+    self._run_test(lambda s: s.agg('mean'), s, nonparallel=True)
 
   def test_append_sort(self):
     # yapf: disable
@@ -582,12 +591,20 @@ class DeferredFrameTest(unittest.TestCase):
   def test_dataframe_agg(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda df: df.agg(['sum', 'mean']), df)
-      self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'sum'}), df)
-      self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'mean'}), df)
-      self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
-      self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
+    self._run_test(lambda df: df.agg(['sum', 'mean']), df, nonparallel=True)
+    self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'sum'}), df)
+    self._run_test(
+        lambda df: df.agg({
+            'A': 'sum', 'B': 'mean'
+        }), df, nonparallel=True)
+    self._run_test(
+        lambda df: df.agg({'A': ['sum', 'mean']}), df, nonparallel=True)
+    self._run_test(
+        lambda df: df.agg({
+            'A': ['sum', 'mean'], 'B': 'min'
+        }),
+        df,
+        nonparallel=True)
 
   def test_smallest_largest(self):
     df = pd.DataFrame({'A': [1, 1, 2, 2], 'B': [2, 3, 5, 7]})
@@ -631,9 +648,8 @@ class DeferredFrameTest(unittest.TestCase):
     df = df.set_index('B')
     # TODO(BEAM-11190): These aggregations can be done in index partitions, but
     # it will require a little more complex logic
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda df: df.groupby(level=0).sum(), df)
-      self._run_test(lambda df: df.groupby(level=0).mean(), df)
+    self._run_test(lambda df: df.groupby(level=0).sum(), df, nonparallel=True)
+    self._run_test(lambda df: df.groupby(level=0).mean(), df, nonparallel=True)
 
   def test_dataframe_eval_query(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
