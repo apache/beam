@@ -23,7 +23,6 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
-import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
@@ -49,15 +48,9 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
     // Fused pipeline proto.
     final RunnerApi.Pipeline fusedPipeline =
         GreedyPipelineFuser.fuse(pipelineWithSdfExpanded).toPipeline();
-    LOG.info("Portable pipeline to run:");
-    LOG.info(PipelineDotRenderer.toDotString(fusedPipeline));
-    // the pipeline option coming from sdk will set the sdk specific runner which will break
-    // serialization
-    // so we need to reset the runner here to a valid Java runner
-    options.setRunner(SamzaRunner.class);
     try {
       final SamzaRunner runner = SamzaRunner.fromOptions(options);
-      return runner.runPortablePipeline(fusedPipeline);
+      return runner.runPortablePipeline(fusedPipeline, jobInfo);
     } catch (Exception e) {
       throw new RuntimeException("Failed to invoke samza job", e);
     }
