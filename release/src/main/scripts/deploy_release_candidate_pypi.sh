@@ -130,7 +130,7 @@ PYTHON_ARTIFACTS_DIR="${LOCAL_CLONE_DIR_ROOT}/python"
 python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
   --github-user "${USER_GITHUB_ID}" \
   --repo-url "${GIT_REPO_BASE_URL}" \
-  --release-branch "${RC_TAG}" \
+  --rc-tag "${RC_TAG}" \
   --release-commit "${RELEASE_COMMIT}" \
   --artifacts_dir "${PYTHON_ARTIFACTS_DIR}" \
   --rc_number "${RC_NUMBER}"
