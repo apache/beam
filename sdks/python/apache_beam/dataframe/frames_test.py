@@ -37,54 +37,54 @@ GROUPBY_DF = pd.DataFrame({
 })
 
 
+def _get_deferred_args(*args):
+  return [
+      frame_base.DeferredFrame.wrap(
+          expressions.ConstantExpression(arg, arg[0:0])) for arg in args
+  ]
+
+
 class DeferredFrameTest(unittest.TestCase):
-  def _run_test(
-      self,
-      func,
-      *args,
-      distributed=True,
-      expect_error=False,
-      nonparallel=False):
-    deferred_args = [
-        frame_base.DeferredFrame.wrap(
-            expressions.ConstantExpression(arg, arg[0:0])) for arg in args
-    ]
+  def _run_error_test(self, func, *args):
+    deferred_args = _get_deferred_args(*args)
+
+    # Get expected error
     try:
-      expected = func(*args)
+      _ = func(*args)
     except Exception as e:
-      if not expect_error:
-        raise
       expected = e
     else:
-      if expect_error:
-        raise AssertionError(
-            "Expected an error but computing expected result successfully "
-            f"returned: {expected}")
+      raise AssertionError(
+          "Expected an error but computing expected result successfully "
+          f"returned: {expected}")
 
-    session_type = (
-        expressions.PartitioningSession if distributed else expressions.Session)
+    # Get actual error
+    try:
+      _ = func(*deferred_args)._expr
+    except Exception as e:
+      actual = e
+      return
+    else:
+      raise AssertionError(
+          "Expected an error:\n{expected}\nbut an expression was "
+          "successfully generated")
 
-    assert not (expect_error and nonparallel), "Cannot specify both expect_error and allow_nonparallel"
+    # Verify
+    if not isinstance(actual,
+                      type(expected)) or not str(actual) == str(expected):
+      raise AssertionError(
+          f'Expected {expected!r} to be raised, but got {actual!r}') from actual
 
-    if expect_error:
-      try:
-        expr = func(*deferred_args)._expr
-      except Exception as e:
-        actual = e
-        if not isinstance(actual,
-                          type(expected)) or not str(actual) == str(expected):
-          raise AssertionError(
-              f'Expected {expected!r} to be raised, but got {actual!r}'
-          ) from actual
-        return
-      else:
-        raise AssertionError(
-            "Expected an error:\n{expected}\nbut an expression was "
-            "successfully generated")
-    elif nonparallel:
+  def _run_test(self, func, *args, distributed=True, nonparallel=False):
+    # Compute expected value
+    expected = func(*args)
+
+    # Compute actual value
+    deferred_args = _get_deferred_args(*args)
+    if nonparallel:
       # First run outside a nonparallel block to confirm this raises as expected
       with self.assertRaises(expressions.NonParallelOperation):
-        func(*deferred_args)
+        _ = func(*deferred_args)
 
       # Re-run in an allow non parallel block to get an expression to verify
       with beam.dataframe.allow_non_parallel_operations():
@@ -92,8 +92,13 @@ class DeferredFrameTest(unittest.TestCase):
     else:
       expr = func(*deferred_args)._expr
 
+    # Compute the result of the generated expression
+    session_type = (
+        expressions.PartitioningSession if distributed else expressions.Session)
+
     actual = session_type({}).evaluate(expr)
 
+    # Verify
     if isinstance(expected, pd.core.generic.NDFrame):
       if distributed:
         if expected.index.is_unique:
@@ -263,14 +268,10 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group').bar.sum(), df)
     self._run_test(lambda df: df.groupby('group')['foo'].sum(), df)
     self._run_test(lambda df: df.groupby('group')['baz'].sum(), df)
-    self._run_test(
-        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(),
-        df,
-        expect_error=True)
-    self._run_test(
-        lambda df: df.groupby('group')[['bat']].sum(), df, expect_error=True)
-    self._run_test(
-        lambda df: df.groupby('group').bat.sum(), df, expect_error=True)
+    self._run_error_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(), df)
+    self._run_error_test(lambda df: df.groupby('group')[['bat']].sum(), df)
+    self._run_error_test(lambda df: df.groupby('group').bat.sum(), df)
 
     self._run_test(lambda df: df.groupby('group').median(), df)
     self._run_test(lambda df: df.groupby('group').foo.median(), df)
@@ -283,26 +284,19 @@ class DeferredFrameTest(unittest.TestCase):
     df = GROUPBY_DF
 
     # non-existent projection column
-    self._run_test(
-        lambda df: df.groupby('group')[['bar', 'baz']].bar.median(),
-        df,
-        expect_error=True)
-    self._run_test(
-        lambda df: df.groupby('group')[['bad']].median(), df, expect_error=True)
+    self._run_error_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.median(), df)
+    self._run_error_test(lambda df: df.groupby('group')[['bad']].median(), df)
 
-    self._run_test(
-        lambda df: df.groupby('group').bad.median(), df, expect_error=True)
+    self._run_error_test(lambda df: df.groupby('group').bad.median(), df)
 
   def test_groupby_errors_non_existent_label(self):
     df = GROUPBY_DF
 
     # non-existent grouping label
-    self._run_test(
-        lambda df: df.groupby(['really_bad', 'foo', 'bad']).foo.sum(),
-        df,
-        expect_error=True)
-    self._run_test(
-        lambda df: df.groupby('bad').foo.sum(), df, expect_error=True)
+    self._run_error_test(
+        lambda df: df.groupby(['really_bad', 'foo', 'bad']).foo.sum(), df)
+    self._run_error_test(lambda df: df.groupby('bad').foo.sum(), df)
 
   def test_groupby_callable(self):
     df = GROUPBY_DF
@@ -324,11 +318,9 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.set_index(['index1', 'index2'], drop=True), df)
     self._run_test(lambda df: df.set_index('values'), df)
 
-    self._run_test(lambda df: df.set_index('bad'), df, expect_error=True)
-    self._run_test(
-        lambda df: df.set_index(['index2', 'bad', 'really_bad']),
-        df,
-        expect_error=True)
+    self._run_error_test(lambda df: df.set_index('bad'), df)
+    self._run_error_test(
+        lambda df: df.set_index(['index2', 'bad', 'really_bad']), df)
 
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(
