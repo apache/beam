@@ -102,6 +102,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
                     options,
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
+                    null,
                     InProcessManagedChannelFactory.create(),
                     OutboundObserverFactory.clientDirect());
               } catch (NoClassDefFoundError e) {

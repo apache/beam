@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -394,9 +393,7 @@ public class MetricsTest implements Serializable {
         metrics.getCounters(),
         anyOf(
             // Step names are different for portable and non-portable runners.
-            hasItem(
-                metricsResult(
-                    NAMESPACE, "count", "MyStep1/ParMultiDo(Anonymous)", 3L, isCommitted)),
+            hasItem(metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)),
             hasItem(
                 metricsResult(
                     NAMESPACE, "count", "MyStep1-ParMultiDo-Anonymous-", 3L, isCommitted))));
@@ -427,7 +424,7 @@ public class MetricsTest implements Serializable {
                 metricsResult(
                     NAMESPACE,
                     "input",
-                    "MyStep1/ParMultiDo(Anonymous)",
+                    "MyStep1",
                     DistributionResult.create(26L, 3L, 5L, 13L),
                     isCommitted)),
             hasItem(
@@ -448,27 +445,13 @@ public class MetricsTest implements Serializable {
                 DistributionResult.create(52L, 6L, 5L, 13L),
                 isCommitted)));
     assertThat(
-        (Iterable<MetricResult<DistributionResult>>) metrics.getDistributions(),
+        metrics.getDistributions(),
         anyOf(
             // Step names are different for portable and non-portable runners.
+            hasItem(distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)),
             hasItem(
-                (Matcher<MetricResult<DistributionResult>>)
-                    distributionMinMax(
-                        NAMESPACE,
-                        "bundle",
-                        "MyStep1/ParMultiDo(Anonymous)",
-                        10L,
-                        40L,
-                        isCommitted)),
-            hasItem(
-                (Matcher<MetricResult<DistributionResult>>)
-                    distributionMinMax(
-                        NAMESPACE,
-                        "bundle",
-                        "MyStep1-ParMultiDo-Anonymous-",
-                        10L,
-                        40L,
-                        isCommitted))));
+                distributionMinMax(
+                    NAMESPACE, "bundle", "MyStep1-ParMultiDo-Anonymous-", 10L, 40L, isCommitted))));
   }
 
   private static void assertAllMetrics(MetricQueryResults metrics, boolean isCommitted) {

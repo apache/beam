@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
@@ -180,6 +182,11 @@ public class PCollectionConsumerRegistry {
   /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
     return executionStates.getExecutionTimeMonitoringInfos();
+  }
+
+  /** @return Execution Time Monitoring data based on the tracked start or finish function. */
+  public Map<String, ByteString> getExecutionTimeMonitoringData(ShortIdMap shortIds) {
+    return executionStates.getExecutionTimeMonitoringData(shortIds);
   }
 
   /** @return the underlying consumers for a pCollectionId, some tests may wish to check this. */
