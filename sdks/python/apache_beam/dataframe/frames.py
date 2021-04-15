@@ -1527,7 +1527,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               lambda df: df.agg(func, axis=1, *args, **kwargs),
               [self._expr],
               requires_partition_by=partitionings.Arbitrary()))
-    elif len(self._expr.proxy().columns) == 0: # or args or kwargs:
+    elif len(self._expr.proxy().columns) == 0:
       # For this corner case, just colocate everything.
       return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(

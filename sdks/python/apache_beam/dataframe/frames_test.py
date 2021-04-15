@@ -901,14 +901,13 @@ class DeferredFrameTest(unittest.TestCase):
             level=1, numeric_only=True),
         GROUPBY_DF)
 
-    # TODO(BEAM-XXXX): Attempting median with the str column
     self._run_test(
-        lambda df: df.drop('str', axis=1).set_index(['group', 'foo']).median(
-            level=0),
+        lambda df: df.set_index(['group', 'foo']).median(
+            level=0, numeric_only=True),
         GROUPBY_DF)
     self._run_test(
         lambda df: df.drop('str', axis=1).set_index(['foo', 'group']).median(
-            level=1),
+            level=1, numeric_only=True),
         GROUPBY_DF)
 
   def test_series_agg_multifunc_level(self):
