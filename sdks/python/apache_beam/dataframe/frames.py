@@ -16,6 +16,7 @@
 
 import collections
 import inspect
+import itertools
 import math
 import re
 from typing import List
@@ -1304,13 +1305,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       columns = list(proxy.columns)
       args = []
       arg_indices = []
-      for ix, col1 in enumerate(columns):
-        for col2 in columns[ix+1:]:
-          arg_indices.append((col1, col2))
-          # Note that this set may be different for each pair.
-          no_na = self.loc[self[col1].notna() & self[col2].notna()]
-          args.append(
-              no_na[col1]._corr_aligned(no_na[col2], min_periods))
+      for col1, col2 in itertools.combinations(columns, 2):
+        arg_indices.append((col1, col2))
+        args.append(self[col1].corr(self[col2], method=method,
+                                    min_periods=min_periods))
       def fill_matrix(*args):
         data = collections.defaultdict(dict)
         for col in columns:
