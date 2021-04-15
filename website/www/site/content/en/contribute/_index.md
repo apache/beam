@@ -75,15 +75,13 @@ detail.
 
  - A GitHub account.
  - A Linux, macOS, or Microsoft Windows development environment
-      - Required *only* For Windows:
-         - Java JDK 8 installed
-         - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
+ - Java JDK 8 installed
+ - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
    changes locally.
  - For SDK Development:
       - [Go](https://golang.org) 1.12 or later installed for Go SDK development
  - Python 3.6, 3.7, and 3.8. Yes, you need all three versions installed.
-      - Required *only* For Windows:
-        - pip, setuptools, virtualenv, and tox installed for Python development
+      - pip, setuptools, virtualenv, and tox installed for Python development
  - For large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
@@ -111,7 +109,7 @@ sudo apt-get install \
    docker-ce
 ```
 
-2. On some systems (like Ubuntu 20.04) these need to be installed also
+2. On some systems, like Ubuntu 20.04, install these:
 
 ```
 pip3 install grpcio-tools mypy-protobuf
@@ -132,8 +130,16 @@ $ go get github.com/linkedin/goavro
 
 ##### Automated script for Linux and macOS
 
-You can install these in a Debian-based distribution for Linux or macOs using the [local-env-setup.sh](https://github.com/apache/beam/blob/master/local-env-setup.sh)
-script, which is part of the Beam repo:
+You can install these in a Debian-based distribution for Linux or macOs using the [local-env-setup.sh](https://github.com/apache/beam/blob/master/local-env-setup.sh) script, which is part of the Beam repo. It contains:
+
+* pip3 packages
+* go packages
+* goavro
+* JDK 8
+* Python
+* Docker
+
+To istall:
 
 1. Execute:
 ```
@@ -199,8 +205,9 @@ script which is part of the Beam repo:
           1. Get or Update all the Go SDK dependencies
                   $ go get -u ./...
 
-1. Check the environment was setup correctly.
+1. Check the environment was set up correctly.
     - **Option 1**: validate the Go, Java, and Python environments:
+
         **Important**: Make sure you have activated Python development.
 ```
 ./gradlew :checkSetUp
@@ -213,12 +220,7 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
 ./gradlew :sdks:go:examples:wordCount
 ```
          - For **Python development**:
-          1. Activate your environment:
-```
-python3 -m venv ~/.virtualenvs/env
-. ~/.virtualenvs/bin/activate
-```
-          2. Execute:
+          1. Execute:
 ```
 ./gradlew :sdks:python:wordCount
 ```
