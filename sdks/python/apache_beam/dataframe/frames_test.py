@@ -46,6 +46,11 @@ def _get_deferred_args(*args):
 
 class DeferredFrameTest(unittest.TestCase):
   def _run_error_test(self, func, *args):
+    """Verify that func(*args) raises the same exception in pandas and in Beam.
+
+    Note that for Beam this only checks for exceptions that are raised during
+    expression generation (i.e. construction time). Execution time exceptions
+    are not helpful."""
     deferred_args = _get_deferred_args(*args)
 
     # Get expected error
@@ -76,6 +81,17 @@ class DeferredFrameTest(unittest.TestCase):
           f'Expected {expected!r} to be raised, but got {actual!r}') from actual
 
   def _run_test(self, func, *args, distributed=True, nonparallel=False):
+    """Verify that func(*args) produces the same result in pandas and in Beam.
+
+    Args:
+        distributed (bool): Whether or not to use PartitioningSession to
+            simulate parallel execution.
+        nonparallel (bool): Whether or not this function contains a
+            non-parallelizable operation. If True, the expression will be
+            generated twice, once outside of an allow_non_parallel_operations
+            block (to verify NonParallelOperation is raised), and again inside
+            of an allow_non_parallel_operations block to actually generate an
+            expression to verify."""
     # Compute expected value
     expected = func(*args)
 
