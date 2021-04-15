@@ -62,7 +62,9 @@ public class SimpleStateRegistry {
   public Map<String, ByteString> getExecutionTimeMonitoringData(ShortIdMap shortIds) {
     ImmutableMap.Builder<String, ByteString> builder = ImmutableMap.builder();
     for (SimpleExecutionState state : executionStates) {
-      builder.put(state.getTotalMillisShortId(shortIds), state.getTotalMillisPayload());
+      if (state.getTotalMillis() != 0) {
+        builder.put(state.getTotalMillisShortId(shortIds), state.getTotalMillisPayload());
+      }
     }
     return builder.build();
   }
