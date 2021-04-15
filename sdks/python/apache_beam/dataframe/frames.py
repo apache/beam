@@ -1443,8 +1443,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
 
-  memory_usage = frame_base.wont_implement_method(pd.DataFrame, 'memory_usage', reason="non-deferred-result")
-  info = frame_base.wont_implement_method(pd.DataFrame, 'info', reason="non-deferred-result")
+  memory_usage = frame_base.wont_implement_method(
+      pd.DataFrame, 'memory_usage', reason="non-deferred-result")
+  info = frame_base.wont_implement_method(
+      pd.DataFrame, 'info', reason="non-deferred-result")
 
   clip = frame_base._elementwise_method(
       'clip', restrictions={'axis': lambda axis: axis in (0, 'index')},
@@ -1571,20 +1573,28 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           requires_partition_by=partitionings.Singleton(),
           proxy=proxy))
 
-
-
-  cummax = frame_base.wont_implement_method(pd.DataFrame, 'cummax', reason='order-sensitive')
-  cummin = frame_base.wont_implement_method(pd.DataFrame, 'cummin', reason='order-sensitive')
-  cumprod = frame_base.wont_implement_method(pd.DataFrame, 'cumprod', reason='order-sensitive')
-  cumsum = frame_base.wont_implement_method(pd.DataFrame, 'cumsum', reason='order-sensitive')
+  cummax = frame_base.wont_implement_method(pd.DataFrame, 'cummax',
+                                            reason='order-sensitive')
+  cummin = frame_base.wont_implement_method(pd.DataFrame, 'cummin',
+                                            reason='order-sensitive')
+  cumprod = frame_base.wont_implement_method(pd.DataFrame, 'cumprod',
+                                             reason='order-sensitive')
+  cumsum = frame_base.wont_implement_method(pd.DataFrame, 'cumsum',
+                                            reason='order-sensitive')
   # TODO(BEAM-12071): Consider adding an order-insensitive implementation for
   # diff that relies on the index
-  diff = frame_base.wont_implement_method(pd.DataFrame, 'diff', reason='order-sensitive')
-  first = frame_base.wont_implement_method(pd.DataFrame, 'first', reason='order-sensitive')
-  head = frame_base.wont_implement_method(pd.DataFrame, 'head', reason='order-sensitive')
-  interpolate = frame_base.wont_implement_method(pd.DataFrame, 'interpolate', reason='order-sensitive')
-  last = frame_base.wont_implement_method(pd.DataFrame, 'last', reason='order-sensitive')
-  tail = frame_base.wont_implement_method(pd.DataFrame, 'tail', reason='order-sensitive')
+  diff = frame_base.wont_implement_method(pd.DataFrame, 'diff',
+                                          reason='order-sensitive')
+  first = frame_base.wont_implement_method(pd.DataFrame, 'first',
+                                           reason='order-sensitive')
+  head = frame_base.wont_implement_method(pd.DataFrame, 'head',
+                                          reason='order-sensitive')
+  interpolate = frame_base.wont_implement_method(pd.DataFrame, 'interpolate',
+                                                 reason='order-sensitive')
+  last = frame_base.wont_implement_method(pd.DataFrame, 'last',
+                                          reason='order-sensitive')
+  tail = frame_base.wont_implement_method(pd.DataFrame, 'tail',
+                                          reason='order-sensitive')
 
   def dot(self, other):
     # We want to broadcast the right hand side to all partitions of the left.
@@ -1687,10 +1697,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   isnull = isna = frame_base._elementwise_method('isna', base=pd.DataFrame)
   notnull = notna = frame_base._elementwise_method('notna', base=pd.DataFrame)
 
-  items      = frame_base.wont_implement_method(pd.DataFrame, 'items', reason="non-deferred-result")
-  itertuples = frame_base.wont_implement_method(pd.DataFrame, 'itertuples', reason="non-deferred-result")
-  iterrows   = frame_base.wont_implement_method(pd.DataFrame, 'iterrows', reason="non-deferred-result")
-  iteritems  = frame_base.wont_implement_method(pd.DataFrame, 'iteritems', reason="non-deferred-result")
+  items = frame_base.wont_implement_method(pd.DataFrame, 'items',
+                                           reason="non-deferred-result")
+  itertuples = frame_base.wont_implement_method(pd.DataFrame, 'itertuples',
+                                                reason="non-deferred-result")
+  iterrows = frame_base.wont_implement_method(pd.DataFrame, 'iterrows',
+                                              reason="non-deferred-result")
+  iteritems = frame_base.wont_implement_method(pd.DataFrame, 'iteritems',
+                                               reason="non-deferred-result")
 
   def _cols_as_temporary_index(self, cols, suffix=''):
     original_index_names = list(self._expr.proxy().index.names)
@@ -2058,7 +2072,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
-  shape = property(frame_base.wont_implement_method(pd.DataFrame, 'shape', reason="non-deferred-result"))
+  shape = property(frame_base.wont_implement_method(
+      pd.DataFrame, 'shape', reason="non-deferred-result"))
 
   stack = frame_base._elementwise_method('stack', base=pd.DataFrame)
 
@@ -2072,14 +2087,20 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   mean = frame_base._agg_method('mean')
   median = frame_base._agg_method('median')
 
-  take = frame_base.wont_implement_method(pd.DataFrame, 'take', reason='deprecated')
+  take = frame_base.wont_implement_method(pd.DataFrame, 'take',
+                                          reason='deprecated')
 
-  to_records = frame_base.wont_implement_method(pd.DataFrame, 'to_records', reason="non-deferred-result")
-  to_dict    = frame_base.wont_implement_method(pd.DataFrame, 'to_dict', reason="non-deferred-result")
-  to_numpy   = frame_base.wont_implement_method(pd.DataFrame, 'to_numpy', reason="non-deferred-result")
-  to_string  = frame_base.wont_implement_method(pd.DataFrame, 'to_string', reason="non-deferred-result")
+  to_records = frame_base.wont_implement_method(pd.DataFrame, 'to_records',
+                                                reason="non-deferred-result")
+  to_dict = frame_base.wont_implement_method(pd.DataFrame, 'to_dict',
+                                             reason="non-deferred-result")
+  to_numpy = frame_base.wont_implement_method(pd.DataFrame, 'to_numpy',
+                                              reason="non-deferred-result")
+  to_string = frame_base.wont_implement_method(pd.DataFrame, 'to_string',
+                                               reason="non-deferred-result")
 
-  to_sparse = frame_base.wont_implement_method(pd.DataFrame, 'to_sparse', reason="non-deferred-result")
+  to_sparse = frame_base.wont_implement_method(pd.DataFrame, 'to_sparse',
+                                               reason="non-deferred-result")
 
   transpose = frame_base.wont_implement_method(
       pd.DataFrame, 'transpose', reason='non-deferred-columns')
@@ -2105,7 +2126,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       requires_partition_by=partitionings.Index(),
       preserves_partition_by=partitionings.Arbitrary())
 
-  values = property(frame_base.wont_implement_method(pd.DataFrame, 'values', reason="non-deferred-result"))
+  values = property(frame_base.wont_implement_method(
+      pd.DataFrame, 'values', reason="non-deferred-result"))
 
 
 for io_func in dir(io):
@@ -2253,35 +2275,37 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   aggregate = agg
 
-  hist = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'plot', reason="plotting-tools")
-  plot = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'hist', reason="plotting-tools")
+  hist = frame_base.wont_implement_method(DataFrameGroupBy, 'plot',
+                                          reason="plotting-tools")
+  plot = frame_base.wont_implement_method(DataFrameGroupBy, 'hist',
+                                          reason="plotting-tools")
 
   first = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'first', reason='order-sensitive')
+      DataFrameGroupBy, 'first', reason='order-sensitive')
   last = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'last', reason='order-sensitive')
+      DataFrameGroupBy, 'last', reason='order-sensitive')
   head = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'head', reason='order-sensitive')
+      DataFrameGroupBy, 'head', reason='order-sensitive')
   tail = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'tail', reason='order-sensitive')
+      DataFrameGroupBy, 'tail', reason='order-sensitive')
   nth = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'nth', reason='order-sensitive')
+      DataFrameGroupBy, 'nth', reason='order-sensitive')
   cumcount = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'cumcount', reason='order-sensitive')
+      DataFrameGroupBy, 'cumcount', reason='order-sensitive')
   cummax = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'cummax', reason='order-sensitive')
+      DataFrameGroupBy, 'cummax', reason='order-sensitive')
   cummin = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'cummin', reason='order-sensitive')
+      DataFrameGroupBy, 'cummin', reason='order-sensitive')
   cumsum = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'cumsum', reason='order-sensitive')
+      DataFrameGroupBy, 'cumsum', reason='order-sensitive')
   cumprod = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'cumprod', reason='order-sensitive')
+      DataFrameGroupBy, 'cumprod', reason='order-sensitive')
 
   # TODO(BEAM-12169): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, '__len__', reason="non-deferred-result")
+      DataFrameGroupBy, '__len__', reason="non-deferred-result")
   groups = property(frame_base.wont_implement_method(
-      pd.core.groupby.generic.DataFrameGroupBy, 'groups', reason="non-deferred-result"))
+      DataFrameGroupBy, 'groups', reason="non-deferred-result"))
 
 def _maybe_project_func(projection: Optional[List[str]]):
   """ Returns identity func if projection is empty or None, else returns
@@ -2390,25 +2414,31 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   agg = aggregate = frame_base._elementwise_method('agg', base=DataFrameGroupBy)
   any = frame_base._elementwise_method('any', base=DataFrameGroupBy)
   all = frame_base._elementwise_method('all', base=DataFrameGroupBy)
-  boxplot = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'boxplot', reason="plotting-tools")
+  boxplot = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'boxplot', reason="plotting-tools")
   describe = frame_base.not_implemented_method('describe')
   diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
   fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
   filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
-  first = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'first', reason="order-sensitive")
+  first = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'first', reason="order-sensitive")
   get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
-  head = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'head', reason="order-sensitive")
-  hist = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'hist', reason="plotting-tools")
+  head = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'head', reason="order-sensitive")
+  hist = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'hist', reason="plotting-tools")
   idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
   idxmin = frame_base._elementwise_method('idxmin', base=DataFrameGroupBy)
-  last = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'last', reason="order-sensitive")
+  last = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'last', reason="order-sensitive")
   mad = frame_base._elementwise_method('mad', base=DataFrameGroupBy)
   max = frame_base._elementwise_method('max', base=DataFrameGroupBy)
   mean = frame_base._elementwise_method('mean', base=DataFrameGroupBy)
   median = frame_base._elementwise_method('median', base=DataFrameGroupBy)
   min = frame_base._elementwise_method('min', base=DataFrameGroupBy)
   nunique = frame_base._elementwise_method('nunique', base=DataFrameGroupBy)
-  plot = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'plot', reason="plotting-tools")
+  plot = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'plot', reason="plotting-tools")
   prod = frame_base._elementwise_method('prod', base=DataFrameGroupBy)
   quantile = frame_base._elementwise_method('quantile', base=DataFrameGroupBy)
   shift = frame_base._elementwise_method('shift', base=DataFrameGroupBy)
@@ -2416,8 +2446,10 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   skew = frame_base._elementwise_method('skew', base=DataFrameGroupBy)
   std = frame_base._elementwise_method('std', base=DataFrameGroupBy)
   sum = frame_base._elementwise_method('sum', base=DataFrameGroupBy)
-  tail = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'tail', reason="order-sensitive")
-  take = frame_base.wont_implement_method(pd.core.groupby.generic.DataFrameGroupBy, 'take', reason='deprecated')
+  tail = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'tail', reason="order-sensitive")
+  take = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'take', reason='deprecated')
   tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
   var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
 
@@ -2587,7 +2619,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
           "others must be None, DeferredSeries, or List[DeferredSeries] "
           f"(encountered {type(others)}). Other types are not supported "
           "because they make this operation sensitive to the order of the "
-          "data.", reason= "order-sensitive")
+          "data.", reason="order-sensitive")
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(

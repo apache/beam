@@ -676,8 +676,8 @@ class DeferredFrameTest(unittest.TestCase):
         df)
 
   def test_quantile_axis_columns(self):
-    df = pd.DataFrame(np.array([[1, 1], [2, 10], [3, 100], [4, 100]]),
-                      columns=['a', 'b'])
+    df = pd.DataFrame(
+        np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
 
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)

@@ -571,13 +571,15 @@ _WONT_IMPLEMENT_REASONS = {
         'url': 'https://s.apache.org/dataframe-order-sensitive-operations',
     },
     'non-deferred-columns': {
-        'explanation':
-            "because the columns in the output DataFrame depend on the data",
+        'explanation': (
+            "because the columns in the output DataFrame depend "
+            "on the data"),
         'url': 'https://s.apache.org/dataframe-non-deferred-columns',
     },
     'non-deferred-result': {
-        'explanation':
-            "because it produces an output type that is not deferred",
+        'explanation': (
+            "because it produces an output type that is not "
+            "deferred"),
         'url': 'https://s.apache.org/dataframe-non-deferred-result',
     },
     'plotting-tools': {
