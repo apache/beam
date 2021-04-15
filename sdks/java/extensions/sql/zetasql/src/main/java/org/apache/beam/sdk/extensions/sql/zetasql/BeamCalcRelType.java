@@ -27,6 +27,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptClus
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexDynamicParam;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexFieldAccess;
@@ -50,21 +51,17 @@ class BeamCalcRelType extends CalcRelSplitter.RelType {
 
   @Override
   protected boolean canImplement(RexFieldAccess field) {
-    // Don't implement freestanding field accesses. Only implement field accesses that are operands
-    // to UDF calls.
-    return false;
+    return supportsType(field.getType());
   }
 
   @Override
   protected boolean canImplement(RexLiteral literal) {
-    // Don't implement freestanding literals. Only implement literals that are operands to UDF
-    // calls.
-    return false;
+    return supportsType(literal.getType());
   }
 
   @Override
   protected boolean canImplement(RexDynamicParam param) {
-    return false;
+    return supportsType(param.getType());
   }
 
   @Override
@@ -88,8 +85,7 @@ class BeamCalcRelType extends CalcRelSplitter.RelType {
         }
         for (RexNode operand : call.getOperands()) {
           if (operand instanceof RexLocalRef) {
-            if (!(BeamJavaUdfCalcRule.udfSupportsLiteralType(operand.getType())
-                || BeamJavaUdfCalcRule.udfSupportsInputType(operand.getType()))) {
+            if (!supportsType(operand.getType())) {
               LOG.error(
                   "User-defined function {} received unsupported operand type {}.",
                   call.op.getName(),
@@ -128,5 +124,34 @@ class BeamCalcRelType extends CalcRelSplitter.RelType {
         traitSet.replace(BeamLogicalConvention.INSTANCE),
         RelOptRule.convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         normalizedProgram);
+  }
+
+  /**
+   * Returns true only if the data type can be correctly implemented by {@link
+   * org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel} in ZetaSQL.
+   */
+  private boolean supportsType(RelDataType type) {
+    switch (type.getSqlTypeName()) {
+      case BIGINT:
+      case BOOLEAN:
+      case DECIMAL:
+      case DOUBLE:
+      case TIMESTAMP:
+      case VARBINARY:
+      case VARCHAR:
+      case CHAR:
+      case BINARY:
+      case NULL:
+        return true;
+      case ARRAY:
+        return supportsType(type.getComponentType());
+      case ROW:
+        return type.getFieldList().stream().allMatch((field) -> supportsType(field.getType()));
+      case DATE: // BEAM-11990
+      case TIME: // BEAM-12086
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE: // BEAM-12087
+      default:
+        return false;
+    }
   }
 }
