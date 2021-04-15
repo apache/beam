@@ -29,6 +29,9 @@ repositories {
     maven {
         url "https://jcenter.bintray.com/"
     }
+    maven {
+        url "https://packages.confluent.io/maven/"
+    }
 }
 
 dependencies {
