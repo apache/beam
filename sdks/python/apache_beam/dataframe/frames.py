@@ -1568,6 +1568,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   cummin = frame_base.wont_implement_method(pd.DataFrame, 'cummin', reason='order-sensitive')
   cumprod = frame_base.wont_implement_method(pd.DataFrame, 'cumprod', reason='order-sensitive')
   cumsum = frame_base.wont_implement_method(pd.DataFrame, 'cumsum', reason='order-sensitive')
+  # TODO(BEAM-12071): Consider adding an order-insensitive implementation for
+  # diff that relies on the index
   diff = frame_base.wont_implement_method(pd.DataFrame, 'diff', reason='order-sensitive')
   first = frame_base.wont_implement_method(pd.DataFrame, 'first', reason='order-sensitive')
   head = frame_base.wont_implement_method(pd.DataFrame, 'head', reason='order-sensitive')
