@@ -14,6 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Analogs for :class:`pandas.DataFrame` and :class:`pandas.Series`:
+:class:`DeferredDataFrame` and :class:`DeferredSeries`.
+
+These classes are effectively wrappers around a `schema-aware`_
+:class:`~apache_beam.pvalue.PCollection` that provide a set of operations
+compatible with the `pandas`_ API.
+
+Note that we aim for the Beam DataFrame API to be completely compatible with
+the pandas API, but there are some features that are currently unimplemented
+for various reasons. Pay particular attention to the **'Differences from
+pandas'** section for each operation to understand where we diverge.
+
+.. _schema-aware:
+  https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
+.. _pandas:
+  https://pandas.pydata.org/
+"""
+
 import collections
 import inspect
 import itertools
@@ -24,11 +42,17 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from pandas.core.groupby.generic import DataFrameGroupBy
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import io
 from apache_beam.dataframe import partitionings
+
+__all__ = [
+    'DeferredSeries',
+    'DeferredDataFrame',
+]
 
 
 def populate_not_implemented(pd_type):
@@ -298,9 +322,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         grouping_columns=grouping_columns,
         grouping_indexes=grouping_indexes)
 
-  abs = frame_base._elementwise_method('abs')
-  astype = frame_base._elementwise_method('astype')
-  copy = frame_base._elementwise_method('copy')
+  abs = frame_base._elementwise_method('abs', base=pd.core.generic.NDFrame)
+  astype = frame_base._elementwise_method(
+      'astype', base=pd.core.generic.NDFrame)
+  copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -407,22 +432,35 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
-  @frame_base.maybe_inplace
   def sort_values(self, axis, **kwargs):
+    """``sort_values`` is not implemented.
+
+    It is not implemented for ``axis=index`` because it imposes an ordering on
+    the dataset, and we cannot guarantee it will be maintained (see
+    https://s.apache.org/dataframe-order-sensitive-operations).
+
+    It is not implemented for ``axis=columns`` because it makes the order of
+    the columns depend on the data (see
+    https://s.apache.org/dataframe-non-deferred-column-names)."""
     if axis in (0, 'index'):
-      # axis=rows imposes an ordering on the DataFrame rows which we do not
+      # axis=index imposes an ordering on the DataFrame rows which we do not
       # support
       raise frame_base.WontImplementError("order-sensitive")
     else:
       # axis=columns will reorder the columns based on the data
       raise frame_base.WontImplementError("non-deferred column values")
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def sort_index(self, axis, **kwargs):
-    if axis in (0, 'rows'):
-      # axis=rows imposes an ordering on the DataFrame which we do not support
+    """``axis=index`` is not allowed because it imposes an ordering on the
+    dataset, and we cannot guarantee it will be maintained (see
+    https://s.apache.org/dataframe-order-sensitive-operations). Only
+    ``axis=columns`` is allowed."""
+    if axis in (0, 'index'):
+      # axis=index imposes an ordering on the DataFrame which we do not support
       raise frame_base.WontImplementError("order-sensitive")
 
     # axis=columns reorders the columns by name
@@ -490,7 +528,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def dtype(self):
     return self._expr.proxy().dtype
 
-  isin = frame_base._elementwise_method('isin')
+  isin = frame_base._elementwise_method('isin', base=pd.DataFrame)
 
   @property
   def ndim(self):
@@ -611,9 +649,18 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def align(self, other, join, axis, level, method, **kwargs):
+    """Aligning per-level is not yet supported. Only the default,
+    ``level=None``, is allowed.
+
+    Filling NaN values via ``method`` is not supported, because it is
+    sensitive to the order of the data
+    (see https://s.apache.org/dataframe-order-sensitive-operations). Only the
+    default, ``method=None``, is allowed.
+    """
     if level is not None:
       raise NotImplementedError('per-level align')
     if method is not None:
@@ -636,8 +683,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   argmin = frame_base.wont_implement_method('order-sensitive')
   ravel = frame_base.wont_implement_method('non-deferred value')
 
-  rename = frame_base._elementwise_method('rename')
-  between = frame_base._elementwise_method('between')
+  rename = frame_base._elementwise_method('rename', base=pd.Series)
+  between = frame_base._elementwise_method('between', base=pd.Series)
 
   def dot(self, other):
     left = self._expr
@@ -678,13 +725,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   __matmul__ = dot
 
+  @frame_base.with_docs_from(pd.Series)
   def std(self, *args, **kwargs):
     # Compute variance (deferred scalar) with same args, then sqrt it
     return self.var(*args, **kwargs).apply(lambda var: math.sqrt(var))
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def var(self, axis, skipna, level, ddof, **kwargs):
+    """Per-level aggregation is not yet supported (BEAM-11777). Only the
+    default, ``level=None``, is allowed."""
     if level is not None:
       raise NotImplementedError("per-level aggregation")
     if skipna is None or skipna:
@@ -819,8 +870,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   items = iteritems = frame_base.wont_implement_method('non-lazy')
 
-  isnull = isna = frame_base._elementwise_method('isna')
-  notnull = notna = frame_base._elementwise_method('notna')
+  isnull = isna = frame_base._elementwise_method('isna', base=pd.Series)
+  notnull = notna = frame_base._elementwise_method('notna', base=pd.Series)
 
   tolist = to_numpy = to_string = frame_base.wont_implement_method(
       'non-deferred value')
@@ -860,7 +911,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def axes(self):
     return [self.index]
 
-  clip = frame_base._elementwise_method('clip')
+  clip = frame_base._elementwise_method('clip', base=pd.Series)
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
@@ -876,7 +927,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
 
-  filter = frame_base._elementwise_method('filter')
+  filter = frame_base._elementwise_method('filter', base=pd.Series)
 
   memory_usage = frame_base.wont_implement_method('non-deferred value')
 
@@ -958,7 +1009,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   plot = property(frame_base.wont_implement_method('plot'))
   pop = frame_base.wont_implement_method('non-lazy')
 
-  rename_axis = frame_base._elementwise_method('rename_axis')
+  rename_axis = frame_base._elementwise_method('rename_axis', base=pd.Series)
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -987,7 +1038,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=requires_partition_by))
 
-  round = frame_base._elementwise_method('round')
+  round = frame_base._elementwise_method('round', base=pd.Series)
 
   searchsorted = frame_base.wont_implement_method('order-sensitive')
 
@@ -997,7 +1048,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   to_dict = frame_base.wont_implement_method('non-deferred')
 
-  to_frame = frame_base._elementwise_method('to_frame')
+  to_frame = frame_base._elementwise_method('to_frame', base=pd.Series)
 
   def unique(self, as_series=False):
     if not as_series:
@@ -1028,11 +1079,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def str(self):
     return _DeferredStringMethods(self._expr)
 
-  apply = frame_base._elementwise_method('apply')
-  map = frame_base._elementwise_method('map')
+  apply = frame_base._elementwise_method('apply', base=pd.Series)
+  map = frame_base._elementwise_method('map', base=pd.Series)
   # TODO(BEAM-11636): Implement transform using type inference to determine the
   # proxy
-  #transform = frame_base._elementwise_method('transform')
+  #transform = frame_base._elementwise_method('transform', base=pd.Series)
 
 
 @populate_not_implemented(pd.DataFrame)
@@ -1212,7 +1263,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                                             f"column '{name}': '{value}'. "
                                             "Only callables and Series "
                                             "instances are supported.")
-    return frame_base._elementwise_method('assign')(self, **kwargs)
+    return self._elementwise(
+        lambda df, *args, **kwargs: df.assign(*args, **kwargs),
+        'assign',
+        other_kwargs=kwargs)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -1289,17 +1343,23 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   agg = aggregate
 
-  applymap = frame_base._elementwise_method('applymap')
+  applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
 
   memory_usage = frame_base.wont_implement_method('non-deferred value')
   info = frame_base.wont_implement_method('non-deferred value')
 
   clip = frame_base._elementwise_method(
-      'clip', restrictions={'axis': lambda axis: axis in (0, 'index')})
+      'clip', restrictions={'axis': lambda axis: axis in (0, 'index')},
+      base=pd.DataFrame)
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def corr(self, method, min_periods):
+    """Only ``method="pearson"`` can be parallelized. Other methods require
+    collecting all data on a single worker (see
+    https://s.apache.org/dataframe-non-parallelizable-operations for details).
+    """
     if method == 'pearson':
       proxy = self._expr.proxy().corr()
       columns = list(proxy.columns)
@@ -1514,8 +1574,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def query(self, expr, inplace, **kwargs):
     return self._eval_or_query('query', expr, inplace, **kwargs)
 
-  isnull = isna = frame_base._elementwise_method('isna')
-  notnull = notna = frame_base._elementwise_method('notna')
+  isnull = isna = frame_base._elementwise_method('isna', base=pd.DataFrame)
+  notnull = notna = frame_base._elementwise_method('notna', base=pd.DataFrame)
 
   items = itertuples = iterrows = iteritems = frame_base.wont_implement_method(
       'non-lazy')
@@ -1792,7 +1852,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=preserves_partition_by,
             requires_partition_by=requires_partition_by))
 
-  rename_axis = frame_base._elementwise_method('rename_axis')
+  rename_axis = frame_base._elementwise_method('rename_axis', base=pd.DataFrame)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -1852,7 +1912,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         )
     )
 
-  select_dtypes = frame_base._elementwise_method('select_dtypes')
+  select_dtypes = frame_base._elementwise_method('select_dtypes',
+                                                 base=pd.DataFrame)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -1875,7 +1936,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def shape(self):
     raise frame_base.WontImplementError('scalar value')
 
-  stack = frame_base._elementwise_method('stack')
+  stack = frame_base._elementwise_method('stack', base=pd.DataFrame)
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
@@ -1892,7 +1953,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   to_records = to_dict = to_numpy = to_string = (
       frame_base.wont_implement_method('non-deferred value'))
 
-  to_sparse = to_string # frame_base._elementwise_method('to_sparse')
+  to_sparse = frame_base.wont_implement_method('non-deferred value')
 
   transpose = frame_base.wont_implement_method('non-deferred column values')
 
@@ -1910,6 +1971,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   update = frame_base._proxy_method(
       'update',
       inplace=True,
+      base=pd.DataFrame,
       requires_partition_by=partitionings.Index(),
       preserves_partition_by=partitionings.Arbitrary())
 
@@ -1923,10 +1985,11 @@ for io_func in dir(io):
 
 
 for meth in ('filter', ):
-  setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth))
+  setattr(DeferredDataFrame, meth,
+          frame_base._elementwise_method(meth, base=pd.DataFrame))
 
 
-@populate_not_implemented(pd.core.groupby.generic.DataFrameGroupBy)
+@populate_not_implemented(DataFrameGroupBy)
 class DeferredGroupBy(frame_base.DeferredFrame):
   def __init__(self, expr, kwargs,
                ungrouped: expressions.Expression,
@@ -1949,7 +2012,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         but we only use it when necessary to avoid unnessary data transfer and
         GBKs.
     :param grouping_columns: list of column labels that were in the original
-        groupby(..) `by` parameter. Only relevant for grouped DataFrames.
+        groupby(..) ``by`` parameter. Only relevant for grouped DataFrames.
     :param grouping_indexes: list of index names (or index level numbers) to be
         grouped.
     :param kwargs: Keywords args passed to the original groupby(..) call."""
@@ -2179,42 +2242,42 @@ def _is_associative(agg_func):
 
 
 
-@populate_not_implemented(pd.core.groupby.generic.DataFrameGroupBy)
+@populate_not_implemented(DataFrameGroupBy)
 class _DeferredGroupByCols(frame_base.DeferredFrame):
   # It's not clear that all of these make sense in Pandas either...
-  agg = aggregate = frame_base._elementwise_method('agg')
-  any = frame_base._elementwise_method('any')
-  all = frame_base._elementwise_method('all')
+  agg = aggregate = frame_base._elementwise_method('agg', base=DataFrameGroupBy)
+  any = frame_base._elementwise_method('any', base=DataFrameGroupBy)
+  all = frame_base._elementwise_method('all', base=DataFrameGroupBy)
   boxplot = frame_base.wont_implement_method('plot')
   describe = frame_base.wont_implement_method('describe')
-  diff = frame_base._elementwise_method('diff')
-  fillna = frame_base._elementwise_method('fillna')
-  filter = frame_base._elementwise_method('filter')
+  diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
+  fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
+  filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
   first = frame_base.wont_implement_method('order sensitive')
-  get_group = frame_base._elementwise_method('group')
+  get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
   head = frame_base.wont_implement_method('order sensitive')
   hist = frame_base.wont_implement_method('plot')
-  idxmax = frame_base._elementwise_method('idxmax')
-  idxmin = frame_base._elementwise_method('idxmin')
+  idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
+  idxmin = frame_base._elementwise_method('idxmin', base=DataFrameGroupBy)
   last = frame_base.wont_implement_method('order sensitive')
-  mad = frame_base._elementwise_method('mad')
-  max = frame_base._elementwise_method('max')
-  mean = frame_base._elementwise_method('mean')
-  median = frame_base._elementwise_method('median')
-  min = frame_base._elementwise_method('min')
-  nunique = frame_base._elementwise_method('nunique')
+  mad = frame_base._elementwise_method('mad', base=DataFrameGroupBy)
+  max = frame_base._elementwise_method('max', base=DataFrameGroupBy)
+  mean = frame_base._elementwise_method('mean', base=DataFrameGroupBy)
+  median = frame_base._elementwise_method('median', base=DataFrameGroupBy)
+  min = frame_base._elementwise_method('min', base=DataFrameGroupBy)
+  nunique = frame_base._elementwise_method('nunique', base=DataFrameGroupBy)
   plot = frame_base.wont_implement_method('plot')
-  prod = frame_base._elementwise_method('prod')
-  quantile = frame_base._elementwise_method('quantile')
-  shift = frame_base._elementwise_method('shift')
-  size = frame_base._elementwise_method('size')
-  skew = frame_base._elementwise_method('skew')
-  std = frame_base._elementwise_method('std')
-  sum = frame_base._elementwise_method('sum')
+  prod = frame_base._elementwise_method('prod', base=DataFrameGroupBy)
+  quantile = frame_base._elementwise_method('quantile', base=DataFrameGroupBy)
+  shift = frame_base._elementwise_method('shift', base=DataFrameGroupBy)
+  size = frame_base._elementwise_method('size', base=DataFrameGroupBy)
+  skew = frame_base._elementwise_method('skew', base=DataFrameGroupBy)
+  std = frame_base._elementwise_method('std', base=DataFrameGroupBy)
+  sum = frame_base._elementwise_method('sum', base=DataFrameGroupBy)
   tail = frame_base.wont_implement_method('order sensitive')
   take = frame_base.wont_implement_method('deprectated')
-  tshift = frame_base._elementwise_method('tshift')
-  var = frame_base._elementwise_method('var')
+  tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
+  var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
 
   @property
   def groups(self):
@@ -2484,7 +2547,9 @@ def make_str_func(method):
 for method in ELEMENTWISE_STRING_METHODS:
   setattr(_DeferredStringMethods,
           method,
-          frame_base._elementwise_method(make_str_func(method)))
+          frame_base._elementwise_method(make_str_func(method),
+                                         name=method,
+                                         base=pd.core.strings.StringMethods))
 
 for base in ['add',
              'sub',
@@ -2500,33 +2565,46 @@ for base in ['add',
   for p in ['%s', 'r%s', '__%s__', '__r%s__']:
     # TODO: non-trivial level?
     name = p % base
+    if hasattr(pd.Series, name):
+      setattr(
+          DeferredSeries,
+          name,
+          frame_base._elementwise_method(name, restrictions={'level': None},
+                                         base=pd.Series))
+    if hasattr(pd.DataFrame, name):
+      setattr(
+          DeferredDataFrame,
+          name,
+          frame_base._elementwise_method(name, restrictions={'level': None},
+                                         base=pd.DataFrame))
+  inplace_name = '__i%s__' % base
+  if hasattr(pd.Series, inplace_name):
     setattr(
         DeferredSeries,
-        name,
-        frame_base._elementwise_method(name, restrictions={'level': None}))
+        inplace_name,
+        frame_base._elementwise_method(inplace_name, inplace=True,
+                                       base=pd.Series))
+  if hasattr(pd.DataFrame, inplace_name):
     setattr(
         DeferredDataFrame,
-        name,
-        frame_base._elementwise_method(name, restrictions={'level': None}))
-  setattr(
-      DeferredSeries,
-      '__i%s__' % base,
-      frame_base._elementwise_method('__i%s__' % base, inplace=True))
-  setattr(
-      DeferredDataFrame,
-      '__i%s__' % base,
-      frame_base._elementwise_method('__i%s__' % base, inplace=True))
+        inplace_name,
+        frame_base._elementwise_method(inplace_name, inplace=True,
+                                       base=pd.DataFrame))
 
 for name in ['lt', 'le', 'gt', 'ge', 'eq', 'ne']:
   for p in '%s', '__%s__':
     # Note that non-underscore name is used for both as the __xxx__ methods are
     # order-sensitive.
-    setattr(DeferredSeries, p % name, frame_base._elementwise_method(name))
-    setattr(DeferredDataFrame, p % name, frame_base._elementwise_method(name))
+    setattr(DeferredSeries, p % name,
+            frame_base._elementwise_method(name, base=pd.Series))
+    setattr(DeferredDataFrame, p % name,
+            frame_base._elementwise_method(name, base=pd.DataFrame))
 
 for name in ['__neg__', '__pos__', '__invert__']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
-  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+  setattr(DeferredSeries, name,
+          frame_base._elementwise_method(name, base=pd.Series))
+  setattr(DeferredDataFrame, name,
+          frame_base._elementwise_method(name, base=pd.DataFrame))
 
 DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
 DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
