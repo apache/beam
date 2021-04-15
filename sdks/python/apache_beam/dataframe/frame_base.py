@@ -15,6 +15,8 @@
 # limitations under the License.
 
 import functools
+import re
+from inspect import cleandoc
 from inspect import getfullargspec
 from inspect import unwrap
 from typing import Any
@@ -71,8 +73,11 @@ class DeferredBase(object):
       wrapper_type = _DeferredScalar
     return wrapper_type(expr)
 
-  def _elementwise(self, func, name=None, other_args=(), inplace=False):
-    return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
+  def _elementwise(
+      self, func, name=None, other_args=(), other_kwargs=None, inplace=False):
+    other_kwargs = other_kwargs or {}
+    return _elementwise_function(
+        func, name, inplace=inplace)(self, *other_args, **other_kwargs)
 
   def __reduce__(self):
     return UnusableUnpickledDeferredBase, (str(self), )
@@ -137,12 +142,14 @@ def name_and_func(method: Union[str, Callable]) -> Tuple[str, Callable]:
     return method.__name__, method
 
 
-def _elementwise_method(func, name=None, restrictions=None, inplace=False):
+def _elementwise_method(
+    func, name=None, restrictions=None, inplace=False, base=None):
   return _proxy_method(
       func,
       name,
       restrictions,
       inplace,
+      base,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
@@ -152,38 +159,45 @@ def _proxy_method(
     name=None,
     restrictions=None,
     inplace=False,
+    base=None,
     requires_partition_by=partitionings.Singleton(),
     preserves_partition_by=partitionings.Arbitrary()):
   if name is None:
     name, func = name_and_func(func)
-  if restrictions is None:
-    restrictions = {}
+  if base is None:
+    raise ValueError("base is required for _proxy_method")
   return _proxy_function(
       func,
       name,
       restrictions,
       inplace,
+      base,
       requires_partition_by,
       preserves_partition_by)
 
 
-def _elementwise_function(func, name=None, restrictions=None, inplace=False):
+def _elementwise_function(
+    func, name=None, restrictions=None, inplace=False, base=None):
   return _proxy_function(
       func,
       name,
       restrictions,
       inplace,
+      base,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
 
 def _proxy_function(
-      func,  # type: Union[Callable, str]
-      name=None,  # type: Optional[str]
-      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
-      inplace=False,  # type: bool
-      requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Arbitrary(),  # type: partitionings.Partitioning
+    func,  # type: Union[Callable, str]
+    name=None,  # type: Optional[str]
+    restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
+    inplace=False,  # type: bool
+    base=None,  # type: Optional[type]
+    requires_partition_by=partitionings.Singleton(
+    ),  # type: partitionings.Partitioning
+    preserves_partition_by=partitionings.Arbitrary(
+    ),  # type: partitionings.Partitioning
 ):
 
   if name is None:
@@ -298,7 +312,12 @@ def _proxy_function(
     else:
       return DeferredFrame.wrap(result_expr)
 
-  return wrapper
+  # TODO(BEAM-12074): Generate docs that include "Divergences" section
+  # documenting restrictions.
+  if base is not None and not restrictions:
+    return with_docs_from(base, name=name)(wrapper)
+  else:
+    return wrapper
 
 
 def _agg_method(func):
@@ -384,6 +403,91 @@ def args_to_kwargs(base_type):
       return func(**kwargs)
 
     return wrapper
+
+  return wrap
+
+
+BEAM_SPECIFIC = "Differences from pandas"
+
+SECTION_ORDER = [
+    'Parameters',
+    'Returns',
+    'Raises',
+    BEAM_SPECIFIC,
+    'See Also',
+    'Notes',
+    'Examples'
+]
+
+EXAMPLES_DISCLAIMER = (
+    "**NOTE:** These examples are pulled directly from the pandas "
+    "documentation for convenience. Usage of the Beam DataFrame API will look "
+    "different because it is a deferred API.")
+EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
+    " In addition, some arguments shown here may not be supported, see "
+    f"**{BEAM_SPECIFIC!r}** for details.")
+
+
+def with_docs_from(base_type, name=None):
+  """Decorator that updates the documentation from the wrapped function to
+  duplicate the documentation from the identically-named method in `base_type`.
+
+  Any docstring on the original function will be included in the new function
+  under a "Differences from pandas" heading.
+  """
+  def wrap(func):
+    fn_name = name or func.__name__
+    orig_doc = getattr(base_type, fn_name).__doc__
+    if orig_doc is None:
+      return func
+
+    orig_doc = cleandoc(orig_doc)
+
+    section_splits = re.split(r'^(.*)$\n^-+$\n', orig_doc, flags=re.MULTILINE)
+    intro = section_splits[0].strip()
+    sections = dict(zip(section_splits[1::2], section_splits[2::2]))
+
+    beam_has_differences = bool(func.__doc__)
+
+    for header, content in sections.items():
+      content = content.strip()
+
+      # Replace references to version numbers so its clear they reference
+      # *pandas* versions
+      content = re.sub(r'([Vv]ersion\s+[\d\.]+)', r'pandas \1', content)
+
+      if header == "Examples":
+        content = '\n\n'.join([
+            (
+                EXAMPLES_DIFFERENCES
+                if beam_has_differences else EXAMPLES_DISCLAIMER),
+            # Indent the examples under a doctest heading,
+            # add skipif option. This makes sure our doctest
+            # framework doesn't run these pandas tests.
+            (".. doctest::\n"
+             "    :skipif: True"),
+            re.sub(r"^", "    ", content, flags=re.MULTILINE),
+        ])
+      else:
+        content = content.replace('DataFrame', 'DeferredDataFrame').replace(
+            'Series', 'DeferredSeries')
+      sections[header] = content
+
+    if beam_has_differences:
+      sections[BEAM_SPECIFIC] = cleandoc(func.__doc__)
+    else:
+      sections[BEAM_SPECIFIC] = (
+          "This operation has no known divergences from the "
+          "pandas API.")
+
+    def format_section(header):
+      return '\n'.join([header, ''.join('-' for _ in header), sections[header]])
+
+    func.__doc__ = '\n\n'.join([intro] + [
+        format_section(header) for header in SECTION_ORDER if header in sections
+    ])
+
+    return func
 
   return wrap
 
