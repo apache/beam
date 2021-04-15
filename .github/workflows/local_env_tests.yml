@@ -20,10 +20,8 @@
 name: Local environment tests
 
 on:
-  schedule:
-    - cron: '10 2 * * *'
   push:
-    branches: ['master', 'release-*', 'BEAM-1160*']
+    branches: ['master', 'release-*']
     tags: 'v*'
   pull_request:
     branches: ['master', 'release-*']
@@ -58,5 +56,5 @@ jobs:
         run: "./local-env-setup.sh"
         id: local_env_install_mac
       - name: "Gradle check"
-        run: "./gradlew --warning-mode all checkSetup --stacktrace"
+        run: "./gradlew checkSetup"
         id: local_env_install_gradle_check_mac
