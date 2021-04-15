@@ -80,7 +80,7 @@ from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
   from apache_beam import pvalue
-  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.pipeline.context import PipelineContext
 
 __all__ = [
     'BatchElements',

@@ -73,7 +73,7 @@ if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.io import iobase
   from apache_beam.pipeline import Pipeline
-  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.pipeline.context import PipelineContext
   from apache_beam.transforms import create_source
   from apache_beam.transforms.trigger import AccumulationMode
   from apache_beam.transforms.trigger import DefaultTrigger

@@ -29,7 +29,7 @@ import apache_beam as beam
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
-from apache_beam.runners.pipeline_context import PipelineContext
+from apache_beam.pipeline.context import PipelineContext
 from apache_beam.testing import test_stream
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.window import WindowedValue

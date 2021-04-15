@@ -862,7 +862,7 @@ class Writer(object):
 class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
   # Import runners here to prevent circular imports
-  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.pipeline.context import PipelineContext
 
   def __init__(self, source):
     # type: (SourceBase) -> None
@@ -1035,8 +1035,8 @@ class Write(ptransform.PTransform):
   should not be updated by users. These sinks are processed using a Dataflow
   native write transform.
   """
-  # Import runners here to prevent circular imports
-  from apache_beam.runners.pipeline_context import PipelineContext
+  # Import here to prevent circular imports
+  from apache_beam.pipeline.context import PipelineContext
 
   def __init__(self, sink):
     """Initializes a Write transform.

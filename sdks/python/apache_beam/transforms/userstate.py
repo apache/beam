@@ -45,7 +45,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
 
 if TYPE_CHECKING:
-  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.pipeline.context import PipelineContext
   from apache_beam.transforms.core import CombineFn, DoFn
   from apache_beam.utils import windowed_value
   from apache_beam.utils.timestamp import Timestamp

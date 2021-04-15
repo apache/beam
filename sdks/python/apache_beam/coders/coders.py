@@ -118,7 +118,7 @@ def deserialize_coder(serialized):
 
 class Coder(object):
   """Base class for coders."""
-  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.pipeline.context import PipelineContext
   def encode(self, value):
     # type: (Any) -> bytes
 
