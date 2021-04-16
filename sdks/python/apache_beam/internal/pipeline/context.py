@@ -16,7 +16,6 @@ from apache_beam.coders.coder_impl import IterableStateReader
 from apache_beam.coders.coder_impl import IterableStateWriter
 from apache_beam import pvalue
 from apache_beam.internal import pickler
-from apache_beam.pipeline import ComponentIdMap
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
@@ -148,7 +147,8 @@ class PipelineContext(object):
           windowing_strategies=dict(proto.windowing_strategies.items()),
           environments=dict(proto.environments.items()))
 
-    self.component_id_map = component_id_map or ComponentIdMap(namespace)
+    self.component_id_map = component_id_map or self.__class__.pipeline.ComponentIdMap(
+        namespace)
     assert self.component_id_map.namespace == namespace
 
     self.transforms = _PipelineContextMap(
