@@ -173,7 +173,7 @@ class PipelineContext(object):
         proto.windowing_strategies if proto is not None else None)
     self.environments = _PipelineContextMap(
         self,
-        self.__class__.environments.Environment,
+        environments.Environment,
         namespace,
         proto.environments if proto is not None else None)
 
