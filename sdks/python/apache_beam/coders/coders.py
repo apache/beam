@@ -234,15 +234,13 @@ class Coder(object):
     # type: () -> bool
     return False
 
-  def key_coder(self):
-    # type: () -> Coder
+  def key_coder(self) -> "Coder":
     if self.is_kv_coder():
       raise NotImplementedError('key_coder: %s' % self)
     else:
       raise ValueError('Not a KV coder: %s.' % self)
 
-  def value_coder(self):
-    # type: () -> Coder
+  def value_coder(self) -> "Coder":
     if self.is_kv_coder():
       raise NotImplementedError('value_coder: %s' % self)
     else:
@@ -293,7 +291,7 @@ class Coder(object):
   def __hash__(self):
     return hash(type(self))
 
-  _known_urns = {}  # type: Dict[str, Tuple[type, ConstructorFn]]
+  _known_urns: Dict[str, Tuple[Optional[type], ConstructorFn]] = {}
 
   @classmethod
   @overload
@@ -301,8 +299,7 @@ class Coder(object):
       cls,
       urn,  # type: str
       parameter_type: Optional[Type[T]],
-  ):
-    # type: (...) -> Callable[[Callable[[T, List[Coder], PipelineContext], Any]], Callable[[T, List[Coder], PipelineContext], Any]]
+  ) -> Callable[[Callable[[T, List["Coder"], "PipelineContext"], Any]], Callable[[T, List["Coder"], "PipelineContext"], Any]]:
     pass
 
   @classmethod
@@ -311,9 +308,8 @@ class Coder(object):
       cls,
       urn,  # type: str
       parameter_type: Optional[Type[T]],
-      fn: Callable[[T, List['__class__'], "PipelineContext"], Any],
-  ):
-    # type: (...) -> None
+      fn: Callable[[T, List["Coder"], "PipelineContext"], Any],
+  ) -> None:
     pass
 
   @classmethod
@@ -322,7 +318,7 @@ class Coder(object):
       urn,
       parameter_type: Optional[Type[T]],
       fn=None
-  ) -> Optional[Callable[[T, List['__class__'], "PipelineContext"], Any]]:
+  ):  # -> Optional[Callable[[T, List["Coder"], "PipelineContext"], Any]]:
     """Registers a urn with a constructor.
 
     For example, if 'beam:fn:foo' had parameter type FooPayload, one could
@@ -335,14 +331,17 @@ class Coder(object):
     returns the tuple ('beam:fn:foo', FooPayload)
     """
     def register(
-        fn: Callable[[T, List['__class__'], "PipelineContext"], Any]
-    ) -> Callable[[T, List['__class__'], "PipelineContext"], Any]:
-      cls._known_urns[urn] = parameter_type, fn
+        fn: Callable[[T, List["Coder"], "PipelineContext"], Any]
+    ) -> Optional[Callable[[T, List["Coder"], "PipelineContext"], Any]]:
+      pt = cast(Optional[type], parameter_type)
+      cfn = cast(ConstructorFn, fn)
+      cls._known_urns[urn] = pt, cfn
       return fn
 
     if fn:
       # Used as a statement.
       register(fn)
+      return None
     else:
       # Used as a decorator.
       return register
