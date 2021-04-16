@@ -26,10 +26,8 @@ install_go_packages(){
         echo "Installing goavro"
         go get github.com/linkedin/goavro
         # As we are using bash, we are assuming .bashrc exists. 
-        grep -qxF "export GOPATH='${pwd}/sdks/go/examples/.gogradle/project_gopath'" ~/.bashrc || echo "export GOPATH='${pwd}/sdks/go/examples/.gogradle/project_gopath'" >> ~/.bashrc
-        # The following source command will not work if executed in a subshell like $ ./this_script.sh. Instead, we need to run it in the current shell as $ . ./this_script.sh.
-        # However, this is just to load the GOPATH env variable from the previosu command into the current shell. If that's not required, then we can suggest a terminal reload after the execution?
-        #source ~/.bashrc
+        grep -qxF "export GOPATH='${pwd}/sdks/go/examples/.gogradle/project_gopath'" ~/.bashrc || export GOPATH='${pwd}/sdks/go/examples/.gogradle/project_gopath'
+        echo "GOPATH was set for this session to '$GOPATH'. Make sure to add this path to your ~/.bashrc file after the execution of this script."
 }
 
 # Running on Linux
@@ -45,10 +43,10 @@ if [ "$(uname -s)" = "Linux" ]; then
     type -P pip3 > /dev/null 2>&1
     pip3Exists=$?
     if [ $python3Exists -eq 0  -a $pip3Exists -eq 0 ]; then
-        echo "Installing grpcio-tools and mypy-protobuf"
+        echo "Installing grpcio-tools mypy-protobuf and virtualenv"
         pip3 install grpcio-tools mypy-protobuf virtualenv
     else
-        echo "Python3 and pip3 are required. Installation Failed."
+        echo "Python3 and pip3 are required but failed to install. Install them manually and rerun the script."
         exit
     fi
 
@@ -57,7 +55,7 @@ if [ "$(uname -s)" = "Linux" ]; then
     if [ $goExists -eq 0 ]; then
         install_go_packages
     else
-        echo "Go is required. Installation Failed."
+        echo "Go is required. Install it manually and rerun the script."
         exit
     fi
 fi
@@ -91,7 +89,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     if [ $python3Exists -eq 0  -a $pip3Exists -eq 0 ]; then
         darwin_install_pip3_packages
     else
-        echo "Python3 and pip3 are required. Installation Failed."
+        echo "Python3 and pip3 are required but failed to install. Install them manually and rerun the script."
         exit
     fi
 
@@ -118,7 +116,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     if [ $goExists -eq 0 ]; then
         install_go_packages
     else
-        echo "Go is required. Installation Failed."
+        echo "Go is required. Install it manually and rerun the script."
         exit
     fi
 fi
