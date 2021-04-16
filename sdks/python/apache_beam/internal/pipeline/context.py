@@ -129,20 +129,19 @@ class PipelineContext(object):
 
   Used for accessing and constructing the referenced objects of a Pipeline.
   """
-  from apache_beam import coders
-
   def __init__(
       self,
       proto: Optional[Union[beam_runner_api_pb2.Components,
                             beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
-      component_id_map=None, # type: Optional[pipeline.ComponentIdMap]
-      default_environment=None, # type: Optional[environments.Environment]
+      component_id_map=None,  # type: Optional[pipeline.ComponentIdMap]
+      default_environment=None,  # type: Optional[environments.Environment]
       use_fake_coders: bool = False,
       iterable_state_read: Optional[IterableStateReader] = None,
       iterable_state_write: Optional[IterableStateWriter] = None,
       namespace: str = 'ref',
       requirements: Iterable[str] = (),
   ) -> None:
+    from apache_beam import coders
     from apache_beam import pipeline
     from apache_beam.transforms import core
     from apache_beam.transforms import environments
@@ -168,7 +167,7 @@ class PipelineContext(object):
         proto.pcollections if proto is not None else None)
     self.coders = _PipelineContextMap(
         self,
-        self.__class__.coders.Coder,
+        coders.Coder,
         namespace,
         proto.coders if proto is not None else None)
     self.windowing_strategies = _PipelineContextMap(
@@ -206,12 +205,13 @@ class PipelineContext(object):
       self,
       element_type: Any,
       requires_deterministic_key_coder: Optional[str] = None) -> str:
+    from apache_beam import coders
     if self.use_fake_coders:
       return pickler.dumps(element_type).decode('ascii')
     else:
       coder = self.__class__.coders.registry.get_coder(element_type)
       if requires_deterministic_key_coder:
-        coder = self.__class__.coders.TupleCoder([
+        coder = coders.TupleCoder([
             coder.key_coder().as_deterministic_coder(
                 requires_deterministic_key_coder),
             coder.value_coder()
