@@ -21,8 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThrows;
 
-import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -30,14 +28,12 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link HistogramData}. */
 @RunWith(JUnit4.class)
 public class HistogramDataTest {
-  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(HistogramData.class);
 
   @Test
   public void testOutOfRangeWarning() {
     HistogramData histogramData = HistogramData.linear(0, 20, 5);
     histogramData.record(100);
     assertThat(histogramData.getTotalCount(), equalTo(1L));
-    expectedLogs.verifyWarn("out of upper bound");
   }
 
   @Test
@@ -148,5 +144,54 @@ public class HistogramDataTest {
     histogramData.clear();
     assertThat(histogramData.getTotalCount(), equalTo(0L));
     assertThat(histogramData.getCount(5), equalTo(0L));
+  }
+
+  @Test
+  public void testUpdateUsingDoublesAndCumulative() {
+    HistogramData data = HistogramData.linear(0, 2, 2);
+    data.record(-1); // to -Inf bucket
+    data.record(0); // bucket 0
+    data.record(1);
+    data.record(3); // bucket 1
+    data.record(4); // to Inf bucket
+    assertThat(data.getCount(0), equalTo(2L));
+    assertThat(data.getCount(1), equalTo(1L));
+    assertThat(data.getTotalCount(), equalTo(5L));
+
+    // Now try updating it with another HistogramData
+    HistogramData data2 = HistogramData.linear(0, 2, 2);
+    data2.record(-1); // to -Inf bucket
+    data2.record(-1); // to -Inf bucket
+    data2.record(0); // bucket 0
+    data2.record(0);
+    data2.record(1);
+    data2.record(1);
+    data2.record(3); // bucket 1
+    data2.record(3);
+    data2.record(4); // to Inf bucket
+    data2.record(4);
+    assertThat(data2.getCount(0), equalTo(4L));
+    assertThat(data2.getCount(1), equalTo(2L));
+    assertThat(data2.getTotalCount(), equalTo(10L));
+
+    data.update(data2);
+    assertThat(data.getCount(0), equalTo(6L));
+    assertThat(data.getCount(1), equalTo(3L));
+    assertThat(data.getTotalCount(), equalTo(15L));
+  }
+
+  @Test
+  public void testIncrementBucketCountByIndex() {
+    HistogramData data = HistogramData.linear(0, 2, 2);
+    data.incBottomBucketCount(1);
+    data.incBucketCount(0, 2);
+    data.incBucketCount(1, 3);
+    data.incTopBucketCount(4);
+
+    assertThat(data.getBottomBucketCount(), equalTo(1L));
+    assertThat(data.getCount(0), equalTo(2L));
+    assertThat(data.getCount(1), equalTo(3L));
+    assertThat(data.getTopBucketCount(), equalTo(4L));
+    assertThat(data.getTotalCount(), equalTo(10L));
   }
 }
