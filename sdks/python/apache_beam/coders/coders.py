@@ -299,7 +299,8 @@ class Coder(object):
       cls,
       urn,  # type: str
       parameter_type: Optional[Type[T]],
-  ) -> Callable[[Callable[[T, List["Coder"], "PipelineContext"], Any]], Callable[[T, List["Coder"], "PipelineContext"], Any]]:
+  ) -> Callable[[Callable[[T, List["Coder"], "PipelineContext"], Any]],
+                Callable[[T, List["Coder"], "PipelineContext"], Any]]:
     pass
 
   @classmethod
