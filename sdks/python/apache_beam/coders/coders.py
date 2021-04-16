@@ -34,6 +34,7 @@ from typing import Sequence
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
+from typing import cast
 from typing import overload
 
 import google.protobuf.wrappers_pb2
@@ -118,8 +119,6 @@ def deserialize_coder(serialized):
 
 class Coder(object):
   """Base class for coders."""
-  from apache_beam.internal.pipeline.context import PipelineContext
-
   def encode(self, value):
     # type: (Any) -> bytes
 
@@ -249,15 +248,14 @@ class Coder(object):
     else:
       raise ValueError('Not a KV coder: %s.' % self)
 
-  def _get_component_coders(self):
-    # type: () -> Sequence[Coder]
+  def _get_component_coders(self) -> Sequence["Coder"]:
 
     """For internal use only; no backwards-compatibility guarantees.
 
     Returns the internal component coders of this coder."""
     # This is an internal detail of the Coder API and does not need to be
     # refined in user-defined Coders.
-    return []
+    return ()
 
   def as_cloud_object(self, coders_context=None):
     """For internal use only; no backwards-compatibility guarantees.
@@ -314,7 +312,7 @@ class Coder(object):
       cls,
       urn,  # type: str
       parameter_type: Optional[Type[T]],
-      fn: Callable[[T, List['__class__'], PipelineContext], Any],
+      fn: Callable[[T, List['__class__'], "PipelineContext"], Any],
   ):
     # type: (...) -> None
     pass
@@ -325,7 +323,7 @@ class Coder(object):
       urn,
       parameter_type: Optional[Type[T]],
       fn=None
-  ) -> Optional[Callable[[T, List['__class__'], PipelineContext], Any]]:
+  ) -> Optional[Callable[[T, List['__class__'], "PipelineContext"], Any]]:
     """Registers a urn with a constructor.
 
     For example, if 'beam:fn:foo' had parameter type FooPayload, one could
@@ -338,8 +336,8 @@ class Coder(object):
     returns the tuple ('beam:fn:foo', FooPayload)
     """
     def register(
-        fn: Callable[[T, List['__class__'], PipelineContext], Any]
-    ) -> Callable[[T, List['__class__'], PipelineContext], Any]:
+        fn: Callable[[T, List['__class__'], "PipelineContext"], Any]
+    ) -> Callable[[T, List['__class__'], "PipelineContext"], Any]:
       cls._known_urns[urn] = parameter_type, fn
       return fn
 
@@ -350,8 +348,8 @@ class Coder(object):
       # Used as a decorator.
       return register
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.Coder
+  def to_runner_api(
+      self, context: "PipelineContext") -> beam_runner_api_pb2.Coder:
     urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.FunctionSpec(
@@ -361,9 +359,10 @@ class Coder(object):
         component_coder_ids=[context.coders.get_id(c) for c in components])
 
   @classmethod
-  def from_runner_api(cls, coder_proto, context):
-    # type: (Type[CoderT], beam_runner_api_pb2.Coder, PipelineContext) -> CoderT
-
+  def from_runner_api(
+      cls: Type[CoderT],
+      coder_proto: beam_runner_api_pb2.Coder,
+      context: "PipelineContext") -> CoderT:
     """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.
@@ -374,17 +373,16 @@ class Coder(object):
         [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
         context)
 
-  def to_runner_api_parameter(self, context):
-    # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
+  def to_runner_api_parameter(
+      self, context: Optional["PipelineContext"]
+  ) -> Tuple[str, Any, Sequence["Coder"]]:
     return (
         python_urns.PICKLED_CODER,
         google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
 
   @staticmethod
-  def register_structured_urn(urn, cls):
-    # type: (str, Type[Coder]) -> None
-
+  def register_structured_urn(urn: str, cls: Type["Coder"]) -> None:
     """Register a coder that's completely defined by its urn and its
     component(s), if any, which are passed to construct the instance.
     """
@@ -516,8 +514,7 @@ Coder.register_structured_urn(common_urns.coders.BOOL.urn, BooleanCoder)
 
 
 class MapCoder(FastCoder):
-  def __init__(self, key_coder, value_coder):
-    # type: (Coder, Coder) -> None
+  def __init__(self, key_coder: Coder, value_coder: Coder) -> None:
     self._key_coder = key_coder
     self._value_coder = value_coder
 
@@ -544,8 +541,7 @@ class MapCoder(FastCoder):
 
 
 class NullableCoder(FastCoder):
-  def __init__(self, value_coder):
-    # type: (Coder) -> None
+  def __init__(self, value_coder: Coder) -> None:
     self._value_coder = value_coder
 
   def _create_impl(self):
@@ -635,13 +631,11 @@ class _TimerCoder(FastCoder):
   """A coder used for timer values.
 
   For internal use."""
-  def __init__(self, key_coder, window_coder):
-    # type: (Coder, Coder) -> None
+  def __init__(self, key_coder: Coder, window_coder: Coder) -> None:
     self._key_coder = key_coder
     self._window_coder = window_coder
 
-  def _get_component_coders(self):
-    # type: () -> List[Coder]
+  def _get_component_coders(self) -> List[Coder]:
     return [self._key_coder, self._window_coder]
 
   def _create_impl(self):
@@ -803,8 +797,7 @@ class FastPrimitivesCoder(FastCoder):
 
   For unknown types, falls back to another coder (e.g. PickleCoder).
   """
-  def __init__(self, fallback_coder=PickleCoder()):
-    # type: (Coder) -> None
+  def __init__(self, fallback_coder: Coder = PickleCoder()) -> None:
     self._fallback_coder = fallback_coder
 
   def _create_impl(self):
@@ -1006,8 +999,7 @@ class AvroGenericCoder(FastCoder):
 
 class TupleCoder(FastCoder):
   """Coder of tuple objects."""
-  def __init__(self, components):
-    # type: (Iterable[Coder]) -> None
+  def __init__(self, components: Iterable[Coder]) -> None:
     self._coders = tuple(components)
 
   def _create_impl(self):
@@ -1047,26 +1039,22 @@ class TupleCoder(FastCoder):
 
     return super(TupleCoder, self).as_cloud_object(coders_context)
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return self.coders()
 
-  def coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def coders(self) -> Tuple[Coder, ...]:
     return self._coders
 
   def is_kv_coder(self):
     # type: () -> bool
     return len(self._coders) == 2
 
-  def key_coder(self):
-    # type: () -> Coder
+  def key_coder(self) -> Coder:
     if len(self._coders) != 2:
       raise ValueError('TupleCoder does not have exactly 2 components.')
     return self._coders[0]
 
-  def value_coder(self):
-    # type: () -> Coder
+  def value_coder(self) -> Coder:
     if len(self._coders) != 2:
       raise ValueError('TupleCoder does not have exactly 2 components.')
     return self._coders[1]
@@ -1095,8 +1083,7 @@ class TupleCoder(FastCoder):
 
 class TupleSequenceCoder(FastCoder):
   """Coder of homogeneous tuple objects."""
-  def __init__(self, elem_coder):
-    # type: (Coder) -> None
+  def __init__(self, elem_coder: Coder) -> None:
     self._elem_coder = elem_coder
 
   def value_coder(self):
@@ -1121,8 +1108,7 @@ class TupleSequenceCoder(FastCoder):
     # type: (Any, CoderRegistry) -> TupleSequenceCoder
     return TupleSequenceCoder(registry.get_coder(typehint.inner_type))
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return (self._elem_coder, )
 
   def __repr__(self):
@@ -1138,8 +1124,7 @@ class TupleSequenceCoder(FastCoder):
 
 class ListLikeCoder(FastCoder):
   """Coder of iterables of homogeneous objects."""
-  def __init__(self, elem_coder):
-    # type: (Coder) -> None
+  def __init__(self, elem_coder: Coder) -> None:
     self._elem_coder = elem_coder
 
   def _create_impl(self):
@@ -1173,8 +1158,7 @@ class ListLikeCoder(FastCoder):
     # type: (Any, CoderRegistry) -> ListLikeCoder
     return cls(registry.get_coder(typehint.inner_type))
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return (self._elem_coder, )
 
   def __repr__(self):
@@ -1246,8 +1230,7 @@ Coder.register_structured_urn(
 
 class WindowedValueCoder(FastCoder):
   """Coder for windowed values."""
-  def __init__(self, wrapped_value_coder, window_coder=None):
-    # type: (Coder, Optional[Coder]) -> None
+  def __init__(self, wrapped_value_coder: Coder, window_coder: Optional[Coder] = None) -> None:
     if not window_coder:
       window_coder = PickleCoder()
     self.wrapped_value_coder = wrapped_value_coder
@@ -1276,20 +1259,17 @@ class WindowedValueCoder(FastCoder):
         ],
     }
 
-  def _get_component_coders(self):
-    # type: () -> List[Coder]
+  def _get_component_coders(self) -> List[Coder]:
     return [self.wrapped_value_coder, self.window_coder]
 
   def is_kv_coder(self):
     # type: () -> bool
     return self.wrapped_value_coder.is_kv_coder()
 
-  def key_coder(self):
-    # type: () -> Coder
+  def key_coder(self) -> Coder:
     return self.wrapped_value_coder.key_coder()
 
-  def value_coder(self):
-    # type: () -> Coder
+  def value_coder(self) -> Coder:
     return self.wrapped_value_coder.value_coder()
 
   def __repr__(self):
@@ -1359,8 +1339,7 @@ class LengthPrefixCoder(FastCoder):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder which prefixes the length of the encoded object in the stream."""
-  def __init__(self, value_coder):
-    # type: (Coder) -> None
+  def __init__(self, value_coder: Coder) -> None:
     self._value_coder = value_coder
 
   def _create_impl(self):
@@ -1385,8 +1364,7 @@ class LengthPrefixCoder(FastCoder):
         ],
     }
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return (self._value_coder, )
 
   def __repr__(self):
@@ -1410,7 +1388,7 @@ class StateBackedIterableCoder(FastCoder):
 
   def __init__(
       self,
-      element_coder,  # type: Coder
+      element_coder: Coder,
       read_state=None,  # type: Optional[coder_impl.IterableStateReader]
       write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
       write_state_threshold=DEFAULT_WRITE_THRESHOLD):
@@ -1430,8 +1408,7 @@ class StateBackedIterableCoder(FastCoder):
     # type: () -> bool
     return False
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return (self._element_coder, )
 
   def __repr__(self):
@@ -1446,8 +1423,9 @@ class StateBackedIterableCoder(FastCoder):
   def __hash__(self):
     return hash((type(self), self._element_coder, self._write_state_threshold))
 
-  def to_runner_api_parameter(self, context):
-    # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
+  def to_runner_api_parameter(
+      self,
+      context: Optional["PipelineContext"]) -> Tuple[str, Any, Sequence[Coder]]:
     return (
         common_urns.coders.STATE_BACKED_ITERABLE.urn,
         str(self._write_state_threshold).encode('ascii'),
@@ -1466,12 +1444,10 @@ class StateBackedIterableCoder(FastCoder):
 
 class ShardedKeyCoder(FastCoder):
   """A coder for sharded key."""
-  def __init__(self, key_coder):
-    # type: (Coder) -> None
+  def __init__(self, key_coder: Coder) -> None:
     self._key_coder = key_coder
 
-  def _get_component_coders(self):
-    # type: () -> List[Coder]
+  def _get_component_coders(self) -> List[Coder]:
     return [self._key_coder]
 
   def _create_impl(self):
@@ -1516,3 +1492,5 @@ class ShardedKeyCoder(FastCoder):
 
 Coder.register_structured_urn(
     common_urns.coders.SHARDED_KEY.urn, ShardedKeyCoder)
+
+from apache_beam.internal.pipeline.context import PipelineContext
