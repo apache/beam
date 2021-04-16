@@ -338,8 +338,7 @@ def extract_source_to_cache_signature(user_pipeline):
       user_pipeline)
   unbounded_sources_as_ptransforms = set(
       map(lambda x: x.transform, unbounded_sources_as_applied_transforms))
-  _, context = user_pipeline.to_runner_api(
-      return_context=True)
+  _, context = user_pipeline.to_runner_api(return_context=True)
   signature = set(
       map(
           lambda transform: str(transform.to_runner_api(context)),
