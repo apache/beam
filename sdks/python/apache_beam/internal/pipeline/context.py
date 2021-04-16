@@ -14,7 +14,6 @@ from typing_extensions import Protocol
 
 from apache_beam.coders.coder_impl import IterableStateReader
 from apache_beam.coders.coder_impl import IterableStateWriter
-from apache_beam import pipeline
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.pipeline import ComponentIdMap
@@ -129,6 +128,7 @@ class PipelineContext(object):
   Used for accessing and constructing the referenced objects of a Pipeline.
   """
   from apache_beam import coders
+  from apache_beam import pipeline
 
   def __init__(
       self,
@@ -153,7 +153,7 @@ class PipelineContext(object):
 
     self.transforms = _PipelineContextMap(
         self,
-        pipeline.AppliedPTransform,
+        self.__class__.pipeline.AppliedPTransform,
         namespace,
         proto.transforms if proto is not None else None)
     self.pcollections = _PipelineContextMap(
