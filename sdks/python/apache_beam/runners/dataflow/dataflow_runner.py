@@ -450,7 +450,7 @@ class DataflowRunner(PipelineRunner):
       # instead of using the inferred default container image.
       self._default_environment = (
           environments.DockerEnvironment.from_options(options))
-      options.view_as(WorkerOptions).worker_harness_container_image = (
+      options.view_as(WorkerOptions).sdk_container_image = (
           self._default_environment.container_image)
     else:
       self._default_environment = (

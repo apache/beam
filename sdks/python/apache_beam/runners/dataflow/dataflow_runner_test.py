@@ -206,7 +206,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def test_environment_override_translation(self):
     self.default_properties.append('--experiments=beam_fn_api')
-    self.default_properties.append('--worker_harness_container_image=FOO')
+    self.default_properties.append('--sdk_container_image=FOO')
     remote_runner = DataflowRunner()
     with Pipeline(remote_runner,
                   options=PipelineOptions(self.default_properties)) as p:
