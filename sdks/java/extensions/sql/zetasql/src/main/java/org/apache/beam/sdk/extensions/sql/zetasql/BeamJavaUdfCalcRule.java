@@ -26,7 +26,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 /**
  * A {@link BeamCalcSplittingRule} to replace {@link Calc} with {@link BeamCalcRel}.
  *
- * <p>Equivalent to {@link BeamCalcRule} but with added type restrictions for ZetaSQL.
+ * <p>Equivalent to {@link BeamCalcRule} but with limits to supported types and operators.
+ *
+ * <p>This class is intended only for testing purposes. See {@link BeamZetaSqlCalcSplittingRule}.
  */
 public class BeamJavaUdfCalcRule extends BeamCalcSplittingRule {
   public static final BeamJavaUdfCalcRule INSTANCE = new BeamJavaUdfCalcRule();
