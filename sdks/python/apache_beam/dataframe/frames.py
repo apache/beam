@@ -1981,22 +1981,31 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def quantile(self, q, axis, **kwargs):
-    if axis in (1, 'columns') and isinstance(q, list):
-      raise frame_base.WontImplementError(
-          "quantile(axis=columns) with multiple q values is not supported "
-          "because it transposes the input DataFrame. Note computing "
-          "an individual quantile across columns (e.g. "
-          f"df.quantile(q={q[0]!r}, axis={axis!r}) is supported.",
-          reason="non-deferred-columns")
+    if axis in (1, 'columns'):
+      if isinstance(q, list):
+        raise frame_base.WontImplementError(
+            "quantile(axis=columns) with multiple q values is not supported "
+            "because it transposes the input DataFrame. Note computing "
+            "an individual quantile across columns (e.g. "
+            f"df.quantile(q={q[0]!r}, axis={axis!r}) is supported.",
+            reason="non-deferred-columns")
+      else:
+        requires = partitionings.Arbitrary()
+    else: # axis='index'
+      # TODO(BEAM-12167): Provide an option for approximate distributed
+      # quantiles
+      requires = partitionings.Singleton(reason=(
+          "Computing quantiles across index cannot currently be parallelized. "
+          "See BEAM-12167 tracking the possible addition of an approximate, "
+          "parallelizable implementation of quantile."
+      ))
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'quantile',
             lambda df: df.quantile(q=q, axis=axis, **kwargs),
             [self._expr],
-            # TODO(BEAM-12167): Provide an option for approximate distributed
-            # quantiles
-            requires_partition_by=partitionings.Singleton(),
+            requires_partition_by=requires,
             preserves_partition_by=partitionings.Singleton()))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
