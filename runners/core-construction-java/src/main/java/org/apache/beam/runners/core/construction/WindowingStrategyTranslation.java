@@ -30,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.StandardWindowFns.FixedWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.GlobalWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SessionWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SlidingWindowsPayload;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -287,7 +288,8 @@ public class WindowingStrategyTranslation implements Serializable {
     FunctionSpec windowFnSpec = toProto(windowFn, components);
     String environmentId =
         Strings.isNullOrEmpty(windowingStrategy.getEnvironmentId())
-            ? components.getOnlyEnvironmentId()
+            ? components.getEnvironmentIdFor(
+                ResourceHints.create()) // TODO: get this from elsewhere
             : windowingStrategy.getEnvironmentId();
 
     RunnerApi.WindowingStrategy.Builder windowingStrategyProto =

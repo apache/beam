@@ -489,8 +489,14 @@ public class TransformHierarchy {
 
     /** Returns the {@link AppliedPTransform} representing this {@link Node}. */
     public AppliedPTransform<?, ?, ?> toAppliedPTransform(Pipeline pipeline) {
+      // TODO: Resource hint nesting.
       return AppliedPTransform.of(
-          getFullName(), inputs, outputs, (PTransform) getTransform(), pipeline);
+          getFullName(),
+          inputs,
+          outputs,
+          (PTransform) getTransform(),
+          ((PTransform) getTransform()).getResourceHints(),
+          pipeline);
     }
 
     /**
