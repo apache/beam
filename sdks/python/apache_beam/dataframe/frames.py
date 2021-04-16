@@ -109,7 +109,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if index is not None and errors == 'raise':
       # In order to raise an error about missing index values, we'll
       # need to collect the entire dataframe.
-      requires = partitionings.Singleton()
+      requires = partitionings.Singleton(
+          reason=(
+              "drop(errors='raise', axis='index') is not currently "
+              "parallelizable. This requires collecting all data on a single "
+              f"node in order to detect if one of {index!r} is missing."))
     else:
       requires = partitionings.Arbitrary()
 
@@ -523,7 +527,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if errors == "ignore":
       # We need all data in order to ignore errors and propagate the original
       # data.
-      requires = partitionings.Singleton()
+      requires = partitionings.Singleton(
+          reason=(
+              f"where(errors={errors!r}) is currently not parallelizable, "
+              "because all data must be collected on one node to determine if "
+              "the original data should be propagated instead."))
 
     actual_args['errors'] = errors
 
@@ -669,9 +677,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     if verify_integrity:
       # verifying output has a unique index requires global index.
-      # TODO(BEAM-11839): Attach an explanation to the Singleton partitioning
-      # requirement, and include it in raised errors.
-      requires = partitionings.Singleton()
+      requires = partitionings.Singleton(
+          reason=(
+              "append(verify_integrity=True) cannot currently be "
+              "parallelized. It requires collecting all data on a single node "
+              "to check the full index."))
     else:
       requires = partitionings.Arbitrary()
 
@@ -838,6 +848,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       return x._corr_aligned(y, min_periods)
 
     else:
+      reason = (
+          f"Encountered corr(method={method!r}) which cannot be "
+          "parallelized. Only corr(method='pearson') is currently "
+          "parallelizable.")
       # The rank-based correlations are not obviously parallelizable, though
       # perhaps an approximation could be done with a knowledge of quantiles
       # and custom partitioning.
@@ -847,9 +861,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               lambda df,
               other: df.corr(other, method=method, min_periods=min_periods),
               [self._expr, other._expr],
-              # TODO(BEAM-11839): Attach an explanation to the Singleton
-              # partitioning requirement, and include it in raised errors.
-              requires_partition_by=partitionings.Singleton()))
+              requires_partition_by=partitionings.Singleton(reason=reason)))
 
   def _corr_aligned(self, other, min_periods):
     std_x = self.std()
@@ -958,9 +970,16 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         return frame_base.DeferredFrame.wrap(
             expressions.ComputedExpression(
                 'aggregate',
-                lambda s: s.agg(func, *args, **kwargs), [intermediate],
+                lambda s: s.agg(func, *args, **kwargs),
+                [intermediate],
                 preserves_partition_by=partitionings.Arbitrary(),
-                requires_partition_by=partitionings.Singleton()))
+                # TODO(BEAM-11839): This reason should be more specific. It's
+                # actually incorrect for the args/kwargs case above.
+                requires_partition_by=partitionings.Singleton(
+                    reason=(
+                        f"Aggregation function {func!r} cannot currently be "
+                        "parallelized, it requires collecting all data for "
+                        "this Series on a single node."))))
 
   agg = aggregate
 
@@ -1119,7 +1138,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     if limit is None:
       requires_partition_by = partitionings.Arbitrary()
     else:
-      requires_partition_by = partitionings.Singleton()
+      requires_partition_by = partitionings.Singleton(
+          reason=(
+              f"replace(limit={limit!r}) cannot currently be parallelized, it "
+              "requires collecting all data on a single node."))
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'replace',
@@ -1154,7 +1176,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             'unique',
             lambda df: pd.Series(df.unique()), [self._expr],
             preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=partitionings.Singleton()))
+            requires_partition_by=partitionings.Singleton(
+                reason="unique() cannot currently be parallelized.")))
 
   def update(self, other):
     self._expr = expressions.ComputedExpression(
@@ -1289,7 +1312,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     if level is not None:
       # Could probably get by partitioning on the used levels.
-      requires_partition_by = partitionings.Singleton()
+      requires_partition_by = partitionings.Singleton(reason=(
+          f"align(level={level}) is not currently parallelizable. Only "
+          "align(level=None) can be parallelized."))
     elif axis in ('columns', 1):
       requires_partition_by = partitionings.Arbitrary()
     else:
@@ -1391,8 +1416,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=preserves,
             requires_partition_by=partitionings.Arbitrary()))
 
-
-
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
       # Aggregate across all elements by first aggregating across columns,
@@ -1414,6 +1437,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             'aggregate',
             lambda df: df.agg(func, *args, **kwargs),
             [self._expr],
+            # TODO(BEAM-11839): Provide a reason for this Singleton
             requires_partition_by=partitionings.Singleton()))
     else:
       # In the general case, compute the aggregation of each column separately,
@@ -1499,12 +1523,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                 proxy=proxy))
 
     else:
+      reason = (f"Encountered corr(method={method!r}) which cannot be "
+                "parallelized. Only corr(method='pearson') is currently "
+                "parallelizable.")
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'corr',
               lambda df: df.corr(method=method, min_periods=min_periods),
               [self._expr],
-              requires_partition_by=partitionings.Singleton()))
+              requires_partition_by=partitionings.Singleton(reason=reason)))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -1653,8 +1680,12 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             'mode',
             lambda df: df.mode(*args, **kwargs),
             [self._expr],
-            #TODO(robertwb): Approximate?
-            requires_partition_by=partitionings.Singleton(),
+            #TODO(BEAM-12181): Can we add an approximate implementation?
+            requires_partition_by=partitionings.Singleton(reason=(
+                "mode(axis='index') cannot currently be parallelized. See "
+                "BEAM-12181 tracking the possble addition of an approximate, "
+                "parallelizable implementation of mode."
+            )),
             preserves_partition_by=partitionings.Singleton()))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -1662,8 +1693,12 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.maybe_inplace
   def dropna(self, axis, **kwargs):
     # TODO(robertwb): This is a common pattern. Generalize?
-    if axis == 1 or axis == 'columns':
-      requires_partition_by = partitionings.Singleton()
+    if axis in (1, 'columns'):
+      requires_partition_by = partitionings.Singleton(reason=(
+          "dropna(axis=1) cannot currently be parallelized. It requires "
+          "checking all values in each column for NaN values, to determine "
+          "if that column should be dropped."
+      ))
     else:
       requires_partition_by = partitionings.Arbitrary()
     return frame_base.DeferredFrame.wrap(
@@ -1913,8 +1948,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       requires_partition_by = partitionings.Arbitrary()
       preserves_partition_by = partitionings.Index()
     else:
-      # TODO: This could be implemented in a distributed fashion
-      requires_partition_by = partitionings.Singleton()
+      # TODO(BEAM-9547): This could be implemented in a distributed fashion,
+      # perhaps by deferring to a distributed drop_duplicates
+      requires_partition_by = partitionings.Singleton(reason=(
+         "nunique(axis='index') is not currently parallelizable."
+      ))
       preserves_partition_by = partitionings.Singleton()
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -1978,8 +2016,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       preserves_partition_by = partitionings.Index()
 
     if kwargs.get('errors', None) == 'raise' and rename_index:
-      # Renaming index with checking requires global index.
-      requires_partition_by = partitionings.Singleton()
+      # TODO: We could do this in parallel by creating a ConstantExpression
+      # with a series created from the mapper dict. Then Index() partitioning
+      # would co-locate the necessary index values and we could raise
+      # individually within each partition. Execution time errors are
+      # discouraged anyway so probably not worth the effort.
+      requires_partition_by = partitionings.Singleton(reason=(
+          "rename(errors='raise', axis='index') requires collecting all "
+          "data on a single node in order to detect missing index values."
+      ))
     else:
       requires_partition_by = partitionings.Arbitrary()
 
@@ -2014,7 +2059,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if limit is None:
       requires_partition_by = partitionings.Arbitrary()
     else:
-      requires_partition_by = partitionings.Singleton()
+      requires_partition_by = partitionings.Singleton(reason=(
+         f"replace(limit={limit!r}) cannot currently be parallelized, it "
+         "requires collecting all data on a single node."))
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'replace',
@@ -2032,8 +2079,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
     if level is None or len(level) == self._expr.proxy().index.nlevels:
-      # TODO: Could do distributed re-index with offsets.
-      requires_partition_by = partitionings.Singleton()
+      # TODO(BEAM-12182): Could do distributed re-index with offsets.
+      requires_partition_by = partitionings.Singleton(reason=(
+          "reset_index(level={level!r}) drops the entire index and creates a "
+          "new one, so it cannot currently be parallelized (BEAM-12182)."
+      ))
     else:
       requires_partition_by = partitionings.Arbitrary()
     return frame_base.DeferredFrame.wrap(
@@ -2388,7 +2438,10 @@ def _liftable_agg(meth, postagg_meth=None):
             df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
             **kwargs),
         [pre_agg],
-        requires_partition_by=(partitionings.Singleton()
+        requires_partition_by=(partitionings.Singleton(reason=(
+            "Aggregations grouped by a categorical column are not currently "
+            "parallelizable (BEAM-11190)."
+        ))
                                if is_categorical_grouping
                                else partitionings.Index()),
         preserves_partition_by=partitionings.Arbitrary())
@@ -2416,7 +2469,10 @@ def _unliftable_agg(meth):
                        **groupby_kwargs),
             ), **kwargs),
         [self._ungrouped],
-        requires_partition_by=(partitionings.Singleton()
+        requires_partition_by=(partitionings.Singleton(reason=(
+            "Aggregations grouped by a categorical column are not currently "
+            "parallelizable (BEAM-11190)."
+        ))
                                if is_categorical_grouping
                                else partitionings.Index()),
         preserves_partition_by=partitionings.Arbitrary())
@@ -2633,7 +2689,10 @@ class _DeferredStringMethods(frame_base.DeferredBase):
   def cat(self, others, join, **kwargs):
     if others is None:
       # Concatenate series into a single String
-      requires = partitionings.Singleton()
+      requires = partitionings.Singleton(reason=(
+          "cat(others=None) concatenates all data in a Series into a single "
+          "string, so it requires collecting all data on a single node."
+      ))
       func = lambda df: df.str.cat(join=join, **kwargs)
       args = [self._expr]
 
