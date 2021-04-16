@@ -327,12 +327,47 @@ def _agg_method(func):
   return wrapper
 
 
-def wont_implement_method(msg):
-  """Generate a stub method that simply raises WontImplementError(msg).
+def wont_implement_method(base_type, name, reason=None, explanation=None):
+  """Generate a stub method that raises WontImplementError.
 
-  For internal use only. No backwards compatibility guarantees."""
+  Note either reason or explanation must be specified. If both are specified,
+  explanation is ignored.
+
+  Args:
+      base_type: The pandas type of the method that this is trying to replicate.
+      name: The name of the method that this is aiming to replicate.
+      reason: If specified, use data from the corresponding entry in
+           ``_WONT_IMPLEMENT_REASONS`` to generate a helpful exception message
+           and docstring for the method.
+      explanation: If specified, use this string as an explanation for why
+           this operation is not supported when generating an exception message
+           and docstring.
+  """
+  if reason is not None:
+    if reason not in _WONT_IMPLEMENT_REASONS:
+      raise AssertionError(
+          f"reason must be one of {list(_WONT_IMPLEMENT_REASONS.keys())}, "
+          f"got {reason!r}")
+    reason_data = _WONT_IMPLEMENT_REASONS[reason]
+  elif explanation is not None:
+    reason_data = {'explanation': explanation}
+  else:
+    raise ValueError("One of (reason, explanation) must be specified")
+
   def wrapper(*args, **kwargs):
-    raise WontImplementError(msg)
+    raise WontImplementError(
+        f"'{name}' is not supported {reason_data['explanation']}.",
+        reason=reason)
+
+  wrapper.__name__ = name
+  wrapper.__doc__ = f"""pandas.{base_type.__name__}.{name} is not supported in
+                    the Beam DataFrame API {reason_data['explanation']}."""
+
+  if 'url' in reason_data:
+    wrapper.__doc__ += """
+
+                    For more information see {reason_data['url']}.
+                    """
 
   return wrapper
 
@@ -530,6 +565,36 @@ def populate_defaults(base_type):
   return wrap
 
 
+_WONT_IMPLEMENT_REASONS = {
+    'order-sensitive': {
+        'explanation': "because it is sensitive to the order of the data",
+        'url': 'https://s.apache.org/dataframe-order-sensitive-operations',
+    },
+    'non-deferred-columns': {
+        'explanation': (
+            "because the columns in the output DataFrame depend "
+            "on the data"),
+        'url': 'https://s.apache.org/dataframe-non-deferred-columns',
+    },
+    'non-deferred-result': {
+        'explanation': (
+            "because it produces an output type that is not "
+            "deferred"),
+        'url': 'https://s.apache.org/dataframe-non-deferred-result',
+    },
+    'plotting-tools': {
+        'explanation': "because it is a plotting tool",
+        'url': 'https://s.apache.org/dataframe-plotting-tools',
+    },
+    'deprecated': {
+        'explanation': "because it is deprecated in pandas",
+    },
+    'experimental': {
+        'explanation': "because it is experimental in pandas",
+    },
+}
+
+
 class WontImplementError(NotImplementedError):
   """An subclass of NotImplementedError to raise indicating that implementing
   the given method is not planned.
@@ -537,4 +602,15 @@ class WontImplementError(NotImplementedError):
   Raising this error will also prevent this doctests from being validated
   when run with the beam dataframe validation doctest runner.
   """
-  pass
+  def __init__(self, msg, reason=None):
+    if reason is not None:
+      if reason not in _WONT_IMPLEMENT_REASONS:
+        raise AssertionError(
+            f"reason must be one of {list(_WONT_IMPLEMENT_REASONS.keys())}, "
+            f"got {reason!r}")
+
+      reason_data = _WONT_IMPLEMENT_REASONS[reason]
+      if 'url' in reason_data:
+        msg = f"{msg}\nFor more information see {reason_data['url']}."
+
+    super(WontImplementError, self).__init__(msg)
