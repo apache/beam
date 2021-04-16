@@ -2134,10 +2134,12 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def shift(self, axis, **kwargs):
     if 'freq' in kwargs:
       raise frame_base.WontImplementError('data-dependent')
-    if axis == 1 or axis == 'columns':
+    if axis in (1, 'columns'):
       requires_partition_by = partitionings.Arbitrary()
     else:
-      requires_partition_by = partitionings.Singleton()
+      raise frame_base.WontImplementError(
+          "shift(axis='index') is sensitive to the order of the data.",
+          reason="order-sensitive")
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'shift',
