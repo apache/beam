@@ -686,6 +686,14 @@ class DeferredFrameTest(unittest.TestCase):
                                 r"df\.quantile\(q=0\.1, axis='columns'\)"):
       self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
 
+  @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
+  def test_groupby_count_na(self):
+    # Verify we can do a groupby.count() that doesn't drop NaN values
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=True).bar.count(), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
