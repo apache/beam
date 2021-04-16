@@ -23,11 +23,18 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.util.HistogramData;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -269,6 +276,61 @@ public class MetricsContainerImplTest {
   }
 
   @Test
+  public void testDeltaCounters() {
+    MetricName cName = MetricName.named("namespace", "counter");
+    MetricName gName = MetricName.named("namespace", "gauge");
+    HistogramData.BucketType bucketType = HistogramData.LinearBuckets.of(0, 2, 5);
+    MetricName hName = MetricName.named("namespace", "histogram");
+
+    MetricsContainerImpl prevContainer = new MetricsContainerImpl(null);
+    prevContainer.getCounter(cName).inc(2L);
+    prevContainer.getGauge(gName).set(4L);
+    // Set buckets counts to: [1,1,1,0,0,0,1]
+    prevContainer.getHistogram(hName, bucketType).update(-1);
+    prevContainer.getHistogram(hName, bucketType).update(1);
+    prevContainer.getHistogram(hName, bucketType).update(3);
+    prevContainer.getHistogram(hName, bucketType).update(20);
+
+    MetricsContainerImpl nextContainer = new MetricsContainerImpl(null);
+    nextContainer.getCounter(cName).inc(9L);
+    nextContainer.getGauge(gName).set(8L);
+    // Set buckets counts to: [2,4,5,0,0,0,3]
+    nextContainer.getHistogram(hName, bucketType).update(-1);
+    nextContainer.getHistogram(hName, bucketType).update(-1);
+    for (int i = 0; i < 4; i++) {
+      nextContainer.getHistogram(hName, bucketType).update(1);
+    }
+    for (int i = 0; i < 5; i++) {
+      nextContainer.getHistogram(hName, bucketType).update(3);
+    }
+    nextContainer.getHistogram(hName, bucketType).update(20);
+    nextContainer.getHistogram(hName, bucketType).update(20);
+    nextContainer.getHistogram(hName, bucketType).update(20);
+
+    MetricsContainerImpl deltaContainer =
+        MetricsContainerImpl.deltaContainer(prevContainer, nextContainer);
+    // Expect counter value: 7 = 9 - 2
+    long cValue = deltaContainer.getCounter(cName).getCumulative();
+    assertEquals(7L, cValue);
+
+    // Expect gauge value: 8.
+    GaugeData gValue = deltaContainer.getGauge(gName).getCumulative();
+    assertEquals(8L, gValue.value());
+
+    // Expect bucket counts: [1,3,4,0,0,0,2]
+    assertEquals(
+        1, deltaContainer.getHistogram(hName, bucketType).getCumulative().getBottomBucketCount());
+    long[] expectedBucketCounts = (new long[] {3, 4, 0, 0, 0});
+    for (int i = 0; i < expectedBucketCounts.length; i++) {
+      assertEquals(
+          expectedBucketCounts[i],
+          deltaContainer.getHistogram(hName, bucketType).getCumulative().getCount(i));
+    }
+    assertEquals(
+        2, deltaContainer.getHistogram(hName, bucketType).getCumulative().getTopBucketCount());
+  }
+
+  @Test
   public void testNotEquals() {
     MetricsContainerImpl metricsContainerImpl = new MetricsContainerImpl("stepName");
 
@@ -292,5 +354,38 @@ public class MetricsContainerImplTest {
     differentGauges.getGauge(MetricName.named("namespace", "name"));
     Assert.assertNotEquals(metricsContainerImpl, differentGauges);
     Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentGauges.hashCode());
+  }
+
+  @Test
+  public void testMatchMetric() {
+    String urn = MonitoringInfoConstants.Urns.API_REQUEST_COUNT;
+    Map<String, String> labels = new HashMap<String, String>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "MyPtransform");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
+    labels.put(MonitoringInfoConstants.Labels.RESOURCE, "Resource");
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, "MyProject");
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, "MyDataset");
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, "MyTable");
+
+    // MonitoringInfoMetricName will copy labels. So its safe to reuse this reference.
+    labels.put(MonitoringInfoConstants.Labels.STATUS, "ok");
+    MonitoringInfoMetricName okName = MonitoringInfoMetricName.named(urn, labels);
+    labels.put(MonitoringInfoConstants.Labels.STATUS, "not_found");
+    MonitoringInfoMetricName notFoundName = MonitoringInfoMetricName.named(urn, labels);
+
+    Set<String> allowedMetricUrns = new HashSet<String>();
+    allowedMetricUrns.add(MonitoringInfoConstants.Urns.API_REQUEST_COUNT);
+    assertTrue(MetricsContainerImpl.matchMetric(okName, allowedMetricUrns));
+    assertTrue(MetricsContainerImpl.matchMetric(notFoundName, allowedMetricUrns));
+
+    MetricName userMetricName = MetricName.named("namespace", "name");
+    assertFalse(MetricsContainerImpl.matchMetric(userMetricName, allowedMetricUrns));
+
+    MetricName elementCountName =
+        MonitoringInfoMetricName.named(
+            MonitoringInfoConstants.Urns.ELEMENT_COUNT,
+            Collections.singletonMap("name", "counter"));
+    assertFalse(MetricsContainerImpl.matchMetric(elementCountName, allowedMetricUrns));
   }
 }
