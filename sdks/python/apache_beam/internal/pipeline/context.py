@@ -9,7 +9,6 @@ from typing import Type
 from typing import TypeVar
 from typing import Union
 
-
 from google.protobuf import message
 from typing_extensions import Protocol
 
@@ -74,8 +73,7 @@ class _PipelineContextMap(Generic[PortableObjectT]):
   def get_proto(
       self,
       obj: PortableObjectT,
-      label: Optional[str] = None
-  ) -> message.Message:
+      label: Optional[str] = None) -> message.Message:
     return self._id_to_proto[self.get_id(obj, label)]
 
   def get_by_id(self, id: str) -> PortableObjectT:
@@ -88,8 +86,7 @@ class _PipelineContextMap(Generic[PortableObjectT]):
       self,
       maybe_new_proto: message.Message,
       label: Optional[str] = None,
-      deduplicate: bool = False
-  ) -> str:
+      deduplicate: bool = False) -> str:
     if deduplicate:
       for id, proto in self._id_to_proto.items():
         if proto == maybe_new_proto:
@@ -106,8 +103,7 @@ class _PipelineContextMap(Generic[PortableObjectT]):
     return self.get_id_to_proto_map()[id]
 
   def put_proto(
-      self, id: str, proto: message.Message, ignore_duplicates: bool = False
-  ):
+      self, id: str, proto: message.Message, ignore_duplicates: bool = False):
     if not ignore_duplicates and id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
     elif (ignore_duplicates and id in self._id_to_proto and
@@ -204,8 +200,7 @@ class PipelineContext(object):
   def coder_id_from_element_type(
       self,
       element_type: Any,
-      requires_deterministic_key_coder: Optional[str] = None
-  ) -> str:
+      requires_deterministic_key_coder: Optional[str] = None) -> str:
     if self.use_fake_coders:
       return pickler.dumps(element_type).decode('ascii')
     else:
@@ -227,8 +222,7 @@ class PipelineContext(object):
 
   @staticmethod
   def from_runner_api(
-      proto: beam_runner_api_pb2.Components
-  ) -> "PipelineContext":
+      proto: beam_runner_api_pb2.Components) -> "PipelineContext":
     return PipelineContext(proto)
 
   def to_runner_api(self) -> beam_runner_api_pb2.Components:
