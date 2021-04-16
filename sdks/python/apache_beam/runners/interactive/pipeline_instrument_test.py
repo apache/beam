@@ -213,8 +213,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         | 'reify b' >> beam.Map(lambda _: _)
         | 'b' >> cache.WriteCache(ie.current_env().get_cache_manager(p), ''))
 
-    expected_pipeline = p.to_runner_api(
-        return_context=False)
+    expected_pipeline = p.to_runner_api(return_context=False)
 
     assert_pipeline_proto_equal(self, expected_pipeline, actual_pipeline)
 
@@ -782,8 +781,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     pruned_proto = pipeline_instrument.instrumented_pipeline_proto()
     # Skip the prune step for comparison, it should contain the sub-graph that
     # produces init_pcoll but not useful anymore.
-    full_proto = pipeline_instrument._pipeline.to_runner_api(
-        )
+    full_proto = pipeline_instrument._pipeline.to_runner_api()
     self.assertEqual(
         len(
             pruned_proto.components.transforms[

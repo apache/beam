@@ -229,8 +229,7 @@ class PipelineInstrument(object):
   def prune_subgraph_for(self, pipeline, required_transform_ids):
     # Create the pipeline_proto to read all the components from. It will later
     # create a new pipeline proto from the cut out components.
-    pipeline_proto, context = pipeline.to_runner_api(
-        return_context=True)
+    pipeline_proto, context = pipeline.to_runner_api(return_context=True)
 
     # Get all the root transforms. The caching transforms will be subtransforms
     # of one of these roots.
@@ -465,8 +464,7 @@ class PipelineInstrument(object):
 
       v = TestStreamVisitor()
       self._pipeline.visit(v)
-      pipeline_proto = self._pipeline.to_runner_api(
-          return_context=False)
+      pipeline_proto = self._pipeline.to_runner_api(return_context=False)
       test_stream_id = ''
       for t_id, t in pipeline_proto.components.transforms.items():
         if t.unique_name == v.test_stream:
