@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import FrozenSet
@@ -19,6 +20,10 @@ from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.typehints import native_type_compatibility
+
+if TYPE_CHECKING:
+  from apache_beam import pipeline
+  from apache_beam.transforms import environments
 
 
 class PortableObject(Protocol):
@@ -130,8 +135,8 @@ class PipelineContext(object):
       self,
       proto: Optional[Union[beam_runner_api_pb2.Components,
                             beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
-      component_id_map: Optional["pipeline.ComponentIdMap"] = None,
-      default_environment: Optional["environments.Environment"] = None,
+      component_id_map=None, # type: Optional[pipeline.ComponentIdMap]
+      default_environment=None, # type: Optional[environments.Environment]
       use_fake_coders: bool = False,
       iterable_state_read: Optional[IterableStateReader] = None,
       iterable_state_write: Optional[IterableStateWriter] = None,
