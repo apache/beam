@@ -209,7 +209,7 @@ class PipelineContext(object):
     if self.use_fake_coders:
       return pickler.dumps(element_type).decode('ascii')
     else:
-      coder = self.__class__.coders.registry.get_coder(element_type)
+      coder = coders.registry.get_coder(element_type)
       if requires_deterministic_key_coder:
         coder = coders.TupleCoder([
             coder.key_coder().as_deterministic_coder(
