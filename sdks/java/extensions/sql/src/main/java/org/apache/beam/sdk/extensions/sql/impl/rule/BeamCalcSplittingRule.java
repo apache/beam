@@ -24,6 +24,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link RelOptRule} that converts a {@link LogicalCalc} into a chain of {@link
@@ -31,12 +34,27 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.Log
  * CalcRelSplitter}.
  */
 public abstract class BeamCalcSplittingRule extends RelOptRule {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamCalcSplittingRule.class);
+
   protected BeamCalcSplittingRule(String description) {
     super(operand(LogicalCalc.class, any()), RelFactories.LOGICAL_BUILDER, description);
   }
 
   @Override
   public boolean matches(RelOptRuleCall x) {
+    CalcRelSplitter.RelType[] relTypes = getRelTypes();
+    for (RelNode relNode : x.getRelList()) {
+      if (relNode instanceof LogicalCalc) {
+        LogicalCalc logicalCalc = (LogicalCalc) relNode;
+        for (RexNode rexNode : logicalCalc.getProgram().getExprList()) {
+          if (!relTypes[0].canImplement(rexNode, false)
+              && !relTypes[1].canImplement(rexNode, false)) {
+            LOG.error("Cannot implement expression {} with rule {}.", rexNode, this.description);
+            return false;
+          }
+        }
+      }
+    }
     return true;
   }
 
