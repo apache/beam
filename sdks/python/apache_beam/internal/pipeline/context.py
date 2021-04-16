@@ -18,8 +18,6 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.transforms import core
-from apache_beam.transforms import environments
 from apache_beam.typehints import native_type_compatibility
 
 
@@ -128,6 +126,7 @@ class PipelineContext(object):
   """
   from apache_beam import coders
   from apache_beam import pipeline
+  from apache_beam.transforms import environments
 
   def __init__(
       self,
@@ -141,6 +140,7 @@ class PipelineContext(object):
       namespace: str = 'ref',
       requirements: Iterable[str] = (),
   ) -> None:
+    from apache_beam.transforms import core
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -173,7 +173,7 @@ class PipelineContext(object):
         proto.windowing_strategies if proto is not None else None)
     self.environments = _PipelineContextMap(
         self,
-        environments.Environment,
+        self.__class__.environments.Environment,
         namespace,
         proto.environments if proto is not None else None)
 
