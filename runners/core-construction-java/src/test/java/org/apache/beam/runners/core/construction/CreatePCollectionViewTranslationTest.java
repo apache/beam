@@ -28,6 +28,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -106,6 +107,7 @@ public class CreatePCollectionViewTranslationTest {
             PValues.expandInput(testPCollection),
             PValues.expandOutput(createViewTransform.getView()),
             createViewTransform,
+            ResourceHints.create(),
             p);
 
     FunctionSpec payload = PTransformTranslation.toProto(appliedPTransform, components).getSpec();
@@ -131,6 +133,7 @@ public class CreatePCollectionViewTranslationTest {
             PValues.expandInput(testPCollection),
             PValues.expandOutput(createViewTransform.getView()),
             createViewTransform,
+            ResourceHints.create(),
             p);
 
     CreatePCollectionViewTranslation.getView((AppliedPTransform) appliedPTransform);

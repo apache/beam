@@ -45,6 +45,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -519,7 +520,7 @@ public class Pipeline {
   }
 
   protected Pipeline(PipelineOptions options) {
-    this(new TransformHierarchy(), options);
+    this(new TransformHierarchy(ResourceHints.fromOptions(options)), options);
   }
 
   @Override
