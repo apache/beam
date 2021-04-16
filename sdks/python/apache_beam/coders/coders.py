@@ -249,7 +249,6 @@ class Coder(object):
       raise ValueError('Not a KV coder: %s.' % self)
 
   def _get_component_coders(self) -> Sequence["Coder"]:
-
     """For internal use only; no backwards-compatibility guarantees.
 
     Returns the internal component coders of this coder."""
@@ -1230,7 +1229,10 @@ Coder.register_structured_urn(
 
 class WindowedValueCoder(FastCoder):
   """Coder for windowed values."""
-  def __init__(self, wrapped_value_coder: Coder, window_coder: Optional[Coder] = None) -> None:
+  def __init__(
+      self,
+      wrapped_value_coder: Coder,
+      window_coder: Optional[Coder] = None) -> None:
     if not window_coder:
       window_coder = PickleCoder()
     self.wrapped_value_coder = wrapped_value_coder
