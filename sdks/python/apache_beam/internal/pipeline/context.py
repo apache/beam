@@ -125,14 +125,13 @@ class PipelineContext(object):
   Used for accessing and constructing the referenced objects of a Pipeline.
   """
   from apache_beam import coders
-  from apache_beam import pipeline
   from apache_beam.transforms import environments
 
   def __init__(
       self,
       proto: Optional[Union[beam_runner_api_pb2.Components,
                             beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
-      component_id_map: Optional[pipeline.ComponentIdMap] = None,
+      component_id_map: Optional["pipeline.ComponentIdMap"] = None,
       default_environment: Optional[environments.Environment] = None,
       use_fake_coders: bool = False,
       iterable_state_read: Optional[IterableStateReader] = None,
@@ -140,6 +139,7 @@ class PipelineContext(object):
       namespace: str = 'ref',
       requirements: Iterable[str] = (),
   ) -> None:
+    from apache_beam import pipeline
     from apache_beam.transforms import core
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
@@ -147,13 +147,13 @@ class PipelineContext(object):
           windowing_strategies=dict(proto.windowing_strategies.items()),
           environments=dict(proto.environments.items()))
 
-    self.component_id_map = component_id_map or self.__class__.pipeline.ComponentIdMap(
+    self.component_id_map = component_id_map or pipeline.ComponentIdMap(
         namespace)
     assert self.component_id_map.namespace == namespace
 
     self.transforms = _PipelineContextMap(
         self,
-        self.__class__.pipeline.AppliedPTransform,
+        pipeline.AppliedPTransform,
         namespace,
         proto.transforms if proto is not None else None)
     self.pcollections = _PipelineContextMap(
