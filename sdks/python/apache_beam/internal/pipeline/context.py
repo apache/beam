@@ -125,14 +125,13 @@ class PipelineContext(object):
   Used for accessing and constructing the referenced objects of a Pipeline.
   """
   from apache_beam import coders
-  from apache_beam.transforms import environments
 
   def __init__(
       self,
       proto: Optional[Union[beam_runner_api_pb2.Components,
                             beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
       component_id_map: Optional["pipeline.ComponentIdMap"] = None,
-      default_environment: Optional[environments.Environment] = None,
+      default_environment: Optional["environments.Environment"] = None,
       use_fake_coders: bool = False,
       iterable_state_read: Optional[IterableStateReader] = None,
       iterable_state_write: Optional[IterableStateWriter] = None,
@@ -141,6 +140,7 @@ class PipelineContext(object):
   ) -> None:
     from apache_beam import pipeline
     from apache_beam.transforms import core
+    from apache_beam.transforms import environments
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
