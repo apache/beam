@@ -99,6 +99,7 @@ function clean_up(){
 
 RC_TAG="v${RELEASE}-RC${RC_NUMBER}"
 LOCAL_CLONE_DIR="beam_release_${RC_TAG}"
+SCRIPT_DIR="${PWD}/$(dirname $0)"
 
 echo "================Checking Environment Variables=============="
 echo "will download artifacts for ${RC_TAG} built by github actions"
@@ -126,10 +127,10 @@ RELEASE_COMMIT=$(git rev-list -n 1 $RC_TAG)
 
 echo "================Download python artifacts======================"
 PYTHON_ARTIFACTS_DIR="${LOCAL_CLONE_DIR_ROOT}/python"
-python "./release/src/main/scripts/download_github_actions_artifacts.py" \
+python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
   --github-user "${USER_GITHUB_ID}" \
   --repo-url "${GIT_REPO_BASE_URL}" \
-  --release-branch "${RC_TAG}" \
+  --rc-tag "${RC_TAG}" \
   --release-commit "${RELEASE_COMMIT}" \
   --artifacts_dir "${PYTHON_ARTIFACTS_DIR}" \
   --rc_number "${RC_NUMBER}"

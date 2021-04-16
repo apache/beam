@@ -30,7 +30,7 @@ import dateutil.parser
 import requests
 
 GH_API_URL_WORKLOW_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/build_wheels.yml"
-GH_API_URL_WORKFLOW_RUNS_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/{workflow_id}/runs"
+GH_API_URL_WORKFLOW_RUNS_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/{workflow_id}/runs?branch={ref}"
 GH_API_URL_WORKFLOW_RUN_FMT = "https://api.github.com/repos/{repo_url}/actions/runs/{run_id}"
 GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/{repo_url}/actions/runs/{run_id}"
 
@@ -125,6 +125,7 @@ def get_build_wheels_workflow_id(repo_url, github_token):
 def get_single_workflow_run_data(run_id, repo_url, github_token):
   """Gets single workflow run data (github api payload)."""
   url = GH_API_URL_WORKFLOW_RUN_FMT.format(repo_url=repo_url, run_id=run_id)
+  print('Fetching run data: ', url)
   return request_url(url, github_token)
 
 
@@ -135,7 +136,7 @@ def get_last_run_id(
   Raises exception when no run found.
   """
   url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
-      repo_url=repo_url, workflow_id=workflow_id)
+      repo_url=repo_url, workflow_id=workflow_id, ref=rc_tag)
   data = request_url(
       url,
       github_token,
@@ -151,7 +152,7 @@ def get_last_run_id(
 
   if not filtered_commit_runs:
     workflow_run_web_url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
-        repo_url=repo_url, workflow_id=workflow_id)
+        repo_url=repo_url, workflow_id=workflow_id, ref=rc_tag)
     raise Exception(
         f"No runs for workflow (tag {rc_tag}, commit {release_commit}). Verify at {workflow_run_web_url}"
     )
@@ -276,11 +277,14 @@ def fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token, rc_num
   artifacts_url = safe_get(run_data, "artifacts_url")
   data_artifacts = request_url(artifacts_url, github_token)
   artifacts = safe_get(data_artifacts, "artifacts", artifacts_url)
+  print('Filtering ', len(artifacts), ' artifacts')
   filtered_artifacts = filter_artifacts(artifacts, rc_number)
+  print('Preparing to download ', len(filtered_artifacts), ' artifacts')
   for artifact in filtered_artifacts:
     url = safe_get(artifact, "archive_download_url")
     name = safe_get(artifact, "name")
     size_in_bytes = safe_get(artifact, "size_in_bytes")
+    print('Downloading ', size_in_bytes, ' from ', url)
 
     with tempfile.TemporaryDirectory() as tmp:
       temp_file_path = os.path.join(tmp, name + ".zip")
