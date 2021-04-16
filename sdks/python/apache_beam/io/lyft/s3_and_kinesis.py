@@ -46,10 +46,21 @@ class S3Config(object):
     def __init__(self):
         self.parallelism = S3Config.DEFAULT_S3_PARALLELISM
         self.lookback_threshold_hours = S3Config.DEFAULT_LOOKBACK_THRESHOLD_HOURS
+        self.start_date = None
+        self.end_date = None
 
     def with_parallelism(self, parallelism):
         self.parallelism = parallelism
         return self
+
+    def with_start_date(self, startDate):
+        self.start_date = startDate
+        return self
+
+    def with_end_date(self, endDate):
+        self.end_date = endDate
+        return self
+
 
     def with_lookback_threshold_hours(self, lookback_threshold_hours):
         self.lookback_threshold_hours = lookback_threshold_hours
@@ -147,11 +158,15 @@ class S3AndKinesisInput(PTransform):
         instance.app_env = payload['app_env']
         s3_config_dict = payload['s3']
 
+        start_date = s3_config_dict.get('start_date', None)
+        end_date = s3_config_dict.get('end_date', None)
         lookback_threshold_hours=s3_config_dict.get('lookback_threshold_hours', S3Config.DEFAULT_LOOKBACK_THRESHOLD_HOURS)
         s3_parallelism=s3_config_dict.get('parallelism', S3Config.DEFAULT_S3_PARALLELISM)
         s3_config = S3Config()
         s3_config.with_lookback_threshold_hours(lookback_threshold_hours)
         s3_config.with_parallelism(s3_parallelism)
+        s3_config.with_start_date(start_date)
+        s3_config.with_end_date(end_date)
 
         instance.s3_config = s3_config
 
@@ -194,7 +209,9 @@ class S3AndKinesisInput(PTransform):
             },
             's3': {
                 'parallelism': self.s3_config.parallelism,
-                'lookback_threshold_hours': self.s3_config.lookback_threshold_hours
+                'lookback_threshold_hours': self.s3_config.lookback_threshold_hours,
+                'start_date': self.s3_config.start_date,
+                'end_date': self.s3_config.end_date
             },
         }
 

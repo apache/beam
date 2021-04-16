@@ -11,7 +11,7 @@ from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.window import GlobalWindows
 
 Event = namedtuple('Event', 'name lateness_in_sec lookback_days')
-S3Config = namedtuple('S3Config', 'parallelism lookback_hours')
+S3Config = namedtuple('S3Config', 'parallelism lookback_hours','start_dfate', 'end_date')
 
 
 class S3Input(PTransform):
@@ -23,7 +23,7 @@ class S3Input(PTransform):
   def __init__(self):
     super().__init__()
     self.events = []
-    self.s3_config = S3Config(None, None)
+    self.s3_config = S3Config(None, None, None, None)
     self.source_name = 'S3_' + self._get_random_source_name()
     self.app_env = "production"
 
@@ -71,7 +71,9 @@ class S3Input(PTransform):
     s3_config_dict = payload['s3']
     instance.s3_config = S3Config(
         parallelism=s3_config_dict.get('parallelism', None),
-        lookback_hours=s3_config_dict.get('lookback_hours', None)
+        lookback_hours=s3_config_dict.get('lookback_hours', None),
+        start_date=s3_config_dict.get('start_date', None),
+        end_date=s3_config_dict.get('end_date', None)
     )
 
     events_list = payload['events']
@@ -96,7 +98,9 @@ class S3Input(PTransform):
       'app_env': self.app_env,
       's3': {
         'parallelism': self.s3_config.parallelism,
-        'lookback_hours': self.s3_config.lookback_hours
+        'lookback_hours': self.s3_config.lookback_hours,
+        'start_date': self.s3_config.start_date,
+        'end_date': self.s3_config.end_date
       },
     }
 
