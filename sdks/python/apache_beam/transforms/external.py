@@ -256,8 +256,8 @@ class ExternalTransform(ptransform.PTransform):
     return '%s_%d' % (cls.get_local_namespace(), cls._namespace_counter)
 
   def expand(self, pvalueish):
-    from apache_beam.internal.pipeline import context as pipeline_context
     # type: (pvalue.PCollection) -> pvalue.PCollection
+    from apache_beam.internal.pipeline import context as pipeline_context
     if isinstance(pvalueish, pvalue.PBegin):
       self._inputs = {}
     elif isinstance(pvalueish, (list, tuple)):
