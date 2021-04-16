@@ -63,7 +63,6 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
@@ -75,7 +74,6 @@ import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
 import com.google.cloud.bigquery.storage.v1beta2.FlushRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoSchema;
 import com.google.cloud.bigquery.storage.v1beta2.StreamWriterV2;
 import com.google.cloud.bigquery.storage.v1beta2.WriteStream;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
@@ -1138,18 +1136,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         @Override
         public ApiFuture<AppendRowsResponse> appendRows(
             long offset, ProtoRows rows, Descriptor descriptor) throws Exception {
-          final AppendRowsRequest.ProtoData data =
-              AppendRowsRequest.ProtoData.newBuilder()
-                  .setWriterSchema(
-                      ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build())
-                  .setRows(rows)
-                  .build();
-          AppendRowsRequest.Builder appendRequestBuilder =
-              AppendRowsRequest.newBuilder().setProtoRows(data).setWriteStream(streamName);
-          if (offset >= 0) {
-            appendRequestBuilder = appendRequestBuilder.setOffset(Int64Value.of(offset));
-          }
-          return streamWriter.append(appendRequestBuilder.build());
+          return streamWriter.append(rows, offset);
         }
       };
     }
