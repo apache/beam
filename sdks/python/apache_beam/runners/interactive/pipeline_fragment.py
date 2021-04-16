@@ -65,8 +65,7 @@ class PipelineFragment(object):
     # pipeline instance held by the end user. This instance can be processed
     # into a pipeline fragment that later run by the underlying runner.
     self._runner_pipeline = self._build_runner_pipeline()
-    _, self._context = self._runner_pipeline.to_runner_api(
-        return_context=True)
+    _, self._context = self._runner_pipeline.to_runner_api(return_context=True)
     from apache_beam.runners.interactive import pipeline_instrument as instr
     self._runner_pcoll_to_id = instr.pcolls_to_pcoll_id(
         self._runner_pipeline, self._context)
