@@ -11,7 +11,7 @@ from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.window import GlobalWindows
 
 Event = namedtuple('Event', 'name lateness_in_sec lookback_days')
-S3Config = namedtuple('S3Config', 'parallelism lookback_hours  start_dfate end_date')
+S3Config = namedtuple('S3Config', 'parallelism lookback_hours  start_date end_date')
 
 
 class S3Input(PTransform):
