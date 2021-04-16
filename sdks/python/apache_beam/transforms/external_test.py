@@ -211,7 +211,7 @@ class ExternalTransformTest(unittest.TestCase):
       assert_that(p | FibTransform(6), equal_to([8]))
 
   def test_external_empty_spec_translation(self):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     pipeline = beam.Pipeline()
     external_transform = beam.ExternalTransform(
         'beam:transforms:xlang:test:prefix',

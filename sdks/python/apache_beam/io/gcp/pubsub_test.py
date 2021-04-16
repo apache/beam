@@ -702,7 +702,7 @@ class TestReadFromPubSub(unittest.TestCase):
                 'projects/fakeprj/topics/a_topic', None, 'a_label'))
 
   def test_runner_api_transformation_with_topic(self, unused_mock_pubsub):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     source = _PubSubSource(
         topic='projects/fakeprj/topics/a_topic',
         subscription=None,
@@ -741,7 +741,7 @@ class TestReadFromPubSub(unittest.TestCase):
 
   def test_runner_api_transformation_properties_none(self, unused_mock_pubsub):
     # Confirming that properties stay None after a runner API transformation.
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     source = _PubSubSource(
         topic='projects/fakeprj/topics/a_topic', with_attributes=True)
     transform = Read(source)
@@ -767,7 +767,7 @@ class TestReadFromPubSub(unittest.TestCase):
 
   def test_runner_api_transformation_with_subscription(
       self, unused_mock_pubsub):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     source = _PubSubSource(
         topic=None,
         subscription='projects/fakeprj/subscriptions/a_subscription',
@@ -899,7 +899,7 @@ class TestWriteToPubSub(unittest.TestCase):
                 timestamp_attribute='timestamp'))
 
   def test_runner_api_transformation(self, unused_mock_pubsub):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     sink = _PubSubSink(
         topic='projects/fakeprj/topics/a_topic',
         id_label=None,
@@ -932,7 +932,7 @@ class TestWriteToPubSub(unittest.TestCase):
 
   def test_runner_api_transformation_properties_none(self, unused_mock_pubsub):
     # Confirming that properties stay None after a runner API transformation.
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     sink = _PubSubSink(
         topic='projects/fakeprj/topics/a_topic',
         id_label=None,

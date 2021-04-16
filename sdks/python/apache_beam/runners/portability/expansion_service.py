@@ -42,7 +42,7 @@ class ExpansionServiceServicer(
         portable_runner.PortableRunner._create_environment(self._options))
 
   def Expand(self, request, context=None):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     try:
       pipeline = beam_pipeline.Pipeline(options=self._options)
 

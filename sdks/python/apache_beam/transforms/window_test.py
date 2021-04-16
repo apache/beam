@@ -357,7 +357,7 @@ class RunnerApiTest(unittest.TestCase):
                       FixedWindows(37),
                       SlidingWindows(2, 389),
                       Sessions(5077)):
-      from apache_beam.pipeline import context as pipeline_context
+      from apache_beam.internal.pipeline import context as pipeline_context
       context = pipeline_context.PipelineContext()
       self.assertEqual(
           window_fn,

@@ -801,7 +801,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
               typehints.Iterable[str]])
 
   def _test_runner_api_round_trip(self, transform, urn):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     context = pipeline_context.PipelineContext()
     proto = transform.to_runner_api(context)
     self.assertEqual(urn, proto.urn)

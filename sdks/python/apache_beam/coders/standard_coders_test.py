@@ -226,7 +226,7 @@ class StandardCodersTest(unittest.TestCase):
               decode_nested(coder, expected_encoded, nested), value)
 
   def parse_coder(self, spec):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     context = pipeline_context.PipelineContext()
     coder_id = str(hash(str(spec)))
     component_ids = [

@@ -862,7 +862,7 @@ class Writer(object):
 class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
   # Import runners here to prevent circular imports
-  from apache_beam.pipeline.context import PipelineContext
+  from apache_beam.internal.pipeline.context import PipelineContext
 
   def __init__(self, source):
     # type: (SourceBase) -> None
@@ -1036,7 +1036,7 @@ class Write(ptransform.PTransform):
   native write transform.
   """
   # Import here to prevent circular imports
-  from apache_beam.pipeline.context import PipelineContext
+  from apache_beam.internal.pipeline.context import PipelineContext
 
   def __init__(self, sink):
     """Initializes a Write transform.

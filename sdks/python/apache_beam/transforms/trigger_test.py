@@ -440,7 +440,7 @@ class TriggerTest(unittest.TestCase):
 
 class RunnerApiTest(unittest.TestCase):
   def test_trigger_encoding(self):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     for trigger_fn in (DefaultTrigger(),
                        AfterAll(AfterCount(1), AfterCount(10)),
                        AfterAny(AfterCount(10), AfterCount(100)),

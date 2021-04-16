@@ -577,7 +577,7 @@ class FnApiRunnerExecutionContext(object):
     :param safe_coders:
     :param data_channel_coders:
     """
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     self.stages = stages
     self.side_input_descriptors_by_stage = (
         self._build_data_side_inputs_map(stages))

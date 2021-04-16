@@ -57,7 +57,7 @@ from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
   from apache_beam.options.pipeline_options import PortableOptions
-  from apache_beam.pipeline.context import PipelineContext
+  from apache_beam.internal.pipeline.context import PipelineContext
 
 __all__ = [
     'Environment',

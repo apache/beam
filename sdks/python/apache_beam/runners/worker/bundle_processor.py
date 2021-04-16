@@ -1153,7 +1153,7 @@ class BeamTransformFactory(object):
                state_sampler,  # type: statesampler.StateSampler
                state_handler  # type: sdk_worker.CachingStateHandler
               ):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
     self.counter_factory = counter_factory

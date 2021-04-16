@@ -162,7 +162,7 @@ class CodersTest(unittest.TestCase):
         cls._observe_nested(c)
 
   def check_coder(self, coder, *values, **kwargs):
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     context = kwargs.pop('context', pipeline_context.PipelineContext())
     test_size_estimation = kwargs.pop('test_size_estimation', True)
     assert not kwargs
@@ -652,7 +652,7 @@ class CodersTest(unittest.TestCase):
         read_state=iterable_state_read,
         write_state=iterable_state_write,
         write_state_threshold=1)
-    from apache_beam.pipeline import context as pipeline_context
+    from apache_beam.internal.pipeline import context as pipeline_context
     context = pipeline_context.PipelineContext(
         iterable_state_read=iterable_state_read,
         iterable_state_write=iterable_state_write)

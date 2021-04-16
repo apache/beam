@@ -89,7 +89,7 @@ from apache_beam.utils import proto_utils
 if TYPE_CHECKING:
   from apache_beam import coders
   from apache_beam.pipeline import Pipeline
-  from apache_beam.pipeline.context import PipelineContext
+  from apache_beam.internal.pipeline.context import PipelineContext
   from apache_beam.transforms.core import Windowing
   from apache_beam.portability.api import beam_runner_api_pb2
 

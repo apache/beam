@@ -44,7 +44,7 @@ from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
   from apache_beam.portability.api import beam_runner_api_pb2
-  from apache_beam.pipeline.context import PipelineContext
+  from apache_beam.internal.pipeline.context import PipelineContext
 
 T = TypeVar('T')
 RunnerApiFnT = TypeVar('RunnerApiFnT', bound='RunnerApiFn')
