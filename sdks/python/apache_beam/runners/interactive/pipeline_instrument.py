@@ -72,8 +72,8 @@ class PipelineInstrument(object):
         self._pipeline, self._background_caching_pipeline)
 
     # Snapshot of original pipeline information.
-    (self._original_pipeline_proto, context) = self._pipeline.to_runner_api(
-        return_context=True)
+    (self._original_pipeline_proto,
+     context) = self._pipeline.to_runner_api(return_context=True)
 
     # All compute-once-against-original-pipeline fields.
     self._unbounded_sources = unbounded_sources(

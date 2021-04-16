@@ -312,9 +312,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # This is a new runner pipeline instance with the same pipeline graph to
     # what the user_pipeline represents.
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
-        user_pipeline.to_runner_api(),
-        user_pipeline.runner,
-        options=None)
+        user_pipeline.to_runner_api(), user_pipeline.runner, options=None)
     ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
     # This is a totally irrelevant user pipeline in the watched scope.
     irrelevant_user_pipeline = beam.Pipeline(
@@ -765,9 +763,7 @@ class PipelineInstrumentTest(unittest.TestCase):
   def test_pipeline_pruned_when_input_pcoll_is_cached(self):
     user_pipeline, init_pcoll, _ = self._example_pipeline()
     runner_pipeline = beam.Pipeline.from_runner_api(
-        user_pipeline.to_runner_api(),
-        user_pipeline.runner,
-        None)
+        user_pipeline.to_runner_api(), user_pipeline.runner, None)
     ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
 
     # Mock as if init_pcoll is cached.
