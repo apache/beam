@@ -16,9 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import collections
 import gc
 import logging
@@ -33,7 +30,6 @@ import traceback
 import typing
 import unittest
 import uuid
-from builtins import range
 from typing import Any
 from typing import Dict
 from typing import Tuple

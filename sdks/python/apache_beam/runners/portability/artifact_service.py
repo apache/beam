@@ -21,10 +21,6 @@ The staging service here can be backed by any beam filesystem.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import concurrent.futures
 import contextlib
 import hashlib
@@ -42,9 +38,9 @@ from typing import List
 from typing import MutableMapping
 from typing import Optional
 from typing import Tuple
+from urllib.request import urlopen
 
 import grpc
-from future.moves.urllib.request import urlopen
 
 from apache_beam.io import filesystems
 from apache_beam.io.filesystems import CompressionTypes
