@@ -1415,11 +1415,6 @@ class _StreamToBigQuery(PTransform):
       value = element[1]
       return ((key, random.randint(0, DEFAULT_SHARDS_PER_DESTINATION)), value)
 
-    def _to_hashable_table_ref(table_ref_elem_kv):
-      table_ref = table_ref_elem_kv[0]
-      hashable_table_ref = bigquery_tools.get_hashable_destination(table_ref)
-      return (hashable_table_ref, table_ref_elem_kv[1])
-
     def _restore_table_ref(sharded_table_ref_elems_kv):
       sharded_table_ref = sharded_table_ref_elems_kv[0]
       table_ref = bigquery_tools.parse_table_reference(sharded_table_ref)
@@ -1431,7 +1426,8 @@ class _StreamToBigQuery(PTransform):
             bigquery_tools.AppendDestinationsFn(self.table_reference),
             *self.table_side_inputs)
         | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
-        | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref))
+        |
+        'ToHashableTableRef' >> beam.Map(bigquery_tools.to_hashable_table_ref))
 
     if not self.with_auto_sharding:
       tagged_data = (
@@ -1758,7 +1754,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
   def display_data(self):
     res = {}
-    if self.table_reference is not None:
+    if self.table_reference is not None and isinstance(self.table_reference,
+                                                       TableReference):
       tableSpec = '{}.{}'.format(
           self.table_reference.datasetId, self.table_reference.tableId)
       if self.table_reference.projectId is not None:

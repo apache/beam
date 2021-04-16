@@ -22,17 +22,11 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import hashlib
 import imp
 import os
 import shutil
 import tempfile
-from builtins import object
-
-from mock import Mock
-from mock import patch
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.utils import retry
@@ -101,6 +95,10 @@ def patch_retry(testcase, module):
     module: The module that uses retry and need to be replaced with mock
       clock and logger in test.
   """
+  # Import mock here to avoid execution time errors for other utilities
+  from mock import Mock
+  from mock import patch
+
   real_retry_with_exponential_backoff = retry.with_exponential_backoff
 
   def patched_retry_with_exponential_backoff(**kwargs):

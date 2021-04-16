@@ -90,8 +90,9 @@ You can also customize what to do when a
 starts and finishes with `start_bundle` and `finish_bundle`.
 
 * [`DoFn.setup()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup):
-  Called *once per `DoFn` instance* when the `DoFn` instance is initialized.
-  `setup` need not to be cached, so it could be called more than once per worker.
+  Called whenever the `DoFn` instance is deserialized on the worker. This means it can be called more than once per worker because
+  multiple instances of a given `DoFn` subclass may be created (e.g., due to parallelization, or due to garbage collection after a period
+  of disuse).
   This is a good place to connect to database instances, open network connections or other resources.
 
 * [`DoFn.start_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle):

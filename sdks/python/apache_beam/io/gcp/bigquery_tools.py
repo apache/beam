@@ -36,6 +36,8 @@ import re
 import time
 import uuid
 from json.decoder import JSONDecodeError
+from typing import Tuple
+from typing import TypeVar
 from typing import Union
 
 import fastavro
@@ -68,8 +70,14 @@ try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
 except ImportError:
   pass
-
 # pylint: enable=wrong-import-order, wrong-import-position
+
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+except ImportError:
+  TableReference = None
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,11 +128,30 @@ def get_hashable_destination(destination):
     A string representing the destination containing
     'PROJECT:DATASET.TABLE'.
   """
-  if isinstance(destination, bigquery.TableReference):
+  if isinstance(destination, TableReference):
     return '%s:%s.%s' % (
         destination.projectId, destination.datasetId, destination.tableId)
   else:
     return destination
+
+
+V = TypeVar('V')
+
+
+def to_hashable_table_ref(
+    table_ref_elem_kv: Tuple[Union[str, TableReference], V]) -> Tuple[str, V]:
+  """Turns the key of the input tuple to its string representation. The key
+  should be either a string or a TableReference.
+
+  Args:
+    table_ref_elem_kv: A tuple of table reference and element.
+
+  Returns:
+    A tuple of string representation of input table and input element.
+  """
+  table_ref = table_ref_elem_kv[0]
+  hashable_table_ref = get_hashable_destination(table_ref)
+  return (hashable_table_ref, table_ref_elem_kv[1])
 
 
 def parse_table_schema_from_json(schema_string):
@@ -176,7 +203,7 @@ def parse_table_reference(table, dataset=None, project=None):
       (a-z, A-Z), numbers (0-9), connectors (-_). If dataset argument is None
       then the table argument must contain the entire table reference:
       'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'. This argument can be a
-      bigquery.TableReference instance in which case dataset and project are
+      TableReference instance in which case dataset and project are
       ignored and the reference is returned as a result.  Additionally, for date
       partitioned tables, appending '$YYYYmmdd' to the table name is supported,
       e.g. 'DATASET.TABLE$YYYYmmdd'.
@@ -196,8 +223,8 @@ def parse_table_reference(table, dataset=None, project=None):
       format.
   """
 
-  if isinstance(table, bigquery.TableReference):
-    return bigquery.TableReference(
+  if isinstance(table, TableReference):
+    return TableReference(
         projectId=table.projectId,
         datasetId=table.datasetId,
         tableId=table.tableId)
@@ -206,7 +233,7 @@ def parse_table_reference(table, dataset=None, project=None):
   elif isinstance(table, value_provider.ValueProvider):
     return table
 
-  table_reference = bigquery.TableReference()
+  table_reference = TableReference()
   # If dataset argument is not specified, the expectation is that the
   # table argument will contain a full table reference instead of just a
   # table name.
@@ -662,7 +689,7 @@ class BigQueryWrapper(object):
 
     additional_parameters = additional_parameters or {}
     table = bigquery.Table(
-        tableReference=bigquery.TableReference(
+        tableReference=TableReference(
             projectId=project_id, datasetId=dataset_id, tableId=table_id),
         schema=schema,
         **additional_parameters)

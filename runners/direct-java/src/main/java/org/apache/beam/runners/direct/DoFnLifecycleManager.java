@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
@@ -41,18 +42,18 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNot
  * clearing all cached {@link DoFn DoFns}.
  */
 class DoFnLifecycleManager {
-  public static DoFnLifecycleManager of(DoFn<?, ?> original) {
-    return new DoFnLifecycleManager(original);
+  public static DoFnLifecycleManager of(DoFn<?, ?> original, PipelineOptions options) {
+    return new DoFnLifecycleManager(original, options);
   }
 
   private final LoadingCache<Thread, DoFn<?, ?>> outstanding;
   private final ConcurrentMap<Thread, Exception> thrownOnTeardown;
 
-  private DoFnLifecycleManager(DoFn<?, ?> original) {
+  private DoFnLifecycleManager(DoFn<?, ?> original, PipelineOptions options) {
     this.outstanding =
         CacheBuilder.newBuilder()
             .removalListener(new TeardownRemovedFnListener())
-            .build(new DeserializingCacheLoader(original));
+            .build(new DeserializingCacheLoader(original, options));
     thrownOnTeardown = new ConcurrentHashMap<>();
   }
 
@@ -90,9 +91,11 @@ class DoFnLifecycleManager {
 
   private static class DeserializingCacheLoader extends CacheLoader<Thread, DoFn<?, ?>> {
     private final byte[] original;
+    private final PipelineOptions options;
 
-    public DeserializingCacheLoader(DoFn<?, ?> original) {
+    public DeserializingCacheLoader(DoFn<?, ?> original, PipelineOptions options) {
       this.original = SerializableUtils.serializeToByteArray(original);
+      this.options = options;
     }
 
     @Override
@@ -101,7 +104,7 @@ class DoFnLifecycleManager {
           (DoFn<?, ?>)
               SerializableUtils.deserializeFromByteArray(
                   original, "DoFn Copy in thread " + key.getName());
-      DoFnInvokers.tryInvokeSetupFor(fn);
+      DoFnInvokers.tryInvokeSetupFor(fn, options);
       return fn;
     }
   }

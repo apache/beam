@@ -257,12 +257,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         ServiceLoader.load(SamzaDoFnInvokerRegistrar.class).iterator();
     if (!invokerReg.hasNext()) {
       // use the default invoker here
-      doFnInvoker = DoFnInvokers.invokerFor(doFn);
+      doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, samzaPipelineOptions);
     } else {
-      doFnInvoker = Iterators.getOnlyElement(invokerReg).invokerFor(doFn, context);
+      doFnInvoker =
+          Iterators.getOnlyElement(invokerReg).invokerSetupFor(doFn, samzaPipelineOptions, context);
     }
-
-    doFnInvoker.invokeSetup();
   }
 
   /*package private*/ FutureCollector<OutT> createFutureCollector() {
