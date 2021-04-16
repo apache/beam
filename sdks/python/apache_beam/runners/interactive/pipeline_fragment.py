@@ -66,7 +66,7 @@ class PipelineFragment(object):
     # into a pipeline fragment that later run by the underlying runner.
     self._runner_pipeline = self._build_runner_pipeline()
     _, self._context = self._runner_pipeline.to_runner_api(
-        return_context=True, use_fake_coders=True)
+        return_context=True)
     from apache_beam.runners.interactive import pipeline_instrument as instr
     self._runner_pcoll_to_id = instr.pcolls_to_pcoll_id(
         self._runner_pipeline, self._context)
@@ -98,7 +98,7 @@ class PipelineFragment(object):
   def deduce_fragment(self):
     """Deduce the pipeline fragment as an apache_beam.Pipeline instance."""
     fragment = beam.pipeline.Pipeline.from_runner_api(
-        self._runner_pipeline.to_runner_api(use_fake_coders=True),
+        self._runner_pipeline.to_runner_api(),
         self._runner_pipeline.runner,
         self._options)
     ie.current_env().add_derived_pipeline(self._runner_pipeline, fragment)
@@ -121,7 +121,7 @@ class PipelineFragment(object):
 
   def _build_runner_pipeline(self):
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
-        self._user_pipeline.to_runner_api(use_fake_coders=True),
+        self._user_pipeline.to_runner_api(),
         self._user_pipeline.runner,
         self._options)
     ie.current_env().add_derived_pipeline(self._user_pipeline, runner_pipeline)
