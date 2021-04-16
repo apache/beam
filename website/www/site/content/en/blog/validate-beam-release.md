@@ -85,13 +85,24 @@ finalized, so your concerns can be addressed by the community.
 
 ### Configuring a Python build to validate a Beam release candidate
 
-For Python SDK, you can install the SDK from the source code published
-by the release manager. Python artifacts are published as wheel files,
-and a zip file with the source code. You can find them in these paths:
+For Python SDK releases, you can install SDK from Pypi, by enabling the
+installation of pre-release artifacts.
+
+First, make sure that your `requirements.txt` or `setup.py` files allow
+for Beam versions above the current one. Something like this should install
+the latest available version:
 
 ```
-https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/
+apache-beam<=3.0.0
 ```
 
-After choosing a wheel file that works for you, you can install it
-in your environment, and run your tests.
+With that, you can ask `pip` to install pre-release versions of Beam in your
+environment:
+
+```
+pip install --pre apache-beam
+```
+
+With that, the Beam version in your environment will be the latest release
+candidate, and you can go ahead and run your tests to verify that everything
+works well.
