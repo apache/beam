@@ -25,9 +25,12 @@ darwin_install_pip3_packages() {
 install_go_packages(){
         echo "Installing goavro"
         go get github.com/linkedin/goavro
-        # As we are using bash, we are assuming .bashrc exists. 
-        grep -qxF "export GOPATH='${pwd}/sdks/go/examples/.gogradle/project_gopath'" ~/.bashrc || export GOPATH='${pwd}/sdks/go/examples/.gogradle/project_gopath'
-        echo "GOPATH was set for this session to '$GOPATH'. Make sure to add this path to your ~/.bashrc file after the execution of this script."
+        # As we are using bash, we are assuming .bashrc exists.
+        grep -qxF "export GOPATH=${PWD}/sdks/go/examples/.gogradle/project_gopath" ~/.bashrc 
+        gopathExists=$?
+        if [ $gopathExists -ne 0 ]; then
+            export GOPATH=${PWD}/sdks/go/examples/.gogradle/project_gopath && echo "GOPATH was set for this session to '$GOPATH'. Make sure to add this path to your ~/.bashrc file after the execution of this script."
+        fi
 }
 
 # Running on Linux
