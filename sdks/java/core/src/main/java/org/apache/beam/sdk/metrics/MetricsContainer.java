@@ -65,5 +65,7 @@ public interface MetricsContainer extends Serializable {
     return false;
   }
 
-  default void setIsProcessWide(boolean procesWide) {}
+  default void setIsProcessWide(boolean processWide) {
+    throw new RuntimeException("setIsProcessWide is not implemented on this MetricsContainer.");
+  }
 }

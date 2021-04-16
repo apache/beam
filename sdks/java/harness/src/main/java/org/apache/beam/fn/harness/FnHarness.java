@@ -30,8 +30,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
+import org.apache.beam.fn.harness.control.HarnessMonitoringInfosInstructionHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
-import org.apache.beam.fn.harness.control.ProcessWideInstructionHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -322,7 +322,8 @@ public class FnHarness {
                                       Collectors.toMap(
                                           Function.identity(), metricsShortIds::get)))));
 
-      ProcessWideInstructionHandler processWideHandler = new ProcessWideInstructionHandler(metricsShortIds);
+      HarnessMonitoringInfosInstructionHandler processWideHandler =
+          new HarnessMonitoringInfosInstructionHandler(metricsShortIds);
       handlers.put(
           InstructionRequest.RequestCase.HARNESS_MONITORING_INFOS,
           processWideHandler::harnessMonitoringInfos);

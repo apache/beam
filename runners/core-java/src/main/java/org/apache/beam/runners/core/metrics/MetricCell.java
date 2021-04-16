@@ -39,7 +39,7 @@ public interface MetricCell<DataT> extends Serializable {
   /** Reset this metric. */
   void reset();
 
-  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  /** Return the first time the metric was modified for the life of the MetricContainer. */
   default @Nullable DateTime getStartTime() {
     return null;
   }

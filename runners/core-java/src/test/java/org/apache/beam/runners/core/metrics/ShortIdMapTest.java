@@ -28,19 +28,6 @@ import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.runners.core.metrics.DistributionData;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
-import org.junit.Test;
-
 public class ShortIdMapTest {
 
   @Test
@@ -155,4 +142,3 @@ public class ShortIdMapTest {
     }
   }
 }
-

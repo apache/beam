@@ -27,14 +27,14 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
  * Processes {@link BeamFnApi.InstructionRequest}'s {@link BeamFnApi.HarnessMonitoringInfosResponse}
  *
  * <p>These instructions are not associated with the currently processed bundles. They return
- * MonitoringInfos payloads for "process-wide" metrics, which return
- * metric values calculated over the life of the process.
+ * MonitoringInfos payloads for "process-wide" metrics, which return metric values calculated over
+ * the life of the process.
  */
-public class ProcessWideInstructionHandler {
+public class HarnessMonitoringInfosInstructionHandler {
 
   private final ShortIdMap metricsShortIds;
 
-  public ProcessWideInstructionHandler(ShortIdMap metricsShortIds) {
+  public HarnessMonitoringInfosInstructionHandler(ShortIdMap metricsShortIds) {
     this.metricsShortIds = metricsShortIds;
   }
 
@@ -46,8 +46,7 @@ public class ProcessWideInstructionHandler {
     if (container != null) {
       for (MetricsApi.MonitoringInfo info : container.getMonitoringInfos()) {
         response.putMonitoringData(
-            this.metricsShortIds.getOrCreateShortId(info),
-            info.getPayload());
+            this.metricsShortIds.getOrCreateShortId(info), info.getPayload());
       }
     }
     return BeamFnApi.InstructionResponse.newBuilder().setHarnessMonitoringInfos(response);

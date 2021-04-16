@@ -22,26 +22,20 @@ import java.util.NoSuchElementException;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
 
 /** A Class for registering short ids for MonitoringInfos. */
 public class ShortIdMap {
   private int counter = 0;
   // Bidirectional map.
-  //private BiMap<String, MonitoringInfo> monitoringInfoMap = HashBiMap.create();
-
   private HashMap<String, MetricsApi.MonitoringInfo> shortIdToInfo = new HashMap<>();
   private HashMap<MonitoringInfoMetricName, String> infoKeyToShortId = new HashMap<>();
 
   public synchronized String getOrCreateShortId(MonitoringInfo info) {
     Preconditions.checkNotNull(info);
     MonitoringInfoMetricName infoKey = MonitoringInfoMetricName.of(info);
-    //String shortId = monitoringInfoMap.inverse().get(info);
     String shortId = infoKeyToShortId.get(infoKey);
     if (shortId == null) {
       shortId = "metric" + counter++;
-      //monitoringInfoMap.put(shortId, info);
       infoKeyToShortId.put(infoKey, shortId);
       shortIdToInfo.put(shortId, info);
     }
