@@ -43,10 +43,10 @@ import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.sdk.metrics.MetricsLogger;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -69,10 +69,10 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class MetricsContainerImpl implements Serializable, MetricsContainer, MetricsLogger {
+public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
 
-  private final @Nullable String stepName;
+  protected final @Nullable String stepName;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
@@ -95,7 +95,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
   private Map<MetricKey, Optional<String>> shortIdsByMetricKey = new ConcurrentHashMap<>();
 
   /** Reset the metrics. */
-  @Override
   public void reset() {
     reset(counters);
     reset(distributions);
@@ -376,6 +375,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     updateCounters(counters, other.counters);
     updateDistributions(distributions, other.distributions);
     updateGauges(gauges, other.gauges);
+    updateHistograms(histograms, other.histograms);
   }
 
   private void updateForSumInt64Type(MonitoringInfo monitoringInfo) {
@@ -446,6 +446,16 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     }
   }
 
+  private void updateHistograms(
+      MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> current,
+      MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> updates) {
+    for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> histogram :
+        updates.entries()) {
+      HistogramCell h = histogram.getValue();
+      current.get(histogram.getKey()).update(h);
+    }
+  }
+
   @Override
   public boolean equals(@Nullable Object object) {
     if (object instanceof MetricsContainerImpl) {
@@ -455,7 +465,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
           && Objects.equals(distributions, metricsContainerImpl.distributions)
           && Objects.equals(gauges, metricsContainerImpl.gauges);
     }
-
     return false;
   }
 
@@ -466,21 +475,25 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
 
   /**
    * Match a MetricName with a given metric filter. If the metric filter is null, the method always
-   * returns true.
+   * returns true. TODO(BEAM-10986) Consider making this use the MetricNameFilter and related
+   * classes.
    */
-  private boolean matchMetricName(MetricName metricName, @Nullable Set<MetricName> metricFilter) {
-    if (metricFilter == null) {
+  @VisibleForTesting
+  static boolean matchMetric(MetricName metricName, @Nullable Set<String> allowedMetricUrns) {
+    if (allowedMetricUrns == null) {
       return true;
-    } else {
-      return metricFilter.contains(metricName);
     }
+    if (metricName instanceof MonitoringInfoMetricName) {
+      return allowedMetricUrns.contains(((MonitoringInfoMetricName) metricName).getUrn());
+    }
+    return false;
   }
+
   /** Return a string representing the cumulative values of all metrics in this container. */
-  @Override
-  public String getCumulativeString(@Nullable Set<MetricName> metricFilter) {
+  public String getCumulativeString(@Nullable Set<String> allowedMetricUrns) {
     StringBuilder message = new StringBuilder();
     for (Map.Entry<MetricName, CounterCell> cell : counters.entries()) {
-      if (!matchMetricName(cell.getKey(), metricFilter)) {
+      if (!matchMetric(cell.getKey(), allowedMetricUrns)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -489,7 +502,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       message.append("\n");
     }
     for (Map.Entry<MetricName, DistributionCell> cell : distributions.entries()) {
-      if (!matchMetricName(cell.getKey(), metricFilter)) {
+      if (!matchMetric(cell.getKey(), allowedMetricUrns)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -502,7 +515,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       message.append("\n");
     }
     for (Map.Entry<MetricName, GaugeCell> cell : gauges.entries()) {
-      if (!matchMetricName(cell.getKey(), metricFilter)) {
+      if (!matchMetric(cell.getKey(), allowedMetricUrns)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -513,7 +526,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     }
     for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> cell :
         histograms.entries()) {
-      if (!matchMetricName(cell.getKey().getKey(), metricFilter)) {
+      if (!matchMetric(cell.getKey().getKey(), allowedMetricUrns)) {
         continue;
       }
       message.append(cell.getKey().getKey().toString());
@@ -532,8 +545,43 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     return message.toString();
   }
 
-  @Override
-  public Logger getMetricLogger() {
-    return LOG;
+  /**
+   * Returns a MetricContainer with the delta values between two MetricsContainers. The purpose of
+   * this function is to print the changes made to the metrics within a window of time. The
+   * difference between the counter and histogram bucket counters are calculated between curr and
+   * prev. The most recent value are used for gauges. Distribution metrics are dropped (As there is
+   * meaningful way to calculate the delta). Returns curr if prev is null.
+   */
+  public static MetricsContainerImpl deltaContainer(
+      @Nullable MetricsContainerImpl prev, MetricsContainerImpl curr) {
+    if (prev == null) {
+      return curr;
+    }
+    MetricsContainerImpl deltaContainer = new MetricsContainerImpl(curr.stepName);
+    for (Map.Entry<MetricName, CounterCell> cell : curr.counters.entries()) {
+      Long prevValue = prev.counters.get(cell.getKey()).getCumulative();
+      Long currValue = cell.getValue().getCumulative();
+      deltaContainer.counters.get(cell.getKey()).inc(currValue - prevValue);
+    }
+    for (Map.Entry<MetricName, GaugeCell> cell : curr.gauges.entries()) {
+      // Simply take the most recent value for gauge, no need to count deltas.
+      deltaContainer.gauges.get(cell.getKey()).update(cell.getValue().getCumulative());
+    }
+    for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> cell :
+        curr.histograms.entries()) {
+      HistogramData.BucketType bt = cell.getKey().getValue();
+      HistogramData prevValue = prev.histograms.get(cell.getKey()).getCumulative();
+      HistogramData currValue = cell.getValue().getCumulative();
+      HistogramCell deltaValueCell = deltaContainer.histograms.get(cell.getKey());
+      deltaValueCell.incBottomBucketCount(
+          currValue.getBottomBucketCount() - prevValue.getBottomBucketCount());
+      for (int i = 0; i < bt.getNumBuckets(); i++) {
+        Long bucketCountDelta = currValue.getCount(i) - prevValue.getCount(i);
+        deltaValueCell.incBucketCount(i, bucketCountDelta);
+      }
+      deltaValueCell.incTopBucketCount(
+          currValue.getTopBucketCount() - prevValue.getTopBucketCount());
+    }
+    return deltaContainer;
   }
 }
