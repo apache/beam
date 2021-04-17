@@ -21,24 +21,17 @@ API (https://cloud.google.com/recommendations).
 
 from __future__ import absolute_import
 
-import itertools
 from typing import Sequence
 from typing import Tuple
 
 from google.api_core.retry import Retry
 
-from apache_beam import TimeDomain
 from apache_beam import pvalue
-from apache_beam.coders.coders import IterableCoder
-from apache_beam.coders.coders import PickleCoder
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.transforms.userstate import BagStateSpec
-from apache_beam.transforms.userstate import TimerSpec
-from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.util import GroupIntoBatches
 from cachetools.func import ttl_cache
 
