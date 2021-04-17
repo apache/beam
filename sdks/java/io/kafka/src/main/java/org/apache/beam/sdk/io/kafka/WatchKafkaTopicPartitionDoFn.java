@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -62,6 +64,8 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
   private final Map<String, Object> kafkaConsumerConfig;
   private final Instant startReadTime;
 
+  private static final String COUNTER_NAMESPACE = "watch_kafka_topic_partition";
+
   WatchKafkaTopicPartitionDoFn(
       Duration checkDuration,
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
@@ -85,6 +89,7 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
   @VisibleForTesting
   Set<TopicPartition> getAllTopicPartitions() {
     Set<TopicPartition> current = new HashSet<>();
+    // TODO(BEAM-12192): Respect given topics from KafkaIO.
     try (Consumer<byte[], byte[]> kafkaConsumer =
         kafkaConsumerFactoryFn.apply(kafkaConsumerConfig)) {
       for (Map.Entry<String, List<PartitionInfo>> topicInfo :
@@ -107,13 +112,17 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
     current.forEach(
         topicPartition -> {
           if (checkStopReadingFn == null || !checkStopReadingFn.apply(topicPartition)) {
+            Counter foundedTopicPartition =
+                Metrics.counter(COUNTER_NAMESPACE, topicPartition.toString());
+            foundedTopicPartition.inc();
             existingTopicPartitions.add(topicPartition);
             outputReceiver.output(
                 KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
           }
         });
 
-    timer.set(Instant.now().plus(checkDuration.getMillis()));
+    timer.offset(checkDuration).setRelative();
+    ;
   }
 
   @OnTimer(TIMER_ID)
@@ -130,13 +139,16 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
             });
     existingTopicPartitions.clear();
 
-    Set<TopicPartition> currentAll = getAllTopicPartitions();
+    Set<TopicPartition> currentAll = this.getAllTopicPartitions();
 
     // Emit new added TopicPartitions.
     Set<TopicPartition> newAdded = Sets.difference(currentAll, readingTopicPartitions);
     newAdded.forEach(
         topicPartition -> {
           if (checkStopReadingFn == null || !checkStopReadingFn.apply(topicPartition)) {
+            Counter foundedTopicPartition =
+                Metrics.counter(COUNTER_NAMESPACE, topicPartition.toString());
+            foundedTopicPartition.inc();
             outputReceiver.output(
                 KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
           }

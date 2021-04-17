@@ -99,12 +99,10 @@ public class WatchKafkaTopicPartitionDoFnTest {
 
     when(mockConsumer.listTopics()).thenReturn(ImmutableMap.of());
     MockBagState bagState = new MockBagState(ImmutableList.of());
-    Instant now = Instant.EPOCH;
-    mockStatic(Instant.class);
-    when(Instant.now()).thenReturn(now);
 
+    when(timer.offset(Duration.millis(600L))).thenReturn(timer);
     dofnInstance.processElement(timer, bagState, outputReceiver);
-    verify(timer, times(1)).set(now.plus(600L));
+    verify(timer, times(1)).setRelative();
     assertTrue(outputReceiver.getOutputs().isEmpty());
     assertTrue(bagState.getCurrentStates().isEmpty());
   }
@@ -129,13 +127,11 @@ public class WatchKafkaTopicPartitionDoFnTest {
                     new PartitionInfo("topic2", 0, null, null, null),
                     new PartitionInfo("topic2", 1, null, null, null))));
     MockBagState bagState = new MockBagState(ImmutableList.of());
-    Instant now = Instant.EPOCH;
-    mockStatic(Instant.class);
-    when(Instant.now()).thenReturn(now);
 
+    when(timer.offset(Duration.millis(600L))).thenReturn(timer);
     dofnInstance.processElement(timer, bagState, outputReceiver);
 
-    verify(timer, times(1)).set(now.plus(600L));
+    verify(timer, times(1)).setRelative();
     Set<TopicPartition> expectedOutputTopicPartitions =
         ImmutableSet.of(
             new TopicPartition("topic1", 0),
@@ -182,13 +178,11 @@ public class WatchKafkaTopicPartitionDoFnTest {
                     new PartitionInfo("topic2", 0, null, null, null),
                     new PartitionInfo("topic2", 1, null, null, null))));
     MockBagState bagState = new MockBagState(ImmutableList.of());
-    Instant now = Instant.EPOCH;
-    mockStatic(Instant.class);
-    when(Instant.now()).thenReturn(now);
 
+    when(timer.offset(Duration.millis(600L))).thenReturn(timer);
     dofnInstance.processElement(timer, bagState, outputReceiver);
+    verify(timer, times(1)).setRelative();
 
-    verify(timer, times(1)).set(now.plus(600L));
     Set<TopicPartition> expectedOutputTopicPartitions =
         ImmutableSet.of(
             new TopicPartition("topic1", 0),
