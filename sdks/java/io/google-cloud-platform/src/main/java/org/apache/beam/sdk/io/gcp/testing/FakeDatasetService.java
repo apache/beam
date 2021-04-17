@@ -415,11 +415,11 @@ public class FakeDatasetService implements DatasetService, Serializable {
   }
 
   @Override
-  public StreamAppendClient getStreamAppendClient(String streamName) {
+  public StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor) {
     return new StreamAppendClient() {
       @Override
-      public ApiFuture<AppendRowsResponse> appendRows(
-          long offset, ProtoRows rows, Descriptor descriptor) throws Exception {
+      public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
+          throws Exception {
         synchronized (tables) {
           Stream stream = writeStreams.get(streamName);
           if (stream == null) {
