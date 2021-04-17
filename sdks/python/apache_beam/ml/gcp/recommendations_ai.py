@@ -79,9 +79,11 @@ class CreateCatalogItem(PTransform):
     The ``PTranform`` returns a PCollectionTuple with a PCollections of
     successfully and failed created CatalogItems.
 
-    Example usage:
-    pipeline | CreateCatalogItem(project='example-gcp-project',
-      catalog_name='my-catalog')
+    Example usage::
+
+      pipeline | CreateCatalogItem(
+        project='example-gcp-project',
+        catalog_name='my-catalog')
     """
   def __init__(
       self,
@@ -169,14 +171,15 @@ class _CreateCatalogItemFn(DoFn):
 
 class ImportCatalogItems(PTransform):
   """Imports catalogitems in bulk.
-    The ``PTransform returns a PCollectionTuple with PCollections of
+    The `PTransform` returns a PCollectionTuple with PCollections of
     successfully and failed imported CatalogItems.
 
-    Example usage:
-    pipeline
-    | ImportCatalogItems(
-        project='example-gcp-project',
-        catalog_name='my-catalog')
+    Example usage::
+
+      pipeline
+      | ImportCatalogItems(
+          project='example-gcp-project',
+          catalog_name='my-catalog')
     """
   def __init__(
       self,
@@ -270,15 +273,16 @@ class _ImportCatalogItemsFn(DoFn):
 
 class WriteUserEvent(PTransform):
   """Write user event information.
-    The ``PTransform returns a PCollectionTuple with PCollections of
+    The `PTransform` returns a PCollectionTuple with PCollections of
     successfully and failed written UserEvents.
 
-    Example usage:
-    pipeline
-    | WriteUserEvent(
-        project='example-gcp-project',
-        catalog_name='my-catalog',
-        event_store='my_event_store')
+    Example usage::
+
+      pipeline
+      | WriteUserEvent(
+          project='example-gcp-project',
+          catalog_name='my-catalog',
+          event_store='my_event_store')
     """
   def __init__(
       self,
@@ -367,15 +371,16 @@ class _WriteUserEventFn(DoFn):
 
 class ImportUserEvents(PTransform):
   """Imports userevents in bulk.
-    The ``PTransform returns a PCollectionTuple with PCollections of
+    The `PTransform` returns a PCollectionTuple with PCollections of
     successfully and failed imported UserEvents.
 
-    Example usage:
-    pipeline
-    | ImportUserEvents(
-        project='example-gcp-project',
-        catalog_name='my-catalog',
-        event_store='my_event_store')
+    Example usage::
+
+      pipeline
+      | ImportUserEvents(
+          project='example-gcp-project',
+          catalog_name='my-catalog',
+          event_store='my_event_store')
     """
   def __init__(
       self,
@@ -473,15 +478,16 @@ class _ImportUserEventsFn(DoFn):
 
 class PredictUserEvent(PTransform):
   """Make a recommendation prediction.
-    The ```PTransform``` returns a PCollection
+    The `PTransform` returns a PCollection
 
-    Example usage:
-    pipeline
-    | PredictUserEvent(
-        project='example-gcp-project',
-        catalog_name='my-catalog',
-        event_store='my_event_store',
-        placement_id='recently_viewed_default')
+    Example usage::
+
+      pipeline
+      | PredictUserEvent(
+          project='example-gcp-project',
+          catalog_name='my-catalog',
+          event_store='my_event_store',
+          placement_id='recently_viewed_default')
     """
   def __init__(
       self,
