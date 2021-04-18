@@ -96,6 +96,8 @@ public abstract class RecommendationAIWriteUserEvent
     public abstract RecommendationAIWriteUserEvent build();
   }
 
+  public abstract Builder toBuilder();
+
   private static class WriteUserEvent extends DoFn<GenericJson, UserEvent> {
     private final String projectId;
     private final String catalogName;

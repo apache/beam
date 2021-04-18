@@ -62,6 +62,8 @@ public abstract class RecommendationAICreateCatalogItem
 
   public static final TupleTag<CatalogItem> FAILURE_TAG = new TupleTag<CatalogItem>() {};
 
+  public abstract Builder toBuilder();
+
   @AutoValue.Builder
   public abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating catalog items. */

@@ -69,6 +69,8 @@ public abstract class RecommendationAIImportCatalogItems
     return new AutoValue_RecommendationAIImportCatalogItems.Builder();
   }
 
+  public abstract Builder toBuilder();
+
   /** @return ID of Google Cloud project to be used for creating catalog items. */
   public abstract String projectId();
 

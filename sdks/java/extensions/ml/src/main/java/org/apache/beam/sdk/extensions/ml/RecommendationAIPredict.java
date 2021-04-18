@@ -90,6 +90,8 @@ public abstract class RecommendationAIPredict
         .setCatalogName("default_catalog")
         .setEventStore("default_event_store");
   }
+  
+  public abstract Builder toBuilder();
 
   @Override
   public PCollectionTuple expand(PCollection<GenericJson> input) {

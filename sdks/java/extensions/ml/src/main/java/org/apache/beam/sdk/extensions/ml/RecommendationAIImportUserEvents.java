@@ -71,6 +71,8 @@ public abstract class RecommendationAIImportUserEvents
         .setCatalogName("default_catalog")
         .setEventStore("default_event_store");
   }
+  
+  public abstract Builder toBuilder();
 
   /** @return ID of Google Cloud project to be used for creating user events. */
   public abstract String projectId();
