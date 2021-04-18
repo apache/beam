@@ -444,6 +444,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def nemo_version = "0.1"
     def netty_version = "4.1.52.Final"
     def postgres_version = "42.2.16"
+    def avro_version = "1.10.2"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
     def protobuf_version = "3.14.0"
@@ -470,8 +471,8 @@ class BeamModulePlugin implements Plugin<Project> {
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
-        avro                                        : "org.apache.avro:avro:1.8.2",
-        avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
+        avro                                        : "org.apache.avro:avro:$avro_version",
+        avro_tests                                  : "org.apache.avro:avro:$avro_version:tests",
         aws_java_sdk_cloudwatch                     : "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version",
         aws_java_sdk_core                           : "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version",
         aws_java_sdk_dynamodb                       : "com.amazonaws:aws-java-sdk-dynamodb:$aws_java_sdk_version",
