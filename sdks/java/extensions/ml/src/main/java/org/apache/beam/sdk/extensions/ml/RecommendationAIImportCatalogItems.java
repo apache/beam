@@ -72,7 +72,7 @@ public abstract class RecommendationAIImportCatalogItems
   public abstract Builder toBuilder();
 
   /** @return ID of Google Cloud project to be used for creating catalog items. */
-  public abstract String projectId();
+  public abstract @Nullable String projectId();
 
   /** @return Name of the catalog where the catalog items will be created. */
   public abstract @Nullable String catalogName();
@@ -109,7 +109,7 @@ public abstract class RecommendationAIImportCatalogItems
   @AutoValue.Builder
   public abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating catalog items. */
-    public abstract Builder setProjectId(String projectId);
+    public abstract Builder setProjectId(@Nullable String projectId);
 
     /** @param catalogName Name of the catalog where the catalog items will be created. */
     public abstract Builder setCatalogName(@Nullable String catalogName);

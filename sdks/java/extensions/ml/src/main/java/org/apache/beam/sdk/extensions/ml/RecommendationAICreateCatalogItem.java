@@ -50,7 +50,7 @@ public abstract class RecommendationAICreateCatalogItem
     extends PTransform<PCollection<GenericJson>, PCollectionTuple> {
 
   /** @return ID of Google Cloud project to be used for creating catalog items. */
-  public abstract String projectId();
+  public abstract @Nullable String projectId();
 
   /**
    * @return Name of the catalog where the catalog items will be created (defaults to
@@ -67,7 +67,7 @@ public abstract class RecommendationAICreateCatalogItem
   @AutoValue.Builder
   public abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating catalog items. */
-    public abstract Builder setProjectId(String projectId);
+    public abstract Builder setProjectId(@Nullable String projectId);
 
     /** @param catalogName Name of the catalog where the catalog items will be created. */
     public abstract Builder setCatalogName(@Nullable String catalogName);
