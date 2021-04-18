@@ -93,6 +93,22 @@ public abstract class RecommendationAIPredict
 
   public abstract Builder toBuilder();
 
+  public RecommendationAIPredict withProjectId(String projectId) {
+    return this.toBuilder().setProjectId(projectId).build();
+  }
+
+  public RecommendationAIPredict withCatalogName(String catalogName) {
+    return this.toBuilder().setCatalogName(catalogName).build();
+  }
+
+  public RecommendationAIPredict withEventStore(String eventStore) {
+    return this.toBuilder().setEventStore(eventStore).build();
+  }
+
+  public RecommendationAIPredict withPlacementId(String placementId) {
+    return this.toBuilder().setPlacementId(placementId).build();
+  }
+
   @Override
   public PCollectionTuple expand(PCollection<GenericJson> input) {
     return input.apply(

@@ -56,7 +56,8 @@ public class RecommendationAIUserEventIT {
             .apply(
                 Create.of(Arrays.asList(getUserEvent()))
                     .withCoder(GenericJsonCoder.of(GenericJson.class)))
-            .apply(RecommendationAIWriteUserEvent.newBuilder().setProjectId(projectId).build());
+            .apply(RecommendationAIIO.writeUserEvent().withProjectId(projectId));
+    // .apply(RecommendationAIWriteUserEvent.newBuilder().setProjectId(projectId).build());
     PAssert.that(createUserEventResult.get(RecommendationAIWriteUserEvent.SUCCESS_TAG))
         .satisfies(new VerifyUserEventResult(1));
     testPipeline.run().waitUntilFinish();

@@ -80,6 +80,14 @@ public abstract class RecommendationAICreateCatalogItem
         .setCatalogName("default_catalog");
   }
 
+  public RecommendationAICreateCatalogItem withProjectId(String projectId) {
+    return this.toBuilder().setProjectId(projectId).build();
+  }
+
+  public RecommendationAICreateCatalogItem withCatalogName(String catalogName) {
+    return this.toBuilder().setCatalogName(catalogName).build();
+  }
+
   /**
    * The transform converts the contents of input PCollection into {@link CatalogItem}s and then
    * calls the Recommendation AI service to create the catalog item.

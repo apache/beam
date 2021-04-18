@@ -86,6 +86,18 @@ public abstract class RecommendationAIImportCatalogItems
    */
   public abstract Duration maxBufferingDuration();
 
+  public RecommendationAIImportCatalogItems withProjectId(String projectId) {
+    return this.toBuilder().setProjectId(projectId).build();
+  }
+
+  public RecommendationAIImportCatalogItems withCatalogName(String catalogName) {
+    return this.toBuilder().setCatalogName(catalogName).build();
+  }
+
+  public RecommendationAIImportCatalogItems withBatchSize(Integer batchSize) {
+    return this.toBuilder().setBatchSize(batchSize).build();
+  }
+
   /**
    * The transform converts the contents of input PCollection into {@link CatalogItem}s and then
    * calls the Recommendation AI service to create the catalog item.

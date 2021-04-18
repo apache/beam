@@ -54,10 +54,9 @@ public class RecommendationAIPredictIT {
                 Create.of(Arrays.asList(getUserEvent()))
                     .withCoder(GenericJsonCoder.of(GenericJson.class)))
             .apply(
-                RecommendationAIPredict.newBuilder()
-                    .setProjectId(projectId)
-                    .setPlacementId("recently_viewed_default")
-                    .build());
+                RecommendationAIIO.predictAll()
+                    .withProjectId(projectId)
+                    .withPlacementId("recently_viewed_default"));
     PAssert.that(predictResult.get(RecommendationAIPredict.SUCCESS_TAG))
         .satisfies(new VerifyPredictResult());
     testPipeline.run().waitUntilFinish();

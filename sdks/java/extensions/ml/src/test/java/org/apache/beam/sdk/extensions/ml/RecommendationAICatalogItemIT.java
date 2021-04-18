@@ -65,7 +65,8 @@ public class RecommendationAICatalogItemIT {
             .apply(
                 Create.of(Arrays.asList(catalogItem))
                     .withCoder(GenericJsonCoder.of(GenericJson.class)))
-            .apply(RecommendationAICreateCatalogItem.newBuilder().setProjectId(projectId).build());
+            .apply(RecommendationAIIO.createCatalogItems().withProjectId(projectId));
+    // .apply(RecommendationAICreateCatalogItem.newBuilder().setProjectId(projectId).build());
     PAssert.that(createCatalogItemResult.get(RecommendationAICreateCatalogItem.SUCCESS_TAG))
         .satisfies(new VerifyCatalogItemResult(1, (String) catalogItem.get("id")));
     testPipeline.run().waitUntilFinish();

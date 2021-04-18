@@ -71,7 +71,7 @@ public abstract class RecommendationAIImportUserEvents
         .setCatalogName("default_catalog")
         .setEventStore("default_event_store");
   }
-  
+
   public abstract Builder toBuilder();
 
   /** @return ID of Google Cloud project to be used for creating user events. */
@@ -91,6 +91,22 @@ public abstract class RecommendationAIImportUserEvents
    *     to be buffered.
    */
   public abstract Duration maxBufferingDuration();
+
+  public RecommendationAIImportUserEvents withProjectId(String projectId) {
+    return this.toBuilder().setProjectId(projectId).build();
+  }
+
+  public RecommendationAIImportUserEvents withCatalogName(String catalogName) {
+    return this.toBuilder().setCatalogName(catalogName).build();
+  }
+
+  public RecommendationAIImportUserEvents withEventStore(String eventStore) {
+    return this.toBuilder().setEventStore(eventStore).build();
+  }
+
+  public RecommendationAIImportUserEvents withBatchSize(Integer batchSize) {
+    return this.toBuilder().setBatchSize(batchSize).build();
+  }
 
   /**
    * The transform converts the contents of input PCollection into {@link UserEvent}s and then calls

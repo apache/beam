@@ -98,6 +98,18 @@ public abstract class RecommendationAIWriteUserEvent
 
   public abstract Builder toBuilder();
 
+  public RecommendationAIWriteUserEvent withProjectId(String projectId) {
+    return this.toBuilder().setProjectId(projectId).build();
+  }
+
+  public RecommendationAIWriteUserEvent withCatalogName(String catalogName) {
+    return this.toBuilder().setCatalogName(catalogName).build();
+  }
+
+  public RecommendationAIWriteUserEvent withEventStore(String eventStore) {
+    return this.toBuilder().setEventStore(eventStore).build();
+  }
+
   private static class WriteUserEvent extends DoFn<GenericJson, UserEvent> {
     private final String projectId;
     private final String catalogName;
