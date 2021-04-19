@@ -24,8 +24,7 @@ import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.CursorClient;
 import com.google.cloud.pubsublite.internal.CursorClientSettings;
 import com.google.cloud.pubsublite.internal.wire.Committer;
-import com.google.cloud.pubsublite.internal.wire.CommitterBuilder;
-import com.google.cloud.pubsublite.internal.wire.PubsubContext;
+import com.google.cloud.pubsublite.internal.wire.CommitterSettings;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext.Framework;
 import com.google.cloud.pubsublite.internal.wire.SubscriberBuilder;
 import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
@@ -101,7 +100,6 @@ public abstract class SubscriberOptions implements Serializable {
             .setMessageConsumer(consumer)
             .setSubscriptionPath(subscriptionPath())
             .setPartition(partition)
-            .setContext(PubsubContext.of(FRAMEWORK))
             .build();
   }
 
@@ -110,10 +108,12 @@ public abstract class SubscriberOptions implements Serializable {
     if (supplier != null) {
       return supplier.get();
     }
-    return CommitterBuilder.newBuilder()
+
+    return CommitterSettings.newBuilder()
         .setSubscriptionPath(subscriptionPath())
         .setPartition(partition)
-        .build();
+        .build()
+        .instantiate();
   }
 
   TopicBacklogReader getBacklogReader(Partition partition) {
