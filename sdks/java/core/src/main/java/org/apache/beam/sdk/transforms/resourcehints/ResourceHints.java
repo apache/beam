@@ -25,7 +25,8 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 public class ResourceHints {
-  private static final String MEMORY_URN = "TODO: memory";
+  // TODO: reference a const from compiled proto.
+  private static final String MEMORY_URN = "beam:resources:min_ram_bytes:v1";
 
   private static ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
 
@@ -47,17 +48,17 @@ public class ResourceHints {
   private static class BytesHint implements ResourceHint {
     private static Map<String, Long> suffixes =
         ImmutableMap.<String, Long>builder()
-            .put("b", 1L)
-            .put("kb", 1000L)
-            .put("mb", 1000_000L)
-            .put("gb", 1000_000_000L)
-            .put("tb", 1000_000_000_000L)
-            .put("pb", 1000_000_000_000_000L)
-            .put("kib", 1L << 10)
-            .put("mib", 1L << 20)
-            .put("gib", 1L << 30)
-            .put("tib", 1L << 40)
-            .put("pib", 1L << 50)
+            .put("B", 1L)
+            .put("KB", 1000L)
+            .put("MB", 1000_000L)
+            .put("GB", 1000_000_000L)
+            .put("TB", 1000_000_000_000L)
+            .put("PB", 1000_000_000_000_000L)
+            .put("KiB", 1L << 10)
+            .put("MiB", 1L << 20)
+            .put("GiB", 1L << 30)
+            .put("TiB", 1L << 40)
+            .put("PiB", 1L << 50)
             .build();
 
     private final long value;
@@ -67,10 +68,11 @@ public class ResourceHints {
     }
 
     public static long parse(String s) {
-      Matcher m = Pattern.compile("^\\d_\\.?\\d*").matcher(s);
+      Matcher m = Pattern.compile("([\\d.]+)[\\s]?(([KMGTP]i?)?B)").matcher(s);
+      // Matcher m = Pattern.compile("^\\d\\.?\\d*").matcher(s);
       if (m.find()) {
-        String number = s.substring(0, m.end());
-        String suffix = s.substring(m.end());
+        String number = m.group(1);
+        String suffix = m.group(2);
         if (suffixes.containsKey(suffix)) {
           return (long) (Double.valueOf(number) * suffixes.get(suffix));
         }
