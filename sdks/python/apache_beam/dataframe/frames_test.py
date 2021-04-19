@@ -160,7 +160,10 @@ class DeferredFrameTest(unittest.TestCase):
     else:
       # Expectation is not a pandas object
       if isinstance(expected, float):
-        cmp = lambda x: np.isclose(expected, x)
+        if np.isnan(expected):
+          cmp = np.isnan
+        else:
+          cmp = lambda x: np.isclose(expected, x)
       else:
         cmp = expected.__eq__
       self.assertTrue(
