@@ -97,7 +97,7 @@ COLUMNS = [
      pd.StringDtype(),
      'strdtype',
      typing.Optional[str]),
-]  # type: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str]]
+]  # type: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str, typing.Any]]
 
 NICE_TYPES_DF = pd.DataFrame(columns=[name for _, _, name, _ in COLUMNS])
 for arr, dtype, name, _ in COLUMNS:
@@ -112,7 +112,7 @@ _TEST_ARRAYS = [
     arr for (arr, _, _, _) in COLUMNS
 ]  # type: typing.List[typing.List[typing.Any]]
 DF_RESULT = list(zip(*_TEST_ARRAYS))
-BEAM_SCHEMA = typing.NamedTuple(
+BEAM_SCHEMA = typing.NamedTuple(  # type: ignore
     'BEAM_SCHEMA', [(name, beam_type) for _, _, name, beam_type in COLUMNS])
 INDEX_DF_TESTS = [(
     NICE_TYPES_DF.set_index([name for _, _, name, _ in COLUMNS[:i]]),
