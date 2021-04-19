@@ -83,8 +83,6 @@ same function 'multiply'.::
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import warnings
 from functools import partial
 from functools import wraps

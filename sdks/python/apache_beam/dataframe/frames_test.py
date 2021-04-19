@@ -601,13 +601,12 @@ class DeferredFrameTest(unittest.TestCase):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
     df.loc[df.index[:5], 'a'] = np.nan
     df.loc[df.index[5:10], 'b'] = np.nan
-    self._run_test(lambda df: df.corr().round(8), df)
-    self._run_test(lambda df: df.cov().round(8), df)
-    self._run_test(lambda df: df.corr(min_periods=12).round(8), df)
-    self._run_test(lambda df: df.cov(min_periods=12).round(8), df)
-    self._run_test(lambda df: df.corrwith(df.a).round(8), df)
-    self._run_test(
-        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8), df)
+    self._run_test(lambda df: df.corr(), df)
+    self._run_test(lambda df: df.cov(), df)
+    self._run_test(lambda df: df.corr(min_periods=12), df)
+    self._run_test(lambda df: df.cov(min_periods=12), df)
+    self._run_test(lambda df: df.corrwith(df.a), df)
+    self._run_test(lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]), df)
 
   @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
   def test_applymap_na_action(self):
@@ -676,6 +675,25 @@ class DeferredFrameTest(unittest.TestCase):
             lambda x: (x.foo + x.bar).median()),
         df)
 
+  def test_quantile_axis_columns(self):
+    df = pd.DataFrame(
+        np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"df\.quantile\(q=0\.1, axis='columns'\)"):
+      self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
+
+  @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
+  def test_groupby_count_na(self):
+    # Verify we can do a groupby.count() that doesn't drop NaN values
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=True).bar.count(), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
@@ -734,6 +752,38 @@ class ConstructionTimeTest(unittest.TestCase):
 
   def test_dataframe_dtypes(self):
     self._run_test(lambda df: list(df.dtypes))
+
+
+class DocstringTest(unittest.TestCase):
+  @parameterized.expand([
+      (frames.DeferredDataFrame, pd.DataFrame),
+      (frames.DeferredSeries, pd.Series),
+      (frames._DeferredIndex, pd.Index),
+      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
+      (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+  ])
+  @unittest.skip('BEAM-12074')
+  def test_docs_defined(self, beam_type, pd_type):
+    beam_attrs = set(dir(beam_type))
+    pd_attrs = set(dir(pd_type))
+
+    docstring_required = sorted([
+        attr for attr in beam_attrs.intersection(pd_attrs)
+        if getattr(pd_type, attr).__doc__ and not attr.startswith('_')
+    ])
+
+    docstring_missing = [
+        attr for attr in docstring_required
+        if not getattr(beam_type, attr).__doc__
+    ]
+
+    self.assertTrue(
+        len(docstring_missing) == 0,
+        f'{beam_type.__name__} is missing a docstring for '
+        f'{len(docstring_missing)}/{len(docstring_required)} '
+        f'({len(docstring_missing)/len(docstring_required):%}) '
+        f'operations:\n{docstring_missing}')
 
 
 if __name__ == '__main__':

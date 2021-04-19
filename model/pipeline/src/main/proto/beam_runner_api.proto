@@ -1645,8 +1645,8 @@ message FunctionSpec {
 message StandardDisplayData {
   enum DisplayData {
     // A string label and value. Has a payload containing an encoded
-    // LabelledStringPayload.
-    LABELLED_STRING = 0 [(beam_urn) = "beam:display_data:labelled_string:v1"];
+    // LabelledPayload.
+    LABELLED = 0 [(beam_urn) = "beam:display_data:labelled:v1"];
 
     // Some samples that are being considered to become standard display data
     // types follow:
@@ -1667,13 +1667,16 @@ message StandardDisplayData {
   }
 }
 
-message LabelledStringPayload {
+message LabelledPayload {
   // (Required) A human readable label for the value.
   string label = 1;
 
-  // (Required) A value which will be displayed to the user. The urn describes
-  // how the value can be interpreted and/or categorized.
-  string value = 2;
+  // (Required) A value which will be displayed to the user.
+  oneof value {
+    string string_value = 2;
+    bool bool_value = 3;
+    double double_value = 4;
+  }
 }
 
 // Static display data associated with a pipeline component. Display data is

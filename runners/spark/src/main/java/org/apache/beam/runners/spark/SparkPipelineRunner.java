@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
@@ -115,13 +114,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
     // File staging.
-    if (pipelineOptions.getFilesToStage() == null) {
-      pipelineOptions.setFilesToStage(
-          detectClassPathResourcesToStage(
-              SparkPipelineRunner.class.getClassLoader(), pipelineOptions));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
-    }
     prepareFilesToStage(pipelineOptions);
     LOG.info(
         "Will stage {} files. (Enable logging at DEBUG level to see which files will be staged.)",

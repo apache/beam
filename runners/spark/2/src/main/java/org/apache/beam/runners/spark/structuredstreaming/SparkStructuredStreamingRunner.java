@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.isLocalSparkMaster;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 
 import java.util.concurrent.ExecutorService;
@@ -113,22 +111,8 @@ public final class SparkStructuredStreamingRunner
    * @return A pipeline runner that will execute with specified options.
    */
   public static SparkStructuredStreamingRunner fromOptions(PipelineOptions options) {
-    SparkStructuredStreamingPipelineOptions sparkOptions =
-        PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options);
-
-    if (sparkOptions.getFilesToStage() == null && !isLocalSparkMaster(sparkOptions)) {
-      sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(
-              SparkStructuredStreamingRunner.class.getClassLoader(), options));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. "
-              + "Defaulting to files from the classpath: will stage {} files. "
-              + "Enable logging at DEBUG level to see which files will be staged.",
-          sparkOptions.getFilesToStage().size());
-      LOG.debug("Classpath elements: {}", sparkOptions.getFilesToStage());
-    }
-
-    return new SparkStructuredStreamingRunner(sparkOptions);
+    return new SparkStructuredStreamingRunner(
+        PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options));
   }
 
   /**

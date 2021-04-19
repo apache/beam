@@ -25,17 +25,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.sdk.metrics.MetricsLogger;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -56,7 +54,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
@@ -80,7 +77,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   private final boolean ignoreInsertIds;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
-  private final Set<MetricName> metricFilter;
+  private final Set<String> allowedMetricUrns;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
@@ -109,7 +106,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
-    this.metricFilter = getMetricFilter();
+    this.allowedMetricUrns = getAllowedMetricUrns();
     this.batchViaStateful = false;
   }
 
@@ -135,34 +132,14 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
-    this.metricFilter = getMetricFilter();
+    this.allowedMetricUrns = getAllowedMetricUrns();
     this.batchViaStateful = batchViaStateful;
   }
 
-  private static Set<MetricName> getMetricFilter() {
-    ImmutableSet.Builder<MetricName> setBuilder = ImmutableSet.builder();
-    setBuilder.add(
-        MonitoringInfoMetricName.named(
-            MonitoringInfoConstants.Urns.API_REQUEST_LATENCIES,
-            BigQueryServicesImpl.API_METRIC_LABEL));
-    for (String status : BigQueryServicesImpl.DatasetServiceImpl.CANONICAL_STATUS_MAP.values()) {
-      setBuilder.add(
-          MonitoringInfoMetricName.named(
-              MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
-              ImmutableMap.<String, String>builder()
-                  .putAll(BigQueryServicesImpl.API_METRIC_LABEL)
-                  .put(MonitoringInfoConstants.Labels.STATUS, status)
-                  .build()));
-    }
-    setBuilder.add(
-        MonitoringInfoMetricName.named(
-            MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
-            ImmutableMap.<String, String>builder()
-                .putAll(BigQueryServicesImpl.API_METRIC_LABEL)
-                .put(
-                    MonitoringInfoConstants.Labels.STATUS,
-                    BigQueryServicesImpl.DatasetServiceImpl.CANONICAL_STATUS_UNKNOWN)
-                .build()));
+  private static Set<String> getAllowedMetricUrns() {
+    ImmutableSet.Builder<String> setBuilder = ImmutableSet.builder();
+    setBuilder.add(MonitoringInfoConstants.Urns.API_REQUEST_COUNT);
+    setBuilder.add(MonitoringInfoConstants.Urns.API_REQUEST_LATENCIES);
     return setBuilder.build();
   }
 
@@ -394,10 +371,9 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     if (processWideContainer instanceof MetricsLogger) {
       MetricsLogger processWideMetricsLogger = (MetricsLogger) processWideContainer;
       processWideMetricsLogger.tryLoggingMetrics(
-          "BigQuery HTTP API Metrics: \n",
-          metricFilter,
-          options.getBqStreamingApiLoggingFrequencySec() * 1000L,
-          true);
+          "API call Metrics: \n",
+          this.allowedMetricUrns,
+          options.getBqStreamingApiLoggingFrequencySec() * 1000L);
     }
   }
 }

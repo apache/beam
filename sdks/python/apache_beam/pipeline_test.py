@@ -53,6 +53,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
@@ -972,6 +973,79 @@ class RunnerApiTest(unittest.TestCase):
 
     for transform_id in runner_api_proto.components.transforms:
       self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
+
+  def test_display_data(self):
+    class MyParentTransform(beam.PTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def display_data(self):  # type: () -> dict
+        parent_dd = super(MyParentTransform, self).display_data()
+        parent_dd['p_dd_string'] = DisplayDataItem(
+            'p_dd_string_value', label='p_dd_string_label')
+        parent_dd['p_dd_bool'] = DisplayDataItem(True, label='p_dd_bool_label')
+        parent_dd['p_dd_int'] = DisplayDataItem(1, label='p_dd_int_label')
+        return parent_dd
+
+    class MyPTransform(MyParentTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def display_data(self):  # type: () -> dict
+        parent_dd = super(MyPTransform, self).display_data()
+        parent_dd['dd_string'] = DisplayDataItem(
+            'dd_string_value', label='dd_string_label')
+        parent_dd['dd_bool'] = DisplayDataItem(False, label='dd_bool_label')
+        parent_dd['dd_int'] = DisplayDataItem(1.1, label='dd_int_label')
+        return parent_dd
+
+    p = beam.Pipeline()
+    p | MyPTransform()  # pylint: disable=expression-not-assigned
+    from apache_beam.portability.api import beam_runner_api_pb2
+
+    proto_pipeline = Pipeline.to_runner_api(p, use_fake_coders=True)
+    my_transform, = [
+        transform
+        for transform in proto_pipeline.components.transforms.values()
+        if transform.unique_name == 'MyPTransform'
+    ]
+    self.assertIsNotNone(my_transform)
+    self.assertListEqual(
+        list(my_transform.display_data),
+        [
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_string_label',
+                    string_value='p_dd_string_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_bool_label',
+                    bool_value=True).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_int_label',
+                    double_value=1).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_string_label',
+                    string_value='dd_string_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_bool_label',
+                    bool_value=False).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_int_label',
+                    double_value=1.1).SerializeToString()),
+        ])
 
 
 if __name__ == '__main__':

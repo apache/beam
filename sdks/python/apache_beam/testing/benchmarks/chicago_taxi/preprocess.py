@@ -15,8 +15,6 @@
 """Preprocessor applying tf.transform to the chicago_taxi data."""
 # pytype: skip-file
 
-from __future__ import absolute_import, division, print_function
-
 import argparse
 import os
 

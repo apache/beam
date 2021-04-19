@@ -26,8 +26,6 @@ generate events:
   - The bid on an item for auction (Bid).
 
 """
-from __future__ import absolute_import
-
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.coders.coders import StrUtf8Coder
