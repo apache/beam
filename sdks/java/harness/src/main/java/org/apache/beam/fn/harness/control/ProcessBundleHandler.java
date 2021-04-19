@@ -62,6 +62,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
@@ -144,14 +145,14 @@ public class ProcessBundleHandler {
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
   private final FinalizeBundleHandler finalizeBundleHandler;
   private final ShortIdMap shortIds;
-  // TODO(BEAM-6597): Provide a way for the runner to offer this bit.
-  private final boolean runnerAcceptsShortIds = false;
+  private final boolean runnerAcceptsShortIds;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
 
   public ProcessBundleHandler(
       PipelineOptions options,
+      Set<String> runnerCapabilities,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
@@ -159,6 +160,7 @@ public class ProcessBundleHandler {
       ShortIdMap shortIds) {
     this(
         options,
+        runnerCapabilities,
         fnApiRegistry,
         beamFnDataClient,
         beamFnStateGrpcClientCache,
@@ -171,6 +173,7 @@ public class ProcessBundleHandler {
   @VisibleForTesting
   ProcessBundleHandler(
       PipelineOptions options,
+      Set<String> runnerCapabilities,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
@@ -184,6 +187,9 @@ public class ProcessBundleHandler {
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
+    this.runnerAcceptsShortIds =
+        runnerCapabilities.contains(
+            BeamUrns.getUrn(RunnerApi.StandardRunnerProtocols.Enum.MONITORING_INFO_SHORT_IDS));
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());

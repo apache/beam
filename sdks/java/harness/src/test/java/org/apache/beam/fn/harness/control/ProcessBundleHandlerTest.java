@@ -276,6 +276,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             null,
             beamFnDataClient,
             null /* beamFnStateClient */,
@@ -303,6 +304,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             null,
             beamFnDataClient,
             null /* beamFnStateClient */,
@@ -392,6 +394,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateClient */,
@@ -512,6 +515,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateClient */,
@@ -559,6 +563,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
@@ -696,6 +701,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
@@ -750,6 +756,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
@@ -820,6 +827,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
@@ -880,6 +888,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
@@ -976,6 +985,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             mockBeamFnStateGrpcClient,
@@ -1043,6 +1053,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
@@ -1108,6 +1119,7 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
