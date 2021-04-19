@@ -108,6 +108,7 @@ def create_harness(environment, dry_run=False):
 
   pipeline_options_dict = _load_pipeline_options(
       environment.get('PIPELINE_OPTIONS'))
+  # These are used for dataflow templates.
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
   filesystems.FileSystems.set_options(sdk_pipeline_options)
