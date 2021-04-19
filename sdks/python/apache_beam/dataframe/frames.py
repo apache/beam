@@ -262,7 +262,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       orig_nlevels = self._expr.proxy().index.nlevels
       to_group_with_index = expressions.ComputedExpression(
           'map_index_keep_orig',
-          lambda df: df.set_index([df.index.map(by), df.index]),
+          lambda df: df.set_index([df.index.map(by), df.index], drop=False),
           [self._expr],
           requires_partition_by=partitionings.Arbitrary(),
           # Partitioning by the original indexes is preserved
@@ -314,7 +314,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         #                                        grouping_columns)._expr
         to_group_with_index = expressions.ComputedExpression(
             'move_grouped_columns_to_index',
-            lambda df: df.set_index([df.index] + grouping_columns),
+            lambda df: df.set_index([df.index] + grouping_columns, drop=False),
             [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Index(
@@ -2563,14 +2563,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     if self._grouping_columns and not self._projection:
       grouping_columns = self._grouping_columns
       def fn_wrapper(x, *args, **kwargs):
-        # TODO(BEAM-11710): Moving a column to an index and back is lossy
-        # since indexes dont support as many dtypes. We should keep the original
-        # column in groupby() instead. We need it anyway in case the grouping
-        # column is projected, which is allowed.
-
-        # Move the columns back to columns
-        x = x.assign(**{col: x.index.get_level_values(col)
-                        for col in grouping_columns})
+        # Remove grouped columns from the index
         x = x.droplevel(grouping_columns)
         return fn(x, *args, **kwargs)
     else:
