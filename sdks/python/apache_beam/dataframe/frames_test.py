@@ -55,30 +55,30 @@ class DeferredFrameTest(unittest.TestCase):
 
     # Get expected error
     try:
-      _ = func(*args)
+      expected = func(*args)
     except Exception as e:
-      expected = e
+      expected_error = e
     else:
       raise AssertionError(
-          "Expected an error but computing expected result successfully "
-          f"returned: {expected}")
+          "Expected an error, but executing with pandas successfully "
+          f"returned:\n{expected}")
 
     # Get actual error
     try:
       _ = func(*deferred_args)._expr
     except Exception as e:
       actual = e
-      return
     else:
       raise AssertionError(
-          "Expected an error:\n{expected}\nbut an expression was "
-          "successfully generated")
+          "Expected an error:\n{expected_error}\nbut Beam successfully "
+          "generated an expression.")
 
     # Verify
-    if not isinstance(actual,
-                      type(expected)) or not str(actual) == str(expected):
+    if (not isinstance(actual, type(expected_error)) or
+        not str(actual) == str(expected_error)):
       raise AssertionError(
-          f'Expected {expected!r} to be raised, but got {actual!r}') from actual
+          f'Expected {expected_error!r} to be raised, but got {actual!r}'
+      ) from actual
 
   def _run_test(self, func, *args, distributed=True, nonparallel=False):
     """Verify that func(*args) produces the same result in pandas and in Beam.
