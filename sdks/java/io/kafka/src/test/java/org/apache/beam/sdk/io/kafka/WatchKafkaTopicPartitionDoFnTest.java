@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -80,7 +81,33 @@ public class WatchKafkaTopicPartitionDoFnTest {
                     new PartitionInfo("topic2", 1, null, null, null))));
     WatchKafkaTopicPartitionDoFn dofnInstance =
         new WatchKafkaTopicPartitionDoFn(
-            Duration.millis(1L), consumerFn, null, ImmutableMap.of(), null);
+            Duration.millis(1L), consumerFn, null, ImmutableMap.of(), null, null);
+    assertEquals(
+        ImmutableSet.of(
+            new TopicPartition("topic1", 0),
+            new TopicPartition("topic1", 1),
+            new TopicPartition("topic2", 0),
+            new TopicPartition("topic2", 1)),
+        dofnInstance.getAllTopicPartitions());
+  }
+
+  @Test
+  public void testGetAllTopicPartitionsWithGivenTopics() throws Exception {
+    List<String> givenTopics = ImmutableList.of("topic1", "topic2");
+    when(mockConsumer.partitionsFor("topic1"))
+        .thenReturn(
+            ImmutableList.of(
+                new PartitionInfo("topic1", 0, null, null, null),
+                new PartitionInfo("topic1", 1, null, null, null)));
+    when(mockConsumer.partitionsFor("topic2"))
+        .thenReturn(
+            ImmutableList.of(
+                new PartitionInfo("topic2", 0, null, null, null),
+                new PartitionInfo("topic2", 1, null, null, null)));
+    WatchKafkaTopicPartitionDoFn dofnInstance =
+        new WatchKafkaTopicPartitionDoFn(
+            Duration.millis(1L), consumerFn, null, ImmutableMap.of(), null, givenTopics);
+    verify(mockConsumer, never()).listTopics();
     assertEquals(
         ImmutableSet.of(
             new TopicPartition("topic1", 0),
@@ -94,7 +121,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
   public void testProcessElementWhenNoAvailableTopicPartition() throws Exception {
     WatchKafkaTopicPartitionDoFn dofnInstance =
         new WatchKafkaTopicPartitionDoFn(
-            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), null);
+            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), null, null);
     MockOutputReceiver outputReceiver = new MockOutputReceiver();
 
     when(mockConsumer.listTopics()).thenReturn(ImmutableMap.of());
@@ -112,7 +139,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
     Instant startReadTime = Instant.ofEpochMilli(1L);
     WatchKafkaTopicPartitionDoFn dofnInstance =
         new WatchKafkaTopicPartitionDoFn(
-            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), startReadTime);
+            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), startReadTime, null);
     MockOutputReceiver outputReceiver = new MockOutputReceiver();
 
     when(mockConsumer.listTopics())
@@ -163,7 +190,8 @@ public class WatchKafkaTopicPartitionDoFnTest {
             consumerFn,
             checkStopReadingFn,
             ImmutableMap.of(),
-            startReadTime);
+            startReadTime,
+            null);
     MockOutputReceiver outputReceiver = new MockOutputReceiver();
 
     when(mockConsumer.listTopics())
@@ -198,7 +226,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
   public void testOnTimerWithNoAvailableTopicPartition() throws Exception {
     WatchKafkaTopicPartitionDoFn dofnInstance =
         new WatchKafkaTopicPartitionDoFn(
-            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), null);
+            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), null, null);
     MockOutputReceiver outputReceiver = new MockOutputReceiver();
 
     when(mockConsumer.listTopics()).thenReturn(ImmutableMap.of());
@@ -219,7 +247,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
     Instant startReadTime = Instant.ofEpochMilli(1L);
     WatchKafkaTopicPartitionDoFn dofnInstance =
         new WatchKafkaTopicPartitionDoFn(
-            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), startReadTime);
+            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), startReadTime, null);
     MockOutputReceiver outputReceiver = new MockOutputReceiver();
 
     when(mockConsumer.listTopics())
@@ -262,7 +290,7 @@ public class WatchKafkaTopicPartitionDoFnTest {
     Instant startReadTime = Instant.ofEpochMilli(1L);
     WatchKafkaTopicPartitionDoFn dofnInstance =
         new WatchKafkaTopicPartitionDoFn(
-            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), startReadTime);
+            Duration.millis(600L), consumerFn, null, ImmutableMap.of(), startReadTime, null);
     MockOutputReceiver outputReceiver = new MockOutputReceiver();
 
     when(mockConsumer.listTopics())
@@ -316,7 +344,8 @@ public class WatchKafkaTopicPartitionDoFnTest {
             consumerFn,
             checkStopReadingFn,
             ImmutableMap.of(),
-            startReadTime);
+            startReadTime,
+            null);
     MockOutputReceiver outputReceiver = new MockOutputReceiver();
 
     when(mockConsumer.listTopics())
