@@ -102,6 +102,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -115,6 +116,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -1359,6 +1361,41 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
+  }
+
+  @Test
+  public void testStepResourceHints() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(
+            "Has hints",
+            MapElements.into(TypeDescriptors.integers())
+                .via((Integer x) -> x + 1)
+                .setResourceHints(
+                    ResourceHints.create()
+                        .withMemory("10.0GiB")
+                        .withAccelerator("type:nvidia-tesla-k80;count:1;install-nvidia-drivers")));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceV1Transforms(pipeline);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
+
+    Step stepWithHints = job.getSteps().get(1);
+    ImmutableMap<String, Object> expectedHints =
+        ImmutableMap.<String, Object>builder()
+            .put("beam:resources:min_ram_bytes:v1", "10737418240")
+            .put("beam:resources:accelerator:v1", "nvidia-tesla-k80;count:1;install-nvidia-drivers")
+            .build();
+    assertEquals(expectedHints, stepWithHints.getProperties().get("resource_hints"));
   }
 
   /**
