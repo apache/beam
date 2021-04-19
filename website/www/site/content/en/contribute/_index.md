@@ -210,7 +210,7 @@ script which is part of the Beam repo:
 
         **Important**: Make sure you have activated Python development.
 ```
-./gradlew :checkSetUp
+./gradlew :checkSetup
 ```
     - **Option 2**: Run independent checks:
         - For **Go development**:
