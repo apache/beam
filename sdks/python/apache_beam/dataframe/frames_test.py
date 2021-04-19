@@ -999,6 +999,29 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.agg('median', min_count=3, numeric_only=True),
         GROUPBY_DF)
 
+  def test_series_agg_method_invalid_kwarg_raises(self):
+    self._run_error_test(
+        lambda df: df.foo.median(min_count=3),
+        GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.foo.agg('median', min_count=3),
+        GROUPBY_DF)
+
+  @unittest.skipIf(PD_VERSION < (1, 3),
+                   ("DataFrame.agg raises a different exception from the "
+                    "underlying methods
+                    (https://github.com/pandas-dev/pandas/pull/40543)."))
+  def test_df_agg_method_invalid_kwarg_raises(self):
+    self._run_error_test(
+        lambda df: df.mean(bool_only=True),
+        GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.any(numeric_only=True),
+        GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.median(min_count=3, numeric_only=True),
+        GROUPBY_DF)
+
   def test_agg_min_count(self):
     df = pd.DataFrame({
         'good': [1, 2, 3, np.nan],
