@@ -859,14 +859,24 @@ class WorkerOptions(PipelineOptions):
             'subnetwork name. For more information, see '
             'https://cloud.google.com/compute/docs/vpc/'))
     parser.add_argument(
-        '--sdk_container_image',
         '--worker_harness_container_image',
         dest='sdk_container_image',
         default=None,
         help=(
             'Docker registry location of container image to use for the '
-            'worker harness. Default is the container for the version of the '
-            'SDK. Note this field is only valid for portable pipelines.'))
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. Note: currently, only approved Google Cloud Dataflow '
+            'container images may be used here.'))
+    parser.add_argument(
+        '--sdk_container_image',
+        default=None,
+        help=(
+            'Docker registry location of container image to use for the '
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. If set for a non-portable pipeline, only official '
+            'Google Cloud Dataflow container images may be used here.'))
     parser.add_argument(
         '--sdk_harness_container_image_overrides',
         action='append',

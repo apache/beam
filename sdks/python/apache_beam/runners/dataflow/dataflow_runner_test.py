@@ -204,6 +204,25 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertTrue(
         isinstance(create_runner('TestDataflowRunner'), TestDataflowRunner))
 
+  def test_environment_override_translation_legacy_worker_harness_image(self):
+    self.default_properties.append('--experiments=beam_fn_api')
+    self.default_properties.append('--worker_harness_container_image=LEGACY')
+    remote_runner = DataflowRunner()
+    with Pipeline(remote_runner,
+                  options=PipelineOptions(self.default_properties)) as p:
+      (  # pylint: disable=expression-not-assigned
+          p | ptransform.Create([1, 2, 3])
+          | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+          | ptransform.GroupByKey())
+    self.assertEqual(
+        list(remote_runner.proto_pipeline.components.environments.values()),
+        [
+            beam_runner_api_pb2.Environment(
+                urn=common_urns.environments.DOCKER.urn,
+                payload=beam_runner_api_pb2.DockerPayload(
+                    container_image='LEGACY').SerializeToString(),
+                capabilities=environments.python_sdk_capabilities())
+        ])
   def test_environment_override_translation(self):
     self.default_properties.append('--experiments=beam_fn_api')
     self.default_properties.append('--sdk_container_image=FOO')
