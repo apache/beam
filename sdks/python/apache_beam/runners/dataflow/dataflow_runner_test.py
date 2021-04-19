@@ -223,7 +223,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     container_image='LEGACY').SerializeToString(),
                 capabilities=environments.python_sdk_capabilities())
         ])
-  def test_environment_override_translation(self):
+
+  def test_environment_override_translation_sdk_container_image(self):
     self.default_properties.append('--experiments=beam_fn_api')
     self.default_properties.append('--sdk_container_image=FOO')
     remote_runner = DataflowRunner()
