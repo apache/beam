@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.resourcehints;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -36,6 +37,11 @@ public class ResourceHints {
 
   public static ResourceHints create() {
     return EMPTY;
+  }
+
+  public static ResourceHints fromOptions(PipelineOptions options) {
+    // TODO: Add pipeline options.
+    return create();
   }
 
   private static class BytesHint implements ResourceHint {
