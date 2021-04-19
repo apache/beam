@@ -97,7 +97,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     }
 
     boolean isEmpty() {
-      return queue.isEmpty();
+      return queue.isEmpty() || queue.peek() == POISON;
     }
   }
 
