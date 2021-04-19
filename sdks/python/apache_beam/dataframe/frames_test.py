@@ -845,7 +845,6 @@ class DeferredFrameTest(unittest.TestCase):
         df2,
         construction_time=False)
 
-
   def test_series_agg_level(self):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).bar.count(level=0),
