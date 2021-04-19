@@ -73,6 +73,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.where': [
                 'df.where(m, -df) == np.where(m, df, -df)'
             ],
+            'pandas.core.generic.NDFrame.interpolate': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.add_prefix': ['*'],
@@ -84,7 +85,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
-            'pandas.core.generic.NDFrame.interpolate': ['*'],
             'pandas.core.generic.NDFrame.pct_change': ['*'],
             'pandas.core.generic.NDFrame.rank': ['*'],
             'pandas.core.generic.NDFrame.reindex': ['*'],
@@ -213,7 +213,6 @@ class DoctestTest(unittest.TestCase):
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
-            'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
@@ -403,6 +402,8 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.series.Series.sort_index': ['*'],
             'pandas.core.series.Series.sort_values': ['*'],
+            'pandas.core.series.Series.argmax': ['*'],
+            'pandas.core.series.Series.argmin': ['*'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -422,8 +423,6 @@ class DoctestTest(unittest.TestCase):
             ],
             # Throws NotImplementedError when modifying df
             'pandas.core.series.Series.transform': ['df'],
-            'pandas.core.series.Series.argmax': ['*'],
-            'pandas.core.series.Series.argmin': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
@@ -437,7 +436,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.explode': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
-            'pandas.core.series.Series.name': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect

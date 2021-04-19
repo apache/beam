@@ -19,9 +19,6 @@
 """Unit tests for filesystem module."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import bz2
 import gzip
 import logging
@@ -32,10 +29,8 @@ import sys
 import tempfile
 import unittest
 import zlib
-from builtins import range
 from io import BytesIO
 
-from future.utils import iteritems
 from parameterized import param
 from parameterized import parameterized
 
@@ -72,7 +67,7 @@ class TestingFileSystem(FileSystem):
     self._files[path] = size
 
   def _list(self, dir_or_prefix):
-    for path, size in iteritems(self._files):
+    for path, size in self._files.items():
       if path.startswith(dir_or_prefix):
         yield FileMetadata(path, size)
 

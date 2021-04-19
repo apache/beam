@@ -20,8 +20,6 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
 import datetime
 import logging
@@ -33,7 +31,6 @@ from decimal import Decimal
 import hamcrest as hc
 import mock
 import pytz
-from future.utils import iteritems
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -230,7 +227,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
 
     input_data = [row_data]
     # add rows with only one key value pair and None values for all other keys
-    for key, value in iteritems(row_data):
+    for key, value in row_data.items():
       input_data.append({key: value})
 
     table_schema = {

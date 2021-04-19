@@ -174,8 +174,7 @@ func ReadRowHeader(r io.Reader) (int, []byte, error) {
 	if nf < l {
 		return int(nf), nil, fmt.Errorf("number of fields is less than byte array %v < %v", nf, l)
 	}
-	var buf [32]byte // should get stack allocated?
-	nils := buf[:l]
+	nils := make([]byte, l)
 	if err := ioutilx.ReadNBufUnsafe(r, nils); err != nil {
 		return int(nf), nil, err
 	}

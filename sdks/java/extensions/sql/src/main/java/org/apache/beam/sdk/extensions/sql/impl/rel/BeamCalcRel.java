@@ -18,26 +18,29 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.sdk.schemas.Schema.FieldType;
-import static org.apache.beam.sdk.schemas.Schema.TypeName;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.AbstractList;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
@@ -46,7 +49,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -65,7 +67,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.QueryPro
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.BlockBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expression;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.GotoExpressionKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.MemberDeclaration;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.ParameterExpression;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Types;
@@ -81,22 +82,20 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexSimplify;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexUtil;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunctions;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlConformanceEnum;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BuiltInMethod;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
+import org.joda.time.DateTime;
 import org.joda.time.Instant;
-import org.joda.time.ReadableInstant;
 
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
 @SuppressWarnings({
@@ -109,10 +108,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static final long NANOS_PER_MILLISECOND = 1000000L;
   private static final long MILLIS_PER_DAY = 86400000L;
 
-  private static final ParameterExpression outputSchemaParam =
-      Expressions.parameter(Schema.class, "outputSchema");
-  private static final ParameterExpression processContextParam =
-      Expressions.parameter(DoFn.ProcessContext.class, "c");
+  private static final ParameterExpression rowParam = Expressions.parameter(Row.class, "row");
 
   public BeamCalcRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RexProgram program) {
     super(cluster, traits, input, program);
@@ -136,8 +132,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
      * of code using a BlockBuilder. The root of the block is an if statement with any conditions.
      * Inside that if statement, a new record is output with a row containing transformed fields.
      * The InputGetterImpl class generates code to read from the input record and convert to Calcite
-     * types. Calcite then generates code for any function calls or other operations. Then the
-     * castOutput method generates code to convert back to Beam Schema types.
+     * types. Calcite then generates code for any function calls or other operations. Outputs are in
+     * Calcite types, toBeamRow converts back to Beam types.
      */
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
@@ -156,9 +152,6 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       final PhysType physType =
           PhysTypeImpl.of(typeFactory, getRowType(), JavaRowFormat.ARRAY, false);
 
-      Expression input =
-          Expressions.convert_(Expressions.call(processContextParam, "element"), Row.class);
-
       final RexBuilder rexBuilder = getCluster().getRexBuilder();
       final RelMetadataQuery mq = RelMetadataQuery.instance();
       final RelOptPredicateList predicates = mq.getPulledUpPredicates(getInput());
@@ -170,7 +163,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               program,
               typeFactory,
               builder,
-              new InputGetterImpl(input, upstream.getSchema()),
+              new InputGetterImpl(rowParam, upstream.getSchema()),
               null,
               conformance);
 
@@ -182,57 +175,29 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               builder,
               physType,
               DataContext.ROOT,
-              new InputGetterImpl(input, upstream.getSchema()),
+              new InputGetterImpl(rowParam, upstream.getSchema()),
               null);
 
-      boolean verifyRowValues =
-          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
-
-      List<Expression> listValues = Lists.newArrayListWithCapacity(expressions.size());
-      for (int index = 0; index < expressions.size(); index++) {
-        Expression value = expressions.get(index);
-        FieldType toType = outputSchema.getField(index).getType();
-        listValues.add(castOutput(value, toType));
-      }
-      Method newArrayList = Types.lookupMethod(Arrays.class, "asList");
-      Expression valueList = Expressions.call(newArrayList, listValues);
-
-      // Expressions.call is equivalent to: output =
-      // Row.withSchema(outputSchema).attachValue(values);
-      Expression output = Expressions.call(Row.class, "withSchema", outputSchemaParam);
-
-      if (verifyRowValues) {
-        Method attachValues = Types.lookupMethod(Row.Builder.class, "addValues", List.class);
-        output = Expressions.call(output, attachValues, valueList);
-        output = Expressions.call(output, "build");
-      } else {
-        Method attachValues = Types.lookupMethod(Row.Builder.class, "attachValues", List.class);
-        output = Expressions.call(output, attachValues, valueList);
-      }
-
       builder.add(
-          // Expressions.ifThen is equivalent to:
-          //   if (condition) {
-          //     c.output(output);
-          //   }
-          Expressions.ifThen(
+          Expressions.ifThenElse(
               condition,
-              Expressions.makeGoto(
-                  GotoExpressionKind.Sequence,
-                  null,
-                  Expressions.call(
-                      processContextParam,
-                      Types.lookupMethod(DoFn.ProcessContext.class, "output", Object.class),
-                      output))));
+              Expressions.return_(null, physType.record(expressions)),
+              Expressions.return_(null, Expressions.constant(null))));
 
-      CalcFn calcFn = new CalcFn(builder.toBlock().toString(), outputSchema, getJarPaths(program));
+      BeamSqlPipelineOptions options =
+          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class);
+
+      CalcFn calcFn =
+          new CalcFn(
+              builder.toBlock().toString(),
+              outputSchema,
+              options.getVerifyRowValues(),
+              getJarPaths(program));
 
       // validate generated code
       calcFn.compile();
 
-      PCollection<Row> projectStream = upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
-
-      return projectStream;
+      return upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
     }
   }
 
@@ -240,12 +205,18 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static class CalcFn extends DoFn<Row, Row> {
     private final String processElementBlock;
     private final Schema outputSchema;
+    private final boolean verifyRowValues;
     private final List<String> jarPaths;
     private transient @Nullable ScriptEvaluator se = null;
 
-    public CalcFn(String processElementBlock, Schema outputSchema, List<String> jarPaths) {
+    public CalcFn(
+        String processElementBlock,
+        Schema outputSchema,
+        boolean verifyRowValues,
+        List<String> jarPaths) {
       this.processElementBlock = processElementBlock;
       this.outputSchema = outputSchema;
+      this.verifyRowValues = verifyRowValues;
       this.jarPaths = jarPaths;
     }
 
@@ -261,12 +232,9 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         }
       }
       se.setParameters(
-          new String[] {outputSchemaParam.name, processContextParam.name, DataContext.ROOT.name},
-          new Class[] {
-            (Class) outputSchemaParam.getType(),
-            (Class) processContextParam.getType(),
-            (Class) DataContext.ROOT.getType()
-          });
+          new String[] {rowParam.name, DataContext.ROOT.name},
+          new Class[] {(Class) rowParam.getType(), (Class) DataContext.ROOT.getType()});
+      se.setReturnType(Object[].class);
       try {
         se.cook(processElementBlock);
       } catch (CompileException e) {
@@ -284,11 +252,16 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     @ProcessElement
     public void processElement(ProcessContext c) {
       assert se != null;
+      final Object[] v;
       try {
-        se.evaluate(new Object[] {outputSchema, c, CONTEXT_INSTANCE});
+        v = (Object[]) se.evaluate(new Object[] {c.element(), CONTEXT_INSTANCE});
       } catch (InvocationTargetException e) {
         throw new RuntimeException(
             "CalcFn failed to evaluate: " + processElementBlock, e.getCause());
+      }
+      if (v != null) {
+        Row row = toBeamRow(Arrays.asList(v), outputSchema, verifyRowValues);
+        c.output(row);
       }
     }
   }
@@ -312,140 +285,129 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     return jarPaths.build();
   }
 
-  private static final Map<TypeName, Type> rawTypeMap =
-      ImmutableMap.<TypeName, Type>builder()
-          .put(TypeName.BYTE, Byte.class)
-          .put(TypeName.INT16, Short.class)
-          .put(TypeName.INT32, Integer.class)
-          .put(TypeName.INT64, Long.class)
-          .put(TypeName.FLOAT, Float.class)
-          .put(TypeName.DOUBLE, Double.class)
-          .build();
-
-  private static Expression castOutput(Expression value, FieldType toType) {
-    Expression returnValue = value;
-    if (value.getType() == Object.class || !(value.getType() instanceof Class)) {
-      // fast copy path, just pass object through
-      returnValue = value;
-    } else if (CalciteUtils.isDateTimeType(toType)
-        && !Types.isAssignableFrom(ReadableInstant.class, (Class) value.getType())) {
-      returnValue = castOutputTime(value, toType);
-    } else if (toType.getTypeName() == TypeName.DECIMAL
-        && !Types.isAssignableFrom(BigDecimal.class, (Class) value.getType())) {
-      returnValue = Expressions.new_(BigDecimal.class, value);
-    } else if (toType.getTypeName() == TypeName.BYTES
-        && Types.isAssignableFrom(ByteString.class, (Class) value.getType())) {
-      returnValue =
-          Expressions.condition(
-              Expressions.equal(value, Expressions.constant(null)),
-              Expressions.constant(null),
-              Expressions.call(value, "getBytes"));
-    } else if (((Class) value.getType()).isPrimitive()
-        || Types.isAssignableFrom(Number.class, (Class) value.getType())) {
-      Type rawType = rawTypeMap.get(toType.getTypeName());
-      if (rawType != null) {
-        returnValue = Types.castIfNecessary(rawType, value);
-      }
-    } else if (Types.isAssignableFrom(Iterable.class, value.getType())) {
-      // Passing an Iterable into newArrayList gets interpreted to mean copying each individual
-      // element. We want the
-      // entire Iterable to be treated as a single element, so we cast to Object.
-      returnValue = Expressions.convert_(value, Object.class);
+  static Object toBeamObject(Object value, FieldType fieldType, boolean verifyValues) {
+    if (value == null) {
+      return null;
     }
-    returnValue =
-        Expressions.condition(
-            Expressions.equal(value, Expressions.constant(null)),
-            Expressions.constant(null),
-            returnValue);
-    return returnValue;
+    switch (fieldType.getTypeName()) {
+        // BEAM-12176: Numbers aren't always the type we expect.
+      case BYTE:
+        return ((Number) value).byteValue();
+      case INT16:
+        return ((Number) value).shortValue();
+      case INT32:
+        return ((Number) value).intValue();
+      case INT64:
+        return ((Number) value).longValue();
+      case FLOAT:
+        return ((Number) value).floatValue();
+      case DOUBLE:
+        return ((Number) value).doubleValue();
+      case DECIMAL:
+        if (value instanceof BigDecimal) {
+          return (BigDecimal) value;
+        } else if (value instanceof Long) {
+          return BigDecimal.valueOf((Long) value);
+        } else if (value instanceof Integer) {
+          return BigDecimal.valueOf((Integer) value);
+        }
+        return new BigDecimal(((Number) value).toString());
+      case STRING:
+        return (String) value;
+      case BOOLEAN:
+        return (Boolean) value;
+      case DATETIME:
+        if (value instanceof Timestamp) {
+          value = SqlFunctions.toLong((Timestamp) value);
+        }
+        return Instant.ofEpochMilli(((Number) value).longValue());
+      case BYTES:
+        if (value instanceof byte[]) {
+          return value;
+        }
+        return ((ByteString) value).getBytes();
+      case ARRAY:
+        return toBeamList((List<Object>) value, fieldType.getCollectionElementType(), verifyValues);
+      case MAP:
+        return toBeamMap(
+            (Map<Object, Object>) value,
+            fieldType.getMapKeyType(),
+            fieldType.getMapValueType(),
+            verifyValues);
+      case ROW:
+        if (value instanceof Object[]) {
+          value = Arrays.asList((Object[]) value);
+        }
+        return toBeamRow((List<Object>) value, fieldType.getRowSchema(), verifyValues);
+      case LOGICAL_TYPE:
+        String identifier = fieldType.getLogicalType().getIdentifier();
+        if (CharType.IDENTIFIER.equals(identifier)) {
+          return (String) value;
+        } else if (TimeWithLocalTzType.IDENTIFIER.equals(identifier)) {
+          return Instant.ofEpochMilli(((Number) value).longValue());
+        } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+          if (value instanceof Date) {
+            value = SqlFunctions.toInt((Date) value);
+          }
+          // BEAM-12175: value should always be Integer here, but it isn't.
+          return LocalDate.ofEpochDay(((Number) value).longValue());
+        } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+          if (value instanceof Time) {
+            value = SqlFunctions.toInt((Time) value);
+          }
+          // BEAM-12175: value should always be Integer here, but it isn't.
+          return LocalTime.ofNanoOfDay(((Number) value).longValue() * NANOS_PER_MILLISECOND);
+        } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+          if (value instanceof Timestamp) {
+            value = SqlFunctions.toLong((Timestamp) value);
+          }
+          return LocalDateTime.of(
+              LocalDate.ofEpochDay(((Number) value).longValue() / MILLIS_PER_DAY),
+              LocalTime.ofNanoOfDay(
+                  (((Number) value).longValue() % MILLIS_PER_DAY) * NANOS_PER_MILLISECOND));
+        } else {
+          throw new UnsupportedOperationException("Unable to convert logical type " + identifier);
+        }
+      default:
+        throw new UnsupportedOperationException("Unable to convert " + fieldType.getTypeName());
+    }
   }
 
-  private static Expression castOutputTime(Expression value, FieldType toType) {
-    Expression valueDateTime = value;
+  private static List<Object> toBeamList(
+      List<Object> arrayValue, FieldType elementType, boolean verifyValues) {
+    return arrayValue.stream()
+        .map(e -> toBeamObject(e, elementType, verifyValues))
+        .collect(Collectors.toList());
+  }
 
-    if (CalciteUtils.TIMESTAMP.typesEqual(toType)
-        || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
-      // Convert TIMESTAMP to joda Instant
-      if (value.getType() == java.sql.Timestamp.class) {
-        valueDateTime = Expressions.call(BuiltInMethod.TIMESTAMP_TO_LONG.method, valueDateTime);
-      }
-      valueDateTime = Expressions.new_(Instant.class, valueDateTime);
-    } else if (CalciteUtils.TIME.typesEqual(toType)
-        || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
-      // Convert TIME to LocalTime
-      if (value.getType() == java.sql.Time.class) {
-        valueDateTime = Expressions.call(BuiltInMethod.TIME_TO_INT.method, valueDateTime);
-      } else if (value.getType() == Long.class) {
-        valueDateTime = Expressions.unbox(valueDateTime);
-      }
-      valueDateTime =
-          Expressions.multiply(valueDateTime, Expressions.constant(NANOS_PER_MILLISECOND));
-      valueDateTime = Expressions.call(LocalTime.class, "ofNanoOfDay", valueDateTime);
-    } else if (CalciteUtils.DATE.typesEqual(toType)
-        || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
-      // Convert DATE to LocalDate
-      if (value.getType() == java.sql.Date.class) {
-        valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
-      } else if (value.getType() == Long.class) {
-        valueDateTime = Expressions.unbox(valueDateTime);
-      }
-      valueDateTime = Expressions.call(LocalDate.class, "ofEpochDay", valueDateTime);
-    } else if (CalciteUtils.TIMESTAMP_WITH_LOCAL_TZ.typesEqual(toType)
-        || CalciteUtils.NULLABLE_TIMESTAMP_WITH_LOCAL_TZ.typesEqual(toType)) {
-      // Convert TimeStamp_With_Local_TimeZone to LocalDateTime
-      Expression dateValue =
-          Expressions.divide(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
-      Expression date = Expressions.call(LocalDate.class, "ofEpochDay", dateValue);
-      Expression timeValue =
-          Expressions.multiply(
-              Expressions.modulo(valueDateTime, Expressions.constant(MILLIS_PER_DAY)),
-              Expressions.constant(NANOS_PER_MILLISECOND));
-      Expression time = Expressions.call(LocalTime.class, "ofNanoOfDay", timeValue);
-      valueDateTime = Expressions.call(LocalDateTime.class, "of", date, time);
-    } else {
-      throw new UnsupportedOperationException("Unknown DateTime type " + toType);
+  private static Map<Object, Object> toBeamMap(
+      Map<Object, Object> mapValue,
+      FieldType keyType,
+      FieldType elementType,
+      boolean verifyValues) {
+    Map<Object, Object> output = new HashMap<>(mapValue.size());
+    for (Map.Entry<Object, Object> entry : mapValue.entrySet()) {
+      output.put(
+          toBeamObject(entry.getKey(), keyType, verifyValues),
+          toBeamObject(entry.getValue(), elementType, verifyValues));
     }
+    return output;
+  }
 
-    // make conversion conditional on non-null input.
-    if (!((Class) value.getType()).isPrimitive()) {
-      valueDateTime =
-          Expressions.condition(
-              Expressions.equal(value, Expressions.constant(null)),
-              Expressions.constant(null),
-              valueDateTime);
+  private static Row toBeamRow(List<Object> structValue, Schema schema, boolean verifyValues) {
+    List<Object> objects = new ArrayList<>(schema.getFieldCount());
+    assert structValue.size() == schema.getFieldCount();
+    for (int i = 0; i < structValue.size(); i++) {
+      objects.add(toBeamObject(structValue.get(i), schema.getField(i).getType(), verifyValues));
     }
-
-    return valueDateTime;
+    Row row =
+        verifyValues
+            ? Row.withSchema(schema).addValues(objects).build()
+            : Row.withSchema(schema).attachValues(objects);
+    return row;
   }
 
   private static class InputGetterImpl implements RexToLixTranslator.InputGetter {
-    private static final Map<TypeName, Class> TYPE_CONVERSION_MAP =
-        ImmutableMap.<TypeName, Class>builder()
-            .put(TypeName.BYTE, Byte.class)
-            .put(TypeName.BYTES, byte[].class)
-            .put(TypeName.INT16, Short.class)
-            .put(TypeName.INT32, Integer.class)
-            .put(TypeName.INT64, Long.class)
-            .put(TypeName.DECIMAL, BigDecimal.class)
-            .put(TypeName.FLOAT, Float.class)
-            .put(TypeName.DOUBLE, Double.class)
-            .put(TypeName.STRING, String.class)
-            .put(TypeName.DATETIME, ReadableInstant.class)
-            .put(TypeName.BOOLEAN, Boolean.class)
-            .put(TypeName.MAP, Map.class)
-            .put(TypeName.ARRAY, Collection.class)
-            .put(TypeName.ITERABLE, Iterable.class)
-            .put(TypeName.ROW, Row.class)
-            .build();
-
-    private static final Map<String, Class> LOGICAL_TYPE_TO_BASE_TYPE_MAP =
-        ImmutableMap.<String, Class>builder()
-            .put(SqlTypes.DATE.getIdentifier(), Long.class)
-            .put(SqlTypes.TIME.getIdentifier(), Long.class)
-            .put(TimeWithLocalTzType.IDENTIFIER, ReadableInstant.class)
-            .put(SqlTypes.DATETIME.getIdentifier(), Row.class)
-            .put(CharType.IDENTIFIER, String.class)
-            .build();
 
     private final Expression input;
     private final Schema inputSchema;
@@ -457,84 +419,189 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     @Override
     public Expression field(BlockBuilder list, int index, Type storageType) {
-      return value(list, index, storageType, input, inputSchema);
+      return getBeamField(list, index, input, inputSchema);
     }
 
-    private static Expression value(
-        BlockBuilder list, int index, Type storageType, Expression input, Schema schema) {
+    // Read field from Beam Row
+    private static Expression getBeamField(
+        BlockBuilder list, int index, Expression input, Schema schema) {
       if (index >= schema.getFieldCount() || index < 0) {
         throw new IllegalArgumentException("Unable to find value #" + index);
       }
 
       final Expression expression = list.append(list.newName("current"), input);
 
-      FieldType fromType = schema.getField(index).getType();
-      Class convertTo = null;
-      if (storageType == Object.class) {
-        convertTo = Object.class;
-      } else if (fromType.getTypeName().isLogicalType()) {
-        convertTo = LOGICAL_TYPE_TO_BASE_TYPE_MAP.get(fromType.getLogicalType().getIdentifier());
-      } else {
-        convertTo = TYPE_CONVERSION_MAP.get(fromType.getTypeName());
-      }
-      if (convertTo == null) {
-        throw new UnsupportedOperationException("Unable to get " + fromType.getTypeName());
+      FieldType fieldType = schema.getField(index).getType();
+      Expression value;
+      switch (fieldType.getTypeName()) {
+        case BYTE:
+          value = Expressions.call(expression, "getByte", Expressions.constant(index));
+          break;
+        case INT16:
+          value = Expressions.call(expression, "getInt16", Expressions.constant(index));
+          break;
+        case INT32:
+          value = Expressions.call(expression, "getInt32", Expressions.constant(index));
+          break;
+        case INT64:
+          value = Expressions.call(expression, "getInt64", Expressions.constant(index));
+          break;
+        case DECIMAL:
+          value = Expressions.call(expression, "getDecimal", Expressions.constant(index));
+          break;
+        case FLOAT:
+          value = Expressions.call(expression, "getFloat", Expressions.constant(index));
+          break;
+        case DOUBLE:
+          value = Expressions.call(expression, "getDouble", Expressions.constant(index));
+          break;
+        case STRING:
+          value = Expressions.call(expression, "getString", Expressions.constant(index));
+          break;
+        case DATETIME:
+          value = Expressions.call(expression, "getDateTime", Expressions.constant(index));
+          break;
+        case BOOLEAN:
+          value = Expressions.call(expression, "getBoolean", Expressions.constant(index));
+          break;
+        case BYTES:
+          value = Expressions.call(expression, "getBytes", Expressions.constant(index));
+          break;
+        case ARRAY:
+          value = Expressions.call(expression, "getArray", Expressions.constant(index));
+          break;
+        case MAP:
+          value = Expressions.call(expression, "getMap", Expressions.constant(index));
+          break;
+        case ROW:
+          value = Expressions.call(expression, "getRow", Expressions.constant(index));
+          break;
+        case LOGICAL_TYPE:
+          String identifier = fieldType.getLogicalType().getIdentifier();
+          if (CharType.IDENTIFIER.equals(identifier)) {
+            value = Expressions.call(expression, "getString", Expressions.constant(index));
+          } else if (TimeWithLocalTzType.IDENTIFIER.equals(identifier)) {
+            value = Expressions.call(expression, "getDateTime", Expressions.constant(index));
+          } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+            value =
+                Expressions.convert_(
+                    Expressions.call(
+                        expression,
+                        "getLogicalTypeValue",
+                        Expressions.constant(index),
+                        Expressions.constant(LocalDate.class)),
+                    LocalDate.class);
+          } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+            value =
+                Expressions.convert_(
+                    Expressions.call(
+                        expression,
+                        "getLogicalTypeValue",
+                        Expressions.constant(index),
+                        Expressions.constant(LocalTime.class)),
+                    LocalTime.class);
+          } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+            value =
+                Expressions.convert_(
+                    Expressions.call(
+                        expression,
+                        "getLogicalTypeValue",
+                        Expressions.constant(index),
+                        Expressions.constant(LocalDateTime.class)),
+                    LocalDateTime.class);
+          } else {
+            throw new UnsupportedOperationException("Unable to get logical type " + identifier);
+          }
+          break;
+        default:
+          throw new UnsupportedOperationException("Unable to get " + fieldType.getTypeName());
       }
 
-      Expression value =
-          Expressions.convert_(
-              Expressions.call(
-                  expression,
-                  "getBaseValue",
-                  Expressions.constant(index),
-                  Expressions.constant(convertTo)),
-              convertTo);
-      return (storageType != Object.class) ? value(value, fromType) : value;
+      return toCalciteValue(value, fieldType);
     }
 
-    private static Expression value(Expression value, Schema.FieldType type) {
-      if (type.getTypeName().isLogicalType()) {
-        String logicalId = type.getLogicalType().getIdentifier();
-        if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
+    // Value conversion: Beam => Calcite
+    private static Expression toCalciteValue(Expression value, FieldType fieldType) {
+      switch (fieldType.getTypeName()) {
+        case BYTE:
+          return Expressions.convert_(value, Byte.class);
+        case INT16:
+          return Expressions.convert_(value, Short.class);
+        case INT32:
+          return Expressions.convert_(value, Integer.class);
+        case INT64:
+          return Expressions.convert_(value, Long.class);
+        case DECIMAL:
+          return Expressions.convert_(value, BigDecimal.class);
+        case FLOAT:
+          return Expressions.convert_(value, Float.class);
+        case DOUBLE:
+          return Expressions.convert_(value, Double.class);
+        case STRING:
+          return Expressions.convert_(value, String.class);
+        case BOOLEAN:
+          return Expressions.convert_(value, Boolean.class);
+        case DATETIME:
           return nullOr(
-              value, Expressions.divide(value, Expressions.constant(NANOS_PER_MILLISECOND)));
-        } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
-          return value;
-        } else if (SqlTypes.DATETIME.getIdentifier().equals(logicalId)) {
-          Expression dateValue =
-              Expressions.call(value, "getInt64", Expressions.constant(DateTime.DATE_FIELD_NAME));
-          Expression timeValue =
-              Expressions.call(value, "getInt64", Expressions.constant(DateTime.TIME_FIELD_NAME));
-          Expression returnValue =
-              Expressions.add(
-                  Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
-                  Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
-          return nullOr(value, returnValue);
-        } else if (!CharType.IDENTIFIER.equals(logicalId)) {
-          throw new UnsupportedOperationException(
-              "Unknown LogicalType " + type.getLogicalType().getIdentifier());
-        }
-      } else if (type.getTypeName().isMapType()) {
-        return nullOr(value, map(value, type.getMapValueType()));
-      } else if (CalciteUtils.isDateTimeType(type)) {
-        return nullOr(value, Expressions.call(value, "getMillis"));
-      } else if (type.getTypeName().isCompositeType()) {
-        return nullOr(value, row(value, type.getRowSchema()));
-      } else if (type.getTypeName().isCollectionType()) {
-        return nullOr(value, list(value, type.getCollectionElementType()));
-      } else if (type.getTypeName() == TypeName.BYTES) {
-        return nullOr(
-            value, Expressions.new_(ByteString.class, Types.castIfNecessary(byte[].class, value)));
+              value, Expressions.call(Expressions.convert_(value, DateTime.class), "getMillis"));
+        case BYTES:
+          return nullOr(
+              value, Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));
+        case ARRAY:
+          return nullOr(value, toCalciteList(value, fieldType.getCollectionElementType()));
+        case MAP:
+          return nullOr(value, toCalciteMap(value, fieldType.getMapValueType()));
+        case ROW:
+          return nullOr(value, toCalciteRow(value, fieldType.getRowSchema()));
+        case LOGICAL_TYPE:
+          String identifier = fieldType.getLogicalType().getIdentifier();
+          if (CharType.IDENTIFIER.equals(identifier)) {
+            return Expressions.convert_(value, String.class);
+          } else if (TimeWithLocalTzType.IDENTIFIER.equals(identifier)) {
+            return nullOr(
+                value, Expressions.call(Expressions.convert_(value, DateTime.class), "getMillis"));
+          } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+            return nullOr(
+                value,
+                Expressions.call(
+                    Expressions.box(
+                        Expressions.call(
+                            Expressions.convert_(value, LocalDate.class), "toEpochDay")),
+                    "intValue"));
+          } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+            return nullOr(
+                value,
+                Expressions.call(
+                    Expressions.box(
+                        Expressions.divide(
+                            Expressions.call(
+                                Expressions.convert_(value, LocalTime.class), "toNanoOfDay"),
+                            Expressions.constant(NANOS_PER_MILLISECOND))),
+                    "intValue"));
+          } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+            value = Expressions.convert_(value, LocalDateTime.class);
+            Expression dateValue =
+                Expressions.call(Expressions.call(value, "toLocalDate"), "toEpochDay");
+            Expression timeValue =
+                Expressions.call(Expressions.call(value, "toLocalTime"), "toNanoOfDay");
+            Expression returnValue =
+                Expressions.add(
+                    Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
+                    Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
+            return nullOr(value, returnValue);
+          } else {
+            throw new UnsupportedOperationException("Unable to convert logical type " + identifier);
+          }
+        default:
+          throw new UnsupportedOperationException("Unable to convert " + fieldType.getTypeName());
       }
-
-      return value;
     }
 
-    private static Expression list(Expression input, FieldType elementType) {
+    private static Expression toCalciteList(Expression input, FieldType elementType) {
       ParameterExpression value = Expressions.parameter(Object.class);
 
       BlockBuilder block = new BlockBuilder();
-      block.add(value(value, elementType));
+      block.add(toCalciteValue(value, elementType));
 
       return Expressions.new_(
           WrappedList.class,
@@ -548,11 +615,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                   block.toBlock())));
     }
 
-    private static Expression map(Expression input, FieldType mapValueType) {
+    private static Expression toCalciteMap(Expression input, FieldType mapValueType) {
       ParameterExpression value = Expressions.parameter(Object.class);
 
       BlockBuilder block = new BlockBuilder();
-      block.add(value(value, mapValueType));
+      block.add(toCalciteValue(value, mapValueType));
 
       return Expressions.new_(
           WrappedMap.class,
@@ -566,14 +633,14 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                   block.toBlock())));
     }
 
-    private static Expression row(Expression input, Schema schema) {
+    private static Expression toCalciteRow(Expression input, Schema schema) {
       ParameterExpression row = Expressions.parameter(Row.class);
       ParameterExpression index = Expressions.parameter(int.class);
       BlockBuilder body = new BlockBuilder(/* optimizing= */ false);
 
       for (int i = 0; i < schema.getFieldCount(); i++) {
         BlockBuilder list = new BlockBuilder(/* optimizing= */ false, body);
-        Expression returnValue = value(list, i, /* storageType= */ null, row, schema);
+        Expression returnValue = getBeamField(list, i, row, schema);
 
         list.append(returnValue);
 

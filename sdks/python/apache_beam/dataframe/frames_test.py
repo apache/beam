@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
 import numpy as np
 import pandas as pd
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.dataframe import expressions
@@ -32,6 +32,8 @@ GROUPBY_DF = pd.DataFrame({
     'foo': [None if i % 11 == 0 else i for i in range(100)],
     'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
     'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    'bool': [i % 17 == 0 for i in range(100)],
+    'str': [str(i) for i in range(100)],
 })
 
 
@@ -365,6 +367,10 @@ class DeferredFrameTest(unittest.TestCase):
         df)
     self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
     self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
+    self._run_test(
+        lambda df: df.set_index(['str', 'group', 'bool']).groupby(
+            level='group').apply(median_sum_fn),
+        df)
 
   @unittest.skip('BEAM-11710')
   def test_groupby_aggregate_grouped_column(self):
@@ -504,6 +510,16 @@ class DeferredFrameTest(unittest.TestCase):
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
 
+  @parameterized.expand([
+      (pd.Series(range(10)), ),  # unique
+      (pd.Series(list(range(100)) + [0]), ),  # non-unique int
+      (pd.Series(list(range(100)) + [0]) / 100, ),  # non-unique flt
+      (pd.Series(['a', 'b', 'c', 'd']), ),  # unique str
+      (pd.Series(['a', 'b', 'a', 'c', 'd']), ),  # non-unique str
+  ])
+  def test_series_is_unique(self, series):
+    self._run_test(lambda s: s.is_unique, series)
+
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
     self._run_test(lambda df: df['A'], df)
@@ -554,7 +570,6 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df1, df2: df2.append(df1, sort=True), df1, df2)
     self._run_test(lambda df1, df2: df2.append(df1, sort=False), df1, df2)
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_dataframe_agg(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
@@ -565,7 +580,6 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_smallest_largest(self):
     df = pd.DataFrame({'A': [1, 1, 2, 2], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)
@@ -587,13 +601,12 @@ class DeferredFrameTest(unittest.TestCase):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
     df.loc[df.index[:5], 'a'] = np.nan
     df.loc[df.index[5:10], 'b'] = np.nan
-    self._run_test(lambda df: df.corr().round(8), df)
-    self._run_test(lambda df: df.cov().round(8), df)
-    self._run_test(lambda df: df.corr(min_periods=12).round(8), df)
-    self._run_test(lambda df: df.cov(min_periods=12).round(8), df)
-    self._run_test(lambda df: df.corrwith(df.a).round(8), df)
-    self._run_test(
-        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8), df)
+    self._run_test(lambda df: df.corr(), df)
+    self._run_test(lambda df: df.cov(), df)
+    self._run_test(lambda df: df.corr(min_periods=12), df)
+    self._run_test(lambda df: df.cov(min_periods=12), df)
+    self._run_test(lambda df: df.corrwith(df.a), df)
+    self._run_test(lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]), df)
 
   @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
   def test_applymap_na_action(self):
@@ -632,6 +645,55 @@ class DeferredFrameTest(unittest.TestCase):
     self.assertRaises(
         NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
+  def test_index_name_assignment(self):
+    df = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
+    df = df.set_index(['a', 'b'], drop=False)
+
+    def change_index_names(df):
+      df.index.names = ['A', None]
+      return df
+
+    self._run_test(change_index_names, df)
+
+  @parameterized.expand((x, ) for x in [
+      0,
+      [1],
+      3,
+      [0, 3],
+      [2, 1],
+      ['foo', 0],
+      [1, 'str'],
+      [3, 0, 2, 1],
+  ])
+  def test_groupby_level_agg(self, level):
+    df = GROUPBY_DF.set_index(['group', 'foo', 'bar', 'str'], drop=False)
+    self._run_test(lambda df: df.groupby(level=level).bar.max(), df)
+    self._run_test(
+        lambda df: df.groupby(level=level).sum(numeric_only=True), df)
+    self._run_test(
+        lambda df: df.groupby(level=level).apply(
+            lambda x: (x.foo + x.bar).median()),
+        df)
+
+  def test_quantile_axis_columns(self):
+    df = pd.DataFrame(
+        np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"df\.quantile\(q=0\.1, axis='columns'\)"):
+      self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
+
+  @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
+  def test_groupby_count_na(self):
+    # Verify we can do a groupby.count() that doesn't drop NaN values
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=True).bar.count(), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
@@ -661,6 +723,67 @@ class AllowNonParallelTest(unittest.TestCase):
     # disallowed
     with self.assertRaises(expressions.NonParallelOperation):
       self._use_non_parallel_operation()
+
+
+class ConstructionTimeTest(unittest.TestCase):
+  """Tests for operations that can be executed eagerly."""
+  DF = pd.DataFrame({
+      'str_col': ['foo', 'bar'],
+      'int_col': [1, 2],
+      'flt_col': [1.1, 2.2],
+  })
+  DEFERRED_DF = frame_base.DeferredFrame.wrap(
+      expressions.PlaceholderExpression(DF))
+
+  def _run_test(self, fn):
+    self.assertEqual(fn(self.DEFERRED_DF), fn(self.DF))
+
+  @parameterized.expand(DF.columns)
+  def test_series_name(self, col_name):
+    self._run_test(lambda df: df[col_name])
+
+  @parameterized.expand(DF.columns)
+  def test_series_dtype(self, col_name):
+    self._run_test(lambda df: df[col_name].dtype)
+    self._run_test(lambda df: df[col_name].dtypes)
+
+  def test_dataframe_columns(self):
+    self._run_test(lambda df: list(df.columns))
+
+  def test_dataframe_dtypes(self):
+    self._run_test(lambda df: list(df.dtypes))
+
+
+class DocstringTest(unittest.TestCase):
+  @parameterized.expand([
+      (frames.DeferredDataFrame, pd.DataFrame),
+      (frames.DeferredSeries, pd.Series),
+      (frames._DeferredIndex, pd.Index),
+      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
+      (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+  ])
+  @unittest.skip('BEAM-12074')
+  def test_docs_defined(self, beam_type, pd_type):
+    beam_attrs = set(dir(beam_type))
+    pd_attrs = set(dir(pd_type))
+
+    docstring_required = sorted([
+        attr for attr in beam_attrs.intersection(pd_attrs)
+        if getattr(pd_type, attr).__doc__ and not attr.startswith('_')
+    ])
+
+    docstring_missing = [
+        attr for attr in docstring_required
+        if not getattr(beam_type, attr).__doc__
+    ]
+
+    self.assertTrue(
+        len(docstring_missing) == 0,
+        f'{beam_type.__name__} is missing a docstring for '
+        f'{len(docstring_missing)}/{len(docstring_required)} '
+        f'({len(docstring_missing)/len(docstring_required):%}) '
+        f'operations:\n{docstring_missing}')
 
 
 if __name__ == '__main__':

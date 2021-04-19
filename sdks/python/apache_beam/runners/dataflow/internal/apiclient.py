@@ -346,9 +346,12 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
 
-    if self.google_cloud_options.service_options:
-      for option in self.google_cloud_options.service_options:
+    if self.google_cloud_options.dataflow_service_options:
+      for option in self.google_cloud_options.dataflow_service_options:
         self.proto.serviceOptions.append(option)
+
+    if self.google_cloud_options.enable_hot_key_logging:
+      self.proto.debugOptions = dataflow.DebugOptions(enableHotKeyLogging=True)
 
   def _get_environments_from_tranforms(self):
     if not self._proto_pipeline:

@@ -26,9 +26,11 @@ import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
@@ -85,6 +87,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
         || ExperimentalOptions.hasExperiment(
             pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
         || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
+      pipeline.replaceAll(ImmutableList.of(KafkaIO.Read.KAFKA_READ_OVERRIDE));
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     }
     JavaSparkContext jsc = new JavaSparkContext("local[1]", "Debug_Pipeline");

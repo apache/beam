@@ -31,15 +31,10 @@ the sink.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import math
 import random
 import uuid
-from builtins import object
-from builtins import range
 from collections import namedtuple
 from typing import Any
 from typing import Iterator
@@ -1504,33 +1499,39 @@ class _SDFBoundedSourceRestriction(object):
     return self._source_bundle.source
 
   def try_split(self, fraction_of_remainder):
-    consumed_fraction = self.range_tracker().fraction_consumed()
-    fraction = (
-        consumed_fraction + (1 - consumed_fraction) * fraction_of_remainder)
-    position = self.range_tracker().position_at_fraction(fraction)
-    # Need to stash current stop_pos before splitting since
-    # range_tracker.split will update its stop_pos if splits
-    # successfully.
-    stop_pos = self._source_bundle.stop_position
-    split_result = self.range_tracker().try_split(position)
-    if split_result:
-      split_pos, split_fraction = split_result
-      primary_weight = self._source_bundle.weight * split_fraction
-      residual_weight = self._source_bundle.weight - primary_weight
-      # Update self to primary weight and end position.
-      self._source_bundle = SourceBundle(
-          primary_weight,
-          self._source_bundle.source,
-          self._source_bundle.start_position,
-          split_pos)
-      return (
-          self,
-          _SDFBoundedSourceRestriction(
-              SourceBundle(
-                  residual_weight,
-                  self._source_bundle.source,
-                  split_pos,
-                  stop_pos)))
+    try:
+      consumed_fraction = self.range_tracker().fraction_consumed()
+      fraction = (
+          consumed_fraction + (1 - consumed_fraction) * fraction_of_remainder)
+      position = self.range_tracker().position_at_fraction(fraction)
+      # Need to stash current stop_pos before splitting since
+      # range_tracker.split will update its stop_pos if splits
+      # successfully.
+      stop_pos = self._source_bundle.stop_position
+      split_result = self.range_tracker().try_split(position)
+      if split_result:
+        split_pos, split_fraction = split_result
+        primary_weight = self._source_bundle.weight * split_fraction
+        residual_weight = self._source_bundle.weight - primary_weight
+        # Update self to primary weight and end position.
+        self._source_bundle = SourceBundle(
+            primary_weight,
+            self._source_bundle.source,
+            self._source_bundle.start_position,
+            split_pos)
+        return (
+            self,
+            _SDFBoundedSourceRestriction(
+                SourceBundle(
+                    residual_weight,
+                    self._source_bundle.source,
+                    split_pos,
+                    stop_pos)))
+    except Exception:
+      # For any exceptions from underlying trySplit calls, the wrapper will
+      # think that the source refuses to split at this point. In this case,
+      # no split happens at the wrapper level.
+      return None
 
 
 class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):

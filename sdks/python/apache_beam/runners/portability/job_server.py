@@ -140,8 +140,9 @@ class JavaJarJobServer(SubprocessJobServer):
     raise NotImplementedError(type(self))
 
   @staticmethod
-  def path_to_beam_jar(gradle_target):
-    return subprocess_server.JavaJarServer.path_to_beam_jar(gradle_target)
+  def path_to_beam_jar(gradle_target, artifact_id=None):
+    return subprocess_server.JavaJarServer.path_to_beam_jar(
+        gradle_target, artifact_id=artifact_id)
 
   @staticmethod
   def local_jar(url):

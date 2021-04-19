@@ -20,8 +20,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import filecmp
 import logging
 import os
@@ -29,8 +27,6 @@ import shutil
 import tempfile
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 from parameterized import param
 from parameterized import parameterized

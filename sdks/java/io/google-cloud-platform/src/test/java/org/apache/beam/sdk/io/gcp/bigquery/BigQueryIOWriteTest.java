@@ -1166,11 +1166,6 @@ public class BigQueryIOWriteTest implements Serializable {
       throw new UnsupportedOperationException(
           "PartitionedGlobalWindows is not allowed in side inputs");
     }
-
-    @Override
-    public Instant getOutputTime(Instant inputTimestamp, PartitionedGlobalWindow window) {
-      return inputTimestamp;
-    }
   }
 
   /** Custom Window object that encodes a String value. */

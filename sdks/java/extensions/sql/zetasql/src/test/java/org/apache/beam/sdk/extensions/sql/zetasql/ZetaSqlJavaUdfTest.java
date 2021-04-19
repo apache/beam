@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.fail;
 
+import com.google.zetasql.SqlException;
 import java.lang.reflect.Method;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
@@ -39,7 +41,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -291,6 +292,20 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testJavaUdfWithNoReturnTypeIsRejected() {
+    String sql =
+        String.format(
+            "CREATE FUNCTION helloWorld() LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT helloWorld();",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(SqlException.class);
+    thrown.expectMessage("Non-SQL functions must specify a return type");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
   public void testBinaryJavaUdf() {
     String sql =
         String.format(
@@ -298,9 +313,8 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 + "SELECT matches(\"a\", \"a\"), 'apple'='beta'",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(CannotPlanException.class);
-    thrown.expectMessage(
-        "There are not enough rules to produce a node with desired properties: convention=BEAM_LOGICAL.");
+    thrown.expect(SqlConversionException.class);
+    thrown.expectMessage("Failed to produce plan for query");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 

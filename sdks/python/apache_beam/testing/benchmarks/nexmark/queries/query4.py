@@ -39,8 +39,6 @@ For extra spiciness our implementation differs slightly from the above:
   window_size_sec and period window_period_sec.
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries import winning_bids

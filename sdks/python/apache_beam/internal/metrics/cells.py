@@ -25,10 +25,6 @@ For internal use only. No backwards compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
 

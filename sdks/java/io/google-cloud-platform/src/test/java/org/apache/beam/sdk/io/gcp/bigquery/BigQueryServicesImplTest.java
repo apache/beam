@@ -1063,7 +1063,7 @@ public class BigQueryServicesImplTest {
     verifyNotNull(ret.getTableReference());
     expectedLogs.verifyInfo(
         "Quota limit reached when creating table project:dataset.table, "
-            + "retrying up to 5.0 minutes");
+            + "retrying up to 5 minutes");
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} uses the supplied {@link ErrorContainer}. */

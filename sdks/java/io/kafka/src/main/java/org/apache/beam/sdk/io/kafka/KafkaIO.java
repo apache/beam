@@ -33,8 +33,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -51,6 +54,9 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -72,6 +78,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -1209,65 +1216,144 @@ public class KafkaIO {
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
 
-      // The Read will be expanded into SDF transform when "beam_fn_api" is enabled.
-      if (!ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+      // For read from unbounded in a bounded manner, we actually are not going through Read or SDF.
+      if (ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
           || ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+              input.getPipeline().getOptions(), "use_deprecated_read")
+          || getMaxNumRecords() < Long.MAX_VALUE
+          || getMaxReadTime() != null) {
+        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
+      }
+      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+    }
+
+    /**
+     * A {@link PTransformOverride} for runners to swap {@link ReadFromKafkaViaSDF} to legacy Kafka
+     * read if runners doesn't have a good support on executing unbounded Splittable DoFn.
+     */
+    @Internal
+    public static final PTransformOverride KAFKA_READ_OVERRIDE =
+        PTransformOverride.of(
+            PTransformMatchers.classEqualTo(ReadFromKafkaViaSDF.class),
+            new KafkaReadOverrideFactory<>());
+
+    private static class KafkaReadOverrideFactory<K, V>
+        implements PTransformOverrideFactory<
+            PBegin, PCollection<KafkaRecord<K, V>>, ReadFromKafkaViaSDF<K, V>> {
+
+      @Override
+      public PTransformReplacement<PBegin, PCollection<KafkaRecord<K, V>>> getReplacementTransform(
+          AppliedPTransform<PBegin, PCollection<KafkaRecord<K, V>>, ReadFromKafkaViaSDF<K, V>>
+              transform) {
+        return PTransformReplacement.of(
+            transform.getPipeline().begin(),
+            new ReadFromKafkaViaUnbounded<>(
+                transform.getTransform().kafkaRead,
+                transform.getTransform().keyCoder,
+                transform.getTransform().valueCoder));
+      }
+
+      @Override
+      public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+          Map<TupleTag<?>, PCollection<?>> outputs, PCollection<KafkaRecord<K, V>> newOutput) {
+        return ReplacementOutputs.singleton(outputs, newOutput);
+      }
+    }
+
+    private static class ReadFromKafkaViaUnbounded<K, V>
+        extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
+      Read<K, V> kafkaRead;
+      Coder<K> keyCoder;
+      Coder<V> valueCoder;
+
+      ReadFromKafkaViaUnbounded(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
+        this.kafkaRead = kafkaRead;
+        this.keyCoder = keyCoder;
+        this.valueCoder = valueCoder;
+      }
+
+      @Override
+      public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(
-                toBuilder().setKeyCoder(keyCoder).setValueCoder(valueCoder).build().makeSource());
+                kafkaRead
+                    .toBuilder()
+                    .setKeyCoder(keyCoder)
+                    .setValueCoder(valueCoder)
+                    .build()
+                    .makeSource());
 
         PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
-        if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
+        if (kafkaRead.getMaxNumRecords() < Long.MAX_VALUE || kafkaRead.getMaxReadTime() != null) {
           transform =
-              unbounded.withMaxReadTime(getMaxReadTime()).withMaxNumRecords(getMaxNumRecords());
+              unbounded
+                  .withMaxReadTime(kafkaRead.getMaxReadTime())
+                  .withMaxNumRecords(kafkaRead.getMaxNumRecords());
         }
 
         return input.getPipeline().apply(transform);
       }
-      ReadSourceDescriptors<K, V> readTransform =
-          ReadSourceDescriptors.<K, V>read()
-              .withConsumerConfigOverrides(getConsumerConfig())
-              .withOffsetConsumerConfigOverrides(getOffsetConsumerConfig())
-              .withConsumerFactoryFn(getConsumerFactoryFn())
-              .withKeyDeserializerProvider(getKeyDeserializerProvider())
-              .withValueDeserializerProvider(getValueDeserializerProvider())
-              .withManualWatermarkEstimator()
-              .withTimestampPolicyFactory(getTimestampPolicyFactory())
-              .withCheckStopReadingFn(getCheckStopReadingFn());
-      if (isCommitOffsetsInFinalizeEnabled()) {
-        readTransform = readTransform.commitOffsets();
-      }
-      PCollection<KafkaSourceDescriptor> output;
-      if (isDynamicRead()) {
-        output =
-            input
-                .getPipeline()
-                .apply(Impulse.create())
-                .apply(
-                    MapElements.into(
-                            TypeDescriptors.kvs(
-                                new TypeDescriptor<byte[]>() {}, new TypeDescriptor<byte[]>() {}))
-                        .via(element -> KV.of(element, element)))
-                .apply(
-                    ParDo.of(
-                        new WatchKafkaTopicPartitionDoFn(
-                            getWatchTopicPartitionDuration(),
-                            getConsumerFactoryFn(),
-                            getCheckStopReadingFn(),
-                            getConsumerConfig(),
-                            getStartReadTime())));
+    }
 
-      } else {
-        output =
-            input
-                .getPipeline()
-                .apply(Impulse.create())
-                .apply(ParDo.of(new GenerateKafkaSourceDescriptor(this)));
+    static class ReadFromKafkaViaSDF<K, V>
+        extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
+      Read<K, V> kafkaRead;
+      Coder<K> keyCoder;
+      Coder<V> valueCoder;
+
+      ReadFromKafkaViaSDF(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
+        this.kafkaRead = kafkaRead;
+        this.keyCoder = keyCoder;
+        this.valueCoder = valueCoder;
       }
-      return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+
+      @Override
+      public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
+        ReadSourceDescriptors<K, V> readTransform =
+            ReadSourceDescriptors.<K, V>read()
+                .withConsumerConfigOverrides(kafkaRead.getConsumerConfig())
+                .withOffsetConsumerConfigOverrides(kafkaRead.getOffsetConsumerConfig())
+                .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
+                .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
+                .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
+                .withManualWatermarkEstimator()
+                .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
+                .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn());
+        if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
+          readTransform = readTransform.commitOffsets();
+        }
+        PCollection<KafkaSourceDescriptor> output;
+        if (kafkaRead.isDynamicRead()) {
+          output =
+              input
+                  .getPipeline()
+                  .apply(Impulse.create())
+                  .apply(
+                      MapElements.into(
+                              TypeDescriptors.kvs(
+                                  new TypeDescriptor<byte[]>() {}, new TypeDescriptor<byte[]>() {}))
+                          .via(element -> KV.of(element, element)))
+                  .apply(
+                      ParDo.of(
+                          new WatchKafkaTopicPartitionDoFn(
+                              kafkaRead.getWatchTopicPartitionDuration(),
+                              kafkaRead.getConsumerFactoryFn(),
+                              kafkaRead.getCheckStopReadingFn(),
+                              kafkaRead.getConsumerConfig(),
+                              kafkaRead.getStartReadTime())));
+
+        } else {
+          output =
+              input
+                  .getPipeline()
+                  .apply(Impulse.create())
+                  .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+        }
+        return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+      }
     }
 
     /**
@@ -1796,10 +1882,6 @@ public class KafkaIO {
 
     @Override
     public PCollection<KafkaRecord<K, V>> expand(PCollection<KafkaSourceDescriptor> input) {
-      checkArgument(
-          ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api"),
-          "The ReadSourceDescriptors can only used when beam_fn_api is enabled.");
-
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 

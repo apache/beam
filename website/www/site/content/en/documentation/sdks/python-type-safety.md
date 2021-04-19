@@ -95,7 +95,7 @@ Annotations are currently supported on:
 The following code declares an `int` input and a `str` output type hint on the `to_id` transform, using annotations on `my_fn`.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_map_annotations >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_map_annotations >}}
 {{< /highlight >}}
 
 The following code demonstrates how to use annotations on `PTransform` subclasses.
@@ -104,7 +104,7 @@ The following code declares typehints on a custom PTransform, that takes a `PCol
 and outputs a `PCollection[str]`, using annotations.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_ptransforms >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_ptransforms >}}
 {{< /highlight >}}
 
 The following code declares `int` input and output type hints on `filter_evens`, using annotations on `FilterEvensDoFn.process`.
@@ -114,7 +114,7 @@ It is an error to have a non-iterable return type annotation for these functions
 Other supported iterable types include: `Iterator`, `Generator`, `Tuple`, `List`.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_do_fn_annotations >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_do_fn_annotations >}}
 {{< /highlight >}}
 
 The following code declares `int` input and output type hints on `double_evens`, using annotations on `FilterEvensDoubleDoFn.process`.
@@ -122,7 +122,7 @@ Since `process` returns a `list` or `None`, the output type is annotated as `Opt
 Beam will also remove the outer `Optional` and (as above) the outer iterable of the return type, only on the `DoFn.process` method and functions passed to `FlatMap`.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_do_fn_annotations_optional >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_do_fn_annotations_optional >}}
 {{< /highlight >}}
 
 ### Declaring Type Hints Inline

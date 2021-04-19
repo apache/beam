@@ -23,12 +23,13 @@ import static org.junit.Assert.assertTrue;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import java.util.List;
 import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.thrift.payloads.SimpleThriftMessage;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.thrift.TBase;
 import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
@@ -38,6 +39,8 @@ import org.junit.Test;
 /** UnitTest for {@link KafkaTableProvider}. */
 public class KafkaTableProviderTest {
   private final KafkaTableProvider provider = new KafkaTableProvider();
+  private static final String LOCATION_BROKER = "104.126.7.88:7743";
+  private static final String LOCATION_TOPIC = "topic1";
 
   @Test
   public void testBuildBeamSqlCSVTable() {
@@ -47,9 +50,37 @@ public class KafkaTableProviderTest {
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof BeamKafkaCSVTable);
 
-    BeamKafkaCSVTable csvTable = (BeamKafkaCSVTable) sqlTable;
-    assertEquals("localhost:9092", csvTable.getBootstrapServers());
-    assertEquals(ImmutableList.of("topic1", "topic2"), csvTable.getTopics());
+    BeamKafkaCSVTable kafkaTable = (BeamKafkaCSVTable) sqlTable;
+    assertEquals(LOCATION_BROKER, kafkaTable.getBootstrapServers());
+    assertEquals(ImmutableList.of(LOCATION_TOPIC), kafkaTable.getTopics());
+  }
+
+  @Test
+  public void testBuildWithExtraServers() {
+    Table table =
+        mockTableWithExtraServers("hello", ImmutableList.of("localhost:1111", "localhost:2222"));
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof BeamKafkaCSVTable);
+
+    BeamKafkaCSVTable kafkaTable = (BeamKafkaCSVTable) sqlTable;
+    assertEquals(
+        LOCATION_BROKER + ",localhost:1111,localhost:2222", kafkaTable.getBootstrapServers());
+    assertEquals(ImmutableList.of(LOCATION_TOPIC), kafkaTable.getTopics());
+  }
+
+  @Test
+  public void testBuildWithExtraTopics() {
+    Table table = mockTableWithExtraTopics("hello", ImmutableList.of("topic2", "topic3"));
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof BeamKafkaCSVTable);
+
+    BeamKafkaCSVTable kafkaTable = (BeamKafkaCSVTable) sqlTable;
+    assertEquals(LOCATION_BROKER, kafkaTable.getBootstrapServers());
+    assertEquals(ImmutableList.of(LOCATION_TOPIC, "topic2", "topic3"), kafkaTable.getTopics());
   }
 
   @Test
@@ -60,9 +91,9 @@ public class KafkaTableProviderTest {
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof BeamKafkaTable);
 
-    BeamKafkaTable csvTable = (BeamKafkaTable) sqlTable;
-    assertEquals("localhost:9092", csvTable.getBootstrapServers());
-    assertEquals(ImmutableList.of("topic1", "topic2"), csvTable.getTopics());
+    BeamKafkaTable kafkaTable = (BeamKafkaTable) sqlTable;
+    assertEquals(LOCATION_BROKER, kafkaTable.getBootstrapServers());
+    assertEquals(ImmutableList.of(LOCATION_TOPIC), kafkaTable.getTopics());
   }
 
   @Test
@@ -73,9 +104,9 @@ public class KafkaTableProviderTest {
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof BeamKafkaTable);
 
-    BeamKafkaTable protoTable = (BeamKafkaTable) sqlTable;
-    assertEquals("localhost:9092", protoTable.getBootstrapServers());
-    assertEquals(ImmutableList.of("topic1", "topic2"), protoTable.getTopics());
+    BeamKafkaTable kafkaTable = (BeamKafkaTable) sqlTable;
+    assertEquals(LOCATION_BROKER, kafkaTable.getBootstrapServers());
+    assertEquals(ImmutableList.of(LOCATION_TOPIC), kafkaTable.getTopics());
   }
 
   @Test
@@ -87,9 +118,9 @@ public class KafkaTableProviderTest {
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof BeamKafkaTable);
 
-    BeamKafkaTable thriftTable = (BeamKafkaTable) sqlTable;
-    assertEquals("localhost:9092", thriftTable.getBootstrapServers());
-    assertEquals(ImmutableList.of("topic1", "topic2"), thriftTable.getTopics());
+    BeamKafkaTable kafkaTable = (BeamKafkaTable) sqlTable;
+    assertEquals(LOCATION_BROKER, kafkaTable.getBootstrapServers());
+    assertEquals(ImmutableList.of(LOCATION_TOPIC), kafkaTable.getTopics());
   }
 
   @Test
@@ -100,9 +131,9 @@ public class KafkaTableProviderTest {
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof NestedPayloadKafkaTable);
 
-    BeamKafkaTable thriftTable = (BeamKafkaTable) sqlTable;
-    assertEquals("localhost:9092", thriftTable.getBootstrapServers());
-    assertEquals(ImmutableList.of("topic1", "topic2"), thriftTable.getTopics());
+    BeamKafkaTable kafkaTable = (BeamKafkaTable) sqlTable;
+    assertEquals(LOCATION_BROKER, kafkaTable.getBootstrapServers());
+    assertEquals(ImmutableList.of(LOCATION_TOPIC), kafkaTable.getTopics());
   }
 
   @Test
@@ -114,9 +145,9 @@ public class KafkaTableProviderTest {
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof NestedPayloadKafkaTable);
 
-    BeamKafkaTable thriftTable = (BeamKafkaTable) sqlTable;
-    assertEquals("localhost:9092", thriftTable.getBootstrapServers());
-    assertEquals(ImmutableList.of("topic1", "topic2"), thriftTable.getTopics());
+    BeamKafkaTable kafkaTable = (BeamKafkaTable) sqlTable;
+    assertEquals(LOCATION_BROKER, kafkaTable.getBootstrapServers());
+    assertEquals(ImmutableList.of(LOCATION_TOPIC), kafkaTable.getTopics());
   }
 
   @Test
@@ -125,48 +156,67 @@ public class KafkaTableProviderTest {
   }
 
   private static Table mockTable(String name) {
-    return mockTable(name, false, null, null, null, null);
+    return mockTable(name, false, null, null, null, null, null, null);
+  }
+
+  private static Table mockTableWithExtraServers(String name, List<String> extraBootstrapServers) {
+    return mockTable(name, false, extraBootstrapServers, null, null, null, null, null);
+  }
+
+  private static Table mockTableWithExtraTopics(String name, List<String> extraTopics) {
+    return mockTable(name, false, null, extraTopics, null, null, null, null);
   }
 
   private static Table mockTable(String name, String payloadFormat) {
-    return mockTable(name, false, payloadFormat, null, null, null);
+    return mockTable(name, false, null, null, payloadFormat, null, null, null);
   }
 
   private static Table mockProtoTable(String name, Class<?> protoClass) {
-    return mockTable(name, false, "proto", protoClass, null, null);
+    return mockTable(name, false, null, null, "proto", protoClass, null, null);
   }
 
   private static Table mockThriftTable(
       String name,
       Class<? extends TBase<?, ?>> thriftClass,
       Class<? extends TProtocolFactory> thriftProtocolFactoryClass) {
-    return mockTable(name, false, "thrift", null, thriftClass, thriftProtocolFactoryClass);
+    return mockTable(
+        name, false, null, null, "thrift", null, thriftClass, thriftProtocolFactoryClass);
   }
 
   private static Table mockNestedBytesTable(String name) {
-    return mockTable(name, true, null, null, null, null);
+    return mockTable(name, true, null, null, null, null, null, null);
   }
 
   private static Table mockNestedThriftTable(
       String name,
       Class<? extends TBase<?, ?>> thriftClass,
       Class<? extends TProtocolFactory> thriftProtocolFactoryClass) {
-    return mockTable(name, true, "thrift", null, thriftClass, thriftProtocolFactoryClass);
+    return mockTable(
+        name, true, null, null, "thrift", null, thriftClass, thriftProtocolFactoryClass);
   }
 
   private static Table mockTable(
       String name,
       boolean isNested,
+      @Nullable List<String> extraBootstrapServers,
+      @Nullable List<String> extraTopics,
       @Nullable String payloadFormat,
       @Nullable Class<?> protoClass,
       @Nullable Class<? extends TBase<?, ?>> thriftClass,
       @Nullable Class<? extends TProtocolFactory> thriftProtocolFactoryClass) {
     JSONObject properties = new JSONObject();
-    properties.put("bootstrap.servers", "localhost:9092");
-    JSONArray topics = new JSONArray();
-    topics.add("topic1");
-    topics.add("topic2");
-    properties.put("topics", topics);
+
+    if (extraBootstrapServers != null) {
+      JSONArray bootstrapServers = new JSONArray();
+      bootstrapServers.addAll(extraBootstrapServers);
+      properties.put("bootstrap_servers", bootstrapServers);
+    }
+    if (extraTopics != null) {
+      JSONArray topics = new JSONArray();
+      topics.addAll(extraTopics);
+      properties.put("topics", topics);
+    }
+
     if (payloadFormat != null) {
       properties.put("format", payloadFormat);
     }
@@ -197,7 +247,7 @@ public class KafkaTableProviderTest {
     return Table.builder()
         .name(name)
         .comment(name + " table")
-        .location("kafka://localhost:2181/brokers?topic=test")
+        .location(LOCATION_BROKER + "/" + LOCATION_TOPIC)
         .schema(schema)
         .type("kafka")
         .properties(properties)

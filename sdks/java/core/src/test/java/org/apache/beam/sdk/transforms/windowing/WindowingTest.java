@@ -142,10 +142,10 @@ public class WindowingTest implements Serializable {
     PAssert.that(output)
         .containsInAnyOrder(
             output("a", 1, 1, -5, 5),
-            output("a", 2, 5, 0, 10),
-            output("a", 1, 10, 5, 15),
+            output("a", 2, 1, 0, 10),
+            output("a", 1, 7, 5, 15),
             output("b", 1, 8, 0, 10),
-            output("b", 1, 10, 5, 15));
+            output("b", 1, 8, 5, 15));
 
     p.run();
   }

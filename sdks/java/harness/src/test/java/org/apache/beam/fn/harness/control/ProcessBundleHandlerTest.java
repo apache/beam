@@ -75,6 +75,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingConsumer;
@@ -90,8 +91,8 @@ import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -227,7 +228,7 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
-    ExecutionStateTracker getStateTracker() {
+    public ExecutionStateTracker getStateTracker() {
       return wrappedBundleProcessor.getStateTracker();
     }
 
@@ -279,6 +280,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(),
             new BundleProcessorCache());
 
@@ -305,6 +307,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(),
             new BundleProcessorCache());
 
@@ -393,6 +396,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN, startFinishRecorder,
                 DATA_OUTPUT_URN, startFinishRecorder),
@@ -512,6 +516,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             urnToPTransformRunnerFactoryMap,
             new BundleProcessorCache());
 
@@ -558,6 +563,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (pipelineOptions,
@@ -694,6 +700,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (pipelineOptions,
@@ -747,6 +754,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             mockFinalizeBundleHandler,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -816,6 +824,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -875,6 +884,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -970,6 +980,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             mockBeamFnStateGrpcClient,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
@@ -1036,6 +1047,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
@@ -1100,6 +1112,7 @@ public class ProcessBundleHandlerTest {
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {

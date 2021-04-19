@@ -44,8 +44,6 @@ python -m apache_beam.io.gcp.pubsub_io_perf_test \
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import sys
 

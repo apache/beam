@@ -227,7 +227,7 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (func(re
 		}
 		return mapEncoder(t, encK, encV), nil
 	}
-	panic(fmt.Sprintf("unimplemented type to encode: %v", t))
+	return nil, errors.Errorf("unable to encode type: %v", t)
 }
 
 func (b *RowEncoderBuilder) containerEncoderForType(t reflect.Type) (func(reflect.Value, io.Writer) error, error) {

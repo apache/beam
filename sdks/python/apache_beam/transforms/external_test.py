@@ -22,7 +22,6 @@
 from __future__ import absolute_import
 
 import logging
-import sys
 import typing
 import unittest
 
@@ -162,18 +161,11 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
     result = builder.build()
 
     decoded = RowCoder(result.schema).decode(result.payload)
-    if sys.version_info[0] < 3:
-      for key, value in PayloadBase.bytes_values.items():
-        # Note the default value in the getattr call.
-        # ImplicitSchemaPayloadBuilder omits fields with valu=None since their
-        # type cannot be inferred.
-        self.assertEqual(getattr(decoded, key, None), value)
-    else:
-      for key, value in PayloadBase.values.items():
-        # Note the default value in the getattr call.
-        # ImplicitSchemaPayloadBuilder omits fields with valu=None since their
-        # type cannot be inferred.
-        self.assertEqual(getattr(decoded, key, None), value)
+    for key, value in PayloadBase.values.items():
+      # Note the default value in the getattr call.
+      # ImplicitSchemaPayloadBuilder omits fields with valu=None since their
+      # type cannot be inferred.
+      self.assertEqual(getattr(decoded, key, None), value)
 
     # Verify we have not modified a cached type (BEAM-10766)
     # TODO(BEAM-7372): Remove when bytes coercion code is removed.

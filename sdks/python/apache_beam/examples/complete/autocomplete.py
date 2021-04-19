@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
