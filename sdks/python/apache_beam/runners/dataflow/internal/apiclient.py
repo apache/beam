@@ -703,8 +703,7 @@ class DataflowApplicationClient(object):
       overridden = False
       new_container_image = docker_payload.container_image
       for pattern, override in sdk_overrides.items():
-        new_container_image = re.sub(
-            pattern, override, docker_payload.container_image)
+        new_container_image = re.sub(pattern, override, new_container_image)
         if new_container_image != docker_payload.container_image:
           overridden = True
 
