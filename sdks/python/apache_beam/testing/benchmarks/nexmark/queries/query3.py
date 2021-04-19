@@ -31,8 +31,6 @@ the matching person is seen. Then all subsequent auctions for a person will use
 the stored person record.
 """
 
-from __future__ import absolute_import
-
 import logging
 
 import apache_beam as beam

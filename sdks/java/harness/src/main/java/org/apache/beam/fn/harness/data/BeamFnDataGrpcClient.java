@@ -67,7 +67,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    * <p>The provided coder is used to decode elements on the inbound stream. The decoded elements
    * are passed to the provided consumer. Any failure during decoding or processing of the element
    * will complete the returned future exceptionally. On successful termination of the stream
-   * (signaled by an empty data block), the returned future is completed successfully.
+   * (signaled by an empty data block with isLast set to true), the returned future is completed
+   * successfully.
    */
   @Override
   public InboundDataClient receive(
