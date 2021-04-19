@@ -854,10 +854,10 @@ class DeferredFrameTest(unittest.TestCase):
         GROUPBY_DF)
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).bar.max(level=0), GROUPBY_DF)
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df: df.set_index(['group', 'foo']).bar.median(level=0),
-          GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.median(level=0),
+        GROUPBY_DF)
 
     self._run_test(
         lambda df: df.set_index(['foo', 'group']).bar.count(level=1),
@@ -867,10 +867,9 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).bar.max(level='foo'),
         GROUPBY_DF)
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df: df.set_index(['group', 'foo']).bar.median(level=1),
-          GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.median(level=1),
+        GROUPBY_DF)
 
   def test_dataframe_agg_level(self):
     self._run_test(
@@ -989,15 +988,16 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).agg(np.size), GROUPBY_DF)
 
-  def test_agg_invalid_kwarg_raises(self):
-    self._run_test(
+  def test_df_agg_invalid_kwarg_raises(self):
+    self._run_error_test(
         lambda df: df.agg('mean', bool_only=True),
-        GROUPBY_DF,
-        expect_error=True)
-    self._run_test(
+        GROUPBY_DF)
+    self._run_error_test(
         lambda df: df.agg('any', numeric_only=True),
-        GROUPBY_DF,
-        expect_error=True)
+        GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.agg('median', min_count=3, numeric_only=True),
+        GROUPBY_DF)
 
   def test_agg_min_count(self):
     df = pd.DataFrame({
@@ -1008,11 +1008,10 @@ class DeferredFrameTest(unittest.TestCase):
 
     self._run_test(lambda df: df.sum(level=0, min_count=2), df)
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda df: df.sum(min_count=3), df)
-      self._run_test(lambda df: df.sum(min_count=1), df)
-      self._run_test(lambda df: df.good.sum(min_count=2), df)
-      self._run_test(lambda df: df.bad.sum(min_count=2), df)
+    self._run_test(lambda df: df.sum(min_count=3), df, nonparallel=True)
+    self._run_test(lambda df: df.sum(min_count=1), df, nonparallel=True)
+    self._run_test(lambda df: df.good.sum(min_count=2), df, nonparallel=True)
+    self._run_test(lambda df: df.bad.sum(min_count=2), df, nonparallel=True)
 
   def test_groupby_sum_min_count(self):
     df = pd.DataFrame({
