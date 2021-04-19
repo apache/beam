@@ -58,12 +58,12 @@ public class SamzaJobInvoker extends JobInvoker {
       @Nullable String retrievalToken,
       ListeningExecutorService executorService) {
     LOG.trace("Parsing pipeline options");
-    SamzaPortablePipelineOptions samzaOptions =
+    final SamzaPortablePipelineOptions samzaOptions =
         PipelineOptionsTranslation.fromProto(options).as(SamzaPortablePipelineOptions.class);
     // Options can't be translated to proto if runner class is unresolvable, so set it to null.
     samzaOptions.setRunner(null);
 
-    PortablePipelineRunner pipelineRunner;
+    final PortablePipelineRunner pipelineRunner;
     if (Strings.isNullOrEmpty(
         samzaOptions.as(PortablePipelineOptions.class).getOutputExecutablePath())) {
       pipelineRunner = new SamzaPipelineRunner(samzaOptions);
@@ -71,20 +71,9 @@ public class SamzaJobInvoker extends JobInvoker {
       pipelineRunner = new PortablePipelineJarCreator(SamzaPipelineRunner.class);
     }
 
-    String invocationId =
+    final String invocationId =
         String.format("%s_%s", samzaOptions.getJobName(), UUID.randomUUID().toString());
-    return createJobInvocation(
-        invocationId, retrievalToken, executorService, pipeline, samzaOptions, pipelineRunner);
-  }
-
-  protected JobInvocation createJobInvocation(
-      String invocationId,
-      String retrievalToken,
-      ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline,
-      SamzaPipelineOptions samzaOptions,
-      PortablePipelineRunner pipelineRunner) {
-    JobInfo jobInfo =
+    final JobInfo jobInfo =
         JobInfo.create(
             invocationId,
             samzaOptions.getJobName(),
