@@ -1535,8 +1535,8 @@ message StandardProtocols {
   }
 }
 
-// These URNs are used to indicate capabilities of runner that cannot that an
-// environment may take advantage of when interacting with this runner.
+// These URNs are used to indicate capabilities of runner that an environment
+// may take advantage of when interacting with this runner.
 message StandardRunnerProtocols {
   enum Enum {
     // Indicates suport the MonitoringInfo short id protocol.
