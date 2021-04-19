@@ -1583,13 +1583,15 @@ class BeamModulePlugin implements Plugin<Project> {
             if (pipelineOptionsString.contains('use_runner_v2')) {
               def dockerImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerImageName
               allOptionsList.addAll([
-                "--workerHarnessContainerImage=${dockerImageName}",
+                "--sdkContainerImage=${dockerImageName}",
                 "--region=${dataflowRegion}"
               ])
             } else {
               def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                   project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
               allOptionsList.addAll([
+                // Keep as legacy flag to ensure via test this flag works for
+                // legacy pipeline.
                 '--workerHarnessContainerImage=',
                 "--dataflowWorkerJar=${dataflowWorkerJar}",
                 "--region=${dataflowRegion}"

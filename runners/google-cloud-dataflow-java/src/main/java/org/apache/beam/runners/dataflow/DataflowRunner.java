@@ -269,7 +269,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           "Missing required pipeline options: " + Joiner.on(',').join(missing));
     }
 
-    validateWorkerSettings(PipelineOptionsValidator.validate(GcpOptions.class, options));
+    validateWorkerSettings(
+        PipelineOptionsValidator.validate(DataflowPipelineWorkerPoolOptions.class, options));
 
     PathValidator validator = dataflowOptions.getPathValidator();
     String gcpTempLocation;
@@ -401,8 +402,39 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Strings.isNullOrEmpty(endpoint) || Pattern.matches(ENDPOINT_REGEXP, endpoint);
   }
 
+  static void validateSdkContainerImageOptions(DataflowPipelineWorkerPoolOptions workerOptions) {
+    // Check against null - empty string value for workerHarnessContainerImage
+    // must be preserved for legacy dataflowWorkerJar to work.
+    String sdkContainerOption = workerOptions.getSdkContainerImage();
+    String workerHarnessOption = workerOptions.getWorkerHarnessContainerImage();
+    Preconditions.checkArgument(
+        sdkContainerOption == null
+            || workerHarnessOption == null
+            || sdkContainerOption.equals(workerHarnessOption),
+        "Cannot use legacy option workerHarnessContainerImage with sdkContainerImage. Prefer sdkContainerImage.");
+
+    // Default to new option, which may be null.
+    String containerImage = workerOptions.getSdkContainerImage();
+    if (workerOptions.getWorkerHarnessContainerImage() != null
+        && workerOptions.getSdkContainerImage() == null) {
+      // Set image to old option if old option was set but new option is not set.
+      LOG.warn(
+          "Prefer --sdkContainerImage over deprecated legacy option --workerHarnessContainerImage.");
+      containerImage = workerOptions.getWorkerHarnessContainerImage();
+    }
+
+    // Make sure both options have same value.
+    workerOptions.setSdkContainerImage(containerImage);
+    workerOptions.setWorkerHarnessContainerImage(containerImage);
+  }
+
   @VisibleForTesting
-  static void validateWorkerSettings(GcpOptions gcpOptions) {
+  static void validateWorkerSettings(DataflowPipelineWorkerPoolOptions workerOptions) {
+    DataflowPipelineOptions dataflowOptions = workerOptions.as(DataflowPipelineOptions.class);
+
+    validateSdkContainerImageOptions(workerOptions);
+
+    GcpOptions gcpOptions = workerOptions.as(GcpOptions.class);
     Preconditions.checkArgument(
         gcpOptions.getZone() == null || gcpOptions.getWorkerRegion() == null,
         "Cannot use option zone with workerRegion. Prefer either workerZone or workerRegion.");
@@ -413,7 +445,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         gcpOptions.getWorkerRegion() == null || gcpOptions.getWorkerZone() == null,
         "workerRegion and workerZone options are mutually exclusive.");
 
-    DataflowPipelineOptions dataflowOptions = gcpOptions.as(DataflowPipelineOptions.class);
     boolean hasExperimentWorkerRegion = false;
     if (dataflowOptions.getExperiments() != null) {
       for (String experiment : dataflowOptions.getExperiments()) {
@@ -1092,9 +1123,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
     // Container Registry. Translator is guaranteed to create a worker pool prior to this point.
-    String workerHarnessContainerImage = getContainerImageForJob(options);
+    String containerImage = getContainerImageForJob(options);
     for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
-      workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
+      workerPool.setWorkerHarnessContainerImage(containerImage);
     }
 
     configureSdkHarnessContainerImages(options, portablePipelineProto, newJob);
@@ -2175,21 +2206,45 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   static String getContainerImageForJob(DataflowPipelineOptions options) {
-    String workerHarnessContainerImage = options.getWorkerHarnessContainerImage();
+    String containerImage = options.getSdkContainerImage();
 
-    Environments.JavaVersion javaVersion = Environments.getJavaVersion();
-    String javaVersionId =
-        (javaVersion == Environments.JavaVersion.v8) ? "java" : javaVersion.toString();
-    if (!workerHarnessContainerImage.contains("IMAGE")) {
-      return workerHarnessContainerImage;
-    } else if (useUnifiedWorker(options)) {
-      return workerHarnessContainerImage.replace("IMAGE", "java");
-    } else if (options.isStreaming()) {
-      return workerHarnessContainerImage.replace(
-          "IMAGE", String.format("beam-%s-streaming", javaVersionId));
+    if (containerImage == null) {
+      // If not set, construct and return default image URL.
+      return getDefaultContainerImageUrl(options);
+    } else if (containerImage.contains("IMAGE")) {
+      // Replace placeholder with default image name
+      // TODO(emilymye): See if we can remove this placeholder
+      return containerImage.replace("IMAGE", getDefaultContainerImageNameForJob(options));
     } else {
-      return workerHarnessContainerImage.replace(
-          "IMAGE", String.format("beam-%s-batch", javaVersionId));
+      return containerImage;
+    }
+  }
+
+  /** Construct the default Dataflow container full image URL. */
+  static String getDefaultContainerImageUrl(DataflowPipelineOptions options) {
+    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    return String.format(
+        "%s/%s:%s",
+        dataflowRunnerInfo.getContainerImageBaseRepository(),
+        getDefaultContainerImageNameForJob(options),
+        dataflowRunnerInfo.getContainerVersion());
+  }
+
+  /**
+   * Construct the default Dataflow container image name based on pipeline type and Environment Java
+   * version.
+   */
+  static String getDefaultContainerImageNameForJob(DataflowPipelineOptions options) {
+    Environments.JavaVersion javaVersion = Environments.getJavaVersion();
+    String legacyJavaVersionId =
+        (javaVersion == Environments.JavaVersion.v8) ? "java" : javaVersion.toString();
+
+    if (useUnifiedWorker(options)) {
+      return "java";
+    } else if (options.isStreaming()) {
+      return String.format("beam-%s-streaming", legacyJavaVersionId);
+    } else {
+      return String.format("beam-%s-batch", legacyJavaVersionId);
     }
   }
 
