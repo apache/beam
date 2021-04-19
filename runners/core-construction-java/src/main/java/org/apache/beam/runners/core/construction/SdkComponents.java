@@ -304,7 +304,7 @@ public class SdkComponents {
     if (existing != null) {
       environmentId = existing;
     } else {
-      String name = uniqify(env.getUrn(), environmentIds.values());
+      String name = uniqify(env.getUrn() + "_", environmentIds.values());
       environmentIds.put(env, name);
       componentsBuilder.putEnvironments(name, env);
       environmentId = name;

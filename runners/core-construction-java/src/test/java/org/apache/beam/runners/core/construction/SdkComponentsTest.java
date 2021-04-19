@@ -23,6 +23,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -259,5 +261,41 @@ public class SdkComponentsTest {
         components.registerWindowingStrategy(
             WindowingStrategy.globalDefault().withMode(AccumulationMode.ACCUMULATING_FIRED_PANES));
     assertThat(name, equalTo(duplicateName));
+  }
+
+  @Test
+  public void testEnvironmentForHintDeduplicatonLogic() {
+    assertEquals(
+        components.getEnvironmentIdFor(ResourceHints.create()),
+        components.getEnvironmentIdFor(ResourceHints.create()));
+
+    assertEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withMemory(1000)),
+        components.getEnvironmentIdFor(ResourceHints.create().withMemory(1000)));
+
+    assertEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withMemory(1000)),
+        components.getEnvironmentIdFor(ResourceHints.create().withMemory(2000).withMemory("1KB")));
+
+    assertNotEquals(
+        components.getEnvironmentIdFor(ResourceHints.create()),
+        components.getEnvironmentIdFor(ResourceHints.create().withMemory("1GiB")));
+
+    assertNotEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withMemory("10GiB")),
+        components.getEnvironmentIdFor(ResourceHints.create().withMemory("10GB")));
+
+    assertEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")));
+
+    assertNotEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("tpu")));
+
+    assertNotEquals(
+        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
+        components.getEnvironmentIdFor(
+            ResourceHints.create().withAccelerator("gpu").withMemory(10)));
   }
 }
