@@ -64,6 +64,22 @@ public class ResourceHints {
 
     private final long value;
 
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      } else if (other instanceof BytesHint) {
+        return ((BytesHint) other).value == value;
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Long.hashCode(value);
+    }
+
     public BytesHint(long value) {
       this.value = value;
     }
@@ -111,6 +127,22 @@ public class ResourceHints {
     @Override
     public byte[] toBytes() {
       return value.getBytes(Charsets.US_ASCII);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      } else if (other instanceof StringHint) {
+        return ((StringHint) other).value.equals(value);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return value.hashCode();
     }
   }
 
