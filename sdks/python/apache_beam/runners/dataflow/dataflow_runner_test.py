@@ -28,6 +28,8 @@ from builtins import range
 from datetime import datetime
 
 import mock
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
@@ -882,6 +884,34 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiment=pre_optimize=all')
     self._test_pack_combiners(
         PipelineOptions(self.default_properties), expect_packed=True)
+
+  @parameterized.expand([
+      param(memory_hint='min_ram'),
+      param(memory_hint='minRam'),
+  ])
+  def test_resource_hints_translation(self, memory_hint):
+    runner = DataflowRunner()
+    self.default_properties.append('--resource_hint=accelerator=some_gpu')
+    self.default_properties.append(f'--resource_hint={memory_hint}=20GB')
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      (
+          p
+          | beam.Create([1])
+          | 'MapWithHints' >> beam.Map(lambda x: x + 1).with_resource_hints(
+              min_ram='10GB',
+              accelerator='type:nvidia-tesla-k80;count:1;install-nvidia-drivers'
+          ))
+
+    step = self._find_step(runner.job, 'MapWithHints')
+    self.assertEqual(
+        step['properties']['resource_hints'],
+        {
+            'beam:resources:min_ram_bytes:v1': '20000000000',
+            'beam:resources:accelerator:v1': \
+                'type%3Anvidia-tesla-k80%3Bcount%3A1%3Binstall-nvidia-drivers'
+        })
 
 
 if __name__ == '__main__':

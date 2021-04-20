@@ -51,6 +51,7 @@ from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -894,6 +895,17 @@ class PTransformTest(unittest.TestCase):
     res1, res2 = [1, 2, 4, 8] | Duplicate()
     self.assertEqual(sorted(res1), [1, 2, 4, 8])
     self.assertEqual(sorted(res2), [1, 2, 4, 8])
+
+  def test_resource_hint_application_is_additive(self):
+    t = beam.Map(lambda x: x + 1).with_resource_hints(
+        accelerator='gpu').with_resource_hints(min_ram=1).with_resource_hints(
+            accelerator='tpu')
+    self.assertEqual(
+        t.get_resource_hints(),
+        {
+            common_urns.resource_hints.ACCELERATOR.urn: b'tpu',
+            common_urns.resource_hints.MIN_RAM_BYTES.urn: b'1'
+        })
 
 
 class TestGroupBy(unittest.TestCase):
