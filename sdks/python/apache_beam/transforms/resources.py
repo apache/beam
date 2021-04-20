@@ -25,6 +25,7 @@ or globally via --resource_hint pipeline option.
 See also: PTransforms.with_resource_hints().
 """
 
+import re
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -105,11 +106,15 @@ class ResourceHint:
     return str(value).encode('ascii')
 
   @staticmethod
-  def _parse_storage_size_str(value):  # type: (str) -> bytes
+  def _parse_storage_size_str(value):
     """Parses a human-friendly storage size string into a number of bytes.
     """
+    if isinstance(value, int):
+      return ResourceHint._parse_int(value)
+
     if not isinstance(value, str):
-      value = str(value)
+      raise ValueError()
+
     value = value.strip().replace(" ", "")
     units = {
         'PiB': 2**50,
@@ -122,13 +127,15 @@ class ResourceHint:
         'GB': 10**9,
         'MB': 10**6,
         'KB': 10**3,
+        'B': 1,
     }
-    multiplier = 1
-    for suffix in units:
-      if value.endswith(suffix):
-        multiplier = units[suffix]
-        value = value[:-len(suffix)]
-        break
+    match = re.match(r'.*?(\D+)$', value)
+    if not match:
+      raise ValueError()
+
+    suffix = match.group(1)
+    multiplier = units[suffix]
+    value = value[:-len(suffix)]
 
     return str(round(float(value) * multiplier)).encode('ascii')
 
