@@ -49,7 +49,7 @@ public class ShortIdMapTest {
     builder.setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_DOUBLE);
     builder.setDoubleDistributionValue(1, 1, 1, 1);
     testCases.add(KV.of("metric2", builder.build()));
-    /*
+
     builder = new SimpleMonitoringInfoBuilder(false);
     builder.setUrn("TestingSentinelUrn");
     builder.setType("TestingSentinelType");
@@ -92,7 +92,7 @@ public class ShortIdMapTest {
     builder.setLabel(MonitoringInfoConstants.Labels.SERVICE, "Storage");
     builder.setInt64SumValue(4);
     testCases.add(KV.of("metric9", builder.build()));
-    */
+
     // Validate that modifying the payload, but using the same URN/labels
     // does not change the shortId assignment.
     builder = new SimpleMonitoringInfoBuilder(false);
@@ -132,7 +132,7 @@ public class ShortIdMapTest {
       MetricsApi.MonitoringInfo.Builder actual =
           MetricsApi.MonitoringInfo.newBuilder(actualRecoveredInfos.get(entry.getKey()));
       actual.clearPayload();
-      assertEquals(actual.build(), actual.build());
+      assertEquals(expected.build(), actual.build());
     }
 
     // Verify each short ID is assigned properly, in reverse.

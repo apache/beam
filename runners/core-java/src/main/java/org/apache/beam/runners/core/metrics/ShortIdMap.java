@@ -18,44 +18,45 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
-import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A Class for registering short ids for MonitoringInfos. */
 public class ShortIdMap {
-  private static final Logger LOG = LoggerFactory.getLogger(ShortIdMap.class);
-
   private int counter = 0;
-  // Bidirectional map.
-  private BiMap<String, MonitoringInfo> monitoringInfoMap = HashBiMap.create();
+  // We must use two maps instead of a BiMap because the two maps store different MonitoringInfos.
+  // The values in shortIdToInfo contain the MonitoringInfo with only the payload cleared.
+  private Map<String, MonitoringInfo> shortIdToInfo = new HashMap<>();
+  // The keys in cleanedInfoToShortId contain a cleaned MonitoringInfo after clearing
+  // the payload, startTime and type.
+  private Map<MonitoringInfo, String> cleanedInfoToShortId = new HashMap<>();
 
   public synchronized String getOrCreateShortId(MonitoringInfo info) {
     Preconditions.checkNotNull(info);
-    // Remove the payload and startTime before using the MonitoringInfo as a key.
-    // AS only the URN+labels uniquely identify the MonitoringInfo
+    // Remove the payload, startTime and typeUrn before using the MonitoringInfo as a key.
+    // As only the URN+labels uniquely identify the MonitoringInfo
     MonitoringInfo.Builder cleaner = MonitoringInfo.newBuilder(info);
     cleaner.clearPayload();
     cleaner.clearStartTime();
+    cleaner.clearType();
     MonitoringInfo cleaned = cleaner.build();
-    LOG.info("original MontitoringInfo " + info);
-    LOG.info("cleaned MontitoringInfo " + cleaned);
-    String shortId = monitoringInfoMap.inverse().get(cleaned);
+    String shortId = cleanedInfoToShortId.get(cleaned);
     if (shortId == null) {
       shortId = "metric" + counter++;
-      LOG.info("Assign new short ID: " + shortId + " cleaned MonitoringInfo " + cleaned);
-      monitoringInfoMap.put(shortId, info);
+      // Make sure we don't clean the type or startTime when we store it
+      // in the shortIdToInfo map because we still need to be able to look this information up.
+      MonitoringInfo.Builder noPayloadCleaner = MonitoringInfo.newBuilder(info);
+      noPayloadCleaner.clearPayload();
+      shortIdToInfo.put(shortId, noPayloadCleaner.build());
+      cleanedInfoToShortId.put(cleaned, shortId);
     }
     return shortId;
   }
 
   public synchronized MonitoringInfo get(String shortId) {
-    MonitoringInfo monitoringInfo = monitoringInfoMap.get(shortId);
+    MonitoringInfo monitoringInfo = shortIdToInfo.get(shortId);
     if (monitoringInfo == null) {
       throw new NoSuchElementException(shortId);
     }
