@@ -82,7 +82,7 @@ public class ResourceHints {
     return result;
   }
 
-  /*package*/ static class BytesHint implements ResourceHint {
+  /*package*/ static class BytesHint extends ResourceHint {
     private static Map<String, Long> suffixes =
         ImmutableMap.<String, Long>builder()
             .put("B", 1L)
@@ -144,7 +144,7 @@ public class ResourceHints {
     }
   }
 
-  /*package*/ static class StringHint implements ResourceHint {
+  /*package*/ static class StringHint extends ResourceHint {
     private final String value;
 
     public StringHint(String value) {
