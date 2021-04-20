@@ -58,7 +58,7 @@ if [ "$(uname -s)" = "Linux" ]; then
     if [ $goExists -eq 0 ]; then
         install_go_packages
     else
-        echo "Go is required. Install it manually and rerun the script."
+        echo "Go is required. Install it manually from https://golang.org/doc/install and rerun the script."
         exit
     fi
 fi
@@ -119,7 +119,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     if [ $goExists -eq 0 ]; then
         install_go_packages
     else
-        echo "Go is required. Install it manually and rerun the script."
+        echo "Go is required. Install it manually from https://golang.org/doc/install and rerun the script."
         exit
     fi
 fi
