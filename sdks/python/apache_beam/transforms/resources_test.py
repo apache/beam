@@ -31,7 +31,7 @@ class ResourcesTest(unittest.TestCase):
           urn='beam:resources:min_ram_bytes:v1',
           bytestr=b'104857600'),
       param(
-          name='min_ram',
+          name='minRam',
           val='100MB',
           urn='beam:resources:min_ram_bytes:v1',
           bytestr=b'100000000'),

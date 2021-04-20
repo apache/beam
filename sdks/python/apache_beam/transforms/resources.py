@@ -160,6 +160,8 @@ class MinRamHint(ResourceHint):
 
 
 ResourceHint.register_resource_hint('min_ram', MinRamHint)
+# Alias for interoperability with SDKs preferring camelCase.
+ResourceHint.register_resource_hint('minRam', MinRamHint)
 
 
 def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]

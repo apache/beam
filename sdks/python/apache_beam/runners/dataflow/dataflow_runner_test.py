@@ -28,6 +28,8 @@ from builtins import range
 from datetime import datetime
 
 import mock
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
@@ -863,10 +865,14 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self._test_pack_combiners(
         PipelineOptions(self.default_properties), expect_packed=True)
 
-  def test_resource_hints_translation(self):
+  @parameterized.expand([
+      param(memory_hint='min_ram'),
+      param(memory_hint='minRam'),
+  ])
+  def test_resource_hints_translation(self, memory_hint):
     runner = DataflowRunner()
     self.default_properties.append('--resource_hint=accelerator=some_gpu')
-    self.default_properties.append('--resource_hint=min_ram=20GB')
+    self.default_properties.append(f'--resource_hint={memory_hint}=20GB')
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
