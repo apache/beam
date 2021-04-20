@@ -60,8 +60,6 @@ public class SamzaJobInvoker extends JobInvoker {
     LOG.trace("Parsing pipeline options");
     final SamzaPortablePipelineOptions samzaOptions =
         PipelineOptionsTranslation.fromProto(options).as(SamzaPortablePipelineOptions.class);
-    // Options can't be translated to proto if runner class is unresolvable, so set it to null.
-    samzaOptions.setRunner(null);
 
     final PortablePipelineRunner pipelineRunner;
     if (Strings.isNullOrEmpty(
@@ -82,7 +80,7 @@ public class SamzaJobInvoker extends JobInvoker {
             invocationId,
             samzaOptions.getJobName(),
             retrievalToken,
-            PipelineOptionsTranslation.toProto(samzaOptions));
+            options);
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
   }
 }
