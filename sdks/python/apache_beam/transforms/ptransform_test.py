@@ -51,10 +51,10 @@ from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.portability import common_urns
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
