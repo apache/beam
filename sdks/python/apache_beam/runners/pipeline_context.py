@@ -298,12 +298,10 @@ class PipelineContext(object):
     ):  # type: (str, Dict[str, bytes]) -> str
       """Creates an environment that has necessary hints and returns its id."""
       template_env = self.environments.get_proto_from_id(template_env_id)
-      cloned_env = type(template_env)(
-      )  # type: beam_runner_api_pb2.Environment  # type: ignore
+      cloned_env = beam_runner_api_pb2.Environment()
       cloned_env.CopyFrom(template_env)
       cloned_env.resource_hints.clear()
-      for hint, value in resource_hints.items():
-        cloned_env.resource_hints[hint] = value
+      cloned_env.resource_hints.update(resource_hints)
 
       return self.environments.get_by_proto(
           cloned_env, label='environment_with_resource_hints', deduplicate=True)
