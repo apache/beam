@@ -290,64 +290,6 @@ class UtilTest(unittest.TestCase):
 
     self.assertTrue(found_override)
 
-  # TODDO(BEAM-9455): remove following test when Dataflow supports environment
-  # specific dependency provisioning.
-  def test_java_sdk_harness_dedup(self):
-    pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
-        '--temp_location',
-        'gs://any-location/temp'
-    ])
-
-    pipeline = Pipeline(options=pipeline_options)
-    pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
-
-    proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
-
-    dummy_env_1 = beam_runner_api_pb2.Environment(
-        urn=common_urns.environments.DOCKER.urn,
-        payload=(
-            beam_runner_api_pb2.DockerPayload(
-                container_image='apache/beam_java:dummy_tag')
-        ).SerializeToString())
-    proto_pipeline.components.environments['dummy_env_id_1'].CopyFrom(
-        dummy_env_1)
-
-    dummy_transform_1 = beam_runner_api_pb2.PTransform(
-        environment_id='dummy_env_id_1')
-    proto_pipeline.components.transforms['dummy_transform_id_1'].CopyFrom(
-        dummy_transform_1)
-
-    dummy_env_2 = beam_runner_api_pb2.Environment(
-        urn=common_urns.environments.DOCKER.urn,
-        payload=(
-            beam_runner_api_pb2.DockerPayload(
-                container_image='apache/beam_java:dummy_tag')
-        ).SerializeToString())
-    proto_pipeline.components.environments['dummy_env_id_2'].CopyFrom(
-        dummy_env_2)
-
-    dummy_transform_2 = beam_runner_api_pb2.PTransform(
-        environment_id='dummy_env_id_2')
-    proto_pipeline.components.transforms['dummy_transform_id_2'].CopyFrom(
-        dummy_transform_2)
-
-    # Accessing non-public method for testing.
-    apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
-
-    # Only one of 'dummy_env_id_1' or 'dummy_env_id_2' should be in the set of
-    # environment IDs used by the proto after Java environment de-duping.
-    env_ids_from_transforms = [
-        proto_pipeline.components.transforms[transform_id].environment_id
-        for transform_id in proto_pipeline.components.transforms
-    ]
-    if 'dummy_env_id_1' in env_ids_from_transforms:
-      self.assertNotIn('dummy_env_id_2', env_ids_from_transforms)
-    else:
-      self.assertIn('dummy_env_id_2', env_ids_from_transforms)
-
   def test_non_apache_container_not_overridden(self):
     pipeline_options = PipelineOptions([
         '--experiments=beam_fn_api',
@@ -1186,9 +1128,9 @@ class UtilTest(unittest.TestCase):
          ('/tmp/bar2', 'bar2')],
         staging_location='gs://test-location/staging')
 
-  def test_set_service_option(self):
+  def test_set_dataflow_service_option(self):
     pipeline_options = PipelineOptions([
-        '--service_option',
+        '--dataflow_service_option',
         'whizz=bang',
         '--temp_location',
         'gs://any-location/temp'
@@ -1199,6 +1141,29 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.serviceOptions, ['whizz=bang'])
+
+  def test_enable_hot_key_logging(self):
+    # Tests that the enable_hot_key_logging is not set by default.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertIsNone(env.proto.debugOptions)
+
+    # Now test that it is set when given.
+    pipeline_options = PipelineOptions([
+        '--enable_hot_key_logging', '--temp_location', 'gs://any-location/temp'
+    ])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.debugOptions, dataflow.DebugOptions(enableHotKeyLogging=True))
 
 
 if __name__ == '__main__':

@@ -22,7 +22,11 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.auto.service.AutoService;
+import java.sql.Date;
+import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -32,6 +36,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -64,9 +69,8 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
-  /** Test Joda time UDF. */
   @Test
-  public void testJodaTimeUdf() throws Exception {
+  public void testTimestampUdaf() throws Exception {
     Schema resultType = Schema.builder().addDateTimeField("jodatime").build();
 
     Row row =
@@ -83,17 +87,48 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
-  /** Test Joda time UDAF. */
   @Test
-  public void testJodaTimeUdaf() throws Exception {
-    Schema resultType = Schema.builder().addDateTimeField("jodatime").build();
+  public void testDateUdf() throws Exception {
+    Schema resultType =
+        Schema.builder().addField("result_date", FieldType.logicalType(SqlTypes.DATE)).build();
+
+    Row row = Row.withSchema(resultType).addValues(LocalDate.of(2016, 12, 31)).build();
+
+    String sql = "SELECT PRE_DATE(f_date) as result_date FROM PCOLLECTION WHERE f_int=1";
+    PCollection<Row> result =
+        boundedInput1.apply(
+            "testTimeUdf", SqlTransform.query(sql).registerUdf("PRE_DATE", PreviousDate.class));
+    PAssert.that(result).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testTimeUdf() throws Exception {
+    Schema resultType =
+        Schema.builder().addField("result_time", FieldType.logicalType(SqlTypes.TIME)).build();
+
+    Row row = Row.withSchema(resultType).addValues(LocalTime.of(0, 1, 3)).build();
+
+    String sql = "SELECT PRE_HOUR(f_time) as result_time FROM PCOLLECTION WHERE f_int=1";
+    PCollection<Row> result =
+        boundedInput1.apply(
+            "testTimeUdf", SqlTransform.query(sql).registerUdf("PRE_HOUR", PreviousHour.class));
+    PAssert.that(result).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testTimestampUdf() throws Exception {
+    Schema resultType = Schema.builder().addDateTimeField("result_time").build();
 
     Row row =
         Row.withSchema(resultType)
             .addValues(parseTimestampWithoutTimeZone("2016-12-31 01:01:03"))
             .build();
 
-    String sql = "SELECT PRE_DAY(f_timestamp) as jodatime FROM PCOLLECTION WHERE f_int=1";
+    String sql = "SELECT PRE_DAY(f_timestamp) as result_time FROM PCOLLECTION WHERE f_int=1";
     PCollection<Row> result =
         boundedInput1.apply(
             "testTimeUdf", SqlTransform.query(sql).registerUdf("PRE_DAY", PreviousDay.class));
@@ -377,7 +412,21 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     }
   }
 
+  /** A UDF to test support of date. */
+  public static final class PreviousDate implements BeamSqlUdf {
+    public static Date eval(Date date) {
+      return new Date(date.getTime() - 24 * 3600 * 1000L);
+    }
+  }
+
   /** A UDF to test support of time. */
+  public static final class PreviousHour implements BeamSqlUdf {
+    public static Time eval(Time time) {
+      return new Time(time.getTime() - 3600 * 1000L);
+    }
+  }
+
+  /** A UDF to test support of timestamp. */
   public static final class PreviousDay implements BeamSqlUdf {
     public static Timestamp eval(Timestamp time) {
       return new Timestamp(time.getTime() - 24 * 3600 * 1000L);

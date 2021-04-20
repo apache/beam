@@ -40,8 +40,10 @@ public class HistogramData implements Serializable {
 
   private final BucketType bucketType;
 
+  // TODO(BEAM-12103): Update this function to remove the numTopRecords and numBottomRecords
+  // and include those counters in the buckets array.
   private long[] buckets;
-  private long numOfRecords;
+  private long numBoundedBucketRecords;
   private long numTopRecords;
   private long numBottomRecords;
 
@@ -53,13 +55,18 @@ public class HistogramData implements Serializable {
   public HistogramData(BucketType bucketType) {
     this.bucketType = bucketType;
     this.buckets = new long[bucketType.getNumBuckets()];
-    this.numOfRecords = 0;
+    this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
     this.numBottomRecords = 0;
   }
 
+  public BucketType getBucketType() {
+    return this.bucketType;
+  }
+
   /**
-   * Create a histogram with linear buckets.
+   * TODO(BEAM-12103): Update this function to define numBuckets total, including the infinite
+   * buckets. Create a histogram with linear buckets.
    *
    * @param start Lower bound of a starting bucket.
    * @param width Bucket width. Smaller width implies a better resolution for percentile estimation.
@@ -77,9 +84,41 @@ public class HistogramData implements Serializable {
     }
   }
 
+  public synchronized void update(HistogramData other) {
+    synchronized (other) {
+      if (!this.bucketType.equals(other.bucketType)
+          || this.buckets.length != other.buckets.length) {
+        LOG.warn("Failed to update HistogramData from another with a different buckets");
+        return;
+      }
+
+      incTopBucketCount(other.numTopRecords);
+      incBottomBucketCount(other.numBottomRecords);
+      for (int i = 0; i < other.buckets.length; i++) {
+        incBucketCount(i, other.buckets[i]);
+      }
+    }
+  }
+
+  // TODO(BEAM-12103): Update this function to allow incrementing the infinite buckets as well.
+  // and remove the incTopBucketCount and incBotBucketCount methods.
+  // Using 0 and length -1 as the bucketIndex.
+  public synchronized void incBucketCount(int bucketIndex, long count) {
+    this.buckets[bucketIndex] += count;
+    this.numBoundedBucketRecords += count;
+  }
+
+  public synchronized void incTopBucketCount(long count) {
+    this.numTopRecords += count;
+  }
+
+  public synchronized void incBottomBucketCount(long count) {
+    this.numBottomRecords += count;
+  }
+
   public synchronized void clear() {
     this.buckets = new long[bucketType.getNumBuckets()];
-    this.numOfRecords = 0;
+    this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
     this.numBottomRecords = 0;
   }
@@ -88,19 +127,17 @@ public class HistogramData implements Serializable {
     double rangeTo = bucketType.getRangeTo();
     double rangeFrom = bucketType.getRangeFrom();
     if (value >= rangeTo) {
-      LOG.warn("record is out of upper bound {}: {}", rangeTo, value);
       numTopRecords++;
     } else if (value < rangeFrom) {
-      LOG.warn("record is out of lower bound {}: {}", rangeFrom, value);
       numBottomRecords++;
     } else {
       buckets[bucketType.getBucketIndex(value)]++;
-      numOfRecords++;
+      numBoundedBucketRecords++;
     }
   }
 
   public synchronized long getTotalCount() {
-    return numOfRecords + numTopRecords + numBottomRecords;
+    return numBoundedBucketRecords + numTopRecords + numBottomRecords;
   }
 
   public synchronized String getPercentileString(String elemType, String unit) {
@@ -117,7 +154,8 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * Get the bucket count for the given bucketIndex.
+   * TODO(BEAM-12103): Update this function to allow indexing the -INF and INF bucket (using 0 and
+   * length -1) Get the bucket count for the given bucketIndex.
    *
    * <p>This method does not guarantee the atomicity when sequentially accessing the multiple
    * buckets i.e. other threads may alter the value between consecutive invocations. For summing the
@@ -128,6 +166,14 @@ public class HistogramData implements Serializable {
    */
   public synchronized long getCount(int bucketIndex) {
     return buckets[bucketIndex];
+  }
+
+  public synchronized long getTopBucketCount() {
+    return numTopRecords;
+  }
+
+  public synchronized long getBottomBucketCount() {
+    return numBottomRecords;
   }
 
   public double p99() {
@@ -232,5 +278,7 @@ public class HistogramData implements Serializable {
     public double getRangeTo() {
       return getStart() + getNumBuckets() * getWidth();
     }
+
+    // Note: equals() and hashCode() are implemented by the AutoValue.
   }
 }

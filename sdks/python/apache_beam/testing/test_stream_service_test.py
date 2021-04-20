@@ -17,9 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import sys
 import unittest
 from unittest.mock import patch
 
@@ -118,8 +115,6 @@ class TestStreamServiceTest(unittest.TestCase):
     self.assertEqual(events_b, expected_events)
 
 
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class TestStreamServiceStartStopTest(unittest.TestCase):
 
   # Weak internal use needs to be explicitly imported.

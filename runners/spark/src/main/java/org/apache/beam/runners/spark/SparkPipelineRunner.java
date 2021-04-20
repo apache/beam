@@ -17,12 +17,10 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
-import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
+import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
+import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,8 +59,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.scheduler.EventLoggingListener;
 import org.apache.spark.scheduler.SparkListenerApplicationEnd;
-import org.apache.spark.scheduler.SparkListenerExecutorAdded;
-import org.apache.spark.scheduler.cluster.ExecutorInfo;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
@@ -72,7 +68,6 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
 
 /** Runs a portable pipeline on Apache Spark. */
 @SuppressWarnings({
@@ -89,8 +84,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   @Override
-  public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo)
-      throws URISyntaxException {
+  public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     SparkPortablePipelineTranslator translator;
     boolean isStreaming = pipelineOptions.isStreaming() || hasUnboundedPCollections(pipeline);
     if (isStreaming) {
@@ -120,13 +114,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
     // File staging.
-    if (pipelineOptions.getFilesToStage() == null) {
-      pipelineOptions.setFilesToStage(
-          detectClassPathResourcesToStage(
-              SparkPipelineRunner.class.getClassLoader(), pipelineOptions));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
-    }
     prepareFilesToStage(pipelineOptions);
     LOG.info(
         "Will stage {} files. (Enable logging at DEBUG level to see which files will be staged.)",
@@ -135,30 +122,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
-    long startTime = Instant.now().getMillis();
-    EventLoggingListener eventLoggingListener = null;
-    if (pipelineOptions.getEventLogEnabled()) {
-      eventLoggingListener =
-          new EventLoggingListener(
-              jsc.getConf().getAppId(),
-              scala.Option.apply("1"),
-              new URI(pipelineOptions.getSparkHistoryDir()),
-              jsc.getConf(),
-              jsc.hadoopConfiguration());
-      eventLoggingListener.initializeLogIfNecessary(false, false);
-      eventLoggingListener.start();
-      scala.collection.immutable.Map<String, String> logUrlMap =
-          new scala.collection.immutable.HashMap<String, String>();
-      Tuple2<String, String>[] sparkMasters = jsc.getConf().getAllWithPrefix("spark.master");
-      Tuple2<String, String>[] sparkExecutors = jsc.getConf().getAllWithPrefix("spark.executor.id");
-      for (Tuple2<String, String> sparkExecutor : sparkExecutors) {
-        eventLoggingListener.onExecutorAdded(
-            new SparkListenerExecutorAdded(
-                startTime,
-                sparkExecutor._2(),
-                new ExecutorInfo(sparkMasters[0]._2(), 0, logUrlMap)));
-      }
-    }
+    final long startTime = Instant.now().getMillis();
+    EventLoggingListener eventLoggingListener =
+        startEventLoggingListener(jsc, pipelineOptions, startTime);
 
     // Initialize accumulators.
     AggregatorsAccumulator.init(pipelineOptions, jsc);
@@ -243,7 +209,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             pipelineOptions.as(MetricsOptions.class),
             result);
     metricsPusher.start();
-    if (pipelineOptions.getEventLogEnabled()) {
+
+    if (eventLoggingListener != null) {
       eventLoggingListener.onApplicationStart(
           SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
       eventLoggingListener.onApplicationEnd(

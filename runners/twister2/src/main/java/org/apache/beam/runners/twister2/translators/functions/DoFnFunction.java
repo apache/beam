@@ -163,7 +163,7 @@ public class DoFnFunction<OutputT, InputT>
     initTransient();
     sideInputReader = new Twister2SideInputReader(sideInputs, context);
     outputManager.setup(mainOutput, sideOutputs);
-    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, pipelineOptions);
 
     doFnRunner =
         DoFnRunners.simpleRunner(

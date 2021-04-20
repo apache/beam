@@ -27,19 +27,12 @@ needed right now use a @retry.no_retries decorator.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import functools
 import logging
 import random
 import sys
 import time
 import traceback
-from builtins import next
-from builtins import object
-from builtins import range
-
-from future.utils import raise_with_traceback
 
 from apache_beam.io.filesystem import BeamIOError
 
@@ -270,7 +263,7 @@ def with_exponential_backoff(
               sleep_interval = next(retry_intervals)
             except StopIteration:
               # Re-raise the original exception since we finished the retries.
-              raise_with_traceback(exn, exn_traceback)
+              raise exn.with_traceback(exn_traceback)
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '

@@ -27,13 +27,10 @@ and score.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import sys
 import typing
-from builtins import object
 
 import apache_beam as beam
 from apache_beam import coders

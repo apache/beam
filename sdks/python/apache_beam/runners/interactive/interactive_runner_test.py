@@ -33,6 +33,8 @@ from unittest.mock import patch
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -278,6 +280,28 @@ class InteractiveRunnerTest(unittest.TestCase):
     self.assertEqual({0, 1, 4, 9, 16}, set(result.get(square)))
     self.assertTrue(cube in ie.current_env().computed_pcollections)
     self.assertEqual({0, 1, 8, 27, 64}, set(result.get(cube)))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+    data = p | beam.Create(
+        [1, 2, 3]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
+    df = to_dataframe(data)
+    pcoll = to_pcollection(df)
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    df_expected = pd.DataFrame({'square': [1, 4, 9], 'cube': [1, 8, 27]})
+    pd.testing.assert_frame_equal(df_expected, ib.collect(data, n=10))
+    pd.testing.assert_frame_equal(df_expected, ib.collect(df, n=10))
+    pd.testing.assert_frame_equal(df_expected, ib.collect(pcoll, n=10))
 
 
 if __name__ == '__main__':

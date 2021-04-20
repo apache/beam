@@ -82,12 +82,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
@@ -1342,7 +1342,12 @@ public class DataflowRunnerTest implements Serializable {
 
     p.apply(Create.of(Arrays.asList(1, 2, 3)));
 
-    SdkComponents sdkComponents = SdkComponents.create(options);
+    String defaultSdkContainerImage = DataflowRunner.getContainerImageForJob(options);
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.Environment defaultEnvironmentForDataflow =
+        Environments.createDockerEnvironment(defaultSdkContainerImage);
+    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow.toBuilder().build());
+
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
 
     Job job =
@@ -1355,34 +1360,37 @@ public class DataflowRunnerTest implements Serializable {
                 Collections.emptyList())
             .getJob();
 
-    String defaultSdkContainerImage = DataflowRunner.getContainerImageForJob(options);
-    DataflowRunner.configureSdkHarnessContainerImages(
-        options, pipelineProto, job, defaultSdkContainerImage);
+    DataflowRunner.configureSdkHarnessContainerImages(options, pipelineProto, job);
     List<SdkHarnessContainerImage> sdks =
         job.getEnvironment().getWorkerPools().get(0).getSdkHarnessContainerImages();
 
-    Set<String> expected =
-        pipelineProto.getComponents().getEnvironmentsMap().values().stream()
+    Map<String, String> expectedEnvIdsAndContainerImages =
+        pipelineProto.getComponents().getEnvironmentsMap().entrySet().stream()
             .filter(
                 x ->
                     BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)
-                        .equals(x.getUrn()))
-            .map(
-                x -> {
-                  RunnerApi.DockerPayload payload;
-                  try {
-                    payload = RunnerApi.DockerPayload.parseFrom(x.getPayload());
-                  } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return payload.getContainerImage();
-                })
-            .collect(Collectors.toSet());
-    expected.add(defaultSdkContainerImage);
+                        .equals(x.getValue().getUrn()))
+            .collect(
+                Collectors.toMap(
+                    x -> x.getKey(),
+                    x -> {
+                      RunnerApi.DockerPayload payload;
+                      try {
+                        payload = RunnerApi.DockerPayload.parseFrom(x.getValue().getPayload());
+                      } catch (InvalidProtocolBufferException e) {
+                        throw new RuntimeException(e);
+                      }
+                      return payload.getContainerImage();
+                    }));
 
+    assertEquals(1, expectedEnvIdsAndContainerImages.size());
     assertEquals(
-        expected,
-        sdks.stream().map(SdkHarnessContainerImage::getContainerImage).collect(Collectors.toSet()));
+        expectedEnvIdsAndContainerImages,
+        sdks.stream()
+            .collect(
+                Collectors.toMap(
+                    SdkHarnessContainerImage::getEnvironmentId,
+                    SdkHarnessContainerImage::getContainerImage)));
   }
 
   private void verifyMapStateUnsupported(PipelineOptions options) throws Exception {

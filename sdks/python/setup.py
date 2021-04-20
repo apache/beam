@@ -145,8 +145,7 @@ REQUIRED_PACKAGES = [
     'future>=0.18.2,<1.0.0',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<0.18.0',
-    'mock>=1.0.1,<3.0.0',
+    'httplib2>=0.8,<0.20.0',
     'numpy>=1.14.3,<1.21.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
@@ -167,6 +166,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
+    'mock>=1.0.1,<3.0.0',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=1.0,<1.3.0',
@@ -190,7 +190,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-datastore>=1.7.1,<2',
     'google-cloud-pubsub>=0.39.0,<2',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<2',
+    'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<2',
     'google-cloud-spanner>=1.13.0,<2',
@@ -206,7 +206,9 @@ INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'ipython>=5.8.0,<8',
     'ipykernel>=5.2.0,<6',
-    'jupyter-client>=6.1.11,<7',
+    # Skip version 6.1.13 due to
+    # https://github.com/jupyter/jupyter_client/issues/637
+    'jupyter-client>=6.1.11,<6.1.13',
     'timeloop>=1.0.2,<2',
 ]
 

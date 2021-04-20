@@ -20,13 +20,10 @@ Hadoop Distributed File System files."""
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import io
 import logging
 import posixpath
 import re
-from builtins import zip
 from typing import BinaryIO  # pylint: disable=unused-import
 
 import hdfs

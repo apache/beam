@@ -50,6 +50,7 @@ tasks.rat {
     "**/test.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
+    "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
 
     // Default eclipse excludes neglect subprojects
@@ -214,7 +215,7 @@ task("goPrecommitBuild") {
 }
 
 task("goPortablePreCommit") {
-  dependsOn(":sdks:go:test:ulrValidatesRunnerJenkins")
+  dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
 task("goPostCommit") {
@@ -333,6 +334,13 @@ task("pushAllDockerImages") {
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
   }
+}
+
+// Use this task to validate the environment set up for Go, Python and Java
+task("checkSetup") {
+  dependsOn(":sdks:go:examples:wordCount")
+  dependsOn(":sdks:python:wordCount")
+  dependsOn(":examples:java:wordCount")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

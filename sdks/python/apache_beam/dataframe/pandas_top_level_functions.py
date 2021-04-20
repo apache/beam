@@ -154,7 +154,8 @@ class DeferredPandasModule(object):
   melt = _call_on_first_arg('melt')
   merge = _call_on_first_arg('merge')
   melt = _call_on_first_arg('melt')
-  merge_ordered = frame_base.wont_implement_method('order-sensitive')
+  merge_ordered = frame_base.wont_implement_method(
+      pd, 'merge_ordered', reason='order-sensitive')
   notna = _call_on_first_arg('notna')
   notnull = _call_on_first_arg('notnull')
   option_context = _defer_to_pandas('option_context')
@@ -162,16 +163,24 @@ class DeferredPandasModule(object):
   pivot = _call_on_first_arg('pivot')
   pivot_table = _call_on_first_arg('pivot_table')
   show_versions = _defer_to_pandas('show_versions')
-  test = frame_base.wont_implement_method('test')
+  test = frame_base.wont_implement_method(
+      pd,
+      'test',
+      explanation="because it is an internal pandas testing utility")
   timedelta_range = _defer_to_pandas('timedelta_range')
-  to_pickle = frame_base.wont_implement_method('order-sensitive')
+  to_pickle = frame_base.wont_implement_method(
+      pd, 'to_pickle', reason='order-sensitive')
   to_datetime = _defer_to_pandas_maybe_elementwise('to_datetime')
   notna = _call_on_first_arg('notna')
 
   def __getattr__(self, name):
     if name.startswith('read_'):
-      return frame_base.wont_implement_method(
-          'Use p | apache_beam.dataframe.io.%s' % name)
+
+      def func(*args, **kwargs):
+        raise frame_base.WontImplementError(
+            'Use p | apache_beam.dataframe.io.%s' % name)
+
+      return func
     res = getattr(pd, name)
     if _is_top_level_function(res):
       return frame_base.not_implemented_method(name)

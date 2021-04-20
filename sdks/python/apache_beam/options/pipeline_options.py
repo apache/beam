@@ -682,15 +682,22 @@ class GoogleCloudOptions(PipelineOptions):
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
     parser.add_argument(
-        '--service_option',
-        '--service_options',
-        dest='service_options',
+        '--dataflow_service_option',
+        '--dataflow_service_options',
+        dest='dataflow_service_options',
         action='append',
         default=None,
         help=(
             'Options to configure the Dataflow service. These '
             'options decouple service side feature availbility '
             'from the Apache Beam release cycle.'))
+    parser.add_argument(
+        '--enable_hot_key_logging',
+        default=False,
+        action='store_true',
+        help='When true, will enable the direct logging of any detected hot '
+        'keys into Cloud Logging. Warning: this will log the literal key as an '
+        'unobfuscated string.')
 
   def _create_default_gcs_bucket(self):
     try:

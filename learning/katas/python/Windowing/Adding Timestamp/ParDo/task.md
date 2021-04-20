@@ -35,7 +35,7 @@ outputs new elements with timestamps that you set.
 
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html#apache_beam.transforms.window.TimestampedValue">
-  beam.window.TimestampedValue</a> to assign timestamp to the element.
+  beam.transforms.window.TimestampedValue</a> to assign timestamp to the element.
 </div>
 
 <div class="hint">

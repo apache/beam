@@ -21,10 +21,6 @@
 # Wrapping hurts the readability of the docs.
 # pylint: disable=line-too-long
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import typing
 import unittest
 

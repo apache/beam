@@ -16,20 +16,14 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import json
 import logging
 import math
 import os
 import tempfile
 import unittest
-from builtins import range
 from typing import List
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 
 import avro

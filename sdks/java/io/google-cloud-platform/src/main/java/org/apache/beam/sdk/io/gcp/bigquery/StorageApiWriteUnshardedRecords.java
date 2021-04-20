@@ -167,7 +167,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     .createWriteStream(tableUrn, Type.PENDING)
                     .getName();
             this.streamAppendClient =
-                Preconditions.checkNotNull(datasetService).getStreamAppendClient(streamName);
+                Preconditions.checkNotNull(datasetService)
+                    .getStreamAppendClient(streamName, messageConverter.getSchemaDescriptor());
             this.currentOffset = 0;
           }
           return streamAppendClient;
@@ -218,8 +219,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               try {
                 long offset = currentOffset;
                 currentOffset += inserts.getSerializedRowsCount();
-                return getWriteStream()
-                    .appendRows(offset, protoRows, messageConverter.getSchemaDescriptor());
+                return getWriteStream().appendRows(offset, protoRows);
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }

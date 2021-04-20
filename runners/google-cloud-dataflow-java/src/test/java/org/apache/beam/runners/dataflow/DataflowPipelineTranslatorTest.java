@@ -1293,12 +1293,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testServiceOptionsSet() throws IOException {
-    final List<String> serviceOptions =
+  public void testDataflowServiceOptionsSet() throws IOException {
+    final List<String> dataflowServiceOptions =
         Stream.of("whizz=bang", "foo=bar").collect(Collectors.toList());
 
     DataflowPipelineOptions options = buildPipelineOptions();
-    options.setServiceOptions(serviceOptions);
+    options.setDataflowServiceOptions(dataflowServiceOptions);
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
@@ -1314,7 +1314,29 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 Collections.emptyList())
             .getJob();
 
-    assertEquals(serviceOptions, job.getEnvironment().getServiceOptions());
+    assertEquals(dataflowServiceOptions, job.getEnvironment().getServiceOptions());
+  }
+
+  @Test
+  public void testHotKeyLoggingEnabledOption() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setHotKeyLoggingEnabled(true);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
+            .getJob();
+
+    assertTrue(job.getEnvironment().getDebugOptions().getEnableHotKeyLogging());
   }
 
   private static void assertAllStepOutputsHaveUniqueIds(Job job) throws Exception {

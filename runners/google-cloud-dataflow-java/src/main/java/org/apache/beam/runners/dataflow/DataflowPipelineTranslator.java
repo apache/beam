@@ -36,6 +36,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.dataflow.model.AutoscalingSettings;
 import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.api.services.dataflow.model.DebugOptions;
 import com.google.api.services.dataflow.model.Disk;
 import com.google.api.services.dataflow.model.Environment;
 import com.google.api.services.dataflow.model.Job;
@@ -334,7 +335,7 @@ public class DataflowPipelineTranslator {
 
       Environment environment = new Environment();
       job.setEnvironment(environment);
-      job.getEnvironment().setServiceOptions(options.getServiceOptions());
+      job.getEnvironment().setServiceOptions(options.getDataflowServiceOptions());
 
       WorkerPool workerPool = new WorkerPool();
 
@@ -434,6 +435,11 @@ public class DataflowPipelineTranslator {
       }
       if (options.getDataflowKmsKey() != null) {
         environment.setServiceKmsKeyName(options.getDataflowKmsKey());
+      }
+      if (options.isHotKeyLoggingEnabled()) {
+        DebugOptions debugOptions = new DebugOptions();
+        debugOptions.setEnableHotKeyLogging(true);
+        environment.setDebugOptions(debugOptions);
       }
 
       pipeline.traverseTopologically(this);

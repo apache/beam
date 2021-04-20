@@ -18,8 +18,6 @@
 """Unit tests for flink_streaming_impulse_source."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 

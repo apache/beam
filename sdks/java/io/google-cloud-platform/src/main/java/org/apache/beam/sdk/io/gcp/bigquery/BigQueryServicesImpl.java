@@ -63,7 +63,6 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
@@ -633,7 +632,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                       table.getTableReference().getProjectId(),
                       table.getTableReference().getDatasetId(),
                       table.getTableReference().getTableId(),
-                      TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
+                      TimeUnit.MILLISECONDS.toMinutes(RETRY_CREATE_TABLE_DURATION_MILLIS));
                   retry = true;
                 }
                 continue;
@@ -1095,8 +1094,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public StreamAppendClient getStreamAppendClient(String streamName) throws Exception {
-      StreamWriterV2 streamWriter = StreamWriterV2.newBuilder(streamName).build();
+    public StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor)
+        throws Exception {
+      ProtoSchema protoSchema =
+          ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
+      StreamWriterV2 streamWriter =
+          StreamWriterV2.newBuilder(streamName).setWriterSchema(protoSchema).build();
       return new StreamAppendClient() {
         private int pins = 0;
         private boolean closed = false;
@@ -1136,20 +1139,9 @@ class BigQueryServicesImpl implements BigQueryServices {
         }
 
         @Override
-        public ApiFuture<AppendRowsResponse> appendRows(
-            long offset, ProtoRows rows, Descriptor descriptor) throws Exception {
-          final AppendRowsRequest.ProtoData data =
-              AppendRowsRequest.ProtoData.newBuilder()
-                  .setWriterSchema(
-                      ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build())
-                  .setRows(rows)
-                  .build();
-          AppendRowsRequest.Builder appendRequestBuilder =
-              AppendRowsRequest.newBuilder().setProtoRows(data).setWriteStream(streamName);
-          if (offset >= 0) {
-            appendRequestBuilder = appendRequestBuilder.setOffset(Int64Value.of(offset));
-          }
-          return streamWriter.append(appendRequestBuilder.build());
+        public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
+            throws Exception {
+          return streamWriter.append(rows, offset);
         }
       };
     }
