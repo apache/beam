@@ -21,6 +21,7 @@ import static junit.framework.TestCase.assertEquals;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -75,5 +76,18 @@ public class ResourceHintsTest implements Serializable {
                 .get("beam:resources:accelerator:v1")
                 .toBytes(),
             StandardCharsets.US_ASCII));
+  }
+
+  @Test
+  public void testFromOptions() {
+    ResourceHintsOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--resourceHints=minRam=1KB", "--resourceHints=beam:resources:bar=foo")
+            .as(ResourceHintsOptions.class);
+    assertEquals(
+        ResourceHints.fromOptions(options),
+        ResourceHints.create()
+            .withMemory(1000)
+            .withHint("beam:resources:bar", new ResourceHints.StringHint("foo")));
   }
 }
