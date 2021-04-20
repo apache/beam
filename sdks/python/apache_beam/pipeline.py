@@ -1338,9 +1338,9 @@ class AppliedPTransform(object):
 
   def _merge_outer_resource_hints(self):
     if (self.parent is not None and self.parent.resource_hints):
-      merge_resource_hints(
+      self.resource_hints = merge_resource_hints(
           outer_hints=self.parent.resource_hints,
-          mutable_inner_hints=self.resource_hints)
+          inner_hints=self.resource_hints)
     if self.resource_hints:
       for part in self.parts:
         part._merge_outer_resource_hints()

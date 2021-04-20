@@ -308,8 +308,7 @@ class PipelineContext(object):
 
     default_env_id = self.default_environment_id()
     env_hints = self.environments.get_by_id(default_env_id).resource_hints()
-    hints = dict(hints)
-    merge_resource_hints(outer_hints=env_hints, mutable_inner_hints=hints)
+    hints = merge_resource_hints(outer_hints=env_hints, inner_hints=hints)
     maybe_new_env_id = get_or_create_environment_with_resource_hints(
         default_env_id, hints)
 

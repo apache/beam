@@ -194,12 +194,14 @@ def resource_hints_from_options(options):
 
 
 def merge_resource_hints(
-    outer_hints, mutable_inner_hints
-):  # type: (Mapping[str, bytes], Dict[str, bytes]) -> None
+    outer_hints, inner_hints
+):  # type: (Mapping[str, bytes], Mapping[str, bytes]) -> Dict[str, bytes]
+  merged_hints = dict(inner_hints)
   for urn, outer_value in outer_hints.items():
-    if urn in mutable_inner_hints:
+    if urn in inner_hints:
       merged_value = ResourceHint.get_by_urn(urn).get_merged_value(
-          outer_value=outer_value, inner_value=mutable_inner_hints[urn])
+          outer_value=outer_value, inner_value=inner_hints[urn])
     else:
       merged_value = outer_value
-    mutable_inner_hints[urn] = merged_value
+    merged_hints[urn] = merged_value
+  return merged_hints
