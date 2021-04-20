@@ -185,7 +185,7 @@ dependencies {
         exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
         exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
       }
-      compile("com.lyft:streamingplatform-events-source:2.1-dryft-SNAPSHOT") {
+      compile("com.lyft:streamingplatform-events-source:2.1-HARI-SNAPSHOT") {
         exclude group: "com.lyft", module: "streamingplatform-kinesis"
         exclude group: "com.google.guava", module: "guava"
         exclude group: "com.google.protobuf", module: "protobuf-java"
