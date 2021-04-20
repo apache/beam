@@ -76,11 +76,7 @@ public class SamzaJobInvoker extends JobInvoker {
     final String invocationId =
         String.format("%s_%s", samzaOptions.getJobName(), UUID.randomUUID().toString());
     final JobInfo jobInfo =
-        JobInfo.create(
-            invocationId,
-            samzaOptions.getJobName(),
-            retrievalToken,
-            options);
+        JobInfo.create(invocationId, samzaOptions.getJobName(), retrievalToken, options);
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
   }
 }
