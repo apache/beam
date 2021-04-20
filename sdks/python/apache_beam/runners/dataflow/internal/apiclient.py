@@ -346,8 +346,8 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
 
-    if self.google_cloud_options.service_options:
-      for option in self.google_cloud_options.service_options:
+    if self.google_cloud_options.dataflow_service_options:
+      for option in self.google_cloud_options.dataflow_service_options:
         self.proto.serviceOptions.append(option)
 
     if self.google_cloud_options.enable_hot_key_logging:
@@ -650,13 +650,6 @@ class DataflowApplicationClient(object):
     template_location = (
         job.options.view_as(GoogleCloudOptions).template_location)
 
-    job_location = template_location or dataflow_job_file
-    if job_location:
-      gcs_or_local_path = os.path.dirname(job_location)
-      file_name = os.path.basename(job_location)
-      self.stage_file(
-          gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
-
     if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
       self.stage_file(
           job.options.view_as(GoogleCloudOptions).staging_location,
@@ -666,6 +659,15 @@ class DataflowApplicationClient(object):
       job.proto.stepsLocation = FileSystems.join(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json")
+
+    # template file generation should be placed immediately before the
+    # conditional API call.
+    job_location = template_location or dataflow_job_file
+    if job_location:
+      gcs_or_local_path = os.path.dirname(job_location)
+      file_name = os.path.basename(job_location)
+      self.stage_file(
+          gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
 
     if not template_location:
       return self.submit_job_description(job)

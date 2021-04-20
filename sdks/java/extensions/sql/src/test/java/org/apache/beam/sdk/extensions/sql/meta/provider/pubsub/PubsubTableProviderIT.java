@@ -49,7 +49,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -106,11 +105,7 @@ public class PubsubTableProviderIT implements Serializable {
   @Parameters
   public static Collection<Object[]> data() {
     return Arrays.asList(
-        new Object[][] {
-          {new PubsubJsonObjectProvider()},
-          {new PubsubAvroObjectProvider()},
-          {new PubsubProtoObjectProvider()}
-        });
+        new Object[][] {{new PubsubJsonObjectProvider()}, {new PubsubAvroObjectProvider()}});
   }
 
   @Parameter public PubsubObjectProvider objectsProvider;
@@ -784,54 +779,6 @@ public class PubsubTableProviderIT implements Serializable {
 
     protected abstract Matcher<PubsubMessage> matcherNameHeight(String name, int height)
         throws Exception;
-  }
-
-  private static class PubsubProtoObjectProvider extends PubsubObjectProvider {
-
-    @Override
-    protected String getPayloadFormat() {
-      return "proto";
-    }
-
-    @Override
-    protected PubsubMessage messageIdName(Instant timestamp, int id, String name) {
-      PayloadMessages.SimpleMessage.Builder simpleMessage =
-          PayloadMessages.SimpleMessage.newBuilder();
-
-      simpleMessage.setId(id);
-      simpleMessage.setName(name);
-
-      return PubsubTableProviderIT.message(
-          timestamp,
-          simpleMessage.build().toByteArray(),
-          ImmutableMap.of(name, Integer.toString(id)));
-    }
-
-    @Override
-    protected Matcher<PubsubMessage> matcherNames(String name) throws IOException {
-
-      PayloadMessages.NameMessage.Builder nameMessage = PayloadMessages.NameMessage.newBuilder();
-
-      return hasProperty("payload", equalTo(nameMessage.build().toByteArray()));
-    }
-
-    @Override
-    protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-        String name, int height, boolean knowsJS) throws IOException {
-
-      PayloadMessages.NameHeightKnowsJSMessage.Builder nameHeightKnowsJSMessage =
-          PayloadMessages.NameHeightKnowsJSMessage.newBuilder();
-
-      return hasProperty("payload", equalTo(nameHeightKnowsJSMessage.build().toByteArray()));
-    }
-
-    @Override
-    protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) throws IOException {
-      PayloadMessages.NameHeightMessage.Builder nameHeightMEssage =
-          PayloadMessages.NameHeightMessage.newBuilder();
-
-      return hasProperty("payload", equalTo(nameHeightMEssage.build().toByteArray()));
-    }
   }
 
   private static class PubsubJsonObjectProvider extends PubsubObjectProvider {

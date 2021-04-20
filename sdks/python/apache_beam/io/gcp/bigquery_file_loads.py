@@ -940,8 +940,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # are restored.
     destination_files_kv_pc = (
         destination_data_kv_pc
-        | 'ToHashableTableRef' >> beam.Map(
-            lambda kv: (bigquery_tools.get_hashable_destination(kv[0]), kv[1]))
+        |
+        'ToHashableTableRef' >> beam.Map(bigquery_tools.to_hashable_table_ref)
         | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
             batch_size=_FILE_TRIGGERING_RECORD_COUNT,
             max_buffering_duration_secs=_FILE_TRIGGERING_BATCHING_DURATION_SECS,

@@ -19,13 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import glob
 import io
 import tempfile
-from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.transforms import window

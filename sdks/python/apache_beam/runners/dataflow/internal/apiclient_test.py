@@ -1098,9 +1098,9 @@ class UtilTest(unittest.TestCase):
          ('/tmp/bar2', 'bar2')],
         staging_location='gs://test-location/staging')
 
-  def test_set_service_option(self):
+  def test_set_dataflow_service_option(self):
     pipeline_options = PipelineOptions([
-        '--service_option',
+        '--dataflow_service_option',
         'whizz=bang',
         '--temp_location',
         'gs://any-location/temp'

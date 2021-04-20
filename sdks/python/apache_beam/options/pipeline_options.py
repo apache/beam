@@ -693,9 +693,9 @@ class GoogleCloudOptions(PipelineOptions):
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
     parser.add_argument(
-        '--service_option',
-        '--service_options',
-        dest='service_options',
+        '--dataflow_service_option',
+        '--dataflow_service_options',
+        dest='dataflow_service_options',
         action='append',
         default=None,
         help=(

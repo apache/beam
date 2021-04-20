@@ -322,9 +322,7 @@ public class WriteFilesTest {
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         Window.into(FixedWindows.of(Duration.standardSeconds(10))),
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink())
-            .withWindowedWrites()
-            .withRunnerDeterminedShardingUnboundedInternal(),
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding(),
         null,
         true);
   }
@@ -361,9 +359,7 @@ public class WriteFilesTest {
     options.setTestFlag("test_value");
     Pipeline p = TestPipeline.create(options);
     WriteFiles<String, Void, String> write =
-        WriteFiles.to(makeSimpleSink())
-            .withWindowedWrites()
-            .withRunnerDeterminedShardingUnboundedInternal();
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding();
     p.apply(testStream)
         .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
         .apply(write)
@@ -514,15 +510,16 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testUnboundedWritesNeedSharding() {
+  public void testUnboundedWritesWithMergingWindowNeedSharding() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "When applying WriteFiles to an unbounded PCollection, "
+        "When applying WriteFiles to an unbounded PCollection with merging windows, "
             + "must specify number of output shards explicitly");
 
     SimpleSink<Void> sink = makeSimpleSink();
     p.apply(Create.of("foo"))
         .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(Window.into(Sessions.withGapDuration(Duration.millis(100))))
         .apply(WriteFiles.to(sink).withWindowedWrites());
     p.run();
   }

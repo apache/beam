@@ -16,23 +16,10 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import sys
-
 import numpy as np
 
 
 class ExtraAssertionsMixin(object):
-
-  if sys.version_info[0] < 3:
-
-    def assertCountEqual(self, first, second, msg=None):
-      """Assert that two containers have the same number of the same items in
-      any order.
-      """
-      return self.assertItemsEqual(first, second, msg=msg)
-
   def assertUnhashableCountEqual(self, data1, data2):
     """Assert that two containers have the same items, with special treatment
     for numpy arrays.

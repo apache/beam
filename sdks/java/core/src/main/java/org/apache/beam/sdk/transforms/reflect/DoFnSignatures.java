@@ -146,6 +146,9 @@ public class DoFnSignatures {
               Parameter.SideInputParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
+  private static final ImmutableList<Class<? extends Parameter>> ALLOWED_SETUP_PARAMETERS =
+      ImmutableList.of(Parameter.PipelineOptionsParameter.class);
+
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_START_BUNDLE_PARAMETERS =
       ImmutableList.of(
           Parameter.PipelineOptionsParameter.class,
@@ -640,13 +643,14 @@ public class DoFnSignatures {
     }
 
     if (setupMethod != null) {
+      ErrorReporter setupErrors = errors.forMethod(DoFn.Setup.class, setupMethod);
       signatureBuilder.setSetup(
-          analyzeLifecycleMethod(errors.forMethod(DoFn.Setup.class, setupMethod), setupMethod));
+          analyzeSetupMethod(setupErrors, fnT, setupMethod, inputT, outputT, fnContext));
     }
 
     if (teardownMethod != null) {
       signatureBuilder.setTeardown(
-          analyzeLifecycleMethod(
+          analyzeShutdownMethod(
               errors.forMethod(DoFn.Teardown.class, teardownMethod), teardownMethod));
     }
 
@@ -1646,11 +1650,43 @@ public class DoFnSignatures {
     return DoFnSignature.BundleMethod.create(m, methodContext.extraParameters);
   }
 
-  private static DoFnSignature.LifecycleMethod analyzeLifecycleMethod(
+  @VisibleForTesting
+  static DoFnSignature.LifecycleMethod analyzeSetupMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+    Type[] params = m.getGenericParameterTypes();
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+    for (int i = 0; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors,
+              fnContext,
+              methodContext,
+              fnT,
+              ParameterDescription.of(
+                  m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+      methodContext.addParameter(extraParam);
+    }
+
+    for (Parameter parameter : methodContext.getExtraParameters()) {
+      checkParameterOneOf(errors, parameter, ALLOWED_SETUP_PARAMETERS);
+    }
+
+    return DoFnSignature.LifecycleMethod.create(m, methodContext.extraParameters);
+  }
+
+  private static DoFnSignature.LifecycleMethod analyzeShutdownMethod(
       ErrorReporter errors, Method m) {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
     errors.checkArgument(m.getGenericParameterTypes().length == 0, "Must take zero arguments");
-    return DoFnSignature.LifecycleMethod.create(m);
+    return DoFnSignature.LifecycleMethod.create(m, Collections.emptyList());
   }
 
   @VisibleForTesting

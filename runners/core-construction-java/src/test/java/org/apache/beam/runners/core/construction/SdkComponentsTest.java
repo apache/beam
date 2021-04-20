@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 
 import java.io.IOException;
@@ -83,7 +84,7 @@ public class SdkComponentsTest {
   public void registerTransformNoChildren() throws IOException {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
-    String userName = "my_transform/my_nesting";
+    String userName = "my_transform-my_nesting";
     AppliedPTransform<?, ?, ?> transform =
         AppliedPTransform.of(
             userName,
@@ -93,6 +94,23 @@ public class SdkComponentsTest {
             pipeline);
     String componentName = components.registerPTransform(transform, Collections.emptyList());
     assertThat(componentName, equalTo(userName));
+    assertThat(components.getExistingPTransformId(transform), equalTo(componentName));
+  }
+
+  @Test
+  public void registerTransformIdFormat() throws IOException {
+    Create.Values<Integer> create = Create.of(1, 2, 3);
+    PCollection<Integer> pt = pipeline.apply(create);
+    String malformedUserName = "my/tRAnsform 1(nesting)";
+    AppliedPTransform<?, ?, ?> transform =
+        AppliedPTransform.of(
+            malformedUserName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            pipeline);
+    String componentName = components.registerPTransform(transform, Collections.emptyList());
+    assertThat(componentName, matchesPattern("^[A-Za-z0-9-_]+"));
     assertThat(components.getExistingPTransformId(transform), equalTo(componentName));
   }
 

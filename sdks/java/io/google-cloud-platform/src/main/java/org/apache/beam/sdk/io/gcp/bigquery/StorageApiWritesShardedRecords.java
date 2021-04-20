@@ -333,6 +333,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       MessageConverter<ElementT> messageConverter =
           messageConverters.get(element.getKey().getKey(), dynamicDestinations);
       Descriptor descriptor = messageConverter.getSchemaDescriptor();
+
       // Each ProtoRows object contains at most 1MB of rows.
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
       // already proto or
@@ -381,7 +382,8 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
               }
               String stream = getOrCreateStream(tableId, streamName, streamOffset, datasetService);
               StreamAppendClient appendClient =
-                  APPEND_CLIENTS.get(stream, () -> datasetService.getStreamAppendClient(stream));
+                  APPEND_CLIENTS.get(
+                      stream, () -> datasetService.getStreamAppendClient(stream, descriptor));
               for (AppendRowsContext context : contexts) {
                 context.streamName = stream;
                 appendClient.pin();
@@ -420,8 +422,8 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                 StreamAppendClient appendClient =
                     APPEND_CLIENTS.get(
                         context.streamName,
-                        () -> datasetService.getStreamAppendClient(context.streamName));
-                return appendClient.appendRows(context.offset, protoRows, descriptor);
+                        () -> datasetService.getStreamAppendClient(context.streamName, descriptor));
+                return appendClient.appendRows(context.offset, protoRows);
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }

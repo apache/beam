@@ -29,7 +29,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/python/**', 'model/**', 'release/**']
-
+  workflow_dispatch:
 
 env:
   GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
