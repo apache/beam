@@ -339,7 +339,7 @@ class UtilTest(unittest.TestCase):
         '--experiments=use_unified_worker',
         '--temp_location',
         'gs://any-location/temp',
-        '--worker_harness_container_image=dummy_prefix/dummy_name:dummy_tag'
+        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
     ])
 
     pipeline = Pipeline(options=pipeline_options)
@@ -770,7 +770,7 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://any-location/temp',
         '--streaming',
-        '--worker_harness_container_image=some:image'
+        '--sdk_container_image=some:image'
     ])
     env = apiclient.Environment(
         [],  #packages
@@ -783,7 +783,7 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions([
         '--temp_location',
         'gs://any-location/temp',
-        '--worker_harness_container_image=some:image'
+        '--sdk_container_image=some:image'
     ])
     env = apiclient.Environment(
         [],  #packages
