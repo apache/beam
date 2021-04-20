@@ -17,32 +17,19 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableSchema;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.values.Row;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import java.io.IOException;
 
-/**
- * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
- * table (or query) it was generated from.
- */
-public class SchemaAndRecord {
-  private final Object record;
-  private final TableSchema tableSchema;
+class BigQueryStorageReaderFactory {
 
-  public SchemaAndRecord(Object record, TableSchema tableSchema) {
-    this.record = record;
-    this.tableSchema = tableSchema;
-  }
+    private BigQueryStorageReaderFactory() {}
 
-  public GenericRecord getRecord() {
-    return record instanceof GenericRecord ? (GenericRecord) record : null;
-  }
-
-  public Row getRow() {
-    return record instanceof Row ? (Row) record : null;
-  }
-
-  public TableSchema getTableSchema() {
-    return tableSchema;
-  }
+    public static BigQueryStorageReader getReader(ReadSession readSession) throws IOException {
+        if (readSession.hasAvroSchema()) {
+            return new BigQueryStorageAvroReader(readSession);
+        } else if (readSession.hasArrowSchema()) {
+            return new BigQueryStorageArrowReader(readSession);
+        }
+        throw new IllegalStateException("Read session does not have Avro/Arrow schema set.");
+    }
 }

@@ -242,6 +242,7 @@ public interface TimerInternals {
       }
       ComparisonChain chain =
           ComparisonChain.start()
+              .compare(this.getOutputTimestamp(), that.getOutputTimestamp())
               .compare(this.getTimestamp(), that.getTimestamp())
               .compare(this.getOutputTimestamp(), that.getOutputTimestamp())
               .compare(this.getDomain(), that.getDomain())

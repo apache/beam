@@ -25,6 +25,8 @@ import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -37,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
+class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
 
   public static <T> BigQueryStorageQuerySource<T> create(
       String stepUuid,
@@ -48,6 +50,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
       @Nullable String location,
       @Nullable String queryTempDataset,
       @Nullable String kmsKey,
+      DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
@@ -60,6 +63,33 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
         location,
         queryTempDataset,
         kmsKey,
+            format,
+            parseFn,
+            outputCoder,
+            bqServices);
+  }
+
+  public static <T> BigQueryStorageQuerySource<T> create(
+          String stepUuid,
+          ValueProvider<String> queryProvider,
+          Boolean flattenResults,
+          Boolean useLegacySql,
+          QueryPriority priority,
+          @Nullable String location,
+          @Nullable String kmsKey,
+          SerializableFunction<SchemaAndRecord, T> parseFn,
+          Coder<T> outputCoder,
+          BigQueryServices bqServices) {
+    return new BigQueryStorageQuerySource<>(
+            stepUuid,
+            queryProvider,
+            flattenResults,
+            useLegacySql,
+            priority,
+            location,
+            null,
+            kmsKey,
+            null,
         parseFn,
         outputCoder,
         bqServices);
@@ -85,10 +115,11 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
       @Nullable String location,
       @Nullable String queryTempDataset,
       @Nullable String kmsKey,
+      DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(null, null, parseFn, outputCoder, bqServices);
+    super(format, null, null, parseFn, outputCoder, bqServices);
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.queryProvider = checkNotNull(queryProvider, "queryProvider");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");

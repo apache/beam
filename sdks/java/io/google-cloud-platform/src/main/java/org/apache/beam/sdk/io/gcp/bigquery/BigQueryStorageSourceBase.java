@@ -64,6 +64,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
    */
   private static final int MIN_SPLIT_COUNT = 10;
 
+  protected final DataFormat format;
   protected final ValueProvider<List<String>> selectedFieldsProvider;
   protected final ValueProvider<String> rowRestrictionProvider;
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
@@ -71,11 +72,13 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final BigQueryServices bqServices;
 
   BigQueryStorageSourceBase(
+      DataFormat format,
       @Nullable ValueProvider<List<String>> selectedFieldsProvider,
       @Nullable ValueProvider<String> rowRestrictionProvider,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
+    this.format = format;
     this.selectedFieldsProvider = selectedFieldsProvider;
     this.rowRestrictionProvider = rowRestrictionProvider;
     this.parseFn = checkNotNull(parseFn, "parseFn");
@@ -132,6 +135,9 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
             .setMaxStreamCount(streamCount)
             .build();
 
+    /*if (DataFormat.ARROW.equals(format)) {
+      requestBuilder.setFormat(DataFormat.ARROW);
+    }*/
     ReadSession readSession;
     try (StorageClient client = bqServices.getStorageClient(bqOptions)) {
       readSession = client.createReadSession(createReadSessionRequest);

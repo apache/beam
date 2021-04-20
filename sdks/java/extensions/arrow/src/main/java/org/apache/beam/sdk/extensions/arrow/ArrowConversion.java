@@ -217,6 +217,23 @@ public class ArrowConversion {
                                         throw new IllegalArgumentException(
                                                 "Type \'" + type.toString() + "\' not supported.");
                                     }
+
+                                    @Override
+                                    public FieldType visit(ArrowType.LargeBinary type) {
+                                        throw new IllegalArgumentException(
+                                                "Type \'" + type.toString() + "\' not supported.");
+                                    }
+
+                                    @Override
+                                    public FieldType visit(ArrowType.LargeUtf8 type) {
+                                        throw new IllegalArgumentException(
+                                                "Type \'" + type.toString() + "\' not supported.");
+                                    }
+                                    @Override
+                                    public FieldType visit(ArrowType.LargeList type) {
+                                        throw new IllegalArgumentException(
+                                                "Type \'" + type.toString() + "\' not supported.");
+                                    }
                                 });
         return fieldType.withNullable(arrowFieldType.isNullable());
     }
@@ -237,6 +254,7 @@ public class ArrowConversion {
         return rowsFromRecordBatch(toBeamSchema(vectorSchemaRoot.getSchema()), vectorSchemaRoot);
     }
 
+    @SuppressWarnings("rawtypes")
     private static class VectorSchemaRootRowIterator implements Iterator<Row> {
         private static final ArrowValueConverterVisitor valueConverterVisitor =
                 new ArrowValueConverterVisitor();
@@ -387,7 +405,12 @@ public class ArrowConversion {
 
             @Override
             public Function<Object, Object> visit(ArrowType.Timestamp type) {
-                DateTimeZone tz = DateTimeZone.forID(type.getTimezone());
+                DateTimeZone tz;
+                try {
+                    tz = DateTimeZone.forID(type.getTimezone());
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("Encountered unrecognized Timezone: " + type.getTimezone());
+                }
                 switch (type.getUnit()) {
                     case MICROSECOND:
                         return (epochMicros) -> new DateTime((long) epochMicros / 1000, tz);
@@ -400,6 +423,21 @@ public class ArrowConversion {
 
             @Override
             public Function<Object, Object> visit(ArrowType.Interval type) {
+                throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
+            }
+
+            @Override
+            public Function<Object, Object> visit(ArrowType.LargeBinary type) {
+                throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
+            }
+
+            @Override
+            public Function<Object, Object> visit(ArrowType.LargeUtf8 type) {
+                throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
+            }
+
+            @Override
+            public Function<Object, Object> visit(ArrowType.LargeList type) {
                 throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
             }
         }
@@ -420,10 +458,12 @@ public class ArrowConversion {
 
         @Override
         public Row next() {
+            if (!hasNext()) {
+                throw new IllegalStateException("There are no more Rows.");
+            }
             Row result =
                     Row.withSchema(schema)
-                            .withFieldValueGetters(this.fieldValueGetters, this.currRowIndex)
-                            .build();
+                            .withFieldValueGetters(this.fieldValueGetters, this.currRowIndex);
             this.currRowIndex += 1;
             return result;
         }

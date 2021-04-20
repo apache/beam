@@ -238,6 +238,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   }
 
   private TypedRead<Row> getBigQueryTypedRead(Schema schema) {
+    // TODO(BEAM-9114): Call row function which encapsulates both: Arrow and Avro conversion.
     return BigQueryIO.read(
             record -> BigQueryUtils.toBeamRow(record.getRecord(), schema, conversionOptions))
         .withMethod(method)

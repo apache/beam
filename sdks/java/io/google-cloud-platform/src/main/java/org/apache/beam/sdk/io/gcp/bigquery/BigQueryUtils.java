@@ -525,6 +525,11 @@ public class BigQueryUtils {
         return toTableRow((Row) fieldValue);
 
       case DATETIME:
+        if (fieldValue instanceof Long) {
+          return Instant.ofEpochMilli((long) fieldValue)
+                  .toDateTime(DateTimeZone.UTC)
+                  .toString(BIGQUERY_TIMESTAMP_PRINTER);
+        }
         return ((Instant) fieldValue)
             .toDateTime(DateTimeZone.UTC)
             .toString(BIGQUERY_TIMESTAMP_PRINTER);

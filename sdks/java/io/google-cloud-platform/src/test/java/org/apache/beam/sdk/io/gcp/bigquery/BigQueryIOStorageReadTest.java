@@ -58,8 +58,11 @@ import io.grpc.StatusRuntimeException;
 import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -1350,5 +1353,21 @@ public class BigQueryIOStorageReadTest {
                 new TableRow().set("name", "D")));
 
     p.run();
+  }
+
+  private static org.apache.arrow.vector.types.pojo.Field field(
+          String name,
+          boolean nullable,
+          ArrowType type,
+          org.apache.arrow.vector.types.pojo.Field... children) {
+    return new org.apache.arrow.vector.types.pojo.Field(
+            name,
+            new org.apache.arrow.vector.types.pojo.FieldType(nullable, type, null, null),
+            Arrays.asList(children));
+  }
+
+  static org.apache.arrow.vector.types.pojo.Field field(
+          String name, ArrowType type, org.apache.arrow.vector.types.pojo.Field... children) {
+    return field(name, false, type, children);
   }
 }

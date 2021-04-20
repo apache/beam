@@ -295,8 +295,9 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.INTERACTIVE,
             /* location = */ null,
-            /* queryTempDataset = */ null,
+            /* queryTempDataset = */null,
             /* kmsKey = */ null,
+             null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             fakeBigQueryServices);
@@ -408,6 +409,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -501,6 +503,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -639,6 +642,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -662,6 +666,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ "asia-northeast1",
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             fakeBigQueryServices);

@@ -591,6 +591,7 @@ public class BigQueryIO {
         .setParseFn(parseFn)
         .setMethod(Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
+        .setFormat(DataFormat.DATA_FORMAT_UNSPECIFIED)
         .build();
   }
 
@@ -601,8 +602,15 @@ public class BigQueryIO {
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
-      return BigQueryAvroUtils.convertGenericRecordToTableRow(
-          schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
+      // TODO(BEAM-9114): Implement a function to encapsulate row conversion logic.
+      if (schemaAndRecord.getRecord() != null) {
+        return BigQueryAvroUtils.convertGenericRecordToTableRow(
+                schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
+      } else if (schemaAndRecord.getRow() != null) {
+        return BigQueryUtils.toTableRow().apply(schemaAndRecord.getRow());
+      }
+      throw new IllegalStateException(
+              "Record should be of instance GenericRecord (for Avro format) or of instance Row (for Arrow format), but it is not.");
     }
   }
 
@@ -780,6 +788,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setMethod(Method method);
 
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setFormat(DataFormat method);
+
       abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
 
       abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
@@ -827,6 +838,9 @@ public class BigQueryIO {
     abstract @Nullable String getQueryTempDataset();
 
     abstract Method getMethod();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    abstract DataFormat getFormat();
 
     abstract @Nullable ValueProvider<List<String>> getSelectedFields();
 
@@ -917,6 +931,7 @@ public class BigQueryIO {
           getQueryLocation(),
           getQueryTempDataset(),
           getKmsKey(),
+          getFormat(),
           getParseFn(),
           outputCoder,
           getBigQueryServices());
@@ -1205,6 +1220,7 @@ public class BigQueryIO {
             org.apache.beam.sdk.io.Read.from(
                 BigQueryStorageTableSource.create(
                     tableProvider,
+                    getFormat(),
                     getSelectedFields(),
                     getRowRestriction(),
                     getParseFn(),
@@ -1544,6 +1560,12 @@ public class BigQueryIO {
     /** See {@link Method}. */
     public TypedRead<T> withMethod(Method method) {
       return toBuilder().setMethod(method).build();
+    }
+
+    /** See {@link DataFormat}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withFormat(DataFormat format) {
+      return toBuilder().setFormat(format).build();
     }
 
     /** See {@link #withSelectedFields(ValueProvider)}. */
