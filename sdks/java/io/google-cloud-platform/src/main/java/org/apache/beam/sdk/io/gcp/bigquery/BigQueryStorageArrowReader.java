@@ -53,7 +53,7 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
         this.alloc = new RootAllocator(Long.MAX_VALUE);
         this.arrowSchema = MessageSerializer.deserializeSchema(readChannel);
-        this.arrowBeamSchema = ArrowConversion.toBeamSchema(arrowSchema);
+        this.arrowBeamSchema = ArrowConversion.ArrowSchemaTranslator.toBeamSchema(arrowSchema);
         this.vectorRoot = VectorSchemaRoot.create(arrowSchema, alloc);
         this.vectorLoader = new VectorLoader(vectorRoot);
         this.rowCount = 0;
