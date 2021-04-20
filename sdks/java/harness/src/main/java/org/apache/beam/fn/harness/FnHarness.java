@@ -264,6 +264,7 @@ public class FnHarness {
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
               options,
+              runnerCapabilites,
               processBundleDescriptors::getUnchecked,
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
