@@ -49,7 +49,7 @@ public class ShortIdMapTest {
     builder.setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_DOUBLE);
     builder.setDoubleDistributionValue(1, 1, 1, 1);
     testCases.add(KV.of("metric2", builder.build()));
-
+    /*
     builder = new SimpleMonitoringInfoBuilder(false);
     builder.setUrn("TestingSentinelUrn");
     builder.setType("TestingSentinelType");
@@ -92,7 +92,7 @@ public class ShortIdMapTest {
     builder.setLabel(MonitoringInfoConstants.Labels.SERVICE, "Storage");
     builder.setInt64SumValue(4);
     testCases.add(KV.of("metric9", builder.build()));
-
+    */
     // Validate that modifying the payload, but using the same URN/labels
     // does not change the shortId assignment.
     builder = new SimpleMonitoringInfoBuilder(false);
@@ -123,7 +123,7 @@ public class ShortIdMapTest {
     // metadata (everything but the payload) matches the originals
     assertEquals(expectedShortIds, actualRecoveredInfos.keySet());
     for (KV<String, MetricsApi.MonitoringInfo> entry : testCases) {
-      // Clear payloads of both expected and actual becfore comparing
+      // Clear payloads of both expected and actual before comparing
       MetricsApi.MonitoringInfo expectedMonitoringInfo = entry.getValue();
       MetricsApi.MonitoringInfo.Builder expected =
           MetricsApi.MonitoringInfo.newBuilder(expectedMonitoringInfo);
