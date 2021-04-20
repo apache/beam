@@ -976,8 +976,7 @@ class RunnerApiTest(unittest.TestCase):
     for _ in range(3):
       # Verify that DEFAULT environments are recreated during multiple RunnerAPI
       # translation and hints don't get lost.
-      p = Pipeline.from_runner_api(
-          Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
+      p = Pipeline.from_runner_api(Pipeline.to_runner_api(p), None, None)
       self.assertEqual(
           p.transforms_stack[0].parts[1].transform.get_resource_hints(),
           {common_urns.resource_hints.ACCELERATOR.urn: b'gpu'})
@@ -1034,8 +1033,7 @@ class RunnerApiTest(unittest.TestCase):
         '--sdk_location=container',
     ])
     environment = ProcessEnvironment.from_options(options)
-    proto = Pipeline.to_runner_api(
-        p, use_fake_coders=True, default_environment=environment)
+    proto = Pipeline.to_runner_api(p, default_environment=environment)
 
     for t in proto.components.transforms.values():
       if "CompositeTransform/SubTransform/Map" in t.unique_name:
@@ -1090,7 +1088,7 @@ class RunnerApiTest(unittest.TestCase):
           | f'IsOdd_{i}' >>
           beam.Map(lambda x: x + 1).with_resource_hints(IsOdd=str(i % 2 != 0)))
 
-    proto = Pipeline.to_runner_api(p, use_fake_coders=True)
+    proto = Pipeline.to_runner_api(p)
     count_x = count_xy = count_is_odd = count_no_hints = 0
     env_ids = set()
     for _, t in proto.components.transforms.items():
@@ -1149,7 +1147,7 @@ class RunnerApiTest(unittest.TestCase):
 
     p = beam.Pipeline()
     _ = (p | beam.Create([1, 2]) | CompositeTransform())
-    proto = Pipeline.to_runner_api(p, use_fake_coders=True)
+    proto = Pipeline.to_runner_api(p)
     count = 0
     for t in proto.components.transforms.values():
       if "CompositeTransform/first/Map" in t.unique_name:
