@@ -195,6 +195,12 @@ if [[ $confirmation = "y" ]]; then
   cd beam/${RELEASE}
 
   echo "----------------Downloading Source Release-------------------"
+  # GitHub strips the "v" from "v2.29.0" in naming zip and the dir inside it
+  RC_DIR="beam-${RELEASE}-RC${RC_NUM}"
+  RC_ZIP="${RC_DIR}.zip"
+  # We want to strip the -RC1 suffix from the directory name inside the zip
+  RELEASE_DIR="beam-${RELEASE}"
+
   SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
   # Check whether there is an existing dist dir
   if (svn ls "${SOURCE_RELEASE_ZIP}"); then
@@ -202,8 +208,14 @@ if [[ $confirmation = "y" ]]; then
     svn delete "${SOURCE_RELEASE_ZIP}"
   fi
 
-  echo "Downloading: ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip"
-  wget ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip  -O "${SOURCE_RELEASE_ZIP}"
+  echo "Downloading: ${GIT_BEAM_ARCHIVE}/${RC_TAG}.zip"
+  wget ${GIT_BEAM_ARCHIVE}/${RC_TAG}.zip  -O "${RC_ZIP}"
+
+  unzip "$RC_ZIP"
+  rm "$RC_ZIP"
+  mv "$RC_DIR" "$RELEASE_DIR"
+  zip -r "${SOURCE_RELEASE_ZIP}" "$RELEASE_DIR"
+  rm -r "$RELEASE_DIR"
 
   echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
   gpg --local-user ${SIGNING_KEY} --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
