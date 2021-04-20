@@ -33,7 +33,7 @@ public class SamzaExecutableStageContextFactory implements ExecutableStageContex
   private static final SamzaExecutableStageContextFactory instance =
       new SamzaExecutableStageContextFactory();
   // This map should only ever have a single element, as each job will have its own
-  // classloader and therefore its own instance of FlinkExecutableStageContextFactory. This
+  // classloader and therefore its own instance of SamzaExecutableStageContextFactory. This
   // code supports multiple JobInfos in order to provide a sensible implementation of
   // Factory.get(JobInfo), which in theory could be called with different JobInfos.
   private static final ConcurrentMap<String, ExecutableStageContext.Factory> jobFactories =
