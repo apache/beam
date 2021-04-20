@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -89,6 +91,11 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     return RowCoder.of(schema);
   }
 
+  /** Override encoding positions for the given schema. */
+  public static void overrideEncodingPositions(UUID uuid, Map<String, Integer> encodingPositions) {
+    RowCoderGenerator.overrideEncodingPositions(uuid, encodingPositions);
+  }
+
   /** Returns the schema associated with this type. */
   public Schema getSchema() {
     return schema;
@@ -103,6 +110,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   public SerializableFunction<T, Row> getToRowFunction() {
     return toRowFunction;
   }
+
 
   private Coder<Row> getDelegateCoder() {
     if (delegateCoder == null) {
