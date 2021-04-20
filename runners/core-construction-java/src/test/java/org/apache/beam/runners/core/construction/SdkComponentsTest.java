@@ -265,7 +265,6 @@ public class SdkComponentsTest {
 
   @Test
   public void testEnvironmentForHintDeduplicatonLogic() {
-    // TODO: Change environment suffix? Currently: beam:env:docker:v11, beam:env:docker:v12, etc.
     assertEquals(
         components.getEnvironmentIdFor(ResourceHints.create()),
         components.getEnvironmentIdFor(ResourceHints.create()));
