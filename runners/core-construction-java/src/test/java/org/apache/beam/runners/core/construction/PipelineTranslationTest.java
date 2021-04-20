@@ -38,7 +38,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Count;
@@ -46,7 +45,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -54,9 +52,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHint;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHintsOptions;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -296,7 +292,8 @@ public class PipelineTranslationTest {
   }
 
   private RunnerApi.PTransform getLeafTransform(RunnerApi.Pipeline pipelineProto, String prefix) {
-    for (RunnerApi.PTransform transform : pipelineProto.getComponents().getTransformsMap().values())  {
+    for (RunnerApi.PTransform transform :
+        pipelineProto.getComponents().getTransformsMap().values()) {
       if (transform.getUniqueName().startsWith(prefix) && transform.getSubtransformsCount() == 0) {
         return transform;
       }
@@ -318,17 +315,28 @@ public class PipelineTranslationTest {
     ParDo.SingleOutput<byte[], byte[]> transform = ParDo.of(new IdentityDoFn<byte[]>());
     root.apply("Big", transform.setResourceHints(ResourceHints.create().withMemory("640KB")));
     root.apply("Small", transform.setResourceHints(ResourceHints.create().withMemory(1)));
-    root.apply("AnotherBig", transform.setResourceHints(ResourceHints.create().withMemory("640KB")));
+    root.apply(
+        "AnotherBig", transform.setResourceHints(ResourceHints.create().withMemory("640KB")));
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
-    assertThat(pipelineProto.getComponents().getEnvironmentsMap().get(
-            getLeafTransform(pipelineProto, "Big").getEnvironmentId()).getResourceHintsMap(),
-            org.hamcrest.Matchers.hasEntry("beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("640000")));
-    assertThat(pipelineProto.getComponents().getEnvironmentsMap().get(
-            getLeafTransform(pipelineProto, "Small").getEnvironmentId()).getResourceHintsMap(),
-            org.hamcrest.Matchers.hasEntry("beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("1")));
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Big").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.hasEntry(
+            "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("640000")));
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Small").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.hasEntry(
+            "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("1")));
     // Ensure we re-use environments.
     assertThat(
-            getLeafTransform(pipelineProto, "Big").getEnvironmentId(),
-            equalTo(getLeafTransform(pipelineProto, "AnotherBig").getEnvironmentId()));
+        getLeafTransform(pipelineProto, "Big").getEnvironmentId(),
+        equalTo(getLeafTransform(pipelineProto, "AnotherBig").getEnvironmentId()));
   }
 }
