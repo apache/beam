@@ -69,12 +69,28 @@ public class JavaUdfLoaderTest {
   }
 
   @Test
+  public void testLoadAggregateFunction() {
+    JavaUdfLoader udfLoader = new JavaUdfLoader();
+    udfLoader.loadAggregateFunction(Collections.singletonList("my_sum"), jarPath);
+  }
+
+  @Test
   public void testLoadUnregisteredScalarFunctionThrowsRuntimeException() {
     JavaUdfLoader udfLoader = new JavaUdfLoader();
     thrown.expect(RuntimeException.class);
     thrown.expectMessage(
         String.format("No implementation of scalar function notRegistered found in %s.", jarPath));
     udfLoader.loadScalarFunction(Collections.singletonList("notRegistered"), jarPath);
+  }
+
+  @Test
+  public void testLoadUnregisteredAggregateFunctionThrowsRuntimeException() {
+    JavaUdfLoader udfLoader = new JavaUdfLoader();
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage(
+        String.format(
+            "No implementation of aggregate function notRegistered found in %s.", jarPath));
+    udfLoader.loadAggregateFunction(Collections.singletonList("notRegistered"), jarPath);
   }
 
   @Test
