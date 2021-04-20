@@ -94,6 +94,7 @@ public class CloudObjects {
     CloudObject encoding;
     if (translator != null) {
       encoding = translator.toCloudObject(coder, sdkComponents);
+
     } else {
       CloudObjectTranslator customCoderTranslator = CODER_TRANSLATORS.get(CustomCoder.class);
       checkNotNull(

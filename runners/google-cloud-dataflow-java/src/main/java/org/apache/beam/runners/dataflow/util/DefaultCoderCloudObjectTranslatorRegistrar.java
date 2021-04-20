@@ -74,6 +74,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           new AvroCoderCloudObjectTranslator(),
           new SerializableCoderCloudObjectTranslator(),
           new SchemaCoderCloudObjectTranslator(),
+          new RowCoderCloudObjectTranslator(),
           CloudObjectTranslators.iterableLike(CollectionCoder.class),
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),
