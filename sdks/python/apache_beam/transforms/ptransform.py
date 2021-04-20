@@ -428,7 +428,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
     Resource hints allow users to express constraints on the environment where
     the transform should be executed.  Interpretation of the resource hints is
-    defined by Beam Runners. Runners may ignore unsupported the hints.
+    defined by Beam Runners. Runners may ignore the unsupported hints.
 
     Args:
       **kwargs: key-value pairs describing hints and their values.
@@ -441,7 +441,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       PTransform: A reference to the instance of this particular
       :class:`PTransform` object.
     """
-    self._resource_hints = resources.parse_resource_hints(kwargs)
+    self.get_resource_hints().update(resources.parse_resource_hints(kwargs))
     return self
 
   def get_resource_hints(self):
@@ -449,7 +449,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     if '_resource_hints' not in self.__dict__:
       # PTransform subclasses don't always call super(), so prefer lazy
       # initialization. By default, transforms don't have any resource hints.
-      self._resource_hints = {}
+      self._resource_hints = {}  # type: Dict[str, bytes]
     return self._resource_hints
 
   def type_check_inputs(self, pvalueish):
