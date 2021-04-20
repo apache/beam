@@ -68,6 +68,10 @@ public class SamzaJobInvoker extends JobInvoker {
         samzaOptions.as(PortablePipelineOptions.class).getOutputExecutablePath())) {
       pipelineRunner = new SamzaPipelineRunner(samzaOptions);
     } else {
+      /*
+       * To support --output_executable_path where bundles the input pipeline along with all
+       * artifacts, etc. required to run the pipeline into a jar that can be executed later.
+       */
       pipelineRunner = new PortablePipelineJarCreator(SamzaPipelineRunner.class);
     }
 
