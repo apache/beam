@@ -17,17 +17,32 @@
  */
 package org.apache.beam.sdk.transforms.resourcehints;
 
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 public class ResourceHints {
   // TODO: reference a const from compiled proto.
   private static final String MEMORY_URN = "beam:resources:min_ram_bytes:v1";
   private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
+
+  private static ImmutableMap<String, String> ABBREVIATIONS =
+      ImmutableMap.<String, String>builder()
+          .put("minRam", MEMORY_URN)
+          .put("accelerator", ACCELERATOR_URN)
+          .build();
+
+  private static ImmutableMap<String, Function<String, ResourceHint>> PARSERS =
+      ImmutableMap.<String, Function<String, ResourceHint>>builder()
+          .put(MEMORY_URN, s -> new BytesHint(BytesHint.parse(s)))
+          .put(ACCELERATOR_URN, s -> new StringHint(s))
+          .build();
 
   private static ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
 
@@ -42,11 +57,32 @@ public class ResourceHints {
   }
 
   public static ResourceHints fromOptions(PipelineOptions options) {
-    // TODO: Add pipeline options.
-    return create();
+    ResourceHintsOptions resourceHintsOptions = options.as(ResourceHintsOptions.class);
+    ResourceHints result = create();
+    if (resourceHintsOptions.getResourceHints() == null) {
+      return result;
+    }
+    Splitter splitter = Splitter.on('=').limit(2);
+    for (String hint : resourceHintsOptions.getResourceHints()) {
+      List<String> parts = splitter.splitToList(hint);
+      if (parts.size() != 2) {
+        throw new IllegalArgumentException("Unparsable resource hint: " + hint);
+      }
+      String urn = parts.get(0);
+      String stringValue = parts.get(1);
+      if (ABBREVIATIONS.containsKey(urn)) {
+        urn = ABBREVIATIONS.get(urn);
+      } else if (!urn.startsWith("beam:resources:")) {
+        // Allow unknown hints to be passed, but validate a little bit to prevent typos.
+        throw new IllegalArgumentException("Unknown resource hint: " + hint);
+      }
+      ResourceHint value = PARSERS.getOrDefault(urn, s -> new StringHint(s)).apply(stringValue);
+      result = result.withHint(urn, value);
+    }
+    return result;
   }
 
-  private static class BytesHint implements ResourceHint {
+  /*package*/ static class BytesHint extends ResourceHint {
     private static Map<String, Long> suffixes =
         ImmutableMap.<String, Long>builder()
             .put("B", 1L)
@@ -108,7 +144,7 @@ public class ResourceHints {
     }
   }
 
-  private static class StringHint implements ResourceHint {
+  /*package*/ static class StringHint extends ResourceHint {
     private final String value;
 
     public StringHint(String value) {

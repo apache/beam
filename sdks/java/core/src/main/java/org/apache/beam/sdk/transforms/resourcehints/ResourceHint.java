@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.resourcehints;
 
-public interface ResourceHint {
-  public ResourceHint mergeWithOuter(ResourceHint outer);
+public abstract class ResourceHint {
+  public abstract ResourceHint mergeWithOuter(ResourceHint outer);
 
-  public byte[] toBytes();
+  public abstract byte[] toBytes();
+
+  public abstract boolean equals(Object other);
+
+  public abstract int hashCode();
 }
