@@ -1115,6 +1115,7 @@ class RunnerApiTest(unittest.TestCase):
             env.resource_hints == {'IsOdd_urn': b'True'} or
             env.resource_hints == {'IsOdd_urn': b'False'})
     assert count_x == count_is_odd == count_xy == count_no_hints == num_iter
+    assert num_iter > 1
 
     self.assertEqual(len(env_ids), 5)
 
