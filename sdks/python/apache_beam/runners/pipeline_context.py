@@ -120,6 +120,10 @@ class _PipelineContextMap(Generic[PortableObjectT]):
 
   def get_by_proto(self, maybe_new_proto, label=None, deduplicate=False):
     # type: (message.Message, Optional[str], bool) -> str
+    # TODO: this method may not be safe for arbitrary protos due to
+    #  xlang concerns, hence limiting usage to the only current use-case it has.
+    #  See: https://github.com/apache/beam/pull/14390#discussion_r616062377
+    assert isinstance(maybe_new_proto, beam_runner_api_pb2.Environment)
     obj = self._obj_type.from_runner_api(
         maybe_new_proto, self._pipeline_context)
 

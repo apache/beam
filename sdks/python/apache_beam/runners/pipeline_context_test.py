@@ -37,13 +37,14 @@ class PipelineContextTest(unittest.TestCase):
 
   def test_deduplication_by_proto(self):
     context = pipeline_context.PipelineContext()
-    bytes_coder_proto = coders.BytesCoder().to_runner_api(None)
-    bytes_coder_ref = context.coders.get_by_proto(bytes_coder_proto)
-    bytes_coder_ref2 = context.coders.get_by_proto(
-        bytes_coder_proto, deduplicate=True)
-    self.assertEqual(bytes_coder_ref, bytes_coder_ref2)
+    env_proto = environments.SubprocessSDKEnvironment(
+        command_string="foo").to_runner_api(None)
+    env_ref_1 = context.environments.get_by_proto(env_proto)
+    env_ref_2 = context.environments.get_by_proto(env_proto, deduplicate=True)
+    self.assertEqual(env_ref_1, env_ref_2)
 
-  def test_equal_objects_are_deduplicated_when_fetched_by_obj_or_proto(self):
+  def test_equal_environments_are_deduplicated_when_fetched_by_obj_or_proto(
+      self):
     context = pipeline_context.PipelineContext()
 
     env = environments.SubprocessSDKEnvironment(command_string="foo")
