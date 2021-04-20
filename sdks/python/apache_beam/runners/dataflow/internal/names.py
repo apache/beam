@@ -108,6 +108,7 @@ class PropertyNames(object):
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
   PUBSUB_TIMESTAMP_ATTRIBUTE = 'pubsub_timestamp_label'
   PUBSUB_TOPIC = 'pubsub_topic'
+  RESOURCE_HINTS = 'resource_hints'
   RESTRICTION_ENCODING = 'restriction_encoding'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'

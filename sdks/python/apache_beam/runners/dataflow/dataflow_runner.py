@@ -37,6 +37,7 @@ from subprocess import DEVNULL
 from typing import TYPE_CHECKING
 from typing import List
 from urllib.parse import quote
+from urllib.parse import quote_from_bytes
 from urllib.parse import unquote_to_bytes
 
 from future.utils import iteritems
@@ -307,7 +308,7 @@ class DataflowRunner(PipelineRunner):
                     is_bounded=side_input.pvalue.is_bounded)
                 parent = transform_node.parent or pipeline._root_transform()
                 map_to_void_key = beam.pipeline.AppliedPTransform(
-                    pipeline,
+                    parent,
                     beam.Map(lambda x: (b'', x)),
                     transform_node.full_label + '/MapToVoidKey%s' % ix,
                     (side_input.pvalue, ))
@@ -456,7 +457,8 @@ class DataflowRunner(PipelineRunner):
       self._default_environment = (
           environments.DockerEnvironment.from_container_image(
               apiclient.get_container_image_from_options(options),
-              artifacts=environments.python_sdk_dependencies(options)))
+              artifacts=environments.python_sdk_dependencies(options),
+              resource_hints=environments.resource_hints_from_options(options)))
 
     # This has to be performed before pipeline proto is constructed to make sure
     # that the changes are reflected in the portable job submission path.
@@ -706,6 +708,14 @@ class DataflowRunner(PipelineRunner):
             item.get_dict()
             for item in DisplayData.create_from(transform_node.transform).items
         ])
+
+    if transform_node.resource_hints:
+      step.add_property(
+          PropertyNames.RESOURCE_HINTS,
+          {
+              hint: quote_from_bytes(value)
+              for (hint, value) in transform_node.resource_hints.items()
+          })
 
     return step
 
