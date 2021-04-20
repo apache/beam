@@ -163,7 +163,7 @@ public class BeamSqlEnvRunner {
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcdsOptions.class);
 
     String dataSize = TpcdsParametersReader.getAndCheckDataSize(tpcdsOptions);
-    String[] queryNameArr = TpcdsParametersReader.getAndCheckQueryNameArray(tpcdsOptions);
+    String[] queryNames = TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptions);
     int nThreads = TpcdsParametersReader.getAndCheckTpcParallel(tpcdsOptions);
 
     // Using ExecutorService and CompletionService to fulfill multi-threading functionality
@@ -182,11 +182,11 @@ public class BeamSqlEnvRunner {
             .build();
 
     // Make an array of pipelines, each pipeline is responsible for running a corresponding query.
-    Pipeline[] pipelines = new Pipeline[queryNameArr.length];
+    Pipeline[] pipelines = new Pipeline[queryNames.length];
 
     // Execute all queries, transform the each result into a PCollection<String>, write them into
     // the txt file and store in a GCP directory.
-    for (int i = 0; i < queryNameArr.length; i++) {
+    for (int i = 0; i < queryNames.length; i++) {
       // For each query, get a copy of pipelineOptions from command line arguments, cast
       // tpcdsOptions as a DataflowPipelineOptions object to read and set required parameters for
       // pipeline execution.
@@ -197,11 +197,10 @@ public class BeamSqlEnvRunner {
 
       // Set a unique job name using the time stamp so that multiple different pipelines can run
       // together.
-      dataflowPipelineOptionsCopy.setJobName(
-          queryNameArr[i] + "result" + System.currentTimeMillis());
+      dataflowPipelineOptionsCopy.setJobName(queryNames[i] + "result" + System.currentTimeMillis());
 
       pipelines[i] = Pipeline.create(dataflowPipelineOptionsCopy);
-      String queryString = QueryReader.readQuery(queryNameArr[i]);
+      String queryString = QueryReader.readQuery(queryNames[i]);
 
       try {
         // Query execution
@@ -223,7 +222,7 @@ public class BeamSqlEnvRunner {
                 .withSuffix(".txt")
                 .withNumShards(1));
       } catch (Exception e) {
-        LOG.error("{} failed to execute", queryNameArr[i]);
+        LOG.error("{} failed to execute", queryNames[i]);
         e.printStackTrace();
       }
 
@@ -232,6 +231,6 @@ public class BeamSqlEnvRunner {
 
     executor.shutdown();
 
-    printExecutionSummary(completion, queryNameArr.length);
+    printExecutionSummary(completion, queryNames.length);
   }
 }
