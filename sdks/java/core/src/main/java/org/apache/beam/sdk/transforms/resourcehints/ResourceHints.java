@@ -27,6 +27,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 public class ResourceHints {
   // TODO: reference a const from compiled proto.
   private static final String MEMORY_URN = "beam:resources:min_ram_bytes:v1";
+  private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
 
   private static ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
 
@@ -91,6 +92,28 @@ public class ResourceHints {
     }
   }
 
+  private static class StringHint implements ResourceHint {
+    private final String value;
+
+    public StringHint(String value) {
+      this.value = value;
+    }
+
+    public static String parse(String s) {
+      return s;
+    }
+
+    @Override
+    public ResourceHint mergeWithOuter(ResourceHint outer) {
+      return this;
+    }
+
+    @Override
+    public byte[] toBytes() {
+      return value.getBytes(Charsets.US_ASCII);
+    }
+  }
+
   public ResourceHints withMemory(long ramBytes) {
     return withHint(MEMORY_URN, new BytesHint(ramBytes));
   }
@@ -108,6 +131,10 @@ public class ResourceHints {
       }
     }
     return new ResourceHints(newHints.build());
+  }
+
+  public ResourceHints withAccelerator(String accelerator) {
+    return withHint(ACCELERATOR_URN, new StringHint(accelerator));
   }
 
   public Map<String, ResourceHint> hints() {

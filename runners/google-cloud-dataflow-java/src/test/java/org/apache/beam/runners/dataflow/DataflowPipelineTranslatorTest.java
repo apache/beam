@@ -1273,7 +1273,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             "Has hints",
             MapElements.into(TypeDescriptors.integers())
                 .via((Integer x) -> x + 1)
-                .setResourceHints(ResourceHints.create().withMemory("10.0GiB")));
+                .setResourceHints(
+                    ResourceHints.create()
+                        .withMemory("10.0GiB")
+                        .withAccelerator("type:nvidia-tesla-k80;count:1;install-nvidia-drivers")));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
@@ -1288,6 +1291,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     ImmutableMap<String, Object> expectedHints =
         ImmutableMap.<String, Object>builder()
             .put("beam:resources:min_ram_bytes:v1", "10737418240")
+            .put("beam:resources:accelerator:v1", "nvidia-tesla-k80;count:1;install-nvidia-drivers")
             .build();
     assertEquals(expectedHints, stepWithHints.getProperties().get("resource_hints"));
   }
