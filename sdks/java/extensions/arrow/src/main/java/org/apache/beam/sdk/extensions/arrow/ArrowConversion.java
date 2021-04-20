@@ -47,19 +47,6 @@ import org.joda.time.DateTimeZone;
  */
 @Experimental(Experimental.Kind.SCHEMAS)
 public class ArrowConversion {
-    /** Converts Arrow schema to Beam row schema. */
-    public static Schema toBeamSchema(org.apache.arrow.vector.types.pojo.Schema schema) {
-        return toBeamSchema(schema.getFields());
-    }
-
-    public static Schema toBeamSchema(List<org.apache.arrow.vector.types.pojo.Field> fields) {
-        Schema.Builder builder = Schema.builder();
-        for (org.apache.arrow.vector.types.pojo.Field field : fields) {
-            Field beamField = toBeamField(field);
-            builder.addField(beamField);
-        }
-        return builder.build();
-    }
 
     /** Get Beam Field from Arrow Field. */
     private static Field toBeamField(org.apache.arrow.vector.types.pojo.Field field) {
@@ -84,7 +71,7 @@ public class ArrowConversion {
 
                                     @Override
                                     public FieldType visit(ArrowType.Struct type) {
-                                        return FieldType.row(toBeamSchema(childrenFields));
+                                        return FieldType.row(ArrowSchemaTranslator.toBeamSchema(childrenFields));
                                     }
 
                                     @Override
@@ -251,7 +238,7 @@ public class ArrowConversion {
     }
 
     public static Iterable<Row> rowsFromRecordBatch(VectorSchemaRoot vectorSchemaRoot) {
-        return rowsFromRecordBatch(toBeamSchema(vectorSchemaRoot.getSchema()), vectorSchemaRoot);
+        return rowsFromRecordBatch(ArrowSchemaTranslator.toBeamSchema(vectorSchemaRoot.getSchema()), vectorSchemaRoot);
     }
 
     @SuppressWarnings("rawtypes")
@@ -485,4 +472,23 @@ public class ArrowConversion {
     }
 
     private ArrowConversion() {}
+
+    /** Converts Arrow schema to Beam row schema. */
+    public static class ArrowSchemaTranslator {
+
+        public static Schema toBeamSchema(org.apache.arrow.vector.types.pojo.Schema schema) {
+            return toBeamSchema(schema.getFields());
+        }
+
+        public static Schema toBeamSchema(List<org.apache.arrow.vector.types.pojo.Field> fields) {
+            Schema.Builder builder = Schema.builder();
+            for (org.apache.arrow.vector.types.pojo.Field field : fields) {
+                Field beamField = toBeamField(field);
+                builder.addField(beamField);
+            }
+            return builder.build();
+        }
+
+    }
+
 }
