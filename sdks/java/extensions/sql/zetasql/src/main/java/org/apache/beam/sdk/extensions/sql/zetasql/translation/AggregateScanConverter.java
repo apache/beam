@@ -203,14 +203,44 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
               + " aggregation.");
     }
 
-    SqlAggFunction sqlAggFunction;
+    final SqlAggFunction sqlAggFunction;
     if (aggregateFunctionCall
         .getFunction()
         .getGroup()
         .equals(BeamZetaSqlCatalog.USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS)) {
-      sqlAggFunction = getUserDefinedFunction(aggregateFunctionCall);
+      // Create a new operator for user-defined functions.
+      SqlReturnTypeInference typeInference =
+          x ->
+              ZetaSqlCalciteTranslationUtils.toCalciteType(
+                  aggregateFunctionCall
+                      .getFunction()
+                      .getSignatureList()
+                      .get(0)
+                      .getResultType()
+                      .getType(),
+                  // TODO(BEAM-9514) set nullable=true
+                  false,
+                  getCluster().getRexBuilder());
+      UdafImpl<?, ?, ?> impl =
+          new UdafImpl<>(
+              getExpressionConverter()
+                  .userFunctionDefinitions
+                  .javaAggregateFunctions()
+                  .get(aggregateFunctionCall.getFunction().getNamePath()));
+      sqlAggFunction =
+          SqlOperators.createUdafOperator(
+              aggregateFunctionCall.getFunction().getName(), typeInference, impl);
     } else {
-      sqlAggFunction = getBuiltinFunction(aggregateFunctionCall);
+      // Look up builtin functions in SqlOperatorMappingTable.
+      sqlAggFunction =
+          (SqlAggFunction)
+              SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
+                  aggregateFunctionCall.getFunction().getName());
+      if (sqlAggFunction == null) {
+        throw new UnsupportedOperationException(
+            "Does not support ZetaSQL aggregate function: "
+                + aggregateFunctionCall.getFunction().getName());
+      }
     }
 
     List<Integer> argList = new ArrayList<>();
@@ -236,42 +266,5 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     String aggName = getTrait().resolveAlias(computedColumn.getColumn());
     return AggregateCall.create(
         sqlAggFunction, false, false, false, argList, -1, RelCollations.EMPTY, returnType, aggName);
-  }
-
-  private SqlAggFunction getBuiltinFunction(ResolvedAggregateFunctionCall aggregateFunctionCall) {
-    SqlAggFunction sqlAggFunction =
-        (SqlAggFunction)
-            SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                aggregateFunctionCall.getFunction().getName());
-    if (sqlAggFunction == null) {
-      throw new UnsupportedOperationException(
-          "Does not support ZetaSQL aggregate function: "
-              + aggregateFunctionCall.getFunction().getName());
-    }
-    return sqlAggFunction;
-  }
-
-  private SqlAggFunction getUserDefinedFunction(
-      ResolvedAggregateFunctionCall aggregateFunctionCall) {
-    SqlReturnTypeInference typeInference =
-        x ->
-            ZetaSqlCalciteTranslationUtils.toCalciteType(
-                aggregateFunctionCall
-                    .getFunction()
-                    .getSignatureList()
-                    .get(0)
-                    .getResultType()
-                    .getType(),
-                // TODO(BEAM-9514) set nullable=true
-                false,
-                getCluster().getRexBuilder());
-    UdafImpl<?, ?, ?> impl =
-        new UdafImpl<>(
-            getExpressionConverter()
-                .userFunctionDefinitions
-                .javaAggregateFunctions()
-                .get(aggregateFunctionCall.getFunction().getNamePath()));
-    return SqlOperators.createUdafOperator(
-        aggregateFunctionCall.getFunction().getName(), typeInference, impl);
   }
 }
