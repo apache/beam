@@ -260,26 +260,14 @@ class UtilTest(unittest.TestCase):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
-    proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
-
-    dummy_env = beam_runner_api_pb2.Environment(
-        urn=common_urns.environments.DOCKER.urn,
-        payload=(
-            beam_runner_api_pb2.DockerPayload(
-                container_image='apache/beam_dummy_name:dummy_tag')
-        ).SerializeToString())
-    proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
-
-    dummy_transform = beam_runner_api_pb2.PTransform(
-        environment_id='dummy_env_id')
-    proto_pipeline.components.transforms['dummy_transform_id'].CopyFrom(
-        dummy_transform)
+    dummy_env = DockerEnvironment(
+        container_image='apache/beam_dummy_name:dummy_tag')
+    proto_pipeline, _ = pipeline.to_runner_api(
+        return_context=True, default_environment=dummy_env)
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
         proto_pipeline, dict(), pipeline_options)
-
-    self.assertIsNotNone(2, len(proto_pipeline.components.environments))
 
     from apache_beam.utils import proto_utils
     found_override = False
@@ -303,20 +291,10 @@ class UtilTest(unittest.TestCase):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
-    proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
-
-    dummy_env = beam_runner_api_pb2.Environment(
-        urn=common_urns.environments.DOCKER.urn,
-        payload=(
-            beam_runner_api_pb2.DockerPayload(
-                container_image='other_org/dummy_name:dummy_tag')
-        ).SerializeToString())
-    proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
-
-    dummy_transform = beam_runner_api_pb2.PTransform(
-        environment_id='dummy_env_id')
-    proto_pipeline.components.transforms['dummy_transform_id'].CopyFrom(
-        dummy_transform)
+    dummy_env = DockerEnvironment(
+        container_image='other_org/dummy_name:dummy_tag')
+    proto_pipeline, _ = pipeline.to_runner_api(
+        return_context=True, default_environment=dummy_env)
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
@@ -341,7 +319,7 @@ class UtilTest(unittest.TestCase):
         '--experiments=use_unified_worker',
         '--temp_location',
         'gs://any-location/temp',
-        '--worker_harness_container_image=dummy_prefix/dummy_name:dummy_tag'
+        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
     ])
 
     pipeline = Pipeline(options=pipeline_options)
@@ -349,18 +327,10 @@ class UtilTest(unittest.TestCase):
 
     proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
 
-    dummy_env = beam_runner_api_pb2.Environment(
-        urn=common_urns.environments.DOCKER.urn,
-        payload=(
-            beam_runner_api_pb2.DockerPayload(
-                container_image='dummy_prefix/dummy_name:dummy_tag')
-        ).SerializeToString())
-    proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
-
-    dummy_transform = beam_runner_api_pb2.PTransform(
-        environment_id='dummy_env_id')
-    proto_pipeline.components.transforms['dummy_transform_id'].CopyFrom(
-        dummy_transform)
+    dummy_env = DockerEnvironment(
+        container_image='dummy_prefix/dummy_name:dummy_tag')
+    proto_pipeline, _ = pipeline.to_runner_api(
+        return_context=True, default_environment=dummy_env)
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
@@ -772,7 +742,7 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://any-location/temp',
         '--streaming',
-        '--worker_harness_container_image=some:image'
+        '--sdk_container_image=some:image'
     ])
     env = apiclient.Environment(
         [],  #packages
@@ -785,7 +755,7 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions([
         '--temp_location',
         'gs://any-location/temp',
-        '--worker_harness_container_image=some:image'
+        '--sdk_container_image=some:image'
     ])
     env = apiclient.Environment(
         [],  #packages

@@ -1484,6 +1484,8 @@ message StandardEnvironments {
     PROCESS = 1 [(beam_urn) = "beam:env:process:v1"]; // A managed native process to run user code.
 
     EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"]; // An external non managed process to run user code.
+
+    DEFAULT = 3 [(beam_urn) = "beam:env:default:v1"]; // Used as a stub when context is missing a runner-provided default environment.
   }
 }
 
@@ -1532,6 +1534,15 @@ message StandardProtocols {
     // the entire SDK harness process, not specific to a bundle.
     HARNESS_MONITORING_INFOS = 4
         [(beam_urn) = "beam:protocol:harness_monitoring_infos:v1"];
+  }
+}
+
+// These URNs are used to indicate capabilities of runner that an environment
+// may take advantage of when interacting with this runner.
+message StandardRunnerProtocols {
+  enum Enum {
+    // Indicates suport the MonitoringInfo short id protocol.
+    MONITORING_INFO_SHORT_IDS = 0 [(beam_urn) = "beam:protocol:monitoring_info_short_ids:v1"];
   }
 }
 
@@ -1830,5 +1841,15 @@ message ExecutableStagePayload {
       // The timer id this setting applies to.
       TimerId timer = 4;
     }
+  }
+}
+
+message StandardResourceHints {
+  enum Enum {
+    // Describes hardware accelerators that are desired to have in the execution environment.
+    ACCELERATOR = 0 [(beam_urn) = "beam:resources:accelerator:v1"];
+    // Describes desired minimal available RAM size in transform's execution environment.
+    // SDKs should convert the size to bytes, but can allow users to specify human-friendly units (e.g. GiB).
+    MIN_RAM_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_bytes:v1"];
   }
 }

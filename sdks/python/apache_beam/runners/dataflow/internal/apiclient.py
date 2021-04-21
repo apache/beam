@@ -1098,8 +1098,8 @@ def get_container_image_from_options(pipeline_options):
       str: Container image for remote execution.
   """
   worker_options = pipeline_options.view_as(WorkerOptions)
-  if worker_options.worker_harness_container_image:
-    return worker_options.worker_harness_container_image
+  if worker_options.sdk_container_image:
+    return worker_options.sdk_container_image
 
   use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
