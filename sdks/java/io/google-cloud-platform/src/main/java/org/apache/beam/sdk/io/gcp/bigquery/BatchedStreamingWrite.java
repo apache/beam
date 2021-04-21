@@ -58,6 +58,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** PTransform to perform batched streaming BigQuery write. */
 @SuppressWarnings({
@@ -66,6 +68,7 @@ import org.joda.time.Instant;
 class BatchedStreamingWrite<ErrorT, ElementT>
     extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollection<ErrorT>> {
   private static final TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
+  private static final Logger LOG = LoggerFactory.getLogger(BatchedStreamingWrite.class);
 
   private final BigQueryServices bqServices;
   private final InsertRetryPolicy retryPolicy;
@@ -270,6 +273,10 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     @Override
     public PCollection<ErrorT> expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
       BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+      Duration maxBufferingDuration =
+          options.getMaxBufferingDurationMilliSec() > 0
+              ? Duration.millis(options.getMaxBufferingDurationMilliSec())
+              : BATCH_MAX_BUFFERING_DURATION;
       KvCoder<String, TableRowInfo<ElementT>> inputCoder = (KvCoder) input.getCoder();
       TableRowInfoCoder<ElementT> valueCoder =
           (TableRowInfoCoder) inputCoder.getCoderArguments().get(1);
@@ -287,7 +294,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
               .apply(
                   GroupIntoBatches.<String, TableRowInfo<ElementT>>ofSize(
                           options.getMaxStreamingRowsToBatch())
-                      .withMaxBufferingDuration(BATCH_MAX_BUFFERING_DURATION)
+                      .withMaxBufferingDuration(maxBufferingDuration)
                       .withShardedKey())
               .setCoder(
                   KvCoder.of(
@@ -324,6 +331,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
                 tableRow, context.timestamp(), window, context.pane(), failsafeTableRow));
         uniqueIds.add(row.uniqueId);
       }
+      LOG.info("Writing to BigQuery using Auto-sharding. Flushing {} rows.", tableRows.size());
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
       TableReference tableReference = BigQueryHelpers.parseTableSpec(input.getKey().getKey());
       List<ValueInSingleWindow<ErrorT>> failedInserts = Lists.newArrayList();
