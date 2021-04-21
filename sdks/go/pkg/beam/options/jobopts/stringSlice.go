@@ -42,3 +42,8 @@ func (s *stringSlice) Set(value string) error {
 	*s = append(*s, value)
 	return nil
 }
+
+// Get returns the instance itself.
+func (s stringSlice) Get() interface{} {
+	return s
+}
