@@ -855,16 +855,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertNotIn(unpacked_maximum_step_name, step_names)
     self.assertIn(packed_step_name, step_names)
 
-  def test_pack_combiners_disabled_by_default(self):
-    self._test_pack_combiners(
-        PipelineOptions(self.default_properties), expect_packed=False)
-
-  @unittest.skip("BEAM-11694")
-  def test_pack_combiners_enabled_by_experiment(self):
-    self.default_properties.append('--experiment=pre_optimize=all')
-    self._test_pack_combiners(
-        PipelineOptions(self.default_properties), expect_packed=True)
-
 
 if __name__ == '__main__':
   unittest.main()
