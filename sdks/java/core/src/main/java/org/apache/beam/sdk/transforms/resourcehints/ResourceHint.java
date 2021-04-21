@@ -22,7 +22,9 @@ public abstract class ResourceHint {
 
   public abstract byte[] toBytes();
 
+  @Override
   public abstract boolean equals(Object other);
 
+  @Override
   public abstract int hashCode();
 }
