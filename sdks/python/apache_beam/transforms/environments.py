@@ -595,7 +595,7 @@ class EmbeddedPythonEnvironment(Environment):
 
   @classmethod
   def default(cls):
-    # type: () -> SubprocessSDKEnvironment
+    # type: () -> EmbeddedPythonEnvironment
     return cls(capabilities=python_sdk_capabilities(), artifacts=())
 
 
@@ -698,7 +698,7 @@ class EmbeddedPythonGrpcEnvironment(Environment):
 
   @classmethod
   def default(cls):
-    # type: () -> SubprocessSDKEnvironment
+    # type: () -> EmbeddedPythonGrpcEnvironment
     return cls(capabilities=python_sdk_capabilities(), artifacts=())
 
 

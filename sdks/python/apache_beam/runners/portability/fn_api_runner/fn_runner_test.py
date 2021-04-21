@@ -1034,7 +1034,6 @@ class FnApiRunnerTest(unittest.TestCase):
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names = set(m.key.step for m in counters)
-    print(step_names)
     self.assertFalse(
         any([
             re.match(unpacked_min_step_name_regex, s) and
