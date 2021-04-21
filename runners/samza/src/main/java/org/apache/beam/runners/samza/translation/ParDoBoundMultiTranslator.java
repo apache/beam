@@ -162,6 +162,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             input.isBounded(),
             false,
             null,
+            null,
             Collections.emptyMap(),
             doFnSchemaInformation,
             sideInputMapping);
@@ -283,6 +284,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             isBounded,
             true,
             stagePayload,
+            ctx.getJobInfo(),
             idToTupleTagMap,
             doFnSchemaInformation,
             sideInputMapping);
