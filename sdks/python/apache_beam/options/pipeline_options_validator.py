@@ -234,6 +234,28 @@ class PipelineOptionsValidator(object):
         view.region = default_region
     return errors
 
+  def validate_sdk_container_image_options(self, view):
+    errors = []
+    if view.sdk_container_image and view.worker_harness_container_image:
+      # To be fully backwards-compatible, these options will be set to the same
+      # value. Check that the values are different.
+      if view.sdk_container_image != view.worker_harness_container_image:
+        errors.extend(
+          self._validate_error(
+              'Cannot use legacy flag --worker_harness_container_image along '
+              'with view.sdk_container_image'))
+    elif view.worker_harness_container_image:
+      # Warn about legacy flag and set new flag to value of old flag.
+      _LOGGER.warning(
+          'Setting sdk_container_image to value of legacy flag'
+          'worker_harness_container_image.')
+      view.sdk_container_image = view.worker_harness_container_image
+    elif view.sdk_container_image:
+      # Set legacy option to value of new option.
+      view.worker_harness_container_image = view.sdk_container_image
+
+    return errors
+
   def validate_worker_region_zone(self, view):
     """Validates Dataflow worker region and zone arguments are consistent."""
     errors = []
