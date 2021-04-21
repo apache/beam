@@ -17,24 +17,28 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcSplittingRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 
-/** A {@link BeamCalcSplittingRule} to replace {@link Calc} with {@link BeamZetaSqlCalcRel}. */
-public class BeamZetaSqlCalcRule extends BeamCalcSplittingRule {
-  public static final BeamZetaSqlCalcRule INSTANCE = new BeamZetaSqlCalcRule();
+/**
+ * A {@link BeamCalcSplittingRule} that converts a {@link LogicalCalc} to a chain of {@link
+ * BeamZetaSqlCalcRel} and/or {@link BeamCalcRel} via {@link CalcRelSplitter}.
+ *
+ * <p>Only Java UDFs are implemented using {@link BeamCalcRel}. All other expressions are
+ * implemented using {@link BeamZetaSqlCalcRel}.
+ */
+public class BeamZetaSqlCalcSplittingRule extends BeamCalcSplittingRule {
+  public static final BeamZetaSqlCalcSplittingRule INSTANCE = new BeamZetaSqlCalcSplittingRule();
 
-  private BeamZetaSqlCalcRule() {
+  private BeamZetaSqlCalcSplittingRule() {
     super("BeamZetaSqlCalcRule");
   }
 
   @Override
   protected CalcRelSplitter.RelType[] getRelTypes() {
-    // "Split" the Calc between two identical RelTypes. The second one is just a placeholder; if the
-    // first isn't usable, the second one won't be usable either, and the planner will fail.
     return new CalcRelSplitter.RelType[] {
-      new BeamZetaSqlRelType("BeamZetaSqlRelType"), new BeamZetaSqlRelType("BeamZetaSqlRelType2")
+      new BeamZetaSqlRelType("BeamZetaSqlRelType"), new BeamCalcRelType("BeamCalcRelType")
     };
   }
 }
