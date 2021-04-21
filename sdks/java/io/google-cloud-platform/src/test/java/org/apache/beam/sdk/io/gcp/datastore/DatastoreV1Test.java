@@ -38,6 +38,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -126,7 +127,10 @@ public class DatastoreV1Test {
 
   @Mock private Datastore mockDatastore;
   @Mock QuerySplitter mockQuerySplitter;
-  @Mock V1DatastoreFactory mockDatastoreFactory;
+  @Mock
+  V1DatastoreFactory mockDatastoreFactory;
+  @Mock
+  RampupThrottlerTransform<Mutation> mockThrottlerTransform;
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -292,8 +296,10 @@ public class DatastoreV1Test {
 
   @Test
   public void testWritePrimitiveDisplayData() {
+    int numShards = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject");
+    PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject")
+        .withNumThrottlerShards(numShards);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -304,13 +310,42 @@ public class DatastoreV1Test {
         "DatastoreIO write should include the upsertFn in its primitive display data",
         displayData,
         hasItem(hasDisplayItem("upsertFn")));
+    assertThat(
+        "DatastoreIO write should include ramp-up throttling shards if enabled",
+        displayData,
+        hasItem(hasDisplayItem("numThrottlerShards", numShards))
+    );
+  }
+
+  @Test
+  public void testWritePrimitiveDisplayDataDisabledThrottler() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject")
+        .withRampupThrottlingDisabled();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat(
+        "DatastoreIO write should include the project in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("projectId")));
+    assertThat(
+        "DatastoreIO write should include the upsertFn in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("upsertFn")));
+    assertThat(
+        "DatastoreIO write should include ramp-up throttling shards if enabled",
+        displayData,
+        not(hasItem(hasDisplayItem("numThrottlerShards")))
+    );
   }
 
   @Test
   public void testDeleteEntityPrimitiveDisplayData() {
+    int numShards = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
-        DatastoreIO.v1().deleteEntity().withProjectId("myProject");
+        DatastoreIO.v1().deleteEntity().withProjectId("myProject")
+            .withNumThrottlerShards(numShards);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -321,12 +356,19 @@ public class DatastoreV1Test {
         "DatastoreIO write should include the deleteEntityFn in its primitive display data",
         displayData,
         hasItem(hasDisplayItem("deleteEntityFn")));
+    assertThat(
+        "DatastoreIO write should include ramp-up throttling shards if enabled",
+        displayData,
+        hasItem(hasDisplayItem("numThrottlerShards", numShards))
+    );
   }
 
   @Test
   public void testDeleteKeyPrimitiveDisplayData() {
+    int numShards = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Key>, ?> write = DatastoreIO.v1().deleteKey().withProjectId("myProject");
+    PTransform<PCollection<Key>, ?> write = DatastoreIO.v1().deleteKey().withProjectId("myProject")
+        .withNumThrottlerShards(numShards);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -337,6 +379,11 @@ public class DatastoreV1Test {
         "DatastoreIO write should include the deleteKeyFn in its primitive display data",
         displayData,
         hasItem(hasDisplayItem("deleteKeyFn")));
+    assertThat(
+        "DatastoreIO write should include ramp-up throttling shards if enabled",
+        displayData,
+        hasItem(hasDisplayItem("numThrottlerShards", numShards))
+    );
   }
 
   /** Test building a Write using builder methods. */
@@ -344,6 +391,7 @@ public class DatastoreV1Test {
   public void testBuildWrite() throws Exception {
     DatastoreV1.Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     assertEquals(PROJECT_ID, write.getProjectId());
+
   }
 
   /** Test the detection of complete and incomplete keys. */
