@@ -134,6 +134,8 @@ class ResourceHint:
       raise ValueError()
 
     suffix = match.group(1)
+    if suffix not in units:
+      raise ValueError()
     multiplier = units[suffix]
     value = value[:-len(suffix)]
 
