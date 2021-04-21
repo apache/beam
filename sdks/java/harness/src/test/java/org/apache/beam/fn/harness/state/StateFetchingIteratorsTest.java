@@ -163,13 +163,17 @@ public class StateFetchingIteratorsTest {
       assertEquals(0, callCount.get());
 
       // No more is read than necissary.
-      if (valuesIter.hasNext()) valuesIter.next();
+      if (valuesIter.hasNext()) {
+	valuesIter.next();
+      }
       assertEquals(1, callCount.get());
 
       // The first page is cached.
       Iterator<T> valuesIter2 = values.iterator();
       assertEquals(1, callCount.get());
-      if (valuesIter2.hasNext()) valuesIter2.next();
+      if (valuesIter2.hasNext()) {
+	valuesIter2.next();
+      }
       assertEquals(1, callCount.get());
 
       // The contents agree.
