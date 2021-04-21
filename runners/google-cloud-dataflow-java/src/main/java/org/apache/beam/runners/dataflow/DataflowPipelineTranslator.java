@@ -632,6 +632,10 @@ public class DataflowPipelineTranslator {
 
     private final Translator translator;
     private final Step step;
+    // For compatibility with URL encoding implementations that represent space as +,
+    // always encode + as %2b even though we don't encode space as +.
+    private final PercentCodec percentCodec =
+        new PercentCodec("+".getBytes(Charsets.US_ASCII), false);
 
     private StepTranslator(Translator translator, Step step) {
       this.translator = translator;
@@ -773,12 +777,11 @@ public class DataflowPipelineTranslator {
 
     private void addResourceHints(Step step, String stepName, ResourceHints hints) {
       Map<String, Object> urlEncodedHints = new HashMap<>();
-      PercentCodec codec = new PercentCodec();
       for (Entry<String, ResourceHint> entry : hints.hints().entrySet()) {
         try {
           urlEncodedHints.put(
               entry.getKey(),
-              new String(codec.encode(entry.getValue().toBytes()), Charsets.US_ASCII));
+              new String(percentCodec.encode(entry.getValue().toBytes()), Charsets.US_ASCII));
         } catch (EncoderException e) {
           // Should never happen.
           throw new RuntimeException("Invalid value for resource hint: " + entry.getKey(), e);

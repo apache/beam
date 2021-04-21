@@ -17,12 +17,27 @@
  */
 package org.apache.beam.sdk.transforms.resourcehints;
 
-public abstract class ResourceHint {
-  public abstract ResourceHint mergeWithOuter(ResourceHint outer);
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+/** Provides a definition of a resource hint known to the SDK. */
+public abstract class ResourceHint {
+
+  /**
+   * Reconciles values of a hint when the hint specified on a transform is also defined in an outer
+   * context, for example on a composite transform, or specified in the transform's execution
+   * environment. Override this method for a custom reconciliation logic.
+   */
+  public ResourceHint mergeWithOuter(ResourceHint outer) {
+    // Defaults to the inner value as it is the most specific one.
+    return this;
+  }
+
+  /** Defines how to represent the as bytestring. */
   public abstract byte[] toBytes();
 
-  public abstract boolean equals(Object other);
+  @Override
+  public abstract boolean equals(@Nullable Object other);
 
+  @Override
   public abstract int hashCode();
 }

@@ -883,7 +883,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private List<RunnerApi.ArtifactInformation> getDefaultArtifacts() {
-    if (true) return new ArrayList<>();
     ImmutableList.Builder<String> pathsToStageBuilder = ImmutableList.builder();
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
@@ -893,13 +892,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // built in worker order.
       pathsToStageBuilder.add("dataflow-worker.jar=" + dataflowWorkerJar);
     }
-    // TODO: revert this
+    pathsToStageBuilder.addAll(options.getFilesToStage());
+    if (windmillBinary != null) {
+      pathsToStageBuilder.add("windmill_main=" + windmillBinary);
+    }
     return Environments.getArtifacts(pathsToStageBuilder.build());
-    // pathsToStageBuilder.addAll(options.getFilesToStage());
-    // if (windmillBinary != null) {
-    //   pathsToStageBuilder.add("windmill_main=" + windmillBinary);
-    // }
-    // return Environments.getArtifacts(pathsToStageBuilder.build());
   }
 
   @Override
@@ -954,7 +951,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     RunnerApi.Pipeline portablePipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
-    LOG.info("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
+    LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
     // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
     // the options on the new job
     // TODO: add an explicit `pipeline` parameter to the submission instead of pipeline options
@@ -977,7 +974,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .build());
     RunnerApi.Pipeline dataflowV1PipelineProto =
         PipelineTranslation.toProto(pipeline, dataflowV1Components, true);
-    LOG.info("Dataflow v1 pipeline proto:\n{}", TextFormat.printToString(dataflowV1PipelineProto));
+    LOG.debug("Dataflow v1 pipeline proto:\n{}", TextFormat.printToString(dataflowV1PipelineProto));
     List<DataflowPackage> packages = stageArtifacts(dataflowV1PipelineProto);
 
     // Set a unique client_request_id in the CreateJob request.
@@ -1025,7 +1022,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       throw new IllegalArgumentException(
           "PipelineOptions specified failed to serialize to JSON.", e);
     }
-    // LOG.info("Job Spec Json: {} ", DataflowPipelineTranslator.jobToString(newJob));
     newJob.setClientRequestId(requestId);
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();

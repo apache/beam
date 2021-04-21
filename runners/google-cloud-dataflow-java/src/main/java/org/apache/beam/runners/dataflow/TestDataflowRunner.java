@@ -122,8 +122,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // No metrics in streaming
       allAssertionsPassed = Optional.absent();
     } else {
-      jobSuccess = true;
-      // waitForBatchJobTermination(job, messageHandler);
+      jobSuccess = waitForBatchJobTermination(job, messageHandler);
       allAssertionsPassed = checkForPAssertSuccess(job);
     }
 

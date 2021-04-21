@@ -270,20 +270,20 @@ public class SdkComponentsTest {
         components.getEnvironmentIdFor(ResourceHints.create()));
 
     assertEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withMemory(1000)),
-        components.getEnvironmentIdFor(ResourceHints.create().withMemory(1000)));
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)),
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)));
 
     assertEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withMemory(1000)),
-        components.getEnvironmentIdFor(ResourceHints.create().withMemory(2000).withMemory("1KB")));
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)),
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(2000).withMinRam("1KB")));
 
     assertNotEquals(
         components.getEnvironmentIdFor(ResourceHints.create()),
-        components.getEnvironmentIdFor(ResourceHints.create().withMemory("1GiB")));
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("1GiB")));
 
     assertNotEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withMemory("10GiB")),
-        components.getEnvironmentIdFor(ResourceHints.create().withMemory("10GB")));
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("10GiB")),
+        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("10GB")));
 
     assertEquals(
         components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
@@ -296,6 +296,6 @@ public class SdkComponentsTest {
     assertNotEquals(
         components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
         components.getEnvironmentIdFor(
-            ResourceHints.create().withAccelerator("gpu").withMemory(10)));
+            ResourceHints.create().withAccelerator("gpu").withMinRam(10)));
   }
 }

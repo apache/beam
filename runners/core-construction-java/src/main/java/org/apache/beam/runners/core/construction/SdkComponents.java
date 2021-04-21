@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import avro.shaded.com.google.common.collect.Maps;
 import java.io.IOException;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
@@ -48,6 +47,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
@@ -304,7 +304,7 @@ public class SdkComponents {
     if (existing != null) {
       environmentId = existing;
     } else {
-      String name = uniqify(env.getUrn() + "_", environmentIds.values());
+      String name = uniqify(env.getUrn(), environmentIds.values());
       environmentIds.put(env, name);
       componentsBuilder.putEnvironments(name, env);
       environmentId = name;
