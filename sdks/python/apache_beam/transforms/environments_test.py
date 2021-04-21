@@ -119,6 +119,17 @@ class EnvironmentOptionsTest(unittest.TestCase):
       ])
       ProcessEnvironment.from_options(options)
 
+  def test_environments_with_same_hints_are_equal(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container',
+        '--resource_hint=accelerator=gpu',
+    ])
+    environment1 = ProcessEnvironment.from_options(options)
+    environment2 = ProcessEnvironment.from_options(options)
+    self.assertEqual(environment1, environment2)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

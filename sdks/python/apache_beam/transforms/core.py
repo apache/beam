@@ -2727,7 +2727,7 @@ class Windowing(object):
         accumulation_mode=proto.accumulation_mode,
         timestamp_combiner=proto.output_time,
         allowed_lateness=Duration(micros=proto.allowed_lateness * 1000),
-        environment_id=proto.environment_id)
+        environment_id=None)
 
 
 @typehints.with_input_types(T)

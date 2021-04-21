@@ -38,7 +38,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -132,10 +131,10 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
     this.config =
         Frameworks.newConfigBuilder(config)
             .defaultSchema(schema)
-            // Add BeamJavaUdfCalcRule to planner to enable UDFs.
+            // Add BeamZetaSqlCalcSplittingRule to planner to enable UDFs.
             .ruleSets(
                 ZetaSQLQueryPlanner.getZetaSqlRuleSets(
-                        ImmutableList.of(BeamJavaUdfCalcRule.INSTANCE))
+                        ImmutableList.of(BeamZetaSqlCalcSplittingRule.INSTANCE))
                     .toArray(new RuleSet[0]))
             .build();
   }
@@ -397,8 +396,6 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore(
-      "+inf is implemented as a ZetaSQL builtin function, so combining it with a UDF requires Calc splitting (BEAM-12009).")
   public void testPosInfFloat64Literal() {
     runUdfTypeTest(
         "SELECT test_float64(CAST('+inf' AS FLOAT64));",
@@ -415,8 +412,6 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore(
-      "-inf is implemented as a ZetaSQL builtin function, so combining it with a UDF requires Calc splitting (BEAM-12009).")
   public void testNegInfFloat64Literal() {
     runUdfTypeTest(
         "SELECT test_float64(CAST('-inf' AS FLOAT64));",
@@ -433,8 +428,6 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore(
-      "NaN is implemented as a ZetaSQL builtin function, so combining it with a UDF requires Calc splitting (BEAM-12009).")
   public void testNaNFloat64Literal() {
     runUdfTypeTest(
         "SELECT test_float64(CAST('NaN' AS FLOAT64));", Double.NaN, Schema.TypeName.DOUBLE);
