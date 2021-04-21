@@ -31,6 +31,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
 import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auto.value.AutoValue;
@@ -1243,6 +1244,9 @@ public class DatastoreV1 {
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"))
           .include("mutationFn", mutationFn);
+      if(throttleRampup){
+        builder.include("rampupThrottler", rampupThrottlerTransform);
+      }
     }
 
     public String getProjectId() {
@@ -1389,7 +1393,6 @@ public class DatastoreV1 {
     @StartBundle
     public void startBundle(StartBundleContext c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
-      LOG.info("Setting up new writer");
       writeBatcher.start();
       if (adaptiveThrottler == null) {
         // Initialize throttler at first use, because it is not serializable.
@@ -1597,13 +1600,19 @@ public class DatastoreV1 {
     public Datastore getDatastore(
         PipelineOptions pipelineOptions, String projectId, @Nullable String localhost) {
       Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+
+      // Add Beam version to user agent header.
+      HttpRequestInitializer userAgentInitializer = request -> request.getHeaders()
+          .setUserAgent(pipelineOptions.getUserAgent());
       HttpRequestInitializer initializer;
       if (credential != null) {
         initializer =
             new ChainingHttpRequestInitializer(
-                new HttpCredentialsAdapter(credential), new RetryHttpRequestInitializer());
+                new HttpCredentialsAdapter(credential), new RetryHttpRequestInitializer(),
+                userAgentInitializer);
       } else {
-        initializer = new RetryHttpRequestInitializer();
+        initializer = new ChainingHttpRequestInitializer(new RetryHttpRequestInitializer(),
+            userAgentInitializer);
       }
 
       DatastoreOptions.Builder builder =
