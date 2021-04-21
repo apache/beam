@@ -605,12 +605,12 @@ public class BigQueryIO {
       // TODO(BEAM-9114): Implement a function to encapsulate row conversion logic.
       if (schemaAndRecord.getRecord() != null) {
         return BigQueryAvroUtils.convertGenericRecordToTableRow(
-                schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
+            schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
       } else if (schemaAndRecord.getRow() != null) {
         return BigQueryUtils.toTableRow().apply(schemaAndRecord.getRow());
       }
       throw new IllegalStateException(
-              "Record should be of instance GenericRecord (for Avro format) or of instance Row (for Arrow format), but it is not.");
+          "Record should be of instance GenericRecord (for Avro format) or of instance Row (for Arrow format), but it is not.");
     }
   }
 

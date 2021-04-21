@@ -295,9 +295,9 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.INTERACTIVE,
             /* location = */ null,
-            /* queryTempDataset = */null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
-             null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             fakeBigQueryServices);

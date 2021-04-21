@@ -30,48 +30,48 @@ import org.apache.avro.io.DecoderFactory;
 
 class BigQueryStorageAvroReader implements BigQueryStorageReader {
 
-    private final Schema avroSchema;
-    private final DatumReader<GenericRecord> datumReader;
-    private BinaryDecoder decoder;
-    private GenericRecord record;
-    private long rowCount;
+  private final Schema avroSchema;
+  private final DatumReader<GenericRecord> datumReader;
+  private BinaryDecoder decoder;
+  private GenericRecord record;
+  private long rowCount;
 
-    BigQueryStorageAvroReader(ReadSession readSession) {
-        this.avroSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
-        this.datumReader = new GenericDatumReader<>(avroSchema);
-        this.rowCount = 0;
-    }
+  BigQueryStorageAvroReader(ReadSession readSession) {
+    this.avroSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
+    this.datumReader = new GenericDatumReader<>(avroSchema);
+    this.rowCount = 0;
+  }
 
-    @Override
-    public void processReadRowsResponse(ReadRowsResponse readRowsResponse) {
-        AvroRows avroRows = readRowsResponse.getAvroRows();
-        rowCount = avroRows.getRowCount();
-        decoder =
-                DecoderFactory.get()
-                        .binaryDecoder(avroRows.getSerializedBinaryRows().toByteArray(), decoder);
-    }
+  @Override
+  public void processReadRowsResponse(ReadRowsResponse readRowsResponse) {
+    AvroRows avroRows = readRowsResponse.getAvroRows();
+    rowCount = avroRows.getRowCount();
+    decoder =
+        DecoderFactory.get()
+            .binaryDecoder(avroRows.getSerializedBinaryRows().toByteArray(), decoder);
+  }
 
-    @Override
-    public long getRowCount() {
-        return rowCount;
-    }
+  @Override
+  public long getRowCount() {
+    return rowCount;
+  }
 
-    @Override
-    public Object readSingleRecord() throws IOException {
-        record = datumReader.read(record, decoder);
-        return record;
-    }
+  @Override
+  public Object readSingleRecord() throws IOException {
+    record = datumReader.read(record, decoder);
+    return record;
+  }
 
-    @Override
-    public boolean readyForNextReadResponse() throws IOException {
-        return decoder == null || decoder.isEnd();
-    }
+  @Override
+  public boolean readyForNextReadResponse() throws IOException {
+    return decoder == null || decoder.isEnd();
+  }
 
-    @Override
-    public void resetBuffer() {
-        decoder = null;
-    }
+  @Override
+  public void resetBuffer() {
+    decoder = null;
+  }
 
-    @Override
-    public void close() {}
+  @Override
+  public void close() {}
 }

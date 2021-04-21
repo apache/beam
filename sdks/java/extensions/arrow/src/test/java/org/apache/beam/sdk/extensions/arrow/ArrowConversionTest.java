@@ -55,125 +55,125 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ArrowConversionTest {
 
-    private BufferAllocator allocator;
+  private BufferAllocator allocator;
 
-    @Before
-    public void init() {
-        allocator = new RootAllocator(Long.MAX_VALUE);
+  @Before
+  public void init() {
+    allocator = new RootAllocator(Long.MAX_VALUE);
+  }
+
+  @After
+  public void teardown() {
+    allocator.close();
+  }
+
+  @Test
+  public void toBeamSchema_convertsSimpleArrowSchema() {
+    Schema expected =
+        Schema.of(Field.of("int8", FieldType.BYTE), Field.of("int16", FieldType.INT16));
+
+    org.apache.arrow.vector.types.pojo.Schema arrowSchema =
+        new org.apache.arrow.vector.types.pojo.Schema(
+            ImmutableList.of(
+                field("int8", new ArrowType.Int(8, true)),
+                field("int16", new ArrowType.Int(16, true))));
+
+    assertThat(ArrowConversion.toBeamSchema(arrowSchema), equalTo(expected));
+  }
+
+  @Test
+  public void rowIterator() {
+    org.apache.arrow.vector.types.pojo.Schema schema =
+        new org.apache.arrow.vector.types.pojo.Schema(
+            asList(
+                field("int32", new ArrowType.Int(32, true)),
+                field("float64", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+                field("string", new ArrowType.Utf8()),
+                field("timestampMicroUTC", new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC")),
+                field("timestampMilliUTC", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")),
+                field(
+                    "int32_list",
+                    new ArrowType.List(),
+                    field("int32s", new ArrowType.Int(32, true))),
+                field("boolean", new ArrowType.Bool()),
+                field("fixed_size_binary", new ArrowType.FixedSizeBinary(3))));
+
+    Schema beamSchema = ArrowConversion.toBeamSchema(schema);
+
+    VectorSchemaRoot expectedSchemaRoot = VectorSchemaRoot.create(schema, allocator);
+    expectedSchemaRoot.setRowCount(16);
+    for (FieldVector vector : expectedSchemaRoot.getFieldVectors()) {
+      vector.allocateNew();
+    }
+    IntVector intVector = (IntVector) expectedSchemaRoot.getFieldVectors().get(0);
+    Float8Vector floatVector = (Float8Vector) expectedSchemaRoot.getFieldVectors().get(1);
+    VarCharVector strVector = (VarCharVector) expectedSchemaRoot.getFieldVectors().get(2);
+    TimeStampMicroTZVector timestampMicroUtcVector =
+        (TimeStampMicroTZVector) expectedSchemaRoot.getFieldVectors().get(3);
+    TimeStampMilliTZVector timeStampMilliTZVector =
+        (TimeStampMilliTZVector) expectedSchemaRoot.getFieldVectors().get(4);
+    ListVector int32ListVector = (ListVector) expectedSchemaRoot.getFieldVectors().get(5);
+    IntVector int32ListElementVector =
+        int32ListVector
+            .<IntVector>addOrGetVector(
+                new org.apache.arrow.vector.types.pojo.FieldType(
+                    false, new ArrowType.Int(32, true), null))
+            .getVector();
+    BitVector boolVector = (BitVector) expectedSchemaRoot.getFieldVectors().get(6);
+    FixedSizeBinaryVector fixedSizeBinaryVector =
+        (FixedSizeBinaryVector) expectedSchemaRoot.getFieldVectors().get(7);
+
+    ArrayList<Row> expectedRows = new ArrayList<>();
+    for (int i = 0; i < 16; i++) {
+      DateTime dt = new DateTime(2019, 1, i + 1, i, i, i, DateTimeZone.UTC);
+      expectedRows.add(
+          Row.withSchema(beamSchema)
+              .addValues(
+                  i,
+                  i + .1 * i,
+                  "" + i,
+                  dt,
+                  dt,
+                  ImmutableList.of(i),
+                  (i % 2) != 0,
+                  new byte[] {(byte) i, (byte) (i + 1), (byte) (i + 2)})
+              .build());
+
+      intVector.set(i, i);
+      floatVector.set(i, i + .1 * i);
+      strVector.set(i, new Text("" + i));
+      timestampMicroUtcVector.set(i, dt.getMillis() * 1000);
+      timeStampMilliTZVector.set(i, dt.getMillis());
+      int32ListVector.startNewValue(i);
+      int32ListElementVector.set(i, i);
+      int32ListVector.endValue(i, 1);
+      boolVector.set(i, i % 2);
+      fixedSizeBinaryVector.set(i, new byte[] {(byte) i, (byte) (i + 1), (byte) (i + 2)});
     }
 
-    @After
-    public void teardown() {
-        allocator.close();
-    }
+    assertThat(
+        ArrowConversion.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
+        IsIterableContainingInOrder.contains(
+            expectedRows.stream()
+                .map((row) -> equalTo(row))
+                .collect(ImmutableList.toImmutableList())));
 
-    @Test
-    public void toBeamSchema_convertsSimpleArrowSchema() {
-        Schema expected =
-                Schema.of(Field.of("int8", FieldType.BYTE), Field.of("int16", FieldType.INT16));
+    expectedSchemaRoot.close();
+  }
 
-        org.apache.arrow.vector.types.pojo.Schema arrowSchema =
-                new org.apache.arrow.vector.types.pojo.Schema(
-                        ImmutableList.of(
-                                field("int8", new ArrowType.Int(8, true)),
-                                field("int16", new ArrowType.Int(16, true))));
+  private static org.apache.arrow.vector.types.pojo.Field field(
+      String name,
+      boolean nullable,
+      ArrowType type,
+      org.apache.arrow.vector.types.pojo.Field... children) {
+    return new org.apache.arrow.vector.types.pojo.Field(
+        name,
+        new org.apache.arrow.vector.types.pojo.FieldType(nullable, type, null, null),
+        asList(children));
+  }
 
-        assertThat(ArrowConversion.toBeamSchema(arrowSchema), equalTo(expected));
-    }
-
-    @Test
-    public void rowIterator() {
-        org.apache.arrow.vector.types.pojo.Schema schema =
-                new org.apache.arrow.vector.types.pojo.Schema(
-                        asList(
-                                field("int32", new ArrowType.Int(32, true)),
-                                field("float64", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
-                                field("string", new ArrowType.Utf8()),
-                                field("timestampMicroUTC", new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC")),
-                                field("timestampMilliUTC", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")),
-                                field(
-                                        "int32_list",
-                                        new ArrowType.List(),
-                                        field("int32s", new ArrowType.Int(32, true))),
-                                field("boolean", new ArrowType.Bool()),
-                                field("fixed_size_binary", new ArrowType.FixedSizeBinary(3))));
-
-        Schema beamSchema = ArrowConversion.toBeamSchema(schema);
-
-        VectorSchemaRoot expectedSchemaRoot = VectorSchemaRoot.create(schema, allocator);
-        expectedSchemaRoot.setRowCount(16);
-        for (FieldVector vector : expectedSchemaRoot.getFieldVectors()) {
-            vector.allocateNew();
-        }
-        IntVector intVector = (IntVector) expectedSchemaRoot.getFieldVectors().get(0);
-        Float8Vector floatVector = (Float8Vector) expectedSchemaRoot.getFieldVectors().get(1);
-        VarCharVector strVector = (VarCharVector) expectedSchemaRoot.getFieldVectors().get(2);
-        TimeStampMicroTZVector timestampMicroUtcVector =
-                (TimeStampMicroTZVector) expectedSchemaRoot.getFieldVectors().get(3);
-        TimeStampMilliTZVector timeStampMilliTZVector =
-                (TimeStampMilliTZVector) expectedSchemaRoot.getFieldVectors().get(4);
-        ListVector int32ListVector = (ListVector) expectedSchemaRoot.getFieldVectors().get(5);
-        IntVector int32ListElementVector =
-                int32ListVector
-                        .<IntVector>addOrGetVector(
-                                new org.apache.arrow.vector.types.pojo.FieldType(
-                                        false, new ArrowType.Int(32, true), null))
-                        .getVector();
-        BitVector boolVector = (BitVector) expectedSchemaRoot.getFieldVectors().get(6);
-        FixedSizeBinaryVector fixedSizeBinaryVector =
-                (FixedSizeBinaryVector) expectedSchemaRoot.getFieldVectors().get(7);
-
-        ArrayList<Row> expectedRows = new ArrayList<>();
-        for (int i = 0; i < 16; i++) {
-            DateTime dt = new DateTime(2019, 1, i + 1, i, i, i, DateTimeZone.UTC);
-            expectedRows.add(
-                    Row.withSchema(beamSchema)
-                            .addValues(
-                                    i,
-                                    i + .1 * i,
-                                    "" + i,
-                                    dt,
-                                    dt,
-                                    ImmutableList.of(i),
-                                    (i % 2) != 0,
-                                    new byte[] {(byte) i, (byte) (i + 1), (byte) (i + 2)})
-                            .build());
-
-            intVector.set(i, i);
-            floatVector.set(i, i + .1 * i);
-            strVector.set(i, new Text("" + i));
-            timestampMicroUtcVector.set(i, dt.getMillis() * 1000);
-            timeStampMilliTZVector.set(i, dt.getMillis());
-            int32ListVector.startNewValue(i);
-            int32ListElementVector.set(i, i);
-            int32ListVector.endValue(i, 1);
-            boolVector.set(i, i % 2);
-            fixedSizeBinaryVector.set(i, new byte[] {(byte) i, (byte) (i + 1), (byte) (i + 2)});
-        }
-
-        assertThat(
-                ArrowConversion.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
-                IsIterableContainingInOrder.contains(
-                        expectedRows.stream()
-                                .map((row) -> equalTo(row))
-                                .collect(ImmutableList.toImmutableList())));
-
-        expectedSchemaRoot.close();
-    }
-
-    private static org.apache.arrow.vector.types.pojo.Field field(
-            String name,
-            boolean nullable,
-            ArrowType type,
-            org.apache.arrow.vector.types.pojo.Field... children) {
-        return new org.apache.arrow.vector.types.pojo.Field(
-                name,
-                new org.apache.arrow.vector.types.pojo.FieldType(nullable, type, null, null),
-                asList(children));
-    }
-
-    private static org.apache.arrow.vector.types.pojo.Field field(
-            String name, ArrowType type, org.apache.arrow.vector.types.pojo.Field... children) {
-        return field(name, false, type, children);
-    }
+  private static org.apache.arrow.vector.types.pojo.Field field(
+      String name, ArrowType type, org.apache.arrow.vector.types.pojo.Field... children) {
+    return field(name, false, type, children);
+  }
 }

@@ -24,8 +24,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.util.Iterator;
-
-import com.google.cloud.bigquery.storage.v1beta1.ArrowProto;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -38,65 +36,66 @@ import org.apache.beam.sdk.values.Row;
 
 class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
-    private final RootAllocator alloc;
-    private final Schema arrowSchema;
-    private final org.apache.beam.sdk.schemas.Schema arrowBeamSchema;
-    private final VectorSchemaRoot vectorRoot;
-    private final VectorLoader vectorLoader;
-    private Iterator<Row> recordBatchIterable;
-    private long rowCount;
+  private final RootAllocator alloc;
+  private final Schema arrowSchema;
+  private final org.apache.beam.sdk.schemas.Schema arrowBeamSchema;
+  private final VectorSchemaRoot vectorRoot;
+  private final VectorLoader vectorLoader;
+  private Iterator<Row> recordBatchIterable;
+  private long rowCount;
 
-    BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
-        ArrowSchema protoSchema = readSession.getArrowSchema();
-        ReadChannel readChannel =
-                new ReadChannel(Channels.newChannel(protoSchema.getSerializedSchema().newInput()));
+  BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
+    ArrowSchema protoSchema = readSession.getArrowSchema();
+    ReadChannel readChannel =
+        new ReadChannel(Channels.newChannel(protoSchema.getSerializedSchema().newInput()));
 
-        this.alloc = new RootAllocator(Long.MAX_VALUE);
-        this.arrowSchema = MessageSerializer.deserializeSchema(readChannel);
-        this.arrowBeamSchema = ArrowConversion.ArrowSchemaTranslator.toBeamSchema(arrowSchema);
-        this.vectorRoot = VectorSchemaRoot.create(arrowSchema, alloc);
-        this.vectorLoader = new VectorLoader(vectorRoot);
-        this.rowCount = 0;
-    }
+    this.alloc = new RootAllocator(Long.MAX_VALUE);
+    this.arrowSchema = MessageSerializer.deserializeSchema(readChannel);
+    this.arrowBeamSchema = ArrowConversion.ArrowSchemaTranslator.toBeamSchema(arrowSchema);
+    this.vectorRoot = VectorSchemaRoot.create(arrowSchema, alloc);
+    this.vectorLoader = new VectorLoader(vectorRoot);
+    this.rowCount = 0;
+  }
 
-    @Override
-    public void processReadRowsResponse(ReadRowsResponse readRowsResponse) throws IOException {
-        com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch = readRowsResponse.getArrowRecordBatch();
-        InputStream buffer = recordBatch.getSerializedRecordBatch().newInput();
-        rowCount = recordBatch.getRowCount();
+  @Override
+  public void processReadRowsResponse(ReadRowsResponse readRowsResponse) throws IOException {
+    com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
+        readRowsResponse.getArrowRecordBatch();
+    InputStream buffer = recordBatch.getSerializedRecordBatch().newInput();
+    rowCount = recordBatch.getRowCount();
 
-        vectorRoot.clear();
-        ReadChannel readChannel = new ReadChannel(Channels.newChannel(buffer));
-        ArrowRecordBatch arrowMessage = MessageSerializer.deserializeRecordBatch(readChannel, alloc);
-        vectorLoader.load(arrowMessage);
-        recordBatchIterable =
-                ArrowConversion.rowsFromRecordBatch(arrowBeamSchema, vectorRoot).iterator();
-        arrowMessage.close();
-    }
+    vectorRoot.clear();
+    ReadChannel readChannel = new ReadChannel(Channels.newChannel(buffer));
+    ArrowRecordBatch arrowMessage = MessageSerializer.deserializeRecordBatch(readChannel, alloc);
+    vectorLoader.load(arrowMessage);
+    recordBatchIterable =
+        ArrowConversion.rowsFromRecordBatch(arrowBeamSchema, vectorRoot).iterator();
+    arrowMessage.close();
+  }
 
-    @Override
-    public long getRowCount() {
-        return rowCount;
-    }
+  @Override
+  public long getRowCount() {
+    return rowCount;
+  }
 
-    @Override
-    public Object readSingleRecord() throws IOException {
-        return recordBatchIterable.next();
-    }
+  @Override
+  public Object readSingleRecord() throws IOException {
+    return recordBatchIterable.next();
+  }
 
-    @Override
-    public boolean readyForNextReadResponse() throws IOException {
-        return recordBatchIterable == null || !recordBatchIterable.hasNext();
-    }
+  @Override
+  public boolean readyForNextReadResponse() throws IOException {
+    return recordBatchIterable == null || !recordBatchIterable.hasNext();
+  }
 
-    @Override
-    public void resetBuffer() {
-        recordBatchIterable = null;
-    }
+  @Override
+  public void resetBuffer() {
+    recordBatchIterable = null;
+  }
 
-    @Override
-    public void close() {
-        vectorRoot.close();
-        alloc.close();
-    }
+  @Override
+  public void close() {
+    vectorRoot.close();
+    alloc.close();
+  }
 }

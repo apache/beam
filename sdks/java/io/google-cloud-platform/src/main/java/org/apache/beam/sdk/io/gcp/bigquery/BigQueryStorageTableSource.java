@@ -22,12 +22,11 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-
-import com.google.cloud.bigquery.storage.v1.DataFormat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -59,15 +58,14 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
   }
 
   public static <T> BigQueryStorageTableSource<T> create(
-          ValueProvider<TableReference> tableRefProvider,
-          @Nullable ValueProvider<List<String>> selectedFields,
-          @Nullable ValueProvider<String> rowRestriction,
-          SerializableFunction<SchemaAndRecord, T> parseFn,
-          Coder<T> outputCoder,
-          BigQueryServices bqServices) {
+      ValueProvider<TableReference> tableRefProvider,
+      @Nullable ValueProvider<List<String>> selectedFields,
+      @Nullable ValueProvider<String> rowRestriction,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
+      BigQueryServices bqServices) {
     return new BigQueryStorageTableSource<>(
-            tableRefProvider,
-            null, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+        tableRefProvider, null, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
   }
 
   private final ValueProvider<TableReference> tableReferenceProvider;

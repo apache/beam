@@ -22,16 +22,16 @@ import java.io.IOException;
 
 interface BigQueryStorageReader extends AutoCloseable {
 
-    void processReadRowsResponse(ReadRowsResponse readRowsResponse) throws IOException;
+  void processReadRowsResponse(ReadRowsResponse readRowsResponse) throws IOException;
 
-    long getRowCount();
+  long getRowCount();
 
-    Object readSingleRecord() throws IOException;
+  Object readSingleRecord() throws IOException;
 
-    boolean readyForNextReadResponse() throws IOException;
+  boolean readyForNextReadResponse() throws IOException;
 
-    void resetBuffer();
+  void resetBuffer();
 
-    @Override
-    void close();
+  @Override
+  void close();
 }

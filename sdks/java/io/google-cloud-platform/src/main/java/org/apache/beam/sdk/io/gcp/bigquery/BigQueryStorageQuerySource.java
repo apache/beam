@@ -22,11 +22,10 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.concurrent.atomic.AtomicReference;
-
-import com.google.cloud.bigquery.storage.v1.DataFormat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -63,33 +62,33 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         location,
         queryTempDataset,
         kmsKey,
-            format,
-            parseFn,
-            outputCoder,
-            bqServices);
+        format,
+        parseFn,
+        outputCoder,
+        bqServices);
   }
 
   public static <T> BigQueryStorageQuerySource<T> create(
-          String stepUuid,
-          ValueProvider<String> queryProvider,
-          Boolean flattenResults,
-          Boolean useLegacySql,
-          QueryPriority priority,
-          @Nullable String location,
-          @Nullable String kmsKey,
-          SerializableFunction<SchemaAndRecord, T> parseFn,
-          Coder<T> outputCoder,
-          BigQueryServices bqServices) {
+      String stepUuid,
+      ValueProvider<String> queryProvider,
+      Boolean flattenResults,
+      Boolean useLegacySql,
+      QueryPriority priority,
+      @Nullable String location,
+      @Nullable String kmsKey,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
+      BigQueryServices bqServices) {
     return new BigQueryStorageQuerySource<>(
-            stepUuid,
-            queryProvider,
-            flattenResults,
-            useLegacySql,
-            priority,
-            location,
-            null,
-            kmsKey,
-            null,
+        stepUuid,
+        queryProvider,
+        flattenResults,
+        useLegacySql,
+        priority,
+        location,
+        null,
+        kmsKey,
+        null,
         parseFn,
         outputCoder,
         bqServices);
