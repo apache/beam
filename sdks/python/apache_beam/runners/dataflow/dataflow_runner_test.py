@@ -844,16 +844,17 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                        options=PipelineOptions(self.default_properties)) as p:
       _ = p | beam.Create([10, 20, 30]) | PackableCombines()
 
-    unpacked_minimum_step_name = 'PackableMin/CombinePerKey/Combine'
-    unpacked_maximum_step_name = 'PackableMax/CombinePerKey/Combine'
+    unpacked_minimum_step_name = 'PackableCombines/PackableMin/CombinePerKey/Combine'
+    unpacked_maximum_step_name = 'PackableCombines/PackableMax/CombinePerKey/Combine'
     packed_step_name = (
-        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/'
-        'CombinePerKey(SingleInputTupleCombineFn)/Combine')
-    job_dict = json.loads(str(runner.job))
-    step_names = set(s[u'properties'][u'user_name'] for s in job_dict[u'steps'])
-    self.assertNotIn(unpacked_minimum_step_name, step_names)
-    self.assertNotIn(unpacked_maximum_step_name, step_names)
-    self.assertIn(packed_step_name, step_names)
+        'PackableCombines/Packed[PackableMin_CombinePerKey, PackableMax_CombinePerKey]/Pack'
+    )
+    transform_names = set(
+        transform.unique_name
+        for transform in runner.proto_pipeline.components.transforms.values())
+    self.assertNotIn(unpacked_minimum_step_name, transform_names)
+    self.assertNotIn(unpacked_maximum_step_name, transform_names)
+    self.assertIn(packed_step_name, transform_names)
 
 
 if __name__ == '__main__':
