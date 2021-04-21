@@ -492,7 +492,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   new StreamingPubsubIOWriteOverrideFactory(this)));
         }
       }
-      if (useUnifiedWorker(options)) {
+      if (!fnApiEnabled) {
         overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
       }
       overridesBuilder.add(
