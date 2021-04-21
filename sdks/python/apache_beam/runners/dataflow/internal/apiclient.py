@@ -650,13 +650,6 @@ class DataflowApplicationClient(object):
     template_location = (
         job.options.view_as(GoogleCloudOptions).template_location)
 
-    job_location = template_location or dataflow_job_file
-    if job_location:
-      gcs_or_local_path = os.path.dirname(job_location)
-      file_name = os.path.basename(job_location)
-      self.stage_file(
-          gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
-
     if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
       self.stage_file(
           job.options.view_as(GoogleCloudOptions).staging_location,
@@ -666,6 +659,15 @@ class DataflowApplicationClient(object):
       job.proto.stepsLocation = FileSystems.join(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json")
+
+    # template file generation should be placed immediately before the
+    # conditional API call.
+    job_location = template_location or dataflow_job_file
+    if job_location:
+      gcs_or_local_path = os.path.dirname(job_location)
+      file_name = os.path.basename(job_location)
+      self.stage_file(
+          gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
 
     if not template_location:
       return self.submit_job_description(job)
@@ -1096,8 +1098,8 @@ def get_container_image_from_options(pipeline_options):
       str: Container image for remote execution.
   """
   worker_options = pipeline_options.view_as(WorkerOptions)
-  if worker_options.worker_harness_container_image:
-    return worker_options.worker_harness_container_image
+  if worker_options.sdk_container_image:
+    return worker_options.sdk_container_image
 
   use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.

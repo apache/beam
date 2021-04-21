@@ -17,9 +17,6 @@
 
 """Unit tests for Histogram."""
 
-from __future__ import absolute_import
-from __future__ import division
-
 import unittest
 
 from mock import patch

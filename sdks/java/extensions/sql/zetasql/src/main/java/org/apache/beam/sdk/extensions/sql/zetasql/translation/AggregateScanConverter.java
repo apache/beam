@@ -33,6 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
+import org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCatalog;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -42,6 +44,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.Log
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlAggFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -200,14 +203,44 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
               + " aggregation.");
     }
 
-    SqlAggFunction sqlAggFunction =
-        (SqlAggFunction)
-            SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                aggregateFunctionCall.getFunction().getName());
-    if (sqlAggFunction == null) {
-      throw new UnsupportedOperationException(
-          "Does not support ZetaSQL aggregate function: "
-              + aggregateFunctionCall.getFunction().getName());
+    final SqlAggFunction sqlAggFunction;
+    if (aggregateFunctionCall
+        .getFunction()
+        .getGroup()
+        .equals(BeamZetaSqlCatalog.USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS)) {
+      // Create a new operator for user-defined functions.
+      SqlReturnTypeInference typeInference =
+          x ->
+              ZetaSqlCalciteTranslationUtils.toCalciteType(
+                  aggregateFunctionCall
+                      .getFunction()
+                      .getSignatureList()
+                      .get(0)
+                      .getResultType()
+                      .getType(),
+                  // TODO(BEAM-9514) set nullable=true
+                  false,
+                  getCluster().getRexBuilder());
+      UdafImpl<?, ?, ?> impl =
+          new UdafImpl<>(
+              getExpressionConverter()
+                  .userFunctionDefinitions
+                  .javaAggregateFunctions()
+                  .get(aggregateFunctionCall.getFunction().getNamePath()));
+      sqlAggFunction =
+          SqlOperators.createUdafOperator(
+              aggregateFunctionCall.getFunction().getName(), typeInference, impl);
+    } else {
+      // Look up builtin functions in SqlOperatorMappingTable.
+      sqlAggFunction =
+          (SqlAggFunction)
+              SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
+                  aggregateFunctionCall.getFunction().getName());
+      if (sqlAggFunction == null) {
+        throw new UnsupportedOperationException(
+            "Does not support ZetaSQL aggregate function: "
+                + aggregateFunctionCall.getFunction().getName());
+      }
     }
 
     List<Integer> argList = new ArrayList<>();

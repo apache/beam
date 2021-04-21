@@ -25,6 +25,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.runners.samza.translation.PViewToIdMapper;
@@ -78,7 +79,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
         listenerReg.hasNext() ? Iterators.getOnlyElement(listenerReg).getLifeCycleListener() : null;
   }
 
-  public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
+  public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
     LOG.info("Portable pipeline to run:\n{}", dotGraph);
 
@@ -101,7 +102,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
               .withApplicationContainerContextFactory(executionContext.new Factory())
               .withMetricsReporterFactories(reporterFactories);
           SamzaPortablePipelineTranslator.translate(
-              pipeline, new PortableTranslationContext(appDescriptor, options));
+              pipeline, new PortableTranslationContext(appDescriptor, options, jobInfo));
         };
 
     ApplicationRunner runner = runSamzaApp(app, config);

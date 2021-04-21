@@ -445,6 +445,17 @@ class StandardOptions(PipelineOptions):
         action='store_true',
         help='Whether to enable streaming mode.')
 
+    parser.add_argument(
+        '--resource_hint',
+        dest='resource_hints',
+        action='append',
+        default=[],
+        help=(
+            'Resource hint to set in the pipeline execution environment.'
+            'Hints specified via this option override hints specified '
+            'at transform level. Interpretation of hints is defined by '
+            'Beam runners.'))
+
 
 class CrossLanguageOptions(PipelineOptions):
   @classmethod
@@ -863,9 +874,20 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'Docker registry location of container image to use for the '
-            'worker harness. Default is the container for the version of the '
-            'SDK. Note: currently, only approved Google Cloud Dataflow '
-            'container images may be used here.'))
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. Note: This flag is deprecated and only supports '
+            'approved Google Cloud Dataflow container images. To provide a '
+            'custom container image, use sdk_container_image instead.'))
+    parser.add_argument(
+        '--sdk_container_image',
+        default=None,
+        help=(
+            'Docker registry location of container image to use for the '
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. If set for a non-portable pipeline, only official '
+            'Google Cloud Dataflow container images may be used here.'))
     parser.add_argument(
         '--sdk_harness_container_image_overrides',
         action='append',
@@ -903,6 +925,8 @@ class WorkerOptions(PipelineOptions):
 
   def validate(self, validator):
     errors = []
+    errors.extend(validator.validate_sdk_container_image_options(self))
+
     if validator.is_service_runner():
       errors.extend(
           validator.validate_optional_argument_positive(self, 'num_workers'))
