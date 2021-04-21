@@ -22,6 +22,7 @@ import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.lang.reflect.Method;
 import java.util.List;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Holds user defined function definitions. */
@@ -38,6 +39,8 @@ public abstract class UserFunctionDefinitions {
   public abstract ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions();
 
   public abstract ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions();
+
+  public abstract ImmutableMap<List<String>, Combine.CombineFn<?, ?, ?>> javaAggregateFunctions();
 
   @AutoValue
   public abstract static class JavaScalarFunction {
@@ -62,6 +65,9 @@ public abstract class UserFunctionDefinitions {
     public abstract Builder setJavaScalarFunctions(
         ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions);
 
+    public abstract Builder setJavaAggregateFunctions(
+        ImmutableMap<List<String>, Combine.CombineFn<?, ?, ?>> javaAggregateFunctions);
+
     public abstract UserFunctionDefinitions build();
   }
 
@@ -69,6 +75,7 @@ public abstract class UserFunctionDefinitions {
     return new AutoValue_UserFunctionDefinitions.Builder()
         .setSqlScalarFunctions(ImmutableMap.of())
         .setSqlTableValuedFunctions(ImmutableMap.of())
-        .setJavaScalarFunctions(ImmutableMap.of());
+        .setJavaScalarFunctions(ImmutableMap.of())
+        .setJavaAggregateFunctions(ImmutableMap.of());
   }
 }
