@@ -44,6 +44,8 @@ dependencies {
   compile library.java.avro
   compile library.java.bigdataoss_util
   compile library.java.error_prone_annotations
+  compile library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  permitUnusedDeclared library.java.flogger_system_backend // BEAM-11010
   compile library.java.gax
   compile library.java.gax_grpc
   compile library.java.gax_httpjson
