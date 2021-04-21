@@ -495,8 +495,7 @@ class SetupTest(unittest.TestCase):
         options.view_as(WorkerOptions).worker_harness_container_image,
         test_image)
     self.assertEqual(
-        options.view_as(WorkerOptions).sdk_container_image,
-        test_image)
+        options.view_as(WorkerOptions).sdk_container_image, test_image)
 
   def test_alias_worker_harness_sdk_container_image(self):
     runner = MockRunners.DataflowRunner()
@@ -513,8 +512,7 @@ class SetupTest(unittest.TestCase):
         options.view_as(WorkerOptions).worker_harness_container_image,
         test_image)
     self.assertEqual(
-        options.view_as(WorkerOptions).sdk_container_image,
-        test_image)
+        options.view_as(WorkerOptions).sdk_container_image, test_image)
 
   def test_worker_harness_sdk_container_image_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()

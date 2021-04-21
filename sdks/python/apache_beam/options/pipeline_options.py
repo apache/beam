@@ -933,6 +933,7 @@ class WorkerOptions(PipelineOptions):
       errors.extend(validator.validate_worker_region_zone(self))
     return errors
 
+
 class DebugOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):

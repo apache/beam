@@ -241,9 +241,9 @@ class PipelineOptionsValidator(object):
       # value. Check that the values are different.
       if view.sdk_container_image != view.worker_harness_container_image:
         errors.extend(
-          self._validate_error(
-              'Cannot use legacy flag --worker_harness_container_image along '
-              'with view.sdk_container_image'))
+            self._validate_error(
+                'Cannot use legacy flag --worker_harness_container_image along '
+                'with view.sdk_container_image'))
     elif view.worker_harness_container_image:
       # Warn about legacy flag and set new flag to value of old flag.
       _LOGGER.warning(
