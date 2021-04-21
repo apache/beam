@@ -593,6 +593,11 @@ class EmbeddedPythonEnvironment(Environment):
         resource_hints=resource_hints_from_options(options),
     )
 
+  @classmethod
+  def default(cls):
+    # type: () -> SubprocessSDKEnvironment
+    return cls(capabilities=python_sdk_capabilities(), artifacts=())
+
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedPythonGrpcEnvironment(Environment):
@@ -691,6 +696,11 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     else:
       return {'state_cache_size': int(s)}
 
+  @classmethod
+  def default(cls):
+    # type: () -> SubprocessSDKEnvironment
+    return cls(capabilities=python_sdk_capabilities(), artifacts=())
+
 
 @Environment.register_urn(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSDKEnvironment(Environment):
@@ -739,6 +749,12 @@ class SubprocessSDKEnvironment(Environment):
         capabilities=python_sdk_capabilities(),
         artifacts=python_sdk_dependencies(options),
         resource_hints=resource_hints_from_options(options))
+
+  @classmethod
+  def from_command_string(cls, command_string):
+    # type: (str) -> SubprocessSDKEnvironment
+    return cls(
+        command_string, capabilities=python_sdk_capabilities(), artifacts=())
 
 
 class PyPIArtifactRegistry(object):
