@@ -31,6 +31,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ResourceHints} class. */
 @RunWith(JUnit4.class)
 public class ResourceHintsTest implements Serializable {
+
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
   private void verifyMinRamHintHelper(String hint, String expectedByteString) {
@@ -38,7 +39,7 @@ public class ResourceHintsTest implements Serializable {
         expectedByteString,
         new String(
             ResourceHints.create()
-                .withMemory(hint)
+                .withMinRam(hint)
                 .hints()
                 .get("beam:resources:min_ram_bytes:v1")
                 .toBytes(),
@@ -87,7 +88,14 @@ public class ResourceHintsTest implements Serializable {
     assertEquals(
         ResourceHints.fromOptions(options),
         ResourceHints.create()
-            .withMemory(1000)
+            .withMinRam(1000)
             .withHint("beam:resources:bar", new ResourceHints.StringHint("foo")));
+    options =
+        PipelineOptionsFactory.fromArgs(
+                "--resourceHints=min_ram=1KB", "--resourceHints=accelerator=foo")
+            .as(ResourceHintsOptions.class);
+    assertEquals(
+        ResourceHints.fromOptions(options),
+        ResourceHints.create().withMinRam(1000).withAccelerator("foo"));
   }
 }

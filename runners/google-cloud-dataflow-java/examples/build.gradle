@@ -48,7 +48,7 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
    return {
        testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
        include "**/WordCountIT.class"
-       // include "**/WindowedWordCountIT.class"
+       include "**/WindowedWordCountIT.class"
        forkEvery 1
        maxParallelForks 4
 

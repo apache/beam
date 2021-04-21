@@ -17,34 +17,58 @@
  */
 package org.apache.beam.sdk.transforms.resourcehints;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardResourceHints;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ProtocolMessageEnum;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Pipeline authors can use resource hints to provide additional information to runners about the
+ * desired aspects of the execution environment. Resource hints can be specified via {@link
+ * org.apache.beam.sdk.transforms.PTransform PTransform#setResourceHints} for parts of the pipeline,
+ * or globally via {@link ResourceHintsOptions resourceHints} pipeline option.
+ *
+ * <p>Interpretation of hints is provided by Beam runners.
+ */
 public class ResourceHints {
-  // TODO: reference a const from compiled proto.
-  private static final String MEMORY_URN = "beam:resources:min_ram_bytes:v1";
+  private static final String MIN_RAM_URN = "beam:resources:min_ram_bytes:v1";
   private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
 
-  private static ImmutableMap<String, String> ABBREVIATIONS =
+  // TODO: reference this from a common location in all packages that use this.
+  private static String getUrn(ProtocolMessageEnum value) {
+    return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamUrn);
+  }
+
+  static {
+    checkState(MIN_RAM_URN.equals(getUrn(StandardResourceHints.Enum.MIN_RAM_BYTES)));
+    checkState(ACCELERATOR_URN.equals(getUrn(StandardResourceHints.Enum.ACCELERATOR)));
+  }
+
+  private static ImmutableMap<String, String> hintNameToUrn =
       ImmutableMap.<String, String>builder()
-          .put("minRam", MEMORY_URN)
+          .put("minRam", MIN_RAM_URN)
+          .put("min_ram", MIN_RAM_URN) // Courtesy alias.
           .put("accelerator", ACCELERATOR_URN)
           .build();
 
-  private static ImmutableMap<String, Function<String, ResourceHint>> PARSERS =
+  private static ImmutableMap<String, Function<String, ResourceHint>> parsers =
       ImmutableMap.<String, Function<String, ResourceHint>>builder()
-          .put(MEMORY_URN, s -> new BytesHint(BytesHint.parse(s)))
+          .put(MIN_RAM_URN, s -> new BytesHint(BytesHint.parse(s)))
           .put(ACCELERATOR_URN, s -> new StringHint(s))
           .build();
 
-  private static ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
+  private static final ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
 
   private final ImmutableMap<String, ResourceHint> hints;
 
@@ -52,31 +76,37 @@ public class ResourceHints {
     this.hints = hints;
   }
 
+  /** Creates a {@link ResourceHints} instance with no hints. */
   public static ResourceHints create() {
     return EMPTY;
   }
 
+  /** Creates a {@link ResourceHints} instance with hints supplied in options. */
   public static ResourceHints fromOptions(PipelineOptions options) {
     ResourceHintsOptions resourceHintsOptions = options.as(ResourceHintsOptions.class);
     ResourceHints result = create();
-    if (resourceHintsOptions.getResourceHints() == null) {
+    @Nullable List<String> hints = resourceHintsOptions.getResourceHints();
+    if (hints == null) {
       return result;
     }
     Splitter splitter = Splitter.on('=').limit(2);
-    for (String hint : resourceHintsOptions.getResourceHints()) {
+    for (String hint : hints) {
       List<String> parts = splitter.splitToList(hint);
       if (parts.size() != 2) {
         throw new IllegalArgumentException("Unparsable resource hint: " + hint);
       }
-      String urn = parts.get(0);
+      String nameOrUrn = parts.get(0);
       String stringValue = parts.get(1);
-      if (ABBREVIATIONS.containsKey(urn)) {
-        urn = ABBREVIATIONS.get(urn);
-      } else if (!urn.startsWith("beam:resources:")) {
+      String urn;
+      if (hintNameToUrn.containsKey(nameOrUrn)) {
+        urn = hintNameToUrn.get(nameOrUrn);
+      } else if (!nameOrUrn.startsWith("beam:resources:")) {
         // Allow unknown hints to be passed, but validate a little bit to prevent typos.
         throw new IllegalArgumentException("Unknown resource hint: " + hint);
+      } else {
+        urn = nameOrUrn;
       }
-      ResourceHint value = PARSERS.getOrDefault(urn, s -> new StringHint(s)).apply(stringValue);
+      ResourceHint value = parsers.getOrDefault(urn, s -> new StringHint(s)).apply(stringValue);
       result = result.withHint(urn, value);
     }
     return result;
@@ -101,8 +131,10 @@ public class ResourceHints {
     private final long value;
 
     @Override
-    public boolean equals(Object other) {
-      if (this == other) {
+    public boolean equals(@Nullable Object other) {
+      if (other == null) {
+        return false;
+      } else if (this == other) {
         return true;
       } else if (other instanceof BytesHint) {
         return ((BytesHint) other).value == value;
@@ -121,12 +153,11 @@ public class ResourceHints {
     }
 
     public static long parse(String s) {
-      Matcher m = Pattern.compile("([\\d.]+)[\\s]?(([KMGTP]i?)?B)").matcher(s);
-      // Matcher m = Pattern.compile("^\\d\\.?\\d*").matcher(s);
+      Matcher m = Pattern.compile("([\\d.]+)[\\s]?([\\D]+$)").matcher(s);
       if (m.find()) {
         String number = m.group(1);
         String suffix = m.group(2);
-        if (suffixes.containsKey(suffix)) {
+        if (number != null && suffix != null && suffixes.containsKey(suffix)) {
           return (long) (Double.valueOf(number) * suffixes.get(suffix));
         }
       }
@@ -156,18 +187,15 @@ public class ResourceHints {
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer) {
-      return this;
-    }
-
-    @Override
     public byte[] toBytes() {
       return value.getBytes(Charsets.US_ASCII);
     }
 
     @Override
-    public boolean equals(Object other) {
-      if (this == other) {
+    public boolean equals(@Nullable Object other) {
+      if (other == null) {
+        return false;
+      } else if (this == other) {
         return true;
       } else if (other instanceof StringHint) {
         return ((StringHint) other).value.equals(value);
@@ -182,14 +210,27 @@ public class ResourceHints {
     }
   }
 
-  public ResourceHints withMemory(long ramBytes) {
-    return withHint(MEMORY_URN, new BytesHint(ramBytes));
+  /** Sets desired minimal available RAM size to have in transform's execution environment. */
+  public ResourceHints withMinRam(long ramBytes) {
+    return withHint(MIN_RAM_URN, new BytesHint(ramBytes));
   }
 
-  public ResourceHints withMemory(String ramBytes) {
-    return withMemory(BytesHint.parse(ramBytes));
+  /**
+   * Sets desired minimal available RAM size to have in transform's execution environment.
+   *
+   * @param ramBytes specifies a human-friendly size string, for example: '10.5 GiB', '4096 MiB',
+   *     etc.
+   */
+  public ResourceHints withMinRam(String ramBytes) {
+    return withMinRam(BytesHint.parse(ramBytes));
   }
 
+  /** Declares hardware accelerators that are desired to have in the execution environment. */
+  public ResourceHints withAccelerator(String accelerator) {
+    return withHint(ACCELERATOR_URN, new StringHint(accelerator));
+  }
+
+  /** Declares a custom resource hint that has a specified URN. */
   public ResourceHints withHint(String urn, ResourceHint hint) {
     ImmutableMap.Builder<String, ResourceHint> newHints = ImmutableMap.builder();
     newHints.put(urn, hint);
@@ -199,10 +240,6 @@ public class ResourceHints {
       }
     }
     return new ResourceHints(newHints.build());
-  }
-
-  public ResourceHints withAccelerator(String accelerator) {
-    return withHint(ACCELERATOR_URN, new StringHint(accelerator));
   }
 
   public Map<String, ResourceHint> hints() {
@@ -235,8 +272,10 @@ public class ResourceHints {
   }
 
   @Override
-  public boolean equals(Object other) {
-    if (this == other) {
+  public boolean equals(@Nullable Object other) {
+    if (other == null) {
+      return false;
+    } else if (this == other) {
       return true;
     } else if (other instanceof ResourceHints) {
       return ((ResourceHints) other).hints.equals(hints);

@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -179,17 +180,28 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     return name != null ? name : getKindString();
   }
 
-  public PTransform<InputT, OutputT> setResourceHints(ResourceHints resourceHints) {
+  /**
+   * Sets resource hints for the transform.
+   *
+   * @param resourceHints a {@link ResourceHints} instance.
+   * @return a reference to the same transfrom instance.
+   *     <p>For example:
+   *     <pre>{@code
+   * Pipeline p = ...
+   * ...
+   * p.apply(new SomeTransform().setResourceHints(ResourceHints.create().withMinRam("6 GiB")))
+   * ...
+   *
+   * }</pre>
+   */
+  public PTransform<InputT, OutputT> setResourceHints(@NonNull ResourceHints resourceHints) {
     this.resourceHints = resourceHints;
     return this;
   }
 
+  /** Returns resource hints set on the transform. */
   public ResourceHints getResourceHints() {
-    if (resourceHints == null) {
-      return ResourceHints.create();
-    } else {
-      return resourceHints;
-    }
+    return resourceHints;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -203,7 +215,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    */
   protected final transient @Nullable String name;
 
-  protected transient @Nullable ResourceHints resourceHints;
+  protected transient @NonNull ResourceHints resourceHints = ResourceHints.create();
 
   protected PTransform() {
     this.name = null;

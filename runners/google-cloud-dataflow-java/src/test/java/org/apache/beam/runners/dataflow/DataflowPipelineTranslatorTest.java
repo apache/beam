@@ -103,6 +103,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHintsOptions;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -118,6 +119,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -1377,8 +1379,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 .via((Integer x) -> x + 1)
                 .setResourceHints(
                     ResourceHints.create()
-                        .withMemory("10.0GiB")
-                        .withAccelerator("type:nvidia-tesla-k80;count:1;install-nvidia-drivers")));
+                        .withMinRam("10.0GiB")
+                        .withAccelerator("type:nvidia-tesla-k80;count:1;install-nvidia-driver")));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceV1Transforms(pipeline);
@@ -1393,9 +1395,82 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     ImmutableMap<String, Object> expectedHints =
         ImmutableMap.<String, Object>builder()
             .put("beam:resources:min_ram_bytes:v1", "10737418240")
-            .put("beam:resources:accelerator:v1", "nvidia-tesla-k80;count:1;install-nvidia-drivers")
+            .put(
+                "beam:resources:accelerator:v1",
+                "type:nvidia-tesla-k80;count:1;install-nvidia-driver")
             .build();
     assertEquals(expectedHints, stepWithHints.getProperties().get("resource_hints"));
+  }
+
+  private RunnerApi.PTransform getLeafTransform(RunnerApi.Pipeline pipelineProto, String label) {
+    for (RunnerApi.PTransform transform :
+        pipelineProto.getComponents().getTransformsMap().values()) {
+      if (transform.getUniqueName().contains(label) && transform.getSubtransformsCount() == 0) {
+        return transform;
+      }
+    }
+    throw new java.lang.IllegalArgumentException(label);
+  }
+
+  private static class IdentityDoFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    public void processElement(@Element T input, OutputReceiver<T> out) {
+      out.output(input);
+    }
+  }
+
+  private static class Inner extends PTransform<PCollection<byte[]>, PCollection<byte[]>> {
+    @Override
+    public PCollection<byte[]> expand(PCollection<byte[]> input) {
+      return input.apply(
+          "Innermost",
+          ParDo.of(new IdentityDoFn<byte[]>())
+              .setResourceHints(ResourceHints.create().withAccelerator("set_in_inner_transform")));
+    }
+  }
+
+  private static class Outer extends PTransform<PCollection<byte[]>, PCollection<byte[]>> {
+    @Override
+    public PCollection<byte[]> expand(PCollection<byte[]> input) {
+      return input.apply(new Inner());
+    }
+  }
+
+  @Test
+  public void testResourceHintsTranslationsResolvesHintsOnOptionsAndComposites() {
+    ResourceHintsOptions options = PipelineOptionsFactory.as(ResourceHintsOptions.class);
+    options.setResourceHints(Arrays.asList("accelerator=set_via_options", "minRam=1B"));
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<byte[]> root = pipeline.apply(Impulse.create());
+    root.apply(
+        new Outer()
+            .setResourceHints(
+                ResourceHints.create().withAccelerator("set_on_outer_transform").withMinRam(20)));
+    root.apply("Leaf", ParDo.of(new IdentityDoFn<byte[]>()));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Leaf").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.allOf(
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("1")),
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:accelerator:v1", ByteString.copyFromUtf8("set_via_options"))));
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Innermost").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.allOf(
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("20")),
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:accelerator:v1",
+                ByteString.copyFromUtf8("set_in_inner_transform"))));
   }
 
   /**

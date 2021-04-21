@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples;
 
-import java.util.Arrays;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -29,16 +29,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
@@ -180,21 +177,12 @@ public class WordCount {
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
-    p.apply(Create.of(Arrays.asList(1, 2, 3)))
-        .apply(
-            MapElements.into(TypeDescriptors.integers())
-                .via(
-                    (Integer x) -> {
-                      return x;
-                    })
-                .setResourceHints(ResourceHints.create().withMemory(2147483648L)));
-    // p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
-    //     .apply(new CountWords().setResourceHints(ResourceHints.create().withMemory(2147483648L)))
-    //     .apply(MapElements.via(new FormatAsTextFn()))
-    //     .apply("WriteCounts", TextIO.write().to(options.getOutput()));
+    p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
+        .apply(new CountWords())
+        .apply(MapElements.via(new FormatAsTextFn()))
+        .apply("WriteCounts", TextIO.write().to(options.getOutput()));
 
-    p.run();
-    // .waitUntilFinish();
+    p.run().waitUntilFinish();
   }
 
   public static void main(String[] args) {

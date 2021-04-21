@@ -27,8 +27,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options that are used to control configuration of the remote environment. */
 public interface ResourceHintsOptions extends PipelineOptions {
-  @Nullable
   @Description("Resource hints used for all transform execution environments.")
+  @Nullable
   List<String> getResourceHints();
 
   void setResourceHints(@Nullable List<String> value);

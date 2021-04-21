@@ -313,10 +313,10 @@ public class PipelineTranslationTest {
     Pipeline pipeline = Pipeline.create();
     PCollection<byte[]> root = pipeline.apply(Impulse.create());
     ParDo.SingleOutput<byte[], byte[]> transform = ParDo.of(new IdentityDoFn<byte[]>());
-    root.apply("Big", transform.setResourceHints(ResourceHints.create().withMemory("640KB")));
-    root.apply("Small", transform.setResourceHints(ResourceHints.create().withMemory(1)));
+    root.apply("Big", transform.setResourceHints(ResourceHints.create().withMinRam("640KB")));
+    root.apply("Small", transform.setResourceHints(ResourceHints.create().withMinRam(1)));
     root.apply(
-        "AnotherBig", transform.setResourceHints(ResourceHints.create().withMemory("640KB")));
+        "AnotherBig", transform.setResourceHints(ResourceHints.create().withMinRam("640KB")));
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
     assertThat(
         pipelineProto
