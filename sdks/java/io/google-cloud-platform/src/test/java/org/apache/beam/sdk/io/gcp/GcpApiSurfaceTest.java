@@ -73,6 +73,8 @@ public class GcpApiSurfaceTest {
             Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
             Matchers.<Class<?>>equalTo(com.google.common.base.Function.class),
+            Matchers.<Class<?>>equalTo(com.google.common.base.Optional.class),
+            Matchers.<Class<?>>equalTo(com.google.common.base.Supplier.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.Code.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
