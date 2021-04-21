@@ -38,6 +38,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
@@ -396,5 +397,18 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 "message",
                 containsString("Option 'path' has type TYPE_INT64 (expected TYPE_STRING)."))));
     zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testRegisterUdaf() {
+    String sql = "SELECT my_sum(k) FROM UNNEST([1, 2, 3]) k;";
+    PCollection<Row> stream =
+        pipeline.apply(
+            SqlTransform.query(sql)
+                .withQueryPlannerClass(ZetaSQLQueryPlanner.class)
+                .registerUdaf("my_sum", Sum.ofLongs()));
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(6L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 }
