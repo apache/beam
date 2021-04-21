@@ -37,6 +37,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
@@ -829,13 +830,19 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       _ = self._run_group_into_batches_and_get_step_properties(
           True, ['--enable_streaming_engine', '--experiments=beam_fn_api'])
 
-  def _test_pack_combiners(self, pipeline_options, expect_packed):
-    runner = DataflowRunner()
+  def test_pack_combiners(self):
+    class PackableCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
 
-    with beam.Pipeline(runner=runner, options=pipeline_options) as p:
-      data = p | beam.Create([10, 20, 30])
-      _ = data | 'PackableMin' >> beam.CombineGlobally(min)
-      _ = data | 'PackableMax' >> beam.CombineGlobally(max)
+      def expand(self, pcoll):
+        _ = pcoll | 'PackableMin' >> beam.CombineGlobally(min)
+        _ = pcoll | 'PackableMax' >> beam.CombineGlobally(max)
+
+    runner = DataflowRunner()
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      _ = p | beam.Create([10, 20, 30]) | PackableCombines()
 
     unpacked_minimum_step_name = 'PackableMin/CombinePerKey/Combine'
     unpacked_maximum_step_name = 'PackableMax/CombinePerKey/Combine'
@@ -844,14 +851,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'CombinePerKey(SingleInputTupleCombineFn)/Combine')
     job_dict = json.loads(str(runner.job))
     step_names = set(s[u'properties'][u'user_name'] for s in job_dict[u'steps'])
-    if expect_packed:
-      self.assertNotIn(unpacked_minimum_step_name, step_names)
-      self.assertNotIn(unpacked_maximum_step_name, step_names)
-      self.assertIn(packed_step_name, step_names)
-    else:
-      self.assertIn(unpacked_minimum_step_name, step_names)
-      self.assertIn(unpacked_maximum_step_name, step_names)
-      self.assertNotIn(packed_step_name, step_names)
+    self.assertNotIn(unpacked_minimum_step_name, step_names)
+    self.assertNotIn(unpacked_maximum_step_name, step_names)
+    self.assertIn(packed_step_name, step_names)
 
   def test_pack_combiners_disabled_by_default(self):
     self._test_pack_combiners(
