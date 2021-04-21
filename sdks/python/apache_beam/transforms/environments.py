@@ -674,7 +674,9 @@ class EmbeddedPythonGrpcEnvironment(Environment):
           options.environment_config)
       return cls(
           state_cache_size=config.get('state_cache_size'),
-          data_buffer_time_limit_ms=config.get('data_buffer_time_limit_ms'))
+          data_buffer_time_limit_ms=config.get('data_buffer_time_limit_ms'),
+          capabilities=python_sdk_capabilities(),
+          artifacts=python_sdk_dependencies(options))
     else:
       return cls(
           capabilities=python_sdk_capabilities(),

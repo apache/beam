@@ -1445,7 +1445,8 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             is_drain=is_drain))
 
 
@@ -1454,7 +1455,10 @@ class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(
-                state_cache_size=0, data_buffer_time_limit_ms=0),
+                state_cache_size=0,
+                data_buffer_time_limit_ms=0,
+                capabilities=environments.python_sdk_capabilities(),
+                artifacts=()),
             is_drain=is_drain))
 
 
@@ -1561,7 +1565,8 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     # to the bundle process request.
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             is_drain=is_drain))
 
   def test_checkpoint(self):
@@ -1943,7 +1948,8 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             progress_request_frequency=0.5))
 
   def test_lull_logging(self):
