@@ -23,8 +23,6 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 # mypy: check-untyped-defs
 
-from __future__ import absolute_import
-
 import cProfile  # pylint: disable=bad-python3-import
 import io
 import logging
@@ -33,7 +31,6 @@ import pstats
 import random
 import tempfile
 import time
-from builtins import object
 from typing import Callable
 from typing import Optional
 
@@ -123,11 +120,7 @@ class Profile(object):
 
     if self.log_results:
       if self.enable_cpu_profiling:
-        try:
-          import StringIO  # Python 2
-          s = StringIO.StringIO()
-        except ImportError:
-          s = io.StringIO()
+        s = io.StringIO()
         self.stats = pstats.Stats(
             self.profile, stream=s).sort_stats(Profile.SORTBY)
         self.stats.print_stats()

@@ -146,7 +146,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # TODO(BEAM-12104): Use ubuntu-latest. Currently pinned to ubuntu 18.04
+        # because 20.04 switched the default JDK to 11.
+        os: [ubuntu-18.04, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

@@ -30,12 +30,9 @@ per line in the following format:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
-from builtins import object
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText

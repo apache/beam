@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
 import numpy as np
 import pandas as pd
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.dataframe import expressions
@@ -32,74 +32,114 @@ GROUPBY_DF = pd.DataFrame({
     'foo': [None if i % 11 == 0 else i for i in range(100)],
     'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
     'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    'bool': [i % 17 == 0 for i in range(100)],
+    'str': [str(i) for i in range(100)],
 })
 
 
+def _get_deferred_args(*args):
+  return [
+      frame_base.DeferredFrame.wrap(
+          expressions.ConstantExpression(arg, arg[0:0])) for arg in args
+  ]
+
+
 class DeferredFrameTest(unittest.TestCase):
-  def _run_test(self, func, *args, distributed=True, expect_error=False):
-    deferred_args = [
-        frame_base.DeferredFrame.wrap(
-            expressions.ConstantExpression(arg, arg[0:0])) for arg in args
-    ]
+  def _run_error_test(self, func, *args):
+    """Verify that func(*args) raises the same exception in pandas and in Beam.
+
+    Note that for Beam this only checks for exceptions that are raised during
+    expression generation (i.e. construction time). Execution time exceptions
+    are not helpful."""
+    deferred_args = _get_deferred_args(*args)
+
+    # Get expected error
     try:
       expected = func(*args)
     except Exception as e:
-      if not expect_error:
-        raise
-      expected = e
+      expected_error = e
     else:
-      if expect_error:
-        raise AssertionError(
-            "Expected an error but computing expected result successfully "
-            f"returned: {expected}")
+      raise AssertionError(
+          "Expected an error, but executing with pandas successfully "
+          f"returned:\n{expected}")
 
-    session_type = (
-        expressions.PartitioningSession if distributed else expressions.Session)
+    # Get actual error
     try:
-      actual = session_type({}).evaluate(func(*deferred_args)._expr)
+      _ = func(*deferred_args)._expr
     except Exception as e:
-      if not expect_error:
-        raise
       actual = e
     else:
-      if expect_error:
-        raise AssertionError(
-            "Expected an error:\n{expected}\nbut successfully "
-            f"returned:\n{actual}")
+      raise AssertionError(
+          "Expected an error:\n{expected_error}\nbut Beam successfully "
+          "generated an expression.")
 
-    if expect_error:
-      if not isinstance(actual,
-                        type(expected)) or not str(actual) == str(expected):
-        raise AssertionError(
-            f'Expected {expected!r} to be raised, but got {actual!r}'
-        ) from actual
+    # Verify
+    if (not isinstance(actual, type(expected_error)) or
+        not str(actual) == str(expected_error)):
+      raise AssertionError(
+          f'Expected {expected_error!r} to be raised, but got {actual!r}'
+      ) from actual
+
+  def _run_test(self, func, *args, distributed=True, nonparallel=False):
+    """Verify that func(*args) produces the same result in pandas and in Beam.
+
+    Args:
+        distributed (bool): Whether or not to use PartitioningSession to
+            simulate parallel execution.
+        nonparallel (bool): Whether or not this function contains a
+            non-parallelizable operation. If True, the expression will be
+            generated twice, once outside of an allow_non_parallel_operations
+            block (to verify NonParallelOperation is raised), and again inside
+            of an allow_non_parallel_operations block to actually generate an
+            expression to verify."""
+    # Compute expected value
+    expected = func(*args)
+
+    # Compute actual value
+    deferred_args = _get_deferred_args(*args)
+    if nonparallel:
+      # First run outside a nonparallel block to confirm this raises as expected
+      with self.assertRaises(expressions.NonParallelOperation):
+        _ = func(*deferred_args)
+
+      # Re-run in an allow non parallel block to get an expression to verify
+      with beam.dataframe.allow_non_parallel_operations():
+        expr = func(*deferred_args)._expr
     else:
-      if isinstance(expected, pd.core.generic.NDFrame):
-        if distributed:
-          if expected.index.is_unique:
-            expected = expected.sort_index()
-            actual = actual.sort_index()
-          else:
-            expected = expected.sort_values(list(expected.columns))
-            actual = actual.sort_values(list(actual.columns))
+      expr = func(*deferred_args)._expr
 
-        if isinstance(expected, pd.Series):
-          pd.testing.assert_series_equal(expected, actual)
-        elif isinstance(expected, pd.DataFrame):
-          pd.testing.assert_frame_equal(expected, actual)
+    # Compute the result of the generated expression
+    session_type = (
+        expressions.PartitioningSession if distributed else expressions.Session)
+
+    actual = session_type({}).evaluate(expr)
+
+    # Verify
+    if isinstance(expected, pd.core.generic.NDFrame):
+      if distributed:
+        if expected.index.is_unique:
+          expected = expected.sort_index()
+          actual = actual.sort_index()
         else:
-          raise ValueError(
-              f"Expected value is a {type(expected)},"
-              "not a Series or DataFrame.")
+          expected = expected.sort_values(list(expected.columns))
+          actual = actual.sort_values(list(actual.columns))
+
+      if isinstance(expected, pd.Series):
+        pd.testing.assert_series_equal(expected, actual)
+      elif isinstance(expected, pd.DataFrame):
+        pd.testing.assert_frame_equal(expected, actual)
       else:
-        # Expectation is not a pandas object
-        if isinstance(expected, float):
-          cmp = lambda x: np.isclose(expected, x)
-        else:
-          cmp = expected.__eq__
-        self.assertTrue(
-            cmp(actual),
-            'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+        raise ValueError(
+            f"Expected value is a {type(expected)},"
+            "not a Series or DataFrame.")
+    else:
+      # Expectation is not a pandas object
+      if isinstance(expected, float):
+        cmp = lambda x: np.isclose(expected, x)
+      else:
+        cmp = expected.__eq__
+      self.assertTrue(
+          cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
@@ -244,14 +284,10 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group').bar.sum(), df)
     self._run_test(lambda df: df.groupby('group')['foo'].sum(), df)
     self._run_test(lambda df: df.groupby('group')['baz'].sum(), df)
-    self._run_test(
-        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(),
-        df,
-        expect_error=True)
-    self._run_test(
-        lambda df: df.groupby('group')[['bat']].sum(), df, expect_error=True)
-    self._run_test(
-        lambda df: df.groupby('group').bat.sum(), df, expect_error=True)
+    self._run_error_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(), df)
+    self._run_error_test(lambda df: df.groupby('group')[['bat']].sum(), df)
+    self._run_error_test(lambda df: df.groupby('group').bat.sum(), df)
 
     self._run_test(lambda df: df.groupby('group').median(), df)
     self._run_test(lambda df: df.groupby('group').foo.median(), df)
@@ -264,26 +300,19 @@ class DeferredFrameTest(unittest.TestCase):
     df = GROUPBY_DF
 
     # non-existent projection column
-    self._run_test(
-        lambda df: df.groupby('group')[['bar', 'baz']].bar.median(),
-        df,
-        expect_error=True)
-    self._run_test(
-        lambda df: df.groupby('group')[['bad']].median(), df, expect_error=True)
+    self._run_error_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.median(), df)
+    self._run_error_test(lambda df: df.groupby('group')[['bad']].median(), df)
 
-    self._run_test(
-        lambda df: df.groupby('group').bad.median(), df, expect_error=True)
+    self._run_error_test(lambda df: df.groupby('group').bad.median(), df)
 
   def test_groupby_errors_non_existent_label(self):
     df = GROUPBY_DF
 
     # non-existent grouping label
-    self._run_test(
-        lambda df: df.groupby(['really_bad', 'foo', 'bad']).foo.sum(),
-        df,
-        expect_error=True)
-    self._run_test(
-        lambda df: df.groupby('bad').foo.sum(), df, expect_error=True)
+    self._run_error_test(
+        lambda df: df.groupby(['really_bad', 'foo', 'bad']).foo.sum(), df)
+    self._run_error_test(lambda df: df.groupby('bad').foo.sum(), df)
 
   def test_groupby_callable(self):
     df = GROUPBY_DF
@@ -305,11 +334,9 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.set_index(['index1', 'index2'], drop=True), df)
     self._run_test(lambda df: df.set_index('values'), df)
 
-    self._run_test(lambda df: df.set_index('bad'), df, expect_error=True)
-    self._run_test(
-        lambda df: df.set_index(['index2', 'bad', 'really_bad']),
-        df,
-        expect_error=True)
+    self._run_error_test(lambda df: df.set_index('bad'), df)
+    self._run_error_test(
+        lambda df: df.set_index(['index2', 'bad', 'really_bad']), df)
 
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(
@@ -365,6 +392,10 @@ class DeferredFrameTest(unittest.TestCase):
         df)
     self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
     self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
+    self._run_test(
+        lambda df: df.set_index(['str', 'group', 'bool']).groupby(
+            level='group').apply(median_sum_fn),
+        df)
 
   @unittest.skip('BEAM-11710')
   def test_groupby_aggregate_grouped_column(self):
@@ -391,22 +422,21 @@ class DeferredFrameTest(unittest.TestCase):
     df2 = pd.DataFrame({
         'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
-              index=lambda x: '*'),
-          df1,
-          df2)
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(
-              df2,
-              left_on='lkey',
-              right_on='rkey',
-              suffixes=('_left', '_right')).rename(index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
+            index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(
+            df2, left_on='lkey', right_on='rkey', suffixes=('_left', '_right')).
+        rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_merge_left_join(self):
     # This is from the pandas doctests, but fails due to re-indexing being
@@ -414,12 +444,12 @@ class DeferredFrameTest(unittest.TestCase):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_merge_on_index(self):
     # This is from the pandas doctests, but fails due to re-indexing being
@@ -430,12 +460,12 @@ class DeferredFrameTest(unittest.TestCase):
     df2 = pd.DataFrame({
         'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     }).set_index('rkey')
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, left_index=True, right_index=True),
-          df1,
-          df2)
+
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, left_index=True, right_index=True),
+        df1,
+        df2)
 
   def test_merge_same_key(self):
     df1 = pd.DataFrame({
@@ -444,55 +474,58 @@ class DeferredFrameTest(unittest.TestCase):
     df2 = pd.DataFrame({
         'key': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
-          df1,
-          df2)
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
-              index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
+            index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_merge_same_key_doctest(self):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
-          df1,
-          df2)
-      # Test without specifying 'on'
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
+    # Test without specifying 'on'
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_merge_same_key_suffix_collision(self):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2], 'a_lsuffix': [5, 6]})
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4], 'a_rsuffix': [7, 8]})
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(
-              df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).
-          rename(index=lambda x: '*'),
-          df1,
-          df2)
-      # Test without specifying 'on'
-      self._run_test(
-          lambda df1,
-          df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
-          rename(index=lambda x: '*'),
-          df1,
-          df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(
+            df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).rename(
+                index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
+    # Test without specifying 'on'
+    self._run_test(
+        lambda df1,
+        df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
+        rename(index=lambda x: '*'),
+        df1,
+        df2,
+        nonparallel=True)
 
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
@@ -503,6 +536,16 @@ class DeferredFrameTest(unittest.TestCase):
 
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
+
+  @parameterized.expand([
+      (pd.Series(range(10)), ),  # unique
+      (pd.Series(list(range(100)) + [0]), ),  # non-unique int
+      (pd.Series(list(range(100)) + [0]) / 100, ),  # non-unique flt
+      (pd.Series(['a', 'b', 'c', 'd']), ),  # unique str
+      (pd.Series(['a', 'b', 'a', 'c', 'd']), ),  # non-unique str
+  ])
+  def test_series_is_unique(self, series):
+    self._run_test(lambda s: s.is_unique, series)
 
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
@@ -534,10 +577,9 @@ class DeferredFrameTest(unittest.TestCase):
     s = pd.Series(list(range(16)))
     self._run_test(lambda s: s.agg('sum'), s)
     self._run_test(lambda s: s.agg(['sum']), s)
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda s: s.agg(['sum', 'mean']), s)
-      self._run_test(lambda s: s.agg(['mean']), s)
-      self._run_test(lambda s: s.agg('mean'), s)
+    self._run_test(lambda s: s.agg(['sum', 'mean']), s, nonparallel=True)
+    self._run_test(lambda s: s.agg(['mean']), s, nonparallel=True)
+    self._run_test(lambda s: s.agg('mean'), s, nonparallel=True)
 
   def test_append_sort(self):
     # yapf: disable
@@ -554,18 +596,24 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df1, df2: df2.append(df1, sort=True), df1, df2)
     self._run_test(lambda df1, df2: df2.append(df1, sort=False), df1, df2)
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_dataframe_agg(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda df: df.agg(['sum', 'mean']), df)
-      self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'sum'}), df)
-      self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'mean'}), df)
-      self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
-      self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
+    self._run_test(lambda df: df.agg(['sum', 'mean']), df, nonparallel=True)
+    self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'sum'}), df)
+    self._run_test(
+        lambda df: df.agg({
+            'A': 'sum', 'B': 'mean'
+        }), df, nonparallel=True)
+    self._run_test(
+        lambda df: df.agg({'A': ['sum', 'mean']}), df, nonparallel=True)
+    self._run_test(
+        lambda df: df.agg({
+            'A': ['sum', 'mean'], 'B': 'min'
+        }),
+        df,
+        nonparallel=True)
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_smallest_largest(self):
     df = pd.DataFrame({'A': [1, 1, 2, 2], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)
@@ -587,13 +635,12 @@ class DeferredFrameTest(unittest.TestCase):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
     df.loc[df.index[:5], 'a'] = np.nan
     df.loc[df.index[5:10], 'b'] = np.nan
-    self._run_test(lambda df: df.corr().round(8), df)
-    self._run_test(lambda df: df.cov().round(8), df)
-    self._run_test(lambda df: df.corr(min_periods=12).round(8), df)
-    self._run_test(lambda df: df.cov(min_periods=12).round(8), df)
-    self._run_test(lambda df: df.corrwith(df.a).round(8), df)
-    self._run_test(
-        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8), df)
+    self._run_test(lambda df: df.corr(), df)
+    self._run_test(lambda df: df.cov(), df)
+    self._run_test(lambda df: df.corr(min_periods=12), df)
+    self._run_test(lambda df: df.cov(min_periods=12), df)
+    self._run_test(lambda df: df.corrwith(df.a), df)
+    self._run_test(lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]), df)
 
   @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
   def test_applymap_na_action(self):
@@ -609,9 +656,8 @@ class DeferredFrameTest(unittest.TestCase):
     df = df.set_index('B')
     # TODO(BEAM-11190): These aggregations can be done in index partitions, but
     # it will require a little more complex logic
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda df: df.groupby(level=0).sum(), df)
-      self._run_test(lambda df: df.groupby(level=0).mean(), df)
+    self._run_test(lambda df: df.groupby(level=0).sum(), df, nonparallel=True)
+    self._run_test(lambda df: df.groupby(level=0).mean(), df, nonparallel=True)
 
   def test_dataframe_eval_query(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
@@ -631,6 +677,55 @@ class DeferredFrameTest(unittest.TestCase):
         NotImplementedError, lambda: deferred_df.eval('foo = a + @b - c'))
     self.assertRaises(
         NotImplementedError, lambda: deferred_df.query('a > @b + c'))
+
+  def test_index_name_assignment(self):
+    df = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
+    df = df.set_index(['a', 'b'], drop=False)
+
+    def change_index_names(df):
+      df.index.names = ['A', None]
+      return df
+
+    self._run_test(change_index_names, df)
+
+  @parameterized.expand((x, ) for x in [
+      0,
+      [1],
+      3,
+      [0, 3],
+      [2, 1],
+      ['foo', 0],
+      [1, 'str'],
+      [3, 0, 2, 1],
+  ])
+  def test_groupby_level_agg(self, level):
+    df = GROUPBY_DF.set_index(['group', 'foo', 'bar', 'str'], drop=False)
+    self._run_test(lambda df: df.groupby(level=level).bar.max(), df)
+    self._run_test(
+        lambda df: df.groupby(level=level).sum(numeric_only=True), df)
+    self._run_test(
+        lambda df: df.groupby(level=level).apply(
+            lambda x: (x.foo + x.bar).median()),
+        df)
+
+  def test_quantile_axis_columns(self):
+    df = pd.DataFrame(
+        np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"df\.quantile\(q=0\.1, axis='columns'\)"):
+      self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
+
+  @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
+  def test_groupby_count_na(self):
+    # Verify we can do a groupby.count() that doesn't drop NaN values
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=True).bar.count(), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
 
 
 class AllowNonParallelTest(unittest.TestCase):
@@ -661,6 +756,67 @@ class AllowNonParallelTest(unittest.TestCase):
     # disallowed
     with self.assertRaises(expressions.NonParallelOperation):
       self._use_non_parallel_operation()
+
+
+class ConstructionTimeTest(unittest.TestCase):
+  """Tests for operations that can be executed eagerly."""
+  DF = pd.DataFrame({
+      'str_col': ['foo', 'bar'],
+      'int_col': [1, 2],
+      'flt_col': [1.1, 2.2],
+  })
+  DEFERRED_DF = frame_base.DeferredFrame.wrap(
+      expressions.PlaceholderExpression(DF))
+
+  def _run_test(self, fn):
+    self.assertEqual(fn(self.DEFERRED_DF), fn(self.DF))
+
+  @parameterized.expand(DF.columns)
+  def test_series_name(self, col_name):
+    self._run_test(lambda df: df[col_name])
+
+  @parameterized.expand(DF.columns)
+  def test_series_dtype(self, col_name):
+    self._run_test(lambda df: df[col_name].dtype)
+    self._run_test(lambda df: df[col_name].dtypes)
+
+  def test_dataframe_columns(self):
+    self._run_test(lambda df: list(df.columns))
+
+  def test_dataframe_dtypes(self):
+    self._run_test(lambda df: list(df.dtypes))
+
+
+class DocstringTest(unittest.TestCase):
+  @parameterized.expand([
+      (frames.DeferredDataFrame, pd.DataFrame),
+      (frames.DeferredSeries, pd.Series),
+      (frames._DeferredIndex, pd.Index),
+      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
+      (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+  ])
+  @unittest.skip('BEAM-12074')
+  def test_docs_defined(self, beam_type, pd_type):
+    beam_attrs = set(dir(beam_type))
+    pd_attrs = set(dir(pd_type))
+
+    docstring_required = sorted([
+        attr for attr in beam_attrs.intersection(pd_attrs)
+        if getattr(pd_type, attr).__doc__ and not attr.startswith('_')
+    ])
+
+    docstring_missing = [
+        attr for attr in docstring_required
+        if not getattr(beam_type, attr).__doc__
+    ]
+
+    self.assertTrue(
+        len(docstring_missing) == 0,
+        f'{beam_type.__name__} is missing a docstring for '
+        f'{len(docstring_missing)}/{len(docstring_required)} '
+        f'({len(docstring_missing)/len(docstring_required):%}) '
+        f'operations:\n{docstring_missing}')
 
 
 if __name__ == '__main__':

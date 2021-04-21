@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -78,8 +74,7 @@ def run(argv=None, save_main_session=True):
 
     counts = (
         lines
-        | 'Split' >>
-        (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+        | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
         | 'PairWIthOne' >> beam.Map(lambda x: (x, 1))
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 

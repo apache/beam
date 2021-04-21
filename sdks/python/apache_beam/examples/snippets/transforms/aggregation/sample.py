@@ -18,9 +18,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 
 def sample_fixed_size_globally(test=None):
   # [START sample_fixed_size_globally]

@@ -56,17 +56,6 @@ def _get_args(typ):
   except AttributeError:
     if isinstance(typ, typing.TypeVar):
       return (typ.__name__, )
-    # On Python versions < 3.5.3, the Tuple and Union type from typing do
-    # not have an __args__ attribute, but a __tuple_params__, and a
-    # __union_params__ argument respectively.
-    if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
-      if getattr(typ, '__tuple_params__', None) is not None:
-        if typ.__tuple_use_ellipsis__:
-          return typ.__tuple_params__ + (Ellipsis, )
-        else:
-          return typ.__tuple_params__
-      elif getattr(typ, '__union_params__', None) is not None:
-        return typ.__union_params__
     return ()
 
 

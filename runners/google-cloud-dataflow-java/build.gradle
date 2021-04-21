@@ -45,7 +45,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20210310',
+    'dataflow.container_version' : 'beam-master-20210419',
   ]
 }
 
@@ -72,6 +72,7 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":runners:core-construction-java")
   compile library.java.avro
@@ -92,7 +93,7 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_36_0
+  compile library.java.vendored_grpc_1_26_0
   testCompile library.java.guava_testlib
   testCompile library.java.junit
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")

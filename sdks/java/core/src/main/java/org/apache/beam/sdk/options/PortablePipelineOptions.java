@@ -25,23 +25,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Pipeline options common to all portable runners. */
 @Experimental(Kind.PORTABILITY)
-public interface PortablePipelineOptions extends PipelineOptions {
-
-  // TODO: https://issues.apache.org/jira/browse/BEAM-4106: Consider pulling this out into a new
-  // options interface, e.g., FileStagingOptions.
-  /**
-   * List of local files to make available to workers.
-   *
-   * <p>Files are placed on the worker's classpath.
-   *
-   * <p>The default value is the list of jars from the main program's classpath.
-   */
-  @Description(
-      "Files to stage to the artifact service and make available to workers. Files are placed on "
-          + "the worker's classpath. The default value is all files from the classpath.")
-  List<String> getFilesToStage();
-
-  void setFilesToStage(List<String> value);
+public interface PortablePipelineOptions extends PipelineOptions, FileStagingOptions {
 
   @Description(
       "Job service endpoint to use. Should be in the form of address and port, e.g. localhost:3000")

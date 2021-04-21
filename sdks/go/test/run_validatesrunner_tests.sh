@@ -259,7 +259,21 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   docker images | grep $TAG
 
   # Push the container
-  gcloud docker -- push $CONTAINER
+  gcloud docker -- push $CONTAINER:$TAG
+
+  if [[ -n "$EXPANSION_ADDR" ]]; then
+    # Build the java container for cross-language
+    JAVA_TAG=$(date +%Y%m%d-%H%M%S)
+    JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
+    echo "Using container $JAVA_CONTAINER for cross-language java transforms"
+    ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG
+
+    # Verify it exists
+    docker images | grep $JAVA_TAG
+
+    # Push the container
+    gcloud docker -- push $JAVA_CONTAINER:$JAVA_TAG
+  fi
 else
   TAG=dev
   ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
@@ -276,8 +290,13 @@ ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test"
 ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test"
 ARGS="$ARGS --dataflow_worker_jar=$DATAFLOW_WORKER_JAR"
 ARGS="$ARGS --endpoint=$ENDPOINT"
+OVERRIDE=--sdk_harness_container_image_override=".*java.*,$JAVA_CONTAINER:$JAVA_TAG"
+ARGS="$ARGS $OVERRIDE"
 if [[ -n "$EXPANSION_ADDR" ]]; then
   ARGS="$ARGS --expansion_addr=$EXPANSION_ADDR"
+  if [[ "$RUNNER" == "dataflow" ]]; then
+    ARGS="$ARGS --experiments=use_portable_job_submission"
+  fi
 fi
 
 # Running "go test" requires some additional setup on Jenkins.
@@ -303,6 +322,12 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+
+  if [[ -n "$EXPANSION_ADDR" ]]; then
+    # Delete the java cross-language container locally and remotely
+    docker rmi $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to remove container"
+    gcloud --quiet container images delete $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to delete container"
+  fi
 
   # Clean up tempdir
   rm -rf $TMPDIR

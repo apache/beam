@@ -24,6 +24,7 @@ import gc
 import logging
 import os
 import random
+import re
 import shutil
 import tempfile
 import threading
@@ -1024,22 +1025,28 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-    unpacked_min_step_name = 'PackableMin/CombinePerKey'
-    unpacked_max_step_name = 'PackableMax/CombinePerKey'
-    packed_step_name = (
-        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/' +
-        'Pack')
+    unpacked_min_step_name_regex = r'.*PackableMin.*CombinePerKey.*'
+    unpacked_max_step_name_regex = r'.*PackableMax.*CombinePerKey.*'
+    packed_step_name_regex = (
+        r'.*Packed.*PackableMin.*CombinePerKey.*PackableMax.*CombinePerKey.*' +
+        'Pack.*')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names = set(m.key.step for m in counters)
     if expect_packed:
-      self.assertFalse(any([unpacked_min_step_name in s for s in step_names]))
-      self.assertFalse(any([unpacked_max_step_name in s for s in step_names]))
-      self.assertTrue(any([packed_step_name in s for s in step_names]))
+      self.assertFalse(
+          any([re.match(unpacked_min_step_name_regex, s) for s in step_names]))
+      self.assertFalse(
+          any([re.match(unpacked_max_step_name_regex, s) for s in step_names]))
+      self.assertTrue(
+          any([re.match(packed_step_name_regex, s) for s in step_names]))
     else:
-      self.assertTrue(any([unpacked_min_step_name in s for s in step_names]))
-      self.assertTrue(any([unpacked_max_step_name in s for s in step_names]))
-      self.assertFalse(any([packed_step_name in s for s in step_names]))
+      self.assertTrue(
+          any([re.match(unpacked_min_step_name_regex, s) for s in step_names]))
+      self.assertTrue(
+          any([re.match(unpacked_max_step_name_regex, s) for s in step_names]))
+      self.assertFalse(
+          any([re.match(packed_step_name_regex, s) for s in step_names]))
 
   def test_pack_combiners_disabled_by_default(self):
     self._test_pack_combiners(experiments=(), expect_packed=False)

@@ -29,8 +29,6 @@ Currently it is possible to have following metrics types:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import time

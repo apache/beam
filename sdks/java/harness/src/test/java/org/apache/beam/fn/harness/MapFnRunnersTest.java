@@ -176,17 +176,18 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class));
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     consumers.register("outputPC", "pTransformId", outputConsumer::add, StringUtf8Coder.of());
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "finish");
     List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)

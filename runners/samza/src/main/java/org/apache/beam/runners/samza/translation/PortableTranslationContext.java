@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
@@ -59,6 +60,7 @@ import org.apache.samza.table.descriptors.TableDescriptor;
 public class PortableTranslationContext {
   private final Map<String, MessageStream<?>> messsageStreams = new HashMap<>();
   private final StreamApplicationDescriptor appDescriptor;
+  private final JobInfo jobInfo;
   private final SamzaPipelineOptions options;
   private final Set<String> registeredInputStreams = new HashSet<>();
   private final Map<String, Table> registeredTables = new HashMap<>();
@@ -67,7 +69,8 @@ public class PortableTranslationContext {
   private PipelineNode.PTransformNode currentTransform;
 
   public PortableTranslationContext(
-      StreamApplicationDescriptor appDescriptor, SamzaPipelineOptions options) {
+      StreamApplicationDescriptor appDescriptor, SamzaPipelineOptions options, JobInfo jobInfo) {
+    this.jobInfo = jobInfo;
     this.appDescriptor = appDescriptor;
     this.options = options;
   }
@@ -99,6 +102,10 @@ public class PortableTranslationContext {
 
   public String getOutputId(PipelineNode.PTransformNode transform) {
     return Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
+  }
+
+  public JobInfo getJobInfo() {
+    return jobInfo;
   }
 
   public <T> void registerMessageStream(String id, MessageStream<OpMessage<T>> stream) {

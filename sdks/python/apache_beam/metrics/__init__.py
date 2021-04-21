@@ -14,7 +14,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import
-
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter

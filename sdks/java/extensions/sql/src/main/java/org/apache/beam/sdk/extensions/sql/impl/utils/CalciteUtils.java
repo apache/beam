@@ -280,7 +280,8 @@ public class CalciteUtils {
   /**
    * SQL-Java type mapping, with specified Beam rules: <br>
    * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it. <br>
-   * 2. For a list, the component type is needed to create a Sql array type.
+   * 2. For a list, the component type is needed to create a Sql array type. <br>
+   * 3. For a Map, the component type is needed to create a Sql map type.
    *
    * @param type
    * @return Calcite RelDataType
@@ -291,13 +292,19 @@ public class CalciteUtils {
       return typeFactory.createJavaType(Date.class);
     } else if (type instanceof Class && ByteString.class.isAssignableFrom((Class<?>) type)) {
       return typeFactory.createJavaType(byte[].class);
-    } else if (type instanceof ParameterizedType
-        && java.util.List.class.isAssignableFrom(
-            (Class<?>) ((ParameterizedType) type).getRawType())) {
+    } else if (type instanceof ParameterizedType) {
       ParameterizedType parameterizedType = (ParameterizedType) type;
-      Class<?> genericType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
-      RelDataType collectionElementType = typeFactory.createJavaType(genericType);
-      return typeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
+      if (java.util.List.class.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
+        Class<?> genericType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
+        RelDataType collectionElementType = typeFactory.createJavaType(genericType);
+        return typeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
+      } else if (java.util.Map.class.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
+        Class<?> genericKeyType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
+        Class<?> genericValueType = (Class<?>) parameterizedType.getActualTypeArguments()[1];
+        RelDataType mapElementKeyType = typeFactory.createJavaType(genericKeyType);
+        RelDataType mapElementValueType = typeFactory.createJavaType(genericValueType);
+        return typeFactory.createMapType(mapElementKeyType, mapElementValueType);
+      }
     }
     return typeFactory.createJavaType((Class) type);
   }

@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import
 
 # Important: the MIME library in the Python 3.x standard library used by
 # apitools causes uploads containing '\r\n' to be corrupted, unless we

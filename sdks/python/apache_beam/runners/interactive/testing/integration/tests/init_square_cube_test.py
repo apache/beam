@@ -22,9 +22,12 @@ from __future__ import absolute_import
 
 import unittest
 
+import pytest
+
 from apache_beam.runners.interactive.testing.integration.screen_diff import BaseTestCase
 
 
+@pytest.mark.timeout(300)
 class InitSquareCubeTest(BaseTestCase):
   def __init__(self, *args, **kwargs):
     kwargs['golden_size'] = (1024, 10000)

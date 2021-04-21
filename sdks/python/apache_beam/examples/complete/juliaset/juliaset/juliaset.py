@@ -22,11 +22,7 @@ We use the quadratic polinomial f(z) = z*z + c, with c = -.62772 +.42193i
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import argparse
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import WriteToText

@@ -22,14 +22,10 @@ Java 8 must be available to run this pipeline, and the
 Docker must also be available to run this pipeline locally.
 """
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
 import typing
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -44,9 +40,9 @@ from apache_beam.transforms.sql import SqlTransform
 # One way to create such a PCollection is to produce a PCollection of
 # NamedTuple registered with the RowCoder.
 #
-# Here we create and register a simple NamedTuple with a single unicode typed
+# Here we create and register a simple NamedTuple with a single str typed
 # field named 'word' which we will use below.
-MyRow = typing.NamedTuple('MyRow', [('word', unicode)])
+MyRow = typing.NamedTuple('MyRow', [('word', str)])
 coders.registry.register_coder(MyRow, coders.RowCoder)
 
 

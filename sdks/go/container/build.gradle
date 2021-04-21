@@ -69,4 +69,10 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
     dependsOn ':release:go-licenses:go:createLicenses'
   }
   dockerPrepare.dependsOn 'copyGolangLicenses'
+} else {
+  task skipPullLicenses(type: Exec) {
+    executable "sh"
+    args "-c", "mkdir -p build/target/go-licenses"
+  }
+  dockerPrepare.dependsOn 'skipPullLicenses'
 }

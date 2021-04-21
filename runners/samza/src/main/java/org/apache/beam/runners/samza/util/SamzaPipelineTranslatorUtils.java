@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Utilities for pipeline translation. */
@@ -86,7 +86,7 @@ public final class SamzaPipelineTranslatorUtils {
    * non-alphabetic characters.
    */
   public static String escape(String name) {
-    return name.replaceAll("[\\.(/]", "-").replaceAll("[^A-Za-z0-9-_]", "");
+    return name.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1").replaceAll("[^A-Za-z0-9_-]", "_");
   }
 
   public static PCollection.IsBounded isBounded(RunnerApi.PCollection pCollection) {
