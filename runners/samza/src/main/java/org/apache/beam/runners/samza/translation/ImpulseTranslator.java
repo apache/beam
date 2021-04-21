@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.translation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -65,13 +66,14 @@ public class ImpulseTranslator
       PortableTranslationContext ctx) {
 
     final String outputId = ctx.getOutputId(transform);
+    final String escapedOutputId = SamzaPipelineTranslatorUtils.escape(outputId);
     final GenericSystemDescriptor systemDescriptor =
-        new GenericSystemDescriptor(outputId, SamzaImpulseSystemFactory.class.getName());
+        new GenericSystemDescriptor(escapedOutputId, SamzaImpulseSystemFactory.class.getName());
 
     // The KvCoder is needed here for Samza not to crop the key.
     final Serde<KV<?, OpMessage<byte[]>>> kvSerde = KVSerde.of(new NoOpSerde(), new NoOpSerde<>());
     final GenericInputDescriptor<KV<?, OpMessage<byte[]>>> inputDescriptor =
-        systemDescriptor.getInputDescriptor(outputId, kvSerde);
+        systemDescriptor.getInputDescriptor(escapedOutputId, kvSerde);
 
     ctx.registerInputMessageStream(outputId, inputDescriptor);
   }

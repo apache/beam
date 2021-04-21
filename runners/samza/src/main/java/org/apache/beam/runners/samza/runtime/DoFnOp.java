@@ -41,7 +41,9 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.util.FutureUtils;
@@ -97,6 +99,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // portable api related
   private final boolean isPortable;
   private final RunnerApi.ExecutableStagePayload stagePayload;
+  private final JobInfo jobInfo;
   private final HashMap<String, TupleTag<?>> idToTupleTagMap;
 
   private transient SamzaTimerInternalsFactory<?> timerInternalsFactory;
@@ -141,6 +144,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       PCollection.IsBounded isBounded,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
+      JobInfo jobInfo,
       Map<String, TupleTag<?>> idToTupleTagMap,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping) {
@@ -160,6 +164,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.isBounded = isBounded;
     this.isPortable = isPortable;
     this.stagePayload = stagePayload;
+    this.jobInfo = jobInfo;
     this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
     this.bundleCheckTimerId = "_samza_bundle_check_" + transformId;
     this.bundleStateId = "_samza_bundle_" + transformId;

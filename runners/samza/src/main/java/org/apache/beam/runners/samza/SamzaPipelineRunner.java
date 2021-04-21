@@ -57,7 +57,7 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
     options.setRunner(SamzaRunner.class);
     try {
       final SamzaRunner runner = SamzaRunner.fromOptions(options);
-      return runner.runPortablePipeline(fusedPipeline);
+      return runner.runPortablePipeline(fusedPipeline, jobInfo);
     } catch (Exception e) {
       throw new RuntimeException("Failed to invoke samza job", e);
     }
