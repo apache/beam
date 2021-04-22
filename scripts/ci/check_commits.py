@@ -18,7 +18,7 @@
 import sys
 import requests
 
-fixup_words = 'fixup', 'typo', 'lint', 'reviewer', 'spotless', 'mypy'
+fixup_words = 'fixup', 'typo', 'lint', 'reviewer', 'spotless', 'mypy', 'yapf'
 
 
 def main(url):
