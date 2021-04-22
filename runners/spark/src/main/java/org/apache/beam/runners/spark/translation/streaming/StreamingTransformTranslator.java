@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static org.apache.beam.runners.spark.coders.CoderHelpers.windowedValueCoder;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -74,9 +75,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -197,12 +199,9 @@ public final class StreamingTransformTranslator {
 
       private Queue<JavaRDD<WindowedValue<T>>> buildRdds(
           Queue<Iterable<TimestampedValue<T>>> batches, JavaStreamingContext jssc, Coder<T> coder) {
-
-        final WindowedValue.FullWindowedValueCoder<T> windowCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
-
+        final FullWindowedValueCoder<T> wvCoder =
+            FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
         final Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
-
         for (final Iterable<TimestampedValue<T>> timestampedValues : batches) {
           final Iterable<WindowedValue<T>> windowedValues =
               StreamSupport.stream(timestampedValues.spliterator(), false)
@@ -217,8 +216,8 @@ public final class StreamingTransformTranslator {
 
           final JavaRDD<WindowedValue<T>> rdd =
               jssc.sparkContext()
-                  .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
-                  .map(CoderHelpers.fromByteFunction(windowCoder));
+                  .parallelize(CoderHelpers.toByteArrays(windowedValues, wvCoder))
+                  .map(CoderHelpers.fromByteFunction(wvCoder));
 
           rddQueue.offer(rdd);
         }
@@ -329,12 +328,8 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
-
-        // --- coders.
-        final WindowedValue.WindowedValueCoder<V> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+        final WindowedValueCoder<V> wvCoder =
+            windowedValueCoder(coder.getValueCoder(), windowingStrategy);
 
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
             SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
@@ -511,11 +506,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
-
-        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+        final WindowedValueCoder<KV<K, V>> wvCoder = windowedValueCoder(coder, windowingStrategy);
 
         JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
             dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import static org.apache.beam.runners.spark.coders.CoderHelpers.windowedValueCoder;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -39,6 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -355,17 +358,13 @@ public final class TranslationUtils {
   public static Map<TupleTag<?>, Coder<WindowedValue<?>>> getTupleTagCoders(
       Map<TupleTag<?>, PCollection<?>> outputs) {
     Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap = new HashMap<>(outputs.size());
-
     for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
       // we get the first PValue as all of them are fro the same type.
       PCollection<?> pCollection = output.getValue();
-      Coder<?> coder = pCollection.getCoder();
-      Coder<? extends BoundedWindow> wCoder =
-          pCollection.getWindowingStrategy().getWindowFn().windowCoder();
-      @SuppressWarnings("unchecked")
-      Coder<WindowedValue<?>> windowedValueCoder =
-          (Coder<WindowedValue<?>>) (Coder<?>) WindowedValue.getFullCoder(coder, wCoder);
-      coderMap.put(output.getKey(), windowedValueCoder);
+      Coder<?> valueCoder = pCollection.getCoder();
+      WindowedValueCoder<?> wvCoder =
+          windowedValueCoder(valueCoder, pCollection.getWindowingStrategy());
+      coderMap.put(output.getKey(), (Coder<WindowedValue<?>>) (Coder<?>) wvCoder);
     }
     return coderMap;
   }

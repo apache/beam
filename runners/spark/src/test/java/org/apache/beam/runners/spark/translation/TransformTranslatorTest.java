@@ -29,6 +29,8 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
@@ -56,8 +58,8 @@ public class TransformTranslatorTest {
   @Test
   public void testSplitBySameKey() {
     VarIntCoder coder = VarIntCoder.of();
-    WindowedValue.WindowedValueCoder<Integer> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
+    WindowedValueCoder<Integer> wvCoder =
+        FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
     Instant now = Instant.now();
     List<GlobalWindow> window = Arrays.asList(GlobalWindow.INSTANCE);
     PaneInfo paneInfo = PaneInfo.NO_FIRING;

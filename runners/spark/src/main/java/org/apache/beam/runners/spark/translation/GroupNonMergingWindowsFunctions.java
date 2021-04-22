@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import static org.apache.beam.runners.spark.coders.CoderHelpers.windowedValueCoder;
+
 import java.util.Iterator;
 import java.util.Objects;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -28,7 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
@@ -80,8 +82,8 @@ public class GroupNonMergingWindowsFunctions {
           WindowingStrategy<?, W> windowingStrategy,
           Partitioner partitioner) {
     final Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
-    FullWindowedValueCoder<KV<K, V>> windowedKvCoder =
-        WindowedValue.FullWindowedValueCoder.of(KvCoder.of(keyCoder, valueCoder), windowCoder);
+    WindowedValueCoder<KV<K, V>> windowedKvCoder =
+        windowedValueCoder(KvCoder.of(keyCoder, valueCoder), windowingStrategy);
     JavaPairRDD<ByteArray, byte[]> windowInKey =
         bringWindowToKey(
             rdd, keyCoder, windowCoder, wv -> CoderHelpers.toByteArray(wv, windowedKvCoder));
@@ -164,7 +166,7 @@ public class GroupNonMergingWindowsFunctions {
     private final PeekingIterator<Tuple2<ByteArray, byte[]>> inner;
     private final Coder<K> keyCoder;
     private final WindowingStrategy<?, W> windowingStrategy;
-    private final FullWindowedValueCoder<KV<K, V>> windowedValueCoder;
+    private final WindowedValueCoder<KV<K, V>> wvCoder;
 
     private boolean hasNext = true;
     private ByteArray currentKey = null;
@@ -173,13 +175,11 @@ public class GroupNonMergingWindowsFunctions {
         Iterator<Tuple2<ByteArray, byte[]>> inner,
         Coder<K> keyCoder,
         WindowingStrategy<?, W> windowingStrategy,
-        WindowedValue.FullWindowedValueCoder<KV<K, V>> windowedValueCoder)
-        throws Coder.NonDeterministicException {
-
+        WindowedValueCoder<KV<K, V>> wvCoder) {
       this.inner = Iterators.peekingIterator(inner);
       this.keyCoder = keyCoder;
       this.windowingStrategy = windowingStrategy;
-      this.windowedValueCoder = windowedValueCoder;
+      this.wvCoder = wvCoder;
     }
 
     @Override
@@ -238,14 +238,13 @@ public class GroupNonMergingWindowsFunctions {
 
     private V decodeValue(byte[] windowedValueBytes) {
       final WindowedValue<KV<K, V>> windowedValue =
-          CoderHelpers.fromByteArray(windowedValueBytes, windowedValueCoder);
+          CoderHelpers.fromByteArray(windowedValueBytes, wvCoder);
       return windowedValue.getValue().getValue();
     }
 
     private WindowedValue<KV<K, V>> decodeItem(Tuple2<ByteArray, byte[]> item) {
       final K key = CoderHelpers.fromByteArray(item._1.getValue(), keyCoder);
-      final WindowedValue<KV<K, V>> windowedValue =
-          CoderHelpers.fromByteArray(item._2, windowedValueCoder);
+      final WindowedValue<KV<K, V>> windowedValue = CoderHelpers.fromByteArray(item._2, wvCoder);
       final V value = windowedValue.getValue().getValue();
       @SuppressWarnings("unchecked")
       final W window = (W) Iterables.getOnlyElement(windowedValue.getWindows());

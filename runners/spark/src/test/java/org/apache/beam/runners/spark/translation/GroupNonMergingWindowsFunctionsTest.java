@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import static org.apache.beam.runners.spark.coders.CoderHelpers.windowedValueCoder;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
@@ -35,7 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
@@ -119,17 +120,16 @@ public class GroupNonMergingWindowsFunctionsTest {
   }
 
   private <W extends BoundedWindow> GroupByKeyIterator<String, Integer, W> createGbkIterator(
-      W window, Coder<W> winCoder, WindowingStrategy<Object, W> winStrategy)
+      W window, Coder<W> winCoder, WindowingStrategy<Object, W> windowingStrategy)
       throws Coder.NonDeterministicException {
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    final WindowedValue.FullWindowedValueCoder<KV<String, Integer>> winValCoder =
-        WindowedValue.getFullCoder(
-            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
-            winStrategy.getWindowFn().windowCoder());
+    Coder<KV<String, Integer>> valueCoder = KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
+    final WindowedValueCoder<KV<String, Integer>> wvCoder =
+        windowedValueCoder(valueCoder, windowingStrategy);
 
     ItemFactory<String, Integer, W> factory =
-        ItemFactory.forWindow(keyCoder, winValCoder, winCoder, window);
+        ItemFactory.forWindow(keyCoder, wvCoder, winCoder, window);
     List<Tuple2<ByteArray, byte[]>> items =
         Arrays.asList(
             factory.create("k1", 1),
@@ -137,35 +137,22 @@ public class GroupNonMergingWindowsFunctionsTest {
             factory.create("k2", 3),
             factory.create("k2", 4),
             factory.create("k2", 5));
-    return new GroupByKeyIterator<>(items.iterator(), keyCoder, winStrategy, winValCoder);
+    return new GroupByKeyIterator<>(items.iterator(), keyCoder, windowingStrategy, wvCoder);
   }
 
   private static class ItemFactory<K, V, W extends BoundedWindow> {
-
-    static <K, V> ItemFactory<K, V, GlobalWindow> forGlogalWindow(
-        Coder<K> keyCoder, FullWindowedValueCoder<KV<K, V>> winValCoder) {
-      return new ItemFactory<>(
-          keyCoder, winValCoder, GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
-    }
-
     static <K, V, W extends BoundedWindow> ItemFactory<K, V, W> forWindow(
-        Coder<K> keyCoder,
-        FullWindowedValueCoder<KV<K, V>> winValCoder,
-        Coder<W> winCoder,
-        W window) {
+        Coder<K> keyCoder, WindowedValueCoder<KV<K, V>> winValCoder, Coder<W> winCoder, W window) {
       return new ItemFactory<>(keyCoder, winValCoder, winCoder, window);
     }
 
     private final Coder<K> keyCoder;
-    private final WindowedValue.FullWindowedValueCoder<KV<K, V>> winValCoder;
+    private final WindowedValueCoder<KV<K, V>> winValCoder;
     private final byte[] windowBytes;
     private final W window;
 
     ItemFactory(
-        Coder<K> keyCoder,
-        FullWindowedValueCoder<KV<K, V>> winValCoder,
-        Coder<W> winCoder,
-        W window) {
+        Coder<K> keyCoder, WindowedValueCoder<KV<K, V>> winValCoder, Coder<W> winCoder, W window) {
       this.keyCoder = keyCoder;
       this.winValCoder = winValCoder;
       this.windowBytes = CoderHelpers.toByteArray(window, winCoder);

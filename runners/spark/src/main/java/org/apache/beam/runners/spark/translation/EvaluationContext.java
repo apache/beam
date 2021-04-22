@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import static org.apache.beam.runners.spark.coders.CoderHelpers.windowedValueCoder;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
@@ -34,8 +35,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
@@ -201,9 +202,9 @@ public class EvaluationContext {
     if (shouldCache(transform, pvalue)) {
       // we cache only PCollection
       Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
-      Coder<? extends BoundedWindow> wCoder =
-          ((PCollection<?>) pvalue).getWindowingStrategy().getWindowFn().windowCoder();
-      dataset.cache(storageLevel(), WindowedValue.getFullCoder(coder, wCoder));
+      WindowedValueCoder<?> wvCoder =
+          windowedValueCoder(coder, ((PCollection<?>) pvalue).getWindowingStrategy());
+      dataset.cache(storageLevel(), wvCoder);
     }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);

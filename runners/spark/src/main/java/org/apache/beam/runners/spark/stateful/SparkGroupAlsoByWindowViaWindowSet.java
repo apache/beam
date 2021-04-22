@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -368,7 +369,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       }
     }
 
-    private final FullWindowedValueCoder<InputT> wvCoder;
+    private final WindowedValueCoder<InputT> wvCoder;
     private final Coder<K> keyCoder;
     private final List<Integer> sourceIds;
     private final TimerInternals.TimerDataCoderV2 timerDataCoder;
@@ -394,10 +395,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       this.itrWvCoder = IterableCoder.of(wvCoder);
       this.logPrefix = logPrefix;
       this.wvKvIterCoder =
-          windowedValueKeyValueCoderOf(
-              keyCoder,
-              wvCoder.getValueCoder(),
-              ((FullWindowedValueCoder<InputT>) wvCoder).getWindowCoder());
+          windowedValueKeyValueCoderOf(keyCoder, wvCoder.getValueCoder(), wvCoder.getWindowCoder());
     }
 
     @Override

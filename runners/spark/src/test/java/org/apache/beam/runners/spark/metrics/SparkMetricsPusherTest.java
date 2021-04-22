@@ -117,12 +117,12 @@ public class SparkMetricsPusherTest {
   @Category(UsesMetricsPusher.class)
   @Test
   public void testInBatchMode() throws Exception {
-    pipeline.apply(Create.of(1, 2, 3, 4, 5, 6)).apply(ParDo.of(new CountingDoFn()));
+    pipeline.apply(Create.of(1)).apply(ParDo.of(new CountingDoFn()));
 
     pipeline.run();
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(1L));
   }
 }

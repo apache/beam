@@ -96,11 +96,8 @@ public class GroupCombineFunctions {
           final SparkCombineFn<InputT, InputT, AccumT, OutputT> sparkCombineFn,
           final Coder<AccumT> aCoder,
           final WindowingStrategy<?, ?> windowingStrategy) {
-
-    @SuppressWarnings("unchecked")
-    final Coder<BoundedWindow> windowCoder = (Coder) windowingStrategy.getWindowFn().windowCoder();
     final SparkCombineFn.WindowedAccumulatorCoder<InputT, InputT, AccumT> waCoder =
-        sparkCombineFn.accumulatorCoder(windowCoder, aCoder, windowingStrategy);
+        sparkCombineFn.accumulatorCoder(aCoder, windowingStrategy);
 
     ValueAndCoderLazySerializable<SparkCombineFn.WindowedAccumulator<InputT, InputT, AccumT, ?>>
         accumulatedResult =
@@ -139,10 +136,8 @@ public class GroupCombineFunctions {
           final WindowingStrategy<?, ?> windowingStrategy) {
 
     boolean mustBringWindowToKey = sparkCombineFn.mustBringWindowToKey();
-    @SuppressWarnings("unchecked")
-    Coder<BoundedWindow> windowCoder = (Coder) windowingStrategy.getWindowFn().windowCoder();
     final SparkCombineFn.WindowedAccumulatorCoder<KV<K, V>, V, AccumT> waCoder =
-        sparkCombineFn.accumulatorCoder(windowCoder, aCoder, windowingStrategy);
+        sparkCombineFn.accumulatorCoder(aCoder, windowingStrategy);
 
     // We need to duplicate K as both the key of the JavaPairRDD as well as inside the value,
     // since the functions passed to combineByKey don't receive the associated key of each
@@ -155,6 +150,9 @@ public class GroupCombineFunctions {
     if (!mustBringWindowToKey) {
       inRddDuplicatedKeyPair = rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue(keyCoder));
     } else {
+      @SuppressWarnings("unchecked")
+      final Coder<BoundedWindow> windowCoder =
+          (Coder) windowingStrategy.getWindowFn().windowCoder();
       inRddDuplicatedKeyPair =
           GroupNonMergingWindowsFunctions.bringWindowToKey(rdd, keyCoder, windowCoder);
     }

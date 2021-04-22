@@ -23,6 +23,7 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getOutputId;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowedValueCoder;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
+import static org.apache.beam.runners.spark.coders.CoderHelpers.windowedValueCoder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,8 +55,9 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
@@ -155,13 +157,13 @@ public class SparkStreamingPortablePipelineTranslator
                 GlobalWindow.INSTANCE,
                 PaneInfo.NO_FIRING));
 
-    WindowedValue.FullWindowedValueCoder<byte[]> windowCoder =
-        WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE);
+    FullWindowedValueCoder<byte[]> wvCoder =
+        FullWindowedValueCoder.of(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE);
     JavaRDD<WindowedValue<byte[]>> emptyByteArrayRDD =
         context
             .getSparkContext()
-            .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
-            .map(CoderHelpers.fromByteFunction(windowCoder));
+            .parallelize(CoderHelpers.toByteArrays(windowedValues, wvCoder))
+            .map(CoderHelpers.fromByteFunction(wvCoder));
 
     Queue<JavaRDD<WindowedValue<byte[]>>> rddQueue = new LinkedBlockingQueue<>();
     rddQueue.offer(emptyByteArrayRDD);
@@ -193,14 +195,11 @@ public class SparkStreamingPortablePipelineTranslator
     UnboundedDataset<KV<K, V>> inputDataset =
         (UnboundedDataset<KV<K, V>>) context.popDataset(inputId);
     List<Integer> streamSources = inputDataset.getStreamSources();
-    WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder =
-        getWindowedValueCoder(inputId, components);
+    WindowedValueCoder<KV<K, V>> inputCoder = getWindowedValueCoder(inputId, components);
     KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
     WindowingStrategy windowingStrategy = getWindowingStrategy(inputId, components);
-    WindowFn<Object, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
-    WindowedValue.WindowedValueCoder<V> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            inputKvCoder.getValueCoder(), windowFn.windowCoder());
+    WindowedValueCoder<V> wvCoder =
+        windowedValueCoder(inputKvCoder.getValueCoder(), windowingStrategy);
 
     JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
         SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
@@ -246,8 +245,7 @@ public class SparkStreamingPortablePipelineTranslator
       throw new UnsupportedOperationException(
           "Side inputs to executable stage are currently unsupported.");
     }
-    ImmutableMap<
-            String, Tuple2<Broadcast<List<byte[]>>, WindowedValue.WindowedValueCoder<SideInputT>>>
+    ImmutableMap<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
         broadcastVariables = ImmutableMap.copyOf(new HashMap<>());
 
     SparkExecutableStageFunction<InputT, SideInputT> function =
@@ -346,8 +344,7 @@ public class SparkStreamingPortablePipelineTranslator
     UnboundedDataset<T> inputDataset = (UnboundedDataset<T>) context.popDataset(inputId);
     List<Integer> streamSources = inputDataset.getStreamSources();
     JavaDStream<WindowedValue<T>> dStream = inputDataset.getDStream();
-    WindowedValue.WindowedValueCoder<T> coder =
-        getWindowedValueCoder(inputId, pipeline.getComponents());
+    WindowedValueCoder<T> coder = getWindowedValueCoder(inputId, pipeline.getComponents());
 
     JavaDStream<WindowedValue<T>> reshuffledStream =
         dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, coder));
