@@ -36,7 +36,7 @@ jobs:
         run: |
             OUTPUT=$(python scripts/ci/check_commits.py ${{ github.event.pull_request.url }})
             echo "::set-output name=result::$OUTPUT"
-        uses: actions/github@v1.0.0
+      - uses: actions/github@v1.0.0
         if: steps.squashbot.outputs.result != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
