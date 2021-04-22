@@ -849,8 +849,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     unpacked_maximum_step_name = (
         'PackableCombines/PackableMax/CombinePerKey/Combine')
     packed_step_name = (
-        'PackableCombines/Packed[PackableMin_CombinePerKey, PackableMax_CombinePerKey]'
-        '/Pack')
+        'PackableCombines/Packed[PackableMin_CombinePerKey, '
+        'PackableMax_CombinePerKey]/Pack')
     transform_names = set(
         transform.unique_name
         for transform in runner.proto_pipeline.components.transforms.values())
