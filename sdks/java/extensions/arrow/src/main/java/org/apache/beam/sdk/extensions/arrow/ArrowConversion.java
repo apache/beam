@@ -317,7 +317,7 @@ public class ArrowConversion {
       }
 
       @Override
-      public @Nullable Function<Object, Object> visit(ArrowType.Struct type) {
+      public Function<Object, Object> visit(ArrowType.Struct type) {
         // TODO: code to create a row.
         return null;
       }
