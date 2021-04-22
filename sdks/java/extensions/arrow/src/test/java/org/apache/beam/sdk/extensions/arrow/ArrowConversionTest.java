@@ -78,7 +78,7 @@ public class ArrowConversionTest {
                 field("int8", new ArrowType.Int(8, true)),
                 field("int16", new ArrowType.Int(16, true))));
 
-    assertThat(ArrowConversion.toBeamSchema(arrowSchema), equalTo(expected));
+    assertThat(ArrowConversion.ArrowSchemaTranslator.toBeamSchema(arrowSchema), equalTo(expected));
   }
 
   @Test
@@ -98,7 +98,7 @@ public class ArrowConversionTest {
                 field("boolean", new ArrowType.Bool()),
                 field("fixed_size_binary", new ArrowType.FixedSizeBinary(3))));
 
-    Schema beamSchema = ArrowConversion.toBeamSchema(schema);
+    Schema beamSchema = ArrowConversion.ArrowSchemaTranslator.toBeamSchema(schema);
 
     VectorSchemaRoot expectedSchemaRoot = VectorSchemaRoot.create(schema, allocator);
     expectedSchemaRoot.setRowCount(16);
