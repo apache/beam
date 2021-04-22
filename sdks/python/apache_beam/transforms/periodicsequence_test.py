@@ -19,14 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import inspect
 import time
 import unittest
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline

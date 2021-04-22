@@ -18,11 +18,7 @@
 """Unit tests for the windowing classes."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import unittest
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.coders import coders

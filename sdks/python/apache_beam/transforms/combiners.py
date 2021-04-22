@@ -19,17 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import copy
 import heapq
 import operator
 import random
 import sys
 import warnings
-from builtins import object
-from builtins import zip
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -38,8 +33,6 @@ from typing import Set
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
-
-from past.builtins import long
 
 from apache_beam import typehints
 from apache_beam.transforms import core
@@ -96,7 +89,7 @@ class Mean(object):
 
 # TODO(laolu): This type signature is overly restrictive. This should be
 # more general.
-@with_input_types(Union[float, int, long])
+@with_input_types(Union[float, int])
 @with_output_types(float)
 class MeanCombineFn(core.CombineFn):
   """CombineFn for computing an arithmetic mean."""
