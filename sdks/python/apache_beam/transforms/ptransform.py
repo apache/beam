@@ -36,8 +36,6 @@ FlatMap processing functions.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import itertools
 import logging
@@ -45,9 +43,6 @@ import operator
 import os
 import sys
 import threading
-from builtins import hex
-from builtins import object
-from builtins import zip
 from functools import reduce
 from functools import wraps
 from typing import TYPE_CHECKING

@@ -19,8 +19,6 @@
 
 """Unit tests for deduplicate transform by using TestStream."""
 
-from __future__ import absolute_import
-
 import unittest
 
 from nose.plugins.attrib import attr

@@ -18,12 +18,8 @@
 """Unit tests for the Create and _CreateSource classes."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import unittest
-from builtins import range
 
 from apache_beam import Create
 from apache_beam.coders import FastPrimitivesCoder
