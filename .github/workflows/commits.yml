@@ -24,7 +24,7 @@ on:
 #   - issue_comment
 
 jobs:
-  ShouldBeSquashed:
+  Squashbot:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.commits > 1 || github.event.review }}
     steps:
