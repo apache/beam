@@ -113,12 +113,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             ? trimmedPipeline
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
-    // File staging.
     prepareFilesToStage(pipelineOptions);
-    LOG.info(
-        "Will stage {} files. (Enable logging at DEBUG level to see which files will be staged.)",
-        pipelineOptions.getFilesToStage().size());
-    LOG.debug("Staging files: {}", pipelineOptions.getFilesToStage());
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
