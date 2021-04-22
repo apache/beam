@@ -94,7 +94,7 @@ class ResourceHint:
   @staticmethod
   def _parse_str(value):
     if not isinstance(value, str):
-      raise ValueError()
+      raise ValueError("Input must be a string.")
     return value.encode('ascii')
 
   @staticmethod
@@ -102,7 +102,7 @@ class ResourceHint:
     if isinstance(value, str):
       value = int(value)
     if not isinstance(value, int):
-      raise ValueError()
+      raise ValueError("Input must be an integer.")
     return str(value).encode('ascii')
 
   @staticmethod
@@ -113,7 +113,7 @@ class ResourceHint:
       return ResourceHint._parse_int(value)
 
     if not isinstance(value, str):
-      raise ValueError()
+      raise ValueError("Input must be a string or integer.")
 
     value = value.strip().replace(" ", "")
     units = {
@@ -131,11 +131,11 @@ class ResourceHint:
     }
     match = re.match(r'.*?(\D+)$', value)
     if not match:
-      raise ValueError()
+      raise ValueError("Unrecognized value pattern.")
 
     suffix = match.group(1)
     if suffix not in units:
-      raise ValueError()
+      raise ValueError("Unrecognized unit.")
     multiplier = units[suffix]
     value = value[:-len(suffix)]
 
