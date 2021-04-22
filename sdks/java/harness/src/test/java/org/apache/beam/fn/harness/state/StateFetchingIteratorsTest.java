@@ -164,7 +164,7 @@ public class StateFetchingIteratorsTest {
 
       // No more is read than necissary.
       if (valuesIter.hasNext()) {
-	valuesIter.next();
+        valuesIter.next();
       }
       assertEquals(1, callCount.get());
 
@@ -172,7 +172,7 @@ public class StateFetchingIteratorsTest {
       Iterator<T> valuesIter2 = values.iterator();
       assertEquals(1, callCount.get());
       if (valuesIter2.hasNext()) {
-	valuesIter2.next();
+        valuesIter2.next();
       }
       assertEquals(1, callCount.get());
 
