@@ -36,8 +36,9 @@ jobs:
         run: |
             OUTPUT=$(python scripts/ci/check_commits.py ${{ github.event.pull_request.url }})
             echo "::set-output name=result::$OUTPUT"
-      - uses: marocchino/sticky-pull-request-comment@322a2451dae6c7831d1a8b931275a7f78147c888
+        uses: actions/github@v1.0.0
         if: steps.squashbot.outputs.result != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          recreate: true
-          message: ${{ steps.squashbot.outputs.result }}
+          args: comment "${{ steps.squashbot.outputs.result }}"
