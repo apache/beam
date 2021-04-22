@@ -1,0 +1,26 @@
+name: CheckCommits
+
+on:
+  - pull_request
+  - pull_request_review
+# TODO: Possibly trigger on comments too?
+#   - issue_comment
+
+jobs:
+  ShouldBeSquashed:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.commits > 1 || github.event.review }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Install deps."
+        run: pip install requests
+      - name: "Squashbot"
+        id: squashbot
+        run: |
+            OUTPUT=$(python scripts/ci/check_commits.py ${{ github.event.pull_request.url }})
+            echo "::set-output name=result::$OUTPUT"
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: steps.squashbot.outputs.result != ''
+        with:
+          recreate: true
+          message: ${{ steps.squashbot.outputs.result }}
