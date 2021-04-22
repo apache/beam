@@ -332,6 +332,8 @@ public class CommonCoderTest {
     } else if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
       Schema schema;
       try {
+        //  SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
+        // JsonFormat.parser().merge(coderSpec.getPayload(), schemaBuilder);
         schema =
             SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(coderSpec.getPayload()));
       } catch (InvalidProtocolBufferException e) {

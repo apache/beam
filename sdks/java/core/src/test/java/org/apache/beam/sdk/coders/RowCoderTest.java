@@ -459,4 +459,38 @@ public class RowCoderTest {
     Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
     assertEquals(expected, decoded);
   }
+
+  @Test
+  public void testEncodingPositionRemoveFields() throws Exception {
+    Schema schema1 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .addNullableField("f_boolean", FieldType.BOOLEAN)
+            .build();
+
+    Schema schema2 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .build();
+
+    Row row =
+        Row.withSchema(schema1)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .withFieldValue("f_boolean", true)
+            .build();
+
+    Row expected =
+        Row.withSchema(schema2)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    RowCoder.of(schema1).encode(row, os);
+    Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(expected, decoded);
+  }
 }

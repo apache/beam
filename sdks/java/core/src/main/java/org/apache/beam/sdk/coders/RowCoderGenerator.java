@@ -395,10 +395,10 @@ public abstract class RowCoderGenerator {
       BitSet nullFields = NULL_LIST_CODER.decode(inputStream);
       Object[] fieldValues = new Object[coders.length];
       for (int encodingPos = 0; encodingPos < fieldCount; ++encodingPos) {
-        int rowIndex = encodingPosToIndex[encodingPos];
         // In the case of a schema change going backwards, fieldCount might be > coders.length,
         // in which case we drop the extra fields.
         if (encodingPos < coders.length) {
+          int rowIndex = encodingPosToIndex[encodingPos];
           if (nullFields.get(rowIndex)) {
             fieldValues[rowIndex] = null;
           } else {
