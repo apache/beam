@@ -844,11 +844,13 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                        options=PipelineOptions(self.default_properties)) as p:
       _ = p | beam.Create([10, 20, 30]) | PackableCombines()
 
-    unpacked_minimum_step_name = 'PackableCombines/PackableMin/CombinePerKey/Combine'
-    unpacked_maximum_step_name = 'PackableCombines/PackableMax/CombinePerKey/Combine'
+    unpacked_minimum_step_name = (
+        'PackableCombines/PackableMin/CombinePerKey/Combine')
+    unpacked_maximum_step_name = (
+        'PackableCombines/PackableMax/CombinePerKey/Combine')
     packed_step_name = (
-        'PackableCombines/Packed[PackableMin_CombinePerKey, PackableMax_CombinePerKey]/Pack'
-    )
+        'PackableCombines/Packed[PackableMin_CombinePerKey, PackableMax_CombinePerKey]'
+        '/Pack')
     transform_names = set(
         transform.unique_name
         for transform in runner.proto_pipeline.components.transforms.values())
