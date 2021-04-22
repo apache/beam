@@ -29,8 +29,8 @@ import unittest
 import mock
 
 from apache_beam.metrics.cells import DistributionData
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -1039,9 +1039,16 @@ class UtilTest(unittest.TestCase):
 
   def test_template_file_generation_with_upload_graph(self):
     pipeline_options = PipelineOptions([
-        '--project', 'test_project', '--job_name', 'test_job_name',
-        '--temp_location', 'gs://test-location/temp', '--experiments',
-        'upload_graph', '--template_location', 'gs://test-location/template'
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--experiments',
+        'upload_graph',
+        '--template_location',
+        'gs://test-location/template'
     ])
     job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
     job.proto.steps.append(dataflow.Step(name='test_step_name'))
@@ -1049,10 +1056,11 @@ class UtilTest(unittest.TestCase):
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
     with mock.patch.object(client, 'stage_file', side_effect=None):
-      with mock.patch.object(
-          client, 'create_job_description', side_effect=None):
-        with mock.patch.object(
-            client, 'submit_job_description', side_effect=None):
+      with mock.patch.object(client, 'create_job_description',
+                             side_effect=None):
+        with mock.patch.object(client,
+                               'submit_job_description',
+                               side_effect=None):
           client.create_job(job)
 
           client.stage_file.assert_has_calls([
