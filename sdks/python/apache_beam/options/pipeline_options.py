@@ -447,6 +447,7 @@ class StandardOptions(PipelineOptions):
 
     parser.add_argument(
         '--resource_hint',
+        '--resource_hints',
         dest='resource_hints',
         action='append',
         default=[],
