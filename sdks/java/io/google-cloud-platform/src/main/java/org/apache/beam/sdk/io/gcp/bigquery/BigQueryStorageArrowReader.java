@@ -34,6 +34,8 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.values.Row;
 
+import javax.annotation.Nullable;
+
 class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   private final RootAllocator alloc;
@@ -41,7 +43,7 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
   private final org.apache.beam.sdk.schemas.Schema arrowBeamSchema;
   private final VectorSchemaRoot vectorRoot;
   private final VectorLoader vectorLoader;
-  private Iterator<Row> recordBatchIterable;
+  private @Nullable Iterator<Row> recordBatchIterable;
   private long rowCount;
 
   BigQueryStorageArrowReader(ReadSession readSession) throws IOException {

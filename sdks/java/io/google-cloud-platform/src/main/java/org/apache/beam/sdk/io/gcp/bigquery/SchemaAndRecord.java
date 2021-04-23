@@ -21,6 +21,8 @@ import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.values.Row;
 
+import javax.annotation.Nullable;
+
 /**
  * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
  * table (or query) it was generated from.
@@ -34,11 +36,11 @@ public class SchemaAndRecord {
     this.tableSchema = tableSchema;
   }
 
-  public GenericRecord getRecord() {
+  public @Nullable GenericRecord getRecord() {
     return record instanceof GenericRecord ? (GenericRecord) record : null;
   }
 
-  public Row getRow() {
+  public @Nullable Row getRow() {
     return record instanceof Row ? (Row) record : null;
   }
 

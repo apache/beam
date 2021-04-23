@@ -28,18 +28,22 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 
+import javax.annotation.Nullable;
+
 class BigQueryStorageAvroReader implements BigQueryStorageReader {
 
   private final Schema avroSchema;
   private final DatumReader<GenericRecord> datumReader;
-  private BinaryDecoder decoder;
-  private GenericRecord record;
+  private @Nullable BinaryDecoder decoder;
+  private @Nullable GenericRecord record;
   private long rowCount;
 
   BigQueryStorageAvroReader(ReadSession readSession) {
     this.avroSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
     this.datumReader = new GenericDatumReader<>(avroSchema);
     this.rowCount = 0;
+    decoder = null;
+    record = null;
   }
 
   @Override
