@@ -324,18 +324,15 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
         List<Integer> streamSources = inputDataset.getStreamSources();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
-        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+        final KvCoder<K, V> kvCoder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
-        final WindowedValueCoder<V> wvCoder =
-            windowedValueCoder(coder.getValueCoder(), windowingStrategy);
 
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
             SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
                 dStream,
-                coder.getKeyCoder(),
-                wvCoder,
+                kvCoder,
                 windowingStrategy,
                 context.getSerializableOptions(),
                 streamSources,

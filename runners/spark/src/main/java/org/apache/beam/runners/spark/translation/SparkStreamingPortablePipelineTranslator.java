@@ -23,7 +23,6 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getOutputId;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowedValueCoder;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
-import static org.apache.beam.runners.spark.coders.CoderHelpers.windowedValueCoder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -198,14 +197,11 @@ public class SparkStreamingPortablePipelineTranslator
     WindowedValueCoder<KV<K, V>> inputCoder = getWindowedValueCoder(inputId, components);
     KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
     WindowingStrategy windowingStrategy = getWindowingStrategy(inputId, components);
-    WindowedValueCoder<V> wvCoder =
-        windowedValueCoder(inputKvCoder.getValueCoder(), windowingStrategy);
 
     JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
         SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
             inputDataset.getDStream(),
-            inputKvCoder.getKeyCoder(),
-            wvCoder,
+            inputKvCoder,
             windowingStrategy,
             context.getSerializableOptions(),
             streamSources,
