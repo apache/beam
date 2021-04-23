@@ -77,6 +77,23 @@ def populate_not_implemented(pd_type):
   return wrapper
 
 
+def memoize_dataframe_op(f):
+  def wrapper(frame, *args, **kwargs):
+    key = args, tuple(sorted(kwargs.items()))
+    print('wrapper frame:{} f:{} key:{}'.format(frame, f, key))
+    try:
+      if key not in frame._expr.cache:
+        # print('trying to cache {}.{}({}, {})'.format(frame, f, *args, kwargs))
+        frame._expr.cache[key] = f(frame, *args, **kwargs)
+      else:
+        print('found cached expr for {}.{}'.format(frame, f))
+      return frame._expr.cache[key]
+    except TypeError as e:
+      print('GOT TYPE ERROR', e)
+      return f(frame, *args, **kwargs)
+  return wrapper
+
+
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   __array__ = frame_base.wont_implement_method(
@@ -1181,6 +1198,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 @populate_not_implemented(pd.DataFrame)
 @frame_base.DeferredFrame._register_for(pd.DataFrame)
 class DeferredDataFrame(DeferredDataFrameOrSeries):
+  def __init__(self, *args, **kwargs):
+    super(DeferredDataFrameOrSeries, self).__init__(*args, **kwargs)
+    self._cached_exprs = {}
+
   @property
   def T(self):
     return self.transpose()
@@ -1213,6 +1234,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     else:
       return object.__getattribute__(self, name)
 
+  @memoize_dataframe_op
   def __getitem__(self, key):
     # TODO: Replicate pd.DataFrame.__getitem__ logic
     if isinstance(key, DeferredSeries) and key._expr.proxy().dtype == bool:
@@ -1239,7 +1261,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         (isinstance(key, list) and all(key_column in self._expr.proxy().columns
                                        for key_column in key)) or
         key in self._expr.proxy().columns):
-      return self._elementwise(lambda df: df[key], 'get_column')
+      # k = key
+      # if k not in self._cached_exprs:
+      #   print('AAAAAAAAAAAAAAAAAA', k)
+      #   self._cached_exprs[k] = self._elementwise(lambda df: df[key], 'get_column')
+      # return self._cached_exprs[k]
+
+      print('AAAAAAAAAAAAAAAAAAA')
+      print(self._expr.proxy().columns)
+      ret = self._elementwise(lambda df: df[key], 'get_column')
+      print(ret._expr._id)
+      return ret
+
 
     else:
       raise NotImplementedError(key)
@@ -2055,6 +2088,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   select_dtypes = frame_base._elementwise_method('select_dtypes',
                                                  base=pd.DataFrame)
 
+  @memoize_dataframe_op
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def shift(self, axis, **kwargs):

@@ -300,6 +300,7 @@ def _proxy_function(
     else:
       actual_requires_partition_by = requires_partition_by
 
+    print('BBBBBBBBBBBBBBBBBBBBBBBBB')
     result_expr = expressions.ComputedExpression(
         name,
         apply,

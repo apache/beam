@@ -190,6 +190,8 @@ def to_pcollection(
   new_dataframes = [
       df for df in dataframes if df._expr._id not in TO_PCOLLECTION_CACHE
   ]
+  print('new dataframes:', [df._expr._id for df in new_dataframes])
+  print('existing dataframes:\n', '\n '.join(str(k) + ": " + str(v) for k, v in TO_PCOLLECTION_CACHE.items()))
   if len(new_dataframes):
     new_results = {p: extract_input(p)
                    for p in placeholders

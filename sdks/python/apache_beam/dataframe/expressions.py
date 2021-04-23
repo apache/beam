@@ -36,6 +36,7 @@ class Session(object):
     self._bindings = dict(bindings or {})
 
   def evaluate(self, expr):  # type: (Expression) -> Any
+    print('EVALUATING', expr)
     if expr not in self._bindings:
       self._bindings[expr] = expr.evaluate_at(self)
     return self._bindings[expr]
@@ -213,6 +214,8 @@ class Expression(object):
     self._proxy = proxy
     # Store for preservation through pickling.
     self._id = _id or '%s_%s_%s' % (name, type(proxy).__name__, id(self))
+    self.cache = {}
+    print('creating Expression[{}] with id = {}'.format(name, self._id))
 
   def proxy(self):  # type: () -> T
     return self._proxy
