@@ -21,9 +21,6 @@ No backward compatibility guarantees. Everything in this module is experimental.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import contextlib
 import copy
 import functools
@@ -150,8 +147,6 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload based on an external transform's type annotations.
-
-  Supported in python 3 only.
   """
   def __init__(self, transform, **values):
     """
@@ -174,8 +169,6 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload based on an external transform that uses dataclasses.
-
-  Supported in python 3 only.
   """
   def __init__(self, transform):
     """

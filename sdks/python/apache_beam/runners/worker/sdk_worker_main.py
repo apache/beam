@@ -38,6 +38,7 @@ from apache_beam.io import filesystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
@@ -82,13 +83,13 @@ class StatusServer(object):
     httpd.serve_forever()
 
 
-def main(unused_argv):
-  """Main entry point for SDK Fn Harness."""
-  if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
+def create_harness(environment, dry_run=False):
+  """Creates SDK Fn Harness."""
+  if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
     try:
       logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
       text_format.Merge(
-          os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
+          environment['LOGGING_API_SERVICE_DESCRIPTOR'],
           logging_service_descriptor)
 
       # Send all logs to the runner.
@@ -105,27 +106,20 @@ def main(unused_argv):
   else:
     fn_log_handler = None
 
-  # Start status HTTP server thread.
-  thread = threading.Thread(
-      name='status_http_server', target=StatusServer().start)
-  thread.daemon = True
-  thread.setName('status-server-demon')
-  thread.start()
-
-  if 'PIPELINE_OPTIONS' in os.environ:
-    sdk_pipeline_options = _parse_pipeline_options(
-        os.environ['PIPELINE_OPTIONS'])
-  else:
-    sdk_pipeline_options = PipelineOptions.from_dictionary({})
+  pipeline_options_dict = _load_pipeline_options(
+      environment.get('PIPELINE_OPTIONS'))
+  # These are used for dataflow templates.
+  RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
+  sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
   filesystems.FileSystems.set_options(sdk_pipeline_options)
 
-  if 'SEMI_PERSISTENT_DIRECTORY' in os.environ:
-    semi_persistent_directory = os.environ['SEMI_PERSISTENT_DIRECTORY']
+  if 'SEMI_PERSISTENT_DIRECTORY' in environment:
+    semi_persistent_directory = environment['SEMI_PERSISTENT_DIRECTORY']
   else:
     semi_persistent_directory = None
 
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
-  _worker_id = os.environ.get('WORKER_ID', None)
+  _worker_id = environment.get('WORKER_ID', None)
 
   try:
     _load_main_session(semi_persistent_directory)
@@ -134,33 +128,42 @@ def main(unused_argv):
     _LOGGER.error(
         'Could not load main session: %s', exception_details, exc_info=True)
 
-  try:
-    _LOGGER.info(
-        'Python sdk harness started with pipeline_options: %s',
-        sdk_pipeline_options.get_all_options(drop_default=True))
-    control_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-    status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+  _LOGGER.info(
+      'Pipeline_options: %s',
+      sdk_pipeline_options.get_all_options(drop_default=True))
+  control_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+  status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+  text_format.Merge(
+      environment['CONTROL_API_SERVICE_DESCRIPTOR'], control_service_descriptor)
+  if 'STATUS_API_SERVICE_DESCRIPTOR' in environment:
     text_format.Merge(
-        os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
-        control_service_descriptor)
-    if 'STATUS_API_SERVICE_DESCRIPTOR' in os.environ:
-      text_format.Merge(
-          os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
-          status_service_descriptor)
-    # TODO(robertwb): Support authentication.
-    assert not control_service_descriptor.HasField('authentication')
+        environment['STATUS_API_SERVICE_DESCRIPTOR'], status_service_descriptor)
+  # TODO(robertwb): Support authentication.
+  assert not control_service_descriptor.HasField('authentication')
 
-    experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
-    enable_heap_dump = 'enable_heap_dump' in experiments
-    SdkHarness(
-        control_address=control_service_descriptor.url,
-        status_address=status_service_descriptor.url,
-        worker_id=_worker_id,
-        state_cache_size=_get_state_cache_size(experiments),
-        data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(experiments),
-        profiler_factory=profiler.Profile.factory_from_options(
-            sdk_pipeline_options.view_as(ProfilingOptions)),
-        enable_heap_dump=enable_heap_dump).run()
+  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+  enable_heap_dump = 'enable_heap_dump' in experiments
+  if dry_run:
+    return
+  sdk_harness = SdkHarness(
+      control_address=control_service_descriptor.url,
+      status_address=status_service_descriptor.url,
+      worker_id=_worker_id,
+      state_cache_size=_get_state_cache_size(experiments),
+      data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(experiments),
+      profiler_factory=profiler.Profile.factory_from_options(
+          sdk_pipeline_options.view_as(ProfilingOptions)),
+      enable_heap_dump=enable_heap_dump)
+  return fn_log_handler, sdk_harness
+
+
+def main(unused_argv):
+  """Main entry point for SDK Fn Harness."""
+  fn_log_handler, sdk_harness = create_harness(os.environ)
+  try:
+    _LOGGER.info('Python sdk harness starting.')
+    _start_status_server()
+    sdk_harness.run()
     _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     _LOGGER.exception('Python sdk harness failed: ')
@@ -170,20 +173,35 @@ def main(unused_argv):
       fn_log_handler.close()
 
 
-def _parse_pipeline_options(options_json):
+def _start_status_server():
+  # Start status HTTP server thread.
+  thread = threading.Thread(
+      name='status_http_server', target=StatusServer().start)
+  thread.daemon = True
+  thread.setName('status-server-demon')
+  thread.start()
+
+
+def _load_pipeline_options(options_json):
+  if options_json is None:
+    return {}
   options = json.loads(options_json)
   # Check the options field first for backward compatibility.
   if 'options' in options:
-    return PipelineOptions.from_dictionary(options.get('options'))
+    return options.get('options')
   else:
     # Remove extra urn part from the key.
     portable_option_regex = r'^beam:option:(?P<key>.*):v1$'
-    return PipelineOptions.from_dictionary({
+    return {
         re.match(portable_option_regex, k).group('key') if re.match(
             portable_option_regex, k) else k: v
         for k,
         v in options.items()
-    })
+    }
+
+
+def _parse_pipeline_options(options_json):
+  return PipelineOptions.from_dictionary(_load_pipeline_options(options_json))
 
 
 def _get_state_cache_size(experiments):

@@ -55,7 +55,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     ie.current_env().set_cache_manager(InMemoryCache(), p)
     # pylint: disable=range-builtin-not-iterating
     init_pcoll = p | 'Init Create' >> beam.Impulse()
-    _, ctx = p.to_runner_api(use_fake_coders=True, return_context=True)
+    _, ctx = p.to_runner_api(return_context=True)
     self.assertEqual(
         instr.pcolls_to_pcoll_id(p, ctx),
         {str(init_pcoll): 'ref_PCollection_PCollection_1'})
@@ -65,7 +65,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     ie.current_env().set_cache_manager(InMemoryCache(), p)
     # pylint: disable=range-builtin-not-iterating
     init_pcoll = p | 'Init Create' >> beam.Create(range(10))
-    _, ctx = p.to_runner_api(use_fake_coders=True, return_context=True)
+    _, ctx = p.to_runner_api(return_context=True)
     self.assertEqual(
         instr.cacheable_key(init_pcoll, instr.pcolls_to_pcoll_id(p, ctx)),
         str(id(init_pcoll)) + '_ref_PCollection_PCollection_8')
@@ -87,7 +87,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     ie.current_env().set_cache_manager(InMemoryCache(), p2)
     # pylint: disable=range-builtin-not-iterating
     init_pcoll_2 = p2 | 'Init Create' >> beam.Create(range(10))
-    _, ctx = p2.to_runner_api(use_fake_coders=True, return_context=True)
+    _, ctx = p2.to_runner_api(return_context=True)
 
     # The cacheable_key should use id(init_pcoll) as prefix even when
     # init_pcoll_2 is supplied as long as the version map is given.
@@ -213,8 +213,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         | 'reify b' >> beam.Map(lambda _: _)
         | 'b' >> cache.WriteCache(ie.current_env().get_cache_manager(p), ''))
 
-    expected_pipeline = p.to_runner_api(
-        return_context=False, use_fake_coders=True)
+    expected_pipeline = p.to_runner_api(return_context=False)
 
     assert_pipeline_proto_equal(self, expected_pipeline, actual_pipeline)
 
@@ -313,9 +312,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # This is a new runner pipeline instance with the same pipeline graph to
     # what the user_pipeline represents.
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
-        user_pipeline.to_runner_api(use_fake_coders=True),
-        user_pipeline.runner,
-        options=None)
+        user_pipeline.to_runner_api(), user_pipeline.runner, options=None)
     ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
     # This is a totally irrelevant user pipeline in the watched scope.
     irrelevant_user_pipeline = beam.Pipeline(
@@ -472,7 +469,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Test that the pipeline is as expected.
     assert_pipeline_proto_equal(
         self,
-        p_expected.to_runner_api(use_fake_coders=True),
+        p_expected.to_runner_api(),
         instrumenter.instrumented_pipeline_proto())
 
   def test_instrument_mixed_streaming_batch(self):
@@ -556,7 +553,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Test that the pipeline is as expected.
     assert_pipeline_proto_equal(
         self,
-        p_expected.to_runner_api(use_fake_coders=True),
+        p_expected.to_runner_api(),
         instrumenter.instrumented_pipeline_proto())
 
   def test_instrument_example_unbounded_pipeline_direct_from_source(self):
@@ -618,7 +615,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Test that the pipeline is as expected.
     assert_pipeline_proto_equal(
         self,
-        p_expected.to_runner_api(use_fake_coders=True),
+        p_expected.to_runner_api(),
         instrumenter.instrumented_pipeline_proto())
 
   def test_instrument_example_unbounded_pipeline_to_read_cache_not_cached(self):
@@ -686,7 +683,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Test that the pipeline is as expected.
     assert_pipeline_proto_equal(
         self,
-        p_expected.to_runner_api(use_fake_coders=True),
+        p_expected.to_runner_api(),
         instrumenter.instrumented_pipeline_proto())
 
   def test_instrument_example_unbounded_pipeline_to_multiple_read_cache(self):
@@ -766,9 +763,7 @@ class PipelineInstrumentTest(unittest.TestCase):
   def test_pipeline_pruned_when_input_pcoll_is_cached(self):
     user_pipeline, init_pcoll, _ = self._example_pipeline()
     runner_pipeline = beam.Pipeline.from_runner_api(
-        user_pipeline.to_runner_api(use_fake_coders=True),
-        user_pipeline.runner,
-        None)
+        user_pipeline.to_runner_api(), user_pipeline.runner, None)
     ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
 
     # Mock as if init_pcoll is cached.
@@ -782,8 +777,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     pruned_proto = pipeline_instrument.instrumented_pipeline_proto()
     # Skip the prune step for comparison, it should contain the sub-graph that
     # produces init_pcoll but not useful anymore.
-    full_proto = pipeline_instrument._pipeline.to_runner_api(
-        use_fake_coders=True)
+    full_proto = pipeline_instrument._pipeline.to_runner_api()
     self.assertEqual(
         len(
             pruned_proto.components.transforms[

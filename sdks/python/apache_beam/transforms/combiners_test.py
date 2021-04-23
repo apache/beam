@@ -18,15 +18,11 @@
 """Unit tests for our libraries of combine PTransforms."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import itertools
 import random
 import unittest
 
 import hamcrest as hc
-from future.builtins import range
 from nose.plugins.attrib import attr
 
 import apache_beam as beam

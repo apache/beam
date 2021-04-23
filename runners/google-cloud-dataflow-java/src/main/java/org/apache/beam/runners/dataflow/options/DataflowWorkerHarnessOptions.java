@@ -40,4 +40,10 @@ public interface DataflowWorkerHarnessOptions extends DataflowPipelineOptions {
   String getJobId();
 
   void setJobId(String value);
+
+  /** The identity of the worker pool of this worker. */
+  @Description("The identity of the worker pool.")
+  String getWorkerPool();
+
+  void setWorkerPool(String value);
 }

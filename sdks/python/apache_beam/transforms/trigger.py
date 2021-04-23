@@ -22,19 +22,13 @@ Triggers control when in processing time windows get emitted.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import copy
 import logging
 import numbers
 from abc import ABCMeta
 from abc import abstractmethod
-from builtins import object
-
-from future.moves.itertools import zip_longest
-from future.utils import iteritems
-from future.utils import with_metaclass
+from itertools import zip_longest
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import observable
@@ -79,7 +73,7 @@ class AccumulationMode(object):
   # RETRACTING = 3
 
 
-class _StateTag(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class _StateTag(metaclass=ABCMeta):
   """An identifier used to store and retrieve typed, combinable state.
 
   The given tag must be unique for this step."""
@@ -164,7 +158,7 @@ class _WatermarkHoldStateTag(_StateTag):
 
 # pylint: disable=unused-argument
 # TODO(robertwb): Provisional API, Java likely to change as well.
-class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class TriggerFn(metaclass=ABCMeta):
   """A TriggerFn determines when window (panes) are emitted.
 
   See https://beam.apache.org/documentation/programming-guide/#triggers
@@ -657,7 +651,7 @@ class Repeatedly(TriggerFn):
     return self.underlying.has_ontime_pane()
 
 
-class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):  # type: ignore[misc]
+class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
   def __init__(self, *triggers):
     self.triggers = triggers
 
@@ -903,7 +897,7 @@ class NestedContext(object):
 
 
 # pylint: disable=unused-argument
-class SimpleState(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class SimpleState(metaclass=ABCMeta):
   """Basic state storage interface used for triggering.
 
   Only timers must hold the watermark (by their timestamp).
@@ -1093,7 +1087,7 @@ def create_trigger_driver(
   return driver
 
 
-class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class TriggerDriver(metaclass=ABCMeta):
   """Breaks a series of bundle and timer firings into window (pane)s."""
   @abstractmethod
   def process_elements(
@@ -1529,7 +1523,7 @@ class InMemoryUnmergedState(UnmergedState):
 
   def get_earliest_hold(self):
     earliest_hold = MAX_TIMESTAMP
-    for unused_window, tagged_states in iteritems(self.state):
+    for unused_window, tagged_states in self.state.items():
       # TODO(BEAM-2519): currently, this assumes that the watermark hold tag is
       # named "watermark".  This is currently only true because the only place
       # watermark holds are set is in the GeneralTriggerDriver, where we use

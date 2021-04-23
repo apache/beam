@@ -16,24 +16,15 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import array
 import json
 from collections import OrderedDict
 
 import numpy as np
-from past.builtins import unicode
+from avro.schema import Parse
 
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
-
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from avro.schema import Parse  # avro-python3 library for python3
-except ImportError:
-  from avro.schema import parse as Parse  # avro library for python2
-# pylint: enable=wrong-import-order, wrong-import-position
 
 try:
   import pyarrow as pa
@@ -98,7 +89,6 @@ def infer_avro_schema(data, use_fastavro=False):
       int: "int",
       float: "double",
       str: "string",
-      unicode: "string",
       bytes: "bytes",
       np.ndarray: "bytes",
       array.array: "bytes",

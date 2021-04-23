@@ -16,8 +16,6 @@
 #
 
 """Utilities for working with NEXmark data stream."""
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 

@@ -21,6 +21,7 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -71,8 +72,7 @@ import org.slf4j.LoggerFactory;
 
 /** Runs a portable pipeline on Apache Spark. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 public class SparkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineRunner.class);
@@ -113,12 +113,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             ? trimmedPipeline
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
-    // File staging.
     prepareFilesToStage(pipelineOptions);
-    LOG.info(
-        "Will stage {} files. (Enable logging at DEBUG level to see which files will be staged.)",
-        pipelineOptions.getFilesToStage().size());
-    LOG.debug("Staging files: {}", pipelineOptions.getFilesToStage());
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
@@ -273,6 +268,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   private static class SparkPipelineRunnerConfiguration {
+    @Nullable
     @Option(
         name = "--base-job-name",
         usage =

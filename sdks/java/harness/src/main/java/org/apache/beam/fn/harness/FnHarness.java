@@ -17,8 +17,10 @@
  */
 package org.apache.beam.fn.harness;
 
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -59,6 +61,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +92,7 @@ public class FnHarness {
   private static final String LOGGING_API_SERVICE_DESCRIPTOR = "LOGGING_API_SERVICE_DESCRIPTOR";
   private static final String STATUS_API_SERVICE_DESCRIPTOR = "STATUS_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
+  private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor)
@@ -129,9 +134,16 @@ public class FnHarness {
         environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR) == null
             ? null
             : getApiServiceDescriptor(environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR));
+    String runnerCapabilitesOrNull = environmentVarGetter.apply(RUNNER_CAPABILITIES);
+    Set<String> runnerCapabilites =
+        runnerCapabilitesOrNull == null
+            ? Collections.emptySet()
+            : ImmutableSet.copyOf(runnerCapabilitesOrNull.split("\\s+"));
+
     main(
         id,
         options,
+        runnerCapabilites,
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
         statusApiServiceDescriptor);
@@ -143,6 +155,7 @@ public class FnHarness {
    *
    * @param id Harness ID
    * @param options The options for this pipeline
+   * @param runnerCapabilites
    * @param loggingApiServiceDescriptor
    * @param controlApiServiceDescriptor
    * @param statusApiServiceDescriptor
@@ -151,6 +164,7 @@ public class FnHarness {
   public static void main(
       String id,
       PipelineOptions options,
+      Set<String> runnerCapabilites,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
@@ -169,6 +183,7 @@ public class FnHarness {
     main(
         id,
         options,
+        runnerCapabilites,
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
         statusApiServiceDescriptor,
@@ -182,6 +197,7 @@ public class FnHarness {
    *
    * @param id Harness ID
    * @param options The options for this pipeline
+   * @param runnerCapabilites
    * @param loggingApiServiceDescriptor
    * @param controlApiServiceDescriptor
    * @param statusApiServiceDescriptor
@@ -192,6 +208,7 @@ public class FnHarness {
   public static void main(
       String id,
       PipelineOptions options,
+      Set<String> runnerCapabilites,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
@@ -248,6 +265,7 @@ public class FnHarness {
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
               options,
+              runnerCapabilites,
               processBundleDescriptors::getUnchecked,
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
@@ -297,15 +315,22 @@ public class FnHarness {
                                       Collectors.toMap(
                                           Function.identity(), metricsShortIds::get)))));
 
-      BeamFnControlClient control =
-          new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
-
       JvmInitializers.runBeforeProcessing(options);
 
       ExecutionStateSampler.instance().start();
 
       LOG.info("Entering instruction processing loop");
-      control.processInstructionRequests(executorService);
+
+      // The control client immediately dispatches requests to an executor so we execute on the
+      // direct executor. If we created separate channels for different stubs we could use
+      // directExecutor() when building the channel.
+      BeamFnControlClient control =
+          new BeamFnControlClient(
+              controlStub.withExecutor(MoreExecutors.directExecutor()),
+              outboundObserverFactory,
+              executorService,
+              handlers);
+      control.waitForTermination();
       processBundleHandler.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");

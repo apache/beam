@@ -23,9 +23,13 @@ import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimest
 
 import java.math.BigDecimal;
 import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
@@ -84,6 +88,9 @@ public class BeamSqlDslBase {
             .addFloatField("f_float")
             .addDoubleField("f_double")
             .addStringField("f_string")
+            .addField("f_date", FieldType.logicalType(SqlTypes.DATE))
+            .addField("f_time", FieldType.logicalType(SqlTypes.TIME))
+            .addField("f_datetime", FieldType.logicalType(SqlTypes.DATETIME))
             .addDateTimeField("f_timestamp")
             .addInt32Field("f_int2")
             .addDecimalField("f_decimal")
@@ -99,6 +106,9 @@ public class BeamSqlDslBase {
                 1.0f,
                 1.0d,
                 "string_row1",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 1, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 1, 3),
                 parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
                 0,
                 new BigDecimal(1))
@@ -110,6 +120,9 @@ public class BeamSqlDslBase {
                 2.0f,
                 2.0d,
                 "string_row2",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 2, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 2, 3),
                 parseTimestampWithoutTimeZone("2017-01-01 01:02:03"),
                 0,
                 new BigDecimal(2))
@@ -121,6 +134,9 @@ public class BeamSqlDslBase {
                 3.0f,
                 3.0d,
                 "string_row3",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 6, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 6, 3),
                 parseTimestampWithoutTimeZone("2017-01-01 01:06:03"),
                 0,
                 new BigDecimal(3))
@@ -132,6 +148,9 @@ public class BeamSqlDslBase {
                 4.0f,
                 4.0d,
                 "第四行",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(2, 4, 3),
+                LocalDateTime.of(2017, 1, 1, 2, 4, 3),
                 parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
                 0,
                 new BigDecimal(4))
@@ -147,6 +166,9 @@ public class BeamSqlDslBase {
                 1.0f,
                 1.0d,
                 "string_row1",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 1, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 1, 3),
                 parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"),
                 0,
                 new BigDecimal(1))
@@ -158,6 +180,9 @@ public class BeamSqlDslBase {
                 2.0f,
                 2.0d,
                 "string_row2",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 2, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 2, 3),
                 parseTimestampWithUTCTimeZone("2017-02-01 01:02:03"),
                 0,
                 new BigDecimal(2))
@@ -169,6 +194,9 @@ public class BeamSqlDslBase {
                 3.0f,
                 3.0d,
                 "string_row3",
+                LocalDate.of(2017, 1, 1),
+                LocalTime.of(1, 6, 3),
+                LocalDateTime.of(2017, 1, 1, 1, 6, 3),
                 parseTimestampWithUTCTimeZone("2017-03-01 01:06:03"),
                 0,
                 new BigDecimal(3))

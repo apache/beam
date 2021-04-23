@@ -62,6 +62,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
@@ -119,6 +120,8 @@ public class ProcessBundleHandler {
   private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
+  private static final int DATA_QUEUE_SIZE = 1000;
+
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   @VisibleForTesting static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;
 
@@ -142,14 +145,14 @@ public class ProcessBundleHandler {
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
   private final FinalizeBundleHandler finalizeBundleHandler;
   private final ShortIdMap shortIds;
-  // TODO(BEAM-6597): Provide a way for the runner to offer this bit.
-  private final boolean runnerAcceptsShortIds = false;
+  private final boolean runnerAcceptsShortIds;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
 
   public ProcessBundleHandler(
       PipelineOptions options,
+      Set<String> runnerCapabilities,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
@@ -157,6 +160,7 @@ public class ProcessBundleHandler {
       ShortIdMap shortIds) {
     this(
         options,
+        runnerCapabilities,
         fnApiRegistry,
         beamFnDataClient,
         beamFnStateGrpcClientCache,
@@ -169,6 +173,7 @@ public class ProcessBundleHandler {
   @VisibleForTesting
   ProcessBundleHandler(
       PipelineOptions options,
+      Set<String> runnerCapabilities,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
@@ -182,6 +187,9 @@ public class ProcessBundleHandler {
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
+    this.runnerAcceptsShortIds =
+        runnerCapabilities.contains(
+            BeamUrns.getUrn(RunnerApi.StandardRunnerProtocols.Enum.MONITORING_INFO_SHORT_IDS));
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
@@ -444,7 +452,8 @@ public class ProcessBundleHandler {
     // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
     // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
     // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
-    QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
+    QueueingBeamFnDataClient queueingClient =
+        new QueueingBeamFnDataClient(this.beamFnDataClient, DATA_QUEUE_SIZE);
 
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
