@@ -34,7 +34,6 @@ import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.InsertManyOptions;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -263,42 +262,6 @@ public class MongoDbIO {
     public Read withCollection(String collection) {
       checkArgument(collection != null, "collection can not be null");
       return builder().setCollection(collection).build();
-    }
-
-    /**
-     * Sets a filter on the documents in a collection.
-     *
-     * @deprecated Filtering manually is discouraged. Use {@link #withQueryFn(SerializableFunction)
-     *     with {@link FindQuery#withFilters(Bson)} as an argument to set up the projection}.
-     */
-    @Deprecated
-    public Read withFilter(String filter) {
-      checkArgument(filter != null, "filter can not be null");
-      checkArgument(
-          this.queryFn().getClass() != FindQuery.class,
-          "withFilter is only supported for FindQuery API");
-      FindQuery findQuery = (FindQuery) queryFn();
-      FindQuery queryWithFilter =
-          findQuery.toBuilder().setFilters(bson2BsonDocument(Document.parse(filter))).build();
-      return builder().setQueryFn(queryWithFilter).build();
-    }
-
-    /**
-     * Sets a projection on the documents in a collection.
-     *
-     * @deprecated Use {@link #withQueryFn(SerializableFunction) with {@link
-     *     FindQuery#withProjection(List)} as an argument to set up the projection}.
-     */
-    @Deprecated
-    public Read withProjection(final String... fieldNames) {
-      checkArgument(fieldNames.length > 0, "projection can not be null");
-      checkArgument(
-          this.queryFn().getClass() != FindQuery.class,
-          "withFilter is only supported for FindQuery API");
-      FindQuery findQuery = (FindQuery) queryFn();
-      FindQuery queryWithProjection =
-          findQuery.toBuilder().setProjection(Arrays.asList(fieldNames)).build();
-      return builder().setQueryFn(queryWithProjection).build();
     }
 
     /** Sets the user defined number of splits. */
