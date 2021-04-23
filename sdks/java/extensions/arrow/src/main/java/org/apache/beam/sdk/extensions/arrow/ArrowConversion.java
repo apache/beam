@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -269,9 +270,9 @@ public class ArrowConversion {
         return this.fieldVectors.stream()
             .map(
                 (fieldVector) -> {
-                  Function<Object, Object> conversionFunction =
+                  Optional<Function<Object, Object>> optionalValue =
                       fieldVector.getField().getFieldType().getType().accept(valueConverterVisitor);
-                  if (conversionFunction == null) {
+                  if (!optionalValue.isPresent()) {
                     return new FieldValueGetter<Integer, Object>() {
                       @Nullable
                       @Override
@@ -285,6 +286,7 @@ public class ArrowConversion {
                       }
                     };
                   } else {
+                    Function<Object, Object> conversionFunction = optionalValue.get();
                     return new FieldValueGetter<Integer, Object>() {
                       @Nullable
                       @Override
@@ -310,90 +312,90 @@ public class ArrowConversion {
 
     // TODO: Consider using ByteBuddyUtils.TypeConversion for this
     private static class ArrowValueConverterVisitor
-        implements ArrowType.ArrowTypeVisitor<Function<Object, Object>> {
+        implements ArrowType.ArrowTypeVisitor<Optional<Function<Object, Object>>> {
       @Override
-      public Function<Object, Object> visit(ArrowType.Null type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Null type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Struct type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Struct type) {
         // TODO: code to create a row.
-        return null;
+        return Optional.empty();
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.List type) {
-        return null;
+      public Optional<Function<Object, Object>> visit(ArrowType.List type) {
+        return Optional.empty();
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.FixedSizeList type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.FixedSizeList type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Union type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Union type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Map type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Map type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Duration type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Duration type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Int type) {
-        return null;
+      public Optional<Function<Object, Object>> visit(ArrowType.Int type) {
+        return Optional.empty();
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.FloatingPoint type) {
-        return null;
+      public Optional<Function<Object, Object>> visit(ArrowType.FloatingPoint type) {
+        return Optional.empty();
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Utf8 type) {
-        return (Object text) -> ((Text) text).toString();
+      public Optional<Function<Object, Object>> visit(ArrowType.Utf8 type) {
+        return Optional.of((Object text) -> ((Text) text).toString());
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Binary type) {
-        return null;
+      public Optional<Function<Object, Object>> visit(ArrowType.Binary type) {
+        return Optional.empty();
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.FixedSizeBinary type) {
-        return null;
+      public Optional<Function<Object, Object>> visit(ArrowType.FixedSizeBinary type) {
+        return Optional.empty();
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Bool type) {
-        return null;
+      public Optional<Function<Object, Object>> visit(ArrowType.Bool type) {
+        return Optional.empty();
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Decimal type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Decimal type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Date type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Date type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Time type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Time type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Timestamp type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Timestamp type) {
         DateTimeZone tz;
         try {
           tz = DateTimeZone.forID(type.getTimezone());
@@ -403,31 +405,31 @@ public class ArrowConversion {
         }
         switch (type.getUnit()) {
           case MICROSECOND:
-            return (epochMicros) -> new DateTime((long) epochMicros / 1000, tz);
+            return Optional.of((epochMicros) -> new DateTime((long) epochMicros / 1000, tz));
           case MILLISECOND:
-            return (epochMills) -> new DateTime((long) epochMills, tz);
+            return Optional.of((epochMills) -> new DateTime((long) epochMills, tz));
           default:
             throw new AssertionError("Encountered unrecognized TimeUnit: " + type.getUnit());
         }
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Interval type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.Interval type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.LargeBinary type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.LargeBinary type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.LargeUtf8 type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.LargeUtf8 type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.LargeList type) {
+      public Optional<Function<Object, Object>> visit(ArrowType.LargeList type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
     }
