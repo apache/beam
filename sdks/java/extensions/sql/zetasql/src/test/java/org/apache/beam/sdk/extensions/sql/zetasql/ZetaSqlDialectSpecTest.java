@@ -3516,6 +3516,22 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testSubstring() {
+    String sql = "SELECT substring(@p0, @p1, @p2)";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "p0", Value.createStringValue("abc"),
+            "p1", Value.createInt64Value(-2L),
+            "p2", Value.createInt64Value(1L));
+
+    PCollection<Row> stream = execute(sql, params);
+
+    final Schema schema = Schema.builder().addStringField("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("b").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testSubstrWithLargeValueExpectException() {
     String sql = "SELECT substr(@p0, @p1, @p2)";
     ImmutableMap<String, Value> params =
