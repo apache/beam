@@ -231,6 +231,9 @@ class TranslationsTest(unittest.TestCase):
   @attr('ValidatesRunner')
   def test_run_packable_combine_per_key(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         # These CombinePerKey stages will be packed if and only if
         # translations.pack_combiners is enabled in the TestPipeline runner.
@@ -255,8 +258,12 @@ class TranslationsTest(unittest.TestCase):
           | Create([('a', x) for x in vals])
           | 'multiple-combines' >> MultipleCombines())
 
+  @attr('ValidatesRunner')
   def test_run_packable_combine_globally(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         # These CombineGlobally stages will be packed if and only if
         # translations.eliminate_common_key_with_void and
