@@ -75,6 +75,8 @@
 * RedisIO.readAll() was removed since it was deprecated since Beam 2.13.0. Please use
   RedisIO.readKeyPatterns() for the equivalent functionality.
   ([BEAM-12214](https://issues.apache.org/jira/browse/BEAM-12214)).
+* MqttIO.create() with clientId constructor removed because it was deprecated since Beam
+  2.13.0 ([BEAM-12216](https://issues.apache.org/jira/browse/BEAM-12216)).
 
 ## Deprecations
 
