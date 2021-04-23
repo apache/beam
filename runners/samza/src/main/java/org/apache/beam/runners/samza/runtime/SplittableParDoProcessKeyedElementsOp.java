@@ -145,7 +145,7 @@ public class SplittableParDoProcessKeyedElementsOp<
     SplittableParDoViaKeyedWorkItems.ProcessFn<
             InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
         processFn = processElements.newProcessFn(processElements.getFn());
-    DoFnInvokers.tryInvokeSetupFor(processFn);
+    DoFnInvokers.tryInvokeSetupFor(processFn, pipelineOptions);
     processFn.setStateInternalsFactory(stateInternalsFactory);
     processFn.setTimerInternalsFactory(timerInternalsFactory);
     processFn.setProcessElementInvoker(

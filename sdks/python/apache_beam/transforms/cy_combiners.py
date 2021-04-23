@@ -24,11 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import operator
-from builtins import object
 
 from apache_beam.transforms import core
 

@@ -35,6 +35,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.concurrent.ThreadSafe;
@@ -101,8 +102,11 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     // All remote sources require the "remote_source" capability. Dataflow's
     // custom sources are further tagged with the format "custom_source".
     List<String> capabilities =
-        ImmutableList.<String>of(
+        Arrays.asList(
             options.getWorkerId(), CAPABILITY_REMOTE_SOURCE, PropertyNames.CUSTOM_SOURCE_FORMAT);
+    if (options.getWorkerPool() != null) {
+      capabilities.add(options.getWorkerPool());
+    }
 
     Optional<WorkItem> workItem = getWorkItemInternal(workItemTypes, capabilities);
     if (!workItem.isPresent()) {

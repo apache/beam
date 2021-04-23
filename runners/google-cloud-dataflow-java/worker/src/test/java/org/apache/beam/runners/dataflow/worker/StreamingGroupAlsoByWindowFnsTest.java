@@ -314,16 +314,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1")),
                 equalTo(new Instant(2)),
                 equalTo(window(-10, 10))),
-
-            // For this sliding window, the minimum output timestmap was 10, since we didn't want to
-            // overlap with the previous window that was [-10, 10).
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(window(-10, 10).maxTimestamp().plus(1)),
+                equalTo(new Instant(2)),
                 equalTo(window(0, 20))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v2")),
-                equalTo(window(0, 20).maxTimestamp().plus(1)),
+                equalTo(new Instant(15)),
                 equalTo(window(10, 30)))));
   }
 
@@ -402,16 +399,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 isKv(equalTo(KEY), emptyIterable()),
                 equalTo(window(-10, 10).maxTimestamp()),
                 equalTo(window(-10, 10))),
-
-            // For this sliding window, the minimum output timestmap was 10, since we didn't want to
-            // overlap with the previous window that was [-10, 10).
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(window(-10, 10).maxTimestamp().plus(1)),
+                equalTo(new Instant(2)),
                 equalTo(window(0, 20))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v2")),
-                equalTo(window(0, 20).maxTimestamp().plus(1)),
+                equalTo(new Instant(15)),
                 equalTo(window(10, 30)))));
 
     long droppedValues =

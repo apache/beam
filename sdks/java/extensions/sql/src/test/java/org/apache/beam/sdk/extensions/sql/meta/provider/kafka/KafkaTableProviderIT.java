@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.alibaba.fastjson.JSON;
 import java.io.Serializable;
@@ -130,6 +131,13 @@ public class KafkaTableProviderIT {
     kafkaOptions = pipeline.getOptions().as(KafkaOptions.class);
     kafkaOptions.setKafkaTopic(topic);
     kafkaOptions.setKafkaBootstrapServerAddress(KAFKA_CONTAINER.getBootstrapServers());
+    checkArgument(
+        !KAFKA_CONTAINER.getBootstrapServers().contains(","),
+        "This integration test expects exactly one bootstrap server.");
+  }
+
+  private static String buildLocation() {
+    return kafkaOptions.getKafkaBootstrapServerAddress() + "/" + kafkaOptions.getKafkaTopic();
   }
 
   @Test
@@ -139,7 +147,7 @@ public class KafkaTableProviderIT {
         Table.builder()
             .name("kafka_table")
             .comment("kafka table")
-            .location("")
+            .location(buildLocation())
             .schema(TEST_TABLE_SCHEMA)
             .type("kafka")
             .properties(JSON.parseObject(objectsProvider.getKafkaPropertiesString()))
@@ -165,9 +173,9 @@ public class KafkaTableProviderIT {
                 + "f_string VARCHAR NOT NULL \n"
                 + ") \n"
                 + "TYPE 'kafka' \n"
-                + "LOCATION ''\n"
+                + "LOCATION '%s'\n"
                 + "TBLPROPERTIES '%s'",
-            objectsProvider.getKafkaPropertiesString());
+            buildLocation(), objectsProvider.getKafkaPropertiesString());
     TableProvider tb = new KafkaTableProvider();
     BeamSqlEnv env = BeamSqlEnv.inMemory(tb);
 
@@ -213,9 +221,9 @@ public class KafkaTableProviderIT {
                 + ">"
                 + ") \n"
                 + "TYPE 'kafka' \n"
-                + "LOCATION ''\n"
+                + "LOCATION '%s'\n"
                 + "TBLPROPERTIES '%s'",
-            objectsProvider.getKafkaPropertiesString());
+            buildLocation(), objectsProvider.getKafkaPropertiesString());
     TableProvider tb = new KafkaTableProvider();
     BeamSqlEnv env = BeamSqlEnv.inMemory(tb);
 
@@ -365,11 +373,7 @@ public class KafkaTableProviderIT {
     protected String getKafkaPropertiesString() {
       return "{ "
           + (getPayloadFormat() == null ? "" : "\"format\" : \"" + getPayloadFormat() + "\",")
-          + "\"bootstrap.servers\" : \""
-          + kafkaOptions.getKafkaBootstrapServerAddress()
-          + "\",\"topics\":[\""
-          + kafkaOptions.getKafkaTopic()
-          + "\"] }";
+          + "}";
     }
   }
 
@@ -410,11 +414,6 @@ public class KafkaTableProviderIT {
     protected String getKafkaPropertiesString() {
       return "{ "
           + "\"format\" : \"proto\","
-          + "\"bootstrap.servers\" : \""
-          + kafkaOptions.getKafkaBootstrapServerAddress()
-          + "\",\"topics\":[\""
-          + kafkaOptions.getKafkaTopic()
-          + "\"],"
           + "\"protoClass\": \""
           + PayloadMessages.ItMessage.class.getName()
           + "\"}";
@@ -473,11 +472,6 @@ public class KafkaTableProviderIT {
     protected String getKafkaPropertiesString() {
       return "{ "
           + "\"format\" : \"thrift\","
-          + "\"bootstrap.servers\" : \""
-          + kafkaOptions.getKafkaBootstrapServerAddress()
-          + "\",\"topics\":[\""
-          + kafkaOptions.getKafkaTopic()
-          + "\"],"
           + "\"thriftClass\": \""
           + thriftClass.getName()
           + "\", \"thriftProtocolFactoryClass\": \""

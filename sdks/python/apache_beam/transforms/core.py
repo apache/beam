@@ -19,19 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import inspect
 import logging
 import random
 import types
 import typing
-from builtins import map
-from builtins import object
-from builtins import range
-
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -79,11 +72,6 @@ if typing.TYPE_CHECKING:
   from apache_beam.transforms.trigger import AccumulationMode
   from apache_beam.transforms.trigger import DefaultTrigger
   from apache_beam.transforms.trigger import TriggerFn
-
-try:
-  import funcsigs  # Python 2 only.
-except ImportError:
-  funcsigs = None
 
 __all__ = [
     'DoFn',
@@ -385,12 +373,7 @@ def get_function_args_defaults(f):
     it doesn't include bound arguments and may follow function wrappers.
   """
   signature = get_signature(f)
-  # Fall back on funcsigs if inspect module doesn't have 'Parameter'; prefer
-  # inspect.Parameter over funcsigs.Parameter if both are available.
-  try:
-    parameter = inspect.Parameter
-  except AttributeError:
-    parameter = funcsigs.Parameter
+  parameter = inspect.Parameter
   # TODO(BEAM-5878) support kwonlyargs on Python 3.
   _SUPPORTED_ARG_TYPES = [
       parameter.POSITIONAL_ONLY, parameter.POSITIONAL_OR_KEYWORD
@@ -1618,17 +1601,9 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
       beam.MapTuple(lambda a, b, ...: ...)
 
-  is equivalent to Python 2
-
-      beam.Map(lambda (a, b, ...), ...: ...)
-
   In other words
 
       beam.MapTuple(fn)
-
-  is equivalent to
-
-      beam.Map(lambda element, ...: fn(\*element, ...))
 
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).
@@ -2727,7 +2702,7 @@ class Windowing(object):
         accumulation_mode=proto.accumulation_mode,
         timestamp_combiner=proto.output_time,
         allowed_lateness=Duration(micros=proto.allowed_lateness * 1000),
-        environment_id=proto.environment_id)
+        environment_id=None)
 
 
 @typehints.with_input_types(T)
@@ -2904,7 +2879,7 @@ class Create(PTransform):
       values: An object of values for the PCollection
     """
     super(Create, self).__init__()
-    if isinstance(values, (unicode, str, bytes)):
+    if isinstance(values, (str, bytes)):
       raise TypeError(
           'PTransform Create: Refusing to treat string as '
           'an iterable. (string=%r)' % values)

@@ -80,6 +80,9 @@ public abstract class MetricsFilter {
      * <p>Step name filters may be either a full name (such as "foo/bar/baz") or a partial name such
      * as "foo", "bar" or "foo/bar". However, each component of the step name must be completely
      * matched, so the filter "foo" will not match a step name such as "fool/bar/foot"
+     *
+     * <p>TODO(BEAM-12154): Beam does not guarantee a specific format for step IDs hence we should
+     * not assume a "foo/bar/baz" format here.
      */
     public Builder addStep(String step) {
       immutableStepsBuilder().add(step);

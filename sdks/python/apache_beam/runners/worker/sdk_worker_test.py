@@ -579,7 +579,7 @@ class CachingStateHandlerTest(unittest.TestCase):
 
 class ShortIdCacheTest(unittest.TestCase):
   def testShortIdAssignment(self):
-    TestCase = namedtuple('TestCase', ['expectedShortId', 'info'])
+    TestCase = namedtuple('TestCase', ['expected_short_id', 'info'])
     test_cases = [
         TestCase(*args) for args in [
             (
@@ -664,14 +664,14 @@ class ShortIdCacheTest(unittest.TestCase):
 
     for case in test_cases:
       self.assertEqual(
-          case.expectedShortId,
-          cache.getShortId(case.info),
+          case.expected_short_id,
+          cache.get_short_id(case.info),
           "Got incorrect short id for monitoring info:\n%s" % case.info)
 
     # Retrieve all of the monitoring infos by short id, and verify that the
     # metadata (everything but the payload) matches the originals
-    actual_recovered_infos = cache.getInfos(
-        case.expectedShortId for case in test_cases).values()
+    actual_recovered_infos = cache.get_infos(
+        case.expected_short_id for case in test_cases).values()
     for recoveredInfo, case in zip(actual_recovered_infos, test_cases):
       self.assertEqual(
           monitoringInfoMetadata(case.info),
@@ -680,8 +680,8 @@ class ShortIdCacheTest(unittest.TestCase):
     # Retrieve short ids one more time in reverse
     for case in reversed(test_cases):
       self.assertEqual(
-          case.expectedShortId,
-          cache.getShortId(case.info),
+          case.expected_short_id,
+          cache.get_short_id(case.info),
           "Got incorrect short id on second retrieval for monitoring info:\n%s"
           % case.info)
 

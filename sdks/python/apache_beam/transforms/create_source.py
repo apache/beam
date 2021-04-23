@@ -17,13 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
-from builtins import map
-from builtins import next
-from builtins import range
-
 from apache_beam.io import iobase
 from apache_beam.transforms.core import Create
 

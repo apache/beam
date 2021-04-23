@@ -55,10 +55,36 @@ public class HistogramCell
     value.clear();
   }
 
-  /** Increment the distribution by the given amount. */
+  /** Increment the corresponding histogram bucket count for the value by 1. */
   @Override
   public void update(double value) {
     this.value.record(value);
+    dirty.afterModification();
+  }
+
+  /**
+   * Increment all of the bucket counts in this histogram, by the bucket counts specified in other.
+   */
+  public void update(HistogramCell other) {
+    this.value.update(other.value);
+    dirty.afterModification();
+  }
+
+  // TODO(BEAM-12103): Update this function to allow incrementing the infinite buckets as well.
+  // and remove the incTopBucketCount and incBotBucketCount methods.
+  // Using 0 and length -1 as the bucketIndex.
+  public void incBucketCount(int bucketIndex, long count) {
+    this.value.incBucketCount(bucketIndex, count);
+    dirty.afterModification();
+  }
+
+  public void incTopBucketCount(long count) {
+    this.value.incTopBucketCount(count);
+    dirty.afterModification();
+  }
+
+  public void incBottomBucketCount(long count) {
+    this.value.incBottomBucketCount(count);
     dirty.afterModification();
   }
 

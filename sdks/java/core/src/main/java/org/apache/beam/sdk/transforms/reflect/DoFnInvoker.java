@@ -54,7 +54,7 @@ import org.joda.time.Instant;
 @Internal
 public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.Setup} method on the bound {@link DoFn}. */
-  void invokeSetup();
+  void invokeSetup(ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}. */
   void invokeStartBundle(ArgumentProvider<InputT, OutputT> arguments);

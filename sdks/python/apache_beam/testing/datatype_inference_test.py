@@ -16,15 +16,12 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 from collections import OrderedDict
 
 import numpy as np
 from parameterized import parameterized
-from past.builtins import unicode
 
 from apache_beam.testing import datatype_inference
 from apache_beam.typehints import typehints
@@ -72,7 +69,7 @@ TEST_DATA = [
         "type_schema": OrderedDict([
             ("a", int),
             ("b", float),
-            ("c", unicode),
+            ("c", str),
             ("d", np.ndarray),
             ("e", bytes),
         ]),

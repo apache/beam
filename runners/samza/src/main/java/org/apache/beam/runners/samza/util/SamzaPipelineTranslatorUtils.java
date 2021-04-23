@@ -86,7 +86,7 @@ public final class SamzaPipelineTranslatorUtils {
    * non-alphabetic characters.
    */
   public static String escape(String name) {
-    return name.replaceAll("[\\.(/]", "-").replaceAll("[^A-Za-z0-9-_]", "");
+    return name.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1").replaceAll("[^A-Za-z0-9_-]", "_");
   }
 
   public static PCollection.IsBounded isBounded(RunnerApi.PCollection pCollection) {
