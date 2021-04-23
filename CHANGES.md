@@ -70,6 +70,8 @@
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Drop support for Flink 1.8 and 1.9 ([BEAM-11948](https://issues.apache.org/jira/browse/BEAM-11948)).
+* MongoDbIO: Read.withFilter() and Read.withProjection() are removed since they are deprecated since
+  Beam 2.12.0 ([BEAM-12217](https://issues.apache.org/jira/browse/BEAM-12217)).
 
 ## Deprecations
 
