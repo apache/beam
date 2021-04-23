@@ -141,10 +141,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   private SdkComponents createSdkComponents(PipelineOptions options) {
     SdkComponents sdkComponents = SdkComponents.create();
 
-    String workerHarnessContainerImageURL =
+    String containerImageURL =
         DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
     RunnerApi.Environment defaultEnvironmentForDataflow =
-        Environments.createDockerEnvironment(workerHarnessContainerImageURL);
+        Environments.createDockerEnvironment(containerImageURL);
 
     sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
     return sdkComponents;
@@ -1260,16 +1260,48 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   /**
-   * Tests that when {@link DataflowPipelineOptions#setWorkerHarnessContainerImage(String)} pipeline
-   * option is set, {@link DataflowRunner} sets that value as the {@link
-   * DockerPayload#getContainerImage()} of the default {@link Environment} used when generating the
-   * model pipeline proto.
+   * Tests that when (deprecated) {@link
+   * DataflowPipelineOptions#setWorkerHarnessContainerImage(String)} pipeline option is set, {@link
+   * DataflowRunner} sets that value as the {@link DockerPayload#getContainerImage()} of the default
+   * {@link Environment} used when generating the model pipeline proto.
    */
   @Test
   public void testSetWorkerHarnessContainerImageInPipelineProto() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String containerImage = "gcr.io/IMAGE/foo";
+    String containerImage = "gcr.io/image:foo";
     options.as(DataflowPipelineOptions.class).setWorkerHarnessContainerImage(containerImage);
+
+    Pipeline p = Pipeline.create(options);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline proto = PipelineTranslation.toProto(p, sdkComponents, true);
+    JobSpecification specification =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                proto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList());
+    RunnerApi.Pipeline pipelineProto = specification.getPipelineProto();
+
+    assertEquals(1, pipelineProto.getComponents().getEnvironmentsCount());
+    Environment defaultEnvironment =
+        Iterables.getOnlyElement(pipelineProto.getComponents().getEnvironmentsMap().values());
+
+    DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
+    assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
+  }
+
+  /**
+   * Tests that when {@link DataflowPipelineOptions#setSdkContainerImage(String)} pipeline option is
+   * set, {@link DataflowRunner} sets that value as the {@link DockerPayload#getContainerImage()} of
+   * the default {@link Environment} used when generating the model pipeline proto.
+   */
+  @Test
+  public void testSetSdkContainerImageInPipelineProto() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String containerImage = "gcr.io/image:foo";
+    options.as(DataflowPipelineOptions.class).setSdkContainerImage(containerImage);
 
     Pipeline p = Pipeline.create(options);
     SdkComponents sdkComponents = createSdkComponents(options);
