@@ -66,17 +66,21 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
 
   private static final String COUNTER_NAMESPACE = "watch_kafka_topic_partition";
 
+  private final List<String> topics;
+
   WatchKafkaTopicPartitionDoFn(
       Duration checkDuration,
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
       SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
       Map<String, Object> kafkaConsumerConfig,
-      Instant startReadTime) {
+      Instant startReadTime,
+      List<String> topics) {
     this.checkDuration = checkDuration == null ? DEFAULT_CHECK_DURATION : checkDuration;
     this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
     this.checkStopReadingFn = checkStopReadingFn;
     this.kafkaConsumerConfig = kafkaConsumerConfig;
     this.startReadTime = startReadTime;
+    this.topics = topics;
   }
 
   @TimerId(TIMER_ID)
@@ -89,13 +93,21 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
   @VisibleForTesting
   Set<TopicPartition> getAllTopicPartitions() {
     Set<TopicPartition> current = new HashSet<>();
-    // TODO(BEAM-12192): Respect given topics from KafkaIO.
     try (Consumer<byte[], byte[]> kafkaConsumer =
         kafkaConsumerFactoryFn.apply(kafkaConsumerConfig)) {
-      for (Map.Entry<String, List<PartitionInfo>> topicInfo :
-          kafkaConsumer.listTopics().entrySet()) {
-        for (PartitionInfo partition : topicInfo.getValue()) {
-          current.add(new TopicPartition(topicInfo.getKey(), partition.partition()));
+      if (topics != null && !topics.isEmpty()) {
+        for (String topic : topics) {
+          for (PartitionInfo partition : kafkaConsumer.partitionsFor(topic)) {
+            current.add(new TopicPartition(topic, partition.partition()));
+          }
+        }
+
+      } else {
+        for (Map.Entry<String, List<PartitionInfo>> topicInfo :
+            kafkaConsumer.listTopics().entrySet()) {
+          for (PartitionInfo partition : topicInfo.getValue()) {
+            current.add(new TopicPartition(topicInfo.getKey(), partition.partition()));
+          }
         }
       }
     }
@@ -122,7 +134,6 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
         });
 
     timer.offset(checkDuration).setRelative();
-    ;
   }
 
   @OnTimer(TIMER_ID)
