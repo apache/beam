@@ -72,6 +72,9 @@
 * Drop support for Flink 1.8 and 1.9 ([BEAM-11948](https://issues.apache.org/jira/browse/BEAM-11948)).
 * MongoDbIO: Read.withFilter() and Read.withProjection() are removed since they are deprecated since
   Beam 2.12.0 ([BEAM-12217](https://issues.apache.org/jira/browse/BEAM-12217)).
+* RedisIO.readAll() was removed since it was deprecated since Beam 2.13.0. Please use
+  RedisIO.readKeyPatterns() for the equivalent functionality.
+  ([BEAM-12214](https://issues.apache.org/jira/browse/BEAM-12214)).
 
 ## Deprecations
 
