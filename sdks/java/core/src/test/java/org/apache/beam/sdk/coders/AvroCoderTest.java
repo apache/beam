@@ -85,7 +85,7 @@ import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDate;
+import java.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -112,7 +112,7 @@ public class AvroCoderTest {
           "mystring",
           ByteBuffer.wrap(new byte[] {1, 2, 3, 4}),
           new fixed4(new byte[] {1, 2, 3, 4}),
-          new LocalDate(1979, 3, 14),
+          LocalDate.of(1979, 3, 14),
           new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4),
           TestEnum.abc,
           AVRO_NESTED_SPECIFIC_RECORD,
