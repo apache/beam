@@ -24,8 +24,6 @@ dependencies installation in advance with the boot program in setup only mode
 to build the new image.
 """
 
-from __future__ import absolute_import
-
 import json
 import logging
 import os

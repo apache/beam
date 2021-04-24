@@ -18,16 +18,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import contextlib
 import io
 import threading
 import unittest
-
-from future.moves.urllib.parse import quote
+from urllib.parse import quote
 
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2

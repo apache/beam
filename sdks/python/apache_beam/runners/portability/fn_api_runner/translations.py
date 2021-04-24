@@ -20,14 +20,10 @@
 # pytype: skip-file
 # mypy: check-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import collections
 import functools
 import itertools
 import logging
-from builtins import object
 from typing import Callable
 from typing import Container
 from typing import DefaultDict
@@ -40,8 +36,6 @@ from typing import Optional
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
-
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.internal import pickler
@@ -1335,7 +1329,7 @@ def expand_sdf(stages, context):
       if pardo_payload.restriction_coder_id:
 
         def copy_like(protos, original, suffix='_copy', **kwargs):
-          if isinstance(original, (str, unicode)):
+          if isinstance(original, str):
             key = original
             original = protos[original]
           else:

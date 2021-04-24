@@ -16,8 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import concurrent.futures
 import itertools
 import logging
@@ -29,7 +27,6 @@ import tempfile
 import threading
 import time
 import traceback
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import List
 from typing import Optional
