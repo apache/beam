@@ -721,7 +721,7 @@ public class DataflowRunnerTest implements Serializable {
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
     p.apply(TextIO.read().from(options.getInput()));
-    DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
+    DataflowRunner.fromOptions(dataflowOptions).replaceV1Transforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
     p.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -1412,6 +1412,7 @@ public class DataflowRunnerTest implements Serializable {
                     }));
 
     assertEquals(1, expectedEnvIdsAndContainerImages.size());
+    assertEquals(1, sdks.size());
     assertEquals(
         expectedEnvIdsAndContainerImages,
         sdks.stream()
@@ -1440,13 +1441,6 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testMapStateUnsupportedRunnerV2() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
-    verifyMapStateUnsupported(options);
-  }
-
-  @Test
   public void testMapStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
     ExperimentalOptions.addExperiment(
@@ -1472,14 +1466,6 @@ public class DataflowRunnerTest implements Serializable {
     thrown.expectMessage("SetState");
     thrown.expect(UnsupportedOperationException.class);
     p.run();
-  }
-
-  @Test
-  public void testSetStateUnsupportedRunnerV2() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
-    Pipeline.create(options);
-    verifySetStateUnsupported(options);
   }
 
   @Test
