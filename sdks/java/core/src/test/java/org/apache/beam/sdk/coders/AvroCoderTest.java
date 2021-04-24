@@ -113,7 +113,7 @@ public class AvroCoderTest {
           ByteBuffer.wrap(new byte[] {1, 2, 3, 4}),
           new fixed4(new byte[] {1, 2, 3, 4}),
           LocalDate.of(1979, 3, 14),
-          new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4),
+          new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).toInstant(),
           TestEnum.abc,
           AVRO_NESTED_SPECIFIC_RECORD,
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
