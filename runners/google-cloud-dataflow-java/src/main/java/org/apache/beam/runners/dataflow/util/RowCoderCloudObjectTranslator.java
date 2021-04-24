@@ -17,16 +17,52 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import java.io.IOException;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
 
 /** Translator for row coders. */
 @Experimental(Kind.SCHEMAS)
-public class RowCoderCloudObjectTranslator extends SchemaCoderCloudObjectTranslator {
+public class RowCoderCloudObjectTranslator implements CloudObjectTranslator<RowCoder> {
+  private static final String SCHEMA = "schema";
+
   @Override
   public Class<? extends RowCoder> getSupportedClass() {
     return RowCoder.class;
+  }
+
+  /** Convert to a cloud object. */
+  @Override
+  public CloudObject toCloudObject(RowCoder target, SdkComponents sdkComponents) {
+    CloudObject base = CloudObject.forClass(RowCoder.class);
+    try {
+      Structs.addString(
+          base,
+          SCHEMA,
+          JsonFormat.printer().print(SchemaTranslation.schemaToProto(target.getSchema(), true)));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    return base;
+  }
+
+  /** Convert from a cloud object. */
+  @Override
+  public RowCoder fromCloudObject(CloudObject cloudObject) {
+    try {
+      SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
+      JsonFormat.parser().merge(Structs.getString(cloudObject, SCHEMA), schemaBuilder);
+      Schema schema = SchemaTranslation.schemaFromProto(schemaBuilder.build());
+      return RowCoder.of(schema);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
