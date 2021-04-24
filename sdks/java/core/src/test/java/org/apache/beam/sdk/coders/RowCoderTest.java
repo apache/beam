@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.junit.Assert.assertEquals;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,6 +35,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType.Value;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -358,5 +363,134 @@ public class RowCoderTest {
 
     Row row = Row.withSchema(schema).addValue(Collections.singletonMap(1, null)).build();
     CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
+  public void testEncodingPositionReorderFields() throws Exception {
+    Schema schema1 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .build();
+    Schema schema2 =
+        Schema.builder()
+            .addNullableField("f_string", FieldType.STRING)
+            .addNullableField("f_int32", FieldType.INT32)
+            .build();
+    schema2.setEncodingPositions(ImmutableMap.of("f_int32", 0, "f_string", 1));
+    Row row =
+        Row.withSchema(schema1)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    Row expected =
+        Row.withSchema(schema2)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    RowCoder.of(schema1).encode(row, os);
+    Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(expected, decoded);
+  }
+
+  @Test
+  public void testEncodingPositionAddNewFields() throws Exception {
+    Schema schema1 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .build();
+    Schema schema2 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .addNullableField("f_boolean", FieldType.BOOLEAN)
+            .build();
+    Row row =
+        Row.withSchema(schema1)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    Row expected =
+        Row.withSchema(schema2)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    RowCoder.of(schema1).encode(row, os);
+    Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(expected, decoded);
+  }
+
+  @Test
+  public void testEncodingPositionAddNewFieldsAndReorderExisting() throws Exception {
+    Schema schema1 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .build();
+    Schema schema2 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_boolean", FieldType.BOOLEAN)
+            .addNullableField("f_string", FieldType.STRING)
+            .build();
+    schema2.setEncodingPositions(ImmutableMap.of("f_int32", 0, "f_string", 1, "f_boolean", 2));
+
+    Row row =
+        Row.withSchema(schema1)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    Row expected =
+        Row.withSchema(schema2)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    RowCoder.of(schema1).encode(row, os);
+    Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(expected, decoded);
+  }
+
+  @Test
+  public void testEncodingPositionRemoveFields() throws Exception {
+    Schema schema1 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .addNullableField("f_boolean", FieldType.BOOLEAN)
+            .build();
+
+    Schema schema2 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .build();
+
+    Row row =
+        Row.withSchema(schema1)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .withFieldValue("f_boolean", true)
+            .build();
+
+    Row expected =
+        Row.withSchema(schema2)
+            .withFieldValue("f_int32", 42)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    RowCoder.of(schema1).encode(row, os);
+    Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(expected, decoded);
   }
 }
