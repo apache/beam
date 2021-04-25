@@ -504,7 +504,7 @@ public class DataflowPipelineTranslator {
           "no translator registered for primitive transform %s at node %s",
           transform,
           node.getFullName());
-      LOG.debug("Translating {}", transform);
+      LOG.info("Translating {}", transform);
       currentTransform = node.toAppliedPTransform(getPipeline());
       translator.translate(transform, this);
       currentTransform = null;
@@ -512,7 +512,7 @@ public class DataflowPipelineTranslator {
 
     @Override
     public void visitValue(PValue value, TransformHierarchy.Node producer) {
-      LOG.debug("Checking translation of {}", value);
+      LOG.info("Checking translation of {}", value);
       // Primitive transforms are the only ones assigned step names.
       if (producer.getTransform() instanceof CreateDataflowView) {
         // CreateDataflowView produces a dummy output (as it must be a primitive transform)
@@ -589,6 +589,7 @@ public class DataflowPipelineTranslator {
 
     @Override
     public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+      LOG.info("Entering composite {}", node);
       if (!node.isRootNode()) {
         parents.addFirst(node);
       }

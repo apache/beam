@@ -549,6 +549,7 @@ public class TransformHierarchy {
         LOG.debug("Not revisiting Node {} which is a child of a previously passed composite", this);
         return;
       }
+      LOG.info("Visiting node: {}", this);
 
       if (!finishedSpecifying) {
         finishSpecifying();
@@ -563,7 +564,7 @@ public class TransformHierarchy {
               valueProducer.visit(visitor, visitedValues, visitedNodes, skippedComposites);
             }
             if (visitedValues.add(inputValue)) {
-              LOG.debug("Visiting input value {}", inputValue);
+              LOG.info("Visiting input value {}", inputValue);
               visitor.visitValue(inputValue, valueProducer);
             }
           }
@@ -571,19 +572,22 @@ public class TransformHierarchy {
       }
 
       if (isCompositeNode()) {
-        LOG.debug("Visiting composite node {}", this);
+        LOG.info("Visiting composite node {}", this);
         PipelineVisitor.CompositeBehavior recurse = visitor.enterCompositeTransform(this);
 
         if (recurse.equals(CompositeBehavior.ENTER_TRANSFORM)) {
           for (Node child : parts) {
+            LOG.info("Child of {}: {}", this, child);
             child.visit(visitor, visitedValues, visitedNodes, skippedComposites);
           }
         } else {
+          LOG.info("Skipping composite node {}", this);
           skippedComposites.add(this);
         }
+        LOG.info("Done with composite node {}", this);
         visitor.leaveCompositeTransform(this);
       } else {
-        LOG.debug("Visiting primitive node {}", this);
+        LOG.info("Visiting primitive node {}", this);
         visitor.visitPrimitiveTransform(this);
       }
 
@@ -592,7 +596,7 @@ public class TransformHierarchy {
         // Visit outputs.
         for (PValue pValue : outputs.values()) {
           if (visitedValues.add(pValue)) {
-            LOG.debug("Visiting output value {}", pValue);
+            LOG.info("Visiting output value {}", pValue);
             visitor.visitValue(pValue, this);
           }
         }
