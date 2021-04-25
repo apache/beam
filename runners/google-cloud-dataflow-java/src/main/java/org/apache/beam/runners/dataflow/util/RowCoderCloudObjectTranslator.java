@@ -59,6 +59,7 @@ public class RowCoderCloudObjectTranslator implements CloudObjectTranslator<RowC
       SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
       JsonFormat.parser().merge(Structs.getString(cloudObject, SCHEMA), schemaBuilder);
       Schema schema = SchemaTranslation.schemaFromProto(schemaBuilder.build());
+      RowCoder.overrideEncodingPositions(schema.getUUID(), schema.getEncodingPositions());
       return RowCoder.of(schema);
     } catch (IOException e) {
       throw new RuntimeException(e);

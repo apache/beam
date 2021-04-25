@@ -28,7 +28,6 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -113,7 +112,8 @@ public abstract class RowCoderGenerator {
 
   // Cache for Coder class that are already generated.
   private static final Map<UUID, Coder<Row>> GENERATED_CODERS = Maps.newConcurrentMap();
-  private static final Map<UUID, Map<String, Integer>> ENCODING_POSITION_OVERRIDES = Maps.newConcurrentMap();
+  private static final Map<UUID, Map<String, Integer>> ENCODING_POSITION_OVERRIDES =
+      Maps.newConcurrentMap();
 
   private static final Logger LOG = LoggerFactory.getLogger(RowCoderGenerator.class);
 
@@ -134,8 +134,8 @@ public abstract class RowCoderGenerator {
       builder = implementMethods(schema, builder);
 
       int[] encodingPosToRowIndex = new int[schema.getFieldCount()];
-      Map<String, Integer> encodingPositions = ENCODING_POSITION_OVERRIDES.getOrDefault(
-              schema.getUUID(), schema.getEncodingPositions());
+      Map<String, Integer> encodingPositions =
+          ENCODING_POSITION_OVERRIDES.getOrDefault(schema.getUUID(), schema.getEncodingPositions());
       for (int recordIndex = 0; recordIndex < schema.getFieldCount(); ++recordIndex) {
         String name = schema.getField(recordIndex).getName();
         int encodingPosition = encodingPositions.get(name);

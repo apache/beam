@@ -37,7 +37,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -110,7 +109,6 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   public SerializableFunction<T, Row> getToRowFunction() {
     return toRowFunction;
   }
-
 
   private Coder<Row> getDelegateCoder() {
     if (delegateCoder == null) {
