@@ -39,19 +39,19 @@ import scala.Tuple2;
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class MultiOuputCoder<T> extends CustomCoder<Tuple2<TupleTag<T>, WindowedValue<T>>> {
+public class MultiOutputCoder<T> extends CustomCoder<Tuple2<TupleTag<T>, WindowedValue<T>>> {
   Coder<TupleTag> tupleTagCoder;
   Map<TupleTag<?>, Coder<?>> coderMap;
   Coder<? extends BoundedWindow> windowCoder;
 
-  public static MultiOuputCoder of(
+  public static MultiOutputCoder of(
       Coder<TupleTag> tupleTagCoder,
       Map<TupleTag<?>, Coder<?>> coderMap,
       Coder<? extends BoundedWindow> windowCoder) {
-    return new MultiOuputCoder(tupleTagCoder, coderMap, windowCoder);
+    return new MultiOutputCoder(tupleTagCoder, coderMap, windowCoder);
   }
 
-  private MultiOuputCoder(
+  private MultiOutputCoder(
       Coder<TupleTag> tupleTagCoder,
       Map<TupleTag<?>, Coder<?>> coderMap,
       Coder<? extends BoundedWindow> windowCoder) {
