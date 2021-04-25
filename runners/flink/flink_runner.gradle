@@ -188,6 +188,8 @@ def createValidatesRunnerTask(Map m) {
   def config = m as ValidatesRunnerConfig
   tasks.register(config.name, Test) {
     group = "Verification"
+    // Disable gradle cache
+    outputs.upToDateWhen { false }
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
     def pipelineOptionsArray = ["--runner=TestFlinkRunner",
