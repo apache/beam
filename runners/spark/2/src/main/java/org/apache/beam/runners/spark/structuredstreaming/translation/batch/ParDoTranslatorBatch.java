@@ -31,7 +31,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTr
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.MultiOuputCoder;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.MultiOutputCoder;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -140,8 +140,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
             doFnSchemaInformation,
             sideInputMapping);
 
-    MultiOuputCoder multipleOutputCoder =
-        MultiOuputCoder.of(SerializableCoder.of(TupleTag.class), outputCoderMap, windowCoder);
+    MultiOutputCoder multipleOutputCoder =
+        MultiOutputCoder.of(SerializableCoder.of(TupleTag.class), outputCoderMap, windowCoder);
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs =
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.fromBeamCoder(multipleOutputCoder));
     if (outputs.entrySet().size() > 1) {
