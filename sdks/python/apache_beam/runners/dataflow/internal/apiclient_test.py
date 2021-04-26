@@ -235,7 +235,11 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, {'.*dummy.*': 'new_dummy_container_image'},
+        proto_pipeline,
+        {
+            '.*dummy.*': 'new_dummy_container_image',
+            '.*notfound.*': 'new_dummy_container_image_2'
+        },
         pipeline_options)
 
     self.assertIsNotNone(1, len(proto_pipeline.components.environments))
