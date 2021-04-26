@@ -28,10 +28,7 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 
-@SuppressWarnings({
-        "nullness"
-})
-
+@SuppressWarnings({"nullness"})
 class BigQueryStorageAvroReader implements BigQueryStorageReader {
 
   private final Schema avroSchema;

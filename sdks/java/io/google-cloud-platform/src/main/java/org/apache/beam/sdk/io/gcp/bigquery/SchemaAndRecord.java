@@ -18,10 +18,9 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
+import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.values.Row;
-
-import javax.annotation.Nullable;
 
 /**
  * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
