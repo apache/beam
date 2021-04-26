@@ -37,6 +37,8 @@ message Schema {
   // REQUIRED. An RFC 4122 UUID.
   string id = 2;
   repeated Option options = 3;
+  // Indicates that encoding positions have been overridden.
+  bool encoding_positions_set = 4;
 }
 
 message Field {

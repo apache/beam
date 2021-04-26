@@ -225,7 +225,7 @@ public class SchemaTranslation {
       // but if it does happen, we expect none to be specified - in which case the should all be
       // zero.
       Preconditions.checkState(dinstictEncodingPositions == 1);
-    } else {
+    } else if (protoSchema.getEncodingPositionsSet()) {
       schema.setEncodingPositions(encodingLocationMap);
     }
     if (!protoSchema.getId().isEmpty()) {
