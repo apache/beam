@@ -1154,6 +1154,8 @@ public class ParquetIO {
 
     abstract int getRowGroupSize();
 
+    abstract @Nullable Class<? extends GenericData> getAvroDataModel();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1165,6 +1167,8 @@ public class ParquetIO {
       abstract Builder setConfiguration(SerializableConfiguration configuration);
 
       abstract Builder setRowGroupSize(int rowGroupSize);
+
+      abstract Builder setAvroDataModel(Class<? extends GenericData> modelClass);
 
       abstract Sink build();
     }
@@ -1192,6 +1196,13 @@ public class ParquetIO {
       return toBuilder().setRowGroupSize(rowGroupSize).build();
     }
 
+    /**
+     * Define the Avro data model; see {@link AvroParquetWriter.Builder#withDataModel(GenericData)}.
+     */
+    public Sink withAvroDataModel(GenericData model) {
+      return toBuilder().setAvroDataModel(model.getClass()).build();
+    }
+
     private transient @Nullable ParquetWriter<GenericRecord> writer;
 
     @Override
@@ -1210,6 +1221,13 @@ public class ParquetIO {
               .withWriteMode(OVERWRITE)
               .withConf(SerializableConfiguration.newConfiguration(getConfiguration()))
               .withRowGroupSize(getRowGroupSize());
+      if (getAvroDataModel() != null) {
+        try {
+          builder.withDataModel(buildModelObject(getAvroDataModel()));
+        } catch (ReflectiveOperationException e) {
+          LOG.warn("Couldn't set the model: " + e.getMessage());
+        }
+      }
       this.writer = builder.build();
     }
 
