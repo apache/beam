@@ -28,14 +28,16 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 
-import javax.annotation.Nullable;
+@SuppressWarnings({
+        "nullness"
+})
 
 class BigQueryStorageAvroReader implements BigQueryStorageReader {
 
   private final Schema avroSchema;
   private final DatumReader<GenericRecord> datumReader;
-  private @Nullable BinaryDecoder decoder;
-  private @Nullable GenericRecord record;
+  private BinaryDecoder decoder;
+  private GenericRecord record;
   private long rowCount;
 
   BigQueryStorageAvroReader(ReadSession readSession) {
