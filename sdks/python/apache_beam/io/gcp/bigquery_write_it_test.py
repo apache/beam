@@ -30,8 +30,8 @@ from decimal import Decimal
 
 import hamcrest as hc
 import mock
-import pytz
 import pytest
+import pytz
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper

@@ -28,8 +28,8 @@ import unittest
 import uuid
 import warnings
 
-from hamcrest.library.text import stringmatches
 import pytest
+from hamcrest.library.text import stringmatches
 
 import apache_beam as beam
 from apache_beam.io import fileio

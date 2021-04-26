@@ -146,7 +146,8 @@ class TestPipeline(Pipeline):
         default=False,
         help='whether not to use test-runner-api')
     known, unused_argv = parser.parse_known_args(argv)
-    test_pipeline_options = known.test_pipeline_options or TestPipeline.pytest_test_pipeline_options
+    test_pipeline_options = known.test_pipeline_options or \
+                            TestPipeline.pytest_test_pipeline_options
     if self.is_integration_test and not test_pipeline_options:
       # Skip integration test when argument '--test-pipeline-options' is not
       # specified since nose calls integration tests when runs unit test by

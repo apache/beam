@@ -24,8 +24,8 @@ import logging
 import unittest
 import uuid
 
-from hamcrest.core.core.allof import all_of
 import pytest
+from hamcrest.core.core.allof import all_of
 
 from apache_beam.io.gcp import pubsub_it_pipeline
 from apache_beam.io.gcp.pubsub import PubsubMessage

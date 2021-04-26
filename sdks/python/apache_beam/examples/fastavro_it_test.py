@@ -50,9 +50,9 @@ import logging
 import unittest
 import uuid
 
+import pytest
 from avro.schema import Parse
 from fastavro import parse_schema
-import pytest
 
 from apache_beam.io.avroio import ReadAllFromAvro
 from apache_beam.io.avroio import WriteToAvro

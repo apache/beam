@@ -28,8 +28,8 @@ import random
 import time
 import unittest
 
-from hamcrest.core.core.allof import all_of
 import pytest
+from hamcrest.core.core.allof import all_of
 
 from apache_beam.io.gcp import big_query_query_to_table_pipeline
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper

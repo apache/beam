@@ -26,10 +26,10 @@ import time
 import unittest
 
 import mock
+import pytest
 from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 from hamcrest.core.core.is_ import is_
-import pytest
 from parameterized import param
 from parameterized import parameterized
 

@@ -25,8 +25,8 @@ import logging
 import unittest
 import uuid
 
-from hamcrest.core.core.allof import all_of
 import pytest
+from hamcrest.core.core.allof import all_of
 
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.runners.dataflow import dataflow_exercise_streaming_metrics_pipeline

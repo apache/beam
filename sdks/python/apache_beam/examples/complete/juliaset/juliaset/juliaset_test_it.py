@@ -24,8 +24,8 @@ import os
 import unittest
 import uuid
 
-from hamcrest.core.core.allof import all_of
 import pytest
+from hamcrest.core.core.allof import all_of
 
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.io.filesystems import FileSystems

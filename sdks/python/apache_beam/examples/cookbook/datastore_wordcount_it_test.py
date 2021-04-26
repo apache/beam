@@ -23,8 +23,8 @@ import logging
 import time
 import unittest
 
-from hamcrest.core.core.allof import all_of
 import pytest
+from hamcrest.core.core.allof import all_of
 
 from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher

@@ -37,8 +37,8 @@ import logging
 import unittest
 import uuid
 
-from hamcrest.core.core.allof import all_of
 import pytest
+from hamcrest.core.core.allof import all_of
 
 from apache_beam.examples.complete.game import user_score
 from apache_beam.runners.runner import PipelineState

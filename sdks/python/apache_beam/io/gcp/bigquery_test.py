@@ -32,8 +32,8 @@ import uuid
 
 import hamcrest as hc
 import mock
-import pytz
 import pytest
+import pytz
 from parameterized import param
 from parameterized import parameterized
 

@@ -35,9 +35,9 @@ from typing import Dict
 from typing import Tuple
 
 import hamcrest  # pylint: disable=ungrouped-imports
+import pytest
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
-import pytest
 from tenacity import retry
 from tenacity import stop_after_attempt
 
