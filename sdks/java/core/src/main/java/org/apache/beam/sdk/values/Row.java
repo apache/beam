@@ -48,7 +48,6 @@ import org.apache.beam.sdk.values.RowUtils.FieldOverride;
 import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
@@ -579,7 +578,45 @@ public abstract class Row implements Serializable {
 
   @Override
   public String toString() {
-    return "Row:" + Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
+    StringBuilder builder = new StringBuilder();
+    builder.append("Row: ");
+    builder.append(System.lineSeparator());
+    for (int i = 0; i < getSchema().getFieldCount(); ++i) {
+      Schema.Field field = getSchema().getField(i);
+      builder.append(field.getName() + ":");
+      builder.append(toString(field.getType(), getValue(i)));
+      builder.append(System.lineSeparator());
+    }
+    return builder.toString();
+  }
+
+  private String toString(Schema.FieldType fieldType, Object value) {
+    StringBuilder builder = new StringBuilder();
+    switch (fieldType.getTypeName()) {
+      case ARRAY:
+      case ITERABLE:
+        builder.append("[");
+        for (Object element : (Iterable<?>) value) {
+          builder.append(toString(fieldType.getCollectionElementType(), element));
+          builder.append(", ");
+        }
+        builder.append("]");
+        break;
+      case MAP:
+        builder.append("{");
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+          builder.append("(");
+          builder.append(toString(fieldType.getMapKeyType(), entry.getKey()));
+          builder.append(", ");
+          builder.append(toString(fieldType.getMapValueType(), entry.getValue()));
+          builder.append("), ");
+        }
+        builder.append("}");
+        break;
+      default:
+        builder.append(value);
+    }
+    return builder.toString();
   }
 
   /**
