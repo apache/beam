@@ -82,6 +82,9 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   @Override
   public Object readSingleRecord() throws IOException {
+    if (recordBatchIterable == null) {
+      throw new IOException("Not Initialized");
+    }
     return recordBatchIterable.next();
   }
 
