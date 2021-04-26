@@ -205,7 +205,7 @@ class TranslationsTest(unittest.TestCase):
 
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
-    pcoll = pipeline | Create(vals) | MultipleCombines()
+    _ = pipeline | Create(vals) | MultipleCombines()
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
         pipeline_proto, [
