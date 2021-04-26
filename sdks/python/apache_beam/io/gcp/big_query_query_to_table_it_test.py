@@ -28,8 +28,8 @@ import random
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.io.gcp import big_query_query_to_table_pipeline
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -154,7 +154,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
     self.assertTrue(passed, 'Error in BQ setup: %s' % errors)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_legacy_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
@@ -177,7 +177,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_standard_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
@@ -200,7 +200,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_standard_sql_kms_key_native(self):
     if isinstance(self.test_pipeline.runner, TestDirectRunner):
       self.skipTest("This test doesn't work on DirectRunner.")
@@ -236,7 +236,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'No encryption configuration found: %s' % table)
     self.assertEqual(kms_key, table.encryptionConfiguration.kmsKeyName)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_new_types(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
@@ -260,7 +260,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_new_types_avro(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
@@ -283,7 +283,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_big_query_new_types_native(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
