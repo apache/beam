@@ -398,6 +398,7 @@ public class Schema implements Serializable {
     builder.append(System.lineSeparator());
     builder.append("Options:");
     builder.append(options);
+    builder.append("UUID: " + uuid);
     return builder.toString();
   }
 
