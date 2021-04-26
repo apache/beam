@@ -256,7 +256,7 @@ class TranslationsTest(unittest.TestCase):
           | Create([('a', x) for x in vals])
           | 'multiple-combines' >> MultipleCombines())
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_globally(self):
     class MultipleCombines(beam.PTransform):
       def annotations(self):
