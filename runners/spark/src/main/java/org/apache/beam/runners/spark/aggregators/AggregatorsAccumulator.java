@@ -81,7 +81,7 @@ public class AggregatorsAccumulator {
 
   public static NamedAggregatorsAccumulator getInstance() {
     if (instance == null) {
-      throw new IllegalStateException("Aggregrators accumulator has not been instantiated");
+      throw new IllegalStateException("Aggregators accumulator has not been instantiated");
     } else {
       return instance;
     }
