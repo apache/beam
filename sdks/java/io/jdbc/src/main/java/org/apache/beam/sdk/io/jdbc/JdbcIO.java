@@ -156,7 +156,6 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * private static class MyDataSourceProviderFn implements SerializableFunction<Void, DataSource> {
  *   private static transient DataSource dataSource;
- *
  *   @Override
  *   public synchronized DataSource apply(Void input) {
  *     if (dataSource == null) {
