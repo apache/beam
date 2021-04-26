@@ -722,6 +722,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
           WindowedAccumulator.create(this, toValue, windowingStrategy, windowComparator);
       accumulator.add(value, this);
       return accumulator;
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
       throw new IllegalStateException(ex);
     }
@@ -737,6 +739,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
     try {
       accumulator.add(value, this);
       return accumulator;
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
       throw new IllegalStateException(ex);
     }
@@ -753,6 +757,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
     try {
       ac1.merge(ac2, this);
       return ac1;
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
       throw new IllegalStateException(ex);
     }
