@@ -282,23 +282,22 @@ fi
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 if [[ "$PYTEST" = true ]]; then
-    echo ">>>   pytest options: $TEST_OPTS"
-    ARGS="-o junit_suite_name=$SUITE --junitxml=pytest_$SUITE.xml $TEST_OPTS"
-#   Handle markers as an independient argument from $TEST_OPTS to prevent errors in space separeted flags
-    if [ -z "$COLLECT_MARKERS" ]; then
-        pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS"
-    else
-        pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS" "$COLLECT_MARKERS"
-    fi
-
-
+  echo ">>>   pytest options: $TEST_OPTS"
+  echo ">>>   collect markers: $COLLECT_MARKERS"
+  ARGS="-o junit_suite_name=$SUITE --junitxml=pytest_$SUITE.xml $TEST_OPTS"
+  # Handle markers as an independient argument from $TEST_OPTS to prevent errors in space separeted flags
+  if [ -z "$COLLECT_MARKERS" ]; then
+    pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS"
+  else
+    pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS" "$COLLECT_MARKERS"
+  fi
 else
-    echo ">>>   test options: $TEST_OPTS"
-    # TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't
-    #   support suite names.
-    python setup.py nosetests \
-      --test-pipeline-options="$PIPELINE_OPTS" \
-      --with-xunitmp --xunitmp-file=$XUNIT_FILE \
-      --ignore-files '.*py3.py$' \
-      $TEST_OPTS
+  echo ">>>   test options: $TEST_OPTS"
+  # TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't
+  #   support suite names.
+  python setup.py nosetests \
+    --test-pipeline-options="$PIPELINE_OPTS" \
+    --with-xunitmp --xunitmp-file=$XUNIT_FILE \
+    --ignore-files '.*py3.py$' \
+    $TEST_OPTS
 fi

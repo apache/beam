@@ -29,7 +29,6 @@ import unittest
 from decimal import Decimal
 from functools import wraps
 
-from future.utils import iteritems
 import pytest
 
 import apache_beam as beam
