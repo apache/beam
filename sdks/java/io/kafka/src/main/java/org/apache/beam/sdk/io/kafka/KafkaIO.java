@@ -29,10 +29,12 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -581,9 +583,9 @@ public class KafkaIO {
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
     abstract Map<String, Object> getConsumerConfig();
 
-    abstract List<String> getTopics();
+    abstract @Nullable List<String> getTopics();
 
-    abstract List<TopicPartition> getTopicPartitions();
+    abstract @Nullable List<TopicPartition> getTopicPartitions();
 
     abstract @Nullable Coder<K> getKeyCoder();
 
@@ -839,7 +841,8 @@ public class KafkaIO {
      */
     public Read<K, V> withTopics(List<String> topics) {
       checkState(
-          getTopicPartitions().isEmpty(), "Only topics or topicPartitions can be set, not both");
+          getTopicPartitions() == null || getTopicPartitions().isEmpty(),
+          "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopics(ImmutableList.copyOf(topics)).build();
     }
 
@@ -851,7 +854,9 @@ public class KafkaIO {
      * partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
-      checkState(getTopics().isEmpty(), "Only topics or topicPartitions can be set, not both");
+      checkState(
+          getTopics() == null || getTopics().isEmpty(),
+          "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
     }
 
@@ -1170,7 +1175,8 @@ public class KafkaIO {
       // construction time. But it requires enabling beam_fn_api.
       if (!isDynamicRead()) {
         checkArgument(
-            getTopics().size() > 0 || getTopicPartitions().size() > 0,
+            (getTopics() != null && getTopics().size() > 0)
+                || (getTopicPartitions() != null && getTopicPartitions().size() > 0),
             "Either withTopic(), withTopics() or withTopicPartitions() is required");
       } else {
         checkArgument(
@@ -1327,6 +1333,15 @@ public class KafkaIO {
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
+          Set<String> topics = new HashSet<>();
+          if (kafkaRead.getTopics() != null && kafkaRead.getTopics().size() > 0) {
+            topics.addAll(kafkaRead.getTopics());
+          }
+          if (kafkaRead.getTopicPartitions() != null && kafkaRead.getTopicPartitions().size() > 0) {
+            for (TopicPartition topicPartition : kafkaRead.getTopicPartitions()) {
+              topics.add(topicPartition.topic());
+            }
+          }
           output =
               input
                   .getPipeline()
@@ -1343,7 +1358,8 @@ public class KafkaIO {
                               kafkaRead.getConsumerFactoryFn(),
                               kafkaRead.getCheckStopReadingFn(),
                               kafkaRead.getConsumerConfig(),
-                              kafkaRead.getStartReadTime())));
+                              kafkaRead.getStartReadTime(),
+                              topics.stream().collect(Collectors.toList()))));
 
         } else {
           output =

@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
 
 /** Translator for Schema coders. */
 @Experimental(Kind.SCHEMAS)
@@ -61,11 +62,15 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
         FROM_ROW_FUNCTION,
         StringUtils.byteArrayToJsonString(
             SerializableUtils.serializeToByteArray(target.getFromRowFunction())));
-    Structs.addString(
-        base,
-        SCHEMA,
-        StringUtils.byteArrayToJsonString(
-            SchemaTranslation.schemaToProto(target.getSchema(), true).toByteArray()));
+
+    try {
+      Structs.addString(
+          base,
+          SCHEMA,
+          JsonFormat.printer().print(SchemaTranslation.schemaToProto(target.getSchema(), true)));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
     return base;
   }
 
@@ -91,10 +96,9 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
                   StringUtils.jsonStringToByteArray(
                       Structs.getString(cloudObject, FROM_ROW_FUNCTION)),
                   "fromRowFunction");
-      SchemaApi.Schema protoSchema =
-          SchemaApi.Schema.parseFrom(
-              StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, SCHEMA)));
-      Schema schema = SchemaTranslation.schemaFromProto(protoSchema);
+      SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
+      JsonFormat.parser().merge(Structs.getString(cloudObject, SCHEMA), schemaBuilder);
+      Schema schema = SchemaTranslation.schemaFromProto(schemaBuilder.build());
       return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
     } catch (IOException e) {
       throw new RuntimeException(e);

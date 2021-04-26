@@ -436,7 +436,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               iterableSideInputKey(iterableSideInputView.getTagInternal().getId()),
               encode("iterableValue1", "iterableValue2", "iterableValue3"));
 
-      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
+      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData, 1000);
 
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
@@ -728,7 +728,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               iterableSideInputKey(iterableSideInputView.getTagInternal().getId(), encodedWindowB),
               encode("iterableValue1B", "iterableValue2B", "iterableValue3B"));
 
-      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
+      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData, 1000);
 
       List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
