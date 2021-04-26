@@ -200,7 +200,8 @@ class TranslationsTest(unittest.TestCase):
       def expand(self, pcoll):
         _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
         _ = pcoll | 'count-globally' >> combiners.Count.Globally()
-        _ = pcoll | 'largest-globally' >> core.CombineGlobally(combiners.Largest(1))
+        _ = pcoll | 'largest-globally' >> core.CombineGlobally(
+            combiners.Largest(1))
 
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
