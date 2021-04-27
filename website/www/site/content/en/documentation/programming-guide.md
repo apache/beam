@@ -3546,9 +3546,20 @@ apache_beam.coders.registry.register_coder(int, BigEndianIntegerCoder)
 
 {{< paragraph class="language-java" >}}
 If your pipeline program defines a custom data type, you can use the
-`@DefaultCoder` annotation to specify the coder to use with that type. For
-example, let's say you have a custom data type for which you want to use
-`SerializableCoder`. You can use the `@DefaultCoder` annotation as follows:
+`@DefaultCoder` annotation to specify the coder to use with that type.
+By default, Beam will use `SerializableCoder` which uses Java serialization,
+but it has drawbacks:
+
+1. It is inefficient in encoding size and speed.
+   See this [comparison of Java serialization methods.](https://blog.softwaremill.com/the-best-serialization-strategy-for-event-sourcing-9321c299632b)
+1. It is non-deterministic: it may produce different binary encodings for two
+   equivalent objects.
+
+   For key/value pairs, the correctness of key-based operations
+   (GroupByKey, Combine) and per-key State depends on having a deterministic
+   coder for the key.
+
+You can use the `@DefaultCoder` annotation to set a new default as follows:
 {{< /paragraph >}}
 
 {{< highlight java >}}
