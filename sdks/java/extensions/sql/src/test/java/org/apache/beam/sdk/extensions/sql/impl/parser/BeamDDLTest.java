@@ -231,7 +231,7 @@ public class BeamDDLTest {
     createFunction.unparse(sqlWriter, 0, 0);
 
     assertEquals(
-        "CREATE FUNCTION `foo` USING JAR 'path/to/udf.jar'", sqlWriter.toSqlString().getSql());
+        "CREATE FUNCTION foo USING JAR 'path/to/udf.jar'", sqlWriter.toSqlString().getSql());
   }
 
   @Test
@@ -245,7 +245,7 @@ public class BeamDDLTest {
     createFunction.unparse(sqlWriter, 0, 0);
 
     assertEquals(
-        "CREATE AGGREGATE FUNCTION `foo` USING JAR 'path/to/udf.jar'",
+        "CREATE AGGREGATE FUNCTION foo USING JAR 'path/to/udf.jar'",
         sqlWriter.toSqlString().getSql());
   }
 

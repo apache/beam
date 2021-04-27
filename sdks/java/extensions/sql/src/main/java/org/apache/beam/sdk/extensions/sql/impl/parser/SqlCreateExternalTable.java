@@ -25,7 +25,6 @@ import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Sta
 import com.alibaba.fastjson.JSONObject;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
-import org.apache.beam.sdk.extensions.sql.impl.SqlExecutableStatement;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
@@ -46,7 +45,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Pair;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableStatement {
+public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.ExecutableStatement {
   private final SqlIdentifier name;
   private final List<Schema.Field> columnList;
   private final SqlNode type;
