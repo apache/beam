@@ -31,7 +31,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
 import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auto.value.AutoValue;
@@ -228,7 +227,7 @@ public class DatastoreV1 {
    * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
   @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;
+  static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 1;
 
   /**
    * Cloud Datastore has a limit of 10MB per RPC, so we also flush if the total size of mutations
@@ -239,12 +238,11 @@ public class DatastoreV1 {
   static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
 
   /**
-   * Default number of shards for ramp-up throttling step. The number of shards must be fixed to
-   * ensure the job follows documented best practices for ramp-up of write operations. This default
-   * can be reconfigured on the {@link Mutate} object to align with the expected worker count and
-   * improve throughput.
+   * Default hint for the expected number of workers in the ramp-up throttling step. This is used to
+   * approximate a global rate limit, so a mismatch can yield slightly elevated throttling.
+   * Reconfigure on the {@link Mutate} object to align with the worker count and improve throughput.
    */
-  private static final int DEFAULT_NUM_THROTTLER_SHARDS = 1;
+  private static final int DEFAULT_HINT_NUM_WORKERS = 500;
 
   /**
    * Non-retryable errors. See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
@@ -983,7 +981,7 @@ public class DatastoreV1 {
    * using {@link DatastoreV1.Write#withProjectId}.
    */
   public Write write() {
-    return new Write(null, null, true, 1);
+    return new Write(null, null, true, DEFAULT_HINT_NUM_WORKERS);
   }
 
   /**
@@ -991,7 +989,7 @@ public class DatastoreV1 {
    * using {@link DeleteEntity#withProjectId}.
    */
   public DeleteEntity deleteEntity() {
-    return new DeleteEntity(null, null, true, 1);
+    return new DeleteEntity(null, null, true, DEFAULT_HINT_NUM_WORKERS);
   }
 
   /**
@@ -999,7 +997,7 @@ public class DatastoreV1 {
    * {@link DeleteKey#withProjectId}.
    */
   public DeleteKey deleteKey() {
-    return new DeleteKey(null, null, true, DEFAULT_NUM_THROTTLER_SHARDS);
+    return new DeleteKey(null, null, true, DEFAULT_HINT_NUM_WORKERS);
   }
 
   /**
@@ -1014,8 +1012,8 @@ public class DatastoreV1 {
      * is {@code null} at instantiation time, an error will be thrown.
      */
     Write(@Nullable ValueProvider<String> projectId, @Nullable String localhost,
-        boolean throttleRampup, int numThrottlerShards) {
-      super(projectId, localhost, new UpsertFn(), throttleRampup, numThrottlerShards);
+        boolean throttleRampup, int hintNumWorkers) {
+      super(projectId, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
     }
 
     /** Returns a new {@link Write} that writes to the Cloud Datastore for the specified project. */
@@ -1027,7 +1025,7 @@ public class DatastoreV1 {
     /** Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}. */
     public Write withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new Write(projectId, localhost, throttleRampup, numThrottlerShards);
+      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1036,22 +1034,22 @@ public class DatastoreV1 {
      */
     public Write withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new Write(projectId, localhost, throttleRampup, numThrottlerShards);
+      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
      * Returns a new {@link Write} that does not throttle during ramp-up.
      */
     public Write withRampupThrottlingDisabled() {
-      return new Write(projectId, localhost, false, numThrottlerShards);
+      return new Write(projectId, localhost, false, hintNumWorkers);
     }
 
     /**
-     * Returns a new {#link Write} with different parallelism during ramp-up throttling.
+     * Returns a new {#link Write} with a different worker count hint for ramp-up throttling.
      */
-    public Write withNumThrottlerShards(int numThrottlerShards) {
-      checkArgument(numThrottlerShards > 0, "numThrottlerShards must be positive");
-      return new Write(projectId, localhost, throttleRampup, numThrottlerShards);
+    public Write withHintNumWorkers(int hintNumWorkers) {
+      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
   }
@@ -1068,8 +1066,8 @@ public class DatastoreV1 {
      * is {@code null} at instantiation time, an error will be thrown.
      */
     DeleteEntity(@Nullable ValueProvider<String> projectId, @Nullable String localhost,
-        boolean throttleRampup, int numThrottlerShards) {
-      super(projectId, localhost, new DeleteEntityFn(), throttleRampup, numThrottlerShards);
+        boolean throttleRampup, int hintNumWorkers) {
+      super(projectId, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1086,7 +1084,7 @@ public class DatastoreV1 {
      */
     public DeleteEntity withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new DeleteEntity(projectId, localhost, throttleRampup, numThrottlerShards);
+      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1095,22 +1093,22 @@ public class DatastoreV1 {
      */
     public DeleteEntity withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new DeleteEntity(projectId, localhost, throttleRampup, numThrottlerShards);
+      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
      * Returns a new {@link DeleteEntity} that does not throttle during ramp-up.
      */
     public DeleteEntity withRampupThrottlingDisabled() {
-      return new DeleteEntity(projectId, localhost, false, numThrottlerShards);
+      return new DeleteEntity(projectId, localhost, false, hintNumWorkers);
     }
 
     /**
-     * Returns a new {#link DeleteEntity} with different parallelism during ramp-up throttling.
+     * Returns a new {#link DeleteEntity} with a different worker count hint for ramp-up throttling.
      */
-    public DeleteEntity withNumThrottlerShards(int numThrottlerShards) {
-      checkArgument(numThrottlerShards > 0, "numThrottlerShards must be positive");
-      return new DeleteEntity(projectId, localhost, throttleRampup, numThrottlerShards);
+    public DeleteEntity withHintNumWorkers(int hintNumWorkers) {
+      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
 
@@ -1127,8 +1125,8 @@ public class DatastoreV1 {
      * is {@code null} at instantiation time, an error will be thrown.
      */
     DeleteKey(@Nullable ValueProvider<String> projectId, @Nullable String localhost,
-        boolean throttleRampup, int numThrottlerShards) {
-      super(projectId, localhost, new DeleteKeyFn(), throttleRampup, numThrottlerShards);
+        boolean throttleRampup, int hintNumWorkers) {
+      super(projectId, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1146,7 +1144,7 @@ public class DatastoreV1 {
      */
     public DeleteKey withLocalhost(String localhost) {
       checkArgument(localhost != null, "localhost can not be null");
-      return new DeleteKey(projectId, localhost, throttleRampup, numThrottlerShards);
+      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1154,22 +1152,22 @@ public class DatastoreV1 {
      */
     public DeleteKey withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new DeleteKey(projectId, localhost, throttleRampup, numThrottlerShards);
+      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
      * Returns a new {@link DeleteKey} that does not throttle during ramp-up.
      */
     public DeleteKey withRampupThrottlingDisabled() {
-      return new DeleteKey(projectId, localhost, false, numThrottlerShards);
+      return new DeleteKey(projectId, localhost, false, hintNumWorkers);
     }
 
     /**
-     * Returns a new {#link DeleteKey} with different parallelism during ramp-up throttling.
+     * Returns a new {#link DeleteKey} with a different worker count hint for ramp-up throttling.
      */
-    public DeleteKey withNumThrottlerShards(int numThrottlerShards) {
-      checkArgument(numThrottlerShards > 0, "numThrottlerShards must be positive");
-      return new DeleteKey(projectId, localhost, throttleRampup, numThrottlerShards);
+    public DeleteKey withHintNumWorkers(int hintNumWorkers) {
+      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
 
@@ -1186,10 +1184,10 @@ public class DatastoreV1 {
     protected ValueProvider<String> projectId;
     protected @Nullable String localhost;
     protected boolean throttleRampup;
-    protected int numThrottlerShards;
+    protected int hintNumWorkers;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
-    private final RampupThrottlerTransform<Mutation> rampupThrottlerTransform;
+    private final RampupThrottlingFn<Mutation> rampupThrottlingFn;
 
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
@@ -1200,13 +1198,13 @@ public class DatastoreV1 {
         @Nullable String localhost,
         SimpleFunction<T, Mutation> mutationFn,
         boolean throttleRampup,
-        int numThrottlerShards) {
+        int hintNumWorkers) {
       this.projectId = projectId;
       this.localhost = localhost;
       this.throttleRampup = throttleRampup;
-      this.numThrottlerShards = numThrottlerShards;
+      this.hintNumWorkers = hintNumWorkers;
       this.mutationFn = checkNotNull(mutationFn);
-      this.rampupThrottlerTransform = new RampupThrottlerTransform<>(numThrottlerShards);
+      this.rampupThrottlingFn = new RampupThrottlingFn<>(hintNumWorkers);
     }
 
     @Override
@@ -1221,7 +1219,7 @@ public class DatastoreV1 {
           .apply("Convert to Mutation", MapElements.via(mutationFn));
       if (throttleRampup) {
         intermediateOutput = intermediateOutput
-            .apply("Enforce throttling during ramp-up", rampupThrottlerTransform);
+            .apply("Enforce ramp-up through throttling", ParDo.of(rampupThrottlingFn));
       }
       intermediateOutput.apply(
               "Write Mutation to Datastore",
@@ -1245,7 +1243,7 @@ public class DatastoreV1 {
           .addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"))
           .include("mutationFn", mutationFn);
       if(throttleRampup){
-        builder.include("rampupThrottler", rampupThrottlerTransform);
+        builder.include("rampupThrottlingFn", rampupThrottlingFn);
       }
     }
 
