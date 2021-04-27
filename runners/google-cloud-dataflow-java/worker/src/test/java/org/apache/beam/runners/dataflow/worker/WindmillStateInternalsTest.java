@@ -146,9 +146,9 @@ public class WindmillStateInternalsTest {
                 .forKey(
                     WindmillComputationKey.create(
                         "comp", ByteString.copyFrom("dummyKey", Charsets.UTF_8), 123),
-                    STATE_FAMILY,
                     17L,
-                    workToken),
+                    workToken)
+                .forFamily(STATE_FAMILY),
             readStateSupplier);
     underTestNewKey =
         new WindmillStateInternals<String>(
@@ -161,9 +161,9 @@ public class WindmillStateInternalsTest {
                 .forKey(
                     WindmillComputationKey.create(
                         "comp", ByteString.copyFrom("dummyNewKey", Charsets.UTF_8), 123),
-                    STATE_FAMILY,
                     17L,
-                    workToken),
+                    workToken)
+                .forFamily(STATE_FAMILY),
             readStateSupplier);
   }
 
