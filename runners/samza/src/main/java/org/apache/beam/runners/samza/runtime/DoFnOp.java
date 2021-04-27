@@ -121,6 +121,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient BundleManager<OutT> bundleManager;
   private transient Instant sideInputWatermark;
   private transient List<WindowedValue<InT>> pushbackValues;
+  private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private DoFnSchemaInformation doFnSchemaInformation;
   private transient boolean bundleDisabled;
@@ -222,7 +223,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               .stateInternalsForKey(null)
               .state(StateNamespaces.global(), StateTags.bag(bundleStateId, windowedValueCoder));
       final ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-      final ExecutableStageContext stageContext =
+      stageContext =
           SamzaExecutableStageContextFactory.getInstance().get(jobInfo);
       stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
       this.fnRunner =
@@ -396,7 +397,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void close() {
     doFnInvoker.invokeTeardown();
-    try (AutoCloseable closer = stageBundleFactory) {
+    try (AutoCloseable factory = stageBundleFactory;
+        AutoCloseable context = stageContext) {
       // do nothing
     } catch (Exception e) {
       LOG.error("Failed to close stage bundle factory", e);
