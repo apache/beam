@@ -34,7 +34,6 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Function
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlCreate;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
@@ -47,7 +46,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Parse tree for {@code CREATE FUNCTION} statement. */
-public class SqlCreateFunction extends SqlCreate implements SqlExecutableStatement {
+public class SqlCreateFunction extends SqlCreate implements BeamSqlParser.ExecutableStatement {
   private final boolean isAggregate;
   private final SqlIdentifier functionName;
   private final SqlNode jarPath;
