@@ -726,6 +726,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   rename = frame_base._elementwise_method('rename', base=pd.Series)
   between = frame_base._elementwise_method('between', base=pd.Series)
 
+  add_suffix = frame_base._proxy_method(
+      'add_suffix',
+      base=pd.DataFrame,
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Singleton())
+  add_prefix = frame_base._proxy_method(
+      'add_prefix',
+      base=pd.DataFrame,
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Singleton())
+
   def dot(self, other):
     left = self._expr
     if isinstance(other, DeferredSeries):
@@ -1442,6 +1453,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   agg = aggregate
 
   applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
+  add_prefix = frame_base._elementwise_method('add_prefix', base=pd.DataFrame)
+  add_suffix = frame_base._elementwise_method('add_suffix', base=pd.DataFrame)
 
   memory_usage = frame_base.wont_implement_method(
       pd.DataFrame, 'memory_usage', reason="non-deferred-result")
