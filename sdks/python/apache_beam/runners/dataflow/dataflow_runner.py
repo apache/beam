@@ -470,7 +470,8 @@ class DataflowRunner(PipelineRunner):
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.
-    if not options.view_as(StandardOptions).streaming:
+    if (not options.view_as(StandardOptions).streaming and
+        apiclient._use_unified_worker(options)):
       pre_optimize = options.view_as(DebugOptions).lookup_experiment(
           'pre_optimize', 'default').lower()
       from apache_beam.runners.portability.fn_api_runner import translations
