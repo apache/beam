@@ -225,11 +225,6 @@ class DoctestTest(unittest.TestCase):
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
 
-            # We can implement this as a zipping operator, but it won't have the
-            # same capability. The doctest includes an example that branches on
-            # a deferred result.
-            'pandas.core.frame.DataFrame.combine': ['*'],
-
             # Can be implemented as a zipping operator
             'pandas.core.frame.DataFrame.combine_first': ['*'],
 
@@ -424,7 +419,7 @@ class DoctestTest(unittest.TestCase):
             # Throws NotImplementedError when modifying df
             'pandas.core.series.Series.transform': ['df'],
             'pandas.core.series.Series.autocorr': ['*'],
-            'pandas.core.series.Series.combine': ['*'],
+            #'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [

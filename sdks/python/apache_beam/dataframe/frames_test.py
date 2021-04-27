@@ -238,6 +238,37 @@ class DeferredFrameTest(unittest.TestCase):
             }), axis=1),
         df)
 
+  def test_combine(self):
+    df = pd.DataFrame({'A': [0, 0], 'B': [4, 4]})
+    df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
+
+    s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
+    s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
+
+    self._run_test(lambda s1, s2:
+                 s1.combine(s2, max),
+                 s1,
+                 s2)
+    self._run_test(lambda df, df2:
+                   df.combine(df2, lambda s1, s2: s1 if s1.sum() < s2.sum() else s2),
+                   df,
+                   df2)
+
+  def test_combine_first(self):
+    df1 = pd.DataFrame({'A': [None, 0], 'B': [None, 4]})
+    df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
+
+    s1 = pd.Series([1, np.nan])
+    s2 = pd.Series([3, 4])
+    self._run_test(lambda s1, s2:
+                 s1.combine_first(s2),
+                 s1,
+                 s2)
+    self._run_test(lambda df1, df2:
+                   df1.combine_first(df2),
+                   df1,
+                   df2)
+
   def test_groupby(self):
     df = pd.DataFrame({
         'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],

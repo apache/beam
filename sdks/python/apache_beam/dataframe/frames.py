@@ -554,6 +554,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return self._expr.proxy().dtype
 
   isin = frame_base._elementwise_method('isin', base=pd.DataFrame)
+  combine = frame_base._elementwise_method('combine', base=pd.DataFrame)
+  combine_first = frame_base._elementwise_method('combine_first', base=pd.DataFrame)
 
   @property
   def ndim(self):
