@@ -35,8 +35,11 @@ public class SchemaAndRecord {
     this.tableSchema = tableSchema;
   }
 
-  public @Nullable GenericRecord getRecord() {
-    return record instanceof GenericRecord ? (GenericRecord) record : null;
+  public GenericRecord getRecord() {
+    if (!(record instanceof GenericRecord)) {
+      throw new IllegalStateException("Object is not GenericRecord");
+    }
+    return (GenericRecord) record;
   }
 
   public @Nullable Row getRow() {
