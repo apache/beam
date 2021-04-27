@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -120,8 +121,9 @@ public abstract class RecommendationAIImportUserEvents
     return input
         .apply(
             "Batch Contents",
-            GroupIntoBatches.<String, GenericJson>ofSize(batchSize()).withShardedKey()
-                .withMaxBufferingDuration(maxBufferingDuration()))
+            GroupIntoBatches.<String, GenericJson>ofSize(batchSize())
+                .withMaxBufferingDuration(maxBufferingDuration())
+                .withShardedKey())
         .apply(
             "Import CatalogItems",
             ParDo.of(new ImportUserEvents(projectId(), catalogName(), eventStore()))
@@ -154,7 +156,8 @@ public abstract class RecommendationAIImportUserEvents
     public abstract RecommendationAIImportUserEvents build();
   }
 
-  static class ImportUserEvents extends DoFn<KV<String, Iterable<GenericJson>>, UserEvent> {
+  static class ImportUserEvents
+      extends DoFn<KV<ShardedKey<String>, Iterable<GenericJson>>, UserEvent> {
     private final String projectId;
     private final String catalogName;
     private final String eventStore;

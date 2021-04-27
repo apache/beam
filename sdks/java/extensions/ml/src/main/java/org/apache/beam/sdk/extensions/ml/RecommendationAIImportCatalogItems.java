@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -110,8 +111,9 @@ public abstract class RecommendationAIImportCatalogItems
     return input
         .apply(
             "Batch Contents",
-            GroupIntoBatches.<String, GenericJson>ofSize(batchSize()).withShardedKey()
-                .withMaxBufferingDuration(maxBufferingDuration()))
+            GroupIntoBatches.<String, GenericJson>ofSize(batchSize())
+                .withMaxBufferingDuration(maxBufferingDuration())
+                .withShardedKey())
         .apply(
             "Import CatalogItems",
             ParDo.of(new ImportCatalogItems(projectId(), catalogName()))
@@ -141,7 +143,8 @@ public abstract class RecommendationAIImportCatalogItems
     public abstract RecommendationAIImportCatalogItems build();
   }
 
-  static class ImportCatalogItems extends DoFn<KV<String, Iterable<GenericJson>>, CatalogItem> {
+  static class ImportCatalogItems
+      extends DoFn<KV<ShardedKey<String>, Iterable<GenericJson>>, CatalogItem> {
     private final String projectId;
     private final String catalogName;
 

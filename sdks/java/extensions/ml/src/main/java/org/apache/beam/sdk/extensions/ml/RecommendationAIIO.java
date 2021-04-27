@@ -20,17 +20,15 @@ package org.apache.beam.sdk.extensions.ml;
 /**
  * The RecommendationAIIO class acts as a wrapper around the {@link PTransform}s that interact with
  * the Recommendation AI API (https://cloud.google.com/recommendations).
- * 
- * More information can be found on:
- * - Writing catalog items using {@link RecommendationAICreateCatalogItem}
- * - Importing catalog items using {@link RecommendationAIImportCatalogItems}
- * - Writing user events using {@link RecommendationAIWriteUserEvent}
- * - Importing user events using {@link RecommendationAIImportUserEvents}
- * - Making predictions using {@link RecommendationAIPredict}
- * 
- * Usage: 
+ *
+ * <p>More information can be found on: - Writing catalog items using {@link
+ * RecommendationAICreateCatalogItem} - Importing catalog items using {@link
+ * RecommendationAIImportCatalogItems} - Writing user events using {@link
+ * RecommendationAIWriteUserEvent} - Importing user events using {@link
+ * RecommendationAIImportUserEvents} - Making predictions using {@link RecommendationAIPredict}
  */
 public class RecommendationAIIO {
+
   public static RecommendationAICreateCatalogItem createCatalogItems() {
     return RecommendationAICreateCatalogItem.newBuilder().build();
   }
