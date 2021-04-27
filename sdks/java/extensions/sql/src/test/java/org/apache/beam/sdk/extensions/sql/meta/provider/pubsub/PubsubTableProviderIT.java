@@ -107,8 +107,8 @@ public class PubsubTableProviderIT implements Serializable {
   public static Collection<Object[]> data() {
     return Arrays.asList(
         new Object[][] {
-//          {new PubsubJsonObjectProvider()}
-//          {new PubsubAvroObjectProvider()}
+          {new PubsubJsonObjectProvider()},
+          {new PubsubAvroObjectProvider()},
           {new PubsubProtoObjectProvider()}
         });
   }
@@ -128,10 +128,10 @@ public class PubsubTableProviderIT implements Serializable {
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
-            ImmutableList.of(
-                    objectsProvider.messageIdName(ts(1), 3, "foo"),
-                    objectsProvider.messageIdName(ts(2), 5, "bar"),
-                    objectsProvider.messageIdName(ts(3), 7, "baz"));
+        ImmutableList.of(
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"));
 
     String createTableString =
         String.format(
@@ -149,7 +149,10 @@ public class PubsubTableProviderIT implements Serializable {
                 + "%s"
                 + "%s"
                 + "\"timestampAttributeKey\" : \"ts\" }'",
-            tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam(), protoClassParam());
+            tableProvider.getTableType(),
+            eventsTopic.topicPath(),
+            payloadFormatParam(),
+            protoClassParam(PayloadMessages.SimpleMessage.class.getName()));
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
 
@@ -191,10 +194,10 @@ public class PubsubTableProviderIT implements Serializable {
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
-            ImmutableList.of(
-                    objectsProvider.messageIdName(ts(1), 3, "foo"),
-                    objectsProvider.messageIdName(ts(2), 5, "bar"),
-                    objectsProvider.messageIdName(ts(3), 7, "baz"));
+        ImmutableList.of(
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"));
 
     String createTableString =
         String.format(
@@ -212,7 +215,10 @@ public class PubsubTableProviderIT implements Serializable {
                 + "%s"
                 + "%s"
                 + "\"timestampAttributeKey\" : \"ts\" }'",
-            tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam(), protoClassParam());
+            tableProvider.getTableType(),
+            eventsTopic.topicPath(),
+            payloadFormatParam(),
+            protoClassParam(PayloadMessages.SimpleMessage.class.getName()));
 
     String queryString =
         "SELECT message.payload.id, attributes[1].key AS a1, attributes[2].key AS a2 FROM message";
@@ -261,10 +267,10 @@ public class PubsubTableProviderIT implements Serializable {
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
-            ImmutableList.of(
-                    objectsProvider.messageIdName(ts(1), 3, "foo"),
-                    objectsProvider.messageIdName(ts(2), 5, "bar"),
-                    objectsProvider.messageIdName(ts(3), 7, "baz"));
+        ImmutableList.of(
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"));
 
     String createTableString =
         String.format(
@@ -278,7 +284,9 @@ public class PubsubTableProviderIT implements Serializable {
                 + "TBLPROPERTIES '{ "
                 + "%s"
                 + "\"timestampAttributeKey\" : \"ts\" }'",
-            tableProvider.getTableType(), eventsTopic.topicPath(), protoClassParam());
+            tableProvider.getTableType(),
+            eventsTopic.topicPath(),
+            protoClassParam(PayloadMessages.SimpleMessage.class.getName()));
 
     String queryString = "SELECT message.payload AS some_bytes FROM message";
 
@@ -321,12 +329,12 @@ public class PubsubTableProviderIT implements Serializable {
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
-            ImmutableList.of(
-                    objectsProvider.messageIdName(ts(1), 3, "foo"),
-                    objectsProvider.messageIdName(ts(2), 5, "bar"),
-                    objectsProvider.messageIdName(ts(3), 7, "baz"),
-                    messagePayload(ts(4), "{ - }", ImmutableMap.of()), // invalid message, will go to DLQ
-                    messagePayload(ts(5), "{ + }", ImmutableMap.of())); // invalid message, will go to DLQ
+        ImmutableList.of(
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"),
+            messagePayload(ts(4), "{ - }", ImmutableMap.of()), // invalid message, will go to DLQ
+            messagePayload(ts(5), "{ + }", ImmutableMap.of())); // invalid message, will go to DLQ
 
     String createTableString =
         String.format(
@@ -351,7 +359,7 @@ public class PubsubTableProviderIT implements Serializable {
             eventsTopic.topicPath(),
             payloadFormatParam(),
             dlqTopic.topicPath(),
-            protoClassParam());
+            protoClassParam(PayloadMessages.SimpleMessage.class.getName()));
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
 
@@ -397,14 +405,14 @@ public class PubsubTableProviderIT implements Serializable {
   public void testSQLLimit() throws Exception {
 
     List<PubsubMessage> messages =
-            ImmutableList.of(
-                    objectsProvider.messageIdName(ts(1), 3, "foo"),
-                    objectsProvider.messageIdName(ts(2), 5, "bar"),
-                    objectsProvider.messageIdName(ts(3), 7, "baz"),
-                    objectsProvider.messageIdName(ts(4), 9, "ba2"),
-                    objectsProvider.messageIdName(ts(5), 10, "ba3"),
-                    objectsProvider.messageIdName(ts(6), 13, "ba4"),
-                    objectsProvider.messageIdName(ts(7), 15, "ba5"));
+        ImmutableList.of(
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"),
+            objectsProvider.messageIdName(ts(4), 9, "ba2"),
+            objectsProvider.messageIdName(ts(5), 10, "ba3"),
+            objectsProvider.messageIdName(ts(6), 13, "ba4"),
+            objectsProvider.messageIdName(ts(7), 15, "ba5"));
 
     String createTableString =
         String.format(
@@ -429,7 +437,7 @@ public class PubsubTableProviderIT implements Serializable {
             eventsTopic.topicPath(),
             payloadFormatParam(),
             dlqTopic.topicPath(),
-            protoClassParam());
+            protoClassParam(PayloadMessages.SimpleMessage.class.getName()));
 
     // We need the default options on the schema to include the project passed in for the
     // integration test
@@ -468,10 +476,10 @@ public class PubsubTableProviderIT implements Serializable {
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
-            ImmutableList.of(
-                    objectsProvider.messageIdName(ts(1), 3, "foo"),
-                    objectsProvider.messageIdName(ts(2), 5, "bar"),
-                    objectsProvider.messageIdName(ts(3), 7, "baz"));
+        ImmutableList.of(
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"));
 
     String createTableString =
         String.format(
@@ -488,7 +496,10 @@ public class PubsubTableProviderIT implements Serializable {
                 + "       %s"
                 + "       \"timestampAttributeKey\" : \"ts\" "
                 + "     }'",
-            tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam(), protoClassParam());
+            tableProvider.getTableType(),
+            eventsTopic.topicPath(),
+            payloadFormatParam(),
+            protoClassParam(PayloadMessages.SimpleMessage.class.getName()));
 
     String queryString = "SELECT message.id, message.name from message";
 
@@ -529,8 +540,10 @@ public class PubsubTableProviderIT implements Serializable {
   @SuppressWarnings("unchecked")
   public void testSQLInsertRowsToPubsubFlat() throws Exception {
 
-    Matcher<PubsubMessage> person1matcher = objectsProvider.matcherNameHeightKnowsJS("person1", 80, true);
-    Matcher<PubsubMessage> person2matcher = objectsProvider.matcherNameHeightKnowsJS("person2", 70, false);
+    Matcher<PubsubMessage> person1matcher =
+        objectsProvider.matcherNameHeightKnowsJS("person1", 80, true);
+    Matcher<PubsubMessage> person2matcher =
+        objectsProvider.matcherNameHeightKnowsJS("person2", 70, false);
 
     String createTableString =
         String.format(
@@ -538,7 +551,7 @@ public class PubsubTableProviderIT implements Serializable {
                 + "event_timestamp TIMESTAMP, \n"
                 + "name VARCHAR, \n"
                 + "height INTEGER, \n"
-                + "knowsJavascript BOOLEAN \n"
+                + "knows_javascript BOOLEAN \n"
                 + ") \n"
                 + "TYPE '%s' \n"
                 + "LOCATION '%s' \n"
@@ -551,7 +564,7 @@ public class PubsubTableProviderIT implements Serializable {
             tableProvider.getTableType(),
             eventsTopic.topicPath(),
             payloadFormatParam(),
-            protoClassParam(),
+            protoClassParam(PayloadMessages.NameHeightKnowsJSMessage.class.getName()),
             dlqTopic.topicPath());
 
     // Initialize SQL environment and create the pubsub table
@@ -561,7 +574,7 @@ public class PubsubTableProviderIT implements Serializable {
     // TODO(BEAM-8741): Ideally we could write this query without specifying a column list, because
     //   it shouldn't be possible to write to event_timestamp when it's mapped to  publish time.
     String queryString =
-        "INSERT INTO message (name, height, knowsJavascript) \n"
+        "INSERT INTO message (name, height, knows_javascript) \n"
             + "VALUES \n"
             + "('person1', 80, TRUE), \n"
             + "('person2', 70, FALSE)";
@@ -572,9 +585,7 @@ public class PubsubTableProviderIT implements Serializable {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
     eventsTopic
-        .assertThatTopicEventuallyReceives(
-                person1matcher,
-                person2matcher)
+        .assertThatTopicEventuallyReceives(person1matcher, person2matcher)
         .waitForUpTo(Duration.standardSeconds(40));
   }
 
@@ -591,7 +602,7 @@ public class PubsubTableProviderIT implements Serializable {
                 + "  event_timestamp TIMESTAMP, \n"
                 + "  name VARCHAR, \n"
                 + "  height INTEGER, \n"
-                + "  knowsJavascript BOOLEAN \n"
+                + "  knows_javascript BOOLEAN \n"
                 + ") \n"
                 + "TYPE '%s' \n"
                 + "LOCATION '%s' \n"
@@ -605,7 +616,7 @@ public class PubsubTableProviderIT implements Serializable {
             tableProvider.getTableType(),
             eventsTopic.topicPath(),
             payloadFormatParam(),
-            protoClassParam(),
+            protoClassParam(PayloadMessages.NameHeightKnowsJSMessage.class.getName()),
             dlqTopic.topicPath());
 
     // Initialize SQL environment and create the pubsub table
@@ -622,9 +633,7 @@ public class PubsubTableProviderIT implements Serializable {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
     eventsTopic
-        .assertThatTopicEventuallyReceives(
-                person1matcher,
-                person2matcher)
+        .assertThatTopicEventuallyReceives(person1matcher, person2matcher)
         .waitForUpTo(Duration.standardSeconds(40));
   }
 
@@ -637,23 +646,13 @@ public class PubsubTableProviderIT implements Serializable {
     // filterPipeline: Use SQL to read from `people`, filter the rows, and write to
     // `javascript_people`
 
-    Matcher<PubsubMessage> person1matcher = objectsProvider.matcherNameHeight("person1", 80);
-    Matcher<PubsubMessage> person3matcher = objectsProvider.matcherNameHeight("person3", 60);
-    Matcher<PubsubMessage> person5matcher = objectsProvider.matcherNameHeight("person5", 40);
-
     String tblProperties =
         objectsProvider.getPayloadFormat() == null
             ? ""
             : String.format(
-                "TBLPROPERTIES "
-              + "'{ "
-              + "%s"
-              + "\"format\": \"%s\""
-              + "}'",
-              protoClassParam(),
-              objectsProvider.getPayloadFormat()
-              );
-
+                "TBLPROPERTIES " + "'{ " + "%s" + "\"format\": \"%s\"" + "}'",
+                protoClassParam(PayloadMessages.NameHeightKnowsJSMessage.class.getName()),
+                objectsProvider.getPayloadFormat());
 
     String createTableString =
         String.format(
@@ -661,12 +660,20 @@ public class PubsubTableProviderIT implements Serializable {
                 + "event_timestamp TIMESTAMP, \n"
                 + "name VARCHAR, \n"
                 + "height INTEGER, \n"
-                + "knowsJavascript BOOLEAN \n"
+                + "knows_javascript BOOLEAN \n"
                 + ") \n"
                 + "TYPE '%s' \n"
                 + "LOCATION '%s' \n"
                 + "%s",
             tableProvider.getTableType(), eventsTopic.topicPath(), tblProperties);
+
+    String filteredTblProperties =
+        objectsProvider.getPayloadFormat() == null
+            ? ""
+            : String.format(
+                "TBLPROPERTIES " + "'{ " + "%s" + "\"format\": \"%s\"" + "}'",
+                protoClassParam(PayloadMessages.NameHeightMessage.class.getName()),
+                objectsProvider.getPayloadFormat());
 
     String createFilteredTableString =
         String.format(
@@ -678,7 +685,7 @@ public class PubsubTableProviderIT implements Serializable {
                 + "TYPE '%s' \n"
                 + "LOCATION '%s' \n"
                 + "%s",
-            tableProvider.getTableType(), filteredEventsTopic.topicPath(), tblProperties);
+            tableProvider.getTableType(), filteredEventsTopic.topicPath(), filteredTblProperties);
 
     // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());
@@ -694,11 +701,11 @@ public class PubsubTableProviderIT implements Serializable {
             + "    name, \n"
             + "    height \n"
             + "  FROM people \n"
-            + "  WHERE knowsJavascript \n"
+            + "  WHERE knows_javascript \n"
             + ")";
 
     String injectQueryString =
-        "INSERT INTO people (name, height, knowsJavascript) VALUES \n"
+        "INSERT INTO people (name, height, knows_javascript) VALUES \n"
             + "('person1', 80, TRUE),  \n"
             + "('person2', 70, FALSE), \n"
             + "('person3', 60, TRUE),  \n"
@@ -723,9 +730,9 @@ public class PubsubTableProviderIT implements Serializable {
 
     filteredEventsTopic
         .assertThatTopicEventuallyReceives(
-                person1matcher,
-                person3matcher,
-                person5matcher)
+            objectsProvider.matcherNameHeight("person1", 80),
+            objectsProvider.matcherNameHeight("person3", 60),
+            objectsProvider.matcherNameHeight("person5", 40))
         .waitForUpTo(Duration.standardMinutes(5));
   }
 
@@ -769,10 +776,8 @@ public class PubsubTableProviderIT implements Serializable {
         : String.format("\"format\" : \"%s\", ", objectsProvider.getPayloadFormat());
   }
 
-  private String protoClassParam() {
-    return objectsProvider.getProtoClass() == null
-            ? ""
-            : String.format("\"protoClass\" : \"%s\", ", objectsProvider.getProtoClass());
+  private String protoClassParam(String protoClassName) {
+    return String.format("\"protoClass\" : \"%s\", ", protoClassName);
   }
 
   private PCollection<Row> query(BeamSqlEnv sqlEnv, TestPipeline pipeline, String queryString) {
@@ -819,8 +824,6 @@ public class PubsubTableProviderIT implements Serializable {
   private abstract static class PubsubObjectProvider implements Serializable {
     protected abstract String getPayloadFormat();
 
-    protected abstract String getProtoClass();
-
     protected abstract PubsubMessage messageIdName(Instant timestamp, int id, String name)
         throws Exception;
 
@@ -835,22 +838,13 @@ public class PubsubTableProviderIT implements Serializable {
 
   private static class PubsubProtoObjectProvider extends PubsubObjectProvider {
 
-    private String protoClass = "";
-
     @Override
     protected String getPayloadFormat() {
       return "proto";
     }
 
     @Override
-    protected String getProtoClass() {
-      return protoClass;
-    }
-
-    @Override
     protected PubsubMessage messageIdName(Instant timestamp, int id, String name) {
-
-      protoClass = PayloadMessages.SimpleMessage.class.getName();
 
       PayloadMessages.SimpleMessage.Builder simpleMessage =
           PayloadMessages.SimpleMessage.newBuilder();
@@ -867,8 +861,6 @@ public class PubsubTableProviderIT implements Serializable {
     @Override
     protected Matcher<PubsubMessage> matcherNames(String name) throws IOException {
 
-      protoClass = PayloadMessages.NameMessage.class.getName();
-
       PayloadMessages.NameMessage.Builder nameMessage = PayloadMessages.NameMessage.newBuilder();
 
       return hasProperty("payload", equalTo(nameMessage.build().toByteArray()));
@@ -878,10 +870,12 @@ public class PubsubTableProviderIT implements Serializable {
     protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
         String name, int height, boolean knowsJS) throws IOException {
 
-      protoClass = PayloadMessages.NameHeightKnowsJSMessage.class.getName();
-
       PayloadMessages.NameHeightKnowsJSMessage.Builder nameHeightKnowsJSMessage =
           PayloadMessages.NameHeightKnowsJSMessage.newBuilder();
+
+      nameHeightKnowsJSMessage.setHeight(height);
+      nameHeightKnowsJSMessage.setName(name);
+      nameHeightKnowsJSMessage.setKnowsJavascript(knowsJS);
 
       return hasProperty("payload", equalTo(nameHeightKnowsJSMessage.build().toByteArray()));
     }
@@ -889,12 +883,13 @@ public class PubsubTableProviderIT implements Serializable {
     @Override
     protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) throws IOException {
 
-      protoClass = PayloadMessages.NameHeightMessage.class.getName();
-
-      PayloadMessages.NameHeightMessage.Builder nameHeightMEssage =
+      PayloadMessages.NameHeightMessage.Builder nameHeightMessage =
           PayloadMessages.NameHeightMessage.newBuilder();
 
-      return hasProperty("payload", equalTo(nameHeightMEssage.build().toByteArray()));
+      nameHeightMessage.setName(name);
+      nameHeightMessage.setHeight(height);
+
+      return hasProperty("payload", equalTo(nameHeightMessage.build().toByteArray()));
     }
   }
 
@@ -904,11 +899,6 @@ public class PubsubTableProviderIT implements Serializable {
     @Override
     protected String getPayloadFormat() {
       return null;
-    }
-
-    @Override
-    protected String getProtoClass() {
-      return "";
     }
 
     @Override
@@ -927,7 +917,7 @@ public class PubsubTableProviderIT implements Serializable {
         String name, int height, boolean knowsJS) throws IOException {
       String jsonString =
           String.format(
-              "{\"name\":\"%s\", \"height\": %s, \"knowsJavascript\": %s}", name, height, knowsJS);
+              "{\"name\":\"%s\", \"height\": %s, \"knows_javascript\": %s}", name, height, knowsJS);
 
       return hasProperty("payload", toJsonByteLike(jsonString));
     }
@@ -953,7 +943,7 @@ public class PubsubTableProviderIT implements Serializable {
         Schema.builder()
             .addNullableField("name", Schema.FieldType.STRING)
             .addNullableField("height", Schema.FieldType.INT32)
-            .addNullableField("knowsJavascript", Schema.FieldType.BOOLEAN)
+            .addNullableField("knows_javascript", Schema.FieldType.BOOLEAN)
             .build();
 
     private static final Schema NAME_HEIGHT_SCHEMA =
@@ -965,11 +955,6 @@ public class PubsubTableProviderIT implements Serializable {
     @Override
     protected String getPayloadFormat() {
       return "avro";
-    }
-
-    @Override
-    protected String getProtoClass() {
-      return "";
     }
 
     @Override
