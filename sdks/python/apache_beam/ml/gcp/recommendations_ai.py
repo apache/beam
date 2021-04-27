@@ -190,7 +190,7 @@ class ImportCatalogItems(PTransform):
       timeout: float = 120,
       metadata: Sequence[Tuple[str, str]] = None,
       catalog_name: str = "default_catalog"):
-    """Initializes a :class:`ImportCatalogItem` transform
+    """Initializes a :class:`ImportCatalogItems` transform
 
         Args:
             batch_size (int): Required. Maximum number of catalogitems per
@@ -200,7 +200,7 @@ class ImportCatalogItems(PTransform):
             retry: Optional. Designation of what
               errors, if any, should be retried.
             timeout (float): Optional. The amount of time, in seconds, to wait
-            for the request to complete.
+              for the request to complete.
             metadata: Optional. Strings which
               should be sent along with the request as metadata.
             catalog_name (str): Optional. Name of the catalog.
