@@ -99,11 +99,11 @@ class CreateCatalogItem(PTransform):
         Args:
             project (str): Optional. GCP project name in which the catalog
               data will be imported.
-            retry (google.api_core.retry.Retry): Optional. Designation of what
+            retry: Optional. Designation of what
               errors, if any, should be retried.
             timeout (float): Optional. The amount of time, in seconds, to wait
               for the request to complete.
-            metadata (Sequence[Tuple[str, str]]): Optional. Strings which
+            metadata: Optional. Strings which
               should be sent along with the request as metadata.
             catalog_name (str): Optional. Name of the catalog.
               Default: 'default_catalog'
@@ -197,11 +197,11 @@ class ImportCatalogItems(PTransform):
               request.
             project (str): Optional. GCP project name in which the catalog
               data will be imported.
-            retry (google.api_core.retry.Retry): Optional. Designation of what
+            retry: Optional. Designation of what
               errors, if any, should be retried.
             timeout (float): Optional. The amount of time, in seconds, to wait
             for the request to complete.
-            metadata (Sequence[Tuple[str, str]]): Optional. Strings which
+            metadata: Optional. Strings which
               should be sent along with the request as metadata.
             catalog_name (str): Optional. Name of the catalog.
               Default: 'default_catalog'
@@ -296,11 +296,11 @@ class WriteUserEvent(PTransform):
         Args:
             project (str): Optional. GCP project name in which the catalog
               data will be imported.
-            retry (google.api_core.retry.Retry): Optional. Designation of what
+            retry: Optional. Designation of what
               errors, if any, should be retried.
             timeout (float): Optional. The amount of time, in seconds, to wait
               for the request to complete.
-            metadata (Sequence[Tuple[str, str]]): Optional. Strings which
+            metadata: Optional. Strings which
               should be sent along with the request as metadata.
             catalog_name (str): Optional. Name of the catalog.
               Default: 'default_catalog'
@@ -397,11 +397,11 @@ class ImportUserEvents(PTransform):
               per request.
             project (str): Optional. GCP project name in which the catalog
               data will be imported.
-            retry (google.api_core.retry.Retry): Optional. Designation of what
+            retry: Optional. Designation of what
               errors, if any, should be retried.
             timeout (float): Optional. The amount of time, in seconds, to wait
               for the request to complete.
-            metadata (Sequence[Tuple[str, str]]): Optional. Strings which
+            metadata: Optional. Strings which
               should be sent along with the request as metadata.
             catalog_name (str): Optional. Name of the catalog.
               Default: 'default_catalog'
@@ -502,11 +502,11 @@ class PredictUserEvent(PTransform):
         Args:
             project (str): Optional. GCP project name in which the catalog
               data will be imported.
-            retry (google.api_core.retry.Retry): Optional. Designation of what
+            retry: Optional. Designation of what
               errors, if any, should be retried.
             timeout (float): Optional. The amount of time, in seconds, to wait
               for the request to complete.
-            metadata (Sequence[Tuple[str, str]]): Optional. Strings which
+            metadata: Optional. Strings which
               should be sent along with the request as metadata.
             catalog_name (str): Optional. Name of the catalog.
               Default: 'default_catalog'
