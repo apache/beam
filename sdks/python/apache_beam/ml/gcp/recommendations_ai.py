@@ -52,6 +52,8 @@ __all__ = [
     'PredictUserEvent'
 ]
 
+FAILED_CATALOG_ITEMS = "failed_catalog_items"
+
 
 @ttl_cache(maxsize=128, ttl=3600)
 def get_recommendation_prediction_client():
@@ -129,7 +131,6 @@ class CreateCatalogItem(PTransform):
 
 
 class _CreateCatalogItemFn(DoFn):
-  FAILED_CATALOG_ITEMS = "failed_catalog_items"
 
   def __init__(
       self,
@@ -165,7 +166,7 @@ class _CreateCatalogItemFn(DoFn):
       yield recommendationengine.CatalogItem.to_dict(created_catalog_item)
     except Exception:
       yield pvalue.TaggedOutput(
-          self.FAILED_CATALOG_ITEMS,
+          FAILED_CATALOG_ITEMS,
           recommendationengine.CatalogItem.to_dict(catalog_item))
 
 
@@ -229,8 +230,6 @@ class ImportCatalogItems(PTransform):
 
 
 class _ImportCatalogItemsFn(DoFn):
-  FAILED_CATALOG_ITEMS = "failed_catalog_items"
-
   def __init__(
       self,
       project=None,
@@ -268,7 +267,7 @@ class _ImportCatalogItemsFn(DoFn):
       self.counter.inc(len(catalog_items))
       yield operation.result()
     except Exception:
-      yield pvalue.TaggedOutput(self.FAILED_CATALOG_ITEMS, catalog_items)
+      yield pvalue.TaggedOutput(FAILED_CATALOG_ITEMS, catalog_items)
 
 
 class WriteUserEvent(PTransform):
