@@ -110,7 +110,7 @@ public abstract class RecommendationAIImportCatalogItems
     return input
         .apply(
             "Batch Contents",
-            GroupIntoBatches.<String, GenericJson>ofSize(batchSize())
+            GroupIntoBatches.<String, GenericJson>ofSize(batchSize()).withShardedKey()
                 .withMaxBufferingDuration(maxBufferingDuration()))
         .apply(
             "Import CatalogItems",
