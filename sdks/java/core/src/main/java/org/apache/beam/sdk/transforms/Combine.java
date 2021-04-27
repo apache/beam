@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -47,7 +46,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-import org.apache.beam.sdk.transforms.View.VoidKeyToMultimapMaterialization;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -1308,43 +1306,21 @@ public class Combine {
 
     @Override
     public PCollectionView<OutputT> expand(PCollection<InputT> input) {
-      // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
-          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
-              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
-        PCollection<OutputT> combined =
-            input.apply(
-                "CombineValues",
-                Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
-        Coder<OutputT> outputCoder = combined.getCoder();
-        PCollectionView<OutputT> view =
-            PCollectionViews.singletonView(
-                combined,
-                (TypeDescriptorSupplier<OutputT>)
-                    () -> outputCoder != null ? outputCoder.getEncodedTypeDescriptor() : null,
-                input.getWindowingStrategy(),
-                insertDefault,
-                insertDefault ? fn.defaultValue() : null,
-                combined.getCoder());
-        combined.apply("CreatePCollectionView", CreatePCollectionView.of(view));
-        return view;
-      }
-
       PCollection<OutputT> combined =
-          input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
-      PCollection<KV<Void, OutputT>> materializationInput =
-          combined.apply(new VoidKeyToMultimapMaterialization<>());
+          input.apply(
+              "CombineValues",
+              Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
       Coder<OutputT> outputCoder = combined.getCoder();
       PCollectionView<OutputT> view =
-          PCollectionViews.singletonViewUsingVoidKey(
-              materializationInput,
+          PCollectionViews.singletonView(
+              combined,
               (TypeDescriptorSupplier<OutputT>)
                   () -> outputCoder != null ? outputCoder.getEncodedTypeDescriptor() : null,
               input.getWindowingStrategy(),
               insertDefault,
               insertDefault ? fn.defaultValue() : null,
               combined.getCoder());
-      materializationInput.apply(CreatePCollectionView.of(view));
+      combined.apply("CreatePCollectionView", CreatePCollectionView.of(view));
       return view;
     }
 
