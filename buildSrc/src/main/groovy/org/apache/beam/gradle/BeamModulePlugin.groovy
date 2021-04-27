@@ -23,6 +23,7 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import org.gradle.api.attributes.Category
 import org.gradle.api.GradleException
+import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -416,20 +417,20 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def activemq_version = "5.14.5"
-    def autovalue_version = "1.7.4"
+    def autovalue_version = "1.8.1"
     def aws_java_sdk_version = "1.11.974"
     def aws_java_sdk2_version = "2.15.31"
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
-    def classgraph_version = "4.8.65"
+    def classgraph_version = "4.8.104"
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.31.0"
     def google_cloud_bigdataoss_version = "2.1.6"
-    def google_cloud_pubsublite_version = "0.7.0"
+    def google_cloud_pubsublite_version = "0.13.2"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.35.0"
+    def grpc_version = "1.37.0"
     def guava_version = "30.1-jre"
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
@@ -444,7 +445,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.52.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
-    def protobuf_version = "3.12.0"
+    // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
+    def protobuf_version = "3.15.8"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
@@ -502,24 +504,26 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
+        flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.6",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
+        gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
         google_api_client                           : "com.google.api-client:google-api-client:1.31.1", // 1.31.1 is required to run 1.31.0 of google_clients_version below.
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20210219-$google_clients_version",
-        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200807-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20210222-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20210217-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20210217-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20210208-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20210410-$google_clients_version",
+        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20210326-$google_clients_version",
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20210331-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20210408-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20210407-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20210322-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20210127-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
-        google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:1.8.5",
-        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.16.0",
+        google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:1.18.1",
+        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.19.1",
         google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.125.2",
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
@@ -529,9 +533,9 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite:$google_cloud_pubsublite_version",
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/16.3.0/artifact_details.html
+        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/20.0.0/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:16.3.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:20.0.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
@@ -581,6 +585,8 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_dataformat_xml                      : "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:$jackson_version",
         jackson_dataformat_yaml                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
         jackson_datatype_joda                       : "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
+        jackson_module_scala_2_11                   : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
+        jackson_module_scala_2_12                   : "com.fasterxml.jackson.module:jackson-module-scala_2.12:$jackson_version",
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.10",
@@ -602,8 +608,8 @@ class BeamModulePlugin implements Plugin<Project> {
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
         proto_google_cloud_bigquery_storage_v1      : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_bigquerybeta2_storage_v1 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_admin_v2        : "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_bigquery_storage_v1beta2 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version
@@ -838,6 +844,12 @@ class BeamModulePlugin implements Plugin<Project> {
         checkers = [
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
+
+        if (project.findProperty('enableCheckerFramework') || project.jenkins.isCIBuild) {
+          skipCheckerFramework = false
+        } else {
+          skipCheckerFramework = true
+        }
 
         // Always exclude checkerframework on tests. It's slow, and it often
         // raises erroneous error because we don't have checker annotations for
@@ -1571,13 +1583,15 @@ class BeamModulePlugin implements Plugin<Project> {
             if (pipelineOptionsString.contains('use_runner_v2')) {
               def dockerImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerImageName
               allOptionsList.addAll([
-                "--workerHarnessContainerImage=${dockerImageName}",
+                "--sdkContainerImage=${dockerImageName}",
                 "--region=${dataflowRegion}"
               ])
             } else {
               def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                   project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
               allOptionsList.addAll([
+                // Keep as legacy flag to ensure via test this flag works for
+                // legacy pipeline.
                 '--workerHarnessContainerImage=',
                 "--dataflowWorkerJar=${dataflowWorkerJar}",
                 "--region=${dataflowRegion}"
@@ -2025,8 +2039,16 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
+      def javaContainerSuffix
+      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+        javaContainerSuffix = 'java8'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+        javaContainerSuffix = 'java11'
+      } else {
+        throw new GradleException("unsupported java version.")
+      }
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
-        dependsOn ':sdks:java:container:java8:docker'
+        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"

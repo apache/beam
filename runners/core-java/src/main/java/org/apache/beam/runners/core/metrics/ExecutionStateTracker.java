@@ -141,14 +141,16 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   /** Reset the execution status. */
-  public void reset() {
-    trackedThread = null;
+  public synchronized void reset() {
+    if (trackedThread != null) {
+      CURRENT_TRACKERS.remove(trackedThread.getId());
+      trackedThread = null;
+    }
     currentState = null;
     numTransitions = 0;
     millisSinceLastTransition = 0;
     transitionsAtLastSample = 0;
     nextLullReportMs = LULL_REPORT_MS;
-    CURRENT_TRACKERS.entrySet().removeIf(entry -> entry.getValue() == this);
   }
 
   @VisibleForTesting

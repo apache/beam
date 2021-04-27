@@ -58,6 +58,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public final class ZetaSqlCalciteTranslationUtils {
+  // Maximum and minimum allowed values for the NUMERIC/DECIMAL data type.
+  // https://github.com/google/zetasql/blob/master/docs/data-types.md#decimal-type
+  public static final BigDecimal ZETASQL_NUMERIC_MAX_VALUE =
+      new BigDecimal("99999999999999999999999999999.999999999");
+  public static final BigDecimal ZETASQL_NUMERIC_MIN_VALUE =
+      new BigDecimal("-99999999999999999999999999999.999999999");
+  // Number of digits after the decimal point supported by the NUMERIC data type.
+  public static final int ZETASQL_NUMERIC_SCALE = 9;
 
   private ZetaSqlCalciteTranslationUtils() {}
 

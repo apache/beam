@@ -41,8 +41,6 @@ python setup.py nosetests --tests=apache_beam.io.external.snowflake_test \
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import binascii
 import logging

@@ -18,10 +18,10 @@
 //
 // Integration tests are implemented through Go's test framework, as test
 // functions that create and execute pipelines using the ptest package. Tests
-// should be placed in appropriate sub-packages for organizational purposes, and
-// to allow greater parallelism, since tests are only run in parallel across
-// different packages. Integration tests should always begin with a call to
-// CheckFilters to allow the test to be filtered.
+// should be placed in smaller sub-packages for organizational purposes and
+// parallelism (tests are only run in parallel across different packages).
+// Integration tests should always begin with a call to CheckFilters to ensure
+// test filters can be applied.
 //
 // Running integration tests can be done with a go test call with any flags that
 // are required by the test pipelines, such as --runner or --endpoint.
@@ -51,12 +51,7 @@ import (
 
 // sickbay filters tests that fail due to Go SDK errors. These tests will not
 // execute on any runners.
-var sickbay = []string{
-	// TODO(BEAM-11418): These tests are currently failing with the Go SDK.
-	"TestXLang_CoGroupBy",
-	"TestXLang_Multi",
-	"TestXLang_Partition",
-}
+var sickbay = []string{}
 
 // Runner-specific test filters, for features that are not yet supported on
 // specific runners.
@@ -81,10 +76,13 @@ var sparkFilters = []string{
 }
 
 var dataflowFilters = []string{
-	// TODO(BEAM-11574): XLang needs to be enabled for Dataflow.
-	"TestXLang.*",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
+	// TODO(BEAM-11418): These tests require implementing x-lang artifact
+	// staging on Dataflow.
+	"TestXLang_CoGroupBy",
+	"TestXLang_Multi",
+	"TestXLang_Partition",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

@@ -69,11 +69,17 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews.HasDefaultValue;
 import org.apache.beam.sdk.values.PCollectionViews.IterableViewFn;
+import org.apache.beam.sdk.values.PCollectionViews.IterableViewFn2;
 import org.apache.beam.sdk.values.PCollectionViews.ListViewFn;
+import org.apache.beam.sdk.values.PCollectionViews.ListViewFn2;
 import org.apache.beam.sdk.values.PCollectionViews.MapViewFn;
+import org.apache.beam.sdk.values.PCollectionViews.MapViewFn2;
 import org.apache.beam.sdk.values.PCollectionViews.MultimapViewFn;
+import org.apache.beam.sdk.values.PCollectionViews.MultimapViewFn2;
 import org.apache.beam.sdk.values.PCollectionViews.SingletonViewFn;
+import org.apache.beam.sdk.values.PCollectionViews.SingletonViewFn2;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
@@ -104,7 +110,13 @@ public class IsmSideInputReader implements SideInputReader {
   private static final Object NULL_PLACE_HOLDER = new Object();
 
   private static final ImmutableList<Class<? extends ViewFn>> KNOWN_SINGLETON_VIEW_TYPES =
-      ImmutableList.of(SingletonViewFn.class, MapViewFn.class, MultimapViewFn.class);
+      ImmutableList.of(
+          SingletonViewFn.class,
+          SingletonViewFn2.class,
+          MapViewFn.class,
+          MapViewFn2.class,
+          MultimapViewFn.class,
+          MultimapViewFn2.class);
 
   /**
    * Limit the number of concurrent initializations.
@@ -302,7 +314,7 @@ public class IsmSideInputReader implements SideInputReader {
       // We handle the singleton case separately since a null value may be returned.
       // We use a null place holder to represent this, and when we detect it, we translate
       // back to null for the user.
-      if (viewFn instanceof SingletonViewFn) {
+      if (viewFn instanceof SingletonViewFn || viewFn instanceof SingletonViewFn2) {
         ViewT rval =
             executionContext
                 .<PCollectionViewWindow<ViewT>, ViewT>getLogicalReferenceCache()
@@ -311,7 +323,7 @@ public class IsmSideInputReader implements SideInputReader {
                     () -> {
                       @SuppressWarnings("unchecked")
                       ViewT viewT =
-                          getSingletonForWindow(tag, (SingletonViewFn<ViewT>) viewFn, window);
+                          getSingletonForWindow(tag, (HasDefaultValue<ViewT>) viewFn, window);
                       @SuppressWarnings("unchecked")
                       ViewT nullPlaceHolder = (ViewT) NULL_PLACE_HOLDER;
                       return viewT == null ? nullPlaceHolder : viewT;
@@ -319,7 +331,10 @@ public class IsmSideInputReader implements SideInputReader {
         return rval == NULL_PLACE_HOLDER ? null : rval;
       } else if (singletonMaterializedTags.contains(tag)) {
         checkArgument(
-            viewFn instanceof MapViewFn || viewFn instanceof MultimapViewFn,
+            viewFn instanceof MapViewFn
+                || viewFn instanceof MapViewFn2
+                || viewFn instanceof MultimapViewFn
+                || viewFn instanceof MultimapViewFn2,
             "Unknown view type stored as singleton. Expected one of %s, got %s",
             KNOWN_SINGLETON_VIEW_TYPES,
             viewFn.getClass().getName());
@@ -336,15 +351,19 @@ public class IsmSideInputReader implements SideInputReader {
             .get(
                 PCollectionViewWindow.of(view, window),
                 () -> {
-                  if (viewFn instanceof IterableViewFn || viewFn instanceof ListViewFn) {
+                  if (viewFn instanceof IterableViewFn
+                      || viewFn instanceof IterableViewFn2
+                      || viewFn instanceof ListViewFn
+                      || viewFn instanceof ListViewFn2) {
                     @SuppressWarnings("unchecked")
                     ViewT viewT = (ViewT) getListForWindow(tag, window);
                     return viewT;
-                  } else if (viewFn instanceof MapViewFn) {
+                  } else if (viewFn instanceof MapViewFn || viewFn instanceof MapViewFn2) {
                     @SuppressWarnings("unchecked")
                     ViewT viewT = (ViewT) getMapForWindow(tag, window);
                     return viewT;
-                  } else if (viewFn instanceof MultimapViewFn) {
+                  } else if (viewFn instanceof MultimapViewFn
+                      || viewFn instanceof MultimapViewFn2) {
                     @SuppressWarnings("unchecked")
                     ViewT viewT = (ViewT) getMultimapForWindow(tag, window);
                     return viewT;
@@ -375,7 +394,7 @@ public class IsmSideInputReader implements SideInputReader {
    * </ul>
    */
   private <T, W extends BoundedWindow> T getSingletonForWindow(
-      TupleTag<?> viewTag, SingletonViewFn<T> viewFn, W window) throws IOException {
+      TupleTag<?> viewTag, HasDefaultValue<T> viewFn, W window) throws IOException {
     @SuppressWarnings({
       "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
       "unchecked"

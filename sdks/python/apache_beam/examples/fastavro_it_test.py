@@ -24,7 +24,7 @@ verifies they have the same elements.
 Usage:
 
   DataFlowRunner:
-    python setup.py nosetests --tests apache_beam.examples.fastavro_it_test \
+    pytest apache_beam/examples/fastavro_it_test.py \
         --test-pipeline-options="
           --runner=TestDataflowRunner
           --project=...
@@ -36,7 +36,7 @@ Usage:
         "
 
   DirectRunner:
-    python setup.py nosetests --tests apache_beam.examples.fastavro_it_test \
+    pytest apache_beam/examples/fastavro_it_test.py \
       --test-pipeline-options="
         --output=/tmp
         --records=5000
@@ -45,16 +45,14 @@ Usage:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import json
 import logging
 import unittest
 import uuid
 
+import pytest
+from avro.schema import Parse
 from fastavro import parse_schema
-from nose.plugins.attrib import attr
 
 from apache_beam.io.avroio import ReadAllFromAvro
 from apache_beam.io.avroio import WriteToAvro
@@ -66,13 +64,6 @@ from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.util import CoGroupByKey
-
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from avro.schema import Parse  # avro-python3 library for python3
-except ImportError:
-  from avro.schema import parse as Parse  # avro library for python2
-# pylint: enable=wrong-import-order, wrong-import-position
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
 COLORS = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'PURPLE', None]
@@ -107,7 +98,7 @@ class FastavroIT(unittest.TestCase):
     self.uuid = str(uuid.uuid4())
     self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_avro_it(self):
     num_records = self.test_pipeline.get_option('records')
     num_records = int(num_records) if num_records else 1000000

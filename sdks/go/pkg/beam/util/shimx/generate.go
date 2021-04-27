@@ -47,6 +47,7 @@ var (
 	TypexImport    = "github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	ReflectxImport = "github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	RuntimeImport  = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	SchemaImport   = "github.com/apache/beam/sdks/go/pkg/beam/core/graphx/schema"
 )
 
 func validateBeamImports() {
@@ -54,6 +55,7 @@ func validateBeamImports() {
 	checkImportSuffix(TypexImport, "typex")
 	checkImportSuffix(ReflectxImport, "reflectx")
 	checkImportSuffix(RuntimeImport, "runtime")
+	checkImportSuffix(SchemaImport, "schema")
 }
 
 func checkImportSuffix(path, suffix string) {
@@ -111,6 +113,18 @@ func (t Top) processImports() *Top {
 	if len(t.Inputs) > 0 {
 		pred["fmt"] = true
 		pred["io"] = true
+	}
+	// This should definitley be happening earlier though.
+	var filteredTypes []string
+	for _, t := range t.Types {
+		if !strings.HasPrefix(t, "beam.") {
+			filteredTypes = append(filteredTypes, t)
+		}
+	}
+	t.Types = filteredTypes
+	if len(t.Types) > 0 {
+		filtered = append(filtered, SchemaImport)
+		pred[SchemaImport] = true
 	}
 	if len(t.Types) > 0 || len(t.Functions) > 0 {
 		filtered = append(filtered, RuntimeImport)
@@ -245,6 +259,7 @@ func init() {
 {{- end}}
 {{- range $x := .Types}}
 	runtime.RegisterType(reflect.TypeOf((*{{$x}})(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*{{$x}})(nil)).Elem())
 {{- end}}
 {{- range $x := .Wraps}}
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*{{$x.Type}})(nil)).Elem(), wrapMaker{{$x.Name}})

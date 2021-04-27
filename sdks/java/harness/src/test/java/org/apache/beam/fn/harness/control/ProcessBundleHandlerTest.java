@@ -75,6 +75,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingConsumer;
@@ -227,7 +228,7 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
-    ExecutionStateTracker getStateTracker() {
+    public ExecutionStateTracker getStateTracker() {
       return wrappedBundleProcessor.getStateTracker();
     }
 
@@ -275,10 +276,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             null,
             beamFnDataClient,
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(),
             new BundleProcessorCache());
 
@@ -301,10 +304,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             null,
             beamFnDataClient,
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(),
             new BundleProcessorCache());
 
@@ -389,10 +394,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN, startFinishRecorder,
                 DATA_OUTPUT_URN, startFinishRecorder),
@@ -508,10 +515,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateClient */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             urnToPTransformRunnerFactoryMap,
             new BundleProcessorCache());
 
@@ -554,10 +563,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (pipelineOptions,
@@ -690,10 +701,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (pipelineOptions,
@@ -743,10 +756,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             mockFinalizeBundleHandler,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -812,10 +827,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -871,10 +888,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 (PTransformRunnerFactory<Object>)
@@ -966,10 +985,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             mockBeamFnStateGrpcClient,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
@@ -1032,10 +1053,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {
@@ -1096,10 +1119,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
             PipelineOptionsFactory.create(),
+            Collections.emptySet(),
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
             null /* finalizeBundleHandler */,
+            new ShortIdMap(),
             ImmutableMap.of(
                 DATA_INPUT_URN,
                 new PTransformRunnerFactory<Object>() {

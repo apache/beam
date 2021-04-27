@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import re
 import urllib
@@ -82,7 +79,9 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
               self._jar)
       return self._jar
     else:
-      return self.path_to_beam_jar(':runners:spark:2:job-server:shadowJar')
+      return self.path_to_beam_jar(
+          ':runners:spark:2:job-server:shadowJar',
+          artifact_id='beam-runners-spark-job-server')
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):

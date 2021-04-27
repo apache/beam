@@ -18,38 +18,31 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcSplittingRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
 
-/** {@link ConverterRule} to replace {@link Calc} with {@link BeamCalcRel}. */
-public class BeamJavaUdfCalcRule extends ConverterRule {
+/**
+ * A {@link BeamCalcSplittingRule} to replace {@link Calc} with {@link BeamCalcRel}.
+ *
+ * <p>Equivalent to {@link BeamCalcRule} but with limits to supported types and operators.
+ *
+ * <p>This class is intended only for testing purposes. See {@link BeamZetaSqlCalcSplittingRule}.
+ */
+public class BeamJavaUdfCalcRule extends BeamCalcSplittingRule {
   public static final BeamJavaUdfCalcRule INSTANCE = new BeamJavaUdfCalcRule();
 
   private BeamJavaUdfCalcRule() {
-    super(
-        LogicalCalc.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamJavaUdfCalcRule");
+    super("BeamJavaUdfCalcRule");
   }
 
   @Override
-  public boolean matches(RelOptRuleCall x) {
-    return ZetaSQLQueryPlanner.hasOnlyJavaUdfInProjects(x);
-  }
-
-  @Override
-  public RelNode convert(RelNode rel) {
-    final Calc calc = (Calc) rel;
-    final RelNode input = calc.getInput();
-
-    return new BeamCalcRel(
-        calc.getCluster(),
-        calc.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        RelOptRule.convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        calc.getProgram());
+  protected CalcRelSplitter.RelType[] getRelTypes() {
+    // "Split" the Calc between two identical RelTypes. The second one is just a placeholder; if the
+    // first isn't usable, the second one won't be usable either, and the planner will fail.
+    return new CalcRelSplitter.RelType[] {
+      new BeamCalcRelType("BeamCalcRelType"), new BeamCalcRelType("BeamCalcRelType2")
+    };
   }
 }

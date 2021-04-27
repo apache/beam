@@ -22,7 +22,7 @@
 import unittest
 from functools import wraps
 
-from nose.plugins.attrib import attr
+import pytest
 from parameterized import parameterized_class
 
 from apache_beam.options.pipeline_options import DebugOptions
@@ -54,7 +54,7 @@ def skip_unless_v2(fn):
   return wrapped
 
 
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class CombineFnLifecycleTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = TestPipeline(is_integration_test=True)

@@ -282,18 +282,11 @@ class Environment(object):
     # Dataflow workers.
     environments_to_use = self._get_environments_from_tranforms()
     if _use_unified_worker(options):
-      # Adding a SDK container image for the pipeline SDKs
-      container_image = dataflow.SdkHarnessContainerImage()
-      pipeline_sdk_container_image = get_container_image_from_options(options)
-      container_image.containerImage = pipeline_sdk_container_image
-      container_image.useSingleCorePerContainer = True  # True for Python SDK.
-      pool.sdkHarnessContainerImages.append(container_image)
-
-      already_added_containers = [pipeline_sdk_container_image]
+      python_sdk_container_image = get_container_image_from_options(options)
 
       # Adding container images for other SDKs that may be needed for
       # cross-language pipelines.
-      for environment in environments_to_use:
+      for id, environment in environments_to_use:
         if environment.urn != common_urns.environments.DOCKER.urn:
           raise Exception(
               'Dataflow can only execute pipeline steps in Docker environments.'
@@ -301,26 +294,14 @@ class Environment(object):
         environment_payload = proto_utils.parse_Bytes(
             environment.payload, beam_runner_api_pb2.DockerPayload)
         container_image_url = environment_payload.container_image
-        if container_image_url in already_added_containers:
-          # Do not add the pipeline environment again.
-
-          # Currently, Dataflow uses Docker container images to uniquely
-          # identify execution environments. Hence Dataflow executes all
-          # transforms that specify the the same Docker container image in a
-          # single container instance. Dependencies of all environments that
-          # specify a given container image will be staged in the container
-          # instance for that particular container image.
-          # TODO(BEAM-9455): loosen this restriction to support multiple
-          # environments with the same container image when Dataflow supports
-          # environment specific artifact provisioning.
-          continue
-        already_added_containers.append(container_image_url)
 
         container_image = dataflow.SdkHarnessContainerImage()
         container_image.containerImage = container_image_url
         # Currently we only set following to True for Python SDK.
         # TODO: set this correctly for remote environments that might be Python.
-        container_image.useSingleCorePerContainer = False
+        container_image.useSingleCorePerContainer = (
+            container_image_url == python_sdk_container_image)
+        container_image.environmentId = id
         pool.sdkHarnessContainerImages.append(container_image)
 
     if self.debug_options.number_of_worker_harness_threads:
@@ -365,9 +346,12 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
 
-    if self.google_cloud_options.service_options:
-      for option in self.google_cloud_options.service_options:
+    if self.google_cloud_options.dataflow_service_options:
+      for option in self.google_cloud_options.dataflow_service_options:
         self.proto.serviceOptions.append(option)
+
+    if self.google_cloud_options.enable_hot_key_logging:
+      self.proto.debugOptions = dataflow.DebugOptions(enableHotKeyLogging=True)
 
   def _get_environments_from_tranforms(self):
     if not self._proto_pipeline:
@@ -378,10 +362,8 @@ class Environment(object):
         for transform in self._proto_pipeline.components.transforms.values()
         if transform.environment_id)
 
-    return [
-        self._proto_pipeline.components.environments[id]
-        for id in environment_ids
-    ]
+    return [(id, self._proto_pipeline.components.environments[id])
+            for id in environment_ids]
 
   def _get_python_sdk_name(self):
     python_version = '%d.%d' % (sys.version_info[0], sys.version_info[1])
@@ -668,13 +650,6 @@ class DataflowApplicationClient(object):
     template_location = (
         job.options.view_as(GoogleCloudOptions).template_location)
 
-    job_location = template_location or dataflow_job_file
-    if job_location:
-      gcs_or_local_path = os.path.dirname(job_location)
-      file_name = os.path.basename(job_location)
-      self.stage_file(
-          gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
-
     if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
       self.stage_file(
           job.options.view_as(GoogleCloudOptions).staging_location,
@@ -684,6 +659,15 @@ class DataflowApplicationClient(object):
       job.proto.stepsLocation = FileSystems.join(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json")
+
+    # template file generation should be placed immediately before the
+    # conditional API call.
+    job_location = template_location or dataflow_job_file
+    if job_location:
+      gcs_or_local_path = os.path.dirname(job_location)
+      file_name = os.path.basename(job_location)
+      self.stage_file(
+          gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
 
     if not template_location:
       return self.submit_job_description(job)
@@ -719,8 +703,7 @@ class DataflowApplicationClient(object):
       overridden = False
       new_container_image = docker_payload.container_image
       for pattern, override in sdk_overrides.items():
-        new_container_image = re.sub(
-            pattern, override, docker_payload.container_image)
+        new_container_image = re.sub(pattern, override, new_container_image)
         if new_container_image != docker_payload.container_image:
           overridden = True
 
@@ -1114,8 +1097,8 @@ def get_container_image_from_options(pipeline_options):
       str: Container image for remote execution.
   """
   worker_options = pipeline_options.view_as(WorkerOptions)
-  if worker_options.worker_harness_container_image:
-    return worker_options.worker_harness_container_image
+  if worker_options.sdk_container_image:
+    return worker_options.sdk_container_image
 
   use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.

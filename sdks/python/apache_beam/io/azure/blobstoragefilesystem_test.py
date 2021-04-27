@@ -20,13 +20,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
-# patches unittest.TestCase to be python3 compatible.
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 from apache_beam.io.filesystem import BeamIOError

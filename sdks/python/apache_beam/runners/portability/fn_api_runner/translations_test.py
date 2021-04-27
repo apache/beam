@@ -16,12 +16,10 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import runners
@@ -228,9 +226,12 @@ class TranslationsTest(unittest.TestCase):
     assert_is_topologically_sorted(
         optimized_pipeline_proto.root_transform_ids[0], set())
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_per_key(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         # These CombinePerKey stages will be packed if and only if
         # translations.pack_combiners is enabled in the TestPipeline runner.
@@ -255,8 +256,12 @@ class TranslationsTest(unittest.TestCase):
           | Create([('a', x) for x in vals])
           | 'multiple-combines' >> MultipleCombines())
 
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_globally(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         # These CombineGlobally stages will be packed if and only if
         # translations.eliminate_common_key_with_void and

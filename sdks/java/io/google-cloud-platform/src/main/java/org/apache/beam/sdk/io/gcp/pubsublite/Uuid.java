@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import com.google.protobuf.ByteString;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.DefaultCoder;
 
@@ -49,6 +50,9 @@ public abstract class Uuid {
     } catch (IOException e) {
       throw new RuntimeException("Should never have an IOException since there is no io.", e);
     }
-    return Uuid.of(output.toByteString());
+    // Encode to Base64 so the random UUIDs are valid if consumed from the Cloud Pub/Sub client.
+    return Uuid.of(
+        ByteString.copyFrom(
+            Base64.getEncoder().encode(output.toByteString().asReadOnlyByteBuffer())));
   }
 }

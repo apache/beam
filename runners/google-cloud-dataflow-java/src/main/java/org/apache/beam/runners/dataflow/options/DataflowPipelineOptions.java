@@ -95,8 +95,6 @@ public interface DataflowPipelineOptions
   void setUpdate(boolean value);
 
   /** If set, the snapshot from which the job should be created. */
-  @Hidden
-  @Experimental
   @Description("If set, the snapshot from which the job should be created.")
   String getCreateFromSnapshot();
 
@@ -117,9 +115,9 @@ public interface DataflowPipelineOptions
   @Description(
       "Service options are set by the user and configure the service. This "
           + "decouples service side feature availability from the Apache Beam release cycle.")
-  List<String> getServiceOptions();
+  List<String> getDataflowServiceOptions();
 
-  void setServiceOptions(List<String> options);
+  void setDataflowServiceOptions(List<String> options);
 
   /** Run the job as a specific service account, instead of the default GCE robot. */
   @Hidden

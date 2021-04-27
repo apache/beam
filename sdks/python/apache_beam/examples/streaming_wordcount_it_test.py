@@ -19,15 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 import uuid
-from builtins import range
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples import streaming_wordcount
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
@@ -80,7 +77,7 @@ class StreamingWordCountIT(unittest.TestCase):
     test_utils.cleanup_topics(
         self.pub_client, [self.input_topic, self.output_topic])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
     expected_msg = [('%d: 1' % num).encode('utf-8')

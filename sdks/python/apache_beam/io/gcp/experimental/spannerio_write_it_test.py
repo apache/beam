@@ -15,14 +15,12 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
 import logging
 import random
 import unittest
 import uuid
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -105,7 +103,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     cls._create_database()
     _LOGGER.info('Spanner Write IT Setup Complete...')
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_write_batches(self):
     _prefex = 'test_write_batches'
     mutations = [
@@ -131,7 +129,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     res.wait_until_finish()
     self.assertEqual(self._count_data(_prefex), len(mutations))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_spanner_update(self):
     _prefex = 'test_update'
 
@@ -167,7 +165,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     res.wait_until_finish()
     self.assertEqual(self._count_data(_prefex), 2)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_spanner_error(self):
     mutations_update = [
         WriteMutation.update(

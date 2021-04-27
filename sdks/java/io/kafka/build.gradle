@@ -48,6 +48,7 @@ kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-construction-java")
   compile project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   compile library.java.avro

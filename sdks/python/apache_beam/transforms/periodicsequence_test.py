@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
+import inspect
 import time
 import unittest
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -80,6 +76,25 @@ class PeriodicSequenceTest(unittest.TestCase):
       k = [('key', [it + x * interval])
            for x in range(0, int(duration / interval), 1)]
       assert_that(actual, equal_to(k))
+
+  def test_periodicimpulse_default_start(self):
+    default_parameters = inspect.signature(PeriodicImpulse).parameters
+    it = default_parameters["start_timestamp"].default
+    duration = 1
+    et = it + duration
+    interval = 0.5
+
+    # Check default `stop_timestamp` is the same type `start_timestamp`
+    is_same_type = isinstance(
+        it, type(default_parameters["stop_timestamp"].default))
+    error = "'start_timestamp' and 'stop_timestamp' have different type"
+    assert is_same_type, error
+
+    with TestPipeline() as p:
+      result = p | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval)
+
+      k = [it + x * interval for x in range(0, int(duration / interval))]
+      assert_that(result, equal_to(k))
 
   def test_periodicsequence_outputs_valid_sequence_in_past(self):
     start_offset = -10000

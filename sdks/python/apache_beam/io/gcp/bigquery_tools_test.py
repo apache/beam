@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import io
@@ -30,11 +28,8 @@ import time
 import unittest
 
 import fastavro
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import,ungrouped-imports
 import mock
 import pytz
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
@@ -44,6 +39,7 @@ from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery_tools import check_schema_equal
 from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
 from apache_beam.io.gcp.bigquery_tools import parse_table_reference
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
@@ -123,6 +119,17 @@ class TestTableReferenceParser(unittest.TestCase):
     projectId = 'test_project'
     datasetId = 'test_dataset'
     tableId = 'test_table'
+    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
+    parsed_ref = parse_table_reference(fully_qualified_table)
+    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertEqual(parsed_ref.projectId, projectId)
+    self.assertEqual(parsed_ref.datasetId, datasetId)
+    self.assertEqual(parsed_ref.tableId, tableId)
+
+  def test_calling_with_hyphened_table_ref(self):
+    projectId = 'test_project'
+    datasetId = 'test_dataset'
+    tableId = 'test-table'
     fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
     parsed_ref = parse_table_reference(fully_qualified_table)
     self.assertIsInstance(parsed_ref, bigquery.TableReference)
@@ -385,6 +392,35 @@ class TestBigQueryWrapper(unittest.TestCase):
     location = wrapper.get_query_location(
         project_id="second_project_id", query=query, use_legacy_sql=False)
     self.assertEqual("US", location)
+
+  def test_perform_load_job_source_mutual_exclusivity(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    # Both source_uri and source_stream specified.
+    with self.assertRaises(ValueError):
+      wrapper.perform_load_job(
+          destination=parse_table_reference('project:dataset.table'),
+          job_id='job_id',
+          source_uris=['gs://example.com/*'],
+          source_stream=io.BytesIO())
+
+    # Neither source_uri nor source_stream specified.
+    with self.assertRaises(ValueError):
+      wrapper.perform_load_job(destination='P:D.T', job_id='J')
+
+  def test_perform_load_job_with_source_stream(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    wrapper.perform_load_job(
+        destination=parse_table_reference('project:dataset.table'),
+        job_id='job_id',
+        source_stream=io.BytesIO(b'some,data'))
+
+    client.jobs.Insert.assert_called_once()
+    upload = client.jobs.Insert.call_args[1]["upload"]
+    self.assertEqual(b'some,data', upload.stream.read())
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -826,7 +862,7 @@ class TestBigQueryWriter(unittest.TestCase):
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
     expected_rows = []
     json_object = bigquery.JsonObject()
-    for k, v in iteritems(sample_row):
+    for k, v in sample_row.items():
       json_object.additionalProperties.append(
           bigquery.JsonObject.AdditionalProperty(key=k, value=to_json_value(v)))
     expected_rows.append(
@@ -982,6 +1018,88 @@ class TestBQJobNames(unittest.TestCase):
     job_name = generate_bq_job_name(
         "beamapp-job-test", "abcd", BigQueryJobTypes.COPY)
     self.assertRegex(job_name, base_pattern)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestCheckSchemaEqual(unittest.TestCase):
+  def test_simple_schemas(self):
+    schema1 = bigquery.TableSchema(fields=[])
+    self.assertTrue(check_schema_equal(schema1, schema1))
+
+    schema2 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(name="a", mode="NULLABLE", type="INT64")
+        ])
+    self.assertTrue(check_schema_equal(schema2, schema2))
+    self.assertFalse(check_schema_equal(schema1, schema2))
+
+    schema3 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REPEATED",
+                type="RECORD",
+                fields=[
+                    bigquery.TableFieldSchema(
+                        name="c", mode="REQUIRED", type="BOOL")
+                ])
+        ])
+    self.assertTrue(check_schema_equal(schema3, schema3))
+    self.assertFalse(check_schema_equal(schema2, schema3))
+
+  def test_field_order(self):
+    """Test that field order is ignored when ignore_field_order=True."""
+    schema1 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a", mode="REQUIRED", type="FLOAT64"),
+            bigquery.TableFieldSchema(name="b", mode="REQUIRED", type="INT64"),
+        ])
+
+    schema2 = bigquery.TableSchema(fields=list(reversed(schema1.fields)))
+
+    self.assertFalse(check_schema_equal(schema1, schema2))
+    self.assertTrue(
+        check_schema_equal(schema1, schema2, ignore_field_order=True))
+
+  def test_descriptions(self):
+    """
+        Test that differences in description are ignored
+        when ignore_descriptions=True.
+        """
+    schema1 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a",
+                mode="REQUIRED",
+                type="FLOAT64",
+                description="Field A",
+            ),
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REQUIRED",
+                type="INT64",
+            ),
+        ])
+
+    schema2 = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name="a",
+                mode="REQUIRED",
+                type="FLOAT64",
+                description="Field A is for Apple"),
+            bigquery.TableFieldSchema(
+                name="b",
+                mode="REQUIRED",
+                type="INT64",
+                description="Field B",
+            ),
+        ])
+
+    self.assertFalse(check_schema_equal(schema1, schema2))
+    self.assertTrue(
+        check_schema_equal(schema1, schema2, ignore_descriptions=True))
 
 
 if __name__ == '__main__':

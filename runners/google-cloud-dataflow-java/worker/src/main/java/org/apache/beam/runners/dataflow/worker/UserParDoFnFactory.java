@@ -94,7 +94,8 @@ class UserParDoFnFactory implements ParDoFnFactory {
     DoFnInstanceManager instanceManager =
         fnCache.get(
             operationContext.nameContext().systemName(),
-            () -> DoFnInstanceManagers.cloningPool(doFnExtractor.getDoFnInfo(cloudUserFn)));
+            () ->
+                DoFnInstanceManagers.cloningPool(doFnExtractor.getDoFnInfo(cloudUserFn), options));
 
     DoFnInfo<?, ?> doFnInfo = instanceManager.peek();
 

@@ -17,13 +17,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import typing
 import unittest
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -63,7 +59,7 @@ JdbcWriteTestRow = typing.NamedTuple(
     [
         ("f_id", int),
         ("f_real", float),
-        ("f_string", unicode),
+        ("f_string", str),
     ],
 )
 coders.registry.register_coder(JdbcWriteTestRow, coders.RowCoder)

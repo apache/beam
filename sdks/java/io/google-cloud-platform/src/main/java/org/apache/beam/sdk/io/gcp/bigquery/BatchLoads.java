@@ -356,12 +356,13 @@ class BatchLoads<DestinationT, ElementT>
     tempTables
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
+            "Window Into Global Windows",
             Window.<KV<TableDestination, String>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-        .apply(WithKeys.of((Void) null))
+        .apply("Add Void Key", WithKeys.of((Void) null))
         .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
-        .apply(GroupByKey.create())
-        .apply(Values.create())
+        .apply("GroupByKey", GroupByKey.create())
+        .apply("Extract Values", Values.create())
         .apply(
             "WriteRenameTriggered",
             ParDo.of(
@@ -464,7 +465,7 @@ class BatchLoads<DestinationT, ElementT>
   // Generate the temporary-file prefix.
   private PCollectionView<String> createTempFilePrefixView(
       Pipeline p, final PCollectionView<String> jobIdView) {
-    return p.apply(Create.of(""))
+    return p.apply("Create dummy value", Create.of(""))
         .apply(
             "GetTempFilePrefix",
             ParDo.of(
@@ -573,6 +574,11 @@ class BatchLoads<DestinationT, ElementT>
   // of filename, file byte size, and table destination.
   PCollection<WriteBundlesToFiles.Result<DestinationT>> writeDynamicallyShardedFilesTriggered(
       PCollection<KV<DestinationT, ElementT>> input, PCollectionView<String> tempFilePrefix) {
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    Duration maxBufferingDuration =
+        options.getMaxBufferingDurationMilliSec() > 0
+            ? Duration.millis(options.getMaxBufferingDurationMilliSec())
+            : FILE_TRIGGERING_BATCHING_DURATION;
     // In contrast to fixed sharding with user trigger, here we use a global window with default
     // trigger and rely on GroupIntoBatches transform to group, batch and at the same time
     // parallelize properly. We also ensure that the files are written if a threshold number of
@@ -581,7 +587,7 @@ class BatchLoads<DestinationT, ElementT>
     return input
         .apply(
             GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                .withMaxBufferingDuration(FILE_TRIGGERING_BATCHING_DURATION)
+                .withMaxBufferingDuration(maxBufferingDuration)
                 .withShardedKey())
         .setCoder(
             KvCoder.of(

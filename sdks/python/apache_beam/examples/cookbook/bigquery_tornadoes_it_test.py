@@ -19,15 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import time
 import unittest
-from builtins import round
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.cookbook import bigquery_tornadoes
 from apache_beam.io.gcp.tests import utils
@@ -45,7 +42,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
   # from expected Bigquery table.
   DEFAULT_CHECKSUM = 'd860e636050c559a16a791aff40d6ad809d4daf0'
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_bigquery_tornadoes_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 

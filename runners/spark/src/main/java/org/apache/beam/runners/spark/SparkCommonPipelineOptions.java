@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.spark;
 
-import java.util.List;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
@@ -30,7 +32,8 @@ import org.apache.beam.sdk.options.StreamingOptions;
  * master address, and other user-related knobs.
  */
 public interface SparkCommonPipelineOptions
-    extends PipelineOptions, StreamingOptions, ApplicationNameOptions {
+    extends PipelineOptions, StreamingOptions, ApplicationNameOptions, FileStagingOptions {
+
   String DEFAULT_MASTER_URL = "local[4]";
 
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
@@ -47,20 +50,6 @@ public interface SparkCommonPipelineOptions
 
   void setCheckpointDir(String checkpointDir);
 
-  /**
-   * List of local files to make available to workers.
-   *
-   * <p>Jars are placed on the worker's classpath.
-   *
-   * <p>The default value is the list of jars from the main program's classpath.
-   */
-  @Description(
-      "Jar-Files to send to all workers and put on the classpath. "
-          + "The default value is all files from the classpath.")
-  List<String> getFilesToStage();
-
-  void setFilesToStage(List<String> value);
-
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
   Boolean getEnableSparkMetricSinks();
@@ -75,6 +64,18 @@ public interface SparkCommonPipelineOptions
     @Override
     public String create(PipelineOptions options) {
       return "/tmp/" + options.getJobName();
+    }
+  }
+
+  /**
+   * Classpath contains non jar files (eg. directories with .class files or empty directories) will
+   * cause exception in running log. Though the {@link org.apache.spark.SparkContext} can handle
+   * this when running in local master, it's better not to include non-jars files in classpath.
+   */
+  @Internal
+  static void prepareFilesToStage(SparkCommonPipelineOptions options) {
+    if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
+      PipelineResources.prepareFilesForStaging(options);
     }
   }
 }

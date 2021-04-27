@@ -204,10 +204,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
       BoundedWindow window = getWindow(value);
       SparkCombineContext ctx = context.ctxtForValue(value);
       TimestampCombiner combiner = context.windowingStrategy.getTimestampCombiner();
-      Instant windowTimestamp =
-          combiner.assign(
-              window,
-              context.windowingStrategy.getWindowFn().getOutputTime(value.getTimestamp(), window));
+      Instant windowTimestamp = combiner.assign(window, value.getTimestamp());
       final AccumT acc;
       final Instant timestamp;
       if (windowAccumulator == null) {
@@ -301,10 +298,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
         SparkCombineContext ctx = context.ctxtForValue(v);
         BoundedWindow window = getWindow(v);
         TimestampCombiner combiner = context.windowingStrategy.getTimestampCombiner();
-        Instant windowTimestamp =
-            combiner.assign(
-                window,
-                context.windowingStrategy.getWindowFn().getOutputTime(v.getTimestamp(), window));
+        Instant windowTimestamp = combiner.assign(window, v.getTimestamp());
         map.compute(
             window,
             (w, windowAccumulator) -> {
@@ -728,6 +722,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
           WindowedAccumulator.create(this, toValue, windowingStrategy, windowComparator);
       accumulator.add(value, this);
       return accumulator;
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
       throw new IllegalStateException(ex);
     }
@@ -743,6 +739,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
     try {
       accumulator.add(value, this);
       return accumulator;
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
       throw new IllegalStateException(ex);
     }
@@ -759,6 +757,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
     try {
       ac1.merge(ac2, this);
       return ac1;
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
       throw new IllegalStateException(ex);
     }

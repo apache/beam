@@ -17,38 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcSplittingRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
 
-/** A {@code ConverterRule} to replace {@link Calc} with {@link BeamZetaSqlCalcRel}. */
-public class BeamZetaSqlCalcRule extends ConverterRule {
+/** A {@link BeamCalcSplittingRule} to replace {@link Calc} with {@link BeamZetaSqlCalcRel}. */
+public class BeamZetaSqlCalcRule extends BeamCalcSplittingRule {
   public static final BeamZetaSqlCalcRule INSTANCE = new BeamZetaSqlCalcRule();
 
   private BeamZetaSqlCalcRule() {
-    super(
-        LogicalCalc.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamZetaSqlCalcRule");
+    super("BeamZetaSqlCalcRule");
   }
 
   @Override
-  public boolean matches(RelOptRuleCall x) {
-    return ZetaSQLQueryPlanner.hasNoJavaUdfInProjects(x);
-  }
-
-  @Override
-  public RelNode convert(RelNode rel) {
-    final Calc calc = (Calc) rel;
-    final RelNode input = calc.getInput();
-
-    return new BeamZetaSqlCalcRel(
-        calc.getCluster(),
-        calc.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        RelOptRule.convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        calc.getProgram());
+  protected CalcRelSplitter.RelType[] getRelTypes() {
+    // "Split" the Calc between two identical RelTypes. The second one is just a placeholder; if the
+    // first isn't usable, the second one won't be usable either, and the planner will fail.
+    return new CalcRelSplitter.RelType[] {
+      new BeamZetaSqlRelType("BeamZetaSqlRelType"), new BeamZetaSqlRelType("BeamZetaSqlRelType2")
+    };
   }
 }

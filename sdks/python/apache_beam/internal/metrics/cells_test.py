@@ -17,11 +17,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import threading
 import unittest
-from builtins import range
 
 from apache_beam.internal.metrics.cells import HistogramCell
 from apache_beam.internal.metrics.cells import HistogramCellFactory

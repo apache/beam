@@ -24,7 +24,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -53,7 +52,6 @@ public class SingleWindowFlinkCombineRunner<K, InputT, AccumT, OutputT, W extend
       Iterable<WindowedValue<KV<K, InputT>>> elements,
       Collector<WindowedValue<KV<K, OutputT>>> out) {
     final TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
-    final WindowFn<Object, W> windowFn = windowingStrategy.getWindowFn();
     final PeekingIterator<WindowedValue<KV<K, InputT>>> iterator =
         Iterators.peekingIterator(elements.iterator());
 
@@ -76,8 +74,7 @@ public class SingleWindowFlinkCombineRunner<K, InputT, AccumT, OutputT, W extend
                 sideInputReader,
                 Collections.singleton(currentWindow));
         Instant windowTimestamp =
-            timestampCombiner.assign(
-                currentWindow, windowFn.getOutputTime(currentValue.getTimestamp(), currentWindow));
+            timestampCombiner.assign(currentWindow, currentValue.getTimestamp());
         combinedState = new Tuple2<>(accumT, windowTimestamp);
       } else {
         combinedState.f0 =
@@ -91,11 +88,7 @@ public class SingleWindowFlinkCombineRunner<K, InputT, AccumT, OutputT, W extend
         combinedState.f1 =
             timestampCombiner.combine(
                 combinedState.f1,
-                timestampCombiner.assign(
-                    currentWindow,
-                    windowingStrategy
-                        .getWindowFn()
-                        .getOutputTime(currentValue.getTimestamp(), currentWindow)));
+                timestampCombiner.assign(currentWindow, currentValue.getTimestamp()));
       }
     }
 

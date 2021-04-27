@@ -19,20 +19,17 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import csv
 import io
 import json
 import logging
 import os
-import sys
 import unittest
 import uuid
 import warnings
 
+import pytest
 from hamcrest.library.text import stringmatches
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.io import fileio
@@ -57,10 +54,7 @@ warnings.filterwarnings(
 
 
 def _get_file_reader(readable_file):
-  if sys.version_info >= (3, 0):
-    return io.TextIOWrapper(readable_file.open())
-  else:
-    return readable_file.open()
+  return io.TextIOWrapper(readable_file.open())
 
 
 class MatchTest(_TestCaseWithTempDirCleanUp):
@@ -296,7 +290,7 @@ class MatchIntegrationTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_transform_on_gcs(self):
     args = self.test_pipeline.get_full_options_as_args()
 

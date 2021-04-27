@@ -134,11 +134,7 @@ class BatchGroupAlsoByWindowAndCombineFn<K, InputT, AccumT, OutputT, W extends B
       Collection<W> windows = (Collection<W>) e.getWindows();
       for (W window : windows) {
         Instant outputTime =
-            windowingStrategy
-                .getTimestampCombiner()
-                .assign(
-                    window,
-                    windowingStrategy.getWindowFn().getOutputTime(e.getTimestamp(), window));
+            windowingStrategy.getTimestampCombiner().assign(window, e.getTimestamp());
         Instant accumulatorOutputTime = accumulatorOutputTimestamps.get(window);
         if (accumulatorOutputTime == null) {
           accumulatorOutputTimestamps.put(window, outputTime);

@@ -25,17 +25,12 @@ This API is currently under development and is subject to change.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import re
-from builtins import object
 from typing import Any
 from typing import List
 from typing import NamedTuple
 from typing import Optional
-
-from future.utils import iteritems
-from past.builtins import unicode
+from typing import Tuple
 
 from apache_beam import coders
 from apache_beam.io.iobase import Read
@@ -124,7 +119,7 @@ class PubsubMessage(object):
     """
     msg = pubsub.types.pubsub_pb2.PubsubMessage()
     msg.data = self.data
-    for key, value in iteritems(self.attributes):
+    for key, value in self.attributes.items():
       msg.attributes[key] = value
     return msg.SerializeToString()
 
@@ -230,7 +225,7 @@ class _ReadStringsFromPubSub(PTransform):
         | ReadFromPubSub(
             self.topic, self.subscription, self.id_label, with_attributes=False)
         | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
-    p.element_type = unicode
+    p.element_type = str
     return p
 
 
@@ -337,7 +332,7 @@ SUBSCRIPTION_REGEXP = 'projects/([^/]+)/subscriptions/(.+)'
 TOPIC_REGEXP = 'projects/([^/]+)/topics/(.+)'
 
 
-def parse_topic(full_topic):
+def parse_topic(full_topic: str) -> Tuple[str, str]:
   match = re.match(TOPIC_REGEXP, full_topic)
   if not match:
     raise ValueError(
@@ -432,9 +427,9 @@ class _PubSubSink(dataflow_io.NativeSink):
   """
   def __init__(
       self,
-      topic,  # type: str
-      id_label,  # type: Optional[str]
-      timestamp_attribute  # type: Optional[str]
+      topic: str,
+      id_label: Optional[str],
+      timestamp_attribute: Optional[str],
   ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic

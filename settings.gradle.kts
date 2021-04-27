@@ -60,14 +60,6 @@ include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
 /* Begin Flink Runner related settings */
-// Flink 1.8
-include(":runners:flink:1.8")
-include(":runners:flink:1.8:job-server")
-include(":runners:flink:1.8:job-server-container")
-// Flink 1.9
-include(":runners:flink:1.9")
-include(":runners:flink:1.9:job-server")
-include(":runners:flink:1.9:job-server-container")
 // Flink 1.10
 include(":runners:flink:1.10")
 include(":runners:flink:1.10:job-server")
@@ -230,3 +222,5 @@ include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
+include("beam-validate-runner")
+project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")

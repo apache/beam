@@ -49,18 +49,13 @@ WindowFn.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import abc
-from builtins import object
-from builtins import range
 from functools import total_ordering
 from typing import Any
 from typing import Iterable
 from typing import List
 from typing import Optional
 
-from future.utils import with_metaclass
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
@@ -121,7 +116,7 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):  # type: ignore[misc]
+class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
   """An abstract windowing function defining a basic assign and merge."""
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""

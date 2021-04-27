@@ -21,11 +21,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import random
-from builtins import object
 
 from apache_beam.io.gcp.datastore.v1new import util
 

@@ -82,12 +82,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
@@ -584,7 +584,8 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testZoneAndWorkerRegionMutuallyExclusive() {
-    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
     options.setZone("us-east1-b");
     options.setWorkerRegion("us-east1");
     assertThrows(
@@ -593,7 +594,8 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testZoneAndWorkerZoneMutuallyExclusive() {
-    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
     options.setZone("us-east1-b");
     options.setWorkerZone("us-east1-c");
     assertThrows(
@@ -602,7 +604,8 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testExperimentRegionAndWorkerRegionMutuallyExclusive() {
-    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     ExperimentalOptions.addExperiment(dataflowOptions, "worker_region=us-west1");
     options.setWorkerRegion("us-east1");
@@ -612,7 +615,8 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testExperimentRegionAndWorkerZoneMutuallyExclusive() {
-    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     ExperimentalOptions.addExperiment(dataflowOptions, "worker_region=us-west1");
     options.setWorkerZone("us-east1-b");
@@ -622,7 +626,8 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testWorkerRegionAndWorkerZoneMutuallyExclusive() {
-    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
     options.setWorkerRegion("us-east1");
     options.setWorkerZone("us-east1-b");
     assertThrows(
@@ -631,11 +636,34 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testZoneAliasWorkerZone() {
-    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
     options.setZone("us-east1-b");
     DataflowRunner.validateWorkerSettings(options);
     assertNull(options.getZone());
     assertEquals("us-east1-b", options.getWorkerZone());
+  }
+
+  @Test
+  public void testAliasForLegacyWorkerHarnessContainerImage() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    String testImage = "image.url:worker";
+    options.setWorkerHarnessContainerImage(testImage);
+    DataflowRunner.validateWorkerSettings(options);
+    assertEquals(testImage, options.getWorkerHarnessContainerImage());
+    assertEquals(testImage, options.getSdkContainerImage());
+  }
+
+  @Test
+  public void testAliasForSdkContainerImage() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    String testImage = "image.url:sdk";
+    options.setSdkContainerImage("image.url:sdk");
+    DataflowRunner.validateWorkerSettings(options);
+    assertEquals(testImage, options.getWorkerHarnessContainerImage());
+    assertEquals(testImage, options.getSdkContainerImage());
   }
 
   @Test
@@ -693,7 +721,7 @@ public class DataflowRunnerTest implements Serializable {
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
     p.apply(TextIO.read().from(options.getInput()));
-    DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
+    DataflowRunner.fromOptions(dataflowOptions).replaceV1Transforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
     p.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -1342,7 +1370,12 @@ public class DataflowRunnerTest implements Serializable {
 
     p.apply(Create.of(Arrays.asList(1, 2, 3)));
 
-    SdkComponents sdkComponents = SdkComponents.create(options);
+    String defaultSdkContainerImage = DataflowRunner.getContainerImageForJob(options);
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.Environment defaultEnvironmentForDataflow =
+        Environments.createDockerEnvironment(defaultSdkContainerImage);
+    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow.toBuilder().build());
+
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
 
     Job job =
@@ -1355,34 +1388,38 @@ public class DataflowRunnerTest implements Serializable {
                 Collections.emptyList())
             .getJob();
 
-    String defaultSdkContainerImage = DataflowRunner.getContainerImageForJob(options);
-    DataflowRunner.configureSdkHarnessContainerImages(
-        options, pipelineProto, job, defaultSdkContainerImage);
+    DataflowRunner.configureSdkHarnessContainerImages(options, pipelineProto, job);
     List<SdkHarnessContainerImage> sdks =
         job.getEnvironment().getWorkerPools().get(0).getSdkHarnessContainerImages();
 
-    Set<String> expected =
-        pipelineProto.getComponents().getEnvironmentsMap().values().stream()
+    Map<String, String> expectedEnvIdsAndContainerImages =
+        pipelineProto.getComponents().getEnvironmentsMap().entrySet().stream()
             .filter(
                 x ->
                     BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)
-                        .equals(x.getUrn()))
-            .map(
-                x -> {
-                  RunnerApi.DockerPayload payload;
-                  try {
-                    payload = RunnerApi.DockerPayload.parseFrom(x.getPayload());
-                  } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return payload.getContainerImage();
-                })
-            .collect(Collectors.toSet());
-    expected.add(defaultSdkContainerImage);
+                        .equals(x.getValue().getUrn()))
+            .collect(
+                Collectors.toMap(
+                    x -> x.getKey(),
+                    x -> {
+                      RunnerApi.DockerPayload payload;
+                      try {
+                        payload = RunnerApi.DockerPayload.parseFrom(x.getValue().getPayload());
+                      } catch (InvalidProtocolBufferException e) {
+                        throw new RuntimeException(e);
+                      }
+                      return payload.getContainerImage();
+                    }));
 
+    assertEquals(1, expectedEnvIdsAndContainerImages.size());
+    assertEquals(1, sdks.size());
     assertEquals(
-        expected,
-        sdks.stream().map(SdkHarnessContainerImage::getContainerImage).collect(Collectors.toSet()));
+        expectedEnvIdsAndContainerImages,
+        sdks.stream()
+            .collect(
+                Collectors.toMap(
+                    SdkHarnessContainerImage::getEnvironmentId,
+                    SdkHarnessContainerImage::getContainerImage)));
   }
 
   private void verifyMapStateUnsupported(PipelineOptions options) throws Exception {
@@ -1401,13 +1438,6 @@ public class DataflowRunnerTest implements Serializable {
     thrown.expectMessage("MapState");
     thrown.expect(UnsupportedOperationException.class);
     p.run();
-  }
-
-  @Test
-  public void testMapStateUnsupportedRunnerV2() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
-    verifyMapStateUnsupported(options);
   }
 
   @Test
@@ -1436,14 +1466,6 @@ public class DataflowRunnerTest implements Serializable {
     thrown.expectMessage("SetState");
     thrown.expect(UnsupportedOperationException.class);
     p.run();
-  }
-
-  @Test
-  public void testSetStateUnsupportedRunnerV2() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
-    Pipeline.create(options);
-    verifySetStateUnsupported(options);
   }
 
   @Test
@@ -1583,15 +1605,33 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testWorkerHarnessContainerImage() {
+  public void testGetContainerImageForJobFromOption() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
-    // default image set
-    options.setWorkerHarnessContainerImage("some-container");
-    assertThat(getContainerImageForJob(options), equalTo("some-container"));
+    String[] testCases = {
+      "some-container",
+
+      // It is important that empty string is preserved, as
+      // dataflowWorkerJar relies on being passed an empty value vs
+      // not providing the container image option at all.
+      "",
+    };
+
+    for (String testCase : testCases) {
+      // When image option is set, should use that exact image.
+      options.setSdkContainerImage(testCase);
+      assertThat(getContainerImageForJob(options), equalTo(testCase));
+    }
+  }
+
+  @Test
+  public void testGetContainerImageForJobFromOptionWithPlaceholder() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    // When image option contains placeholder, container image should
+    // have placeholder replaced with default image for job.
+    options.setSdkContainerImage("gcr.io/IMAGE/foo");
 
     // batch, legacy
-    options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
     options.setExperiments(null);
     options.setStreaming(false);
     System.setProperty("java.specification.version", "1.8");

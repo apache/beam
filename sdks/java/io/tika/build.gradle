@@ -22,8 +22,8 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.tika')
 description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
 ext.summary = "Tika Input to parse files."
 
-def tika_version = "1.24.1"
-def bndlib_version = "1.43.0"
+def tika_version = "1.26"
+def bndlib_version = "1.50.0"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre

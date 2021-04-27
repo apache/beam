@@ -18,9 +18,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 
 def count_globally(test=None):
   # [START count_globally]

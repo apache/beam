@@ -65,7 +65,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     return new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
       @Override
       public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> application) throws Exception {
-        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application));
+        return DoFnLifecycleManager.of(
+            ParDoTranslation.getDoFn(application), application.getPipeline().getOptions());
       }
     };
   }

@@ -76,6 +76,11 @@ public class BeamFnTimerGrpcClient implements BeamFnTimerClient {
       }
 
       @Override
+      public void runWhenComplete(Runnable completeRunnable) {
+        inbound.runWhenComplete(completeRunnable);
+      }
+
+      @Override
       public boolean isDone() {
         return inbound.isDone();
       }

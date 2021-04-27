@@ -45,7 +45,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20210310',
+    'dataflow.container_version' : 'beam-master-20210427',
+    'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
 
@@ -72,10 +73,13 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":runners:core-construction-java")
   compile library.java.avro
   compile library.java.bigdataoss_util
+  compile library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  permitUnusedDeclared library.java.flogger_system_backend
   compile library.java.google_api_client
   compile library.java.google_api_services_clouddebugger
   compile library.java.google_api_services_dataflow
@@ -144,7 +148,7 @@ def runnerV2PipelineOptions = [
   "--project=${dataflowProject}",
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+  "--sdkContainerImage=${dockerImageContainer}:${dockerTag}",
   // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
   "--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=appliance",
 ]
@@ -309,12 +313,12 @@ task validatesRunnerStreaming {
     name: 'validatesRunnerLegacyWorkerTestStreaming',
     pipelineOptions: legacyPipelineOptions + ['--streaming=true'],
     excludedCategories: [
+      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+      'org.apache.beam.sdk.testing.UsesMapState',
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+      'org.apache.beam.sdk.testing.UsesSetState',
+      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering',
     ],
-    excludedTests: [
-      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests'
-    ]
   ))
 }
 
@@ -588,7 +592,6 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   exclude '**/AutoCompleteIT.class'
   // TODO(BEAM-11201): test times out.
   exclude '**/FhirIOReadIT.class'
-  exclude '**/MapClassIntegrationIT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest

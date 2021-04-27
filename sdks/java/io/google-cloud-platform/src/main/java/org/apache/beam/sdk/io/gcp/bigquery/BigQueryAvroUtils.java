@@ -78,6 +78,7 @@ class BigQueryAvroUtils {
           .put("INTEGER", Type.LONG)
           .put("FLOAT", Type.DOUBLE)
           .put("NUMERIC", Type.BYTES)
+          .put("BIGNUMERIC", Type.BYTES)
           .put("BOOLEAN", Type.BOOLEAN)
           .put("TIMESTAMP", Type.LONG)
           .put("RECORD", Type.RECORD)
@@ -331,6 +332,7 @@ class BigQueryAvroUtils {
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
         return v;
       case "NUMERIC":
+      case "BIGNUMERIC":
         // NUMERIC data types are represented as BYTES with the DECIMAL logical type. They are
         // converted back to Strings with precision and scale determined by the logical type.
         verify(v instanceof ByteBuffer, "Expected ByteBuffer, got %s", v.getClass());

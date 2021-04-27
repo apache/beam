@@ -109,7 +109,7 @@ public class BeamUnnestRule extends RelOptRule {
         new BeamUnnestRel(
             correlate.getCluster(),
             correlate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-            outer,
+            convert(outer, outer.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
             call.rel(2).getRowType(),
             fieldAccessIndices.build()));
   }

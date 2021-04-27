@@ -19,10 +19,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
-import sys
 import unittest
 
 import mock
@@ -173,12 +170,8 @@ class BigqueryFullResultStreamingMatcher(unittest.TestCase):
     mock__query_with_retry.side_effect = lambda: []
     matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
         'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
-    if sys.version_info >= (3, ):
-      with self.assertRaises(TimeoutError):  # noqa: F821
-        matcher._get_query_result()
-    else:
-      with self.assertRaises(RuntimeError):
-        matcher._get_query_result()
+    with self.assertRaises(TimeoutError):  # noqa: F821
+      matcher._get_query_result()
 
 
 if __name__ == '__main__':

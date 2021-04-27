@@ -264,13 +264,22 @@ public final class DynamoDBIO {
       @ProcessElement
       public void processElement(@Element Read<T> spec, OutputReceiver<T> out) {
         DynamoDbClient client = spec.getDynamoDbClientProvider().getDynamoDbClient();
+        Map<String, AttributeValue> lastEvaluatedKey = null;
 
-        ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
-        ScanRequest scanRequestWithSegment =
-            scanRequest.toBuilder().segment(spec.getSegmentId()).build();
+        do {
+          ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
+          ScanRequest scanRequestWithSegment =
+              scanRequest
+                  .toBuilder()
+                  .segment(spec.getSegmentId())
+                  .exclusiveStartKey(lastEvaluatedKey)
+                  .build();
 
-        ScanResponse scanResponse = client.scan(scanRequestWithSegment);
-        out.output(spec.getScanResponseMapperFn().apply(scanResponse));
+          ScanResponse scanResponse = client.scan(scanRequestWithSegment);
+          out.output(spec.getScanResponseMapperFn().apply(scanResponse));
+          lastEvaluatedKey = scanResponse.lastEvaluatedKey();
+        } while (lastEvaluatedKey != null
+            && !lastEvaluatedKey.isEmpty()); // iterate until all records are fetched
       }
     }
 

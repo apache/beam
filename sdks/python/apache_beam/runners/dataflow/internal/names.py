@@ -41,10 +41,10 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20210318'
+BEAM_CONTAINER_VERSION = 'beam-master-20210331'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20210318'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20210331'
 
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
@@ -108,6 +108,7 @@ class PropertyNames(object):
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
   PUBSUB_TIMESTAMP_ATTRIBUTE = 'pubsub_timestamp_label'
   PUBSUB_TOPIC = 'pubsub_topic'
+  RESOURCE_HINTS = 'resource_hints'
   RESTRICTION_ENCODING = 'restriction_encoding'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'

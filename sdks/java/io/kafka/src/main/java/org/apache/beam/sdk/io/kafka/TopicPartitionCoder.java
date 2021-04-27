@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.common.TopicPartition;
 
 /** The {@link Coder} for encoding and decoding {@link TopicPartition} in Beam. */
@@ -48,7 +49,7 @@ public class TopicPartitionCoder extends StructuredCoder<TopicPartition> {
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return null;
+    return ImmutableList.of(StringUtf8Coder.of(), VarIntCoder.of());
   }
 
   @Override

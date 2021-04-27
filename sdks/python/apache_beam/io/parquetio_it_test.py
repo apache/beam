@@ -16,16 +16,12 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import string
-import sys
 import unittest
 from collections import Counter
 
-from nose.plugins.attrib import attr
+import pytest
 
 from apache_beam import Create
 from apache_beam import DoFn
@@ -50,19 +46,13 @@ except ImportError:
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 class TestParquetIT(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     pass
 
   def tearDown(self):
     pass
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_parquetio_it(self):
     file_prefix = "parquet_it_test"
     init_size = 10

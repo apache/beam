@@ -50,6 +50,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -147,7 +149,11 @@ public class ReadTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({
+    NeedsRunner.class,
+    UsesUnboundedPCollections.class,
+    UsesUnboundedSplittableParDo.class
+  })
   public void testUnboundedSdfWrapperCacheStartedReaders() {
     long numElements = 1000L;
     PCollection<Long> input =
@@ -164,7 +170,11 @@ public class ReadTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({
+    NeedsRunner.class,
+    UsesUnboundedPCollections.class,
+    UsesUnboundedSplittableParDo.class
+  })
   public void testWatermarkAdvanceOnClaimFail() {
     // NOTE: this test is supposed to run only against DirectRunner
     // as for other runners it might not be working the interception of watermark

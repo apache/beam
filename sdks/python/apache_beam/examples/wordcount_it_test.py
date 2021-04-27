@@ -19,15 +19,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples import wordcount
 from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
@@ -48,22 +46,23 @@ class WordCountIT(unittest.TestCase):
   # input of WordCount example.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
-  @attr('IT', 'ValidatesContainer')
+  @pytest.mark.it_validatescontainer
+  @pytest.mark.it_postcommit
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
 
-  @attr('ValidatesContainer')
+  @pytest.mark.it_validatescontainer
   def test_wordcount_it_with_prebuilt_sdk_container_local_docker(self):
     self._run_wordcount_it(
         wordcount.run,
         experiment='beam_fn_api',
         prebuild_sdk_container_engine='local_docker')
 
-  @attr('ValidatesContainer')
+  @pytest.mark.it_validatescontainer
   def test_wordcount_it_with_prebuilt_sdk_container_cloud_build(self):
     self._run_wordcount_it(
         wordcount.run,

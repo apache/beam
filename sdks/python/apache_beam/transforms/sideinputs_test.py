@@ -19,12 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
+import itertools
 import logging
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -147,7 +146,7 @@ class SideInputsTest(unittest.TestCase):
                                       }),
                                   ])
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_empty_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -165,7 +164,8 @@ class SideInputsTest(unittest.TestCase):
 
   # TODO(BEAM-5025): Disable this test in streaming temporarily.
   # Remove sickbay-streaming tag after it's fixed.
-  @attr('ValidatesRunner', 'sickbay-streaming')
+  @pytest.mark.no_sickbay_streaming
+  @pytest.mark.it_validatesrunner
   def test_multi_valued_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -175,7 +175,7 @@ class SideInputsTest(unittest.TestCase):
     with self.assertRaises(Exception):
       pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_default_value_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -185,7 +185,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([10, 20]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_iterable_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -195,7 +195,34 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([3, 4, 6, 8]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
+  def test_reiterable_side_input(self):
+    expected_side = frozenset(range(100))
+
+    def check_reiteration(main, side):
+      assert expected_side == set(side), side
+      # Iterate a second time.
+      assert expected_side == set(side), side
+      # Iterate over two copies of the input at the same time.
+      both = zip(side, side)
+      first, second = zip(*both)
+      assert expected_side == set(first), first
+      assert expected_side == set(second), second
+      # This will iterate over two copies of the side input, but offset.
+      offset = [None] * (len(expected_side) // 2)
+      both = zip(itertools.chain(side, offset), itertools.chain(offset, side))
+      first, second = zip(*both)
+      expected_and_none = frozenset.union(expected_side, [None])
+      assert expected_and_none == set(first), first
+      assert expected_and_none == set(second), second
+
+    pipeline = self.create_pipeline()
+    pcol = pipeline | 'start' >> beam.Create(['A', 'B'])
+    side = pipeline | 'side' >> beam.Create(expected_side)
+    _ = pcol | 'check' >> beam.Map(check_reiteration, beam.pvalue.AsIter(side))
+    pipeline.run()
+
+  @pytest.mark.it_validatesrunner
   def test_as_list_and_as_dict_side_inputs(self):
     a_list = [5, 1, 3, 2, 9]
     some_pairs = [('crouton', 17), ('supreme', None)]
@@ -222,7 +249,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, a_list, some_pairs))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_as_singleton_without_unique_labels(self):
     # This should succeed as calling beam.pvalue.AsSingleton on the same
     # PCollection twice with the same defaults will return the same
@@ -250,7 +277,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, 2))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_as_singleton_with_different_defaults(self):
     a_list = []
     pipeline = self.create_pipeline()
@@ -275,7 +302,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, 2, 3))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_as_list_twice(self):
     # This should succeed as calling beam.pvalue.AsList on the same
     # PCollection twice will return the same view.
@@ -302,7 +329,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, [1, 2, 3]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_as_dict_twice(self):
     some_kvs = [('a', 1), ('b', 2)]
     pipeline = self.create_pipeline()
@@ -327,7 +354,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, some_kvs))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_flattened_side_input(self):
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([None])
@@ -341,7 +368,9 @@ class SideInputsTest(unittest.TestCase):
     pipeline.run()
 
   # TODO(BEAM-9499): Disable this test in streaming temporarily.
-  @attr('ValidatesRunner', 'sickbay-batch', 'sickbay-streaming')
+  @pytest.mark.no_sickbay_batch
+  @pytest.mark.no_sickbay_streaming
+  @pytest.mark.it_validatesrunner
   def test_multi_triggered_gbk_side_input(self):
     """Test a GBK sideinput, with multiple triggering."""
     # TODO(BEAM-9322): Remove use of this experiment.

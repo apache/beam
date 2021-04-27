@@ -25,12 +25,8 @@ context.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import threading
 import time
-from builtins import object
 from datetime import datetime
 from typing import Any
 from typing import Optional

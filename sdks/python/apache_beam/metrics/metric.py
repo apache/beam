@@ -27,10 +27,7 @@ and displayed as part of their pipeline execution.
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-
 import logging
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import FrozenSet
