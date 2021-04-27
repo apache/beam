@@ -518,8 +518,8 @@
       "gridPos": {
         "h": 9,
         "w": 12,
-        "x": 12,
-        "y": 9
+        "x": 0,
+        "y": 18
       },
       "hiddenSeries": false,
       "id": 6,
@@ -560,7 +560,7 @@
               "type": "time"
             }
           ],
-          "measurement": "python_bqio_read",
+          "measurement": "python_spannerio_read",
           "orderByTime": "ASC",
           "policy": "default",
           "query": "SELECT mean(\"value\") FROM \"python_spannerio_read_2GB_results\" WHERE \"metric\" = 'pyspanner_read_2GB_results_runtime' AND $timeFilter GROUP BY time($__interval), \"metric\"",
@@ -641,7 +641,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 18
       },
       "hiddenSeries": false,
       "id": 7,
@@ -682,7 +682,7 @@
               "type": "time"
             }
           ],
-          "measurement": "python_bqio_read",
+          "measurement": "python_spannerio_write",
           "orderByTime": "ASC",
           "policy": "default",
           "query": "SELECT mean(\"value\") FROM \"python_spanner_write_2GB_results\" WHERE \"metric\" = 'pyspanner_write_2GB_results_runtime' AND $timeFilter GROUP BY time($__interval), \"metric\"",
