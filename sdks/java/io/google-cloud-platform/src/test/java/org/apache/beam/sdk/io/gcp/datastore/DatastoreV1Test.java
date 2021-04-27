@@ -129,8 +129,6 @@ public class DatastoreV1Test {
   @Mock QuerySplitter mockQuerySplitter;
   @Mock
   V1DatastoreFactory mockDatastoreFactory;
-  @Mock
-  RampupThrottlerTransform<Mutation> mockThrottlerTransform;
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -299,7 +297,7 @@ public class DatastoreV1Test {
     int numShards = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject")
-        .withNumThrottlerShards(numShards);
+        .withHintNumWorkers(numShards);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -311,7 +309,7 @@ public class DatastoreV1Test {
         displayData,
         hasItem(hasDisplayItem("upsertFn")));
     assertThat(
-        "DatastoreIO write should include ramp-up throttling shards if enabled",
+        "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
         hasItem(hasDisplayItem("numThrottlerShards", numShards))
     );
@@ -333,7 +331,7 @@ public class DatastoreV1Test {
         displayData,
         hasItem(hasDisplayItem("upsertFn")));
     assertThat(
-        "DatastoreIO write should include ramp-up throttling shards if enabled",
+        "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
         not(hasItem(hasDisplayItem("numThrottlerShards")))
     );
@@ -345,7 +343,7 @@ public class DatastoreV1Test {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
         DatastoreIO.v1().deleteEntity().withProjectId("myProject")
-            .withNumThrottlerShards(numShards);
+            .withHintNumWorkers(numShards);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -357,7 +355,7 @@ public class DatastoreV1Test {
         displayData,
         hasItem(hasDisplayItem("deleteEntityFn")));
     assertThat(
-        "DatastoreIO write should include ramp-up throttling shards if enabled",
+        "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
         hasItem(hasDisplayItem("numThrottlerShards", numShards))
     );
@@ -365,10 +363,10 @@ public class DatastoreV1Test {
 
   @Test
   public void testDeleteKeyPrimitiveDisplayData() {
-    int numShards = 10;
+    int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Key>, ?> write = DatastoreIO.v1().deleteKey().withProjectId("myProject")
-        .withNumThrottlerShards(numShards);
+        .withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -380,9 +378,9 @@ public class DatastoreV1Test {
         displayData,
         hasItem(hasDisplayItem("deleteKeyFn")));
     assertThat(
-        "DatastoreIO write should include ramp-up throttling shards if enabled",
+        "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
-        hasItem(hasDisplayItem("numThrottlerShards", numShards))
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers))
     );
   }
 

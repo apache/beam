@@ -66,7 +66,7 @@ public class V1WriteIT {
     p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo
             .of(new CreateEntityFn(options.getKind(), options.getNamespace(), ancestor, 1, 0, 4)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(2));
+        .apply(DatastoreIO.v1().write().withProjectId(project).withHintNumWorkers(2));
 
     p.run().waitUntilFinish();
 
@@ -101,7 +101,7 @@ public class V1WriteIT {
             ParDo.of(
                 new CreateEntityFn(
                     options.getKind(), options.getNamespace(), ancestor, 0, 1, rawPropertySize)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(2));
+        .apply(DatastoreIO.v1().write().withProjectId(project).withHintNumWorkers(2));
 
     p.run().waitUntilFinish();
 

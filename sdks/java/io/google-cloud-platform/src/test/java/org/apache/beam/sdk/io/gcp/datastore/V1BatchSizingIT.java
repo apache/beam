@@ -27,6 +27,8 @@ import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.CreateEntityFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,7 +63,7 @@ public class V1BatchSizingIT {
     p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo
             .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 1, 0, 4)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
+        .apply(DatastoreIO.v1().write().withProjectId(project));
 
     // Completed successfully.
     State state = p.run().waitUntilFinish();
@@ -76,7 +78,7 @@ public class V1BatchSizingIT {
     p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo
             .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 20, 0, 4)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
+        .apply(DatastoreIO.v1().write().withProjectId(project).withHintNumWorkers(20));
 
     // Completed successfully.
     State state = p.run().waitUntilFinish();
@@ -91,7 +93,7 @@ public class V1BatchSizingIT {
     p.apply(GenerateSequence.from(0).to(10_000_000))
         .apply(ParDo
             .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 100, 0, 4)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
+        .apply(DatastoreIO.v1().write().withProjectId(project).withHintNumWorkers(20));
 
     // Completed successfully.
     State state = p.run().waitUntilFinish();
@@ -106,7 +108,7 @@ public class V1BatchSizingIT {
     p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo
             .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 500, 0, 4)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
+        .apply(DatastoreIO.v1().write().withProjectId(project).withHintNumWorkers(20));
 
     // Completed successfully.
     State state = p.run().waitUntilFinish();
@@ -122,7 +124,7 @@ public class V1BatchSizingIT {
         .apply(ParDo
             .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 0, 500,
                 1_000)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withNumThrottlerShards(20));
+        .apply(DatastoreIO.v1().write().withProjectId(project).withHintNumWorkers(20));
 
     // Completed successfully.
     State state = p.run().waitUntilFinish();

@@ -149,9 +149,8 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
           "--gcpTempLocation=${gcpTempRoot}",
-          "--numWorkers=20",
-          "--autoscalingAlgorithm=NONE",
-          "--experiments=shuffle_mode=service"
+//          "--numWorkers=20",
+//          "--autoscalingAlgorithm=NONE",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
