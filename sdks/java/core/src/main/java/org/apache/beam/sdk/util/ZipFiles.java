@@ -37,7 +37,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharSource;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 
 /**
@@ -188,15 +187,8 @@ public final class ZipFiles {
         !zipFile.exists(),
         "%s does already exist, files are not being overwritten",
         zipFile.getAbsolutePath());
-    Closer closer = Closer.create();
-    try {
-      OutputStream outputStream =
-          closer.register(new BufferedOutputStream(new FileOutputStream(zipFile)));
+    try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(zipFile))) {
       zipDirectory(sourceDirectory, outputStream);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -219,12 +211,12 @@ public final class ZipFiles {
         "%s is not a valid directory",
         sourceDirectory.getAbsolutePath());
 
-    ZipOutputStream zos = new ZipOutputStream(outputStream);
-    for (File file : sourceDirectory.listFiles()) {
-      zipDirectoryInternal(file, "", zos);
+    try (ZipOutputStream zos = new ZipOutputStream(outputStream)) {
+      for (File file : sourceDirectory.listFiles()) {
+        zipDirectoryInternal(file, "", zos);
+      }
+      zos.finish();
     }
-    zos.finish();
-    zos.close();
   }
 
   /**
