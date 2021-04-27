@@ -36,10 +36,11 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   private transient MovingFunction successfulOps;
   private Instant firstInstant;
 
-  @VisibleForTesting Sleeper sleeper = Sleeper.DEFAULT;
+  @VisibleForTesting transient Sleeper sleeper;
 
   public RampupThrottlingFn(int numWorkers) {
     this.numWorkers = numWorkers;
+    this.sleeper = Sleeper.DEFAULT;
     this.successfulOps = new MovingFunction(
         Duration.standardSeconds(1).getMillis(),
         Duration.standardSeconds(1).getMillis(),
@@ -63,6 +64,7 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
 
   @Setup
   public void setup() {
+    this.sleeper = Sleeper.DEFAULT;
     this.successfulOps = new MovingFunction(
         Duration.standardSeconds(1).getMillis(),
         Duration.standardSeconds(1).getMillis(),
@@ -93,7 +95,7 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
 
       long backoffMillis = backoff.nextBackOffMillis();
       LOG.info("Delaying by {}ms to conform to gradual ramp-up.", backoffMillis);
-      // throttlingMsecs.inc(backoffMillis);
+      throttlingMsecs.inc(backoffMillis);
       sleeper.sleep(backoffMillis);
     }
   }
