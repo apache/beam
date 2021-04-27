@@ -223,8 +223,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               .stateInternalsForKey(null)
               .state(StateNamespaces.global(), StateTags.bag(bundleStateId, windowedValueCoder));
       final ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-      stageContext =
-          SamzaExecutableStageContextFactory.getInstance().get(jobInfo);
+      stageContext = SamzaExecutableStageContextFactory.getInstance().get(jobInfo);
       stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
       this.fnRunner =
           SamzaDoFnRunners.createPortable(
