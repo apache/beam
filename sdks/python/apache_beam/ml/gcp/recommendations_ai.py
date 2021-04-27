@@ -220,7 +220,7 @@ class ImportCatalogItems(PTransform):
       raise ValueError(
           'GCP project name needs to be specified in "project" pipeline option')
     return (
-        pcoll | GroupIntoBatches(self.max_batch_size) | ParDo(
+        pcoll | GroupIntoBatches.WithShardedKey(self.max_batch_size) | ParDo(
             _ImportCatalogItemsFn(
                 self.project,
                 self.retry,
@@ -423,7 +423,7 @@ class ImportUserEvents(PTransform):
       raise ValueError(
           'GCP project name needs to be specified in "project" pipeline option')
     return (
-        pcoll | GroupIntoBatches(self.max_batch_size) | ParDo(
+        pcoll | GroupIntoBatches.WithShardedKey(self.max_batch_size) | ParDo(
             _ImportUserEventsFn(
                 self.project,
                 self.retry,
