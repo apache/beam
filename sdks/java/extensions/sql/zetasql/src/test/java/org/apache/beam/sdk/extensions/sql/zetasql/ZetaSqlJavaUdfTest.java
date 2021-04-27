@@ -42,14 +42,11 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -88,15 +85,6 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
               emptyJarPathProperty, ZetaSqlJavaUdfTest.class.getSimpleName()));
     }
     initialize();
-
-    // Add BeamZetaSqlCalcSplittingRule to planner to enable UDFs.
-    this.config =
-        Frameworks.newConfigBuilder(config)
-            .ruleSets(
-                ZetaSQLQueryPlanner.getZetaSqlRuleSets(
-                        ImmutableList.of(BeamZetaSqlCalcSplittingRule.INSTANCE))
-                    .toArray(new RuleSet[0]))
-            .build();
   }
 
   @Test
@@ -221,9 +209,6 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore(
-      "Re-enable when ZetaSQLQueryPlanner has UDFs enabled by default. "
-          + "Until then, this test fails because we can't pass a ZetaSQLQueryPlanner instance to SqlTransform.")
   public void testSqlTransformRegisterUdf() {
     String sql = "SELECT increment(0);";
     PCollection<Row> stream =
