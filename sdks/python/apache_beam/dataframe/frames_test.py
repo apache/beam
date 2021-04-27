@@ -1051,6 +1051,14 @@ class DeferredFrameTest(unittest.TestCase):
     # projecting only numeric columns should too
     self._run_test(lambda df: df[['foo', 'bar']].sum(), GROUPBY_DF)
 
+  def test_insert(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+
+    self._run_inplace_test(lambda df: df.insert(1, 'C', df.A * 2), df)
+    self._run_inplace_test(
+        lambda df: df.insert(0, 'foo', pd.Series([8], index=[1])), df)
+    self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
