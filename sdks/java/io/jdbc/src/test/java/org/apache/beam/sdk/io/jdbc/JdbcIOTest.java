@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -459,7 +460,7 @@ public class JdbcIOTest implements Serializable {
     pipeline.run();
     commitThread.join();
 
-    // we verify the the backoff has been called thanks to the log message
+    // we verify that the backoff has been called thanks to the log message
     expectedLogs.verifyWarn("Deadlock detected, retrying");
 
     assertRowCount(tableName, 2);
@@ -897,5 +898,13 @@ public class JdbcIOTest implements Serializable {
 
     // Since the pipeline was unable to write, only the row from insertStatement was written.
     assertRowCount(tableName, 1);
+  }
+
+  @Test
+  public void testDefaultRetryStrategy() {
+    final JdbcIO.RetryStrategy strategy = new JdbcIO.DefaultRetryStrategy();
+    assertTrue(strategy.apply(new SQLException("SQL deadlock", "40001")));
+    assertTrue(strategy.apply(new SQLException("PostgreSQL deadlock", "40P01")));
+    assertFalse(strategy.apply(new SQLException("Other code", "40X01")));
   }
 }
