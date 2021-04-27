@@ -131,7 +131,6 @@ class CreateCatalogItem(PTransform):
 
 
 class _CreateCatalogItemFn(DoFn):
-
   def __init__(
       self,
       project: str = None,
