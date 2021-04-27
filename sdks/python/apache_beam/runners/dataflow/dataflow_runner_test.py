@@ -862,8 +862,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         _ = pcoll | 'PackableMax' >> beam.CombineGlobally(max)
 
     runner = DataflowRunner()
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
+    options = PipelineOptions(self.default_properties)
+    options.view_as(DebugOptions).add_experiment('use_unified_worker')
+    with beam.Pipeline(runner=runner, options=options) as p:
       _ = p | beam.Create([10, 20, 30]) | PackableCombines()
 
     unpacked_minimum_step_name = (
