@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Sta
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
-import org.apache.beam.sdk.extensions.sql.impl.SqlExecutableStatement;
 import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteSchema;
@@ -37,7 +36,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlP
  * Base class for parse trees of {@code DROP TABLE}, {@code DROP VIEW} and {@code DROP MATERIALIZED
  * VIEW} statements.
  */
-abstract class SqlDropObject extends SqlDrop implements SqlExecutableStatement {
+abstract class SqlDropObject extends SqlDrop implements BeamSqlParser.ExecutableStatement {
   protected final SqlIdentifier name;
 
   /** Creates a SqlDropObject. */

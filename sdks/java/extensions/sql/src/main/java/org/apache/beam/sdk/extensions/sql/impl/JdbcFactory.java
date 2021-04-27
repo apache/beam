@@ -26,7 +26,7 @@ import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.C
 import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.CalciteConnectionProperty.TYPE_SYSTEM;
 
 import java.util.Properties;
-import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
+import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -95,7 +95,7 @@ class JdbcFactory extends CalciteFactoryWrapper {
 
     setIfNull(info, TIME_ZONE, "UTC");
     setIfNull(info, LEX, Lex.JAVA.name());
-    setIfNull(info, PARSER_FACTORY, BeamSqlParserImpl.class.getName() + "#FACTORY");
+    setIfNull(info, PARSER_FACTORY, BeamSqlParser.class.getName() + "#FACTORY");
     setIfNull(info, TYPE_SYSTEM, BeamRelDataTypeSystem.class.getName());
     setIfNull(info, SCHEMA, TOP_LEVEL_BEAM_SCHEMA);
     setIfNull(info, SCHEMA_FACTORY, BeamCalciteSchemaFactory.AllProviders.class.getName());
