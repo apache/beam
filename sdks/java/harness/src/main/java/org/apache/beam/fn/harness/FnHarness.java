@@ -317,6 +317,12 @@ public class FnHarness {
 
       JvmInitializers.runBeforeProcessing(options);
 
+      String samplingPeriodMills =
+          ExperimentalOptions.getExperimentValue(
+              options, ExperimentalOptions.STATE_SAMPLING_PERIOD_MILLIS);
+      if (samplingPeriodMills != null) {
+        ExecutionStateSampler.setSamplingPeriod(Integer.parseInt(samplingPeriodMills));
+      }
       ExecutionStateSampler.instance().start();
 
       LOG.info("Entering instruction processing loop");
