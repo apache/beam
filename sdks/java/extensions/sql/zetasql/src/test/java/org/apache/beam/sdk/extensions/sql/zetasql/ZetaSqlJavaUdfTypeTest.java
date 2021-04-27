@@ -33,8 +33,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -128,15 +126,7 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
         "test_float64",
         ScalarFunctionImpl.create(DoubleIdentityFn.class.getMethod("eval", Double.class)));
 
-    this.config =
-        Frameworks.newConfigBuilder(config)
-            .defaultSchema(schema)
-            // Add BeamZetaSqlCalcSplittingRule to planner to enable UDFs.
-            .ruleSets(
-                ZetaSQLQueryPlanner.getZetaSqlRuleSets(
-                        ImmutableList.of(BeamZetaSqlCalcSplittingRule.INSTANCE))
-                    .toArray(new RuleSet[0]))
-            .build();
+    this.config = Frameworks.newConfigBuilder(config).defaultSchema(schema).build();
   }
 
   public static class BooleanIdentityFn implements BeamSqlUdf {
