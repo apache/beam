@@ -149,6 +149,7 @@ import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -805,6 +806,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
+    @Ignore("https://issues.apache.org/jira/browse/BEAM-12230")
     public void testUsingMetrics() throws Exception {
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
       MetricsContainerImpl metricsContainer = metricsContainerRegistry.getUnboundContainer();
