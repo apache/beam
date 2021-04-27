@@ -20,7 +20,7 @@
 Code: beam/sdks/python/apache_beam/examples/complete/game/hourly_team_score.py
 Usage:
 
-  python setup.py nosetests --test-pipeline-options=" \
+  pytest --test-pipeline-options=" \
       --runner=TestDataflowRunner \
       --project=... \
       --region=... \
@@ -36,8 +36,8 @@ Usage:
 import logging
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.complete.game import hourly_team_score
 from apache_beam.io.gcp.tests import utils
@@ -63,7 +63,7 @@ class HourlyTeamScoreIT(unittest.TestCase):
     self.dataset_ref = utils.create_bq_dataset(
         self.project, self.OUTPUT_DATASET)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_hourly_team_score_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
     query = (

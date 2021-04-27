@@ -144,14 +144,15 @@ public class SqlAnalyzer {
         .setEnabledLanguageFeatures(
             new HashSet<>(
                 Arrays.asList(
-                    LanguageFeature.FEATURE_NUMERIC_TYPE,
-                    LanguageFeature.FEATURE_DISALLOW_GROUP_BY_FLOAT,
-                    LanguageFeature.FEATURE_V_1_2_CIVIL_TIME,
-                    LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
-                    LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
+                    LanguageFeature.FEATURE_CREATE_AGGREGATE_FUNCTION,
                     LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
+                    LanguageFeature.FEATURE_DISALLOW_GROUP_BY_FLOAT,
+                    LanguageFeature.FEATURE_NUMERIC_TYPE,
+                    LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
                     LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS,
-                    LanguageFeature.FEATURE_CREATE_AGGREGATE_FUNCTION)));
+                    LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
+                    LanguageFeature.FEATURE_V_1_2_CIVIL_TIME,
+                    LanguageFeature.FEATURE_V_1_3_ADDITIONAL_STRING_FUNCTIONS)));
     options.getLanguageOptions().setSupportedStatementKinds(SUPPORTED_STATEMENT_KINDS);
 
     return options;

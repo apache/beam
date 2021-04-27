@@ -392,6 +392,10 @@ public class Schema implements Serializable {
       builder.append(field);
       builder.append(System.lineSeparator());
     }
+    builder.append("Encoding positions:");
+    builder.append(System.lineSeparator());
+    builder.append(encodingPositions);
+    builder.append(System.lineSeparator());
     builder.append("Options:");
     builder.append(options);
     return builder.toString();

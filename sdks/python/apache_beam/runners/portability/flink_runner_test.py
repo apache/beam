@@ -16,9 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import argparse
 import logging
 import shlex
@@ -31,7 +28,6 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 import pytest
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import Impulse
@@ -61,7 +57,7 @@ from apache_beam.transforms.sql import SqlTransform
 
 _LOGGER = logging.getLogger(__name__)
 
-Row = typing.NamedTuple("Row", [("col1", int), ("col2", unicode)])
+Row = typing.NamedTuple("Row", [("col1", int), ("col2", str)])
 beam.coders.registry.register_coder(Row, beam.coders.RowCoder)
 
 
