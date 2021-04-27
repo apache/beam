@@ -44,7 +44,7 @@ dependencies {
     compile 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
     compile 'com.google.api.grpc:proto-google-cloud-vision-v1:1.81.3'
     compile 'com.google.api.grpc:proto-google-cloud-recommendations-ai-v1beta1:0.3.7'
-    compile "joda-time:joda-time:2.10.10"
+    compile library.java.joda_time
     compile library.java.auto_value_annotations
     compile library.java.gax
     compile library.java.protobuf_java
@@ -53,8 +53,8 @@ dependencies {
     testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
     compile 'com.google.cloud:google-cloud-vision:1.99.3'
     testCompile library.java.mockito_core
-    testCompile group: 'com.google.http-client', name: 'google-http-client', version: '1.38.0'
-    testCompile group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.14.0'
+    testCompile library.java.google_http_client
+    testCompile library.java.protobuf_java_util
     testCompile group: 'org.json', name: 'json', version: '20201115'
     testCompile 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
     testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
