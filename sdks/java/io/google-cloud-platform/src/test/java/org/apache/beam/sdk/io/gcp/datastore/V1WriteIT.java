@@ -41,7 +41,7 @@ public class V1WriteIT {
   private V1TestOptions options;
   private String project;
   private String ancestor;
-  private final long numEntities = 100_000;
+  private final long numEntities = 1000;
 
   @Before
   public void setup() {
@@ -61,14 +61,12 @@ public class V1WriteIT {
   public void testE2EV1Write() throws Exception {
     Pipeline p = Pipeline.create(options);
 
-
     // Write to datastore
     p.apply(GenerateSequence.from(0).to(numEntities))
-        .apply(ParDo
-            .of(new CreateEntityFn(options.getKind(), options.getNamespace(), ancestor, 1, 0, 4)))
+        .apply(ParDo.of(new CreateEntityFn(options.getKind(), options.getNamespace(), ancestor, 0)))
         .apply(DatastoreIO.v1().write().withProjectId(project));
 
-    p.run().waitUntilFinish();
+    p.run();
 
     // Count number of entities written to datastore.
     long numEntitiesWritten = countEntities(options, project, ancestor);
@@ -93,17 +91,17 @@ public class V1WriteIT {
      * the number of entities per writes.
      */
     final int rawPropertySize = 900_000;
-    final int numLargeEntities = 50_000;
+    final int numLargeEntities = 100;
 
     // Write to datastore
     p.apply(GenerateSequence.from(0).to(numLargeEntities))
         .apply(
             ParDo.of(
                 new CreateEntityFn(
-                    options.getKind(), options.getNamespace(), ancestor, 0, 1, rawPropertySize)))
+                    options.getKind(), options.getNamespace(), ancestor, rawPropertySize)))
         .apply(DatastoreIO.v1().write().withProjectId(project));
 
-    p.run().waitUntilFinish();
+    p.run();
 
     // Count number of entities written to datastore.
     long numEntitiesWritten = countEntities(options, project, ancestor);
