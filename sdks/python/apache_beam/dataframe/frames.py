@@ -2139,22 +2139,28 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
-  def shift(self, axis, **kwargs):
-    if 'freq' in kwargs:
-      raise frame_base.WontImplementError('data-dependent')
+  def shift(self, axis, freq, fill_value, **kwargs):
     if axis in (1, 'columns'):
-      requires_partition_by = partitionings.Arbitrary()
+      preserves = partitionings.Arbitrary()
     else:
-      raise frame_base.WontImplementError(
-          "shift(axis='index') is sensitive to the order of the data.",
-          reason="order-sensitive")
+      if freq is None or fill_value is not pd._libs.lib.no_default:
+        raise frame_base.WontImplementError(
+            f"shift(axis={axis}) is only supported with freq defined, and "
+            f"fill_value undefined (got freq={freq}, fill_value={fill_value}). "
+            "Other configurations are sensitive to the order of the data "
+            "because they require populating missing rows.",
+            reason="order-sensitive")
+
+      # index is modified, so no partitioning is preserved.
+      preserves = partitionings.Singleton()
+
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'shift',
-            lambda df: df.shift(axis=axis, **kwargs),
+            lambda df: df.shift(axis=axis, freq=freq, fill_value=fill_value, **kwargs),
             [self._expr],
-            preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=requires_partition_by))
+            preserves_partition_by=preserves,
+            requires_partition_by=partitionings.Arbitrary()))
 
   shape = property(frame_base.wont_implement_method(
       pd.DataFrame, 'shape', reason="non-deferred-result"))
