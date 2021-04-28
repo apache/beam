@@ -15,7 +15,7 @@
 -- limitations under the License.
 
 select
-   substr(w_warehouse_name,1,20)
+   substring(w_warehouse_name,1,20)
   ,sm_type
   ,cc_name
   ,sum(case when (cs_ship_date_sk - cs_sold_date_sk <= 30 ) then 1 else 0 end)  as `30 days`
@@ -39,10 +39,10 @@ and cs_warehouse_sk   = w_warehouse_sk
 and cs_ship_mode_sk   = sm_ship_mode_sk
 and cs_call_center_sk = cc_call_center_sk
 group by
-   substr(w_warehouse_name,1,20)
+   substring(w_warehouse_name,1,20)
   ,sm_type
   ,cc_name
-order by substr(w_warehouse_name,1,20)
+order by substring(w_warehouse_name,1,20)
         ,sm_type
         ,cc_name
 limit 100
