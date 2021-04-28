@@ -795,23 +795,19 @@ public abstract class Row implements Serializable {
                 + " fields.");
       }
 
-      FieldOverrides fieldOverrides = new FieldOverrides(schema);
-      fieldOverrides.setOverrides(this.values);
-
-      Row row;
-      if (!fieldOverrides.isEmpty()) {
-        row =
-            (Row)
-                new RowFieldMatcher()
-                    .match(
-                        new CapturingRowCases(schema, fieldOverrides),
-                        FieldType.row(schema),
-                        new RowPosition(FieldAccessDescriptor.create()),
-                        null);
-      } else {
-        row = new RowWithStorage(schema, Collections.emptyList());
+      if (!values.isEmpty()) {
+        FieldOverrides fieldOverrides = new FieldOverrides(schema, this.values);
+        if (!fieldOverrides.isEmpty()) {
+          return (Row)
+              new RowFieldMatcher()
+                  .match(
+                      new CapturingRowCases(schema, fieldOverrides),
+                      FieldType.row(schema),
+                      new RowPosition(FieldAccessDescriptor.create()),
+                      null);
+        }
       }
-      return row;
+      return new RowWithStorage(schema, Collections.emptyList());
     }
   }
 
