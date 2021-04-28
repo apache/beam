@@ -269,6 +269,21 @@ class DeferredFrameTest(unittest.TestCase):
                    df1,
                    df2)
 
+  def test_add_prefix(self):
+    df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [3, 4, 5, 6]})
+    s = pd.Series([1, 2, 3, 4])
+
+    self._run_test(lambda df: df.add_prefix('col_'), df)
+    self._run_test(lambda s: s.add_prefix('col_'), s)
+
+  def test_add_suffix(self):
+    df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [3, 4, 5, 6]})
+    s = pd.Series([1, 2, 3, 4])
+
+    self._run_test(lambda df: df.add_suffix('_col'), df)
+    self._run_test(lambda s: s.add_prefix('_col'), s)
+
+
   def test_groupby(self):
     df = pd.DataFrame({
         'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],

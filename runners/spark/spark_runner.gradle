@@ -226,6 +226,8 @@ hadoopVersions.each {kv ->
 
 task validatesRunnerBatch(type: Test) {
   group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
   def pipelineOptions = JsonOutput.toJson([
           "--runner=TestSparkRunner",
           "--streaming=false",
@@ -271,6 +273,8 @@ task validatesRunnerBatch(type: Test) {
 
 task validatesRunnerStreaming(type: Test) {
   group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
   def pipelineOptions = JsonOutput.toJson([
           "--runner=TestSparkRunner",
           "--forceStreaming=true",
@@ -295,6 +299,8 @@ task validatesRunnerStreaming(type: Test) {
 
 task validatesStructuredStreamingRunnerBatch(type: Test) {
   group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
   def pipelineOptions = JsonOutput.toJson([
           "--runner=SparkStructuredStreamingRunner",
           "--testMode=true",

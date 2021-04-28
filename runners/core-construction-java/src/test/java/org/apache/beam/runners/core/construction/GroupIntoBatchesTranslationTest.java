@@ -26,6 +26,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -62,7 +63,12 @@ public class GroupIntoBatchesTranslationTest {
 
     AppliedPTransform<?, ?, GroupIntoBatches<String, Integer>> appliedTransform =
         AppliedPTransform.of(
-            "foo", PValues.expandInput(input), PValues.expandOutput(output), groupIntoBatches, p);
+            "foo",
+            PValues.expandInput(input),
+            PValues.expandOutput(output),
+            groupIntoBatches,
+            ResourceHints.create(),
+            p);
 
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
@@ -83,7 +89,12 @@ public class GroupIntoBatchesTranslationTest {
 
     AppliedPTransform<?, ?, GroupIntoBatches<String, Integer>.WithShardedKey> appliedTransform =
         AppliedPTransform.of(
-            "bar", PValues.expandInput(input), PValues.expandOutput(output), transform, p);
+            "bar",
+            PValues.expandInput(input),
+            PValues.expandOutput(output),
+            transform,
+            ResourceHints.create(),
+            p);
 
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));

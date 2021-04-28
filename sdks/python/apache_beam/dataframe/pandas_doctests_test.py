@@ -76,8 +76,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.interpolate': ['*'],
         },
         not_implemented_ok={
-            'pandas.core.generic.NDFrame.add_prefix': ['*'],
-            'pandas.core.generic.NDFrame.add_suffix': ['*'],
             'pandas.core.generic.NDFrame.asof': ['*'],
             'pandas.core.generic.NDFrame.at_time': ['*'],
             'pandas.core.generic.NDFrame.between_time': ['*'],

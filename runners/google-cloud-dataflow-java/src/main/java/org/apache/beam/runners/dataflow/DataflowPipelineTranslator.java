@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.runners.dataflow.DataflowRunner.useUnifiedWorker;
 import static org.apache.beam.runners.dataflow.util.Structs.addBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.addDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.addList;
@@ -49,6 +48,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -91,6 +91,8 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHint;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
@@ -108,8 +110,11 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.commons.codec.EncoderException;
+import org.apache.commons.codec.net.PercentCodec;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -440,11 +445,7 @@ public class DataflowPipelineTranslator {
         environment.setDebugOptions(debugOptions);
       }
 
-      // TODO(BEAM-12213): Always call pipeline.traverseTopologically(this) regardless runner_v2
-      // variant when sideinput changes are ready.
-      if (!useUnifiedWorker(options)) {
-        pipeline.traverseTopologically(this);
-      }
+      pipeline.traverseTopologically(this);
 
       return job;
     }
@@ -506,7 +507,16 @@ public class DataflowPipelineTranslator {
           node.getFullName());
       LOG.debug("Translating {}", transform);
       currentTransform = node.toAppliedPTransform(getPipeline());
+      ResourceHints hints = transform.getResourceHints();
+      // AppliedPTransform instance stores resource hints of current transform merged with outer
+      // hints (e.g. set on outer composites).
+      // Translation reads resource hints from PTransform objects, so update the hints.
+      transform.setResourceHints(currentTransform.getResourceHints());
       translator.translate(transform, this);
+      // Avoid side-effects in case the same transform is applied in multiple places in the
+      // pipeline.
+      transform.setResourceHints(hints);
+      // translator.translate(node, this);
       currentTransform = null;
     }
 
@@ -546,6 +556,7 @@ public class DataflowPipelineTranslator {
       StepTranslator stepContext = new StepTranslator(this, step);
       stepContext.addInput(PropertyNames.USER_NAME, getFullName(transform));
       stepContext.addDisplayData(step, stepName, transform);
+      stepContext.addResourceHints(step, stepName, transform.getResourceHints());
       LOG.info("Adding {} as step {}", getCurrentTransform(transform).getFullName(), stepName);
       return stepContext;
     }
@@ -616,6 +627,10 @@ public class DataflowPipelineTranslator {
 
     private final Translator translator;
     private final Step step;
+    // For compatibility with URL encoding implementations that represent space as +,
+    // always encode + as %2b even though we don't encode space as +.
+    private final PercentCodec percentCodec =
+        new PercentCodec("+".getBytes(Charsets.US_ASCII), false);
 
     private StepTranslator(Translator translator, Step step) {
       this.translator = translator;
@@ -753,6 +768,23 @@ public class DataflowPipelineTranslator {
       DisplayData displayData = DisplayData.from(hasDisplayData);
       List<Map<String, Object>> list = MAPPER.convertValue(displayData, List.class);
       addList(getProperties(), PropertyNames.DISPLAY_DATA, list);
+    }
+
+    private void addResourceHints(Step step, String stepName, ResourceHints hints) {
+      Map<String, Object> urlEncodedHints = new HashMap<>();
+      for (Entry<String, ResourceHint> entry : hints.hints().entrySet()) {
+        try {
+          urlEncodedHints.put(
+              entry.getKey(),
+              new String(percentCodec.encode(entry.getValue().toBytes()), Charsets.US_ASCII));
+        } catch (EncoderException e) {
+          // Should never happen.
+          throw new RuntimeException("Invalid value for resource hint: " + entry.getKey(), e);
+        }
+      }
+      if (urlEncodedHints.size() > 0) {
+        addDictionary(getProperties(), PropertyNames.RESOURCE_HINTS, urlEncodedHints);
+      }
     }
   }
 
