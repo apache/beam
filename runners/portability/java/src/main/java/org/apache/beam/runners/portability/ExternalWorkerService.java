@@ -21,6 +21,8 @@ import java.util.Collections;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnExternalWorkerPoolImplBase;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -73,6 +75,14 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
     th.start();
 
     responseObserver.onNext(StartWorkerResponse.newBuilder().build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void stopWorker(
+      StopWorkerRequest request, StreamObserver<StopWorkerResponse> responseObserver) {
+    // Thread based workers terminate automatically
+    responseObserver.onNext(StopWorkerResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
 
