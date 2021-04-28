@@ -578,26 +578,34 @@ public abstract class Row implements Serializable {
 
   @Override
   public String toString() {
+    return toString(true);
+  }
+
+  /** Convert Row to String. */
+  public String toString(boolean includeFieldNames) {
     StringBuilder builder = new StringBuilder();
     builder.append("Row: ");
     builder.append(System.lineSeparator());
     for (int i = 0; i < getSchema().getFieldCount(); ++i) {
       Schema.Field field = getSchema().getField(i);
-      builder.append(field.getName() + ":");
-      builder.append(toString(field.getType(), getValue(i)));
+      if (includeFieldNames) {
+        builder.append(field.getName() + ":");
+      }
+      builder.append(toString(field.getType(), getValue(i), includeFieldNames));
       builder.append(System.lineSeparator());
     }
     return builder.toString();
   }
 
-  private String toString(Schema.FieldType fieldType, Object value) {
+  private String toString(Schema.FieldType fieldType, Object value, boolean includeFieldNames) {
     StringBuilder builder = new StringBuilder();
     switch (fieldType.getTypeName()) {
       case ARRAY:
       case ITERABLE:
         builder.append("[");
         for (Object element : (Iterable<?>) value) {
-          builder.append(toString(fieldType.getCollectionElementType(), element));
+          builder.append(
+              toString(fieldType.getCollectionElementType(), element, includeFieldNames));
           builder.append(", ");
         }
         builder.append("]");
@@ -606,15 +614,19 @@ public abstract class Row implements Serializable {
         builder.append("{");
         for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
           builder.append("(");
-          builder.append(toString(fieldType.getMapKeyType(), entry.getKey()));
+          builder.append(toString(fieldType.getMapKeyType(), entry.getKey(), includeFieldNames));
           builder.append(", ");
-          builder.append(toString(fieldType.getMapValueType(), entry.getValue()));
+          builder.append(
+              toString(fieldType.getMapValueType(), entry.getValue(), includeFieldNames));
           builder.append("), ");
         }
         builder.append("}");
         break;
       case BYTES:
         builder.append(Arrays.toString((byte[]) value));
+        break;
+      case ROW:
+        builder.append(((Row) value).toString(includeFieldNames));
         break;
       default:
         builder.append(value);

@@ -99,7 +99,7 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
       SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
       JsonFormat.parser().merge(Structs.getString(cloudObject, SCHEMA), schemaBuilder);
       Schema schema = SchemaTranslation.schemaFromProto(schemaBuilder.build());
-      if (schema.isEncodingPositionsOverridden()) {
+      if (schema.isEncodingPositionsOverridden() && schema.getUUID() != null) {
         SchemaCoder.overrideEncodingPositions(schema.getUUID(), schema.getEncodingPositions());
       }
       return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
