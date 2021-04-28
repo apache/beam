@@ -78,6 +78,7 @@ dependencies {
   compile project(":runners:core-construction-java")
   compile library.java.avro
   compile library.java.bigdataoss_util
+  compile library.java.commons_codec
   compile library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
   permitUnusedDeclared library.java.flogger_system_backend
   compile library.java.google_api_client
