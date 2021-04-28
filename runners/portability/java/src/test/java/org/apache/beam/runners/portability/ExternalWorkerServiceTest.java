@@ -38,7 +38,7 @@ public class ExternalWorkerServiceTest {
   @Test
   public void startWorker() {
     PipelineOptions options = PipelineOptionsFactory.create();
-    StartWorkerRequest request = StartWorkerRequest.newBuilder().build();
+    StartWorkerRequest request = StartWorkerRequest.getDefaultInstance();
     StreamObserver<StartWorkerResponse> responseObserver = mock(StreamObserver.class);
     ExternalWorkerService service = new ExternalWorkerService(options);
     service.startWorker(request, responseObserver);
@@ -50,7 +50,7 @@ public class ExternalWorkerServiceTest {
   @Test
   public void stopWorker() {
     PipelineOptions options = PipelineOptionsFactory.create();
-    StopWorkerRequest request = StopWorkerRequest.newBuilder().build();
+    StopWorkerRequest request = StopWorkerRequest.getDefaultInstance();
     StreamObserver<StopWorkerResponse> responseObserver = mock(StreamObserver.class);
     ExternalWorkerService service = new ExternalWorkerService(options);
     service.stopWorker(request, responseObserver);
