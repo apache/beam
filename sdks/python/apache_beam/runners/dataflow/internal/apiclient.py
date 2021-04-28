@@ -48,6 +48,7 @@ from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -596,7 +597,8 @@ class DataflowApplicationClient(object):
           resources.append((type_payload.path, staged_name))
           hashs[type_payload.sha256] = staged_name
 
-        if google_cloud_options.staging_location.startswith('gs://'):
+        if FileSystems.get_scheme(
+            google_cloud_options.staging_location) == GCSFileSystem.scheme():
           dep.type_urn = common_urns.artifact_types.URL.urn
           dep.type_payload = beam_runner_api_pb2.ArtifactUrlPayload(
               url=FileSystems.join(
