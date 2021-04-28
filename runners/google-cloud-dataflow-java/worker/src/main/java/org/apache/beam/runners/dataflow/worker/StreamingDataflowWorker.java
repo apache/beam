@@ -419,7 +419,7 @@ public class StreamingDataflowWorker {
   private final ConcurrentMap<String, String> systemNameToComputationIdMap =
       new ConcurrentHashMap<>();
 
-  private final WindmillStateCache stateCache;
+  final WindmillStateCache stateCache;
 
   private final ThreadFactory threadFactory;
   private DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
