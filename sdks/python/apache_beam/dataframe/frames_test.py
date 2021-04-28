@@ -245,14 +245,12 @@ class DeferredFrameTest(unittest.TestCase):
     s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
     s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
 
-    self._run_test(lambda s1, s2:
-                 s1.combine(s2, max),
-                 s1,
-                 s2)
-    self._run_test(lambda df, df2:
-                   df.combine(df2, lambda s1, s2: s1 if s1.sum() < s2.sum() else s2),
-                   df,
-                   df2)
+    self._run_test(lambda s1, s2: s1.combine(s2, max), s1, s2)
+    self._run_test(
+        lambda df,
+        df2: df.combine(df2, lambda s1, s2: s1 if s1.sum() < s2.sum() else s2),
+        df,
+        df2)
 
   def test_combine_first(self):
     df1 = pd.DataFrame({'A': [None, 0], 'B': [None, 4]})
@@ -260,14 +258,22 @@ class DeferredFrameTest(unittest.TestCase):
 
     s1 = pd.Series([1, np.nan])
     s2 = pd.Series([3, 4])
-    self._run_test(lambda s1, s2:
-                 s1.combine_first(s2),
-                 s1,
-                 s2)
-    self._run_test(lambda df1, df2:
-                   df1.combine_first(df2),
-                   df1,
-                   df2)
+    self._run_test(lambda s1, s2: s1.combine_first(s2), s1, s2)
+    self._run_test(lambda df1, df2: df1.combine_first(df2), df1, df2)
+
+  def test_add_prefix(self):
+    df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [3, 4, 5, 6]})
+    s = pd.Series([1, 2, 3, 4])
+
+    self._run_test(lambda df: df.add_prefix('col_'), df)
+    self._run_test(lambda s: s.add_prefix('col_'), s)
+
+  def test_add_suffix(self):
+    df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [3, 4, 5, 6]})
+    s = pd.Series([1, 2, 3, 4])
+
+    self._run_test(lambda df: df.add_suffix('_col'), df)
+    self._run_test(lambda s: s.add_prefix('_col'), s)
 
   def test_groupby(self):
     df = pd.DataFrame({

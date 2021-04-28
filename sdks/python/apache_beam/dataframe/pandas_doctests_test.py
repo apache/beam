@@ -76,8 +76,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.interpolate': ['*'],
         },
         not_implemented_ok={
-            'pandas.core.generic.NDFrame.add_prefix': ['*'],
-            'pandas.core.generic.NDFrame.add_suffix': ['*'],
             'pandas.core.generic.NDFrame.asof': ['*'],
             'pandas.core.generic.NDFrame.at_time': ['*'],
             'pandas.core.generic.NDFrame.between_time': ['*'],
@@ -419,8 +417,6 @@ class DoctestTest(unittest.TestCase):
             # Throws NotImplementedError when modifying df
             'pandas.core.series.Series.transform': ['df'],
             'pandas.core.series.Series.autocorr': ['*'],
-            #'pandas.core.series.Series.combine': ['*'],
-            'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.

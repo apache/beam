@@ -75,10 +75,9 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ZetaSQLQueryPlanner implements QueryPlanner {
-  // TODO(BEAM-11747) Re-enable BeamJavaUdfCalcRule by default when it is safe to do so.
   public static final Collection<RelOptRule> DEFAULT_CALC =
       ImmutableList.<RelOptRule>builder()
-          .add(BeamZetaSqlCalcRule.INSTANCE, BeamZetaSqlCalcMergeRule.INSTANCE)
+          .add(BeamZetaSqlCalcSplittingRule.INSTANCE, BeamZetaSqlCalcMergeRule.INSTANCE)
           .build();
 
   private static final Logger LOG = LoggerFactory.getLogger(ZetaSQLQueryPlanner.class);
