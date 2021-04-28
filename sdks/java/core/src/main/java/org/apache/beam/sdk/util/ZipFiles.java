@@ -175,18 +175,40 @@ public final class ZipFiles {
    *     as parameter, not absolute.
    * @param zipFile the zip-file to write to.
    * @throws IOException the zipping failed, e.g. because the input was not readable.
+   * @throws IllegalArgumentException sourceDirectory is not a directory, or zipFile already exists.
    */
   public static void zipDirectory(File sourceDirectory, File zipFile) throws IOException {
+    zipDirectory(sourceDirectory, zipFile, false);
+  }
+
+  /**
+   * Zips an entire directory specified by the path.
+   *
+   * @param sourceDirectory the directory to read from. This directory and all subdirectories will
+   *     be added to the zip-file. The path within the zip file is relative to the directory given
+   *     as parameter, not absolute.
+   * @param zipFile the zip-file to write to. Will be overwritten if it already exists.
+   * @throws IOException the zipping failed, e.g. because the input was not readable.
+   * @throws IllegalArgumentException sourceDirectory is not a directory.
+   */
+  public static void zipDirectoryOverwrite(File sourceDirectory, File zipFile) throws IOException {
+    zipDirectory(sourceDirectory, zipFile, true);
+  }
+
+  private static void zipDirectory(File sourceDirectory, File zipFile, boolean allowOverwrite)
+      throws IOException {
     checkNotNull(sourceDirectory);
     checkNotNull(zipFile);
     checkArgument(
         sourceDirectory.isDirectory(),
         "%s is not a valid directory",
         sourceDirectory.getAbsolutePath());
-    checkArgument(
-        !zipFile.exists(),
-        "%s does already exist, files are not being overwritten",
-        zipFile.getAbsolutePath());
+    if (!allowOverwrite) {
+      checkArgument(
+          !zipFile.exists(),
+          "%s already exists, file is not not being overwritten",
+          zipFile.getAbsolutePath());
+    }
     try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(zipFile))) {
       zipDirectory(sourceDirectory, outputStream);
     }

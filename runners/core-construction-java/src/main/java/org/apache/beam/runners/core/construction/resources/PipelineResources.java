@@ -122,7 +122,7 @@ public class PipelineResources {
     String hash = calculateDirectoryContentHash(directoryToStage);
     String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
     try {
-      ZipFiles.zipDirectory(directoryToStage, new File(pathForJar));
+      ZipFiles.zipDirectoryOverwrite(directoryToStage, new File(pathForJar));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
