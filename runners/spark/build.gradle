@@ -102,7 +102,6 @@ dependencies {
   compile project(":runners:core-java")
   compile project(":runners:java-fn-execution")
   compile project(":runners:java-job-service")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
