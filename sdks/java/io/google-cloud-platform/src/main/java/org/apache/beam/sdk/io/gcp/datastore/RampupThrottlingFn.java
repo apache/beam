@@ -7,6 +7,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MovingFunction;
@@ -36,7 +37,8 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   private transient MovingFunction successfulOps;
   private Instant firstInstant;
 
-  @VisibleForTesting transient Sleeper sleeper;
+  @VisibleForTesting
+  transient Sleeper sleeper;
 
   public RampupThrottlingFn(int numWorkers) {
     this.numWorkers = numWorkers;
@@ -74,7 +76,9 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
     this.firstInstant = Instant.now();
   }
 
-  /** Emit only as many elements as the exponentially increasing budget allows. */
+  /**
+   * Emit only as many elements as the exponentially increasing budget allows.
+   */
   @ProcessElement
   public void processElement(ProcessContext c) throws IOException, InterruptedException {
     Instant nonNullableFirstInstant = firstInstant;
@@ -100,6 +104,11 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
     }
   }
 
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder.add(DisplayData.item("hintNumWorkers", numWorkers)
+        .withLabel("Number of workers for ramp-up throttling algorithm"));
+  }
 
 }
 

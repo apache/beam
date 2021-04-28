@@ -294,10 +294,10 @@ public class DatastoreV1Test {
 
   @Test
   public void testWritePrimitiveDisplayData() {
-    int numShards = 10;
+    int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject")
-        .withHintNumWorkers(numShards);
+        .withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -311,7 +311,7 @@ public class DatastoreV1Test {
     assertThat(
         "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
-        hasItem(hasDisplayItem("numThrottlerShards", numShards))
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers))
     );
   }
 
@@ -333,17 +333,17 @@ public class DatastoreV1Test {
     assertThat(
         "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
-        not(hasItem(hasDisplayItem("numThrottlerShards")))
+        not(hasItem(hasDisplayItem("hintNumWorkers")))
     );
   }
 
   @Test
   public void testDeleteEntityPrimitiveDisplayData() {
-    int numShards = 10;
+    int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
         DatastoreIO.v1().deleteEntity().withProjectId("myProject")
-            .withHintNumWorkers(numShards);
+            .withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -357,7 +357,7 @@ public class DatastoreV1Test {
     assertThat(
         "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
-        hasItem(hasDisplayItem("numThrottlerShards", numShards))
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers))
     );
   }
 
@@ -878,15 +878,15 @@ public class DatastoreV1Test {
     writeBatcher.start();
     writeBatcher.addRequestLatency(0, 10000, 200);
     writeBatcher.addRequestLatency(0, 10000, 200);
-    assertEquals(160, writeBatcher.nextBatchSize(0));
+    assertEquals(120, writeBatcher.nextBatchSize(0));
   }
 
   @Test
   public void testWriteBatcherSizeNotBelowMinimum() {
     DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
     writeBatcher.start();
-    writeBatcher.addRequestLatency(0, 40000, 50);
-    writeBatcher.addRequestLatency(0, 40000, 50);
+    writeBatcher.addRequestLatency(0, 75000, 50);
+    writeBatcher.addRequestLatency(0, 75000, 50);
     assertEquals(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_MIN, writeBatcher.nextBatchSize(0));
   }
 
@@ -897,7 +897,7 @@ public class DatastoreV1Test {
     writeBatcher.addRequestLatency(0, 30000, 50);
     writeBatcher.addRequestLatency(50000, 8000, 200);
     writeBatcher.addRequestLatency(100000, 8000, 200);
-    assertEquals(200, writeBatcher.nextBatchSize(150000));
+    assertEquals(150, writeBatcher.nextBatchSize(150000));
   }
 
   /** Helper Methods */
