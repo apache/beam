@@ -20,7 +20,7 @@ from __future__ import absolute_import
 
 import unittest
 
-import pytest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -48,7 +48,7 @@ def extract(response):
       ])
 
 
-@pytest.mark.it_postcommit
+@attr('IT')
 @unittest.skipIf(AnnotateText is None, 'GCP dependencies are not installed')
 class NaturalLanguageMlTestIT(unittest.TestCase):
   def test_analyzing_syntax(self):
