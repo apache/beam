@@ -63,7 +63,7 @@ public class V1BatchSizingIT {
     p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo
             .of(new CreateEntityFn(options.getKind(), options.getNamespace(), null, 1, 0, 4)))
-        .apply(DatastoreIO.v1().write().withProjectId(project));
+        .apply(DatastoreIO.v1().write().withProjectId(project).withHintNumWorkers(20));
 
     // Completed successfully.
     State state = p.run().waitUntilFinish();

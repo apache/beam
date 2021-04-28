@@ -167,6 +167,13 @@ import org.slf4j.LoggerFactory;
  * p.run();
  * }</pre>
  *
+ * <p>Write and delete operations will follow a gradual ramp-up by default in order to protect Cloud
+ * Datastore from potential overload. This rate limit follows a heuristic based on the expected
+ * number of workers. To optimize throughput in this initial stage, you can provide a hint to the
+ * relevant {@code PTransform} by calling {@code withHintNumWorkers}, e.g.,
+ * {@code DatastoreIO.v1().deleteKey().withHintNumWorkers(numWorkers)}. While not recommended, you
+ * can also turn this off via {@code .withRampupThrottlingDisabled()}.
+ *
  * <p>{@link Entity Entities} in the {@code PCollection} to be written or deleted must have complete
  * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the {@code
  * Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than {@code projectId}
@@ -227,7 +234,7 @@ public class DatastoreV1 {
    * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
   @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 1;
+  static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 5;
 
   /**
    * Cloud Datastore has a limit of 10MB per RPC, so we also flush if the total size of mutations
@@ -245,8 +252,7 @@ public class DatastoreV1 {
   private static final int DEFAULT_HINT_NUM_WORKERS = 500;
 
   /**
-   * Non-retryable errors. See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
-   * .
+   * Non-retryable errors. See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes.
    */
   private static final Set<Code> NON_RETRYABLE_ERRORS =
       ImmutableSet.of(
@@ -1288,7 +1294,7 @@ public class DatastoreV1 {
     /**
      * Target time per RPC for writes.
      */
-    static final int DATASTORE_BATCH_TARGET_LATENCY_MS = 5000;
+    static final int DATASTORE_BATCH_TARGET_LATENCY_MS = 6000;
 
     private final Distribution batchSizeMetric = Metrics
         .distribution(WriteBatcherImpl.class, "datastoreTargetBatchSize");

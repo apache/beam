@@ -33,14 +33,15 @@ public class RampupThrottlingFnTest {
   private DoFnTester<Void, Void> rampupThrottlingFnTester;
 
   @Before
-  public void setUp() throws InterruptedException {
+  public void setUp() throws Exception {
     MockitoAnnotations.openMocks(this);
 
     DateTimeUtils.setCurrentMillisFixed(0);
     RampupThrottlingFn<Void> rampupThrottlingFn = new RampupThrottlingFn<>(1);
-    rampupThrottlingFn.sleeper = mockSleeper;
     rampupThrottlingFnTester = DoFnTester.of(rampupThrottlingFn);
     rampupThrottlingFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    rampupThrottlingFnTester.startBundle();
+    rampupThrottlingFn.sleeper = mockSleeper;
   }
 
   @Test
