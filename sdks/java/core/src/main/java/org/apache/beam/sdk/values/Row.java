@@ -613,6 +613,9 @@ public abstract class Row implements Serializable {
         }
         builder.append("}");
         break;
+      case BYTES:
+        builder.append(Arrays.toString((byte[]) value));
+        break;
       default:
         builder.append(value);
     }
