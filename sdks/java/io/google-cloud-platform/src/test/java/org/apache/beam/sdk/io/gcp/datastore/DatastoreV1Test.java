@@ -127,8 +127,7 @@ public class DatastoreV1Test {
 
   @Mock private Datastore mockDatastore;
   @Mock QuerySplitter mockQuerySplitter;
-  @Mock
-  V1DatastoreFactory mockDatastoreFactory;
+  @Mock V1DatastoreFactory mockDatastoreFactory;
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -296,8 +295,8 @@ public class DatastoreV1Test {
   public void testWritePrimitiveDisplayData() {
     int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject")
-        .withHintNumWorkers(hintNumWorkers);
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1().write().withProjectId("myProject").withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -311,15 +310,14 @@ public class DatastoreV1Test {
     assertThat(
         "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
-        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers))
-    );
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers)));
   }
 
   @Test
   public void testWritePrimitiveDisplayDataDisabledThrottler() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject")
-        .withRampupThrottlingDisabled();
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1().write().withProjectId("myProject").withRampupThrottlingDisabled();
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -333,8 +331,7 @@ public class DatastoreV1Test {
     assertThat(
         "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
-        not(hasItem(hasDisplayItem("hintNumWorkers")))
-    );
+        not(hasItem(hasDisplayItem("hintNumWorkers"))));
   }
 
   @Test
@@ -342,7 +339,9 @@ public class DatastoreV1Test {
     int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
-        DatastoreIO.v1().deleteEntity().withProjectId("myProject")
+        DatastoreIO.v1()
+            .deleteEntity()
+            .withProjectId("myProject")
             .withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
@@ -357,16 +356,15 @@ public class DatastoreV1Test {
     assertThat(
         "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
-        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers))
-    );
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers)));
   }
 
   @Test
   public void testDeleteKeyPrimitiveDisplayData() {
     int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Key>, ?> write = DatastoreIO.v1().deleteKey().withProjectId("myProject")
-        .withHintNumWorkers(hintNumWorkers);
+    PTransform<PCollection<Key>, ?> write =
+        DatastoreIO.v1().deleteKey().withProjectId("myProject").withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -380,8 +378,7 @@ public class DatastoreV1Test {
     assertThat(
         "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
         displayData,
-        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers))
-    );
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers)));
   }
 
   /** Test building a Write using builder methods. */
@@ -389,7 +386,6 @@ public class DatastoreV1Test {
   public void testBuildWrite() throws Exception {
     DatastoreV1.Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     assertEquals(PROJECT_ID, write.getProjectId());
-
   }
 
   /** Test the detection of complete and incomplete keys. */
@@ -536,8 +532,7 @@ public class DatastoreV1Test {
 
     DatastoreWriterFn datastoreWriter =
         new DatastoreWriterFn(
-            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory,
-            new FakeWriteBatcher());
+            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);

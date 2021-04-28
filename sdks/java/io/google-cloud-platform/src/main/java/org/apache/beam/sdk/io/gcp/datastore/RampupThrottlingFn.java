@@ -1,6 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.datastore;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.metrics.Counter;
@@ -12,15 +28,16 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * An implementation of a client-side throttler that enforces a gradual ramp-up, broadly in line
- * with Datastore best practices. See also https://cloud.google.com/datastore/docs/best-practices#ramping_up_traffic.
+ * with Datastore best practices. See also
+ * https://cloud.google.com/datastore/docs/best-practices#ramping_up_traffic.
  */
 public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
 
@@ -37,18 +54,18 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   private transient MovingFunction successfulOps;
   private Instant firstInstant;
 
-  @VisibleForTesting
-  transient Sleeper sleeper;
+  @VisibleForTesting transient Sleeper sleeper;
 
   public RampupThrottlingFn(int numWorkers) {
     this.numWorkers = numWorkers;
     this.sleeper = Sleeper.DEFAULT;
-    this.successfulOps = new MovingFunction(
-        Duration.standardSeconds(1).getMillis(),
-        Duration.standardSeconds(1).getMillis(),
-        1 /* numSignificantBuckets */,
-        1 /* numSignificantSamples */,
-        Sum.ofLongs());
+    this.successfulOps =
+        new MovingFunction(
+            Duration.standardSeconds(1).getMillis(),
+            Duration.standardSeconds(1).getMillis(),
+            1 /* numSignificantBuckets */,
+            1 /* numSignificantSamples */,
+            Sum.ofLongs());
     this.firstInstant = Instant.now();
   }
 
@@ -57,8 +74,8 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
     double rampUpIntervalMinutes = (double) RAMP_UP_INTERVAL.getStandardMinutes();
     Duration durationSinceFirst = new Duration(first, instant);
 
-    double calculatedGrowth = (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes)
-        / rampUpIntervalMinutes;
+    double calculatedGrowth =
+        (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
     double growth = Math.max(0, calculatedGrowth);
     double maxOpsBudget = BASE_BUDGET / this.numWorkers * Math.pow(1.5, growth);
     return (int) maxOpsBudget;
@@ -67,18 +84,17 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   @Setup
   public void setup() {
     this.sleeper = Sleeper.DEFAULT;
-    this.successfulOps = new MovingFunction(
-        Duration.standardSeconds(1).getMillis(),
-        Duration.standardSeconds(1).getMillis(),
-        1 /* numSignificantBuckets */,
-        1 /* numSignificantSamples */,
-        Sum.ofLongs());
+    this.successfulOps =
+        new MovingFunction(
+            Duration.standardSeconds(1).getMillis(),
+            Duration.standardSeconds(1).getMillis(),
+            1 /* numSignificantBuckets */,
+            1 /* numSignificantSamples */,
+            Sum.ofLongs());
     this.firstInstant = Instant.now();
   }
 
-  /**
-   * Emit only as many elements as the exponentially increasing budget allows.
-   */
+  /** Emit only as many elements as the exponentially increasing budget allows. */
   @ProcessElement
   public void processElement(ProcessContext c) throws IOException, InterruptedException {
     Instant nonNullableFirstInstant = firstInstant;
@@ -106,9 +122,8 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
-    builder.add(DisplayData.item("hintNumWorkers", numWorkers)
-        .withLabel("Number of workers for ramp-up throttling algorithm"));
+    builder.add(
+        DisplayData.item("hintNumWorkers", numWorkers)
+            .withLabel("Number of workers for ramp-up throttling algorithm"));
   }
-
 }
-
