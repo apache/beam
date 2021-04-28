@@ -79,6 +79,10 @@ dependencies {
   validatesRunner project(project.path)
 }
 
+configurations.all {
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
 task validatesRunner(type: Test) {
   group = "Verification"
   description "Validates Samza runner"
