@@ -224,6 +224,7 @@ public final class ZipFiles {
       zipDirectoryInternal(file, "", zos);
     }
     zos.finish();
+    zos.close();
   }
 
   /**

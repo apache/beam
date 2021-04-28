@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -59,6 +60,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.ModelCoders;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
@@ -88,6 +91,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -100,6 +104,8 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHintsOptions;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -109,10 +115,13 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -814,6 +823,104 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         not(equalTo("true")));
   }
 
+  /** Testing just the translation of the pipeline from ViewTest#testToList. */
+  @Test
+  public void testToList() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+
+    final PCollectionView<List<Integer>> view =
+        pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
+
+    PCollection<Integer> output =
+        pipeline
+            .apply("CreateMainInput", Create.of(29, 31))
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            checkArgument(c.sideInput(view).size() == 4);
+                            checkArgument(
+                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
+                            for (Integer i : c.sideInput(view)) {
+                              c.output(i);
+                            }
+                          }
+                        })
+                    .withSideInputs(view));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    runner.replaceV1Transforms(pipeline);
+
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
+    List<Step> steps = job.getSteps();
+
+    // Change detector assertion just to make sure the test was not a noop.
+    // No need to actually check the pipeline as the ValidatesRunner tests
+    // ensure translation is correct. This is just a quick check to see that translation
+    // does not crash.
+    assertEquals(5, steps.size());
+  }
+
+  @Test
+  public void testToMap() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+
+    final PCollectionView<Map<String, Integer>> view =
+        pipeline
+            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
+            .apply(View.asMap());
+
+    PCollection<KV<String, Integer>> output =
+        pipeline
+            .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<String, KV<String, Integer>>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            c.output(
+                                KV.of(
+                                    c.element(),
+                                    c.sideInput(view).get(c.element().substring(0, 1))));
+                          }
+                        })
+                    .withSideInputs(view));
+
+    PAssert.that(output)
+        .containsInAnyOrder(KV.of("apple", 1), KV.of("banana", 3), KV.of("blackberry", 3));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    runner.replaceV1Transforms(pipeline);
+
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
+    List<Step> steps = job.getSteps();
+
+    // Change detector assertion just to make sure the test was not a noop.
+    // No need to actually check the pipeline as the ValidatesRunner tests
+    // ensure translation is correct. This is just a quick check to see that translation
+    // does not crash.
+    assertEquals(24, steps.size());
+  }
+
   /** Smoke test to fail fast if translation of a splittable ParDo in streaming breaks. */
   @Test
   public void testStreamingSplittableParDoTranslation() throws Exception {
@@ -1060,83 +1167,80 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
   }
 
-  // TODO(BEAM-12213): Bring the test back when always call pipeline.traverseTopologically(this).
-  // @Test
-  // public void testStreamingGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
-  //   List<String> experiments =
-  //       new ArrayList<>(
-  //           ImmutableList.of(
-  //               GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-  //               GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-  //               "use_runner_v2"));
-  //   JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(false, experiments);
-  //   List<Step> steps = jobSpec.getJob().getSteps();
-  //   Step shardedStateStep = steps.get(steps.size() - 1);
-  //   Map<String, Object> properties = shardedStateStep.getProperties();
-  //   assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
-  //   assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-  //   assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-  //
-  //   // Also checks runner proto is correctly populated.
-  //   Map<String, RunnerApi.PTransform> transformMap =
-  //       jobSpec.getPipelineProto().getComponents().getTransformsMap();
-  //   boolean transformFound = false;
-  //   for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
-  //     RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
-  //     if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
-  //       transformFound = true;
-  //     }
-  //   }
-  //   assertTrue(transformFound);
-  // }
+  @Test
+  public void testStreamingGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(false, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
 
-  // // TODO(BEAM-12213): Bring the test back when always call pipeline.traverseTopologically(this).
-  // @Test
-  // public void testGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
-  //   List<String> experiments =
-  //       new ArrayList<>(
-  //           ImmutableList.of(
-  //               GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-  //               GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-  //               "use_runner_v2"));
-  //   JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
-  //   List<Step> steps = jobSpec.getJob().getSteps();
-  //   Step shardedStateStep = steps.get(steps.size() - 1);
-  //   Map<String, Object> properties = shardedStateStep.getProperties();
-  //   assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
-  //   assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-  //   assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
-  //   assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-  //   assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-  //
-  //   // Also checks the runner proto is correctly populated.
-  //   Map<String, RunnerApi.PTransform> transformMap =
-  //       jobSpec.getPipelineProto().getComponents().getTransformsMap();
-  //   boolean transformFound = false;
-  //   for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
-  //     RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
-  //     if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN)) {
-  //       for (String subtransform : transform.getValue().getSubtransformsList()) {
-  //         RunnerApi.PTransform ptransform = transformMap.get(subtransform);
-  //         if (ptransform.getSpec().getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN))
-  // {
-  //           transformFound = true;
-  //         }
-  //       }
-  //     }
-  //   }
-  //   assertTrue(transformFound);
-  //
-  //   boolean coderFound = false;
-  //   Map<String, RunnerApi.Coder> coderMap =
-  //       jobSpec.getPipelineProto().getComponents().getCodersMap();
-  //   for (Map.Entry<String, RunnerApi.Coder> coder : coderMap.entrySet()) {
-  //     if (coder.getValue().getSpec().getUrn().equals(ModelCoders.SHARDED_KEY_CODER_URN)) {
-  //       coderFound = true;
-  //     }
-  //   }
-  //   assertTrue(coderFound);
-  // }
+    // Also checks runner proto is correctly populated.
+    Map<String, RunnerApi.PTransform> transformMap =
+        jobSpec.getPipelineProto().getComponents().getTransformsMap();
+    boolean transformFound = false;
+    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
+      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
+      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
+        transformFound = true;
+      }
+    }
+    assertTrue(transformFound);
+  }
+
+  @Test
+  public void testGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+
+    // Also checks the runner proto is correctly populated.
+    Map<String, RunnerApi.PTransform> transformMap =
+        jobSpec.getPipelineProto().getComponents().getTransformsMap();
+    boolean transformFound = false;
+    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
+      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
+      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN)) {
+        for (String subtransform : transform.getValue().getSubtransformsList()) {
+          RunnerApi.PTransform ptransform = transformMap.get(subtransform);
+          if (ptransform.getSpec().getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
+            transformFound = true;
+          }
+        }
+      }
+    }
+    assertTrue(transformFound);
+
+    boolean coderFound = false;
+    Map<String, RunnerApi.Coder> coderMap =
+        jobSpec.getPipelineProto().getComponents().getCodersMap();
+    for (Map.Entry<String, RunnerApi.Coder> coder : coderMap.entrySet()) {
+      if (coder.getValue().getSpec().getUrn().equals(ModelCoders.SHARDED_KEY_CODER_URN)) {
+        coderFound = true;
+      }
+    }
+    assertTrue(coderFound);
+  }
 
   @Test
   public void testGroupIntoBatchesWithShardedKeyNotSupported() throws IOException {
@@ -1258,6 +1362,114 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
+  }
+
+  @Test
+  public void testStepResourceHints() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(
+            "Has hints",
+            MapElements.into(TypeDescriptors.integers())
+                .via((Integer x) -> x + 1)
+                .setResourceHints(
+                    ResourceHints.create()
+                        .withMinRam("10.0GiB")
+                        .withAccelerator("type:nvidia-tesla-k80;count:1;install-nvidia-driver")));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceV1Transforms(pipeline);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
+
+    Step stepWithHints = job.getSteps().get(1);
+    ImmutableMap<String, Object> expectedHints =
+        ImmutableMap.<String, Object>builder()
+            .put("beam:resources:min_ram_bytes:v1", "10737418240")
+            .put(
+                "beam:resources:accelerator:v1",
+                "type:nvidia-tesla-k80;count:1;install-nvidia-driver")
+            .build();
+    assertEquals(expectedHints, stepWithHints.getProperties().get("resource_hints"));
+  }
+
+  private RunnerApi.PTransform getLeafTransform(RunnerApi.Pipeline pipelineProto, String label) {
+    for (RunnerApi.PTransform transform :
+        pipelineProto.getComponents().getTransformsMap().values()) {
+      if (transform.getUniqueName().contains(label) && transform.getSubtransformsCount() == 0) {
+        return transform;
+      }
+    }
+    throw new java.lang.IllegalArgumentException(label);
+  }
+
+  private static class IdentityDoFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    public void processElement(@Element T input, OutputReceiver<T> out) {
+      out.output(input);
+    }
+  }
+
+  private static class Inner extends PTransform<PCollection<byte[]>, PCollection<byte[]>> {
+    @Override
+    public PCollection<byte[]> expand(PCollection<byte[]> input) {
+      return input.apply(
+          "Innermost",
+          ParDo.of(new IdentityDoFn<byte[]>())
+              .setResourceHints(ResourceHints.create().withAccelerator("set_in_inner_transform")));
+    }
+  }
+
+  private static class Outer extends PTransform<PCollection<byte[]>, PCollection<byte[]>> {
+    @Override
+    public PCollection<byte[]> expand(PCollection<byte[]> input) {
+      return input.apply(new Inner());
+    }
+  }
+
+  @Test
+  public void testResourceHintsTranslationsResolvesHintsOnOptionsAndComposites() {
+    ResourceHintsOptions options = PipelineOptionsFactory.as(ResourceHintsOptions.class);
+    options.setResourceHints(Arrays.asList("accelerator=set_via_options", "minRam=1B"));
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<byte[]> root = pipeline.apply(Impulse.create());
+    root.apply(
+        new Outer()
+            .setResourceHints(
+                ResourceHints.create().withAccelerator("set_on_outer_transform").withMinRam(20)));
+    root.apply("Leaf", ParDo.of(new IdentityDoFn<byte[]>()));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Leaf").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.allOf(
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("1")),
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:accelerator:v1", ByteString.copyFromUtf8("set_via_options"))));
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Innermost").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.allOf(
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("20")),
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:accelerator:v1",
+                ByteString.copyFromUtf8("set_in_inner_transform"))));
   }
 
   /**

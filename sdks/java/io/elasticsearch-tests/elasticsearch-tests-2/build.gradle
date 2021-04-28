@@ -27,7 +27,6 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 2.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 2.x"
 
-def log4j_version = "2.6.2"
 def elastic_search_version = "2.4.1"
 
 dependencies {
@@ -36,13 +35,13 @@ dependencies {
   testCompile project(":sdks:java:io:elasticsearch")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.slf4j_api
-  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:7.9.2"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testRuntimeOnly library.java.log4j_api
+  testRuntimeOnly library.java.log4j_core
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

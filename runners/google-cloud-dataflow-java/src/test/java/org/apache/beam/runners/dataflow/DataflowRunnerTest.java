@@ -143,6 +143,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -1827,7 +1828,12 @@ public class DataflowRunnerTest implements Serializable {
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
             AppliedPTransform.of(
-                "writefiles", PValues.expandInput(objs), Collections.emptyMap(), original, p);
+                "writefiles",
+                PValues.expandInput(objs),
+                Collections.emptyMap(),
+                original,
+                ResourceHints.create(),
+                p);
 
     WriteFiles<Object, Void, Object> replacement =
         (WriteFiles<Object, Void, Object>)

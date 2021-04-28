@@ -29,10 +29,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -275,13 +278,17 @@ public class JdbcIO {
 
   /**
    * This is the default {@link Predicate} we use to detect DeadLock. It basically test if the
-   * {@link SQLException#getSQLState()} equals 40001. 40001 is the SQL State used by most of
-   * database to identify deadlock.
+   * {@link SQLException#getSQLState()} equals 40001 or 40P01. 40001 is the SQL State used by most
+   * of databases to identify deadlock, and 40P01 is specific to PostgreSQL (see <a
+   * href="https://www.postgresql.org/docs/13/errcodes-appendix.html">PostgreSQL documentation</a>).
    */
   public static class DefaultRetryStrategy implements RetryStrategy {
+    private static final Set<String> errorCodesToRetry =
+        new HashSet(Arrays.asList("40001", "40P01"));
+
     @Override
     public boolean apply(SQLException e) {
-      return "40001".equals(e.getSQLState());
+      return errorCodesToRetry.contains(e.getSQLState());
     }
   }
 
