@@ -61,7 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 })
 public class StateBackedIterable<T> implements Iterable<T>, Serializable {
 
-  private final BeamFnStateClient beamFnStateClient;
+  private final transient BeamFnStateClient beamFnStateClient;
   private final org.apache.beam.sdk.coders.Coder<T> elemCoder;
   @VisibleForTesting final StateRequest request;
   @VisibleForTesting final List<T> prefix;
