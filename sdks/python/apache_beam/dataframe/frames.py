@@ -2275,10 +2275,12 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   aggregate = agg
 
-  hist = frame_base.wont_implement_method(DataFrameGroupBy, 'plot',
+  hist = frame_base.wont_implement_method(DataFrameGroupBy, 'hist',
                                           reason="plotting-tools")
-  plot = frame_base.wont_implement_method(DataFrameGroupBy, 'hist',
+  plot = frame_base.wont_implement_method(DataFrameGroupBy, 'plot',
                                           reason="plotting-tools")
+  boxplot = frame_base.wont_implement_method(DataFrameGroupBy, 'boxplot',
+                                             reason="plotting-tools")
 
   first = frame_base.wont_implement_method(
       DataFrameGroupBy, 'first', reason='order-sensitive')
@@ -2300,6 +2302,10 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       DataFrameGroupBy, 'cumsum', reason='order-sensitive')
   cumprod = frame_base.wont_implement_method(
       DataFrameGroupBy, 'cumprod', reason='order-sensitive')
+  diff = frame_base.wont_implement_method(DataFrameGroupBy, 'diff',
+                                          reason='order-sensitive')
+  shift = frame_base.wont_implement_method(DataFrameGroupBy, 'shift',
+                                           reason='order-sensitive')
 
   # TODO(BEAM-12169): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method(
