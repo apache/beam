@@ -678,12 +678,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           reason="order-sensitive")
 
     if verify_integrity:
-      # verifying output has a unique index requires global index.
-      requires = partitionings.Singleton(
-          reason=(
-              "append(verify_integrity=True) cannot currently be "
-              "parallelized. It requires collecting all data on a single node "
-              "to check the full index."))
+      # We can verify the index is non-unique within index partitioned data.
+      requires = partitionings.Index()
     else:
       requires = partitionings.Arbitrary()
 
@@ -1341,16 +1337,19 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           "append(ignore_index=True) is order sensitive because it requires "
           "generating a new index based on the order of the data.",
           reason="order-sensitive")
+
     if verify_integrity:
-      raise frame_base.WontImplementError(
-          "append(verify_integrity=True) produces an execution time error")
+      # We can verify the index is non-unique within index partitioned data.
+      requires = partitionings.Index()
+    else:
+      requires = partitionings.Arbitrary()
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'append',
-            lambda s, other: s.append(other, sort=sort, **kwargs),
+            lambda s, other: s.append(other, sort=sort, verify_integrity=verify_integrity, **kwargs),
             [self._expr, other._expr],
-            requires_partition_by=partitionings.Arbitrary(),
+            requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()
         )
     )

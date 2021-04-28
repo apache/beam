@@ -768,6 +768,7 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
 
   def test_dataframe_melt(self):
+
     df = pd.DataFrame({
         'A': {
             0: 'a', 1: 'b', 2: 'c'
@@ -826,6 +827,23 @@ class DeferredFrameTest(unittest.TestCase):
     # https://github.com/pandas-dev/pandas/issues/40989
     # self._run_test(lambda df: df.fillna(axis='columns', value=100,
     #                                     limit=2), df)
+
+  def test_append_verify_integrity(self):
+    df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
+    df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
+
+    self._run_error_test(
+        lambda s1,
+        s2: s1.append(s2, verify_integrity=True),
+        df1['A'],
+        df2['A'],
+        construction_time=False)
+    self._run_error_test(
+        lambda df1,
+        df2: df1.append(df2, verify_integrity=True),
+        df1,
+        df2,
+        construction_time=False)
 
 
 class AllowNonParallelTest(unittest.TestCase):
