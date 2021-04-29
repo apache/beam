@@ -85,18 +85,18 @@ class DynamicWriteBatcherTest(unittest.TestCase):
   def test_slow_queries(self):
     self._batcher.report_latency(0, 10000, 200)
     self._batcher.report_latency(0, 10000, 200)
-    self.assertEqual(100, self._batcher.get_batch_size(0))
+    self.assertEqual(120, self._batcher.get_batch_size(0))
 
   def test_size_not_below_minimum(self):
-    self._batcher.report_latency(0, 30000, 50)
-    self._batcher.report_latency(0, 30000, 50)
+    self._batcher.report_latency(0, 75000, 50)
+    self._batcher.report_latency(0, 75000, 50)
     self.assertEqual(util.WRITE_BATCH_MIN_SIZE, self._batcher.get_batch_size(0))
 
   def test_sliding_window(self):
     self._batcher.report_latency(0, 30000, 50)
     self._batcher.report_latency(50000, 5000, 200)
     self._batcher.report_latency(100000, 5000, 200)
-    self.assertEqual(200, self._batcher.get_batch_size(150000))
+    self.assertEqual(240, self._batcher.get_batch_size(150000))
 
 
 if __name__ == '__main__':

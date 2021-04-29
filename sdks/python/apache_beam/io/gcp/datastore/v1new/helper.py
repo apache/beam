@@ -36,6 +36,7 @@ from google.cloud import environment_vars
 from google.cloud.datastore import client
 
 from apache_beam.io.gcp.datastore.v1new import types
+from apache_beam.version import __version__ as beam_version
 from cachetools.func import ttl_cache
 
 # https://cloud.google.com/datastore/docs/concepts/errors#error_codes
@@ -51,6 +52,7 @@ _RETRYABLE_DATASTORE_ERRORS = (
 def get_client(project, namespace):
   """Returns a Cloud Datastore client."""
   _client = client.Client(project=project, namespace=namespace)
+  _client._client_info.user_agent = 'beam-python-sdk/{}'.format(beam_version)
   # Avoid overwriting user setting. BEAM-7608
   if not os.environ.get(environment_vars.GCD_HOST, None):
     _client.base_url = 'https://batch-datastore.googleapis.com'  # BEAM-1387
