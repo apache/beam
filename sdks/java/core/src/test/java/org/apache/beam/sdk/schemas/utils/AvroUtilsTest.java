@@ -29,7 +29,6 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import org.apache.avro.Conversions;
-import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.RandomData;
 import org.apache.avro.Schema.Type;
@@ -39,6 +38,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -213,7 +213,7 @@ public class AvroUtilsTest {
     fields.add(
         new org.apache.avro.Schema.Field(
             "decimal",
-            LogicalTypes.decimal(Integer.MAX_VALUE)
+            LogicalTypes.decimal(Integer.MAX_VALUE, 17)
                 .addToSchema(org.apache.avro.Schema.create(Type.BYTES)),
             "",
             (Object) null));
@@ -264,7 +264,7 @@ public class AvroUtilsTest {
   private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
   private static final DateTime DATE_TIME =
       new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-  private static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
+  private static final BigDecimal BIG_DECIMAL = new BigDecimal(3600).setScale(17);
 
   private Row getBeamRow() {
     Row subRow = Row.withSchema(getBeamSubSchema()).addValues(true, 42).build();
@@ -292,13 +292,10 @@ public class AvroUtilsTest {
   }
 
   private static GenericRecord getGenericRecord() {
-
-    LogicalType decimalType =
-        LogicalTypes.decimal(Integer.MAX_VALUE)
-            .addToSchema(org.apache.avro.Schema.create(Type.BYTES))
-            .getLogicalType();
     ByteBuffer encodedDecimal =
-        new Conversions.DecimalConversion().toBytes(BIG_DECIMAL, null, decimalType);
+        new Conversions.DecimalConversion()
+            .toBytes(
+                BIG_DECIMAL, null, getAvroSchema().getField("decimal").schema().getLogicalType());
 
     return new GenericRecordBuilder(getAvroSchema())
         .set("bool", true)
@@ -611,6 +608,13 @@ public class AvroUtilsTest {
     users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
     assertTrue(users.hasSchema());
     CoderProperties.coderSerializable(users.getCoder());
+  }
+
+  @Test
+  public void testGenericRecordSchemaCoderRoundTrip() throws Exception {
+    Coder<GenericRecord> coder = AvroUtils.schemaCoder(getAvroSchema());
+
+    CoderProperties.coderDecodeEncodeEqual(coder, getGenericRecord());
   }
 
   @Test
