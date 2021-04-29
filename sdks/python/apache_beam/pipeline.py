@@ -457,10 +457,10 @@ class Pipeline(object):
         transform.replace_output(output, tag=tag)
 
     for transform in input_replacements:
-      transform.inputs = input_replacements[transform]
+      transform.replace_inputs(input_replacements[transform])
 
     for transform in side_input_replacements:
-      transform.side_inputs = side_input_replacements[transform]
+      transform.replace_side_inputs(side_input_replacements[transform])
 
   def _check_replacement(self, override):
     # type: (PTransformOverride) -> None
@@ -1100,6 +1100,27 @@ class AppliedPTransform(object):
         self.outputs[output_tag] = out
     else:
       raise TypeError("Unexpected output type: %s" % output)
+
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_outputs(self.named_outputs())
+
+  def replace_inputs(self, inputs):
+    self.inputs = inputs
+
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_inputs(self.named_inputs())
+
+  def replace_side_inputs(self, side_inputs):
+    self.side_inputs = side_inputs
+
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_inputs(self.named_inputs())
 
   def add_output(
       self,
