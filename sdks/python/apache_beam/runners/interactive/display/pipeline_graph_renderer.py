@@ -22,10 +22,6 @@ This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import abc
 import os
 import subprocess
@@ -33,15 +29,13 @@ from typing import TYPE_CHECKING
 from typing import Optional
 from typing import Type
 
-from future.utils import with_metaclass
-
 from apache_beam.utils.plugin import BeamPlugin
 
 if TYPE_CHECKING:
   from apache_beam.runners.interactive.display.pipeline_graph import PipelineGraph
 
 
-class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
+class PipelineGraphRenderer(BeamPlugin, metaclass=abc.ABCMeta):
   """Abstract class for renderers, who decide how pipeline graphs are rendered.
   """
   @classmethod
