@@ -329,6 +329,7 @@ PROTO_TYPE = 100
 DATACLASS_TYPE = 101
 NAMED_TUPLE_TYPE = 102
 ENUM_TYPE = 103
+NESTED_STATE_TYPE = 104
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -455,6 +456,17 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.encode_type(type(value), stream)
       # Enum values can be of any type.
       self.encode_to_stream(value.value, stream, True)
+    elif hasattr(value, "__getstate__"):
+      if not hasattr(value, "__setstate__"):
+        raise TypeError(
+            "Unable to deterministically encode '%s' of type '%s', "
+            "for the input of '%s'. The object defines __getstate__ but not "
+            "__setstate__." %
+            (value, type(value), self.requires_deterministic_step_label))
+      stream.write_byte(NESTED_STATE_TYPE)
+      self.encode_type(type(value), stream)
+      state_value = value.__getstate__()
+      self.encode_to_stream(state_value, stream, True)
     else:
       raise TypeError(
           "Unable to deterministically encode '%s' of type '%s', "
@@ -510,6 +522,12 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t == ENUM_TYPE:
       cls = self.decode_type(stream)
       return cls(self.decode_from_stream(stream, True))
+    elif t == NESTED_STATE_TYPE:
+      cls = self.decode_type(stream)
+      state = self.decode_from_stream(stream, True)
+      value = cls.__new__(cls)
+      value.__setstate__(state)
+      return value
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:
