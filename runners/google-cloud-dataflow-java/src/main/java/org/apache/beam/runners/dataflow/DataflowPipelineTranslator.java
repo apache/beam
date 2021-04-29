@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.apache.beam.runners.dataflow.DataflowRunner.useUnifiedWorker;
 import static org.apache.beam.runners.dataflow.util.Structs.addBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.addDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.addList;
@@ -445,7 +446,11 @@ public class DataflowPipelineTranslator {
         environment.setDebugOptions(debugOptions);
       }
 
-      pipeline.traverseTopologically(this);
+      // TODO(BEAM-12213): Always call pipeline.traverseTopologically(this) regardless runner_v2
+      // variant when sideinput changes are ready.
+      if (!useUnifiedWorker(options)) {
+        pipeline.traverseTopologically(this);
+      }
 
       return job;
     }
