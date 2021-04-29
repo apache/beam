@@ -15264,36 +15264,71 @@ as the previous example.&lt;/p>
 &lt;p>BigQueryIO supports two methods of inserting data into BigQuery: load jobs and
 streaming inserts. Each insertion method provides different tradeoffs of cost,
 quota, and data consistency. See the BigQuery documentation for
-&lt;a href="https://cloud.google.com/bigquery/loading-data">load jobs&lt;/a> and
-&lt;a href="https://cloud.google.com/bigquery/streaming-data-into-bigquery">streaming inserts&lt;/a>
+&lt;a href="https://cloud.google.com/bigquery/loading-data">different data ingestion options&lt;/a>
+(specifically, &lt;a href="https://cloud.google.com/bigquery/docs/batch-loading-data">load jobs&lt;/a>
+and &lt;a href="https://cloud.google.com/bigquery/streaming-data-into-bigquery">streaming inserts&lt;/a>)
 for more information about these tradeoffs.&lt;/p>
-&lt;p>BigQueryIO chooses a default insertion method based on the input &lt;code>PCollection&lt;/code>.&lt;/p>
-&lt;p class="language-py">BigQueryIO uses load jobs when you apply a BigQueryIO write transform to a
-bounded &lt;code>PCollection&lt;/code>.&lt;/p>
-&lt;p class="language-java">BigQueryIO uses load jobs in the following situations:&lt;/p>
+&lt;p class="language-java">BigQueryIO chooses a default insertion method based on the input &lt;code>PCollection&lt;/code>.
+You can use &lt;code>withMethod&lt;/code> to specify the desired insertion method. See
+&lt;a href="https://beam.apache.org/releases/javadoc/2.28.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">&lt;code>Write.Method&lt;/code>&lt;/a>
+for the list of the available methods and their restrictions.&lt;/p>
+&lt;p class="language-py">BigQueryIO chooses a default insertion method based on the input &lt;code>PCollection&lt;/code>.
+You can use &lt;code>method&lt;/code> to specify the desired insertion method. See
+&lt;a href="https://beam.apache.org/releases/pydoc/2.28.0/apache_beam.io.gcp.bigquery.html#apache_beam.io.gcp.bigquery.WriteToBigQuery">&lt;code>WriteToBigQuery&lt;/code>&lt;/a>
+for the list of the available methods and their restrictions.&lt;/p>
+&lt;p>BigQueryIO uses load jobs in the following situations:&lt;/p>
 &lt;span class="language-java">&lt;ul>
 &lt;li>When you apply a BigQueryIO write transform to a bounded &lt;code>PCollection&lt;/code>.&lt;/li>
-&lt;li>When you apply a BigQueryIO write transform to an unbounded &lt;code>PCollection&lt;/code> and
-use &lt;code>BigQueryIO.write().withTriggeringFrequency()&lt;/code> to set the triggering
-frequency.&lt;/li>
 &lt;li>When you specify load jobs as the insertion method using
 &lt;code>BigQueryIO.write().withMethod(FILE_LOADS)&lt;/code>.&lt;/li>
 &lt;/ul>&lt;/span>
-&lt;p class="language-py">BigQueryIO uses streaming inserts when you apply a BigQueryIO write transform to
-an unbounded &lt;code>PCollection&lt;/code>.&lt;/p>
-&lt;p class="language-java">BigQueryIO uses streaming inserts in the following situations:&lt;/p>
+&lt;span class="language-py">&lt;ul>
+&lt;li>When you apply a BigQueryIO write transform to a bounded &lt;code>PCollection&lt;/code>.&lt;/li>
+&lt;li>When you specify load jobs as the insertion method using
+&lt;code>WriteToBigQuery(method='FILE_LOADS')&lt;/code>.&lt;/li>
+&lt;/ul>&lt;/span>
+&lt;p>&lt;em>&lt;strong>Note:&lt;/strong>&lt;/em> If you use batch loads in a streaming pipeline:&lt;/p>
+&lt;p class="language-java">You must use &lt;code>withTriggeringFrequency&lt;/code> to specify a triggering frequency for
+initiating load jobs. Be careful about setting the frequency such that your
+pipeline doesn&amp;rsquo;t exceed the BigQuery load job &lt;a href="https://cloud.google.com/bigquery/quotas#load_jobs">quota limit&lt;/a>.&lt;/p>
+&lt;p class="language-java">You can either use &lt;code>withNumFileShards&lt;/code> to explicitly set the number of file
+shards written, or use &lt;code>withAutoSharding&lt;/code> to enable dynamic sharding (starting
+2.29.0 release) and the number of shards may be determined and changed at
+runtime. The sharding behavior depends on the runners.&lt;/p>
+&lt;p class="language-py">You must use &lt;code>triggering_frequency&lt;/code> to specify a triggering frequency for
+initiating load jobs. Be careful about setting the frequency such that your
+pipeline doesn&amp;rsquo;t exceed the BigQuery load job &lt;a href="https://cloud.google.com/bigquery/quotas#load_jobs">quota limit&lt;/a>.&lt;/p>
+&lt;p class="language-py">You can set &lt;code>with_auto_sharding=True&lt;/code> to enable dynamic sharding (starting
+2.29.0 release). The number of shards may be determined and changed at runtime.
+The sharding behavior depends on the runners.&lt;/p>
+&lt;p>BigQueryIO uses streaming inserts in the following situations:&lt;/p>
 &lt;span class="language-java">&lt;ul>
-&lt;li>When you apply a BigQueryIO write transform to an unbounded &lt;code>PCollection&lt;/code> and
-do not set the triggering frequency.&lt;/li>
+&lt;li>When you apply a BigQueryIO write transform to an unbounded &lt;code>PCollection&lt;/code>.&lt;/li>
 &lt;li>When you specify streaming inserts as the insertion method using
 &lt;code>BigQueryIO.write().withMethod(STREAMING_INSERTS)&lt;/code>.&lt;/li>
 &lt;/ul>&lt;/span>
+&lt;span class="language-py">&lt;ul>
+&lt;li>When you apply a BigQueryIO write transform to an unbounded &lt;code>PCollection&lt;/code>.&lt;/li>
+&lt;li>When you specify streaming inserts as the insertion method using
+&lt;code>WriteToBigQuery(method='STREAMING_INSERTS')&lt;/code>.&lt;/li>
+&lt;/ul>&lt;/span>
+&lt;span class="language-java">&lt;p>&lt;em>&lt;strong>Note:&lt;/strong>&lt;/em> Streaming inserts by default enables BigQuery &lt;a href="https://cloud.google.com/bigquery/streaming-data-into-bigquery#dataconsistency">best-effort deduplication mechanism&lt;/a>.
+You can disable that by setting &lt;code>ignoreInsertIds&lt;/code>. The &lt;a href="https://cloud.google.com/bigquery/quotas#streaming_inserts">quota limitations&lt;/a>
+are different when deduplication is enabled vs. disabled.&lt;/p>
+&lt;p>Streaming inserts applies a default sharding for each table destination. You can
+use &lt;code>withAutoSharding&lt;/code> (starting 2.28.0 release) to enable dynamic sharding and
+the number of shards may be determined and changed at runtime. The sharding
+behavior depends on the runners.&lt;/p>
+&lt;/span>
+&lt;span class="language-py">&lt;p>&lt;em>&lt;strong>Note:&lt;/strong>&lt;/em> Streaming inserts by default enables BigQuery &lt;a href="https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication">best-effort deduplication mechanism&lt;/a>.
+You can disable that by setting &lt;code>ignore_insert_ids=True&lt;/code>. The &lt;a href="https://cloud.google.com/bigquery/quotas#streaming_inserts">quota limitations&lt;/a>
+are different when deduplication is enabled vs. disabled.&lt;/p>
+&lt;p>Streaming inserts applies a default sharding for each table destination. You can
+set &lt;code>with_auto_sharding=True&lt;/code> (starting 2.29.0 release) to enable dynamic
+sharding. The number of shards may be determined and changed at runtime. The
+sharding behavior depends on the runners.&lt;/p>
+&lt;/span>
 &lt;!-- Java specific -->
-&lt;p class="language-java">You can use &lt;code>withMethod&lt;/code> to specify the desired insertion method. See
-&lt;a href="https://beam.apache.org/releases/javadoc/2.28.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">Write.Method&lt;/a>
-for the list of the available methods and their restrictions.&lt;/p>
-&lt;p class="language-java">&lt;em>&lt;strong>Note:&lt;/strong>&lt;/em> If you use batch loads in a streaming pipeline, you must use
-&lt;code>withTriggeringFrequency&lt;/code> to specify a triggering frequency and &lt;code>withNumFileShards&lt;/code> to specify number of file shards written.&lt;/p>
 &lt;h3 id="writing-to-a-table">Writing to a table&lt;/h3>
 &lt;p class="language-java">To write to a BigQuery table, apply either a &lt;code>writeTableRows&lt;/code> or &lt;code>write&lt;/code>
 transform.&lt;/p>
