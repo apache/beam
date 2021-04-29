@@ -34,7 +34,6 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValues;
@@ -73,12 +72,7 @@ public class PubSubWritePayloadTranslationTest {
     PDone output = input.apply(pubsubSink);
     AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(
-            "sink",
-            PValues.expandInput(input),
-            PValues.expandOutput(output),
-            pubsubSink,
-            ResourceHints.create(),
-            pipeline);
+            "sink", PValues.expandInput(input), PValues.expandOutput(output), pubsubSink, pipeline);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.FunctionSpec spec = sinkTranslator.translate(appliedPTransform, components);
@@ -102,12 +96,7 @@ public class PubSubWritePayloadTranslationTest {
     PDone output = input.apply(pubsubSink);
     AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(
-            "sink",
-            PValues.expandInput(input),
-            PValues.expandOutput(output),
-            pubsubSink,
-            ResourceHints.create(),
-            pipeline);
+            "sink", PValues.expandInput(input), PValues.expandOutput(output), pubsubSink, pipeline);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.FunctionSpec spec = sinkTranslator.translate(appliedPTransform, components);

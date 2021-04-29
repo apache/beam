@@ -28,7 +28,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
@@ -56,7 +55,6 @@ public class TransformInputsTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             new TestTransform(),
-            ResourceHints.create(),
             pipeline);
 
     assertThat(TransformInputs.nonAdditionalInputs(transform), Matchers.empty());
@@ -71,7 +69,6 @@ public class TransformInputsTest {
             Collections.singletonMap(new TupleTag<Long>() {}, input),
             Collections.emptyMap(),
             new TestTransform(),
-            ResourceHints.create(),
             pipeline);
 
     assertThat(TransformInputs.nonAdditionalInputs(transform), Matchers.containsInAnyOrder(input));
@@ -86,12 +83,7 @@ public class TransformInputsTest {
     allInputs.put(new TupleTag<Void>() {}, voids);
     AppliedPTransform<PInput, POutput, TestTransform> transform =
         AppliedPTransform.of(
-            "additional-free",
-            allInputs,
-            Collections.emptyMap(),
-            new TestTransform(),
-            ResourceHints.create(),
-            pipeline);
+            "additional-free", allInputs, Collections.emptyMap(), new TestTransform(), pipeline);
 
     assertThat(
         TransformInputs.nonAdditionalInputs(transform),
@@ -117,7 +109,6 @@ public class TransformInputsTest {
             allInputs,
             Collections.emptyMap(),
             new TestTransform(additionalInputs),
-            ResourceHints.create(),
             pipeline);
 
     assertThat(
@@ -137,7 +128,6 @@ public class TransformInputsTest {
             additionalInputs,
             Collections.emptyMap(),
             new TestTransform((Map) additionalInputs),
-            ResourceHints.create(),
             pipeline);
 
     thrown.expect(IllegalArgumentException.class);

@@ -54,7 +54,6 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -166,7 +165,7 @@ public class ParDoTranslationTest {
       RunnerApi.PTransform protoTransform =
           PTransformTranslation.toProto(
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
-                  "foo", inputs, PValues.expandOutput(output), parDo, ResourceHints.create(), p),
+                  "foo", inputs, PValues.expandOutput(output), parDo, p),
               sdkComponents);
       RunnerApi.Components components = sdkComponents.toComponents();
       RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);

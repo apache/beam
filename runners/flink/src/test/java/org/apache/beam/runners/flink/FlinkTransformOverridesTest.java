@@ -37,7 +37,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
@@ -70,12 +69,7 @@ public class FlinkTransformOverridesTest {
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
             AppliedPTransform.of(
-                "writefiles",
-                PValues.expandInput(objs),
-                Collections.emptyMap(),
-                original,
-                ResourceHints.create(),
-                p);
+                "writefiles", PValues.expandInput(objs), Collections.emptyMap(), original, p);
 
     WriteFiles<Object, Void, Object> replacement =
         (WriteFiles<Object, Void, Object>)

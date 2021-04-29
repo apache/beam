@@ -42,7 +42,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.PValues;
@@ -170,7 +169,6 @@ public class FlinkStreamingTransformTranslatorsTest {
             Collections.emptyMap(),
             PValues.fullyExpand(outputs),
             transform,
-            ResourceHints.create(),
             Pipeline.create());
 
     ctx.setCurrentTransform(appliedTransform);

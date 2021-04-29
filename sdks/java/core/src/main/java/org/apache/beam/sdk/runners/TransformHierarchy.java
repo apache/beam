@@ -35,7 +35,6 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -72,11 +71,11 @@ public class TransformHierarchy {
   // Maintain a stack based on the enclosing nodes
   private Node current;
 
-  public TransformHierarchy(ResourceHints resourceHints) {
+  public TransformHierarchy() {
     producers = new HashMap<>();
     producerInput = new HashMap<>();
     unexpandedInputs = new HashMap<>();
-    root = new Node(resourceHints);
+    root = new Node();
     current = root;
   }
 
@@ -258,21 +257,18 @@ public class TransformHierarchy {
     // Output of the transform, in expanded form. Null if not yet set.
     private @Nullable Map<TupleTag<?>, PCollection<?>> outputs;
 
-    private final ResourceHints resourceHints;
-
     @VisibleForTesting boolean finishedSpecifying = false;
 
     /**
      * Creates the root-level node. The root level node has a null enclosing node, a null transform,
      * an empty map of inputs, an empty map of outputs, and a name equal to the empty string.
      */
-    private Node(ResourceHints resourceHints) {
+    private Node() {
       this.enclosingNode = null;
       this.transform = null;
       this.fullName = "";
       this.inputs = Collections.emptyMap();
       this.outputs = Collections.emptyMap();
-      this.resourceHints = resourceHints;
     }
 
     /**
@@ -291,7 +287,6 @@ public class TransformHierarchy {
       inputs.putAll(PValues.expandInput(input));
       inputs.putAll(PValues.fullyExpand(transform.getAdditionalInputs()));
       this.inputs = inputs.build();
-      this.resourceHints = transform.getResourceHints().mergeWithOuter(enclosingNode.resourceHints);
     }
 
     /**
@@ -318,7 +313,6 @@ public class TransformHierarchy {
       this.fullName = fullName;
       this.inputs = inputs == null ? Collections.emptyMap() : inputs;
       this.outputs = outputs == null ? Collections.emptyMap() : outputs;
-      this.resourceHints = transform.getResourceHints().mergeWithOuter(enclosingNode.resourceHints);
     }
 
     /**
@@ -496,7 +490,7 @@ public class TransformHierarchy {
     /** Returns the {@link AppliedPTransform} representing this {@link Node}. */
     public AppliedPTransform<?, ?, ?> toAppliedPTransform(Pipeline pipeline) {
       return AppliedPTransform.of(
-          getFullName(), inputs, outputs, (PTransform) getTransform(), resourceHints, pipeline);
+          getFullName(), inputs, outputs, (PTransform) getTransform(), pipeline);
     }
 
     /**

@@ -33,7 +33,6 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValues;
 import org.junit.Test;
@@ -235,7 +234,6 @@ public class PubSubReadPayloadTranslationTest {
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(output),
             readFromPubSub,
-            ResourceHints.create(),
             pipeline);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValues;
@@ -60,7 +59,6 @@ public class EmptyFlattenAsCreateFactoryTest {
                 Collections.emptyMap(),
                 Collections.emptyMap(),
                 Flatten.pCollections(),
-                ResourceHints.create(),
                 pipeline));
     assertThat(replacement.getInput().getAll(), emptyIterable());
   }
@@ -79,7 +77,6 @@ public class EmptyFlattenAsCreateFactoryTest {
             PValues.expandInput(nonEmpty),
             Collections.emptyMap(),
             Flatten.pCollections(),
-            ResourceHints.create(),
             pipeline));
   }
 
@@ -112,7 +109,6 @@ public class EmptyFlattenAsCreateFactoryTest {
                         Collections.emptyMap(),
                         Collections.emptyMap(),
                         Flatten.pCollections(),
-                        ResourceHints.create(),
                         pipeline))
                 .getTransform());
     PAssert.that(emptyFlattened).empty();

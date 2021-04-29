@@ -373,8 +373,7 @@ public class PTransformTranslation {
       }
 
       if (!RUNNER_IMPLEMENTED_TRANSFORMS.contains(urn)) {
-        transformBuilder.setEnvironmentId(
-            components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
+        transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
       }
       return transformBuilder.build();
     }
@@ -449,12 +448,10 @@ public class PTransformTranslation {
             // reads since they are a Runner translated transform, unless, in the future, we have an
             // adapter available for splittable DoFn.
             if (appliedPTransform.getTransform().getClass() == Read.Bounded.class) {
-              transformBuilder.setEnvironmentId(
-                  components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
+              transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
             }
           } else {
-            transformBuilder.setEnvironmentId(
-                components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
+            transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
           }
         }
       }

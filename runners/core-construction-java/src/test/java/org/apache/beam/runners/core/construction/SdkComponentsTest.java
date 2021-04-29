@@ -23,8 +23,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -40,7 +38,6 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -94,7 +91,6 @@ public class SdkComponentsTest {
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(pt),
             create,
-            ResourceHints.create(),
             pipeline);
     String componentName = components.registerPTransform(transform, Collections.emptyList());
     assertThat(componentName, equalTo(userName));
@@ -112,7 +108,6 @@ public class SdkComponentsTest {
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(pt),
             create,
-            ResourceHints.create(),
             pipeline);
     String componentName = components.registerPTransform(transform, Collections.emptyList());
     assertThat(componentName, matchesPattern("^[A-Za-z0-9-_]+"));
@@ -133,7 +128,6 @@ public class SdkComponentsTest {
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(pt),
             create,
-            ResourceHints.create(),
             pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
         AppliedPTransform.of(
@@ -141,7 +135,6 @@ public class SdkComponentsTest {
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(pt),
             createChild,
-            ResourceHints.create(),
             pipeline);
 
     String childId = components.registerPTransform(childTransform, Collections.emptyList());
@@ -158,12 +151,7 @@ public class SdkComponentsTest {
     PCollection<Integer> pt = pipeline.apply(create);
     AppliedPTransform<?, ?, ?> transform =
         AppliedPTransform.of(
-            "",
-            PValues.expandInput(pipeline.begin()),
-            PValues.expandOutput(pt),
-            create,
-            ResourceHints.create(),
-            pipeline);
+            "", PValues.expandInput(pipeline.begin()), PValues.expandOutput(pt), create, pipeline);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(transform.toString());
@@ -181,7 +169,6 @@ public class SdkComponentsTest {
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(pt),
             create,
-            ResourceHints.create(),
             pipeline);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("child nodes may not be null");
@@ -203,7 +190,6 @@ public class SdkComponentsTest {
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(pt),
             create,
-            ResourceHints.create(),
             pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
         AppliedPTransform.of(
@@ -211,7 +197,6 @@ public class SdkComponentsTest {
             PValues.expandInput(pipeline.begin()),
             PValues.expandOutput(pt),
             createChild,
-            ResourceHints.create(),
             pipeline);
 
     thrown.expect(IllegalArgumentException.class);
@@ -261,41 +246,5 @@ public class SdkComponentsTest {
         components.registerWindowingStrategy(
             WindowingStrategy.globalDefault().withMode(AccumulationMode.ACCUMULATING_FIRED_PANES));
     assertThat(name, equalTo(duplicateName));
-  }
-
-  @Test
-  public void testEnvironmentForHintDeduplicatonLogic() {
-    assertEquals(
-        components.getEnvironmentIdFor(ResourceHints.create()),
-        components.getEnvironmentIdFor(ResourceHints.create()));
-
-    assertEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)),
-        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)));
-
-    assertEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(1000)),
-        components.getEnvironmentIdFor(ResourceHints.create().withMinRam(2000).withMinRam("1KB")));
-
-    assertNotEquals(
-        components.getEnvironmentIdFor(ResourceHints.create()),
-        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("1GiB")));
-
-    assertNotEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("10GiB")),
-        components.getEnvironmentIdFor(ResourceHints.create().withMinRam("10GB")));
-
-    assertEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
-        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")));
-
-    assertNotEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
-        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("tpu")));
-
-    assertNotEquals(
-        components.getEnvironmentIdFor(ResourceHints.create().withAccelerator("gpu")),
-        components.getEnvironmentIdFor(
-            ResourceHints.create().withAccelerator("gpu").withMinRam(10)));
   }
 }

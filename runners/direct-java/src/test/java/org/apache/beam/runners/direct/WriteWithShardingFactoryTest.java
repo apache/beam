@@ -57,7 +57,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
@@ -158,12 +157,7 @@ public class WriteWithShardingFactoryTest implements Serializable {
             PTransform<PCollection<Object>, WriteFilesResult<Void>>>
         originalApplication =
             AppliedPTransform.of(
-                "write",
-                PValues.expandInput(objs),
-                Collections.emptyMap(),
-                original,
-                ResourceHints.create(),
-                p);
+                "write", PValues.expandInput(objs), Collections.emptyMap(), original, p);
 
     assertThat(
         factory.getReplacementTransform(originalApplication).getTransform(),

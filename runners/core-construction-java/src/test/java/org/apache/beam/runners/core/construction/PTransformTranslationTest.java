@@ -42,7 +42,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -170,7 +169,6 @@ public class PTransformTranslationTest {
         PValues.expandInput(pipeline.begin()),
         PValues.expandOutput(pcollection),
         sequence,
-        ResourceHints.create(),
         pipeline);
   }
 
@@ -182,7 +180,6 @@ public class PTransformTranslationTest {
         PValues.expandInput(pipeline.begin()),
         PValues.expandOutput(pcollection),
         transform,
-        ResourceHints.create(),
         pipeline);
   }
 
@@ -204,7 +201,6 @@ public class PTransformTranslationTest {
         PValues.expandInput(pipeline.begin()),
         PValues.expandOutput(PDone.in(pipeline)),
         rawPTransform,
-        ResourceHints.create(),
         pipeline);
   }
 
@@ -225,11 +221,6 @@ public class PTransformTranslationTest {
 
     return AppliedPTransform
         .<PCollection<Long>, PCollectionTuple, ParDo.MultiOutput<Long, KV<Long, String>>>of(
-            "MultiParDoInAndOut",
-            inputs,
-            PValues.expandOutput(output),
-            parDo,
-            ResourceHints.create(),
-            pipeline);
+            "MultiParDoInAndOut", inputs, PValues.expandOutput(output), parDo, pipeline);
   }
 }
