@@ -112,8 +112,14 @@ public abstract class RowCoderGenerator {
 
   // Cache for Coder class that are already generated.
   private static final Map<UUID, Coder<Row>> GENERATED_CODERS = Maps.newConcurrentMap();
+  private static final Map<UUID, Map<String, Integer>> ENCODING_POSITION_OVERRIDES =
+      Maps.newConcurrentMap();
 
   private static final Logger LOG = LoggerFactory.getLogger(RowCoderGenerator.class);
+
+  public static void overrideEncodingPositions(UUID uuid, Map<String, Integer> encodingPositions) {
+    ENCODING_POSITION_OVERRIDES.put(uuid, encodingPositions);
+  }
 
   @SuppressWarnings("unchecked")
   public static Coder<Row> generate(Schema schema) {
@@ -128,7 +134,8 @@ public abstract class RowCoderGenerator {
       builder = implementMethods(schema, builder);
 
       int[] encodingPosToRowIndex = new int[schema.getFieldCount()];
-      Map<String, Integer> encodingPositions = schema.getEncodingPositions();
+      Map<String, Integer> encodingPositions =
+          ENCODING_POSITION_OVERRIDES.getOrDefault(schema.getUUID(), schema.getEncodingPositions());
       for (int recordIndex = 0; recordIndex < schema.getFieldCount(); ++recordIndex) {
         String name = schema.getField(recordIndex).getName();
         int encodingPosition = encodingPositions.get(name);
