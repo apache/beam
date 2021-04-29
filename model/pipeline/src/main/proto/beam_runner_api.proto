@@ -1395,6 +1395,9 @@ message ArtifactFilePayload {
 message ArtifactUrlPayload {
   // a string for an artifact URL e.g. "https://.../foo.jar" or "gs://tmp/foo.jar"
   string url = 1;
+
+  // (Optional) The hex-encoded sha256 checksum of the artifact if available.
+  string sha256 = 2;
 }
 
 message EmbeddedFilePayload {
