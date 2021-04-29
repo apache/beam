@@ -602,8 +602,7 @@ class DataflowApplicationClient(object):
           dep.type_urn = common_urns.artifact_types.URL.urn
           dep.type_payload = beam_runner_api_pb2.ArtifactUrlPayload(
               url=FileSystems.join(
-                  google_cloud_options.staging_location,
-                  staged_name),
+                  google_cloud_options.staging_location, staged_name),
               sha256=type_payload.sha256).SerializeToString()
         else:
           dep.type_payload = beam_runner_api_pb2.ArtifactFilePayload(
