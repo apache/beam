@@ -22,10 +22,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
 

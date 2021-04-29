@@ -18,8 +18,6 @@
 """Integration tests for interactive beam."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 
 import pytest

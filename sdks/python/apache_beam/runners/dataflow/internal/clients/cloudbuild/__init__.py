@@ -19,8 +19,6 @@
 # pylint:disable=wildcard-import
 # mypy: ignore-errors
 
-from __future__ import absolute_import
-
 import pkgutil
 
 # Protect against environments where apitools library is not available.

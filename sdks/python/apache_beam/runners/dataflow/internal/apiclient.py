@@ -21,8 +21,6 @@ Dataflow client utility functions."""
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import codecs
 import getpass
 import io
@@ -36,9 +34,6 @@ import time
 import warnings
 from copy import copy
 from datetime import datetime
-
-from builtins import object
-from past.builtins import unicode
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
@@ -392,7 +387,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return unicode(shortened), length
+      return str(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':
