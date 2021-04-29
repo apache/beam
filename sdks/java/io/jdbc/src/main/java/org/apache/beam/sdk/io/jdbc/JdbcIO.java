@@ -114,7 +114,7 @@ import org.slf4j.LoggerFactory;
  * <p>Query parameters can be configured using a user-provided {@link StatementPreparator}. For
  * example:
  *
- * <pre>{@code
+ * <pre><code>
  * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
  *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
  *       "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
@@ -132,13 +132,13 @@ import org.slf4j.LoggerFactory;
  *     }
  *   })
  * );
- * }</pre>
+ * }</code></pre>
  *
  * <p>To customize the building of the {@link DataSource} we can provide a {@link
  * SerializableFunction}. For example if you need to provide a {@link PoolingDataSource} from an
  * existing {@link DataSourceConfiguration}: you can use a {@link PoolableDataSourceProvider}:
  *
- * <pre>{@code
+ * <pre><code>
  * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
  *   .withDataSourceProviderFn(JdbcIO.PoolableDataSourceProvider.of(
  *       JdbcIO.DataSourceConfiguration.create(
@@ -146,17 +146,17 @@ import org.slf4j.LoggerFactory;
  *           "username", "password")))
  *    // ...
  * );
- * }</pre>
+ * }</code></pre>
  *
  * <p>By default, the provided function requests a DataSource per execution thread. In some
  * circumstances this can quickly overwhelm the database by requesting too many connections. In that
  * case you should look into sharing a single instance of a {@link PoolingDataSource} across all the
  * execution threads. For example:
  *
- * <pre>{@code
- * private static class MyDataSourceProviderFn implements SerializableFunction<Void, DataSource> {
+ * <pre><code>
+ * private static class MyDataSourceProviderFn implements {@literal SerializableFunction<Void, DataSource> {
  *   private static transient DataSource dataSource;
- *   @Override
+ *   {@literal @Override}
  *   public synchronized DataSource apply(Void input) {
  *     if (dataSource == null) {
  *       dataSource = ... build data source ...
@@ -164,12 +164,12 @@ import org.slf4j.LoggerFactory;
  *     return dataSource;
  *   }
  * }
- *
+ * {@literal
  * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
  *   .withDataSourceProviderFn(new MyDataSourceProviderFn())
  *   // ...
  * );
- * }</pre>
+ * }</code></pre>
  *
  * <h3>Writing to JDBC datasource</h3>
  *
@@ -179,7 +179,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Like the source, to configure the sink, you have to provide a {@link DataSourceConfiguration}.
  *
- * <pre>{@code
+ * <pre><code>
  * pipeline
  *   .apply(...)
  *   .apply(JdbcIO.<KV<Integer, String>>write()
@@ -196,7 +196,7 @@ import org.slf4j.LoggerFactory;
  *        }
  *      })
  *    );
- * }</pre>
+ * }</code></pre>
  *
  * <p>NB: in case of transient failures, Beam runners may execute parts of JdbcIO.Write multiple
  * times for fault tolerance. Because of that, you should avoid using {@code INSERT} statements,
