@@ -516,12 +516,7 @@ public class PubsubIO {
     Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
     AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
-        .setCoder(
-            SchemaCoder.of(
-                schema,
-                TypeDescriptor.of(GenericRecord.class),
-                AvroUtils.getToRowFunction(GenericRecord.class, avroSchema),
-                AvroUtils.getFromRowFunction(GenericRecord.class)))
+        .setCoder(AvroUtils.schemaCoder(avroSchema))
         .build();
   }
 
