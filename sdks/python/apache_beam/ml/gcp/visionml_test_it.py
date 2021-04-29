@@ -20,7 +20,7 @@ from __future__ import absolute_import
 
 import unittest
 
-import pytest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -42,7 +42,7 @@ def extract(response):
       yield text_annotation.description
 
 
-@pytest.mark.it_postcommit
+@attr('IT')
 @unittest.skipIf(vision is None, 'GCP dependencies are not installed')
 class VisionMlTestIT(unittest.TestCase):
   def test_text_detection_with_language_hint(self):

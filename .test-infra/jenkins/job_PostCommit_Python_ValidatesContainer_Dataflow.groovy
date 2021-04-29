@@ -31,7 +31,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
       publishers {
-        archiveJunit('**/pytest*.xml')
+        archiveJunit('**/nosetests*.xml')
       }
 
       // Execute shell command to test Python SDK.

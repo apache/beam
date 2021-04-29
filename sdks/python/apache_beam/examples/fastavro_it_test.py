@@ -24,7 +24,7 @@ verifies they have the same elements.
 Usage:
 
   DataFlowRunner:
-    pytest apache_beam/examples/fastavro_it_test.py \
+    python setup.py nosetests --tests apache_beam.examples.fastavro_it_test \
         --test-pipeline-options="
           --runner=TestDataflowRunner
           --project=...
@@ -36,7 +36,7 @@ Usage:
         "
 
   DirectRunner:
-    pytest apache_beam/examples/fastavro_it_test.py \
+    python setup.py nosetests --tests apache_beam.examples.fastavro_it_test \
       --test-pipeline-options="
         --output=/tmp
         --records=5000
@@ -50,9 +50,9 @@ import logging
 import unittest
 import uuid
 
-import pytest
 from avro.schema import Parse
 from fastavro import parse_schema
+from nose.plugins.attrib import attr
 
 from apache_beam.io.avroio import ReadAllFromAvro
 from apache_beam.io.avroio import WriteToAvro
@@ -98,7 +98,7 @@ class FastavroIT(unittest.TestCase):
     self.uuid = str(uuid.uuid4())
     self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
-  @pytest.mark.it_postcommit
+  @attr('IT')
   def test_avro_it(self):
     num_records = self.test_pipeline.get_option('records')
     num_records = int(num_records) if num_records else 1000000

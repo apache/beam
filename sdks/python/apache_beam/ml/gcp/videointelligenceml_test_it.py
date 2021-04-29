@@ -25,7 +25,7 @@ from __future__ import unicode_literals
 import unittest
 
 import hamcrest as hc
-import pytest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -48,7 +48,7 @@ def extract_entities_descriptions(response):
       yield segment.entity.description
 
 
-@pytest.mark.it_postcommit
+@attr('IT')
 @unittest.skipIf(
     AnnotateVideoWithContext is None, 'GCP dependencies are not installed')
 class VideoIntelligenceMlTestIT(unittest.TestCase):

@@ -22,7 +22,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
-import pytest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -68,7 +68,7 @@ class CloudDLPIT(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
-  @pytest.mark.it_postcommit
+  @attr("IT")
   def test_deidentification(self):
     with TestPipeline(is_integration_test=True) as p:
       output = (
@@ -79,7 +79,7 @@ class CloudDLPIT(unittest.TestCase):
               inspection_config=INSPECT_CONFIG))
       assert_that(output, equal_to(['####################']))
 
-  @pytest.mark.it_postcommit
+  @attr("IT")
   def test_inspection(self):
     with TestPipeline(is_integration_test=True) as p:
       output = (

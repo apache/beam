@@ -27,7 +27,7 @@ import unittest
 from builtins import object
 from builtins import range
 
-import pytest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -64,6 +64,7 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
+# from nose.plugins.attrib import attr
 
 
 class FakeSource(NativeSource):
@@ -262,7 +263,7 @@ class PipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([[1, 2, 3]]))
 
   # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-  # @pytest.mark.it_validatesrunner
+  # @attr('ValidatesRunner')
   def test_metrics_in_fake_source(self):
     pipeline = TestPipeline()
     pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
@@ -722,7 +723,7 @@ class DoFnTest(unittest.TestCase):
           TestDoFn(), prefix, suffix=AsSingleton(suffix))
       assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_element_param(self):
     pipeline = TestPipeline()
     input = [1, 2]
@@ -733,7 +734,7 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to(input))
     pipeline.run()
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_key_param(self):
     pipeline = TestPipeline()
     pcoll = (
