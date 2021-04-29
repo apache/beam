@@ -208,10 +208,10 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.sort_values': ['*'],
+            'pandas.core.frame.DataFrame.melt': ['*']
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
-            'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
 
@@ -711,6 +711,7 @@ class DoctestTest(unittest.TestCase):
         wont_implement_ok={
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
+            'melt': ['*'],
         },
         skip={
             # error formatting
