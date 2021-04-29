@@ -55,7 +55,8 @@ if [[ -z "$RELEASE" || -z "$NEXT_VERSION_IN_BASE_BRANCH" ]]; then
 	exit
 fi
 
-SCRIPT_DIR=$(dirname $0)
+SCRIPT=$(readlink -f $0)
+SCRIPT_DIR=$(dirname $SCRIPT)
 MASTER_BRANCH=master
 DEV=${RELEASE}.dev
 RELEASE_BRANCH=release-${RELEASE}
@@ -91,7 +92,7 @@ echo ${MASTER_BRANCH}
 echo "==============================================================="
 
 # Update master branch
-sh "$SCRIPT_DIR"/set_version.sh "$NEXT_VERSION_IN_BASE_BRANCH""
+sh "$SCRIPT_DIR"/set_version.sh "$NEXT_VERSION_IN_BASE_BRANCH"
 
 echo "==============Update master branch as following================"
 git diff
