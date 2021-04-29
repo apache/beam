@@ -1,4 +1,73 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.28.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.29.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.29.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2290-2021-04-15">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.29.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349629">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Spark Classic and Portable runners officially support Spark 3 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7093">BEAM-7093&lt;/a>).&lt;/li>
+&lt;li>Official Java 11 support for most runners (Dataflow, Flink, Spark) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-2530">BEAM-2530&lt;/a>).&lt;/li>
+&lt;li>DataFrame API now supports GroupBy.apply (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11628">BEAM-11628&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Added support for S3 filesystem on AWS SDK V2 (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7637">BEAM-7637&lt;/a>)&lt;/li>
+&lt;li>GCP BigQuery sink (file loads) uses runner determined sharding for unbounded data (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11772">BEAM-11772&lt;/a>)&lt;/li>
+&lt;li>KafkaIO now recognizes the &lt;code>partition&lt;/code> property in writing records (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11806">BEAM-11806&lt;/a>)&lt;/li>
+&lt;li>Support for Hadoop configuration on ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11913">BEAM-11913&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>DataFrame API now supports pandas 1.2.x (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11531">BEAM-11531&lt;/a>).&lt;/li>
+&lt;li>Multiple DataFrame API bugfixes (&lt;a href="https://issues.apache/jira/browse/BEAM-12071">BEAM-12071&lt;/a>, &lt;a href="https://issues.apache/jira/browse/BEAM-11929">BEAM-11929&lt;/a>)&lt;/li>
+&lt;li>DDL supported in SQL transforms (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11850">BEAM-11850&lt;/a>)&lt;/li>
+&lt;li>Upgrade Flink runner to Flink version 1.12.2 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11941">BEAM-11941&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>Deterministic coding enforced for GroupByKey and Stateful DoFns. Previously non-deterministic coding was allowed, resulting in keys not properly being grouped in some cases. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11719">BEAM-11719&lt;/a>)
+To restore the old behavior, one can register &lt;code>FakeDeterministicFastPrimitivesCoder&lt;/code> with
+&lt;code>beam.coders.registry.register_fallback_coder(beam.coders.coders.FakeDeterministicFastPrimitivesCoder())&lt;/code>
+or use the &lt;code>allow_non_deterministic_key_coders&lt;/code> pipeline option.&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>Support for Flink 1.8 and 1.9 will be removed in the next release (2.30.0) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11948">BEAM-11948&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.29.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to &lt;code>git shortlog&lt;/code>, the following people contributed to the 2.29.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexander Chermenin, Alexey Romanenko,
+Allen Pradeep Xavier, Amy Wu, Anant Damle, Andreas Bergmeier, Andrei Balici,
+Andrew Pilloud, Andy Xu, Ankur Goenka, Bashir Sadjad, Benjamin Gonzalez, Boyuan
+Zhang, Brian Hulette, Chamikara Jayalath, Chinmoy Mandayam, Chuck Yang,
+dandy10, Daniel Collins, Daniel Oliveira, David Cavazos, David Huntsperger,
+David Moravek, Dmytro Kozhevin, Emily Ye, Esun Kim, Evgeniy Belousov, Filip
+Popić, Fokko Driesprong, Gris Cuevas, Heejong Lee, Ihor Indyk, Ismaël Mejía,
+Jakub-Sadowski, Jan Lukavský, John Edmonds, Juan Sandoval, 谷口恵輔, Kenneth
+Jung, Kenneth Knowles, KevinGG, Kiley Sok, Kyle Weaver, MabelYC, Mackenzie
+Clark, Masato Nakamura, Milena Bukal, Miltos, Minbo Bae, Miraç Vuslat Başaran,
+mynameborat, Nahian-Al Hasan, Nam Bui, Niel Markwick, Niels Basjes, Ning Kang,
+Nir Gazit, Pablo Estrada, Ramazan Yapparov, Raphael Sanamyan, Reuven Lax, Rion
+Williams, Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle,
+Shehzaad Nakhoda, Shehzaad Nakhoda, Siyuan Chen, Sonam Ramchand, Steve Niemitz,
+sychen, Sylvain Veyrié, Tim Robertson, Tobias Kaymak, Tomasz Szerszeń, Tomasz
+Szerszeń, Tomo Suzuki, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Yichi
+Zhang, Yifan Mai, Yixing Zhang, Yoshiki Obata&lt;/p></description><link>/blog/beam-2.29.0/</link><pubDate>Thu, 29 Apr 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.29.0/</guid><category>blog</category></item><item><title>Apache Beam 2.28.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -817,77 +886,4 @@ if PREV is used.&lt;/p>
 &lt;li>&lt;a href="https://s.apache.org/beam-sql-pattern-recognization">Design Documentation&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://www.iso.org/standard/65143.html">SQL 2016 documentation Part 5&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://dl.acm.org/doi/10.1145/1376616.1376634">UMASS paper on NFA with shared buffer&lt;/a>&lt;/li>
-&lt;/ul></description><link>/blog/pattern-match-beam-sql/</link><pubDate>Thu, 27 Aug 2020 00:00:01 +0800</pubDate><guid>/blog/pattern-match-beam-sql/</guid><category>blog</category></item><item><title>Improved Annotation Support for the Python SDK</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>The importance of static type checking in a dynamically
-typed language like Python is not up for debate. Type hints
-allow developers to leverage a strong typing system to:&lt;/p>
-&lt;ul>
-&lt;li>write better code,&lt;/li>
-&lt;li>self-document ambiguous programming logic, and&lt;/li>
-&lt;li>inform intelligent code completion in IDEs like PyCharm.&lt;/li>
-&lt;/ul>
-&lt;p>This is why we&amp;rsquo;re excited to announce upcoming improvements to
-the &lt;code>typehints&lt;/code> module of Beam&amp;rsquo;s Python SDK, including support
-for typed PCollections and Python 3 style annotations on PTransforms.&lt;/p>
-&lt;h1 id="improved-annotations">Improved Annotations&lt;/h1>
-&lt;p>Today, you have the option to declare type hints on PTransforms using either
-class decorators or inline functions.&lt;/p>
-&lt;p>For instance, a PTransform with decorated type hints might look like this:&lt;/p>
-&lt;pre>&lt;code>@beam.typehints.with_input_types(int)
-@beam.typehints.with_output_types(str)
-class IntToStr(beam.PTransform):
-def expand(self, pcoll):
-return pcoll | beam.Map(lambda num: str(num))
-strings = numbers | beam.ParDo(IntToStr())
-&lt;/code>&lt;/pre>&lt;p>Using inline functions instead, the same transform would look like this:&lt;/p>
-&lt;pre>&lt;code>class IntToStr(beam.PTransform):
-def expand(self, pcoll):
-return pcoll | beam.Map(lambda num: str(num))
-strings = numbers | beam.ParDo(IntToStr()).with_input_types(int).with_output_types(str)
-&lt;/code>&lt;/pre>&lt;p>Both methods have problems. Class decorators are syntax-heavy,
-requiring two additional lines of code, whereas inline functions provide type hints
-that aren&amp;rsquo;t reusable across other instances of the same transform. Additionally, both
-methods are incompatible with static type checkers like MyPy.&lt;/p>
-&lt;p>With Python 3 annotations however, we can subvert these problems to provide a
-clean and reusable type hint experience. Our previous transform now looks like this:&lt;/p>
-&lt;pre>&lt;code>class IntToStr(beam.PTransform):
-def expand(self, pcoll: PCollection[int]) -&amp;gt; PCollection[str]:
-return pcoll | beam.Map(lambda num: str(num))
-strings = numbers | beam.ParDo(IntToStr())
-&lt;/code>&lt;/pre>&lt;p>These type hints will actively hook into the internal Beam typing system to
-play a role in pipeline type checking, and runtime type checking.&lt;/p>
-&lt;p>So how does this work?&lt;/p>
-&lt;h2 id="typed-pcollections">Typed PCollections&lt;/h2>
-&lt;p>You guessed it! The PCollection class inherits from &lt;code>typing.Generic&lt;/code>, allowing it to be
-parameterized with either zero types (denoted &lt;code>PCollection&lt;/code>) or one type (denoted &lt;code>PCollection[T]&lt;/code>).&lt;/p>
-&lt;ul>
-&lt;li>A PCollection with zero types is implicitly converted to &lt;code>PCollection[Any]&lt;/code>.&lt;/li>
-&lt;li>A PCollection with one type can have any nested type (e.g. &lt;code>Union[int, str]&lt;/code>).&lt;/li>
-&lt;/ul>
-&lt;p>Internally, Beam&amp;rsquo;s typing system makes these annotations compatible with other
-type hints by removing the outer PCollection container.&lt;/p>
-&lt;h2 id="pbegin-pdone-none">PBegin, PDone, None&lt;/h2>
-&lt;p>Finally, besides PCollection, a valid annotation on the &lt;code>expand(...)&lt;/code> method of a PTransform is
-&lt;code>PBegin&lt;/code> or &lt;code>None&lt;/code>. These are generally used for PTransforms that begin or end with an I/O operation.&lt;/p>
-&lt;p>For instance, when saving data, your transform&amp;rsquo;s output type should be &lt;code>None&lt;/code>.&lt;/p>
-&lt;pre>&lt;code>class SaveResults(beam.PTransform):
-def expand(self, pcoll: PCollection[str]) -&amp;gt; None:
-return pcoll | beam.io.WriteToBigQuery(...)
-&lt;/code>&lt;/pre>&lt;h1 id="next-steps">Next Steps&lt;/h1>
-&lt;p>What are you waiting for.. start using annotations on your transforms!&lt;/p>
-&lt;p>For more background on type hints in Python, see:
-&lt;a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
-&lt;p>Finally, please
-&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a>
-if you encounter any issues.&lt;/p></description><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><category>blog</category><category>python</category><category>typing</category></item></channel></rss>
+&lt;/ul></description><link>/blog/pattern-match-beam-sql/</link><pubDate>Thu, 27 Aug 2020 00:00:01 +0800</pubDate><guid>/blog/pattern-match-beam-sql/</guid><category>blog</category></item></channel></rss>
