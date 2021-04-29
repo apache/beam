@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -87,6 +88,11 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   /** Returns a {@link SchemaCoder} for {@link Row} instances with the given {@code schema}. */
   public static SchemaCoder<Row> of(Schema schema) {
     return RowCoder.of(schema);
+  }
+
+  /** Override encoding positions for the given schema. */
+  public static void overrideEncodingPositions(UUID uuid, Map<String, Integer> encodingPositions) {
+    RowCoderGenerator.overrideEncodingPositions(uuid, encodingPositions);
   }
 
   /** Returns the schema associated with this type. */
