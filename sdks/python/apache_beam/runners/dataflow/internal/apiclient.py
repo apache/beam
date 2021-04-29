@@ -48,6 +48,7 @@ from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -570,7 +571,7 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resources = []
-    hashs = {}
+    hashes = {}
     for _, env in sorted(pipeline.components.environments.items(),
                          key=lambda kv: kv[0]):
       for dep in env.dependencies:
@@ -583,16 +584,31 @@ class DataflowApplicationClient(object):
         role_payload = (
             beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
                 dep.role_payload))
-        if type_payload.sha256 and type_payload.sha256 in hashs:
+        if type_payload.sha256 and type_payload.sha256 in hashes:
           _LOGGER.info(
               'Found duplicated artifact: %s (%s)',
               type_payload.path,
               type_payload.sha256)
+          staged_name = hashes[type_payload.sha256]
           dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
-              staged_name=hashs[type_payload.sha256]).SerializeToString()
+              staged_name=staged_name).SerializeToString()
         else:
-          resources.append((type_payload.path, role_payload.staged_name))
-          hashs[type_payload.sha256] = role_payload.staged_name
+          staged_name = role_payload.staged_name
+          resources.append((type_payload.path, staged_name))
+          hashes[type_payload.sha256] = staged_name
+
+        if FileSystems.get_scheme(
+            google_cloud_options.staging_location) == GCSFileSystem.scheme():
+          dep.type_urn = common_urns.artifact_types.URL.urn
+          dep.type_payload = beam_runner_api_pb2.ArtifactUrlPayload(
+              url=FileSystems.join(
+                  google_cloud_options.staging_location, staged_name),
+              sha256=type_payload.sha256).SerializeToString()
+        else:
+          dep.type_payload = beam_runner_api_pb2.ArtifactFilePayload(
+              path=FileSystems.join(
+                  google_cloud_options.staging_location, staged_name),
+              sha256=type_payload.sha256).SerializeToString()
 
     resource_stager = _LegacyDataflowStager(self)
     staged_resources = resource_stager.stage_job_resources(
@@ -728,14 +744,14 @@ class DataflowApplicationClient(object):
     DataflowApplicationClient._apply_sdk_environment_overrides(
         job.proto_pipeline, self._sdk_image_overrides, job.options)
 
+    # Stage other resources for the SDK harness
+    resources = self._stage_resources(job.proto_pipeline, job.options)
+
     # Stage proto pipeline.
     self.stage_file(
         job.google_cloud_options.staging_location,
         shared_names.STAGED_PIPELINE_FILENAME,
         io.BytesIO(job.proto_pipeline.SerializeToString()))
-
-    # Stage other resources for the SDK harness
-    resources = self._stage_resources(job.proto_pipeline, job.options)
 
     job.proto.environment = Environment(
         proto_pipeline_staged_url=FileSystems.join(
