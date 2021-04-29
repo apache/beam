@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.windowing.*
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PCollectionList
-import org.checkerframework.checker.nullness.qual.Nullable
 import org.joda.time.Duration
 import org.joda.time.Instant
 
