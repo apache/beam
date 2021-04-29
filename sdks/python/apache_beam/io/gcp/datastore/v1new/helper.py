@@ -52,7 +52,7 @@ _RETRYABLE_DATASTORE_ERRORS = (
 def get_client(project, namespace):
   """Returns a Cloud Datastore client."""
   _client = client.Client(project=project, namespace=namespace)
-  _client._client_info.user_agent = 'beam-python-sdk/{}'.format(beam_version)
+  _client._client_info.user_agent = f'beam-python-sdk/{beam_version}'
   # Avoid overwriting user setting. BEAM-7608
   if not os.environ.get(environment_vars.GCD_HOST, None):
     _client.base_url = 'https://batch-datastore.googleapis.com'  # BEAM-1387
