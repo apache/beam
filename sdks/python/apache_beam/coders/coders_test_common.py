@@ -69,6 +69,22 @@ MyIntFlag = enum.IntFlag('MyIntFlag', 'F1 F2 F3')
 MyFlag = enum.Flag('MyFlag', 'F1 F2 F3')  # pylint: disable=too-many-function-args
 
 
+class DefinesGetState:
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    return self.value
+
+  def __eq__(self, other):
+    return type(other) is type(self) and other.value == self.value
+
+
+class DefinesGetAndSetState(DefinesGetState):
+  def __setstate__(self, value):
+    self.value = value
+
+
 # Defined out of line for picklability.
 class CustomCoder(coders.Coder):
   def encode(self, x):
@@ -235,6 +251,13 @@ class CodersTest(unittest.TestCase):
     self.check_coder(deterministic_coder, list(MyIntEnum))
     self.check_coder(deterministic_coder, list(MyIntFlag))
     self.check_coder(deterministic_coder, list(MyFlag))
+
+    self.check_coder(
+        deterministic_coder,
+        [DefinesGetAndSetState(1), DefinesGetAndSetState((1, 2, 3))])
+
+    with self.assertRaises(TypeError):
+      self.check_coder(deterministic_coder, DefinesGetState(1))
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
