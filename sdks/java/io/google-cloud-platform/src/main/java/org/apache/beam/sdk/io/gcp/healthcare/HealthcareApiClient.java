@@ -162,13 +162,26 @@ public interface HealthcareApiClient {
       throws IOException, HealthcareHttpException;
 
   /**
+   * Patch fhir resource http body.
+   *
+   * @param resourceName the resource name, in format
+   *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}[/{id}], id not present when queryString is specified.
+   * @param patch the patch operation
+   * @param query optional query for conditional patches
+   * @return the http body
+   */
+  HttpBody patchFhirResource(String resourceName, String patch, @Nullable Map<String, String> query)
+      throws IOException, HealthcareHttpException;
+
+  /**
    * Read fhir resource http body.
    *
-   * @param resourceId the resource
+   * @param resourceName the resource name, in format
+   *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}
    * @return the http body
    * @throws IOException the io exception
    */
-  HttpBody readFhirResource(String resourceId) throws IOException;
+  HttpBody readFhirResource(String resourceName) throws IOException;
 
   /**
    * Search fhir resource http body.

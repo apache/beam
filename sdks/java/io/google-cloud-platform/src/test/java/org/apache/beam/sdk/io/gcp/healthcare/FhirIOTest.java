@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -124,6 +125,29 @@ public class FhirIOTest {
         .satisfies(
             (HealthcareIOError<String> err) -> {
               Assert.assertEquals("bad", err.getDataResource());
+              return null;
+            });
+    PCollection<Long> numFailedInserts = failedInserts.apply(Count.globally());
+
+    PAssert.thatSingleton(numFailedInserts).isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void test_FhirIO_failedPatch() {
+    FhirPatchParameter badPatch = FhirPatchParameter.of("bad", "bad");
+    PCollection<FhirPatchParameter> patches =
+        pipeline
+            .apply(Create.of(ImmutableList.of(badPatch)).withCoder(FhirPatchParameterCoder.of()));
+    FhirIO.Write.Result patchResult = patches.apply(FhirIO.patchResources());
+
+    PCollection<HealthcareIOError<String>> failedInserts = patchResult.getFailedBodies();
+
+    PAssert.thatSingleton(failedInserts)
+        .satisfies(
+            (HealthcareIOError<String> err) -> {
+              Assert.assertEquals(badPatch.toString(), err.getDataResource());
               return null;
             });
     PCollection<Long> numFailedInserts = failedInserts.apply(Count.globally());

@@ -383,6 +383,16 @@ public class FhirIO {
   }
 
   /**
+   * Patch FHIR resources, @see <a
+   * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/patch></a>.
+   *
+   * @return the patch
+   */
+  public static PatchResources patchResources() {
+    return new PatchResources();
+  }
+
+  /**
    * Increments success and failure counters for an LRO. To be used after the LRO has completed.
    * This function leverages the fact that the LRO metadata is always of the format: "counter": {
    * "success": "1", "failure": "1" }
@@ -1330,6 +1340,7 @@ public class FhirIO {
 
   /** The type Execute bundles. */
   public static class ExecuteBundles extends PTransform<PCollection<String>, Write.Result> {
+
     private final ValueProvider<String> fhirStore;
 
     /**
@@ -1417,8 +1428,69 @@ public class FhirIO {
     }
   }
 
+  /** The type Patch resources. */
+  public static class PatchResources
+      extends PTransform<PCollection<FhirPatchParameter>, Write.Result> {
+    @Override
+    public FhirIO.Write.Result expand(PCollection<FhirPatchParameter> input) {
+      PCollectionTuple bodies =
+          input.apply(
+              ParDo.of(new PatchResourcesFn())
+                  .withOutputTags(Write.SUCCESSFUL_BODY, TupleTagList.of(Write.FAILED_BODY)));
+      bodies.get(Write.SUCCESSFUL_BODY).setCoder(StringUtf8Coder.of());
+      bodies.get(Write.FAILED_BODY).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+      return Write.Result.in(input.getPipeline(), bodies);
+    }
+
+    /** The type Write Fhir fn. */
+    static class PatchResourcesFn extends DoFn<FhirPatchParameter, String> {
+
+      private static final Counter PATCH_RESOURCES_ERRORS =
+          Metrics.counter(
+              PatchResourcesFn.class, BASE_METRIC_PREFIX + "patch_resources_error_count");
+      private static final Counter PATCH_RESOURCES_SUCCESS =
+          Metrics.counter(
+              PatchResourcesFn.class, BASE_METRIC_PREFIX + "patch_resources_success_count");
+      private static final Distribution PATCH_RESOURCES_LATENCY_MS =
+          Metrics.distribution(
+              PatchResourcesFn.class, BASE_METRIC_PREFIX + "patch_resources_latency_ms");
+
+      private transient HealthcareApiClient client;
+      private final ObjectMapper mapper = new ObjectMapper();
+
+      /**
+       * Initialize healthcare client.
+       *
+       * @throws IOException If the Healthcare client cannot be created.
+       */
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      @ProcessElement
+      public void patchResources(ProcessContext context) {
+        FhirPatchParameter patchParameter = context.element();
+        try {
+          long startTime = Instant.now().toEpochMilli();
+          client.patchFhirResource(
+              patchParameter.getResourceName(),
+              patchParameter.getPatch(),
+              patchParameter.getQuery());
+          PATCH_RESOURCES_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
+          PATCH_RESOURCES_SUCCESS.inc();
+          context.output(Write.SUCCESSFUL_BODY, patchParameter.toString());
+        } catch (IOException | HealthcareHttpException e) {
+          PATCH_RESOURCES_ERRORS.inc();
+          context.output(Write.FAILED_BODY, HealthcareIOError.of(patchParameter.toString(), e));
+        }
+      }
+    }
+  }
+
   /** Export FHIR resources from a FHIR store to new line delimited json files on GCS. */
   public static class Export extends PTransform<PBegin, PCollection<String>> {
+
     private final ValueProvider<String> fhirStore;
     private final ValueProvider<String> exportGcsUriPrefix;
 
@@ -1481,6 +1553,7 @@ public class FhirIO {
 
   /** Deidentify FHIR resources from a FHIR store to a destination FHIR store. */
   public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
+
     private final ValueProvider<String> sourceFhirStore;
     private final ValueProvider<String> destinationFhirStore;
     private final ValueProvider<DeidentifyConfig> deidConfig;
@@ -1551,6 +1624,7 @@ public class FhirIO {
   /** The type Search. */
   public static class Search<T>
       extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
+
     private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
@@ -1564,6 +1638,7 @@ public class FhirIO {
     }
 
     public static class Result implements POutput, PInput {
+
       private PCollection<KV<String, JsonArray>> keyedResources;
       private PCollection<JsonArray> resources;
 
