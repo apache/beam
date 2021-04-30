@@ -761,6 +761,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   sparse = property(frame_base.not_implemented_method('sparse', 'BEAM-12425'))
 
+  transform = frame_base._elementwise_method('transform', base=pd.DataFrame)
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
