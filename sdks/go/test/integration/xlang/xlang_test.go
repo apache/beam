@@ -111,6 +111,21 @@ func collectValues(key string, iter func(*int64) bool) (string, []int) {
 	return key, values
 }
 
+func TestXLang_Prefix(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	p := beam.NewPipeline()
+	s := p.Root()
+
+	// Using the cross-language transform
+	strings := beam.Create(s, "a", "b", "c")
+	prefixed := xlang.Prefix(s, "prefix_", *ptest.ExpansionAddr, strings)
+	passert.Equals(s, prefixed, "prefix_a", "prefix_b", "prefix_c")
+
+	ptest.RunAndValidate(t, p)
+}
+
 func TestXLang_CoGroupBy(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
