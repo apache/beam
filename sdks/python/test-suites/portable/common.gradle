@@ -186,7 +186,8 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
         "--numprocesses=5", // run tests in parallel
         "--color=yes", // console color
         "--log-cli-level=INFO",
-        "--timeout=${60*25}"
+        "--timeout=${60*25}",
+        "--dist=loadscope"
     ]
     def testOpts = basicTestOpts + ["${tests.join(' ')}"]
     def pipelineOpts = [

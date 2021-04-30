@@ -33,7 +33,8 @@ def basicTestOpts = [
     "--capture=no",  // print stdout instantly
     "--numprocesses=8", // run tests in parallel
     "--color=yes", // console color
-    "--log-cli-level=INFO"
+    "--log-cli-level=INFO",
+    "--dist=loadscope"
 ]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
