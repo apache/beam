@@ -32,12 +32,12 @@ dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":sdks:java:expansion-service")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-    compile group: library.java.google_http_client
+    compile library.java.google_http_client
     compile 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     compile 'com.google.cloud:google-cloud-dlp:1.1.4'
     compile 'com.google.cloud:google-cloud-language:1.99.4'
-    compile group: library.java.protobuf_java_util
+    compile library.java.protobuf_java_util
     compile group: 'org.json', name: 'json', version: '20201115'
     compile 'com.google.api.grpc:proto-google-cloud-dlp-v2:1.1.4'
     compile 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
