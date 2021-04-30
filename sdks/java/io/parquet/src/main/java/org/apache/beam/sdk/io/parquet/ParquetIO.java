@@ -1154,6 +1154,8 @@ public class ParquetIO {
 
     abstract int getRowGroupSize();
 
+    abstract @Nullable Class<? extends GenericData> getAvroDataModelClass();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1165,6 +1167,8 @@ public class ParquetIO {
       abstract Builder setConfiguration(SerializableConfiguration configuration);
 
       abstract Builder setRowGroupSize(int rowGroupSize);
+
+      abstract Builder setAvroDataModelClass(Class<? extends GenericData> modelClass);
 
       abstract Sink build();
     }
@@ -1192,6 +1196,13 @@ public class ParquetIO {
       return toBuilder().setRowGroupSize(rowGroupSize).build();
     }
 
+    /**
+     * Define the Avro data model; see {@link AvroParquetWriter.Builder#withDataModel(GenericData)}.
+     */
+    public Sink withAvroDataModel(GenericData model) {
+      return toBuilder().setAvroDataModelClass(model.getClass()).build();
+    }
+
     private transient @Nullable ParquetWriter<GenericRecord> writer;
 
     @Override
@@ -1199,6 +1210,7 @@ public class ParquetIO {
       checkNotNull(getJsonSchema(), "Schema cannot be null");
 
       Schema schema = new Schema.Parser().parse(getJsonSchema());
+      Class<? extends GenericData> modelClass = getAvroDataModelClass();
 
       BeamParquetOutputFile beamParquetOutputFile =
           new BeamParquetOutputFile(Channels.newOutputStream(channel));
@@ -1210,6 +1222,14 @@ public class ParquetIO {
               .withWriteMode(OVERWRITE)
               .withConf(SerializableConfiguration.newConfiguration(getConfiguration()))
               .withRowGroupSize(getRowGroupSize());
+      if (modelClass != null) {
+        try {
+          builder.withDataModel(buildModelObject(modelClass));
+        } catch (ReflectiveOperationException e) {
+          throw new IOException(
+              "Couldn't set the specified Avro data model " + modelClass.getName(), e);
+        }
+      }
       this.writer = builder.build();
     }
 
