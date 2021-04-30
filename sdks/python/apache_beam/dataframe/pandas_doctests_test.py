@@ -512,23 +512,15 @@ class DoctestTest(unittest.TestCase):
             f'{module_name}.str_repeat': ['s.str.repeat(repeats=[1, 2, 3])'],
             f'{module_name}.StringMethods.get_dummies': ['*'],
             f'{module_name}.str_get_dummies': ['*'],
+            f'{module_name}.StringMethods': ['s.str.split("_")'],
+            f'{module_name}.StringMethods.rsplit': ['*'],
+            f'{module_name}.StringMethods.split': ['*'],
         },
         skip={
             # count() on Series with a NaN produces mismatched type if we
             # have a NaN-only partition.
             f'{module_name}.StringMethods.count': ["s.str.count('a')"],
             f'{module_name}.str_count': ["s.str.count('a')"],
-
-            # Produce None instead of NaN, see
-            # frames_test.py::DeferredFrameTest::test_str_split
-            f'{module_name}.StringMethods.rsplit': [
-                's.str.split(expand=True)',
-                's.str.rsplit("/", n=1, expand=True)',
-            ],
-            f'{module_name}.StringMethods.split': [
-                's.str.split(expand=True)',
-                's.str.rsplit("/", n=1, expand=True)',
-            ],
 
             # Bad test strings in pandas 1.1.x
             f'{module_name}.str_replace': [

@@ -3468,6 +3468,14 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       pd.core.strings.StringMethods, 'get_dummies',
       reason='non-deferred-columns')
 
+  split = frame_base.wont_implement_method(
+      pd.core.strings.StringMethods, 'split',
+      reason='non-deferred-columns')
+
+  rsplit = frame_base.wont_implement_method(
+      pd.core.strings.StringMethods, 'rsplit',
+      reason='non-deferred-columns')
+
 
 ELEMENTWISE_STRING_METHODS = [
             'capitalize',
@@ -3498,11 +3506,9 @@ ELEMENTWISE_STRING_METHODS = [
             'partition',
             'replace',
             'rpartition',
-            'rsplit',
             'rstrip',
             'slice',
             'slice_replace',
-            'split',
             'startswith',
             'strip',
             'swapcase',
