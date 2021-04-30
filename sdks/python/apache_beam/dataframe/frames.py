@@ -578,22 +578,6 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def melt(self, ignore_index, **kwargs):
-    if ignore_index:
-      raise frame_base.WontImplementError(
-          "melt(ignore_index=True) is order sensitive because it requires "
-          "generating a new index based on the order of the data.",
-          reason="order-sensitive")
-
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'melt',
-            lambda df: df.melt(ignore_index=False, **kwargs), [self._expr],
-            requires_partition_by=partitionings.Arbitrary(),
-            preserves_partition_by=partitionings.Singleton()))
-
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -2157,6 +2141,22 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   values = property(frame_base.wont_implement_method(
       pd.DataFrame, 'values', reason="non-deferred-result"))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def melt(self, ignore_index, **kwargs):
+    if ignore_index:
+      raise frame_base.WontImplementError(
+          "melt(ignore_index=True) is order sensitive because it requires "
+          "generating a new index based on the order of the data.",
+          reason="order-sensitive")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'melt',
+            lambda df: df.melt(ignore_index=False, **kwargs), [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Singleton()))
 
 
 for io_func in dir(io):
