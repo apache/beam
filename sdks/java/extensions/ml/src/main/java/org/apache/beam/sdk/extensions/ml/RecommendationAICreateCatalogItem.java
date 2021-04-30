@@ -62,10 +62,10 @@ public abstract class RecommendationAICreateCatalogItem
 
   public static final TupleTag<CatalogItem> FAILURE_TAG = new TupleTag<CatalogItem>() {};
 
-  public abstract Builder toBuilder();
+  abstract Builder toBuilder();
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating catalog items. */
     public abstract Builder setProjectId(@Nullable String projectId);
 
@@ -75,7 +75,7 @@ public abstract class RecommendationAICreateCatalogItem
     public abstract RecommendationAICreateCatalogItem build();
   }
 
-  public static Builder newBuilder() {
+  static Builder newBuilder() {
     return new AutoValue_RecommendationAICreateCatalogItem.Builder()
         .setCatalogName("default_catalog");
   }

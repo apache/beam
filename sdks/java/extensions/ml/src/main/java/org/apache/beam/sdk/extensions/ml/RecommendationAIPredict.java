@@ -69,7 +69,7 @@ public abstract class RecommendationAIPredict
   public static final TupleTag<UserEvent> FAILURE_TAG = new TupleTag<UserEvent>() {};
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating catalog items. */
     public abstract Builder setProjectId(@Nullable String projectId);
 
@@ -85,13 +85,13 @@ public abstract class RecommendationAIPredict
     public abstract RecommendationAIPredict build();
   }
 
-  public static Builder newBuilder() {
+  static Builder newBuilder() {
     return new AutoValue_RecommendationAIPredict.Builder()
         .setCatalogName("default_catalog")
         .setEventStore("default_event_store");
   }
 
-  public abstract Builder toBuilder();
+  abstract Builder toBuilder();
 
   public RecommendationAIPredict withProjectId(String projectId) {
     return this.toBuilder().setProjectId(projectId).build();

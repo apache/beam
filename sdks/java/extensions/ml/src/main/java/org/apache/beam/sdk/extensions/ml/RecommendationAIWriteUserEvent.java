@@ -53,7 +53,7 @@ public abstract class RecommendationAIWriteUserEvent
   public static final TupleTag<UserEvent> SUCCESS_TAG = new TupleTag<UserEvent>() {};
   public static final TupleTag<UserEvent> FAILURE_TAG = new TupleTag<UserEvent>() {};
 
-  public static Builder newBuilder() {
+  static Builder newBuilder() {
     return new AutoValue_RecommendationAIWriteUserEvent.Builder()
         .setCatalogName("default_catalog")
         .setEventStore("default_event_store");
@@ -83,7 +83,7 @@ public abstract class RecommendationAIWriteUserEvent
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating user events. */
     public abstract Builder setProjectId(@Nullable String projectId);
 
@@ -96,7 +96,7 @@ public abstract class RecommendationAIWriteUserEvent
     public abstract RecommendationAIWriteUserEvent build();
   }
 
-  public abstract Builder toBuilder();
+  abstract Builder toBuilder();
 
   public RecommendationAIWriteUserEvent withProjectId(String projectId) {
     return this.toBuilder().setProjectId(projectId).build();

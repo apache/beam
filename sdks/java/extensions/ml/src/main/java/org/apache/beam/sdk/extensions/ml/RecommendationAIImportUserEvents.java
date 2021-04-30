@@ -67,13 +67,13 @@ public abstract class RecommendationAIImportUserEvents
   public static final TupleTag<UserEvent> SUCCESS_TAG = new TupleTag<UserEvent>() {};
   public static final TupleTag<UserEvent> FAILURE_TAG = new TupleTag<UserEvent>() {};
 
-  public static Builder newBuilder() {
+static Builder newBuilder() {
     return new AutoValue_RecommendationAIImportUserEvents.Builder()
         .setCatalogName("default_catalog")
         .setEventStore("default_event_store");
   }
 
-  public abstract Builder toBuilder();
+  abstract Builder toBuilder();
 
   /** @return ID of Google Cloud project to be used for creating user events. */
   public abstract @Nullable String projectId();
@@ -131,7 +131,7 @@ public abstract class RecommendationAIImportUserEvents
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating user events. */
     public abstract Builder setProjectId(@Nullable String projectId);
 
@@ -156,7 +156,7 @@ public abstract class RecommendationAIImportUserEvents
     public abstract RecommendationAIImportUserEvents build();
   }
 
-  static class ImportUserEvents
+  private static class ImportUserEvents
       extends DoFn<KV<ShardedKey<String>, Iterable<GenericJson>>, UserEvent> {
     private final String projectId;
     private final String catalogName;
@@ -167,7 +167,7 @@ public abstract class RecommendationAIImportUserEvents
      * @param catalogName Catalog name for UserEvent creation.
      * @param eventStore Event store name for UserEvent creation.
      */
-    public ImportUserEvents(String projectId, String catalogName, String eventStore) {
+    private ImportUserEvents(String projectId, String catalogName, String eventStore) {
       this.projectId = projectId;
       this.catalogName = catalogName;
       this.eventStore = eventStore;

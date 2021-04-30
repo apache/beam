@@ -66,11 +66,11 @@ public abstract class RecommendationAIImportCatalogItems
   public static final TupleTag<CatalogItem> SUCCESS_TAG = new TupleTag<CatalogItem>() {};
   public static final TupleTag<CatalogItem> FAILURE_TAG = new TupleTag<CatalogItem>() {};
 
-  public static Builder newBuilder() {
+  static Builder newBuilder() {
     return new AutoValue_RecommendationAIImportCatalogItems.Builder();
   }
 
-  public abstract Builder toBuilder();
+  abstract Builder toBuilder();
 
   /** @return ID of Google Cloud project to be used for creating catalog items. */
   public abstract @Nullable String projectId();
@@ -121,7 +121,7 @@ public abstract class RecommendationAIImportCatalogItems
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating catalog items. */
     public abstract Builder setProjectId(@Nullable String projectId);
 
@@ -143,7 +143,7 @@ public abstract class RecommendationAIImportCatalogItems
     public abstract RecommendationAIImportCatalogItems build();
   }
 
-  static class ImportCatalogItems
+  private static class ImportCatalogItems
       extends DoFn<KV<ShardedKey<String>, Iterable<GenericJson>>, CatalogItem> {
     private final String projectId;
     private final String catalogName;
@@ -152,7 +152,7 @@ public abstract class RecommendationAIImportCatalogItems
      * @param projectId ID of GCP project to be used for creating catalog items.
      * @param catalogName Catalog name for CatalogItem creation.
      */
-    public ImportCatalogItems(String projectId, String catalogName) {
+    private ImportCatalogItems(String projectId, String catalogName) {
       this.projectId = projectId;
       this.catalogName = catalogName;
     }
