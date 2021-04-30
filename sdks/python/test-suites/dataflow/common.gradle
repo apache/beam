@@ -32,8 +32,8 @@ def runScriptsDir = "${rootDir}/sdks/python/scripts"
 def basicTestOpts = [
     "--capture=no",  // print stdout instantly
     "--numprocesses=8", // run tests in parallel
-    "--timeout=4500", // timeout of whole command execution
     "--color=yes", // console color
+    "--log-cli-level=INFO"
 ]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
@@ -108,14 +108,35 @@ task postCommitIT {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
-  doLast {
+  // Execute test with timeout max 15 min
+  doFirst {
+    def testargs = basicTestOpts + ["--timeout=${60*15}"]
     def argMap = [
-        "test_opts": basicTestOpts,
+        "test_opts": testargs,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
-        "collect": "it_postcommit"
+        "collect": "it_postcommit and not it_postcommit_slow"
+    ]
+
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+
+  // Execute test with timeout max 25 min
+  doLast {
+    def testargs = basicTestOpts + ["--timeout=${60*25}"]
+    def argMap = [
+        "test_opts": testargs,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "worker_jar": dataflowWorkerJar,
+        "suite": "postCommitIT-df${pythonVersionSuffix}-slow",
+        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+        "collect": "it_postcommit and it_postcommit_slow"
     ]
 
     def cmdArgs = mapToArgString(argMap)
@@ -133,7 +154,7 @@ task validatesRunnerBatchTests {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   def argMap = [
-          "test_opts"   : basicTestOpts,
+          "test_opts"   : basicTestOpts + ["--timeout=4500"],
           "worker_jar"  : dataflowWorkerJar,
           "sdk_location": files(configurations.distTarBall.files).singleFile,
           "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
@@ -164,7 +185,7 @@ task validatesRunnerStreamingTests {
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
-  def argMap = ["test_opts": basicTestOpts,
+  def argMap = ["test_opts": basicTestOpts + ["--timeout=4500"],
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
                 "worker_jar": dataflowWorkerJar,

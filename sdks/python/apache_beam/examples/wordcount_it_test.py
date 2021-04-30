@@ -38,9 +38,6 @@ from apache_beam.testing.test_utils import delete_files
 
 class WordCountIT(unittest.TestCase):
 
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   # The default checksum is a SHA-1 hash generated from a sorted list of
   # lines read from expected output. This value corresponds to the default
   # input of WordCount example.

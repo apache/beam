@@ -98,6 +98,7 @@ class FastavroIT(unittest.TestCase):
     self.uuid = str(uuid.uuid4())
     self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
+  @pytest.mark.it_postcommit_slow
   @pytest.mark.it_postcommit
   def test_avro_it(self):
     num_records = self.test_pipeline.get_option('records')
