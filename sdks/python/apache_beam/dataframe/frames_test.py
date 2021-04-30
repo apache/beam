@@ -111,7 +111,8 @@ class _AbstractFrameTest(unittest.TestCase):
 
     self._run_test(wrapper, arg, **kwargs)
 
-  def _run_test(self, func, *args, distributed=True, nonparallel=False):
+  def _run_test(
+      self, func, *args, distributed=True, nonparallel=False, check_proxy=True):
     """Verify that func(*args) produces the same result in pandas and in Beam.
 
     Args:
@@ -122,7 +123,12 @@ class _AbstractFrameTest(unittest.TestCase):
             generated twice, once outside of an allow_non_parallel_operations
             block (to verify NonParallelOperation is raised), and again inside
             of an allow_non_parallel_operations block to actually generate an
-            expression to verify."""
+            expression to verify.
+        check_proxy (bool): Whether or not to check that the proxy of the
+            generated expression matches the actual result, defaults to True.
+            Ideally we would verify this for every test, but some operations
+            currently produce the wrong proxy and we need an escape hatch.
+            Remove this option once all these cases are fixed."""
     # Compute expected value
     expected = func(*args)
 
@@ -170,6 +176,7 @@ class _AbstractFrameTest(unittest.TestCase):
         raise ValueError(
             f"Expected value is a {type(expected)},"
             "not a Series or DataFrame.")
+
     else:
       # Expectation is not a pandas object
       if isinstance(expected, float):
@@ -181,6 +188,30 @@ class _AbstractFrameTest(unittest.TestCase):
         cmp = expected.__eq__
       self.assertTrue(
           cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+
+    if check_proxy:
+      # Verify that the actual result agrees with the proxy
+      proxy = expr.proxy()
+
+      self.assertEqual(type(actual), type(proxy))
+
+      if isinstance(expected, pd.core.generic.NDFrame):
+        if isinstance(expected, pd.Series):
+          self.assertEqual(actual.dtype, proxy.dtype)
+          self.assertEqual(actual.name, proxy.name)
+        elif isinstance(expected, pd.DataFrame):
+          pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
+
+        else:
+          raise ValueError(
+              f"Expected value is a {type(expected)},"
+              "not a Series or DataFrame.")
+
+        self.assertEqual(actual.index.names, proxy.index.names)
+        for i in range(actual.index.nlevels):
+          self.assertEqual(
+              actual.index.get_level_values(i).dtype,
+              proxy.index.get_level_values(i).dtype)
 
 
 class DeferredFrameTest(_AbstractFrameTest):
@@ -402,7 +433,8 @@ class DeferredFrameTest(_AbstractFrameTest):
             index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
     self._run_test(
         lambda df1,
         df2: df1.merge(
@@ -410,7 +442,8 @@ class DeferredFrameTest(_AbstractFrameTest):
         rename(index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
 
   def test_merge_left_join(self):
     # This is from the pandas doctests, but fails due to re-indexing being
@@ -423,7 +456,8 @@ class DeferredFrameTest(_AbstractFrameTest):
         df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
 
   def test_merge_on_index(self):
     # This is from the pandas doctests, but fails due to re-indexing being
@@ -439,7 +473,8 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df1,
         df2: df1.merge(df2, left_index=True, right_index=True),
         df1,
-        df2)
+        df2,
+        check_proxy=False)
 
   def test_merge_same_key(self):
     df1 = pd.DataFrame({
@@ -453,14 +488,16 @@ class DeferredFrameTest(_AbstractFrameTest):
         df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
     self._run_test(
         lambda df1,
         df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
             index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
 
   def test_merge_same_key_doctest(self):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
@@ -471,14 +508,16 @@ class DeferredFrameTest(_AbstractFrameTest):
         df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
     # Test without specifying 'on'
     self._run_test(
         lambda df1,
         df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
 
   def test_merge_same_key_suffix_collision(self):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2], 'a_lsuffix': [5, 6]})
@@ -491,7 +530,8 @@ class DeferredFrameTest(_AbstractFrameTest):
                 index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
     # Test without specifying 'on'
     self._run_test(
         lambda df1,
@@ -499,7 +539,8 @@ class DeferredFrameTest(_AbstractFrameTest):
         rename(index=lambda x: '*'),
         df1,
         df2,
-        nonparallel=True)
+        nonparallel=True,
+        check_proxy=False)
 
   def test_value_counts_with_nans(self):
     # similar to doctests that verify value_counts, but include nan values to
@@ -616,7 +657,10 @@ class DeferredFrameTest(_AbstractFrameTest):
     # doctest framework
     df = pd.DataFrame([[pd.NA, 2.12], [3.356, 4.567]])
     self._run_test(
-        lambda df: df.applymap(lambda x: len(str(x)), na_action='ignore'), df)
+        lambda df: df.applymap(lambda x: len(str(x)), na_action='ignore'),
+        df,
+        # TODO: generate proxy using naive type inference on fn
+        check_proxy=False)
 
   def test_dataframe_eval_query(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
