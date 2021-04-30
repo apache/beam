@@ -67,7 +67,7 @@ public abstract class RecommendationAIImportUserEvents
   public static final TupleTag<UserEvent> SUCCESS_TAG = new TupleTag<UserEvent>() {};
   public static final TupleTag<UserEvent> FAILURE_TAG = new TupleTag<UserEvent>() {};
 
-static Builder newBuilder() {
+  static Builder newBuilder() {
     return new AutoValue_RecommendationAIImportUserEvents.Builder()
         .setCatalogName("default_catalog")
         .setEventStore("default_event_store");
