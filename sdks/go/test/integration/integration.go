@@ -83,6 +83,7 @@ var dataflowFilters = []string{
 	"TestXLang_CoGroupBy",
 	"TestXLang_Multi",
 	"TestXLang_Partition",
+	"TestXLang_Prefix",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
