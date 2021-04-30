@@ -199,17 +199,17 @@ class Top(object):
 
     def expand(self, pcoll):
       if pcoll.windowing.is_default():
-        compare = operator.gt if self._reverse else None
         # This is a more efficient global algorithm.
         top_per_bundle = pcoll | core.ParDo(
-            _TopPerBundle(self._n, compare, self._key))
+            _TopPerBundle(self._n, self._key, self._reverse))
         # If pcoll is empty, we can't guerentee that top_per_bundle
         # won't be empty, so inject at least one empty accumulator
         # so that downstream is guerenteed to produce non-empty output.
         empty_bundle = pcoll.pipeline | core.Create([(None, [])])
         return ((top_per_bundle, empty_bundle) | core.Flatten()
                 | core.GroupByKey()
-                | core.ParDo(_MergeTopPerBundle(self._n, compare, self._key)))
+                | core.ParDo(
+                    _MergeTopPerBundle(self._n, self._key, self._reverse)))
       else:
         if self.has_defaults:
           return pcoll | core.CombineGlobally(
@@ -296,18 +296,17 @@ class Top(object):
 @with_input_types(T)
 @with_output_types(Tuple[None, List[T]])
 class _TopPerBundle(core.DoFn):
-  def __init__(self, n, less_than, key):
+  def __init__(self, n, key, reverse):
     self._n = n
-    self._less_than = None if less_than is operator.le else less_than
+    self._compare = operator.gt if reverse else None
     self._key = key
 
   def start_bundle(self):
     self._heap = []
 
   def process(self, element):
-    if self._less_than or self._key:
-      element = cy_combiners.ComparableValue(
-          element, self._less_than, self._key)
+    if self._compare or self._key:
+      element = cy_combiners.ComparableValue(element, self._compare, self._key)
     if len(self._heap) < self._n:
       heapq.heappush(self._heap, element)
     else:
@@ -321,7 +320,7 @@ class _TopPerBundle(core.DoFn):
     self._heap.sort()
 
     # Unwrap to avoid serialization via pickle.
-    if self._less_than or self._key:
+    if self._compare or self._key:
       yield window.GlobalWindows.windowed_value(
           (None, [wrapper.value for wrapper in self._heap]))
     else:
@@ -331,9 +330,9 @@ class _TopPerBundle(core.DoFn):
 @with_input_types(Tuple[None, Iterable[List[T]]])
 @with_output_types(List[T])
 class _MergeTopPerBundle(core.DoFn):
-  def __init__(self, n, less_than, key):
+  def __init__(self, n, key, reverse):
     self._n = n
-    self._less_than = None if less_than is operator.lt else less_than
+    self._compare = operator.gt if reverse else None
     self._key = key
 
   def process(self, key_and_bundles):
@@ -351,19 +350,19 @@ class _MergeTopPerBundle(core.DoFn):
         heapq.heappushpop(hp, e)
         return False
 
-    if self._less_than or self._key:
+    if self._compare or self._key:
       heapc = []  # type: List[cy_combiners.ComparableValue]
       for bundle in bundles:
         if not heapc:
           heapc = [
-              cy_combiners.ComparableValue(element, self._less_than, self._key)
+              cy_combiners.ComparableValue(element, self._compare, self._key)
               for element in bundle
           ]
           continue
         for element in reversed(bundle):
           if push(heapc,
                   cy_combiners.ComparableValue(element,
-                                               self._less_than,
+                                               self._compare,
                                                self._key)):
             break
       heapc.sort()
