@@ -93,8 +93,9 @@ class TopPerMonth(beam.PTransform):
         | 'TopPerMonthWindow' >> beam.WindowInto(
             FixedWindows(size=THIRTY_DAYS_IN_SECONDS))
         | 'Top' >> combiners.core.CombineGlobally(
-            combiners.TopCombineFn(n=10,
-                                   key=lambda x: x[1])).without_defaults())
+            combiners.TopCombineFn(
+                n=10, key=lambda sessions_count: sessions_count[1])).
+        without_defaults())
 
 
 class SessionsToStringsDoFn(beam.DoFn):
