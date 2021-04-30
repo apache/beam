@@ -108,9 +108,9 @@ task postCommitIT {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
-  // Execute test with timeout max 15 min
+  // Execute test with timeout max 20 min
   doFirst {
-    def testargs = basicTestOpts + ["--timeout=${60*15}"]
+    def testargs = basicTestOpts + ["--timeout=${60*20}"]
     def argMap = [
         "test_opts": testargs,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
@@ -127,9 +127,9 @@ task postCommitIT {
     }
   }
 
-  // Execute test with timeout max 25 min
+  // Execute test with timeout max 30 min
   doLast {
-    def testargs = basicTestOpts + ["--timeout=${60*25}"]
+    def testargs = basicTestOpts + ["--timeout=${60*30}"]
     def argMap = [
         "test_opts": testargs,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
