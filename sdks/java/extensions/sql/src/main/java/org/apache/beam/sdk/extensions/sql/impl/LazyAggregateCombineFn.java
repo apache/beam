@@ -18,10 +18,18 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.sql.udf.AggregateFn;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * {@link org.apache.beam.sdk.transforms.Combine.CombineFn} that wraps an {@link AggregateFn}. The
@@ -36,6 +44,13 @@ public class LazyAggregateCombineFn<InputT, AccumT, OutputT>
   public LazyAggregateCombineFn(List<String> functionPath, String jarPath) {
     this.functionPath = functionPath;
     this.jarPath = jarPath;
+  }
+
+  @VisibleForTesting
+  LazyAggregateCombineFn(AggregateFn aggregateFn) {
+    this.functionPath = ImmutableList.of();
+    this.jarPath = "";
+    this.aggregateFn = aggregateFn;
   }
 
   private AggregateFn<InputT, AccumT, OutputT> getAggregateFn() {
@@ -67,5 +82,21 @@ public class LazyAggregateCombineFn<InputT, AccumT, OutputT>
   @Override
   public OutputT extractOutput(AccumT accumulator) {
     return getAggregateFn().extractOutput(accumulator);
+  }
+
+  @Override
+  public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
+      throws CannotProvideCoderException {
+    // Infer coder based on underlying AggregateFn instance.
+    return registry.getCoder(
+        getAggregateFn().getClass(),
+        AggregateFn.class,
+        ImmutableMap.<Type, Coder<?>>of(getInputTVariable(), inputCoder),
+        getAccumTVariable());
+  }
+
+  @Override
+  public TypeVariable<?> getAccumTVariable() {
+    return AggregateFn.class.getTypeParameters()[1];
   }
 }
