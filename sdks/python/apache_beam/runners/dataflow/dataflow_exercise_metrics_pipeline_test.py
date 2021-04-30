@@ -19,12 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import unittest
 
-import pytest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -44,7 +42,7 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
     p = beam.Pipeline(options=pipeline_options)
     return dataflow_exercise_metrics_pipeline.apply_and_run(p)
 
-  @pytest.mark.it_postcommit
+  @attr('IT')
   def test_metrics_it(self):
     result = self.run_pipeline()
     errors = metric_result_matchers.verify_all(
@@ -52,8 +50,7 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
         dataflow_exercise_metrics_pipeline.metric_matchers())
     self.assertFalse(errors, str(errors))
 
-  @pytest.mark.it_validatescontainer
-  @pytest.mark.it_postcommit
+  @attr('IT', 'ValidatesContainer')
   def test_metrics_fnapi_it(self):
     result = self.run_pipeline(experiment='beam_fn_api')
     errors = metric_result_matchers.verify_all(

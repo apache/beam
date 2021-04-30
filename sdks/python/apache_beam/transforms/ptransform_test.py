@@ -32,7 +32,7 @@ from typing import Optional
 from unittest.mock import patch
 
 import hamcrest as hc
-import pytest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 import apache_beam.pvalue as pvalue
@@ -178,7 +178,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
       assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_impulse(self):
     with TestPipeline() as pipeline:
       result = pipeline | beam.Impulse() | beam.Map(lambda _: 0)
@@ -186,8 +186,7 @@ class PTransformTest(unittest.TestCase):
 
   # TODO(BEAM-3544): Disable this test in streaming temporarily.
   # Remove sickbay-streaming tag after it's resolved.
-  @pytest.mark.no_sickbay_streaming
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_read_metrics(self):
     from apache_beam.io.utils import CountingSource
 
@@ -213,7 +212,7 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual(outputs_counter.committed, 100)
     self.assertEqual(outputs_counter.attempted, 100)
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_yield(self):
     class SomeDoFn(beam.DoFn):
       """A custom DoFn using yield."""
@@ -232,7 +231,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_return(self):
     def some_fn(v):
       if v % 2 == 0:
@@ -247,7 +246,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_undeclared_outputs(self):
     with TestPipeline() as pipeline:
       nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
@@ -261,7 +260,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_multiple_empty_outputs(self):
     with TestPipeline() as pipeline:
       nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
@@ -638,7 +637,7 @@ class PTransformTest(unittest.TestCase):
       grouped = flattened | 'D' >> beam.GroupByKey() | _SortLists
       assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_flatten_pcollections(self):
     with TestPipeline() as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -653,7 +652,7 @@ class PTransformTest(unittest.TestCase):
       result = () | 'Empty' >> beam.Flatten(pipeline=pipeline)
       assert_that(result, equal_to([]))
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_flatten_one_single_pcollection(self):
     with TestPipeline() as pipeline:
       input = [0, 1, 2, 3]
@@ -662,8 +661,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to(input))
 
   # TODO(BEAM-9002): Does not work in streaming mode on Dataflow.
-  @pytest.mark.no_sickbay_streaming
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_flatten_same_pcollections(self):
     with TestPipeline() as pipeline:
       pc = pipeline | beam.Create(['a', 'b'])
@@ -676,7 +674,7 @@ class PTransformTest(unittest.TestCase):
       result = [pcoll for pcoll in (pcoll_1, pcoll_2)] | beam.Flatten()
       assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_flatten_a_flattened_pcollection(self):
     with TestPipeline() as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -698,7 +696,7 @@ class PTransformTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       set([1, 2, 3]) | beam.Flatten()
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_flatten_multiple_pcollections_having_multiple_consumers(self):
     with TestPipeline() as pipeline:
       input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])

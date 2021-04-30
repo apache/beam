@@ -764,6 +764,49 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
 
+  def test_dataframe_melt(self):
+    df = pd.DataFrame({
+        'A': {
+            0: 'a', 1: 'b', 2: 'c'
+        },
+        'B': {
+            0: 1, 1: 3, 2: 5
+        },
+        'C': {
+            0: 2, 1: 4, 2: 6
+        }
+    })
+
+    self._run_test(
+        lambda df: df.melt(id_vars=['A'], value_vars=['B'], ignore_index=False),
+        df)
+    self._run_test(
+        lambda df: df.melt(
+            id_vars=['A'], value_vars=['B', 'C'], ignore_index=False),
+        df)
+    self._run_test(
+        lambda df: df.melt(
+            id_vars=['A'],
+            value_vars=['B'],
+            var_name='myVarname',
+            value_name='myValname',
+            ignore_index=False),
+        df)
+    self._run_test(
+        lambda df: df.melt(
+            id_vars=['A'], value_vars=['B', 'C'], ignore_index=False),
+        df)
+
+    df.columns = [list('ABC'), list('DEF')]
+    self._run_test(
+        lambda df: df.melt(
+            col_level=0, id_vars=['A'], value_vars=['B'], ignore_index=False),
+        df)
+    self._run_test(
+        lambda df: df.melt(
+            id_vars=[('A', 'D')], value_vars=[('B', 'E')], ignore_index=False),
+        df)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):

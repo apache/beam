@@ -156,11 +156,11 @@ import org.slf4j.LoggerFactory;
  * case you should look into sharing a single instance of a {@link PoolingDataSource} across all the
  * execution threads. For example:
  *
- * <pre>{@code
- * private static class MyDataSourceProviderFn implements SerializableFunction<Void, DataSource> {
+ * <pre><code>
+ * private static class MyDataSourceProviderFn implements{@literal SerializableFunction<Void, DataSource>} {
  *   private static transient DataSource dataSource;
  *
- *   @Override
+ *  {@literal @Override}
  *   public synchronized DataSource apply(Void input) {
  *     if (dataSource == null) {
  *       dataSource = ... build data source ...
@@ -168,12 +168,12 @@ import org.slf4j.LoggerFactory;
  *     return dataSource;
  *   }
  * }
- *
+ * {@literal
  * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
  *   .withDataSourceProviderFn(new MyDataSourceProviderFn())
  *   // ...
  * );
- * }</pre>
+ * }</code></pre>
  *
  * <h3>Writing to JDBC datasource</h3>
  *

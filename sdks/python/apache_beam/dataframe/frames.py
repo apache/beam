@@ -2145,6 +2145,22 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   values = property(frame_base.wont_implement_method(
       pd.DataFrame, 'values', reason="non-deferred-result"))
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def melt(self, ignore_index, **kwargs):
+    if ignore_index:
+      raise frame_base.WontImplementError(
+          "melt(ignore_index=True) is order sensitive because it requires "
+          "generating a new index based on the order of the data.",
+          reason="order-sensitive")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'melt',
+            lambda df: df.melt(ignore_index=False, **kwargs), [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Singleton()))
+
 
 for io_func in dir(io):
   if io_func.startswith('to_'):
@@ -2291,10 +2307,12 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   aggregate = agg
 
-  hist = frame_base.wont_implement_method(DataFrameGroupBy, 'plot',
+  hist = frame_base.wont_implement_method(DataFrameGroupBy, 'hist',
                                           reason="plotting-tools")
-  plot = frame_base.wont_implement_method(DataFrameGroupBy, 'hist',
+  plot = frame_base.wont_implement_method(DataFrameGroupBy, 'plot',
                                           reason="plotting-tools")
+  boxplot = frame_base.wont_implement_method(DataFrameGroupBy, 'boxplot',
+                                             reason="plotting-tools")
 
   first = frame_base.wont_implement_method(
       DataFrameGroupBy, 'first', reason='order-sensitive')
@@ -2316,6 +2334,10 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       DataFrameGroupBy, 'cumsum', reason='order-sensitive')
   cumprod = frame_base.wont_implement_method(
       DataFrameGroupBy, 'cumprod', reason='order-sensitive')
+  diff = frame_base.wont_implement_method(DataFrameGroupBy, 'diff',
+                                          reason='order-sensitive')
+  shift = frame_base.wont_implement_method(DataFrameGroupBy, 'shift',
+                                           reason='order-sensitive')
 
   # TODO(BEAM-12169): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method(

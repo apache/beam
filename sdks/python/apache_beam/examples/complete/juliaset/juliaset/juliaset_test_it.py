@@ -24,8 +24,8 @@ import os
 import unittest
 import uuid
 
-import pytest
 from hamcrest.core.core.allof import all_of
+from nose.plugins.attrib import attr
 
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.io.filesystems import FileSystems
@@ -34,10 +34,10 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@attr('IT')
 class JuliaSetTestIT(unittest.TestCase):
   GRID_SIZE = 1000
 
-  @pytest.mark.it_postcommit
   def test_run_example_with_setup_file(self):
     pipeline = TestPipeline(is_integration_test=True)
     coordinate_output = FileSystems.join(

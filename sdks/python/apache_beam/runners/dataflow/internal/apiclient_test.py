@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import sys
@@ -1146,6 +1144,54 @@ class UtilTest(unittest.TestCase):
         [('/tmp/foo1', 'foo1'), ('/tmp/bar1', 'bar1'), ('/tmp/foo2', 'foo2'),
          ('/tmp/bar2', 'bar2')],
         staging_location='gs://test-location/staging')
+
+    pipeline_expected = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            environments={
+                'env1': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/foo1'
+                            ).SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/bar1').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar1').SerializeToString())
+                    ]),
+                'env2': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/foo2').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/bar2').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar2').SerializeToString())
+                    ])
+            }))
+    self.assertEqual(pipeline, pipeline_expected)
 
   def test_set_dataflow_service_option(self):
     pipeline_options = PipelineOptions([
