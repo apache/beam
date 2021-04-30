@@ -21,8 +21,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * {@code MapValues} maps a {@code SerializableFunction} over values of a {@code PCollection} of
- * {@code KV<K, V1>}s and returns a {@code PCollection} of {@code KV<K, V2>}s.
+ * {@code MapValues} maps a {@code SerializableFunction<V1,V2>} over values of a {@code
+ * PCollection<KV<K,V1>>} and returns a {@code PCollection<KV<K, V2>>}.
  *
  * <p>Example of use:
  *
