@@ -554,9 +554,14 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return self._expr.proxy().dtype
 
   isin = frame_base._elementwise_method('isin', base=pd.DataFrame)
-  combine = frame_base._elementwise_method('combine', base=pd.DataFrame)
   combine_first = frame_base._elementwise_method(
       'combine_first', base=pd.DataFrame)
+
+  combine = frame_base._proxy_method(
+      'combine',
+      base=pd.DataFrame,
+      requires_partition_by=expressions.partitionings.Singleton(),
+      preserves_partition_by=expressions.partitionings.Singleton())
 
   @property
   def ndim(self):

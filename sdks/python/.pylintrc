@@ -171,7 +171,7 @@ max-module-lines=99999
 indent-string='  '
 
 # Number of spaces of indent required.
-indent-after-paren=4
+indent-after-paren=2
 
 # Regexp for a line that is allowed to be longer than the limit.
 # Long import lines or URLs in comments or pydocs.

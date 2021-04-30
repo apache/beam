@@ -157,6 +157,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.cummin': ['*'],
             'pandas.core.frame.DataFrame.cumsum': ['*'],
             'pandas.core.frame.DataFrame.cumprod': ['*'],
+
+            'pandas.core.generic.NDFrame.combine': [
+                "df.combine(elementwise=False)",
+            ],
             'pandas.core.frame.DataFrame.diff': ['*'],
             'pandas.core.frame.DataFrame.fillna': [
                 "df.fillna(method='ffill')",
@@ -230,8 +234,6 @@ class DoctestTest(unittest.TestCase):
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
 
-            # Can be implemented as a zipping operator
-            'pandas.core.frame.DataFrame.combine_first': ['*'],
 
             # Difficult to parallelize but should be possible?
             'pandas.core.frame.DataFrame.dot': [
