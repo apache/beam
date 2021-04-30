@@ -3025,6 +3025,58 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                                                       grouping_columns),
             preserves_partition_by=partitionings.Index(grouping_indexes)))
 
+  def transform(self, fn, *args, **kwargs):
+    if not callable(fn):
+      raise NotImplementedError(
+          "String functions are not yet supported in transform.")
+
+    if self._grouping_columns and not self._projection:
+      grouping_columns = self._grouping_columns
+      def fn_wrapper(x, *args, **kwargs):
+        x = x.droplevel(grouping_columns)
+        return fn(x, *args, **kwargs)
+    else:
+      fn_wrapper = fn
+
+    project = _maybe_project_func(self._projection)
+
+    # pandas cannot execute fn to determine the right proxy.
+    # We run user fn on a proxy here to detect the return type and generate the
+    # proxy.
+    result = fn_wrapper(project(self._ungrouped_with_index.proxy()))
+    if isinstance(result, pd.core.generic.NDFrame):
+      proxy = result[:0]
+
+      def index_to_arrays(index):
+        return [index.get_level_values(level)
+                for level in range(index.nlevels)]
+
+      # The final result will have the grouped indexes + the indexes from the
+      # result
+      proxy.index = pd.MultiIndex.from_arrays(
+          index_to_arrays(self._ungrouped.proxy().index) +
+          index_to_arrays(proxy.index),
+          names=self._ungrouped.proxy().index.names + proxy.index.names)
+    else:
+      # The user fn returns some non-pandas type. The expected result is a
+      # Series where each element is the result of one user fn call.
+      dtype = pd.Series([result]).dtype
+      proxy = pd.Series([], dtype=dtype, index=self._ungrouped.proxy().index)
+
+    levels = self._grouping_indexes + self._grouping_columns
+
+    return DeferredDataFrame(
+        expressions.ComputedExpression(
+            'transform',
+            lambda df: project(df.groupby(level=levels)).transform(
+                fn_wrapper,
+                *args,
+                **kwargs).droplevel(self._grouping_columns),
+            [self._ungrouped_with_index],
+            proxy=proxy,
+            requires_partition_by=partitionings.Index(levels),
+            preserves_partition_by=partitionings.Index(self._grouping_indexes)))
+
   aggregate = agg
 
   hist = frame_base.wont_implement_method(DataFrameGroupBy, 'hist',
