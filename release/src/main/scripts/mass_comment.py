@@ -111,7 +111,7 @@ def postComments(accessToken, subjectId):
 
   for commentBody in COMMENTS_TO_ADD:
     jsonData = fetchGHData(accessToken, subjectId, commentBody)
-  print(jsonData)
+    print(jsonData)
 
 
 def probeGitHubIsUp():
