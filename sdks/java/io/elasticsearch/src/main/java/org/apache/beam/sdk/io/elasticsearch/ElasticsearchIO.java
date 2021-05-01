@@ -2006,8 +2006,8 @@ public class ElasticsearchIO {
      * maxParallelRequestsPerWindow is set to 1,there will only ever be 1 request in flight. Having
      * only a single request in flight can be beneficial for ensuring an Elasticsearch cluster is
      * not overwhelmed by parallel requests,but may not work for all use cases. If this number is
-     * less than the number of maximum workers in your pipeline, the IO work may not be distributed
-     * across all workers.
+     * less than the number of maximum workers in your pipeline, the IO work will result in a
+     * sub-distribution of the last write step with most of the runners.
      *
      * @param maxParallelRequestsPerWindow the maximum number of parallel bulk requests for a window
      *     of data
