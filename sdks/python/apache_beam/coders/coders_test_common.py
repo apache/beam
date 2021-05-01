@@ -258,6 +258,8 @@ class CodersTest(unittest.TestCase):
 
     with self.assertRaises(TypeError):
       self.check_coder(deterministic_coder, DefinesGetState(1))
+    with self.assertRaises(TypeError):
+      self.check_coder(deterministic_coder, DefinesGetAndSetState(dict()))
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
