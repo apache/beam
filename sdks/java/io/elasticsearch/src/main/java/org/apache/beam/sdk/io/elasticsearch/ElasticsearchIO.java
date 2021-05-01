@@ -1594,11 +1594,37 @@ public class ElasticsearchIO {
 
       @Setup
       public void setup() throws IOException {
+        // Try to let the user know if an explicit backend version was set but the Transform is
+        // being applied to a cluster with a different version. Always use user specified version
+        // if not null.
         ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
-        if (spec.getBackendVersion() == null) {
-          backendVersion = ElasticsearchIO.getBackendVersion(connectionConfiguration);
-        } else {
-          backendVersion = spec.getBackendVersion();
+        Integer userSpecifiedBackendVersion = spec.getBackendVersion();
+        Integer backendVersionFromCluster;
+
+        if (connectionConfiguration == null) {
+          // userSpecifiedBackendVersion must not be null if connectionConfiguration
+          // is null because of earlier checks in the builder.
+          backendVersion = userSpecifiedBackendVersion;
+          return;
+        }
+
+        backendVersionFromCluster = ElasticsearchIO.getBackendVersion(connectionConfiguration);
+
+        if (userSpecifiedBackendVersion == null) {
+          // connectionConfiguration must not be null if userSpecifiedBackendVersion
+          // is null because of earlier checks in the builder.
+          backendVersion = backendVersionFromCluster;
+          return;
+        }
+
+        if (!backendVersionFromCluster.equals(userSpecifiedBackendVersion)) {
+          LOG.warn(
+              "Backend versions did not match. User specified backend version was {}, but "
+                  + "cluster is using version {}. Continuing with user specified value. Behavior is "
+                  + "undefined.",
+              userSpecifiedBackendVersion,
+              backendVersionFromCluster);
+          backendVersion = userSpecifiedBackendVersion;
         }
       }
 
