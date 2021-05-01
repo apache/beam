@@ -123,12 +123,15 @@ if [[ ! -z `which hub` ]]; then
   # The version change is needed for Dataflow python batch tests.
   # Without changing to dev version, the dataflow pipeline will fail because of non-existed worker containers.
   # Note that dataflow worker containers should be built after RC has been built.
-  sed -i -e "s/${RELEASE_VER}/${RELEASE_VER}.dev/g" sdks/python/apache_beam/version.py
-  sed -i -e "s/sdk_version=${RELEASE_VER}/sdk_version=${RELEASE_VER}.dev/g" gradle.properties
+  sed -i -e "s/${RELEASE_VER}\(.dev\)\?/${RELEASE_VER}.dev/g" sdks/python/apache_beam/version.py
+  sed -i -e "s/sdk_version=${RELEASE_VER}\(.dev\)\?/sdk_version=${RELEASE_VER}.dev/g" gradle.properties
   git add sdks/python/apache_beam/version.py
   git add gradle.properties
+  # In case the version string was not changed, append a newline to CHANGES.md
+  echo "" >> CHANGES.md
+  git add CHANGES.md
   git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
-  git push -f ${GITHUB_USERNAME} --quiet
+  git push -f ${GITHUB_USERNAME} ${WORKING_BRANCH} --quiet
 
   hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
 
