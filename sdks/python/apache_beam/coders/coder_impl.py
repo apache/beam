@@ -443,11 +443,11 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic_step_label))
       self.encode_type(type(value), stream)
+      values = [
+          getattr(value, field.name) for field in dataclasses.fields(value)
+      ]
       try:
-        self.iterable_coder_impl.encode_to_stream(
-            [getattr(value, field.name) for field in dataclasses.fields(value)],
-            stream,
-            True)
+        self.iterable_coder_impl.encode_to_stream(values, stream, True)
       except Exception as e:
         raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
@@ -483,9 +483,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       raise TypeError(self._deterministic_encoding_error_msg(value))
 
   def _deterministic_encoding_error_msg(self, value):
-    return ("Unable to deterministically encode '%s' of type '%s', "
-            "please provide a type hint for the input of '%s'" %
-            (value, type(value), self.requires_deterministic_step_label))
+    return (
+        "Unable to deterministically encode '%s' of type '%s', "
+        "please provide a type hint for the input of '%s'" %
+        (value, type(value), self.requires_deterministic_step_label))
 
   def encode_type(self, t, stream):
     stream.write(dill.dumps(t), True)
