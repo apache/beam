@@ -817,6 +817,17 @@ class StateHandler(metaclass=abc.ABCMeta):
     # type: (beam_fn_api_pb2.StateKey) -> _Future
     raise NotImplementedError(type(self))
 
+  @abc.abstractmethod
+  @contextlib.contextmanager
+  def process_instruction_id(self, bundle_id):
+    # type: (str) -> Iterator[None]
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def done(self):
+    # type: () -> None
+    raise NotImplementedError(type(self))
+
 
 class StateHandlerFactory(metaclass=abc.ABCMeta):
   """An abstract factory for creating ``DataChannel``."""
@@ -873,7 +884,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(
               grpc_channel, WorkerIdInterceptor())
-          self._state_handler_cache[url] = CachingStateHandler(
+          self._state_handler_cache[url] = GlobalCachingStateHandler(
               self._state_cache,
               GrpcStateHandler(
                   beam_fn_api_pb2_grpc.BeamFnStateStub(grpc_channel)))
@@ -888,22 +899,67 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._state_cache.evict_all()
 
 
-class ThrowingStateHandler(StateHandler):
-  """A state handler that errors on any requests."""
-  def get_raw(
+class CachingStateHandler(metaclass=abc.ABCMeta):
+  @abc.abstractmethod
+  @contextlib.contextmanager
+  def process_instruction_id(self, bundle_id, cache_tokens):
+    # type: (str, Iterable[beam_fn_api_pb2.ProcessBundleRequest.CacheToken]) -> Iterator[None]
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def blocking_get(
       self,
       state_key,  # type: beam_fn_api_pb2.StateKey
-      continuation_token=None  # type: Optional[bytes]
+      coder,  # type: coder_impl.CoderImpl
   ):
-    # type: (...) -> Tuple[bytes, Optional[bytes]]
+    # type: (...) -> Iterable[Any]
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def extend(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder,  # type: coder_impl.CoderImpl
+      elements,  # type: Iterable[Any]
+  ):
+    # type: (...) -> _Future
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def clear(self, state_key):
+    # type: (beam_fn_api_pb2.StateKey) -> _Future
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def done(self):
+    # type: () -> None
+    raise NotImplementedError(type(self))
+
+
+class ThrowingStateHandler(CachingStateHandler):
+  """A caching state handler that errors on any requests."""
+  @contextlib.contextmanager
+  def process_instruction_id(self, bundle_id, cache_tokens):
+    # type: (str, Iterable[beam_fn_api_pb2.ProcessBundleRequest.CacheToken]) -> Iterator[None]
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor '
+        'for bundle id %s.' % bundle_id)
+
+  def blocking_get(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder,  # type: coder_impl.CoderImpl
+  ):
+    # type: (...) -> Iterable[Any]
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'state ApiServiceDescriptor for state key %s.' % state_key)
 
-  def append_raw(
+  def extend(
       self,
       state_key,  # type: beam_fn_api_pb2.StateKey
-      data  # type: bytes
+      coder,  # type: coder_impl.CoderImpl
+      elements,  # type: Iterable[Any]
   ):
     # type: (...) -> _Future
     raise RuntimeError(
@@ -915,6 +971,11 @@ class ThrowingStateHandler(StateHandler):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'state ApiServiceDescriptor for state key %s.' % state_key)
+
+  def done(self):
+    # type: () -> None
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor.')
 
 
 class GrpcStateHandler(StateHandler):
@@ -1028,7 +1089,8 @@ class GrpcStateHandler(StateHandler):
     while not req_future.wait(timeout=1):
       if self._exc_info:
         t, v, tb = self._exc_info
-        raise t(v).with_traceback(tb)
+        if t and v and tb:
+          raise t(v).with_traceback(tb)
       elif self._done:
         raise RuntimeError()
     response = req_future.get()
@@ -1049,7 +1111,7 @@ class GrpcStateHandler(StateHandler):
     return str(request_id)
 
 
-class CachingStateHandler(object):
+class GlobalCachingStateHandler(CachingStateHandler):
   """ A State handler which retrieves and caches state.
    If caching is activated, caches across bundles using a supplied cache token.
    If activated but no cache token is supplied, caching is done at the bundle

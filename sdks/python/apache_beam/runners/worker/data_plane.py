@@ -464,7 +464,8 @@ class _GrpcDataChannel(DataChannel):
             return
           if self._exc_info:
             t, v, tb = self._exc_info
-            raise t(v).with_traceback(tb)
+            if t and v and tb:
+              raise t(v).with_traceback(tb)
         else:
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
@@ -637,6 +638,13 @@ class DataChannelFactory(metaclass=abc.ABCMeta):
     # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
 
     """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def create_data_channel_from_url(self, remote_grpc_port):
+    # type: (str) -> Optional[GrpcClientDataChannel]
+
+    """Returns a ``DataChannel`` from the given url."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
