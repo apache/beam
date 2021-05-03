@@ -2144,6 +2144,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def shift(self, axis, freq, **kwargs):
     if axis in (1, 'columns'):
       preserves = partitionings.Arbitrary()
+      proxy = None
     else:
       if freq is None or 'fill_value' in kwargs:
         fill_value = kwargs.get('fill_value', 'NOT SET')
@@ -2154,6 +2155,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             "to the order of the data because they require populating shifted "
             "rows with `fill_value`.",
             reason="order-sensitive")
+      # proxy generation fails in pandas <1.2
+      # Seems due to https://github.com/pandas-dev/pandas/issues/14811,
+      # bug with shift on empty indexes.
+      # Fortunately the proxy should be identical to the input.
+      proxy = self._expr.proxy().copy()
 
       # index is modified, so no partitioning is preserved.
       preserves = partitionings.Singleton()
@@ -2163,6 +2169,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             'shift',
             lambda df: df.shift(axis=axis, freq=freq, **kwargs),
             [self._expr],
+            proxy=proxy,
             preserves_partition_by=preserves,
             requires_partition_by=partitionings.Arbitrary()))
 
