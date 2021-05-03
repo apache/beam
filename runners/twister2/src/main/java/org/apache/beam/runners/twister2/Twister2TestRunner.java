@@ -54,9 +54,8 @@ public class Twister2TestRunner extends PipelineRunner<PipelineResult> {
     } catch (IllegalArgumentException ex) {
       throw ex;
     } catch (Throwable t) {
-      RuntimeException exception =
-          new RuntimeException(t.getCause().getMessage(), t.getCause().getCause());
-      exception.setStackTrace(t.getCause().getStackTrace());
+      RuntimeException exception = new RuntimeException(t.getMessage(), t.getCause());
+      exception.setStackTrace(t.getStackTrace());
       throw exception;
     }
   }
