@@ -18,6 +18,8 @@
 package org.apache.beam.runners.dataflow.util;
 
 import java.io.IOException;
+import java.util.UUID;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -99,6 +101,10 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
       SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
       JsonFormat.parser().merge(Structs.getString(cloudObject, SCHEMA), schemaBuilder);
       Schema schema = SchemaTranslation.schemaFromProto(schemaBuilder.build());
+      @Nullable UUID uuid = schema.getUUID();
+      if (schema.isEncodingPositionsOverridden() && uuid != null) {
+        SchemaCoder.overrideEncodingPositions(uuid, schema.getEncodingPositions());
+      }
       return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
     } catch (IOException e) {
       throw new RuntimeException(e);

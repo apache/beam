@@ -352,7 +352,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.30.0'
+    project.version = '2.31.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -417,6 +417,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def activemq_version = "5.14.5"
+    def antlr_version = "4.9.2"
     def autovalue_version = "1.8.1"
     def aws_java_sdk_version = "1.11.974"
     def aws_java_sdk2_version = "2.15.31"
@@ -441,6 +442,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
     def kafka_version = "2.4.1"
+    def log4j_version = "2.14.1"
     def nemo_version = "0.1"
     def netty_version = "4.1.52.Final"
     def postgres_version = "42.2.16"
@@ -466,8 +468,8 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:$activemq_version",
         activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
-        antlr                                       : "org.antlr:antlr4:4.7",
-        antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
+        antlr                                       : "org.antlr:antlr4:$antlr_version",
+        antlr_runtime                               : "org.antlr:antlr4-runtime:$antlr_version",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
         avro                                        : "org.apache.avro:avro:1.8.2",
@@ -595,6 +597,8 @@ class BeamModulePlugin implements Plugin<Project> {
         junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
+        log4j_api                                   : "org.apache.logging.log4j:log4j-api:$log4j_version",
+        log4j_core                                  : "org.apache.logging.log4j:log4j-core:$log4j_version",
         mockito_core                                : "org.mockito:mockito-core:3.7.7",
         mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.7",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",

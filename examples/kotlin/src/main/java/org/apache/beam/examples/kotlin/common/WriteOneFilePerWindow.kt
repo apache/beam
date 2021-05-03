@@ -62,7 +62,7 @@ class WriteOneFilePerWindow(private val filenamePrefix: String, private val numS
      */
     class PerWindowFiles(private val baseFilename: ResourceId) : FilenamePolicy() {
 
-        fun filenamePrefixForWindow(window: IntervalWindow): String {
+        private fun filenamePrefixForWindow(window: IntervalWindow): String {
             val prefix = if (baseFilename.isDirectory) "" else firstNonNull(baseFilename.filename, "")
             return "$prefix-${FORMATTER.print(window.start())}-${FORMATTER.print(window.end())}"
         }

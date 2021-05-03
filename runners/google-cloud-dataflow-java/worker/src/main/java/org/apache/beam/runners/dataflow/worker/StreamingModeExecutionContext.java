@@ -24,6 +24,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -240,13 +241,21 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       }
     }
 
-    for (StepContext stepContext : getAllStepContexts()) {
-      stepContext.start(
-          stateReader,
-          inputDataWatermark,
-          processingTime,
-          outputDataWatermark,
-          synchronizedProcessingTime);
+    Collection<? extends StepContext> stepContexts = getAllStepContexts();
+    if (!stepContexts.isEmpty()) {
+      // This must be only created once for the workItem as token validation will fail if the same
+      // work token is reused.
+      WindmillStateCache.ForKey cacheForKey =
+          stateCache.forKey(getComputationKey(), getWork().getCacheToken(), getWorkToken());
+      for (StepContext stepContext : stepContexts) {
+        stepContext.start(
+            stateReader,
+            inputDataWatermark,
+            processingTime,
+            cacheForKey,
+            outputDataWatermark,
+            synchronizedProcessingTime);
+      }
     }
   }
 
@@ -500,6 +509,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         WindmillStateReader stateReader,
         Instant inputDataWatermark,
         Instant processingTime,
+        WindmillStateCache.ForKey cacheForKey,
         @Nullable Instant outputDataWatermark,
         @Nullable Instant synchronizedProcessingTime) {
       this.stateInternals =
@@ -508,8 +518,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               stateFamily,
               stateReader,
               work.getIsNewKey(),
-              stateCache.forKey(
-                  getComputationKey(), stateFamily, getWork().getCacheToken(), getWorkToken()),
+              cacheForKey.forFamily(stateFamily),
               scopedReadStateSupplier);
 
       this.systemTimerInternals =

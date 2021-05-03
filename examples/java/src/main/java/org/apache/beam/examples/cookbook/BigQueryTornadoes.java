@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -37,8 +38,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An example that reads the public samples of weather data from BigQuery, counts the number of
@@ -67,8 +66,6 @@ import org.slf4j.LoggerFactory;
  * and can be overridden with {@code --input}.
  */
 public class BigQueryTornadoes {
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryTornadoes.class);
-
   // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
@@ -148,29 +145,11 @@ public class BigQueryTornadoes {
 
     void setInputQuery(String value);
 
-    @Description("Read method to use to read from BigQuery")
+    @Description("Mode to use when reading from BigQuery")
     @Default.Enum("EXPORT")
     TypedRead.Method getReadMethod();
 
     void setReadMethod(TypedRead.Method value);
-
-    @Description("Write method to use to write to BigQuery")
-    @Default.Enum("DEFAULT")
-    BigQueryIO.Write.Method getWriteMethod();
-
-    void setWriteMethod(BigQueryIO.Write.Method value);
-
-    @Description("Write disposition to use to write to BigQuery")
-    @Default.Enum("WRITE_TRUNCATE")
-    BigQueryIO.Write.WriteDisposition getWriteDisposition();
-
-    void setWriteDisposition(BigQueryIO.Write.WriteDisposition value);
-
-    @Description("Create disposition to use to write to BigQuery")
-    @Default.Enum("CREATE_IF_NEEDED")
-    BigQueryIO.Write.CreateDisposition getCreateDisposition();
-
-    void setCreateDisposition(BigQueryIO.Write.CreateDisposition value);
 
     @Description(
         "BigQuery table to write to, specified as "
@@ -181,7 +160,9 @@ public class BigQueryTornadoes {
     void setOutput(String value);
   }
 
-  public static void applyBigQueryTornadoes(Pipeline p, Options options) {
+  static void runBigQueryTornadoes(Options options) {
+    Pipeline p = Pipeline.create(options);
+
     // Build the table schema for the output table.
     List<TableFieldSchema> fields = new ArrayList<>();
     fields.add(new TableFieldSchema().setName("month").setType("INTEGER"));
@@ -189,20 +170,42 @@ public class BigQueryTornadoes {
     TableSchema schema = new TableSchema().setFields(fields);
 
     PCollection<TableRow> rowsFromBigQuery;
-    if (!options.getInputQuery().isEmpty()) {
-      rowsFromBigQuery =
-          p.apply(
-              BigQueryIO.readTableRows()
-                  .fromQuery(options.getInputQuery())
-                  .usingStandardSql()
-                  .withMethod(options.getReadMethod()));
-    } else {
-      rowsFromBigQuery =
-          p.apply(
-              BigQueryIO.readTableRows()
-                  .from(options.getInput())
-                  .withMethod(options.getReadMethod())
-                  .withSelectedFields(Lists.newArrayList("month", "tornado")));
+
+    switch (options.getReadMethod()) {
+      case DIRECT_READ:
+        if (!options.getInputQuery().isEmpty()) {
+          rowsFromBigQuery =
+              p.apply(
+                  BigQueryIO.readTableRows()
+                      .fromQuery(options.getInputQuery())
+                      .usingStandardSql()
+                      .withMethod(Method.DIRECT_READ));
+        } else {
+          rowsFromBigQuery =
+              p.apply(
+                  BigQueryIO.readTableRows()
+                      .from(options.getInput())
+                      .withMethod(Method.DIRECT_READ)
+                      .withSelectedFields(Lists.newArrayList("month", "tornado")));
+        }
+        break;
+
+      default:
+        if (!options.getInputQuery().isEmpty()) {
+          rowsFromBigQuery =
+              p.apply(
+                  BigQueryIO.readTableRows()
+                      .fromQuery(options.getInputQuery())
+                      .usingStandardSql()
+                      .withMethod(options.getReadMethod()));
+        } else {
+          rowsFromBigQuery =
+              p.apply(
+                  BigQueryIO.readTableRows()
+                      .from(options.getInput())
+                      .withMethod(options.getReadMethod()));
+        }
+        break;
     }
 
     rowsFromBigQuery
@@ -211,16 +214,10 @@ public class BigQueryTornadoes {
             BigQueryIO.writeTableRows()
                 .to(options.getOutput())
                 .withSchema(schema)
-                .withCreateDisposition(options.getCreateDisposition())
-                .withWriteDisposition(options.getWriteDisposition())
-                .withMethod(options.getWriteMethod()));
-  }
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
-  public static Pipeline runBigQueryTornadoes(Options options) {
-    LOG.info("Running BigQuery Tornadoes with options " + options.toString());
-    Pipeline p = Pipeline.create(options);
-    applyBigQueryTornadoes(p, options);
-    return p;
+    p.run().waitUntilFinish();
   }
 
   public static void main(String[] args) {

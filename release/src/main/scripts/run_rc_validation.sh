@@ -58,8 +58,9 @@ function clean_up(){
 }
 trap clean_up EXIT
 
-RELEASE_BRANCH=release-${RELEASE_VER}
-WORKING_BRANCH=release-${RELEASE_VER}-RC${RC_NUM}_validations
+RC_TAG="v${RELEASE_VER}-RC${RC_NUM}"
+RELEASE_BRANCH="releasev${RELEASE_VER}"
+WORKING_BRANCH=v${RELEASE_VER}-RC${RC_NUM}_validations
 GIT_REPO_URL=https://github.com/apache/beam.git
 PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
 HUB_VERSION=2.12.0
@@ -103,9 +104,9 @@ else
   echo "* Creating local Beam workspace: ${LOCAL_BEAM_DIR}"
   mkdir -p ${LOCAL_BEAM_DIR}
   echo "* Cloning Beam repo"
-  git clone ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
+  git clone --depth 1 --branch ${RC_TAG} ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
   cd ${LOCAL_BEAM_DIR}
-  git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
+  git checkout -b ${WORKING_BRANCH} ${RC_TAG} --quiet
   echo "* Setting up git config"
   # Set upstream repo url with access token included.
   USER_REPO_URL=https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/beam.git
@@ -316,7 +317,7 @@ if [[ "$python_quickstart_mobile_game" = true && ! -z `which hub` ]]; then
   git commit -m "Add empty file in order to create PR" --quiet
   git push -f ${GITHUB_USERNAME} --quiet
   # Create a test PR
-  PR_URL=$(hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run Python RC Validation Tests
+  PR_URL=$(hub pull-request -b apache:${RELEASE_BRANCH} -h apache:${RC_TAG} -F- <<<"[DO NOT MERGE] Run Python RC Validation Tests
 
   Run Python ReleaseCandidate")
   echo "Created $PR_URL"

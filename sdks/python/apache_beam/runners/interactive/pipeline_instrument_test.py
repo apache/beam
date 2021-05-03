@@ -18,8 +18,6 @@
 """Tests for apache_beam.runners.interactive.pipeline_instrument."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import tempfile
 import unittest
 

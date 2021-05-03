@@ -21,8 +21,6 @@ For internal use only; no backward-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 from typing import Dict
 from typing import Optional
