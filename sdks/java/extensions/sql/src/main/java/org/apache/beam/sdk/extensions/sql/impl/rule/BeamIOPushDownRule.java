@@ -53,6 +53,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLocalRef;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexUtil;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Pair;
@@ -140,8 +141,6 @@ public class BeamIOPushDownRule extends RelOptRule {
     resolved = resolved.resolve(beamSqlTable.getSchema());
 
     if (canDropCalc(program, beamSqlTable.supportsProjects(), tableFilter)) {
-      // Tell the optimizer to not use old IO, since the new one is better.
-      call.getPlanner().prune(ioSourceRel);
       call.transformTo(
           ioSourceRel.createPushDownRel(
               calc.getRowType(),
@@ -173,8 +172,6 @@ public class BeamIOPushDownRule extends RelOptRule {
         || usedFields.size() < calcInputRowType.getFieldCount()) {
       // Smaller Calc programs are indisputably better, as well as IOs with less projected fields.
       // We can consider something with the same number of filters.
-      // Tell the optimizer not to use old Calc and IO.
-      call.getPlanner().prune(ioSourceRel);
       call.transformTo(result);
     }
   }
@@ -369,9 +366,13 @@ public class BeamIOPushDownRule extends RelOptRule {
       newProjects.add(reMapRexNodeToNewInputs(project, mapping));
     }
 
+    if (RexUtil.isIdentity(newProjects, newIoSourceRel.getRowType())) {
+      // Force a rename prior to filter for identity function.
+      relBuilder.project(newProjects, calcDataType.getFieldNames(), true);
+    }
+
     relBuilder.filter(newFilter);
-    // Force to preserve named projects.
-    relBuilder.project(newProjects, calcDataType.getFieldNames(), true);
+    relBuilder.project(newProjects, calcDataType.getFieldNames());
 
     return relBuilder.build();
   }
