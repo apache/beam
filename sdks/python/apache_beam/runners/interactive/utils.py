@@ -18,8 +18,6 @@
 """Utilities to be used in  Interactive Beam.
 """
 
-from __future__ import absolute_import
-
 import hashlib
 import json
 import logging

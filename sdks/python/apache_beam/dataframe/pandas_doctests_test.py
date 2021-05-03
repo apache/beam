@@ -76,8 +76,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.interpolate': ['*'],
         },
         not_implemented_ok={
-            'pandas.core.generic.NDFrame.add_prefix': ['*'],
-            'pandas.core.generic.NDFrame.add_suffix': ['*'],
             'pandas.core.generic.NDFrame.asof': ['*'],
             'pandas.core.generic.NDFrame.at_time': ['*'],
             'pandas.core.generic.NDFrame.between_time': ['*'],
@@ -210,10 +208,17 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.sort_values': ['*'],
+            'pandas.core.frame.DataFrame.melt': [
+                "df.melt(id_vars=['A'], value_vars=['B'])",
+                "df.melt(id_vars=['A'], value_vars=['B', 'C'])",
+                "df.melt(col_level=0, id_vars=['A'], value_vars=['B'])",
+                "df.melt(id_vars=[('A', 'D')], value_vars=[('B', 'E')])",
+                "df.melt(id_vars=['A'], value_vars=['B'],\n" +
+                "        var_name='myVarname', value_name='myValname')"
+            ]
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
-            'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
 
@@ -713,6 +718,14 @@ class DoctestTest(unittest.TestCase):
         wont_implement_ok={
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
+            'melt': [
+                "pd.melt(df, id_vars=['A'], value_vars=['B'])",
+                "pd.melt(df, id_vars=['A'], value_vars=['B', 'C'])",
+                "pd.melt(df, col_level=0, id_vars=['A'], value_vars=['B'])",
+                "pd.melt(df, id_vars=[('A', 'D')], value_vars=[('B', 'E')])",
+                "pd.melt(df, id_vars=['A'], value_vars=['B'],\n" +
+                "        var_name='myVarname', value_name='myValname')"
+            ],
         },
         skip={
             # error formatting

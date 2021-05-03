@@ -51,12 +51,7 @@ import (
 
 // sickbay filters tests that fail due to Go SDK errors. These tests will not
 // execute on any runners.
-var sickbay = []string{
-	// TODO(BEAM-11418): These tests are currently failing with the Go SDK.
-	"TestXLang_CoGroupBy",
-	"TestXLang_Multi",
-	"TestXLang_Partition",
-}
+var sickbay = []string{}
 
 // Runner-specific test filters, for features that are not yet supported on
 // specific runners.
@@ -83,6 +78,12 @@ var sparkFilters = []string{
 var dataflowFilters = []string{
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
+	// TODO(BEAM-11418): These tests require implementing x-lang artifact
+	// staging on Dataflow.
+	"TestXLang_CoGroupBy",
+	"TestXLang_Multi",
+	"TestXLang_Partition",
+	"TestXLang_Prefix",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

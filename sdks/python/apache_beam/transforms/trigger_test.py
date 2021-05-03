@@ -19,19 +19,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import json
 import os.path
 import pickle
 import random
 import unittest
-from builtins import range
-from builtins import zip
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import yaml
 
 import apache_beam as beam

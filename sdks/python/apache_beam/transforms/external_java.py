@@ -17,8 +17,6 @@
 
 """Tests for the Java external transforms."""
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import subprocess
@@ -26,7 +24,6 @@ import sys
 
 import grpc
 from mock import patch
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -139,7 +136,7 @@ class JavaExternalTransformTest(object):
     res = (
         p
         | beam.Create(list('aaabccxyyzzz'))
-        | beam.Map(unicode)
+        | beam.Map(str)
         | beam.ExternalTransform(
             TEST_FILTER_URN,
             ImplicitSchemaPayloadBuilder({'data': u'middle'}),

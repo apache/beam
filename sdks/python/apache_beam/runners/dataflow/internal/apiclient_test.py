@@ -19,8 +19,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
+import json
 import logging
 import sys
 import unittest
@@ -28,6 +27,7 @@ import unittest
 import mock
 
 from apache_beam.metrics.cells import DistributionData
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
@@ -233,7 +233,11 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, {'.*dummy.*': 'new_dummy_container_image'},
+        proto_pipeline,
+        {
+            '.*dummy.*': 'new_dummy_container_image',
+            '.*notfound.*': 'new_dummy_container_image_2'
+        },
         pipeline_options)
 
     self.assertIsNotNone(1, len(proto_pipeline.components.environments))
@@ -1008,7 +1012,6 @@ class UtilTest(unittest.TestCase):
 
     assert encoding == 'utf8'
 
-  @unittest.skip("Enable once BEAM-1080 is fixed.")
   def test_graph_is_uploaded(self):
     pipeline_options = PipelineOptions([
         '--project',
@@ -1023,6 +1026,7 @@ class UtilTest(unittest.TestCase):
         'upload_graph'
     ])
     job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
     with mock.patch.object(client, 'stage_file', side_effect=None):
       with mock.patch.object(client, 'create_job_description',
@@ -1034,6 +1038,49 @@ class UtilTest(unittest.TestCase):
           client.stage_file.assert_called_once_with(
               mock.ANY, "dataflow_graph.json", mock.ANY)
           client.create_job_description.assert_called_once()
+
+  def test_template_file_generation_with_upload_graph(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--experiments',
+        'upload_graph',
+        '--template_location',
+        'gs://test-location/template'
+    ])
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job.proto.steps.append(dataflow.Step(name='test_step_name'))
+
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+    with mock.patch.object(client, 'stage_file', side_effect=None):
+      with mock.patch.object(client, 'create_job_description',
+                             side_effect=None):
+        with mock.patch.object(client,
+                               'submit_job_description',
+                               side_effect=None):
+          client.create_job(job)
+
+          client.stage_file.assert_has_calls([
+              mock.call(mock.ANY, 'dataflow_graph.json', mock.ANY),
+              mock.call(mock.ANY, 'template', mock.ANY)
+          ])
+          client.create_job_description.assert_called_once()
+          # template is generated, but job should not be submitted to the
+          # service.
+          client.submit_job_description.assert_not_called()
+
+          template_filename = client.stage_file.call_args_list[-1][0][1]
+          self.assertTrue('template' in template_filename)
+          template_content = client.stage_file.call_args_list[-1][0][2].read(
+          ).decode('utf-8')
+          template_obj = json.loads(template_content)
+          self.assertFalse(template_obj.get('steps'))
+          self.assertTrue(template_obj['stepsLocation'])
 
   def test_stage_resources(self):
     pipeline_options = PipelineOptions([
@@ -1097,6 +1144,54 @@ class UtilTest(unittest.TestCase):
         [('/tmp/foo1', 'foo1'), ('/tmp/bar1', 'bar1'), ('/tmp/foo2', 'foo2'),
          ('/tmp/bar2', 'bar2')],
         staging_location='gs://test-location/staging')
+
+    pipeline_expected = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            environments={
+                'env1': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/foo1'
+                            ).SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/bar1').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar1').SerializeToString())
+                    ]),
+                'env2': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/foo2').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/bar2').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar2').SerializeToString())
+                    ])
+            }))
+    self.assertEqual(pipeline, pipeline_expected)
 
   def test_set_dataflow_service_option(self):
     pipeline_options = PipelineOptions([

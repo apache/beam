@@ -447,6 +447,7 @@ class StandardOptions(PipelineOptions):
 
     parser.add_argument(
         '--resource_hint',
+        '--resource_hints',
         dest='resource_hints',
         action='append',
         default=[],
@@ -871,14 +872,14 @@ class WorkerOptions(PipelineOptions):
             'https://cloud.google.com/compute/docs/vpc/'))
     parser.add_argument(
         '--worker_harness_container_image',
-        dest='sdk_container_image',
         default=None,
         help=(
             'Docker registry location of container image to use for the '
             'worker harness. If not set, an appropriate approved Google Cloud '
             'Dataflow image will be used based on the version of the '
-            'SDK. Note: currently, only approved Google Cloud Dataflow '
-            'container images may be used here.'))
+            'SDK. Note: This flag is deprecated and only supports '
+            'approved Google Cloud Dataflow container images. To provide a '
+            'custom container image, use sdk_container_image instead.'))
     parser.add_argument(
         '--sdk_container_image',
         default=None,
@@ -925,6 +926,8 @@ class WorkerOptions(PipelineOptions):
 
   def validate(self, validator):
     errors = []
+    errors.extend(validator.validate_sdk_container_image_options(self))
+
     if validator.is_service_runner():
       errors.extend(
           validator.validate_optional_argument_positive(self, 'num_workers'))

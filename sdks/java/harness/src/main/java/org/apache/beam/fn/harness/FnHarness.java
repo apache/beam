@@ -62,6 +62,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoade
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -314,15 +315,28 @@ public class FnHarness {
                                       Collectors.toMap(
                                           Function.identity(), metricsShortIds::get)))));
 
-      BeamFnControlClient control =
-          new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
-
       JvmInitializers.runBeforeProcessing(options);
 
+      String samplingPeriodMills =
+          ExperimentalOptions.getExperimentValue(
+              options, ExperimentalOptions.STATE_SAMPLING_PERIOD_MILLIS);
+      if (samplingPeriodMills != null) {
+        ExecutionStateSampler.setSamplingPeriod(Integer.parseInt(samplingPeriodMills));
+      }
       ExecutionStateSampler.instance().start();
 
       LOG.info("Entering instruction processing loop");
-      control.processInstructionRequests(executorService);
+
+      // The control client immediately dispatches requests to an executor so we execute on the
+      // direct executor. If we created separate channels for different stubs we could use
+      // directExecutor() when building the channel.
+      BeamFnControlClient control =
+          new BeamFnControlClient(
+              controlStub.withExecutor(MoreExecutors.directExecutor()),
+              outboundObserverFactory,
+              executorService,
+              handlers);
+      control.waitForTermination();
       processBundleHandler.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");

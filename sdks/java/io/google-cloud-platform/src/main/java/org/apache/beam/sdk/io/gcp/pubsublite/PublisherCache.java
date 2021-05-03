@@ -22,7 +22,7 @@ import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.che
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.pubsublite.PublishMetadata;
+import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.internal.CloseableMonitor;
 import com.google.cloud.pubsublite.internal.Publisher;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
@@ -38,13 +38,13 @@ class PublisherCache {
   private final Executor listenerExecutor = Executors.newSingleThreadExecutor();
 
   @GuardedBy("monitor.monitor")
-  private final HashMap<PublisherOptions, Publisher<PublishMetadata>> livePublishers =
+  private final HashMap<PublisherOptions, Publisher<MessageMetadata>> livePublishers =
       new HashMap<>();
 
-  Publisher<PublishMetadata> get(PublisherOptions options) throws ApiException {
+  Publisher<MessageMetadata> get(PublisherOptions options) throws ApiException {
     checkArgument(options.usesCache());
     try (CloseableMonitor.Hold h = monitor.enter()) {
-      Publisher<PublishMetadata> publisher = livePublishers.get(options);
+      Publisher<MessageMetadata> publisher = livePublishers.get(options);
       if (publisher != null) {
         return publisher;
       }
@@ -66,7 +66,7 @@ class PublisherCache {
   }
 
   @VisibleForTesting
-  void set(PublisherOptions options, Publisher<PublishMetadata> toCache) {
+  void set(PublisherOptions options, Publisher<MessageMetadata> toCache) {
     try (CloseableMonitor.Hold h = monitor.enter()) {
       livePublishers.put(options, toCache);
     }

@@ -36,4 +36,10 @@ public class TopicPartitionCoderTest {
     assertEquals(
         topicPartition, coder.decode(new ByteArrayInputStream(outputStream.toByteArray())));
   }
+
+  @Test
+  public void testToString() throws Exception {
+    TopicPartitionCoder coder = new TopicPartitionCoder();
+    assertEquals("TopicPartitionCoder(StringUtf8Coder,VarIntCoder)", coder.toString());
+  }
 }

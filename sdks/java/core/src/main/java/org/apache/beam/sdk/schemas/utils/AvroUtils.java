@@ -1275,7 +1275,6 @@ public class AvroUtils {
 
   private static void checkTypeName(Schema.TypeName got, Schema.TypeName expected, String label) {
     checkArgument(
-        got.equals(expected),
-        "Can't convert '" + label + "' to " + got + ", expected: " + expected);
+        got.equals(expected), "Can't convert '%s' to %s, expected: %s", label, got, expected);
   }
 }

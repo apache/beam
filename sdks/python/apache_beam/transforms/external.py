@@ -21,9 +21,6 @@ No backward compatibility guarantees. Everything in this module is experimental.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import contextlib
 import copy
 import functools
@@ -150,8 +147,6 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload based on an external transform's type annotations.
-
-  Supported in python 3 only.
   """
   def __init__(self, transform, **values):
     """
@@ -174,8 +169,6 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
   """
   Build a payload based on an external transform that uses dataclasses.
-
-  Supported in python 3 only.
   """
   def __init__(self, transform):
     """
@@ -225,7 +218,13 @@ class ExternalTransform(ptransform.PTransform):
     self._expansion_service = expansion_service
     self._external_namespace = self._fresh_namespace()
     self._inputs = {}  # type: Dict[str, pvalue.PCollection]
-    self._output = {}  # type: Dict[str, pvalue.PCollection]
+    self._outputs = {}  # type: Dict[str, pvalue.PCollection]
+
+  def replace_named_inputs(self, named_inputs):
+    self._inputs = named_inputs
+
+  def replace_named_outputs(self, named_outputs):
+    self._outputs = named_outputs
 
   def __post_init__(self, expansion_service):
     """

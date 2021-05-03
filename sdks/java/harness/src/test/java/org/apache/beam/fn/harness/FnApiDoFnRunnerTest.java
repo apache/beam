@@ -149,6 +149,7 @@ import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -436,7 +437,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               iterableSideInputKey(iterableSideInputView.getTagInternal().getId()),
               encode("iterableValue1", "iterableValue2", "iterableValue3"));
 
-      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
+      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData, 1000);
 
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
@@ -728,7 +729,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               iterableSideInputKey(iterableSideInputView.getTagInternal().getId(), encodedWindowB),
               encode("iterableValue1B", "iterableValue2B", "iterableValue3B"));
 
-      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
+      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData, 1000);
 
       List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
@@ -805,6 +806,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
+    @Ignore("https://issues.apache.org/jira/browse/BEAM-12230")
     public void testUsingMetrics() throws Exception {
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
       MetricsContainerImpl metricsContainer = metricsContainerRegistry.getUnboundContainer();

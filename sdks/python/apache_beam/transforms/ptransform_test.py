@@ -19,10 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import operator
 import pickle
@@ -30,16 +26,11 @@ import random
 import re
 import typing
 import unittest
-from builtins import map
-from builtins import range
-from builtins import zip
 from functools import reduce
 from typing import Iterable
 from typing import Optional
 from unittest.mock import patch
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 from nose.plugins.attrib import attr
 

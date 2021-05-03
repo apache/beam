@@ -19,22 +19,17 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import atexit
 import collections
 import logging
 import random
 import time
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Type
-
-from future.utils import iteritems
 
 import apache_beam.io as io
 from apache_beam import coders
@@ -1042,7 +1037,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = []
     bundle = None
-    for encoded_k, vs in iteritems(self.gbk_items):
+    for encoded_k, vs in self.gbk_items.items():
       if not bundle:
         bundle = self._evaluation_context.create_bundle(self.output_pcollection)
         bundles.append(bundle)

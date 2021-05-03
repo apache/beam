@@ -507,6 +507,53 @@ public class ParquetIOTest implements Serializable {
   }
 
   @Test
+  public void testWriteAndReadUsingGenericDataSchemaWithDataModel() {
+    Schema schema = new Schema.Parser().parse(SCHEMA_STRING);
+
+    List<GenericRecord> records = generateGenericRecords(1000);
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(schema)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(schema).withAvroDataModel(GenericData.get()))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(schema)
+                .withAvroDataModel(GenericData.get())
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+
+    PAssert.that(readBack).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteAndReadwithSplitUsingGenericDataSchemaWithDataModel() {
+    Schema schema = new Schema.Parser().parse(SCHEMA_STRING);
+
+    List<GenericRecord> records = generateGenericRecords(1000);
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(schema)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(schema).withAvroDataModel(GenericData.get()))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(schema)
+                .withSplit()
+                .withAvroDataModel(GenericData.get())
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+
+    PAssert.that(readBack).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testWriteAndReadWithConfiguration() {
     List<GenericRecord> records = generateGenericRecords(10);
     List<GenericRecord> expectedRecords = generateGenericRecords(1);

@@ -33,6 +33,7 @@ import io
 import json
 import logging
 import re
+import sys
 import time
 import uuid
 from json.decoder import JSONDecodeError
@@ -1502,9 +1503,10 @@ class AvroRowWriter(io.IOBase):
     try:
       self._avro_writer.write(row)
     except (TypeError, ValueError) as ex:
+      _, _, tb = sys.exc_info()
       raise ex.__class__(
           "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
-              ex, self._avro_writer.schema, row)).with_traceback()
+              ex, self._avro_writer.schema, row)).with_traceback(tb)
 
 
 class RetryStrategy(object):

@@ -20,9 +20,6 @@
 # pytype: skip-file
 # mypy: check-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import contextlib
 import copy
 import itertools
@@ -33,7 +30,6 @@ import subprocess
 import sys
 import threading
 import time
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict

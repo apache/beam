@@ -18,8 +18,6 @@
 """Tests for apache_beam.runners.interactive.interactive_environment."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import importlib
 import unittest
 from unittest.mock import patch

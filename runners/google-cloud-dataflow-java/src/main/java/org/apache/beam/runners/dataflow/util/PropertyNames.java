@@ -64,6 +64,7 @@ public class PropertyNames {
   public static final String VALUE = "value";
   public static final String WINDOWING_STRATEGY = "windowing_strategy";
   public static final String DISPLAY_DATA = "display_data";
+  public static final String RESOURCE_HINTS = "resource_hints";
   public static final String PRESERVES_KEYS = "preserves_keys";
   /**
    * @deprecated Uses the incorrect terminology. {@link #RESTRICTION_ENCODING}. Should be removed

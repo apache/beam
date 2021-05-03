@@ -42,14 +42,11 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -88,15 +85,6 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
               emptyJarPathProperty, ZetaSqlJavaUdfTest.class.getSimpleName()));
     }
     initialize();
-
-    // Add BeamZetaSqlCalcSplittingRule to planner to enable UDFs.
-    this.config =
-        Frameworks.newConfigBuilder(config)
-            .ruleSets(
-                ZetaSQLQueryPlanner.getZetaSqlRuleSets(
-                        ImmutableList.of(BeamZetaSqlCalcSplittingRule.INSTANCE))
-                    .toArray(new RuleSet[0]))
-            .build();
   }
 
   @Test
@@ -221,9 +209,6 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore(
-      "Re-enable when ZetaSQLQueryPlanner has UDFs enabled by default. "
-          + "Until then, this test fails because we can't pass a ZetaSQLQueryPlanner instance to SqlTransform.")
   public void testSqlTransformRegisterUdf() {
     String sql = "SELECT increment(0);";
     PCollection<Row> stream =
@@ -397,6 +382,44 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 "message",
                 containsString("Option 'path' has type TYPE_INT64 (expected TYPE_STRING)."))));
     zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUdaf() {
+    String sql =
+        String.format(
+            "CREATE AGGREGATE FUNCTION my_sum(f INT64) RETURNS INT64 LANGUAGE java OPTIONS (path='%s'); "
+                + "SELECT my_sum(f_int_1) from aggregate_test_table",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(28L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUdafNotFoundFailsToParse() {
+    String sql =
+        String.format(
+            "CREATE AGGREGATE FUNCTION nonexistent(f INT64) RETURNS INT64 LANGUAGE java OPTIONS (path='%s'); "
+                + "SELECT nonexistent(f_int_1) from aggregate_test_table",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to define function 'nonexistent'");
+    thrown.expectCause(
+        allOf(
+            isA(IllegalArgumentException.class),
+            hasProperty(
+                "message",
+                containsString("No implementation of aggregate function nonexistent found"))));
+
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test

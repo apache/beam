@@ -34,7 +34,7 @@ public abstract class PublisherOptions implements Serializable {
   /**
    * A supplier for the publisher to be used. If enabled, does not use the publisher cache.
    *
-   * <p>The returned type must be convertible to Publisher<PublishMetadata>, but Object is used to
+   * <p>The returned type must be convertible to Publisher<MessageMetadata>, but Object is used to
    * prevent adding an api surface dependency on guava when this is not used.
    */
   public abstract @Nullable SerializableSupplier<Object> publisherSupplier();
@@ -59,7 +59,7 @@ public abstract class PublisherOptions implements Serializable {
     /**
      * A supplier for the publisher to be used. If enabled, does not use the publisher cache.
      *
-     * <p>The returned type must be convertible to Publisher<PublishMetadata>, but Object is used to
+     * <p>The returned type must be convertible to Publisher<MessageMetadata>, but Object is used to
      * prevent adding an api surface dependency on guava when this is not used.
      */
     public abstract Builder setPublisherSupplier(SerializableSupplier<Object> stubSupplier);

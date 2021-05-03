@@ -22,16 +22,12 @@ to the Dataflow Service for remote execution by a worker.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import base64
 import logging
 import os
 import threading
 import time
 import traceback
-from builtins import hex
 from collections import defaultdict
 from subprocess import DEVNULL
 from typing import TYPE_CHECKING
@@ -39,8 +35,6 @@ from typing import List
 from urllib.parse import quote
 from urllib.parse import quote_from_bytes
 from urllib.parse import unquote_to_bytes
-
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam import coders
@@ -474,9 +468,9 @@ class DataflowRunner(PipelineRunner):
       pre_optimize = options.view_as(DebugOptions).lookup_experiment(
           'pre_optimize', 'default').lower()
       from apache_beam.runners.portability.fn_api_runner import translations
-      if pre_optimize == 'none' or pre_optimize == 'default':
+      if pre_optimize == 'none':
         phases = []
-      elif pre_optimize == 'all':
+      elif pre_optimize == 'default' or pre_optimize == 'all':
         phases = [translations.pack_combiners, translations.sort_stages]
       else:
         phases = []
@@ -961,14 +955,14 @@ class DataflowRunner(PipelineRunner):
     if (label_renames and
         transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
       # Patch PTransform proto.
-      for old, new in iteritems(label_renames):
+      for old, new in label_renames.items():
         transform_proto.inputs[new] = transform_proto.inputs[old]
         del transform_proto.inputs[old]
 
       # Patch ParDo proto.
       proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
       proto = proto_utils.parse_Bytes(transform_proto.spec.payload, proto_type)
-      for old, new in iteritems(label_renames):
+      for old, new in label_renames.items():
         proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
         del proto.side_inputs[old]
       transform_proto.spec.payload = proto.SerializeToString()

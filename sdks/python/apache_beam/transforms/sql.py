@@ -19,11 +19,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import typing
-
-from past.builtins import unicode
 
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -32,8 +28,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 __all__ = ['SqlTransform']
 
 SqlTransformSchema = typing.NamedTuple(
-    'SqlTransformSchema', [('query', unicode),
-                           ('dialect', typing.Optional[unicode])])
+    'SqlTransformSchema', [('query', str), ('dialect', typing.Optional[str])])
 
 
 class SqlTransform(ExternalTransform):

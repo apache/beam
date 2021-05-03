@@ -238,6 +238,20 @@ class DeferredFrameTest(unittest.TestCase):
             }), axis=1),
         df)
 
+  def test_add_prefix(self):
+    df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [3, 4, 5, 6]})
+    s = pd.Series([1, 2, 3, 4])
+
+    self._run_test(lambda df: df.add_prefix('col_'), df)
+    self._run_test(lambda s: s.add_prefix('col_'), s)
+
+  def test_add_suffix(self):
+    df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [3, 4, 5, 6]})
+    s = pd.Series([1, 2, 3, 4])
+
+    self._run_test(lambda df: df.add_suffix('_col'), df)
+    self._run_test(lambda s: s.add_prefix('_col'), s)
+
   def test_groupby(self):
     df = pd.DataFrame({
         'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
@@ -726,6 +740,49 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.groupby('foo', dropna=True).bar.count(), GROUPBY_DF)
     self._run_test(
         lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
+
+  def test_dataframe_melt(self):
+    df = pd.DataFrame({
+        'A': {
+            0: 'a', 1: 'b', 2: 'c'
+        },
+        'B': {
+            0: 1, 1: 3, 2: 5
+        },
+        'C': {
+            0: 2, 1: 4, 2: 6
+        }
+    })
+
+    self._run_test(
+        lambda df: df.melt(id_vars=['A'], value_vars=['B'], ignore_index=False),
+        df)
+    self._run_test(
+        lambda df: df.melt(
+            id_vars=['A'], value_vars=['B', 'C'], ignore_index=False),
+        df)
+    self._run_test(
+        lambda df: df.melt(
+            id_vars=['A'],
+            value_vars=['B'],
+            var_name='myVarname',
+            value_name='myValname',
+            ignore_index=False),
+        df)
+    self._run_test(
+        lambda df: df.melt(
+            id_vars=['A'], value_vars=['B', 'C'], ignore_index=False),
+        df)
+
+    df.columns = [list('ABC'), list('DEF')]
+    self._run_test(
+        lambda df: df.melt(
+            col_level=0, id_vars=['A'], value_vars=['B'], ignore_index=False),
+        df)
+    self._run_test(
+        lambda df: df.melt(
+            id_vars=[('A', 'D')], value_vars=[('B', 'E')], ignore_index=False),
+        df)
 
 
 class AllowNonParallelTest(unittest.TestCase):

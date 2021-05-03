@@ -24,7 +24,7 @@ import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Message;
-import com.google.cloud.pubsublite.PublishMetadata;
+import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.Publisher;
@@ -64,7 +64,7 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
 
   @Setup
   public void setup() throws ApiException {
-    Publisher<PublishMetadata> publisher;
+    Publisher<MessageMetadata> publisher;
     if (options.usesCache()) {
       publisher = PerServerPublisherCache.PUBLISHER_CACHE.get(options);
     } else {
@@ -107,7 +107,7 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
     if (publisherOrError.getKind() == Kind.ERROR) {
       throw publisherOrError.error();
     }
-    ApiFuture<PublishMetadata> future =
+    ApiFuture<MessageMetadata> future =
         publisherOrError.publisher().publish(Message.fromProto(message));
     // cannot declare in inner class since 'this' means something different.
     Consumer<Throwable> onFailure =
@@ -119,9 +119,9 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
         };
     ApiFutures.addCallback(
         future,
-        new ApiFutureCallback<PublishMetadata>() {
+        new ApiFutureCallback<MessageMetadata>() {
           @Override
-          public void onSuccess(PublishMetadata publishMetadata) {
+          public void onSuccess(MessageMetadata messageMetadata) {
             decrementOutstanding();
           }
 

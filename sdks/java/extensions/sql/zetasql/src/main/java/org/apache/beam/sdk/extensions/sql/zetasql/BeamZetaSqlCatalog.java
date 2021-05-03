@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
+import org.apache.beam.sdk.extensions.sql.impl.LazyAggregateCombineFn;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
@@ -149,6 +150,15 @@ public class BeamZetaSqlCatalog {
         javaScalarUdfs.put(
             createFunctionStmt.getNamePath(),
             UserFunctionDefinitions.JavaScalarFunction.create(method, jarPath));
+        break;
+      case USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS:
+        jarPath = getJarPath(createFunctionStmt);
+        // Try loading the aggregate function just to make sure it exists. LazyAggregateCombineFn
+        // will need to fetch it again at runtime.
+        javaUdfLoader.loadAggregateFunction(createFunctionStmt.getNamePath(), jarPath);
+        Combine.CombineFn<?, ?, ?> combineFn =
+            new LazyAggregateCombineFn<>(createFunctionStmt.getNamePath(), jarPath);
+        javaUdafs.put(createFunctionStmt.getNamePath(), combineFn);
         break;
       default:
         throw new IllegalArgumentException(

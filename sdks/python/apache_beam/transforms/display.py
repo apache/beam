@@ -38,18 +38,13 @@ Available classes:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import calendar
 import inspect
 import json
-from builtins import object
 from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import List
-
-from past.builtins import unicode
 
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -231,7 +226,6 @@ class DisplayDataItem(object):
   """
   typeDict = {
       str: 'STRING',
-      unicode: 'STRING',
       int: 'INTEGER',
       float: 'FLOAT',
       bool: 'BOOLEAN',

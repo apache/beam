@@ -70,7 +70,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
@@ -84,7 +84,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
@@ -103,7 +103,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
         .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 
@@ -126,7 +126,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
         .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
 

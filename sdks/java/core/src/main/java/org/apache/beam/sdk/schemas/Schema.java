@@ -96,6 +96,7 @@ public class Schema implements Serializable {
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
   private Map<String, Integer> encodingPositions = Maps.newHashMap();
+  private boolean encodingPositionsOverridden = false;
 
   private final List<Field> fields;
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
@@ -287,9 +288,15 @@ public class Schema implements Serializable {
     return encodingPositions;
   }
 
+  /** Returns whether encoding positions have been explicitly overridden. */
+  public boolean isEncodingPositionsOverridden() {
+    return encodingPositionsOverridden;
+  }
+
   /** Sets the encoding positions for this schema. */
   public void setEncodingPositions(Map<String, Integer> encodingPositions) {
     this.encodingPositions = encodingPositions;
+    this.encodingPositionsOverridden = true;
   }
 
   /** Get this schema's UUID. */
@@ -392,8 +399,13 @@ public class Schema implements Serializable {
       builder.append(field);
       builder.append(System.lineSeparator());
     }
+    builder.append("Encoding positions:");
+    builder.append(System.lineSeparator());
+    builder.append(encodingPositions);
+    builder.append(System.lineSeparator());
     builder.append("Options:");
     builder.append(options);
+    builder.append("UUID: " + uuid);
     return builder.toString();
   }
 

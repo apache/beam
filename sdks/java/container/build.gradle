@@ -84,6 +84,12 @@ task pullLicenses(type: Exec) {
   outputs.dir('build/target/java_third_party_licenses')
 }
 
+task downloadCloudProfilerAgent(type: Exec) {
+  executable "sh"
+  args "-c", "wget -q -O- https://storage.googleapis.com/cloud-profiler/java/latest/profiler_java_agent.tar.gz | tar xzv -C build/target/profiler/"
+  outputs.dir('build/target/profiler')
+}
+
 artifacts {
   sdkHarnessLauncher file: file('./build/target'), builtBy: goBuild
 }
