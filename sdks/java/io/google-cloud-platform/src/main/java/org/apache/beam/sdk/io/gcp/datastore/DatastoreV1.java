@@ -1285,9 +1285,6 @@ public class DatastoreV1 {
     /** Target time per RPC for writes. */
     static final int DATASTORE_BATCH_TARGET_LATENCY_MS = 6000;
 
-    private final Distribution batchSizeMetric =
-        Metrics.distribution(WriteBatcherImpl.class, "datastoreTargetBatchSize");
-
     @Override
     public void start() {
       meanLatencyPerEntityMs =
@@ -1308,7 +1305,6 @@ public class DatastoreV1 {
       }
       long recentMeanLatency = Math.max(meanLatencyPerEntityMs.get(timeSinceEpochMillis), 1);
       long targetBatchSize = DATASTORE_BATCH_TARGET_LATENCY_MS / recentMeanLatency;
-      batchSizeMetric.update(targetBatchSize);
       return (int)
           Math.max(
               DATASTORE_BATCH_UPDATE_ENTITIES_MIN,
@@ -1350,8 +1346,8 @@ public class DatastoreV1 {
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
-    private final Counter entitiesWritten =
-        Metrics.counter(DatastoreWriterFn.class, "datastoreEntitiesWritten");
+    private final Counter entitiesMutated =
+        Metrics.counter(DatastoreWriterFn.class, "datastoreEntitiesMutated");
     private final Distribution latencyMsPerMutation =
         Metrics.distribution(DatastoreWriterFn.class, "datastoreLatencyMsPerMutation");
 
@@ -1454,7 +1450,7 @@ public class DatastoreV1 {
           adaptiveThrottler.successfulRequest(startTime);
           latencyMsPerMutation.update((endTime - startTime) / mutations.size());
           rpcSuccesses.inc();
-          entitiesWritten.inc(mutations.size());
+          entitiesMutated.inc(mutations.size());
 
           // Break if the commit threw no exception.
           break;
