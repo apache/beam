@@ -157,10 +157,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.cummin': ['*'],
             'pandas.core.frame.DataFrame.cumsum': ['*'],
             'pandas.core.frame.DataFrame.cumprod': ['*'],
-
-            'pandas.core.generic.NDFrame.combine': [
-                "df.combine(elementwise=False)",
-            ],
             'pandas.core.frame.DataFrame.diff': ['*'],
             'pandas.core.frame.DataFrame.fillna': [
                 "df.fillna(method='ffill')",
