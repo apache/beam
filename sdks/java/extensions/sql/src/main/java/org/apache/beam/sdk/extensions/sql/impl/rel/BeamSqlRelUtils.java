@@ -50,7 +50,16 @@ public class BeamSqlRelUtils {
     } else {
       return PCollectionList.of(
           inputRels.stream()
-              .map(input -> BeamSqlRelUtils.toPCollection(pipeline, (BeamRelNode) input, cache))
+              .map(
+                  input -> {
+                    final BeamRelNode beamRel;
+                    if (input instanceof RelSubset) {
+                      beamRel = (BeamRelNode) ((RelSubset) input).getBest();
+                    } else {
+                      beamRel = (BeamRelNode) input;
+                    }
+                    return BeamSqlRelUtils.toPCollection(pipeline, beamRel, cache);
+                  })
               .collect(Collectors.toList()));
     }
   }
