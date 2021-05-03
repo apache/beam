@@ -97,6 +97,8 @@
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Added capability to declare resource hints in Java and Python SDKs ([BEAM-2085](https://issues.apache.org/jira/browse/BEAM-2085)).
 * Added Spanner IO Performance tests for read and write. (Python) ([BEAM-10029](https://issues.apache.org/jira/browse/BEAM-10029)).
+* DatastoreIO: Write and delete operations now follow automatic gradual ramp-up,
+  in line with best practices ([BEAM-12260](https://issues.apache.org/jira/browse/BEAM-12260)).
 
 ## Breaking Changes
 
