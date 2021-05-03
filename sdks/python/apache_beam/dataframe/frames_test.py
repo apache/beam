@@ -45,12 +45,15 @@ def _get_deferred_args(*args):
 
 
 class DeferredFrameTest(unittest.TestCase):
-  def _run_error_test(self, func, *args):
+  def _run_error_test(
+      self, func, *args, construction_time=True, distributed=True):
     """Verify that func(*args) raises the same exception in pandas and in Beam.
 
-    Note that for Beam this only checks for exceptions that are raised during
-    expression generation (i.e. construction time). Execution time exceptions
-    are not helpful."""
+    Note that by default this only checks for exceptions that the Beam DataFrame
+    API raises during expression generation (i.e. construction time).
+    Exceptions raised while the pipeline is executing are less helpful, but
+    are sometimes unavoidable (e.g. data validation exceptions), to check for
+    these exceptions use construction_time=False."""
     deferred_args = _get_deferred_args(*args)
 
     # Get expected error
@@ -64,14 +67,29 @@ class DeferredFrameTest(unittest.TestCase):
           f"returned:\n{expected}")
 
     # Get actual error
-    try:
-      _ = func(*deferred_args)._expr
-    except Exception as e:
-      actual = e
-    else:
-      raise AssertionError(
-          "Expected an error:\n{expected_error}\nbut Beam successfully "
-          "generated an expression.")
+    if construction_time:
+      try:
+        _ = func(*deferred_args)._expr
+      except Exception as e:
+        actual = e
+      else:
+        raise AssertionError(
+            f"Expected an error:\n{expected_error}\nbut Beam successfully "
+            f"generated an expression.")
+    else:  # not construction_time
+      # Check for an error raised during pipeline execution
+      expr = func(*deferred_args)._expr
+      session_type = (
+          expressions.PartitioningSession
+          if distributed else expressions.Session)
+      try:
+        result = session_type({}).evaluate(expr)
+      except Exception as e:
+        actual = e
+      else:
+        raise AssertionError(
+            f"Expected an error:\n{expected_error}\nbut Beam successfully "
+            f"Computed the result:\n{result}.")
 
     # Verify
     if (not isinstance(actual, type(expected_error)) or
@@ -750,6 +768,7 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
 
   def test_dataframe_melt(self):
+
     df = pd.DataFrame({
         'A': {
             0: 'a', 1: 'b', 2: 'c'
@@ -808,6 +827,23 @@ class DeferredFrameTest(unittest.TestCase):
     # https://github.com/pandas-dev/pandas/issues/40989
     # self._run_test(lambda df: df.fillna(axis='columns', value=100,
     #                                     limit=2), df)
+
+  def test_append_verify_integrity(self):
+    df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
+    df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
+
+    self._run_error_test(
+        lambda s1,
+        s2: s1.append(s2, verify_integrity=True),
+        df1['A'],
+        df2['A'],
+        construction_time=False)
+    self._run_error_test(
+        lambda df1,
+        df2: df1.append(df2, verify_integrity=True),
+        df1,
+        df2,
+        construction_time=False)
 
 
 class AllowNonParallelTest(unittest.TestCase):
