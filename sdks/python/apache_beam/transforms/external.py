@@ -218,7 +218,13 @@ class ExternalTransform(ptransform.PTransform):
     self._expansion_service = expansion_service
     self._external_namespace = self._fresh_namespace()
     self._inputs = {}  # type: Dict[str, pvalue.PCollection]
-    self._output = {}  # type: Dict[str, pvalue.PCollection]
+    self._outputs = {}  # type: Dict[str, pvalue.PCollection]
+
+  def replace_named_inputs(self, named_inputs):
+    self._inputs = named_inputs
+
+  def replace_named_outputs(self, named_outputs):
+    self._outputs = named_outputs
 
   def __post_init__(self, expansion_service):
     """
