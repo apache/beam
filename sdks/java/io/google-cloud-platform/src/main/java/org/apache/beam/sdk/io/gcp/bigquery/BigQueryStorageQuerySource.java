@@ -49,7 +49,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       @Nullable String location,
       @Nullable String queryTempDataset,
       @Nullable String kmsKey,
-      DataFormat format,
+      @Nullable DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {

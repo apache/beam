@@ -135,9 +135,6 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
             .setMaxStreamCount(streamCount)
             .build();
 
-    /*if (DataFormat.ARROW.equals(format)) {
-      requestBuilder.setFormat(DataFormat.ARROW);
-    }*/
     ReadSession readSession;
     try (StorageClient client = bqServices.getStorageClient(bqOptions)) {
       readSession = client.createReadSession(createReadSessionRequest);

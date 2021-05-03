@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** BeamSQL provides a new interface to run a SQL statement with Beam. */
+/** Extensions for using Apache Arrow with Beam. */
 package org.apache.beam.sdk.extensions.arrow;
