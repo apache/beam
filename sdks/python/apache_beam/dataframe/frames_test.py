@@ -969,7 +969,7 @@ class GroupByTest(_AbstractFrameTest):
             lambda x: x),
         df)
 
-  def test_groupby_transform_sum(self):
+  def test_groupby_transform(self):
     df = pd.DataFrame({
         "Date": [
             "2015-05-08",
@@ -985,7 +985,10 @@ class GroupByTest(_AbstractFrameTest):
     })
 
     self._run_test(lambda df: df.groupby('Date')['Data'].transform(np.sum), df)
-
+    self._run_test(
+        lambda df: df.groupby('Date')['Data'].transform(
+            lambda x: (x - x.mean()) / x.std()),
+        df)
 
   def test_groupby_apply_modified_index(self):
     df = GROUPBY_DF

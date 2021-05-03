@@ -3044,24 +3044,21 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     # We run user fn on a proxy here to detect the return type and generate the
     # proxy.
     result = fn_wrapper(project(self._ungrouped_with_index.proxy()))
+    parent_frame = self._ungrouped.args()[0].proxy()
     if isinstance(result, pd.core.generic.NDFrame):
       proxy = result[:0]
 
-      def index_to_arrays(index):
-        return [index.get_level_values(level)
-                for level in range(index.nlevels)]
-
-      # The final result will have the grouped indexes + the indexes from the
-      # result
-      proxy.index = pd.MultiIndex.from_arrays(
-          index_to_arrays(self._ungrouped.proxy().index) +
-          index_to_arrays(proxy.index),
-          names=self._ungrouped.proxy().index.names + proxy.index.names)
     else:
       # The user fn returns some non-pandas type. The expected result is a
       # Series where each element is the result of one user fn call.
       dtype = pd.Series([result]).dtype
-      proxy = pd.Series([], dtype=dtype, index=self._ungrouped.proxy().index)
+      proxy = pd.Series([], dtype=dtype, name=project(parent_frame).name)
+
+      if not isinstance(self._projection, list):
+        proxy.name = self._projection
+
+    # The final result will have the original indexes
+    proxy.index = parent_frame.index
 
     levels = self._grouping_indexes + self._grouping_columns
 
