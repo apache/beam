@@ -1026,8 +1026,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         return frame_base.DeferredFrame.wrap(
             expressions.ComputedExpression(
                 'aggregate',
-                lambda s: s.agg(agg_func, *args, **agg_kwargs),
-                [intermediate],
+                lambda s: s.agg(agg_func, *args, **agg_kwargs), [intermediate],
                 preserves_partition_by=partitionings.Singleton(),
                 requires_partition_by=partitionings.Singleton(
                     reason=singleton_reason)))
