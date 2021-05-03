@@ -1029,8 +1029,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
                 lambda s: s.agg(agg_func, *args, **agg_kwargs),
                 [intermediate],
                 preserves_partition_by=partitionings.Singleton(),
-                # TODO(BEAM-11839): This reason should be more specific. It's
-                # actually incorrect for the args/kwargs case above.
                 requires_partition_by=partitionings.Singleton(
                     reason=singleton_reason)))
 
@@ -1538,7 +1536,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             'aggregate',
             lambda df: df.agg(func, *args, **kwargs),
             [self._expr],
-            # TODO(BEAM-11839): Provide a reason for this Singleton
             requires_partition_by=partitionings.Singleton()))
     else:
       # In the general case, compute the aggregation of each column separately,
