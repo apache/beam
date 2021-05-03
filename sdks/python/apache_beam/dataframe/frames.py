@@ -1356,7 +1356,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'append',
-            lambda s, other: s.append(other, sort=sort, verify_integrity=verify_integrity, **kwargs),
+            lambda s, other: s.append(other, sort=sort,
+                                      verify_integrity=verify_integrity,
+                                      **kwargs),
             [self._expr, other._expr],
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()
