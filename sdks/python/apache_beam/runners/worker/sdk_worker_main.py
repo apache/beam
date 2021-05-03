@@ -123,7 +123,7 @@ def create_harness(environment, dry_run=False):
 
   try:
     _load_main_session(semi_persistent_directory)
-  except CorruptMainSessionException as e:
+  except CorruptMainSessionException:
     exception_details = traceback.format_exc()
     _LOGGER.error(
         'Could not load main session: %s', exception_details, exc_info=True)
