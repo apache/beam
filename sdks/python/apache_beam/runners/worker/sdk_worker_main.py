@@ -250,7 +250,7 @@ def _get_data_buffer_time_limit_ms(experiments):
   return 0
 
 
-class EmptyMainSessionException(Exception):
+class CorruptMainSessionException(Exception):
   """
   Used to crash this worker if a main session file was provided but
   is not valid.
