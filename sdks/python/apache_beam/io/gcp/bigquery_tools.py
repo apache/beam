@@ -46,7 +46,6 @@ import fastavro
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
-from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.internal.metrics.metric import Metrics
@@ -63,14 +62,15 @@ from apache_beam.transforms import DoFn
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
-from google.cloud import bigquery as gcp_bigquery
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.transfer import Upload
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
+  gcp_bigquery = None
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
@@ -293,7 +293,7 @@ class BigQueryWrapper(object):
         http=get_new_http(),
         credentials=auth.get_service_credentials(),
         response_encoding='utf8')
-    self.gcp_bq_client = gcp_bigquery.Client()
+    self.gcp_bq_client = client or gcp_bigquery.Client()
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -597,7 +597,13 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def _insert_all_rows(
-      self, project_id, dataset_id, table_id, rows, insert_ids, skip_invalid_rows=False):
+      self,
+      project_id,
+      dataset_id,
+      table_id,
+      rows,
+      insert_ids,
+      skip_invalid_rows=False):
     """Calls the insertAll BigQuery API endpoint.
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
@@ -625,13 +631,12 @@ class BigQueryWrapper(object):
         base_labels=labels)
 
     started_millis = int(time.time() * 1000)
-    response = None
     try:
-      table_ref = gcp_bigquery.DatasetReference(project_id, dataset_id).table(table_id)
+      table_ref = gcp_bigquery.DatasetReference(project_id,
+                                                dataset_id).table(table_id)
       _LOGGER.info('Table Ref: %s', table_ref)
       errors = self.gcp_bq_client.insert_rows_json(
-          table_ref,
-          json_rows=rows, row_ids=insert_ids, skip_invalid_rows=True)
+          table_ref, json_rows=rows, row_ids=insert_ids, skip_invalid_rows=True)
       if not errors:
         service_call_metric.call('ok')
       for insert_error in errors:
@@ -1108,9 +1113,10 @@ class BigQueryWrapper(object):
     # BigQuery will do a best-effort if unique IDs are provided. This situation
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
-    final_rows = []
-    insert_ids = [str(self.unique_row_id) if not insert_ids else insert_ids[i]
-                  for i, _ in enumerate(rows)]
+    insert_ids = [
+        str(self.unique_row_id) if not insert_ids else insert_ids[i] for i,
+        _ in enumerate(rows)
+    ]
     rows = [json.loads(json.dumps(r, default=default_encoder)) for r in rows]
 
     #result = self.gcp_bq_client.insert_rows(
