@@ -270,9 +270,9 @@ def _load_main_session(semi_persistent_directory):
       # Raise a fatal error and crash this worker, forcing a restart.
       if os.path.getsize(session_file) == 0:
         raise CorruptMainSessionException(
-          'Session file found, but empty: %s. Functions defined in __main__ '
-          '(interactive session) will almost certainly fail.' %
-          (session_file, ))
+            'Session file found, but empty: %s. Functions defined in __main__ '
+            '(interactive session) will almost certainly fail.' %
+            (session_file, ))
       pickler.load_session(session_file)
     else:
       _LOGGER.warning(
