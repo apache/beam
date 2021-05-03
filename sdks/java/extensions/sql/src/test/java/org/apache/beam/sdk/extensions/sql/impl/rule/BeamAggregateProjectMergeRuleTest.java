@@ -34,6 +34,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider.PushDownOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.Row;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,9 +60,19 @@ public class BeamAggregateProjectMergeRuleTest {
     Table projectTable = getTable("TEST_PROJECT", PushDownOptions.PROJECT);
     Table filterTable = getTable("TEST_FILTER", PushDownOptions.FILTER);
     Table noneTable = getTable("TEST_NONE", PushDownOptions.NONE);
+
     tableProvider.createTable(projectTable);
     tableProvider.createTable(filterTable);
     tableProvider.createTable(noneTable);
+
+    // Rules are cost based, need rows to optimize!
+    tableProvider.addRows(
+        "TEST_PROJECT", Row.withSchema(BASIC_SCHEMA).addValues(1, 2, "3", 4).build());
+    tableProvider.addRows(
+        "TEST_FILTER", Row.withSchema(BASIC_SCHEMA).addValues(1, 2, "3", 4).build());
+    tableProvider.addRows(
+        "TEST_NONE", Row.withSchema(BASIC_SCHEMA).addValues(1, 2, "3", 4).build());
+
     sqlEnv = BeamSqlEnv.inMemory(tableProvider);
   }
 
