@@ -22,11 +22,14 @@ import java.io.IOException;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.twister2.Twister2BatchTranslationContext;
 import org.apache.beam.runners.twister2.translators.BatchTransformTranslator;
+import org.apache.beam.runners.twister2.translators.functions.ByteToElemFunction;
 import org.apache.beam.runners.twister2.translators.functions.ByteToWindowFunctionPrimitive;
+import org.apache.beam.runners.twister2.translators.functions.ElemToBytesFunction;
 import org.apache.beam.runners.twister2.translators.functions.MapToTupleFunction;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -58,23 +61,50 @@ public class PCollectionViewTranslatorBatch<ElemT, ViewT>
                 context.getCurrentTransform();
     org.apache.beam.sdk.values.PCollectionView<ViewT> input;
     PCollection<ElemT> inputPCol = context.getInput(transform);
-    final KvCoder coder = (KvCoder) inputPCol.getCoder();
-    Coder inputKeyCoder = coder.getKeyCoder();
+    final Coder coder = inputPCol.getCoder();
     WindowingStrategy windowingStrategy = inputPCol.getWindowingStrategy();
     WindowFn windowFn = windowingStrategy.getWindowFn();
-    final WindowedValue.WindowedValueCoder wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
-    BatchTSet<WindowedValue<ElemT>> inputGathered =
-        inputDataSet
-            .direct()
-            .map(new MapToTupleFunction<>(inputKeyCoder, wvCoder))
-            .allGather()
-            .map(new ByteToWindowFunctionPrimitive(inputKeyCoder, wvCoder));
     try {
       input = CreatePCollectionViewTranslation.getView(application);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    context.setSideInputDataSet(input.getTagInternal().getId(), inputGathered);
+
+    switch (input.getViewFn().getMaterialization().getUrn()) {
+      case Materializations.MULTIMAP_MATERIALIZATION_URN:
+        KvCoder kvCoder = (KvCoder<?, ?>) coder;
+        final Coder keyCoder = kvCoder.getKeyCoder();
+        final WindowedValue.WindowedValueCoder kvwvCoder =
+            WindowedValue.FullWindowedValueCoder.of(
+                kvCoder.getValueCoder(), windowFn.windowCoder());
+        BatchTSet<WindowedValue<ElemT>> multimapMaterialization =
+            inputDataSet
+                .direct()
+                .map(new MapToTupleFunction<>(keyCoder, kvwvCoder))
+                .allGather()
+                .map(new ByteToWindowFunctionPrimitive(keyCoder, kvwvCoder));
+        context.setSideInputDataSet(input.getTagInternal().getId(), multimapMaterialization);
+        break;
+      case Materializations.ITERABLE_MATERIALIZATION_URN:
+        final WindowedValue.WindowedValueCoder wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+        BatchTSet<WindowedValue<ElemT>> iterableMaterialization =
+            inputDataSet
+                .direct()
+                .map(new ElemToBytesFunction<>(wvCoder))
+                .allGather()
+                .map(new ByteToElemFunction(wvCoder));
+        try {
+          input = CreatePCollectionViewTranslation.getView(application);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        context.setSideInputDataSet(input.getTagInternal().getId(), iterableMaterialization);
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            "Unknown side input materialization "
+                + input.getViewFn().getMaterialization().getUrn());
+    }
   }
 }
