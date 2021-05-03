@@ -99,8 +99,15 @@ class DeferredFrameTest(unittest.TestCase):
     deferred_args = _get_deferred_args(*args)
     if nonparallel:
       # First run outside a nonparallel block to confirm this raises as expected
-      with self.assertRaises(expressions.NonParallelOperation):
-        _ = func(*deferred_args)
+      with self.assertRaises(expressions.NonParallelOperation) as raised:
+        func(*deferred_args)
+
+      if raised.exception.msg.startswith(
+          "Encountered non-parallelizable form of"):
+        raise AssertionError(
+            "Default NonParallelOperation raised, please specify a reason in "
+            "the Singleton() partitioning requirement for this operation."
+        ) from raised.exception
 
       # Re-run in an allow non parallel block to get an expression to verify
       with beam.dataframe.allow_non_parallel_operations():
@@ -722,13 +729,14 @@ class DeferredFrameTest(unittest.TestCase):
             lambda x: (x.foo + x.bar).median()),
         df)
 
-  def test_quantile_axis_columns(self):
+  def test_quantile(self):
     df = pd.DataFrame(
         np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
+    self._run_test(lambda df: df.quantile(0.1), df, nonparallel=True)
+    self._run_test(lambda df: df.quantile([0.1, 0.9]), df, nonparallel=True)
 
+    self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
     with self.assertRaisesRegex(frame_base.WontImplementError,
                                 r"df\.quantile\(q=0\.1, axis='columns'\)"):
       self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
@@ -783,6 +791,23 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.melt(
             id_vars=[('A', 'D')], value_vars=[('B', 'E')], ignore_index=False),
         df)
+
+  def test_fillna_columns(self):
+    df = pd.DataFrame(
+        [[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1], [np.nan, np.nan, np.nan, 5],
+         [np.nan, 3, np.nan, 4], [3, np.nan, np.nan, 4]],
+        columns=list('ABCD'))
+
+    self._run_test(lambda df: df.fillna(method='ffill', axis='columns'), df)
+    self._run_test(
+        lambda df: df.fillna(method='ffill', axis='columns', limit=1), df)
+    self._run_test(
+        lambda df: df.fillna(method='bfill', axis='columns', limit=1), df)
+
+    # Intended behavior is unclear here. See
+    # https://github.com/pandas-dev/pandas/issues/40989
+    # self._run_test(lambda df: df.fillna(axis='columns', value=100,
+    #                                     limit=2), df)
 
 
 class AllowNonParallelTest(unittest.TestCase):
