@@ -39,6 +39,8 @@ set -e
 BEAM_REPO_URL=https://github.com/apache/beam.git
 RELEASE_BRANCH=release-${RELEASE_VER}
 WORKING_BRANCH=postcommit_validation_pr
+SCRIPT=$(readlink -f $0)
+SCRIPT_DIR=$(dirname $SCRIPT)
 
 function clean_up(){
   echo ""
@@ -123,8 +125,7 @@ if [[ ! -z `which hub` ]]; then
   # The version change is needed for Dataflow python batch tests.
   # Without changing to dev version, the dataflow pipeline will fail because of non-existed worker containers.
   # Note that dataflow worker containers should be built after RC has been built.
-  sed -i -e "s/${RELEASE_VER}\(.dev\)\?/${RELEASE_VER}.dev/g" sdks/python/apache_beam/version.py
-  sed -i -e "s/sdk_version=${RELEASE_VER}\(.dev\)\?/sdk_version=${RELEASE_VER}.dev/g" gradle.properties
+  sh "$SCRIPT_DIR"/set_version.sh "$RELEASE_VER"
   git add sdks/python/apache_beam/version.py
   git add gradle.properties
   # In case the version string was not changed, append a newline to CHANGES.md
