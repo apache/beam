@@ -204,10 +204,12 @@ class PubSubIntegrationTest(unittest.TestCase):
         id_label=self.ID_LABEL,
         timestamp_attribute=self.TIMESTAMP_ATTRIBUTE)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_streaming_data_only(self):
     self._test_streaming(with_attributes=False)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_streaming_with_attributes(self):
     self._test_streaming(with_attributes=True)

@@ -133,6 +133,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     # clean up the temp Dicom store
     delete_dicom_store(self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_dicom_search_instances(self):
     # Search and compare the metadata of a persistent DICOM store.
@@ -183,6 +184,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
           equal_to([expected_dict_refine]),
           label='refine search assert')
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_dicom_store_instance_from_gcs(self):
     # Store DICOM files to a empty DICOM store from a GCS bucket,

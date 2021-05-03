@@ -186,8 +186,7 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
         "--numprocesses=5", // run tests in parallel
         "--color=yes", // console color
         "--log-cli-level=INFO",
-        "--timeout=${60*25}",
-        "--dist=loadscope"
+        "--dist=loadscope" // Tests with loadscope dist accordint to pytest docs https://pypi.org/project/pytest-xdist/
     ]
     def testOpts = basicTestOpts + ["${tests.join(' ')}"]
     def pipelineOpts = [

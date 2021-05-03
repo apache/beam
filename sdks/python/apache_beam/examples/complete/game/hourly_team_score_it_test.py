@@ -63,7 +63,6 @@ class HourlyTeamScoreIT(unittest.TestCase):
     self.dataset_ref = utils.create_bq_dataset(
         self.project, self.OUTPUT_DATASET)
 
-  @pytest.mark.it_postcommit_slow
   @pytest.mark.it_postcommit
   def test_hourly_team_score_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)

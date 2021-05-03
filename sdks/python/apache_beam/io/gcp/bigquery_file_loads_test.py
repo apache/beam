@@ -741,6 +741,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
@@ -821,6 +822,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
               max_file_size=20,
               max_files_per_bundle=-1))
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_bqfl_streaming(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
@@ -857,6 +859,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                         .Method.FILE_LOADS,
                                       triggering_frequency=100))
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_one_job_fails_all_jobs_fail(self):
 

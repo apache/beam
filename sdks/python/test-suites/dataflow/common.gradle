@@ -31,10 +31,11 @@ def runScriptsDir = "${rootDir}/sdks/python/scripts"
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
     "--capture=no",  // print stdout instantly
-    "--numprocesses=8", // run tests in parallel
+    "--numprocesses=auto", // run tests in parallel
     "--color=yes", // console color
-    "--log-cli-level=INFO",
-    "--dist=loadscope"
+    "--log-cli-level=INFO", // INFO log level
+    "--timeout=4500", // timeout of whole command execution
+    "--max-worker-restart=2" // Limit number of worker restarts
 ]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
@@ -109,16 +110,16 @@ task postCommitIT {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
-  // Execute test with timeout max 20 min
+  // Execute tests with dist default algorithm
   doFirst {
-    def testargs = basicTestOpts + ["--timeout=${60*20}"]
+    def testargs = basicTestOpts
     def argMap = [
         "test_opts": testargs,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
-        "collect": "it_postcommit and not it_postcommit_slow"
+        "collect": "it_postcommit and not it_postcommit_loadscope"
     ]
 
     def cmdArgs = mapToArgString(argMap)
@@ -128,16 +129,16 @@ task postCommitIT {
     }
   }
 
-  // Execute test with timeout max 30 min
+  // Execute tests with loadscope dist accordint to pytest docs https://pypi.org/project/pytest-xdist/
   doLast {
-    def testargs = basicTestOpts + ["--timeout=${60*30}"]
+    def testargs = basicTestOpts + ["--dist=loadscope"]
     def argMap = [
         "test_opts": testargs,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
-        "suite": "postCommitIT-df${pythonVersionSuffix}-slow",
+        "suite": "postCommitIT-df${pythonVersionSuffix}-loadscope",
         "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
-        "collect": "it_postcommit and it_postcommit_slow"
+        "collect": "it_postcommit and it_postcommit_loadscope"
     ]
 
     def cmdArgs = mapToArgString(argMap)
@@ -155,7 +156,7 @@ task validatesRunnerBatchTests {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   def argMap = [
-          "test_opts"   : basicTestOpts + ["--timeout=4500"],
+          "test_opts"   : basicTestOpts,
           "worker_jar"  : dataflowWorkerJar,
           "sdk_location": files(configurations.distTarBall.files).singleFile,
           "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
@@ -186,7 +187,7 @@ task validatesRunnerStreamingTests {
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
-  def argMap = ["test_opts": basicTestOpts + ["--timeout=4500"],
+  def argMap = ["test_opts": basicTestOpts,
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
                 "worker_jar": dataflowWorkerJar,

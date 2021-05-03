@@ -60,7 +60,6 @@ class UserScoreIT(unittest.TestCase):
     self.output = '/'.join(
         [self.test_pipeline.get_option('output'), self.uuid, 'results'])
 
-  @pytest.mark.it_postcommit_slow
   @pytest.mark.it_postcommit
   def test_user_score_it(self):
 

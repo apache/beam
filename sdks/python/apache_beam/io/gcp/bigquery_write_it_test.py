@@ -105,6 +105,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_big_query_write(self):
     table_name = 'python_write_table'
@@ -164,6 +165,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_big_query_write_schema_autodetect(self):
     if self.runner_name == 'TestDataflowRunner':
@@ -209,6 +211,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
               temp_file_format=FileFormat.JSON))
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_big_query_write_new_types(self):
     table_name = 'python_new_types_table'
@@ -290,6 +293,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_big_query_write_without_schema(self):
     table_name = 'python_no_schema_table'
@@ -352,6 +356,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
               temp_file_format=FileFormat.JSON))
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   @mock.patch(
       "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)

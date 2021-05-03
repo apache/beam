@@ -1072,6 +1072,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_value_provider_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
@@ -1142,6 +1143,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
               additional_bq_parameters=lambda _: additional_bq_parameters,
               method='FILE_LOADS'))
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
     streaming = self.test_pipeline.options.view_as(StandardOptions).streaming
@@ -1335,10 +1337,12 @@ class PubSubBigQueryIT(unittest.TestCase):
           method=method,
           triggering_frequency=triggering_frequency)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_streaming_inserts(self):
     self._run_pubsub_bq_pipeline(WriteToBigQuery.Method.STREAMING_INSERTS)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_file_loads(self):
     self._run_pubsub_bq_pipeline(
@@ -1364,6 +1368,7 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
     _LOGGER.info(
         'Created dataset %s in project %s', self.dataset_id, self.project)
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_avro_file_load(self):
     # Construct elements such that they can be written via Avro but not via

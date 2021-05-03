@@ -101,6 +101,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     cls._add_dummy_entries()
     _LOGGER.info("Spanner Read IT Setup Complete...")
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_read_via_table(self):
     _LOGGER.info("Spanner Read via table")
@@ -113,6 +114,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           columns=["UserId", "Key"])
     assert_that(r, equal_to(self._data))
 
+  @pytest.mark.it_postcommit_loadscope
   @pytest.mark.it_postcommit
   def test_read_via_sql(self):
     _LOGGER.info("Running Spanner via sql")
