@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk;
 
+import static org.apache.beam.sdk.transforms.PTransformOverrideRegistrar.applyTransformOverride;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.transform;
@@ -533,7 +534,9 @@ public class Pipeline {
    * @see Pipeline#apply
    */
   private <InputT extends PInput, OutputT extends POutput> OutputT applyInternal(
-      String name, InputT input, PTransform<? super InputT, OutputT> transform) {
+      String name, InputT input, PTransform<? super InputT, OutputT> inputTransform) {
+    // LI-specific change to check overridablePTransform
+    PTransform<? super InputT, OutputT> transform = applyTransformOverride(input, inputTransform);
     String namePrefix = transforms.getCurrent().getFullName();
     String uniqueName = uniquifyInternal(namePrefix, name);
 
