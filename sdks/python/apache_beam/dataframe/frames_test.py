@@ -193,7 +193,10 @@ class _AbstractFrameTest(unittest.TestCase):
       # Verify that the actual result agrees with the proxy
       proxy = expr.proxy()
 
-      self.assertEqual(type(actual), type(proxy))
+      if type(actual) in (np.float32, np.float64):
+        self.assertTrue(type(actual) == type(proxy) or np.isnan(proxy))
+      else:
+        self.assertEqual(type(actual), type(proxy))
 
       if isinstance(expected, pd.core.generic.NDFrame):
         if isinstance(expected, pd.Series):
@@ -674,8 +677,16 @@ class DeferredFrameTest(_AbstractFrameTest):
     df = pd.DataFrame(
         np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
 
-    self._run_test(lambda df: df.quantile(0.1), df, nonparallel=True)
-    self._run_test(lambda df: df.quantile([0.1, 0.9]), df, nonparallel=True)
+    self._run_test(
+        lambda df: df.quantile(0.1, axis='columns'),
+        df,
+        nonparallel=True,
+        check_proxy=False)
+    self._run_test(
+        lambda df: df.quantile([0.1, 0.9], axis='columns'),
+        df,
+        nonparallel=True,
+        check_proxy=False)
 
     self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
     with self.assertRaisesRegex(frame_base.WontImplementError,
