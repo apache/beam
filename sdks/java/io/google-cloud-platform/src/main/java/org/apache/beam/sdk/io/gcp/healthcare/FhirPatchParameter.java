@@ -74,12 +74,12 @@ public class FhirPatchParameter implements Serializable {
     return patch;
   }
 
-  public Map<String, String> getQuery() {
+  public @Nullable Map<String, String> getQuery() {
     return query;
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
