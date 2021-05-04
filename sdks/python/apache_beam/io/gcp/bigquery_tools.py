@@ -634,7 +634,6 @@ class BigQueryWrapper(object):
     try:
       table_ref = gcp_bigquery.DatasetReference(project_id,
                                                 dataset_id).table(table_id)
-      _LOGGER.info('Table Ref: %s', table_ref)
       errors = self.gcp_bq_client.insert_rows_json(
           table_ref, json_rows=rows, row_ids=insert_ids, skip_invalid_rows=True)
       if not errors:
@@ -1119,12 +1118,8 @@ class BigQueryWrapper(object):
     ]
     rows = [json.loads(json.dumps(r, default=default_encoder)) for r in rows]
 
-    #result = self.gcp_bq_client.insert_rows(
-    #    table=gcp_bigquery.TableReference(project_id, dataset_id, table_id),
-    #    rows=rows, row_ids=insert_id, skip_invalid_rows=True)
     result, errors = self._insert_all_rows(
         project_id, dataset_id, table_id, rows, insert_ids)
-    logging.info('Result is %s', result)
     return result, errors
 
   def _convert_cell_value_to_dict(self, value, field):
