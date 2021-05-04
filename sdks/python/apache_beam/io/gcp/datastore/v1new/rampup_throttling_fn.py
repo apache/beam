@@ -73,7 +73,8 @@ class RampupThrottlingFn(DoFn):
 
       if available_ops > 0:
         self._successful_ops.add(instant.timestamp() * 1000, 1)
-        return element
+        yield element
+        break
       else:
         backoff_ms = next(backoff)
         _LOG.info(f'Delaying by {backoff_ms}ms to conform to gradual ramp-up.')
