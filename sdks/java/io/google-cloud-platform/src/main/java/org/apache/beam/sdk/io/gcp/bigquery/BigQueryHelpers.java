@@ -251,7 +251,7 @@ public class BigQueryHelpers {
           case FAILED:
             String oldJobId = currentJobId.getJobId();
             currentJobId = BigQueryHelpers.getRetryJobId(currentJobId, lookupJob).jobId;
-            LOG.info(
+            LOG.warn(
                 "Load job {} failed, {}: {}. Next job id {}",
                 oldJobId,
                 shouldRetry() ? "will retry" : "will not retry",
