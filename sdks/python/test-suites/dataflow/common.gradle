@@ -28,11 +28,19 @@ dependencies {
 
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
+// TODO(BEAM-3713) Remove once nose is removed
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
     "--nocapture",  // print stdout instantly
     "--processes=8",  // run tests in parallel
     "--process-timeout=4500", // timeout of whole command execution
+]
+
+def basicPytestOpts = [
+    "--capture=no",  // print stdout instantly
+    "--numprocesses=8", // run tests in parallel
+    "--timeout=4500", // timeout of whole command execution
+    "--color=yes", // console color
 ]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
@@ -128,12 +136,14 @@ task validatesRunnerBatchTests {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-batch"]
   def argMap = [
-          "test_opts"   : testOpts,
+          "test_opts"   : basicPytestOpts,
           "worker_jar"  : dataflowWorkerJar,
           "sdk_location": files(configurations.distTarBall.files).singleFile,
-          "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}"]
+          "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
+          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+          "collect": "it_validatesrunner and not no_sickbay_batch"
+          ]
 
   if (project.hasProperty('useRunnerV2')) {
     argMap.put("runner_v2", "true")
@@ -158,12 +168,15 @@ task validatesRunnerStreamingTests {
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
-  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
-  def argMap = ["test_opts": testOpts,
+  def argMap = [
+                "test_opts": basicPytestOpts,
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
                 "worker_jar": dataflowWorkerJar,
-                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}"]
+                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}",
+                "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
+                "collect": "it_validatesrunner and not no_sickbay_streaming"
+                ]
   if (project.hasProperty('useRunnerV2')) {
     argMap.put("runner_v2", "true")
     // KMS is not supported for streaming engine.

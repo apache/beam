@@ -23,6 +23,7 @@ import logging
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -113,7 +114,9 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     return dataflow_exercise_streaming_metrics_pipeline.run(argv)
 
   # Need not run streaming test in batch mode.
-  @attr('IT', 'ValidatesRunner', 'sickbay-batch')
+  @attr('IT')
+  @pytest.mark.no_sickbay_batch
+  @pytest.mark.it_validatesrunner
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     """
     Runs streaming Dataflow job and verifies that user metrics are reported

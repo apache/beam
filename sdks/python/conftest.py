@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import sys
 
 from apache_beam.options import pipeline_options
+from apache_beam.testing.test_pipeline import TestPipeline
 
 MAX_SUPPORTED_PYTHON_VERSION = (3, 8)
 
@@ -40,5 +41,11 @@ else:
 
 
 def pytest_configure(config):
+  """Saves options added in pytest_addoption for later use.
+  This is necessary since pytest-xdist workers do not have the same sys.argv as
+  the main pytest invocation. xdist does seem to pickle TestPipeline
+  """
+  TestPipeline.pytest_test_pipeline_options = config.getoption(
+        'test_pipeline_options', default='')
   # Enable optional type checks on all tests.
   pipeline_options.enable_all_additional_type_checks()
