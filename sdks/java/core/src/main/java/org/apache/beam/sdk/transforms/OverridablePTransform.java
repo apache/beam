@@ -16,6 +16,6 @@ import org.apache.beam.sdk.values.POutput;
 public abstract class OverridablePTransform<IN extends PInput, OUT extends POutput>
         extends PTransform<IN, OUT> {
 
-    public abstract String getTag(IN in);
+    public abstract String getTag();
 }
 
