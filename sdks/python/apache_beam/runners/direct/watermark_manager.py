@@ -19,10 +19,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import threading
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import Iterable

@@ -114,15 +114,6 @@ public class SessionsTest {
         .verifyCompatibility(FixedWindows.of(new Duration(10)));
   }
 
-  /** Validates that the output timestamp for aggregate data falls within the acceptable range. */
-  @Test
-  public void testValidOutputTimes() throws Exception {
-    for (long timestamp : Arrays.asList(200, 800, 700)) {
-      WindowFnTestUtils.validateGetOutputTimestamp(
-          Sessions.withGapDuration(Duration.millis(500)), timestamp);
-    }
-  }
-
   /**
    * Test to confirm that {@link Sessions} with the default {@link TimestampCombiner} holds up the
    * watermark potentially indefinitely.

@@ -386,9 +386,24 @@ public class ParquetIOTest implements Serializable {
 
   @Test
   public void testReadDisplayData() {
-    DisplayData displayData = DisplayData.from(ParquetIO.read(SCHEMA).from("foo.parquet"));
+    Configuration configuration = new Configuration();
+    configuration.set("parquet.foo", "foo");
+    DisplayData displayData =
+        DisplayData.from(
+            ParquetIO.read(SCHEMA)
+                .from("foo.parquet")
+                .withSplit()
+                .withProjection(REQUESTED_SCHEMA, SCHEMA)
+                .withAvroDataModel(GenericData.get())
+                .withConfiguration(configuration));
 
     assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
+    assertThat(displayData, hasDisplayItem("schema", SCHEMA.toString()));
+    assertThat(displayData, hasDisplayItem("inferBeamSchema", false));
+    assertThat(displayData, hasDisplayItem("splittable", true));
+    assertThat(displayData, hasDisplayItem("projectionSchema", REQUESTED_SCHEMA.toString()));
+    assertThat(displayData, hasDisplayItem("avroDataModel", GenericData.get().toString()));
+    assertThat(displayData, hasDisplayItem("parquet.foo", "foo"));
   }
 
   public static class TestRecord {
@@ -483,6 +498,53 @@ public class ParquetIOTest implements Serializable {
     PCollection<GenericRecord> readBack =
         readPipeline.apply(
             ParquetIO.read(testRecordSchema)
+                .withSplit()
+                .withAvroDataModel(GenericData.get())
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+
+    PAssert.that(readBack).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteAndReadUsingGenericDataSchemaWithDataModel() {
+    Schema schema = new Schema.Parser().parse(SCHEMA_STRING);
+
+    List<GenericRecord> records = generateGenericRecords(1000);
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(schema)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(schema).withAvroDataModel(GenericData.get()))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(schema)
+                .withAvroDataModel(GenericData.get())
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+
+    PAssert.that(readBack).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteAndReadwithSplitUsingGenericDataSchemaWithDataModel() {
+    Schema schema = new Schema.Parser().parse(SCHEMA_STRING);
+
+    List<GenericRecord> records = generateGenericRecords(1000);
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(schema)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(schema).withAvroDataModel(GenericData.get()))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(schema)
                 .withSplit()
                 .withAvroDataModel(GenericData.get())
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));

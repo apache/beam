@@ -338,8 +338,7 @@ class _JsonToDictCoder(coders.Coder):
 
   @staticmethod
   def _to_bytes(value):
-    """Converts value from str to bytes on Python 3.x. Does nothing on
-    Python 2.7."""
+    """Converts value from str to bytes."""
     return value.encode('utf-8')
 
   @classmethod

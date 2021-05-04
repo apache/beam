@@ -19,9 +19,6 @@
 """Tests for all code snippets used in public docs."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import gc
 import glob
 import gzip
@@ -32,10 +29,6 @@ import tempfile
 import time
 import unittest
 import uuid
-from builtins import map
-from builtins import object
-from builtins import range
-from builtins import zip
 
 import mock
 import parameterized
@@ -354,6 +347,79 @@ class TypeHintsTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     with self.assertRaises(typehints.TypeCheckError):
       words_with_lens | beam.Map(lambda x: x).with_input_types(Tuple[int, int])
+
+  def test_bad_types_annotations(self):
+    p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+
+    numbers = p | beam.Create(['1', '2', '3'])
+
+    # Consider the following code.
+    # pylint: disable=expression-not-assigned
+    # pylint: disable=unused-variable
+    class FilterEvensDoFn(beam.DoFn):
+      def process(self, element):
+        if element % 2 == 0:
+          yield element
+
+    evens = numbers | 'Untyped Filter' >> beam.ParDo(FilterEvensDoFn())
+
+    # Now suppose numbers was defined as [snippet above].
+    # When running this pipeline, you'd get a runtime error,
+    # possibly on a remote machine, possibly very late.
+
+    with self.assertRaises(TypeError):
+      p.run()
+
+    # To catch this early, we can annotate process() with the expected types.
+    # Beam will then use these as type hints and perform type checking before
+    # the pipeline starts.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_do_fn_annotations]
+      from typing import Iterable
+
+      class FilterEvensDoFn(beam.DoFn):
+        def process(self, element: int) -> Iterable[int]:
+          if element % 2 == 0:
+            yield element
+
+      evens = numbers | 'filter_evens' >> beam.ParDo(FilterEvensDoFn())
+      # [END type_hints_do_fn_annotations]
+
+    # Another example, using a list output type. Notice that the output
+    # annotation has an additional Optional for the else clause.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_do_fn_annotations_optional]
+      from typing import List, Optional
+
+      class FilterEvensDoubleDoFn(beam.DoFn):
+        def process(self, element: int) -> Optional[List[int]]:
+          if element % 2 == 0:
+            return [element, element]
+          return None
+
+      evens = numbers | 'double_evens' >> beam.ParDo(FilterEvensDoubleDoFn())
+      # [END type_hints_do_fn_annotations_optional]
+
+    # Example using an annotated function.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_map_annotations]
+      def my_fn(element: int) -> str:
+        return 'id_' + str(element)
+
+      ids = numbers | 'to_id' >> beam.Map(my_fn)
+      # [END type_hints_map_annotations]
+
+    # Example using an annotated PTransform.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_ptransforms]
+      from apache_beam.pvalue import PCollection
+
+      class IntToStr(beam.PTransform):
+        def expand(self, pcoll: PCollection[int]) -> PCollection[str]:
+          return pcoll | beam.Map(lambda elem: str(elem))
+
+      ids = numbers | 'convert to str' >> IntToStr()
+      # [END type_hints_ptransforms]
 
   def test_runtime_checks_off(self):
     # We do not run the following pipeline, as it has incorrect type

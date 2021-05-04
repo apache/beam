@@ -45,6 +45,17 @@ func UnnamedOutput(t FullType) map[string]FullType {
 	return map[string]FullType{graph.UnnamedOutputTag: t}
 }
 
+// CrossLanguagePayload encodes a native Go struct into a payload for
+// cross-language transforms. To find the expected structure of a payload,
+// consult the documentation in the SDK performing the expansion.
+func CrossLanguagePayload(pl interface{}) []byte {
+	bytes, err := xlangx.EncodeStructPayload(pl)
+	if err != nil {
+		panic(err)
+	}
+	return bytes
+}
+
 // CrossLanguage executes a cross-language transform that uses named inputs and
 // returns named outputs.
 func CrossLanguage(

@@ -33,7 +33,9 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import enum
 import json
+import logging
 import pickle
 from builtins import chr
 from builtins import object
@@ -55,10 +57,10 @@ import dill
 from fastavro import parse_schema
 from fastavro import schemaless_reader
 from fastavro import schemaless_writer
-from google.protobuf.message import Message
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -106,6 +108,8 @@ else:
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
   # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
+_LOGGER = logging.getLogger(__name__)
 
 _TIME_SHIFT = 1 << 63
 MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
@@ -324,6 +328,7 @@ ITERABLE_LIKE_TYPE = 10
 PROTO_TYPE = 100
 DATACLASS_TYPE = 101
 NAMED_TUPLE_TYPE = 102
+ENUM_TYPE = 103
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -339,6 +344,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
     self.requires_deterministic_step_label = requires_deterministic_step_label
+    self.warn_deterministic_fallback = True
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -418,7 +424,13 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
 
   def encode_special_deterministic(self, value, stream):
-    if isinstance(value, Message):
+    if self.warn_deterministic_fallback:
+      _LOGGER.warning(
+          "Using fallback deterministic coder for type '%s' in '%s'. ",
+          type(value),
+          self.requires_deterministic_step_label)
+      self.warn_deterministic_fallback = False
+    if isinstance(value, proto_utils.message_types):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
@@ -434,11 +446,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
           [getattr(value, field.name) for field in dataclasses.fields(value)],
           stream,
           True)
-    elif isinstance(value, tuple) and type(value).__base__ is tuple and hasattr(
-        type(value), '_fields'):
+    elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
       stream.write_byte(NAMED_TUPLE_TYPE)
       self.encode_type(type(value), stream)
       self.iterable_coder_impl.encode_to_stream(value, stream, True)
+    elif isinstance(value, enum.Enum):
+      stream.write_byte(ENUM_TYPE)
+      self.encode_type(type(value), stream)
+      # Enum values can be of any type.
+      self.encode_to_stream(value.value, stream, True)
     else:
       raise TypeError(
           "Unable to deterministically encode '%s' of type '%s', "
@@ -491,6 +507,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
       cls = self.decode_type(stream)
       return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))
+    elif t == ENUM_TYPE:
+      cls = self.decode_type(stream)
+      return cls(self.decode_from_stream(stream, True))
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:

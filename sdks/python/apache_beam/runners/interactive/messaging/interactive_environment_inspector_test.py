@@ -18,8 +18,6 @@
 """Tests for interactive_environment_inspector."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import sys
 import unittest

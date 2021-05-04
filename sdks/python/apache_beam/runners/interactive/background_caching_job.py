@@ -38,8 +38,6 @@ deterministic replayable recorded events until they are invalidated.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import threading
 import time
@@ -140,7 +138,7 @@ def attempt_to_run_background_caching_job(
     # pipeline_instrument module to this module and aggregate tests.
     from apache_beam.runners.interactive import pipeline_instrument as instr
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
-        user_pipeline.to_runner_api(use_fake_coders=True), runner, options)
+        user_pipeline.to_runner_api(), runner, options)
     ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
     background_caching_job_result = beam.pipeline.Pipeline.from_runner_api(
         instr.build_pipeline_instrument(
@@ -338,8 +336,7 @@ def extract_source_to_cache_signature(user_pipeline):
       user_pipeline)
   unbounded_sources_as_ptransforms = set(
       map(lambda x: x.transform, unbounded_sources_as_applied_transforms))
-  _, context = user_pipeline.to_runner_api(
-      return_context=True, use_fake_coders=True)
+  _, context = user_pipeline.to_runner_api(return_context=True)
   signature = set(
       map(
           lambda transform: str(transform.to_runner_api(context)),

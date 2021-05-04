@@ -24,10 +24,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 
 /** {@link AutoService} registrar for {@link TpcdsOptions}. */
 @AutoService(PipelineOptionsRegistrar.class)
-public class TpcdsOptionsRegistrar implements PipelineOptionsRegistrar{
+public class TpcdsOptionsRegistrar implements PipelineOptionsRegistrar {
 
-    @Override
-    public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-        return ImmutableList.of(TpcdsOptions.class);
-    }
+  @Override
+  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+    return ImmutableList.of(TpcdsOptions.class);
+  }
 }

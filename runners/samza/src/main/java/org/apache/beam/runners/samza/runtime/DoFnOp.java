@@ -41,7 +41,9 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.util.FutureUtils;
@@ -97,6 +99,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // portable api related
   private final boolean isPortable;
   private final RunnerApi.ExecutableStagePayload stagePayload;
+  private final JobInfo jobInfo;
   private final HashMap<String, TupleTag<?>> idToTupleTagMap;
 
   private transient SamzaTimerInternalsFactory<?> timerInternalsFactory;
@@ -118,6 +121,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient BundleManager<OutT> bundleManager;
   private transient Instant sideInputWatermark;
   private transient List<WindowedValue<InT>> pushbackValues;
+  private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private DoFnSchemaInformation doFnSchemaInformation;
   private transient boolean bundleDisabled;
@@ -140,6 +144,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       PCollection.IsBounded isBounded,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
+      JobInfo jobInfo,
       Map<String, TupleTag<?>> idToTupleTagMap,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping) {
@@ -159,6 +164,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.isBounded = isBounded;
     this.isPortable = isPortable;
     this.stagePayload = stagePayload;
+    this.jobInfo = jobInfo;
     this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
     this.bundleCheckTimerId = "_samza_bundle_check_" + transformId;
     this.bundleStateId = "_samza_bundle_" + transformId;
@@ -217,7 +223,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               .stateInternalsForKey(null)
               .state(StateNamespaces.global(), StateTags.bag(bundleStateId, windowedValueCoder));
       final ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-      stageBundleFactory = samzaExecutionContext.getJobBundleFactory().forStage(executableStage);
+      stageContext = SamzaExecutableStageContextFactory.getInstance().get(jobInfo);
+      stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
       this.fnRunner =
           SamzaDoFnRunners.createPortable(
               samzaPipelineOptions,
@@ -257,12 +264,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         ServiceLoader.load(SamzaDoFnInvokerRegistrar.class).iterator();
     if (!invokerReg.hasNext()) {
       // use the default invoker here
-      doFnInvoker = DoFnInvokers.invokerFor(doFn);
+      doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, samzaPipelineOptions);
     } else {
-      doFnInvoker = Iterators.getOnlyElement(invokerReg).invokerFor(doFn, context);
+      doFnInvoker =
+          Iterators.getOnlyElement(invokerReg).invokerSetupFor(doFn, samzaPipelineOptions, context);
     }
-
-    doFnInvoker.invokeSetup();
   }
 
   /*package private*/ FutureCollector<OutT> createFutureCollector() {
@@ -390,7 +396,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void close() {
     doFnInvoker.invokeTeardown();
-    try (AutoCloseable closer = stageBundleFactory) {
+    try (AutoCloseable factory = stageBundleFactory;
+        AutoCloseable context = stageContext) {
       // do nothing
     } catch (Exception e) {
       LOG.error("Failed to close stage bundle factory", e);

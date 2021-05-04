@@ -18,7 +18,7 @@ kind: Secret
 metadata:
   name: influxdb-creds
 data:
-  INFLUXDB_USER: c3VwZXJzYWRtaW4=
+  INFLUXDB_USER: c3VwZXJhZG1pbg==
   INFLUXDB_USER_PASSWORD: c3VwZXJzZWNyZXRwYXNzd29yZA==
   INFLUXDB_GRAPHITE_ENABLED: dHJ1ZQ==
 
@@ -42,7 +42,7 @@ spec:
     spec:
       containers:
       - name: influxdb
-        image: influxdb
+        image: influxdb:1.8
         env:
         - name: INFLUXDB_USER
           valueFrom:

@@ -29,8 +29,6 @@ The pipelines behave in the steps below.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import hashlib
 import logging

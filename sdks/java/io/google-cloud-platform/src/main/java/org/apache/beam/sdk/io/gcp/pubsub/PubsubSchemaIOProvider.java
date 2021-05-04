@@ -108,11 +108,6 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
   public static final FieldType ATTRIBUTE_ARRAY_FIELD_TYPE =
       Schema.FieldType.array(Schema.FieldType.row(ATTRIBUTE_ARRAY_ENTRY_SCHEMA));
 
-  public enum PayloadFormat {
-    JSON,
-    AVRO
-  }
-
   /** Returns an id that uniquely represents this IO. */
   @Override
   public String identifier() {

@@ -20,8 +20,9 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import com.google.auto.value.AutoValue;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
+import java.lang.reflect.Method;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Holds user defined function definitions. */
@@ -39,15 +40,17 @@ public abstract class UserFunctionDefinitions {
 
   public abstract ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions();
 
+  public abstract ImmutableMap<List<String>, Combine.CombineFn<?, ?, ?>> javaAggregateFunctions();
+
   @AutoValue
   public abstract static class JavaScalarFunction {
-    public static JavaScalarFunction create(ScalarFn scalarFn, String jarPath) {
-      return new AutoValue_UserFunctionDefinitions_JavaScalarFunction(scalarFn, jarPath);
+    public static JavaScalarFunction create(Method method, String jarPath) {
+      return new AutoValue_UserFunctionDefinitions_JavaScalarFunction(method, jarPath);
     }
 
-    public abstract ScalarFn scalarFn();
+    public abstract Method method();
 
-    /** The Beam filesystem path to the jar where scalarFn was defined. */
+    /** The Beam filesystem path to the jar where the method was defined. */
     public abstract String jarPath();
   }
 
@@ -62,6 +65,9 @@ public abstract class UserFunctionDefinitions {
     public abstract Builder setJavaScalarFunctions(
         ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions);
 
+    public abstract Builder setJavaAggregateFunctions(
+        ImmutableMap<List<String>, Combine.CombineFn<?, ?, ?>> javaAggregateFunctions);
+
     public abstract UserFunctionDefinitions build();
   }
 
@@ -69,6 +75,7 @@ public abstract class UserFunctionDefinitions {
     return new AutoValue_UserFunctionDefinitions.Builder()
         .setSqlScalarFunctions(ImmutableMap.of())
         .setSqlTableValuedFunctions(ImmutableMap.of())
-        .setJavaScalarFunctions(ImmutableMap.of());
+        .setJavaScalarFunctions(ImmutableMap.of())
+        .setJavaAggregateFunctions(ImmutableMap.of());
   }
 }

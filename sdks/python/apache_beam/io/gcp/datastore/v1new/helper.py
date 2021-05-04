@@ -23,11 +23,8 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import os
 import uuid
-from builtins import range
 from typing import List
 from typing import Union
 

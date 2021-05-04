@@ -18,9 +18,6 @@
 # pytype: skip-file
 # mypy: check-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import division
-
 import atexit
 import functools
 import itertools

@@ -1,0 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin : "application"
+
+group 'org.apache.beam'
+description = "Apache Beam :: Validate :: Runner"
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://repo.jenkins-ci.org/releases/"
+    }
+    maven {
+        url "https://jcenter.bintray.com/"
+    }
+    maven {
+        url "https://packages.confluent.io/maven/"
+    }
+}
+
+dependencies {
+    compile group: 'com.cdancy', name: 'jenkins-rest', version: '0.0.22'
+    compile 'com.offbytwo.jenkins:jenkins-client:0.3.8'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.0.1'
+    compile group: 'org.jenkins-ci.plugins', name: 'junit', version: '1.34'
+    compile group: 'org.yaml', name: 'snakeyaml', version: '1.28'
+    compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.11.3'
+    compile 'org.slf4j:slf4j-simple:1.7.9'
+    compile group: 'junit', name: 'junit', version: '4.12'
+    compile project(path: ":sdks:java:core")
+    compile project(path: ":sdks:java:core", configuration: "shadowTest")
+    compile project(path: ":runners:spark:3")
+    compile project(path: ":runners:flink:${latestFlinkVersion}")
+    compile project(path: ":runners:core-java")
+    compile project(path: ":runners:core-java", configuration: "testRuntime")
+}
+
+
+
+ext.javaMainClass = "org.apache.beam.validate.runner.Main"
+if (project.hasProperty("args")) {
+    ext.cmdargs = project.getProperty("args")
+} else {
+    ext.cmdargs = ""
+}
+
+task runner(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    main = "org.apache.beam.validate.runner.Main"
+    args cmdargs.split()
+}

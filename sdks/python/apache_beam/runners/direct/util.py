@@ -22,10 +22,6 @@ For internal use only. No backwards compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from builtins import object
-
 
 class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""

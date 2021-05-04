@@ -16,8 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import signal
@@ -25,7 +23,6 @@ import sys
 import typing
 
 import grpc
-from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -55,6 +52,9 @@ TEST_COMPK_URN = "beam:transforms:xlang:test:compk"
 TEST_FLATTEN_URN = "beam:transforms:xlang:test:flatten"
 TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
 TEST_PYTHON_BS4_URN = "beam:transforms:xlang:test:python_bs4"
+
+# A transform that does not produce an output.
+TEST_NO_OUTPUT_URN = "beam:transforms:xlang:test:nooutput"
 
 
 @ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
@@ -92,7 +92,7 @@ class FilterLessThanTransform(ptransform.PTransform):
 
 
 @ptransform.PTransform.register_urn(TEST_PREFIX_URN, None)
-@beam.typehints.with_output_types(unicode)
+@beam.typehints.with_output_types(str)
 class PrefixTransform(ptransform.PTransform):
   def __init__(self, payload):
     self._payload = payload
@@ -117,9 +117,9 @@ class MutltiTransform(ptransform.PTransform):
         'main': (pcolls['main1'], pcolls['main2'])
         | beam.Flatten()
         | beam.Map(lambda x, s: x + s, beam.pvalue.AsSingleton(
-            pcolls['side'])).with_output_types(unicode),
+            pcolls['side'])).with_output_types(str),
         'side': pcolls['side']
-        | beam.Map(lambda x: x + x).with_output_types(unicode),
+        | beam.Map(lambda x: x + x).with_output_types(str),
     }
 
   def to_runner_api_parameter(self, unused_context):
@@ -156,7 +156,7 @@ class CoGBKTransform(ptransform.PTransform):
     return pcoll \
            | beam.CoGroupByKey() \
            | beam.ParDo(self.ConcatFn()).with_output_types(
-               typing.Tuple[int, typing.Iterable[unicode]])
+               typing.Tuple[int, typing.Iterable[str]])
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_CGBK_URN, None
@@ -187,7 +187,7 @@ class CombinePerKeyTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return pcoll \
            | beam.CombinePerKey(sum).with_output_types(
-               typing.Tuple[unicode, int])
+               typing.Tuple[str, int])
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_COMPK_URN, None
@@ -240,7 +240,7 @@ class ExtractHtmlTitleDoFn(beam.DoFn):
 @ptransform.PTransform.register_urn(TEST_PYTHON_BS4_URN, None)
 class ExtractHtmlTitleTransform(ptransform.PTransform):
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(ExtractHtmlTitleDoFn()).with_output_types(unicode)
+    return pcoll | beam.ParDo(ExtractHtmlTitleDoFn()).with_output_types(str)
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_PYTHON_BS4_URN, None
@@ -294,6 +294,23 @@ class FibTransform(ptransform.PTransform):
   @staticmethod
   def from_runner_api_parameter(unused_ptransform, level, unused_context):
     return FibTransform(int(level.decode('ascii')))
+
+
+@ptransform.PTransform.register_urn(TEST_NO_OUTPUT_URN, None)
+class NoOutputTransform(ptransform.PTransform):
+  def expand(self, pcoll):
+    def log_val(val):
+      logging.debug('Got value: %r', val)
+
+    # Logging without returning anything
+    _ = (pcoll | 'TestLabel' >> beam.ParDo(log_val))
+
+  def to_runner_api_parameter(self, unused_context):
+    return TEST_NO_OUTPUT_URN, None
+
+  @staticmethod
+  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
+    return NoOutputTransform(parse_string_payload(payload)['data'])
 
 
 def parse_string_payload(input_byte):

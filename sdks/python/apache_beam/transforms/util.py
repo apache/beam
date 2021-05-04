@@ -20,21 +20,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import collections
 import contextlib
 import random
 import re
-import sys
 import threading
 import time
 import uuid
-from builtins import filter
-from builtins import object
-from builtins import range
-from builtins import zip
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterable
@@ -42,9 +34,6 @@ from typing import List
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
-
-from future.utils import itervalues
-from past.builtins import long
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -164,7 +153,7 @@ class CoGroupByKey(PTransform):
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
-      return pvalueish, tuple(itervalues(pvalueish))
+      return pvalueish, tuple(pvalueish.values())
     except AttributeError:
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
@@ -722,17 +711,13 @@ class Reshuffle(PTransform):
   """
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    if sys.version_info >= (3, ):
-      KeyedT = Tuple[int, T]
-    else:
-      KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
-            32), t)).with_input_types(T).with_output_types(KeyedT)
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
+        with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >>
-        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
+        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
+            Tuple[int, T]).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]

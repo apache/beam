@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import shutil
@@ -381,8 +379,17 @@ class StreamingCache(CacheManager):
         self._saved_pcoders[os.path.join(*labels)])
 
   def cleanup(self):
+
     if os.path.exists(self._cache_dir):
-      shutil.rmtree(self._cache_dir)
+
+      def on_fail_to_cleanup(function, path, excinfo):
+        _LOGGER.warning(
+            'Failed to clean up temporary files: %s. You may'
+            'manually delete them if necessary. Error was: %s',
+            path,
+            excinfo)
+
+      shutil.rmtree(self._cache_dir, onerror=on_fail_to_cleanup)
     self._saved_pcoders = {}
     self._capture_sinks = {}
     self._capture_keys = set()

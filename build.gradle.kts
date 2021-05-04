@@ -50,6 +50,7 @@ tasks.rat {
     "**/test.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
+    "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
 
     // Default eclipse excludes neglect subprojects
@@ -162,15 +163,12 @@ task("javaPreCommitPortabilityApi") {
 }
 
 task("javaPostCommit") {
-  dependsOn(":runners:google-cloud-dataflow-java:postCommit")
-  dependsOn(":runners:google-cloud-dataflow-java:postCommitRunnerV2")
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
   dependsOn(":sdks:java:io:debezium:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
-  dependsOn(":javaHadoopVersionsTest")
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
 }
 
@@ -217,7 +215,7 @@ task("goPrecommitBuild") {
 }
 
 task("goPortablePreCommit") {
-  dependsOn(":sdks:go:test:ulrXlangValidatesRunnerJenkins")
+  dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
 task("goPostCommit") {
@@ -336,6 +334,13 @@ task("pushAllDockerImages") {
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
   }
+}
+
+// Use this task to validate the environment set up for Go, Python and Java
+task("checkSetup") {
+  dependsOn(":sdks:go:examples:wordCount")
+  dependsOn(":sdks:python:wordCount")
+  dependsOn(":examples:java:wordCount")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

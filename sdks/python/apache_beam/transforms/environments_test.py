@@ -20,10 +20,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
-import sys
 import unittest
 
 from apache_beam.options.pipeline_options import PortableOptions
@@ -40,12 +37,6 @@ from apache_beam.transforms.environments import SubprocessSDKEnvironment
 
 
 class RunnerApiTest(unittest.TestCase):
-
-  if sys.version_info <= (3, ):
-
-    def assertIn(self, first, second, msg=None):
-      self.assertTrue(first in second, msg)
-
   def test_environment_encoding(self):
     for environment in (DockerEnvironment(),
                         DockerEnvironment(container_image='img'),
@@ -125,6 +116,17 @@ class EnvironmentOptionsTest(unittest.TestCase):
           '--sdk_location=container'
       ])
       ProcessEnvironment.from_options(options)
+
+  def test_environments_with_same_hints_are_equal(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container',
+        '--resource_hint=accelerator=gpu',
+    ])
+    environment1 = ProcessEnvironment.from_options(options)
+    environment2 = ProcessEnvironment.from_options(options)
+    self.assertEqual(environment1, environment2)
 
 
 if __name__ == '__main__':

@@ -30,8 +30,6 @@ the coders.*PickleCoder classes should be used instead.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
 import bz2
 import logging
@@ -75,9 +73,8 @@ def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
   return (
       isinstance(cls, type) and cls.__module__ is not None and
-      cls.__module__ != 'builtins'  # Python 3
-      and cls.__module__ != '__builtin__'  # Python 2
-      and cls.__name__ not in sys.modules[cls.__module__].__dict__)
+      cls.__module__ != 'builtins' and
+      cls.__name__ not in sys.modules[cls.__module__].__dict__)
 
 
 def _find_containing_class(nested_class):

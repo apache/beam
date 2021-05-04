@@ -37,6 +37,8 @@ message Schema {
   // REQUIRED. An RFC 4122 UUID.
   string id = 2;
   repeated Option options = 3;
+  // Indicates that encoding positions have been overridden.
+  bool encoding_positions_set = 4;
 }
 
 message Field {
@@ -52,6 +54,8 @@ message Field {
    // or all of them are. Used to support backwards compatibility with schema
    // changes.
    // If no fields have encoding position populated the order of encoding is the same as the order in the Schema.
+  // If this Field is part of a Schema where encoding_positions_set is True then encoding_position must be
+  // defined, otherwise this field is ignored.
   int32 encoding_position = 5;
   repeated Option options = 6;
 }

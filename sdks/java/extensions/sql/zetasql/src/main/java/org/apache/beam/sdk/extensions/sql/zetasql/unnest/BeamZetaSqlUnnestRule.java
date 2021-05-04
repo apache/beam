@@ -58,10 +58,6 @@ public class BeamZetaSqlUnnestRule extends RelOptRule {
     RelNode outer = call.rel(1);
     RelNode uncollect = call.rel(2);
 
-    if (correlate.getCorrelationId().getId() != 0) {
-      // Only one level of correlation nesting is supported
-      return;
-    }
     if (correlate.getRequiredColumns().cardinality() != 1) {
       // can only unnest a single column
       return;
@@ -113,7 +109,7 @@ public class BeamZetaSqlUnnestRule extends RelOptRule {
         new BeamZetaSqlUnnestRel(
             correlate.getCluster(),
             correlate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-            outer,
+            convert(outer, outer.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
             call.rel(2).getRowType(),
             fieldAccessIndices.build()));
   }

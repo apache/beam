@@ -121,6 +121,12 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     }
 
     @Override
+    @SuppressWarnings("FutureReturnValueIgnored")
+    public void runWhenComplete(Runnable completeRunnable) {
+      future.whenComplete((result, throwable) -> completeRunnable.run());
+    }
+
+    @Override
     public boolean isDone() {
       if (!future.isDone()) {
         return false;

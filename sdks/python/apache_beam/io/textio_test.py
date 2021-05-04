@@ -18,20 +18,15 @@
 """Tests for textio module."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import bz2
 import glob
 import gzip
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 import zlib
-from builtins import range
 
 import apache_beam as beam
 import apache_beam.io.source_test_utils as source_test_utils
@@ -151,12 +146,6 @@ class TextSourceTest(unittest.TestCase):
 
   # Number of records that will be written by most tests.
   DEFAULT_NUM_RECORDS = 100
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   def _run_read_test(
       self,
@@ -1017,12 +1006,6 @@ class TextSourceTest(unittest.TestCase):
 
 
 class TextSinkTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     super(TextSinkTest, self).setUp()
     self.lines = [b'Line %d' % d for d in range(100)]

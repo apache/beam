@@ -19,8 +19,6 @@
 
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-
 import collections
 import contextlib
 import copy
@@ -30,7 +28,6 @@ import subprocess
 import sys
 import threading
 import time
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import BinaryIO  # pylint: disable=unused-import

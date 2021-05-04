@@ -215,7 +215,19 @@ public class SchemaTranslation {
     }
     builder.setOptions(optionsFromProto(protoSchema.getOptionsList()));
     Schema schema = builder.build();
-    schema.setEncodingPositions(encodingLocationMap);
+
+    Preconditions.checkState(encodingLocationMap.size() == schema.getFieldCount());
+    long dinstictEncodingPositions = encodingLocationMap.values().stream().distinct().count();
+    Preconditions.checkState(dinstictEncodingPositions <= schema.getFieldCount());
+    if (dinstictEncodingPositions < schema.getFieldCount() && schema.getFieldCount() > 0) {
+      // This means that encoding positions were not specified in the proto. Generally, we don't
+      // expect this to happen,
+      // but if it does happen, we expect none to be specified - in which case the should all be
+      // zero.
+      Preconditions.checkState(dinstictEncodingPositions == 1);
+    } else if (protoSchema.getEncodingPositionsSet()) {
+      schema.setEncodingPositions(encodingLocationMap);
+    }
     if (!protoSchema.getId().isEmpty()) {
       schema.setUUID(UUID.fromString(protoSchema.getId()));
     }

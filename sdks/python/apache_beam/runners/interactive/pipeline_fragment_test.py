@@ -16,8 +16,6 @@
 #
 
 """Tests for apache_beam.runners.interactive.pipeline_fragment."""
-from __future__ import absolute_import
-
 import unittest
 from unittest.mock import patch
 
@@ -86,10 +84,10 @@ class PipelineFragmentTest(unittest.TestCase):
     # calling locals().
     ib.watch({'init': init, 'square': square, 'cube': cube})
     user_pipeline_proto_before_deducing_fragment = p.to_runner_api(
-        return_context=False, use_fake_coders=True)
+        return_context=False)
     _ = pf.PipelineFragment([square]).deduce_fragment()
     user_pipeline_proto_after_deducing_fragment = p.to_runner_api(
-        return_context=False, use_fake_coders=True)
+        return_context=False)
     assert_pipeline_proto_equal(
         self,
         user_pipeline_proto_before_deducing_fragment,

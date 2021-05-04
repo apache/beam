@@ -19,15 +19,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import unittest
-from builtins import object
-from builtins import range
 from datetime import datetime
 
 import mock
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
@@ -37,6 +35,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
@@ -204,9 +203,29 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertTrue(
         isinstance(create_runner('TestDataflowRunner'), TestDataflowRunner))
 
-  def test_environment_override_translation(self):
+  def test_environment_override_translation_legacy_worker_harness_image(self):
     self.default_properties.append('--experiments=beam_fn_api')
-    self.default_properties.append('--worker_harness_container_image=FOO')
+    self.default_properties.append('--worker_harness_container_image=LEGACY')
+    remote_runner = DataflowRunner()
+    with Pipeline(remote_runner,
+                  options=PipelineOptions(self.default_properties)) as p:
+      (  # pylint: disable=expression-not-assigned
+          p | ptransform.Create([1, 2, 3])
+          | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+          | ptransform.GroupByKey())
+    self.assertEqual(
+        list(remote_runner.proto_pipeline.components.environments.values()),
+        [
+            beam_runner_api_pb2.Environment(
+                urn=common_urns.environments.DOCKER.urn,
+                payload=beam_runner_api_pb2.DockerPayload(
+                    container_image='LEGACY').SerializeToString(),
+                capabilities=environments.python_sdk_capabilities())
+        ])
+
+  def test_environment_override_translation_sdk_container_image(self):
+    self.default_properties.append('--experiments=beam_fn_api')
+    self.default_properties.append('--sdk_container_image=FOO')
     remote_runner = DataflowRunner()
     with Pipeline(remote_runner,
                   options=PipelineOptions(self.default_properties)) as p:
@@ -829,39 +848,61 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       _ = self._run_group_into_batches_and_get_step_properties(
           True, ['--enable_streaming_engine', '--experiments=beam_fn_api'])
 
-  def _test_pack_combiners(self, pipeline_options, expect_packed):
+  def test_pack_combiners(self):
+    class PackableCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
+      def expand(self, pcoll):
+        _ = pcoll | 'PackableMin' >> beam.CombineGlobally(min)
+        _ = pcoll | 'PackableMax' >> beam.CombineGlobally(max)
+
     runner = DataflowRunner()
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      _ = p | beam.Create([10, 20, 30]) | PackableCombines()
 
-    with beam.Pipeline(runner=runner, options=pipeline_options) as p:
-      data = p | beam.Create([10, 20, 30])
-      _ = data | 'PackableMin' >> beam.CombineGlobally(min)
-      _ = data | 'PackableMax' >> beam.CombineGlobally(max)
-
-    unpacked_minimum_step_name = 'PackableMin/CombinePerKey/Combine'
-    unpacked_maximum_step_name = 'PackableMax/CombinePerKey/Combine'
+    unpacked_minimum_step_name = (
+        'PackableCombines/PackableMin/CombinePerKey/Combine')
+    unpacked_maximum_step_name = (
+        'PackableCombines/PackableMax/CombinePerKey/Combine')
     packed_step_name = (
-        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/'
-        'CombinePerKey(SingleInputTupleCombineFn)/Combine')
-    job_dict = json.loads(str(runner.job))
-    step_names = set(s[u'properties'][u'user_name'] for s in job_dict[u'steps'])
-    if expect_packed:
-      self.assertNotIn(unpacked_minimum_step_name, step_names)
-      self.assertNotIn(unpacked_maximum_step_name, step_names)
-      self.assertIn(packed_step_name, step_names)
-    else:
-      self.assertIn(unpacked_minimum_step_name, step_names)
-      self.assertIn(unpacked_maximum_step_name, step_names)
-      self.assertNotIn(packed_step_name, step_names)
+        'PackableCombines/Packed[PackableMin_CombinePerKey, '
+        'PackableMax_CombinePerKey]/Pack')
+    transform_names = set(
+        transform.unique_name
+        for transform in runner.proto_pipeline.components.transforms.values())
+    self.assertNotIn(unpacked_minimum_step_name, transform_names)
+    self.assertNotIn(unpacked_maximum_step_name, transform_names)
+    self.assertIn(packed_step_name, transform_names)
 
-  def test_pack_combiners_disabled_by_default(self):
-    self._test_pack_combiners(
-        PipelineOptions(self.default_properties), expect_packed=False)
+  @parameterized.expand([
+      param(memory_hint='min_ram'),
+      param(memory_hint='minRam'),
+  ])
+  def test_resource_hints_translation(self, memory_hint):
+    runner = DataflowRunner()
+    self.default_properties.append('--resource_hint=accelerator=some_gpu')
+    self.default_properties.append(f'--resource_hint={memory_hint}=20GB')
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      (
+          p
+          | beam.Create([1])
+          | 'MapWithHints' >> beam.Map(lambda x: x + 1).with_resource_hints(
+              min_ram='10GB',
+              accelerator='type:nvidia-tesla-k80;count:1;install-nvidia-drivers'
+          ))
 
-  @unittest.skip("BEAM-11694")
-  def test_pack_combiners_enabled_by_experiment(self):
-    self.default_properties.append('--experiment=pre_optimize=all')
-    self._test_pack_combiners(
-        PipelineOptions(self.default_properties), expect_packed=True)
+    step = self._find_step(runner.job, 'MapWithHints')
+    self.assertEqual(
+        step['properties']['resource_hints'],
+        {
+            'beam:resources:min_ram_bytes:v1': '20000000000',
+            'beam:resources:accelerator:v1': \
+                'type%3Anvidia-tesla-k80%3Bcount%3A1%3Binstall-nvidia-drivers'
+        })
 
 
 if __name__ == '__main__':

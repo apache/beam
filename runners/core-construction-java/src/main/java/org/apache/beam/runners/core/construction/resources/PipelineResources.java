@@ -20,27 +20,30 @@ package org.apache.beam.runners.core.construction.resources;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hasher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for working with classpath resources for pipelines. */
 public class PipelineResources {
+  private static final Logger LOG = LoggerFactory.getLogger(PipelineResources.class);
 
   /**
-   * Uses algorithm provided via {@link
-   * org.apache.beam.runners.core.construction.resources.PipelineResourcesOptions} to detect
-   * classpath resources.
+   * Uses algorithm provided via {@link PipelineResourcesOptions} to detect classpath resources.
    *
    * @param classLoader The URLClassLoader to use to detect resources to stage (optional).
    * @param options pipeline options
@@ -69,9 +72,36 @@ public class PipelineResources {
    * directories and packages existing ones. This is necessary for runners that require filesToStage
    * to be jars only.
    *
+   * <p>This method mutates the filesToStage value of the given options.
+   *
+   * @param options options object with the files to stage and temp location for staging
+   */
+  public static void prepareFilesForStaging(FileStagingOptions options) {
+    List<String> filesToStage = options.getFilesToStage();
+    if (filesToStage == null || filesToStage.isEmpty()) {
+      filesToStage = detectClassPathResourcesToStage(ReflectHelpers.findClassLoader(), options);
+      LOG.info(
+          "PipelineOptions.filesToStage was not specified. "
+              + "Defaulting to files from the classpath: will stage {} files. "
+              + "Enable logging at DEBUG level to see which files will be staged.",
+          filesToStage.size());
+      LOG.debug("Classpath elements: {}", filesToStage);
+    }
+    final String tmpJarLocation =
+        MoreObjects.firstNonNull(options.getTempLocation(), System.getProperty("java.io.tmpdir"));
+    final List<String> resourcesToStage = prepareFilesForStaging(filesToStage, tmpJarLocation);
+    options.setFilesToStage(resourcesToStage);
+  }
+
+  /**
+   * Goes through the list of files that need to be staged on runner. Fails if the directory does
+   * not exist and packages the ones that exist. This is necessary for runners that require
+   * filesToStage to be jars only.
+   *
    * @param resourcesToStage list of resources that need to be staged
    * @param tmpJarLocation temporary directory to store the jars
    * @return A list of absolute paths to resources (jar files)
+   * @throws IllegalStateException if the directory to be staged does not exist
    */
   public static List<String> prepareFilesForStaging(
       List<String> resourcesToStage, String tmpJarLocation) {
@@ -91,7 +121,11 @@ public class PipelineResources {
   private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation) {
     String hash = calculateDirectoryContentHash(directoryToStage);
     String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
-    zipDirectory(directoryToStage, pathForJar);
+    try {
+      ZipFiles.zipDirectoryOverwrite(directoryToStage, new File(pathForJar));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     return pathForJar;
   }
 
@@ -111,13 +145,5 @@ public class PipelineResources {
         "Please provide temporary location for storing the jar files.");
 
     return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
-  }
-
-  private static void zipDirectory(File directoryToStage, String uniqueDirectoryPath) {
-    try {
-      ZipFiles.zipDirectory(directoryToStage, new FileOutputStream(uniqueDirectoryPath));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 }

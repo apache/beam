@@ -16,13 +16,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import datetime
 import logging
 import random
-import sys
 import unittest
 from unittest import TestCase
 
@@ -549,10 +545,7 @@ class ObjectIdHelperTest(TestCase):
     # random tests
     for _ in range(100):
       id = objectid.ObjectId()
-      if sys.version_info[0] < 3:
-        number = int(id.binary.encode('hex'), 16)
-      else:  # PY3
-        number = int(id.binary.hex(), 16)
+      number = int(id.binary.hex(), 16)
       self.assertEqual(id, _ObjectIdHelper.int_to_id(number))
       self.assertEqual(number, _ObjectIdHelper.id_to_int(id))
 

@@ -19,11 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import concurrent
 import logging
-import sys
 import time
 
 from hamcrest.core.base_matcher import BaseMatcher
@@ -206,10 +203,7 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
         return response
       _LOGGER.debug('Query result contains %d rows' % len(response))
       time.sleep(1)
-    if sys.version_info >= (3, ):
-      raise TimeoutError('Timeout exceeded for matcher.')  # noqa: F821
-    else:
-      raise RuntimeError('Timeout exceeded for matcher.')
+    raise TimeoutError('Timeout exceeded for matcher.')  # noqa: F821
 
 
 class BigQueryTableMatcher(BaseMatcher):

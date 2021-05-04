@@ -24,8 +24,6 @@ big query table at the end of the pipeline.
 # pytype: skip-file
 
 # pylint: disable=wrong-import-order, wrong-import-position
-from __future__ import absolute_import
-
 import argparse
 
 import apache_beam as beam

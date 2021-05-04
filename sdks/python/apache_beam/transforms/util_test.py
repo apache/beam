@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import math
 import random
@@ -29,11 +26,7 @@ import re
 import time
 import unittest
 import warnings
-from builtins import object
-from builtins import range
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 from nose.plugins.attrib import attr
 
 import apache_beam as beam

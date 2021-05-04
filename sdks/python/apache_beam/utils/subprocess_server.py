@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import contextlib
 import logging
 import os
@@ -30,10 +28,10 @@ import subprocess
 import tempfile
 import threading
 import time
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import grpc
-from future.moves.urllib.error import URLError
-from future.moves.urllib.request import urlopen
 
 from apache_beam.version import __version__ as beam_version
 
@@ -161,9 +159,6 @@ class JavaJarServer(SubprocessServer):
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
   def __init__(self, stub_class, path_to_jar, java_arguments):
-    if not shutil.which('java'):
-      raise RuntimeError(
-          'Java must be installed on this system to use this transform/runner.')
     super(JavaJarServer, self).__init__(
         stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
     self._existing_service = path_to_jar if _is_service_endpoint(
@@ -173,6 +168,10 @@ class JavaJarServer(SubprocessServer):
     if self._existing_service:
       return self._existing_service
     else:
+      if not shutil.which('java'):
+        raise RuntimeError(
+            'Java must be installed on this system to use this '
+            'transform/runner.')
       return super(JavaJarServer, self).start_process()
 
   def stop_process(self):
@@ -204,12 +203,18 @@ class JavaJarServer(SubprocessServer):
     ])
 
   @classmethod
-  def path_to_beam_jar(cls, gradle_target, appendix=None, version=beam_version):
+  def path_to_beam_jar(
+      cls,
+      gradle_target,
+      appendix=None,
+      version=beam_version,
+      artifact_id=None):
     if gradle_target in cls._BEAM_SERVICES.replacements:
       return cls._BEAM_SERVICES.replacements[gradle_target]
 
     gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
-    artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    if not artifact_id:
+      artifact_id = 'beam-' + gradle_package.replace(':', '-')
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
     local_path = os.path.join(

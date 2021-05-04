@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import
-
 import collections
 import itertools
 import sys
@@ -66,6 +64,10 @@ class InMemoryCache(CacheManager):
   def cleanup(self):
     self._cached = collections.defaultdict(list)
     self._pcoders = {}
+
+  def clear(self, *label):
+    # Noop because in-memory.
+    pass
 
   def source(self, *labels):
     vals = self._cached[self._key(*labels)]

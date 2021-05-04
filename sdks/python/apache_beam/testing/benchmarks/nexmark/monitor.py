@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
 from time import time
 
 import apache_beam as beam

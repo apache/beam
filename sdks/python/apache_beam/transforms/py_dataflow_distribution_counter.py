@@ -19,11 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from builtins import object
-from builtins import range
-
 globals()['INT64_MAX'] = 2**63 - 1
 globals()['INT64_MIN'] = -2**63
 
