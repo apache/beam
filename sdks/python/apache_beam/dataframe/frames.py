@@ -795,6 +795,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     # Compute variance (deferred scalar) with same args, then sqrt it
     return self.var(*args, **kwargs).apply(lambda var: math.sqrt(var))
 
+  def mean(self, *args, **kwargs):
+    with expressions.allow_non_parallel_operations(True):
+      return self.sum(*args, **kwargs)/self.count(*args, **kwargs)
+
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -999,7 +1003,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "single node.")
 
       # We have specialized distributed implementations for std and var
-      if base_func in ('std', 'var'):
+      if base_func in ('std', 'var', 'mean'):
         result = getattr(self, base_func)(*args, **kwargs)
         if isinstance(func, list):
           with expressions.allow_non_parallel_operations(True):
@@ -1061,7 +1065,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   max = frame_base._agg_method('max')
   prod = product = frame_base._agg_method('prod')
   sum = frame_base._agg_method('sum')
-  mean = frame_base._agg_method('mean')
+  #mean = frame_base._agg_method('mean')
   median = frame_base._agg_method('median')
 
   argmax = frame_base.wont_implement_method(
