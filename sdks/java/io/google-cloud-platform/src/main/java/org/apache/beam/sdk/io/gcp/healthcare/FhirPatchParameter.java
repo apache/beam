@@ -33,8 +33,8 @@ public class FhirPatchParameter implements Serializable {
   private final String patch;
   private final @Nullable Map<String, String> query;
 
-  private FhirPatchParameter(String resourceName, String patch,
-      @Nullable Map<String, String> query) {
+  private FhirPatchParameter(
+      String resourceName, String patch, @Nullable Map<String, String> query) {
     this.resourceName = resourceName;
     this.patch = patch;
     this.query = query;
@@ -49,7 +49,8 @@ public class FhirPatchParameter implements Serializable {
    * @param query query for conditional patch
    * @return FhirPatchParameter
    */
-  public static FhirPatchParameter of(String resourcePath, String patch, @Nullable Map<String, String> query) {
+  public static FhirPatchParameter of(
+      String resourcePath, String patch, @Nullable Map<String, String> query) {
     return new FhirPatchParameter(resourcePath, patch, query);
   }
 
@@ -86,9 +87,9 @@ public class FhirPatchParameter implements Serializable {
       return false;
     }
     FhirPatchParameter that = (FhirPatchParameter) o;
-    return Objects.equals(resourceName, that.resourceName) &&
-        Objects.equals(patch, that.patch) &&
-        Objects.equals(query, that.query);
+    return Objects.equals(resourceName, that.resourceName)
+        && Objects.equals(patch, that.patch)
+        && Objects.equals(query, that.query);
   }
 
   @Override
@@ -102,6 +103,8 @@ public class FhirPatchParameter implements Serializable {
         + resourceName
         + "\",\"patch\":\""
         + patch
-        + "\"" + (query == null ? "}" : "\"query\":\"" + query.toString()) + "\"}";
+        + "\""
+        + (query == null ? "}" : "\"query\":\"" + query.toString())
+        + "\"}";
   }
 }

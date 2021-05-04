@@ -18,13 +18,10 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
-import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -37,12 +34,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
@@ -107,7 +102,8 @@ public class FhirIOPatchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     FhirPatchParameter patchParameter =
-        FhirPatchParameter.of(resourceName,
+        FhirPatchParameter.of(
+            resourceName,
             "[{\"op\": \"replace\", \"path\": \"/birthDate\", \"value\": \"1997-05-23\"}]");
     String expectedSuccessBody = patchParameter.toString();
 

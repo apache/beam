@@ -26,9 +26,7 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-/**
- * FhirPatchParameterCoder is the coder for {@link FhirPatchParameter}.
- */
+/** FhirPatchParameterCoder is the coder for {@link FhirPatchParameter}. */
 public class FhirPatchParameterCoder extends CustomCoder<FhirPatchParameter> {
 
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());

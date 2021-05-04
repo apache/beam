@@ -597,7 +597,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody patchFhirResource(String resourceName, String patch, @Nullable Map<String, String> query)
+  public HttpBody patchFhirResource(
+      String resourceName, String patch, @Nullable Map<String, String> query)
       throws IOException, HealthcareHttpException {
     if (httpClient == null || client == null) {
       initClient();

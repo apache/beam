@@ -138,8 +138,8 @@ public class FhirIOTest {
   public void test_FhirIO_failedPatch() {
     FhirPatchParameter badPatch = FhirPatchParameter.of("bad", "bad");
     PCollection<FhirPatchParameter> patches =
-        pipeline
-            .apply(Create.of(ImmutableList.of(badPatch)).withCoder(FhirPatchParameterCoder.of()));
+        pipeline.apply(
+            Create.of(ImmutableList.of(badPatch)).withCoder(FhirPatchParameterCoder.of()));
     FhirIO.Write.Result patchResult = patches.apply(FhirIO.patchResources());
 
     PCollection<HealthcareIOError<String>> failedInserts = patchResult.getFailedBodies();

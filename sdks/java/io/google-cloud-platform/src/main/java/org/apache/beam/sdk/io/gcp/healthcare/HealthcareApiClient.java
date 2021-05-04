@@ -165,7 +165,8 @@ public interface HealthcareApiClient {
    * Patch fhir resource http body.
    *
    * @param resourceName the resource name, in format
-   *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}[/{id}], id not present when queryString is specified.
+   *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}[/{id}], id not
+   *     present when queryString is specified.
    * @param patch the patch operation
    * @param query optional query for conditional patches
    * @return the http body
