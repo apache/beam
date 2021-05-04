@@ -23,8 +23,8 @@ A transform pattern for computing a value from multiple input elements. Aggregat
 
 For a complete list of aggregation transforms, see:
 
-* [Java Transform catalog](/documentation/transforms/java/overview/)
-* [Python Transform catalog](/documentation/transforms/python/overview/)
+* [Java Transform catalog](/documentation/transforms/java/overview/#aggregation)
+* [Python Transform catalog](/documentation/transforms/python/overview/#aggregation)
 
 ## Apply
 
@@ -154,12 +154,12 @@ To learn more, see:
 
 ## Element-wise
 
-A type of transform that independently processes each element in an input PCollection. An element-wise transform might output 0, 1, or multiple values for each input element. This is in contrast to aggregation transforms, which compute a single value from multiple input elements. Element-wise operations include Filter, FlatMap, and ParDo.
+A type of transform that independently processes each element in an input PCollection. Element-wise is similar to the map operation in the [MapReduce](https://en.wikipedia.org/wiki/MapReduce) model. An element-wise transform might output 0, 1, or multiple values for each input element. This is in contrast to aggregation transforms, which compute a single value from multiple input elements. Element-wise operations include Filter, FlatMap, and ParDo.
 
 For a complete list of element-wise transforms, see:
 
-* [Java Transform catalog](/documentation/transforms/java/overview/)
-* [Python Transform catalog](/documentation/transforms/python/overview/)
+* [Java Transform catalog](/documentation/transforms/java/overview/#element-wise)
+* [Python Transform catalog](/documentation/transforms/python/overview/#element-wise)
 
 ## Engine
 
