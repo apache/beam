@@ -225,6 +225,18 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Test
+  public void testMaxParallelRequestsPerWindow() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testMaxParallelRequestsPerWindow();
+  }
+
+  @Test
+  public void testMaxBufferingDurationAndMaxParallelRequestsPerWindow() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testMaxBufferingDurationAndMaxParallelRequestsPerWindow();
+  }
+
+  @Test
   public void testReadWithMetadata() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithMetadata();

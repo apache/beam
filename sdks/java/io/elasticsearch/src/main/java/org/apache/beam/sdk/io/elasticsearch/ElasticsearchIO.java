@@ -2019,23 +2019,49 @@ public class ElasticsearchIO {
       return builder().setMaxParallelRequestsPerWindow(maxParallelRequestsPerWindow).build();
     }
 
+    /**
+     * Creates batches of documents using Stateful Processing based on user configurable settings of
+     * withMaxBufferingDuration and withMaxParallelRequestsPerWindow.
+     *
+     * <p>Mostly exists for testability of withMaxParallelRequestsPerWindow.
+     */
+    @VisibleForTesting
+    static class StatefulBatching
+        extends PTransform<PCollection<String>, PCollection<KV<Integer, Iterable<String>>>> {
+      final BulkIO spec;
+
+      private StatefulBatching(BulkIO bulkSpec) {
+        spec = bulkSpec;
+      }
+
+      public static StatefulBatching fromSpec(BulkIO spec) {
+        return new StatefulBatching(spec);
+      }
+
+      @Override
+      public PCollection<KV<Integer, Iterable<String>>> expand(PCollection<String> input) {
+        GroupIntoBatches<Integer, String> groupIntoBatches =
+            GroupIntoBatches.ofSize(spec.getMaxBatchSize());
+
+        if (spec.getMaxBufferingDuration() != null) {
+          groupIntoBatches =
+              groupIntoBatches.withMaxBufferingDuration(spec.getMaxBufferingDuration());
+        }
+
+        return input
+            .apply(ParDo.of(new Reshuffle.AssignShardFn<>(spec.getMaxParallelRequestsPerWindow())))
+            .apply(groupIntoBatches);
+      }
+    }
+
     @Override
     public PDone expand(PCollection<String> input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
+
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
 
       if (getUseStatefulBatches()) {
-        GroupIntoBatches<Integer, String> groupIntoBatches =
-            GroupIntoBatches.ofSize(getMaxBatchSize());
-
-        if (getMaxBufferingDuration() != null) {
-          groupIntoBatches = groupIntoBatches.withMaxBufferingDuration(getMaxBufferingDuration());
-        }
-
-        input
-            .apply(ParDo.of(new Reshuffle.AssignShardFn<>(getMaxParallelRequestsPerWindow())))
-            .apply(groupIntoBatches)
-            .apply(ParDo.of(new BulkIOStatefulFn(this)));
+        input.apply(StatefulBatching.fromSpec(this)).apply(ParDo.of(new BulkIOStatefulFn(this)));
       } else {
         input.apply(ParDo.of(new BulkIOBundleFn(this)));
       }

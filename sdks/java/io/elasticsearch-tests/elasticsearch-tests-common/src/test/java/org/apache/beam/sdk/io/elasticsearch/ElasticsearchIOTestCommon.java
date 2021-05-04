@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BulkIO.StatefulBatching;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DefaultRetryPredicate;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -67,6 +68,8 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.http.HttpEntity;
@@ -775,6 +778,55 @@ class ElasticsearchIOTestCommon implements Serializable {
         numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "0", null, null));
     assertEquals(
         numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1", null, null));
+  }
+
+  void testMaxParallelRequestsPerWindow() throws Exception {
+    List<String> data =
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+
+    Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withMaxParallelRquestsPerWindow(1);
+
+    PCollection<KV<Integer, Long>> batches =
+        pipeline
+            .apply(Create.of(data))
+            .apply(Window.into(new GlobalWindows()))
+            .apply(StatefulBatching.fromSpec(write.getBulkIO()))
+            .apply(Count.perKey());
+
+    // Number of unique keys produced should be number of maxParallelRequestsPerWindow * numWindows
+    // There is only 1 request (key) per window, and 1 (global) window ie. one key total
+    PAssert.that(batches).containsInAnyOrder(Collections.singletonList(KV.of(0, 1L)));
+
+    pipeline.run();
+  }
+
+  void testMaxBufferingDurationAndMaxParallelRequestsPerWindow() throws Exception {
+    List<String> data =
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+
+    Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withMaxBufferingDuration(Duration.standardSeconds(1))
+            .withMaxParallelRquestsPerWindow(1);
+
+    PCollection<KV<Integer, Long>> batches =
+        pipeline
+            .apply(Create.of(data))
+            .apply(Window.into(new GlobalWindows()))
+            .apply(StatefulBatching.fromSpec(write.getBulkIO()))
+            .apply(Count.perKey());
+
+    // Number of unique keys produced should be number of maxParallelRequestsPerWindow * numWindows
+    // There is only 1 request (key) per window, and 1 (global) window ie. one key total
+    PAssert.that(batches).containsInAnyOrder(Collections.singletonList(KV.of(0, 1L)));
+
+    pipeline.run();
   }
 
   /**
