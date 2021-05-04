@@ -125,6 +125,25 @@ class _DeferredScalar(DeferredBase):
         "allowed. It's not possible to branch on the result of "
         "deferred operations.")
 
+def set_operator(operator):
+  def func(self, other):
+    if not isinstance(other, DeferredBase):
+      raise NotImplementedError("Arithmetic is not supported between _DeferredScalar and arbitrary types.")
+    return DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            operator,
+            lambda self, other: getattr(self, f'__{operator}__')(other),
+            [self._expr, other._expr],
+            requires_partition_by=partitionings.Singleton(),
+            preserves_partition_by=partitionings.Singleton(),
+        )
+    )
+
+  setattr(_DeferredScalar, f'__{operator}__', func)
+
+for operator in ('floordiv', 'truediv', 'mul', 'add', 'sub'):
+  set_operator(operator)
+
 
 DeferredBase._pandas_type_map[None] = _DeferredScalar
 
