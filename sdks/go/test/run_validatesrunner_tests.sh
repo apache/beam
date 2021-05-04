@@ -181,7 +181,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
 
   if [[ -z "$EXPANSION_ADDR" && -n "$EXPANSION_SERVICE_JAR" ]]; then
-    EXPANSION_PORT=$(python -c "$SOCKET_SCRIPT")
+    EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No expansion address specified; starting a new expansion server on $EXPANSION_ADDR"
     java -jar $EXPANSION_SERVICE_JAR $EXPANSION_PORT &
@@ -189,7 +189,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   fi
 elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
-    JOB_PORT=$(python -c "$SOCKET_SCRIPT")
+    JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
     echo "No endpoint specified; starting a new $RUNNER job server on $ENDPOINT"
     if [[ "$RUNNER" == "flink" ]]; then
@@ -208,7 +208,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" 
           --artifact-port 0 &
       ARGS="-p 1" # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
-      python \
+      python3 \
           -m apache_beam.runners.portability.local_job_service_main \
           --port $JOB_PORT &
     else
@@ -219,7 +219,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" 
   fi
 
   if [[ -z "$EXPANSION_ADDR" && -n "$EXPANSION_SERVICE_JAR" ]]; then
-    EXPANSION_PORT=$(python -c "$SOCKET_SCRIPT")
+    EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No expansion address specified; starting a new expansion server on $EXPANSION_ADDR"
     java -jar $EXPANSION_SERVICE_JAR $EXPANSION_PORT &

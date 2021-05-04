@@ -22,6 +22,8 @@ import static org.junit.Assert.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -170,6 +172,38 @@ public class StateBackedIterableTest {
       // iterable
       assertEquals(iterable.prefix, result.prefix);
       assertEquals(iterable.request, result.request);
+    }
+
+    @Test
+    public void testSerializability() throws Exception {
+      FakeBeamFnStateClient fakeBeamFnStateClient =
+          new FakeBeamFnStateClient(
+              ImmutableMap.of(
+                  key("suffix"), encode("C", "D", "E"),
+                  key("emptySuffix"), encode()));
+
+      StateBackedIterable<String> iterable =
+          new StateBackedIterable<>(
+              fakeBeamFnStateClient,
+              "instruction",
+              encode("suffix"),
+              StringUtf8Coder.of(),
+              ImmutableList.of("A", "B"));
+
+      List<String> expected = ImmutableList.of("A", "B", "C", "D", "E");
+
+      ByteArrayOutputStream bout = new ByteArrayOutputStream();
+      ObjectOutputStream out = new ObjectOutputStream(bout);
+      out.writeObject(iterable);
+      out.flush();
+      ByteArrayInputStream bin = new ByteArrayInputStream(bout.toByteArray());
+      ObjectInputStream in = new ObjectInputStream(bin);
+      Iterable<String> deserialized = (Iterable<String>) in.readObject();
+
+      // Check that the contents are the same.
+      assertEquals(expected, Lists.newArrayList(deserialized));
+      // Check that we can still iterate over it as before.
+      assertEquals(expected, Lists.newArrayList(iterable));
     }
   }
 

@@ -23,8 +23,6 @@ to transform original pipeline into a one-shot pipeline with interactivity.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.portability.api import beam_runner_api_pb2

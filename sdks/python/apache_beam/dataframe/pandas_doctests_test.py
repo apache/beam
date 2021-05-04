@@ -40,7 +40,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.first': ['*'],
             'pandas.core.generic.NDFrame.head': ['*'],
             'pandas.core.generic.NDFrame.last': ['*'],
-            'pandas.core.generic.NDFrame.shift': ['*'],
+            'pandas.core.generic.NDFrame.shift': [
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
+            ],
             'pandas.core.generic.NDFrame.tail': ['*'],
             'pandas.core.generic.NDFrame.take': ['*'],
             'pandas.core.generic.NDFrame.values': ['*'],
@@ -189,8 +192,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.transpose': ['*'],
             'pandas.core.frame.DataFrame.shape': ['*'],
             'pandas.core.frame.DataFrame.shift': [
-                'df.shift(periods=3, freq="D")',
-                'df.shift(periods=3, freq="infer")'
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
             ],
             'pandas.core.frame.DataFrame.unstack': ['*'],
             'pandas.core.frame.DataFrame.memory_usage': ['*'],
@@ -208,10 +211,17 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.sort_values': ['*'],
+            'pandas.core.frame.DataFrame.melt': [
+                "df.melt(id_vars=['A'], value_vars=['B'])",
+                "df.melt(id_vars=['A'], value_vars=['B', 'C'])",
+                "df.melt(col_level=0, id_vars=['A'], value_vars=['B'])",
+                "df.melt(id_vars=[('A', 'D')], value_vars=[('B', 'E')])",
+                "df.melt(id_vars=['A'], value_vars=['B'],\n" +
+                "        var_name='myVarname', value_name='myValname')"
+            ]
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
-            'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
 
@@ -388,7 +398,10 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.series.Series.pop': ['*'],
             'pandas.core.series.Series.searchsorted': ['*'],
-            'pandas.core.series.Series.shift': ['*'],
+            'pandas.core.series.Series.shift': [
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
+            ],
             'pandas.core.series.Series.take': ['*'],
             'pandas.core.series.Series.to_dict': ['*'],
             'pandas.core.series.Series.unique': ['*'],
@@ -711,6 +724,14 @@ class DoctestTest(unittest.TestCase):
         wont_implement_ok={
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
+            'melt': [
+                "pd.melt(df, id_vars=['A'], value_vars=['B'])",
+                "pd.melt(df, id_vars=['A'], value_vars=['B', 'C'])",
+                "pd.melt(df, col_level=0, id_vars=['A'], value_vars=['B'])",
+                "pd.melt(df, id_vars=[('A', 'D')], value_vars=[('B', 'E')])",
+                "pd.melt(df, id_vars=['A'], value_vars=['B'],\n" +
+                "        var_name='myVarname', value_name='myValname')"
+            ],
         },
         skip={
             # error formatting

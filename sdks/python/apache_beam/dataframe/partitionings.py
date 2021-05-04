@@ -151,6 +151,13 @@ class Index(Partitioning):
 class Singleton(Partitioning):
   """A partitioning of all the data into a single partition.
   """
+  def __init__(self, reason=None):
+    self._reason = reason
+
+  @property
+  def reason(self):
+    return self._reason
+
   def __eq__(self, other):
     return type(self) == type(other)
 
