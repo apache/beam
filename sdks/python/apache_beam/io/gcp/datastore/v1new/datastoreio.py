@@ -31,10 +31,8 @@ from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
 from apache_beam.io.gcp.datastore.v1new import util
-from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import \
-  AdaptiveThrottler
-from apache_beam.io.gcp.datastore.v1new.rampup_throttling_fn import \
-  RampupThrottlingFn
+from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import AdaptiveThrottler
+from apache_beam.io.gcp.datastore.v1new.rampup_throttling_fn import RampupThrottlingFn
 from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
@@ -284,8 +282,11 @@ class _Mutate(PTransform):
   # step for write or delete operations.
   _DEFAULT_HINT_NUM_WORKERS = 500
 
-  def __init__(self, mutate_fn, throttle_rampup=True,
-               hint_num_workers=_DEFAULT_HINT_NUM_WORKERS):
+  def __init__(
+      self,
+      mutate_fn,
+      throttle_rampup=True,
+      hint_num_workers=_DEFAULT_HINT_NUM_WORKERS):
     """Initializes a Mutate transform.
 
      Args:
@@ -458,9 +459,11 @@ class WriteToDatastore(_Mutate):
   property key is empty then it is filled with the project ID passed to this
   transform.
   """
-
-  def __init__(self, project, throttle_rampup=True,
-               hint_num_workers=_Mutate._DEFAULT_HINT_NUM_WORKERS):
+  def __init__(
+      self,
+      project,
+      throttle_rampup=True,
+      hint_num_workers=_Mutate._DEFAULT_HINT_NUM_WORKERS):
     """Initialize the `WriteToDatastore` transform.
 
     Args:
@@ -470,8 +473,8 @@ class WriteToDatastore(_Mutate):
                         estimate appropriate limits during ramp-up throttling.
     """
     mutate_fn = WriteToDatastore._DatastoreWriteFn(project)
-    super(WriteToDatastore, self).__init__(mutate_fn, throttle_rampup,
-                                           hint_num_workers)
+    super(WriteToDatastore,
+          self).__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreWriteFn(_Mutate.DatastoreMutateFn):
     def element_to_client_batch_item(self, element):
@@ -509,9 +512,11 @@ class DeleteFromDatastore(_Mutate):
   project ID passed to this transform. If ``project`` field in key is empty then
   it is filled with the project ID passed to this transform.
   """
-
-  def __init__(self, project, throttle_rampup=True,
-               hint_num_workers=_Mutate._DEFAULT_HINT_NUM_WORKERS):
+  def __init__(
+      self,
+      project,
+      throttle_rampup=True,
+      hint_num_workers=_Mutate._DEFAULT_HINT_NUM_WORKERS):
     """Initialize the `DeleteFromDatastore` transform.
 
     Args:
@@ -522,8 +527,8 @@ class DeleteFromDatastore(_Mutate):
                         estimate appropriate limits during ramp-up throttling.
     """
     mutate_fn = DeleteFromDatastore._DatastoreDeleteFn(project)
-    super(DeleteFromDatastore, self).__init__(mutate_fn, throttle_rampup,
-                                              hint_num_workers)
+    super(DeleteFromDatastore,
+          self).__init__(mutate_fn, throttle_rampup, hint_num_workers)
 
   class _DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
     def element_to_client_batch_item(self, element):

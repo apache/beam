@@ -1,13 +1,11 @@
 import datetime
 import logging
 import time
-
 from typing import TypeVar
 
 from apache_beam import typehints
-from apache_beam.transforms import DoFn
-
 from apache_beam.io.gcp.datastore.v1new import util
+from apache_beam.transforms import DoFn
 from apache_beam.utils.retry import FuzzedExponentialIntervals
 
 T = TypeVar('T')
@@ -24,7 +22,6 @@ class RampupThrottlingFn(DoFn):
   broadly in line with Datastore best practices. See also
   https://cloud.google.com/datastore/docs/best-practices#ramping_up_traffic.
   """
-
   def to_runner_api_parameter(self, unused_context):
     from apache_beam.internal import pickler
     config = {
@@ -47,7 +44,9 @@ class RampupThrottlingFn(DoFn):
     self._successful_ops = util.MovingSum(window_ms=1000, bucket_ms=1000)
     self._first_instant = datetime.datetime.now()
 
-  def _calc_max_ops_budget(self, first_instant: datetime.datetime,
+  def _calc_max_ops_budget(
+      self,
+      first_instant: datetime.datetime,
       current_instant: datetime.datetime):
     """Function that returns per-second budget according to best practices.
 
@@ -55,11 +54,11 @@ class RampupThrottlingFn(DoFn):
     the number of minutes since start time.
     """
     timedelta_since_first = current_instant - first_instant
-    growth = max(0.0, ((timedelta_since_first - self._RAMP_UP_INTERVAL)
-                       / self._RAMP_UP_INTERVAL))
-    max_ops_budget = int(
-        self._BASE_BUDGET / self._num_workers * (1.5 ** growth))
-    return max_ops_budget
+    growth = max(
+        0.0, (timedelta_since_first - self._RAMP_UP_INTERVAL) /
+        self._RAMP_UP_INTERVAL)
+    max_ops_budget = int(self._BASE_BUDGET / self._num_workers * (1.5**growth))
+    return max(1, max_ops_budget)
 
   def process(self, element, **kwargs):
     backoff = iter(
@@ -77,5 +76,5 @@ class RampupThrottlingFn(DoFn):
         break
       else:
         backoff_ms = next(backoff)
-        _LOG.info(f'Delaying by {backoff_ms}ms to conform to gradual ramp-up.')
+        _LOG.info('Delaying by %sms to conform to gradual ramp-up.', backoff_ms)
         time.sleep(backoff_ms)
