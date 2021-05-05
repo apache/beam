@@ -1463,17 +1463,27 @@ public class FhirIO {
 
     @Override
     public FhirIO.Write.Result expand(PCollection<Input> input) {
+      int numShards = 10;
+      int batchSize = 10000;
       PCollectionTuple bodies =
-          input.apply(
-              ParDo.of(new PatchResourcesFn())
-                  .withOutputTags(Write.SUCCESSFUL_BODY, TupleTagList.of(Write.FAILED_BODY)));
+          // Shard input into batches to improve worker performance.
+          input
+              .apply(
+                  "Shard input",
+                  WithKeys.of(elm -> ThreadLocalRandom.current().nextInt(0, numShards)))
+              .setCoder(KvCoder.of(TextualIntegerCoder.of(), input.getCoder()))
+              .apply("Assemble batches", GroupIntoBatches.ofSize(batchSize))
+              .setCoder(KvCoder.of(TextualIntegerCoder.of(), IterableCoder.of(input.getCoder())))
+              .apply(
+                  ParDo.of(new PatchResourcesFn())
+                      .withOutputTags(Write.SUCCESSFUL_BODY, TupleTagList.of(Write.FAILED_BODY)));
       bodies.get(Write.SUCCESSFUL_BODY).setCoder(StringUtf8Coder.of());
       bodies.get(Write.FAILED_BODY).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       return Write.Result.in(input.getPipeline(), bodies);
     }
 
     /** The type Write Fhir fn. */
-    static class PatchResourcesFn extends DoFn<Input, String> {
+    static class PatchResourcesFn extends DoFn<KV<Integer, Iterable<Input>>, String> {
 
       private static final Counter PATCH_RESOURCES_ERRORS =
           Metrics.counter(
@@ -1500,19 +1510,21 @@ public class FhirIO {
 
       @ProcessElement
       public void patchResources(ProcessContext context) {
-        Input patchParameter = context.element();
-        try {
-          long startTime = Instant.now().toEpochMilli();
-          client.patchFhirResource(
-              patchParameter.getResourceName(),
-              patchParameter.getPatch(),
-              patchParameter.getQuery());
-          PATCH_RESOURCES_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
-          PATCH_RESOURCES_SUCCESS.inc();
-          context.output(Write.SUCCESSFUL_BODY, patchParameter.toString());
-        } catch (IOException | HealthcareHttpException e) {
-          PATCH_RESOURCES_ERRORS.inc();
-          context.output(Write.FAILED_BODY, HealthcareIOError.of(patchParameter.toString(), e));
+        Iterable<Input> batch = context.element().getValue();
+        for (Input patchParameter : batch) {
+          try {
+            long startTime = Instant.now().toEpochMilli();
+            client.patchFhirResource(
+                patchParameter.getResourceName(),
+                patchParameter.getPatch(),
+                patchParameter.getQuery());
+            PATCH_RESOURCES_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
+            PATCH_RESOURCES_SUCCESS.inc();
+            context.output(Write.SUCCESSFUL_BODY, patchParameter.toString());
+          } catch (IOException | HealthcareHttpException e) {
+            PATCH_RESOURCES_ERRORS.inc();
+            context.output(Write.FAILED_BODY, HealthcareIOError.of(patchParameter.toString(), e));
+          }
         }
       }
     }
