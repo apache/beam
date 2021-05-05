@@ -24,7 +24,7 @@ import os
 import re
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import coders
@@ -36,7 +36,7 @@ from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 
 
-@attr('UsesCrossLanguageTransforms')
+@pytest.mark.xlang_transforms
 @unittest.skipUnless(
     os.environ.get('EXPANSION_JAR'),
     "EXPANSION_JAR environment variable is not set.")
@@ -46,6 +46,8 @@ PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 class XlangParquetIOTest(unittest.TestCase):
   # TODO: add verification for the file written by external transform
   #  after fixing BEAM-7612
+  # TODO: enable test_xlang_parquetio_write after fixing BEAM-10507
+  @pytest.mark.no_xlang_transforms
   def test_xlang_parquetio_write(self):
     expansion_jar = os.environ.get('EXPANSION_JAR')
     port = os.environ.get('EXPANSION_PORT')

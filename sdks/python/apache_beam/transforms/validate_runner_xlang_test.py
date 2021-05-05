@@ -55,7 +55,7 @@ import os
 import typing
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -237,7 +237,7 @@ class CrossLanguageTestPipelines(object):
       assert_that(res['1'], equal_to([1, 3, 5]), label='check_odd')
 
 
-@attr('UsesCrossLanguageTransforms')
+@pytest.mark.xlang_transforms
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
@@ -273,6 +273,8 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     CrossLanguageTestPipelines().run_combine_per_key(
         test_pipeline or self.create_pipeline())
 
+  # TODO: enable after fixing BEAM-10507
+  @pytest.mark.no_xlang_transforms
   def test_flatten(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_flatten(
         test_pipeline or self.create_pipeline())
