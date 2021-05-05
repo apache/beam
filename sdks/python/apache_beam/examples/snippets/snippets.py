@@ -34,8 +34,9 @@ string. The tags can contain only letters, digits and _.
 import argparse
 import base64
 import json
-import mock
 from decimal import Decimal
+
+import mock
 
 import apache_beam as beam
 from apache_beam.io import iobase
