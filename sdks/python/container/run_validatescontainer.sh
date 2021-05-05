@@ -120,11 +120,12 @@ SDK_LOCATION=$2
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 pytest -o junit_suite_name=$IMAGE_NAME \
   -m="it_validatescontainer" \
-  --no-print-logs \
+  --show-capture=no \
   --numprocesses=1 \
   --timeout=900 \
   --junitxml=$XUNIT_FILE \
   --ignore-glob '.*py3\d?\.py$' \
+  --log-cli-level=INFO \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
