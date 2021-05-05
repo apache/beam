@@ -16,8 +16,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 22,
-  "iteration": 1600337773342,
+  "id": 1,
+  "iteration": 1620086777943,
   "links": [],
   "panels": [
     {
@@ -111,7 +111,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND \"runnerVersion\" = '' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_${processingType}\" WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'v2' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -229,7 +229,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND \"runnerVersion\" = '' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'v2' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -343,7 +343,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeMs\" FROM \"forever\"./nexmark_${ID}_\\w*${processingType}/ WHERE \"runner\" =~ /^$runner$/ AND \"runnerVersion\" = '' AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\"./nexmark_${ID}_\\w*${processingType}/ WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'v2' AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -569,34 +569,6 @@
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
-      },
-      {
-        "allValue": null,
-        "current": {
-          "selected": true,
-          "tags": [],
-          "text": "DataflowRunner",
-          "value": "DataflowRunner"
-        },
-        "datasource": "BeamInfluxDB",
-        "definition": "SHOW TAG VALUES WITH KEY = \"runner\"",
-        "hide": 0,
-        "includeAll": false,
-        "index": -1,
-        "label": "Runner",
-        "multi": false,
-        "name": "runner",
-        "options": [],
-        "query": "SHOW TAG VALUES WITH KEY = \"runner\"",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
       }
     ]
   },
@@ -619,8 +591,8 @@
     ]
   },
   "timezone": "",
-  "title": "Nexmark",
-  "uid": "ahudA_zGz",
+  "title": "Nexmark Dataflow Runner V2",
+  "uid": "8INnSY9Mz",
   "variables": {
     "list": []
   },
