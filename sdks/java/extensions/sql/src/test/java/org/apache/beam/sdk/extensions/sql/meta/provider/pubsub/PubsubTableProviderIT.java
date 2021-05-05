@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -451,7 +452,7 @@ public class PubsubTableProviderIT implements Serializable {
     // Because Pubsub only allow new subscription receives message after the subscription is
     // created, eventsTopic.publish(messages) can only be called after statement.executeQuery.
     // However, because statement.executeQuery is a blocking call, it has to be put into a
-    // seperate thread to execute.
+    // separate thread to execute.
     ExecutorService pool = Executors.newFixedThreadPool(1);
     Future<List<String>> queryResult =
         pool.submit(
@@ -466,9 +467,20 @@ public class PubsubTableProviderIT implements Serializable {
                   return result.build();
                 });
 
-    eventsTopic.assertSubscriptionEventuallyCreated(
-        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
-
+    try {
+      eventsTopic.assertSubscriptionEventuallyCreated(
+          pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
+    } catch (AssertionError assertionError) {
+      // If we timed out, check if the forked thread had an exception. If something
+      // did go wrong there this call will raise an ExecutionException, which we allow to bubble
+      // up.
+      try {
+        queryResult.get(1, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        // Nothing went wrong on the forked thread, but a subscription still wasn't created.
+        throw assertionError;
+      }
+    }
     eventsTopic.publish(messages);
 
     assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
