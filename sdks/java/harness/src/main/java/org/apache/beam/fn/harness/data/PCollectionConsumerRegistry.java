@@ -374,6 +374,8 @@ public class PCollectionConsumerRegistry {
           byteCountObserver.advance();
           this.distribution.update(byteCountObserver.observedSize);
         }
+      } else {
+        byteCountObserver = null;
       }
     }
 
