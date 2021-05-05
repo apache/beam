@@ -72,6 +72,14 @@ try:
 except ImportError:
   gcp_bigquery = None
   pass
+
+try:
+  from orjson import dumps as fast_json_dumps
+  from orjson import loads as fast_json_loads
+except ImportError:
+  fast_json_dumps = json.dumps
+  fast_json_loads = json.loads
+
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -1116,7 +1124,7 @@ class BigQueryWrapper(object):
         str(self.unique_row_id) if not insert_ids else insert_ids[i] for i,
         _ in enumerate(rows)
     ]
-    rows = [json.loads(json.dumps(r, default=default_encoder)) for r in rows]
+    rows = [fast_json_loads(fast_json_dumps(r, default=default_encoder)) for r in rows]
 
     result, errors = self._insert_all_rows(
         project_id, dataset_id, table_id, rows, insert_ids)
