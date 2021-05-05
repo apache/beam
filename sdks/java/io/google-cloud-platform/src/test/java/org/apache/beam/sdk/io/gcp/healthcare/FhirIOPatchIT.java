@@ -102,14 +102,16 @@ public class FhirIOPatchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     FhirPatchParameter patchParameter =
-        FhirPatchParameter.of(
-            resourceName,
-            "[{\"op\": \"replace\", \"path\": \"/birthDate\", \"value\": \"1997-05-23\"}]");
+        FhirPatchParameter.builder()
+            .setResourceName(resourceName)
+            .setPatch(
+                "[{\"op\": \"replace\", \"path\": \"/birthDate\", \"value\": \"1997-05-23\"}]")
+            .build();
     String expectedSuccessBody = patchParameter.toString();
 
     // Execute patch.
     PCollection<FhirPatchParameter> patches =
-        pipeline.apply(Create.of(patchParameter).withCoder(FhirPatchParameterCoder.of()));
+        pipeline.apply(Create.of(patchParameter)); // .withCoder(FhirPatchParameterCoder.of()));
     FhirIO.Write.Result result = patches.apply(FhirIO.patchResources());
 
     // Validate beam results.
@@ -136,15 +138,17 @@ public class FhirIOPatchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     FhirPatchParameter patchParameter =
-        FhirPatchParameter.of(
-            healthcareDataset + "/fhirStores/" + fhirStoreId + "/fhir/Patient",
-            "[{\"op\": \"replace\", \"path\": \"/birthDate\", \"value\": \"1997-06-23\"}]",
-            ImmutableMap.of("birthDate", "1990-01-01"));
+        FhirPatchParameter.builder()
+            .setResourceName(healthcareDataset + "/fhirStores/" + fhirStoreId + "/fhir/Patient")
+            .setPatch(
+                "[{\"op\": \"replace\", \"path\": \"/birthDate\", \"value\": \"1997-06-23\"}]")
+            .setQuery(ImmutableMap.of("birthDate", "1990-01-01"))
+            .build();
     String expectedSuccessBody = patchParameter.toString();
 
     // Execute patch.
     PCollection<FhirPatchParameter> patches =
-        pipeline.apply(Create.of(patchParameter).withCoder(FhirPatchParameterCoder.of()));
+        pipeline.apply(Create.of(patchParameter)); // .withCoder(FhirPatchParameterCoder.of()));
     FhirIO.Write.Result result = patches.apply(FhirIO.patchResources());
 
     // Validate beam results.

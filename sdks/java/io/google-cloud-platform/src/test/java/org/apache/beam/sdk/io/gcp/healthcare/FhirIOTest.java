@@ -136,7 +136,8 @@ public class FhirIOTest {
 
   @Test
   public void test_FhirIO_failedPatch() {
-    FhirPatchParameter badPatch = FhirPatchParameter.of("bad", "bad");
+    FhirPatchParameter badPatch =
+        FhirPatchParameter.builder().setPatch("").setResourceName("").build();
     PCollection<FhirPatchParameter> patches =
         pipeline.apply(
             Create.of(ImmutableList.of(badPatch)).withCoder(FhirPatchParameterCoder.of()));

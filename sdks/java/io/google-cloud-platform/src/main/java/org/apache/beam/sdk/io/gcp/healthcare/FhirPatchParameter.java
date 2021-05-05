@@ -17,94 +17,38 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Map;
-import java.util.Objects;
-import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * FhirPatchParemeter represents the parameters for a FHIR patch request, used as a parameter for
  * {@link FhirIO.PatchResources}.
  */
-@DefaultCoder(FhirPatchParameterCoder.class)
-public class FhirPatchParameter implements Serializable {
-  private final String resourceName;
-  private final String patch;
-  private final @Nullable Map<String, String> query;
+@DefaultSchema(AutoValueSchema.class)
+@AutoValue
+abstract class FhirPatchParameter implements Serializable {
+  abstract String resourceName();
 
-  private FhirPatchParameter(
-      String resourceName, String patch, @Nullable Map<String, String> query) {
-    this.resourceName = resourceName;
-    this.patch = patch;
-    this.query = query;
+  abstract String patch();
+
+  abstract @Nullable Map<String, String> query();
+
+  static Builder builder() {
+    return new AutoValue_FhirPatchParameter.Builder();
   }
 
-  /**
-   * Creates a FhirPatchParameter to represent a conditional FHIR Patch request.
-   *
-   * @param resourcePath the resource path, in format
-   *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}
-   * @param patch the patch operation
-   * @param query query for conditional patch
-   * @return FhirPatchParameter
-   */
-  public static FhirPatchParameter of(
-      String resourcePath, String patch, @Nullable Map<String, String> query) {
-    return new FhirPatchParameter(resourcePath, patch, query);
-  }
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract Builder setResourceName(String resourceName);
 
-  /**
-   * Creates a FhirPatchParameter to represent a FHIR Patch request.
-   *
-   * @param resourceName the resource name, in format
-   *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}
-   * @param patch the patch operation
-   * @return FhirPatchParameter
-   */
-  public static FhirPatchParameter of(String resourceName, String patch) {
-    return new FhirPatchParameter(resourceName, patch, null);
-  }
+    abstract Builder setPatch(String patch);
 
-  public String getResourceName() {
-    return resourceName;
-  }
+    abstract Builder setQuery(Map<String, String> query);
 
-  public String getPatch() {
-    return patch;
-  }
-
-  public @Nullable Map<String, String> getQuery() {
-    return query;
-  }
-
-  @Override
-  public boolean equals(@Nullable Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    FhirPatchParameter that = (FhirPatchParameter) o;
-    return Objects.equals(resourceName, that.resourceName)
-        && Objects.equals(patch, that.patch)
-        && Objects.equals(query, that.query);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(resourceName, patch, query);
-  }
-
-  @Override
-  public String toString() {
-    return "{\"resourceName\":\""
-        + resourceName
-        + "\",\"patch\":\""
-        + patch
-        + "\""
-        + (query == null ? "}" : "\"query\":\"" + query.toString())
-        + "\"}";
+    abstract FhirPatchParameter build();
   }
 }

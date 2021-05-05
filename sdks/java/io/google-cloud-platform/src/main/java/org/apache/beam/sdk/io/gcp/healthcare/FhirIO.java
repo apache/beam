@@ -101,19 +101,19 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading</h3>
  *
  * <p>FHIR resources can be read with {@link FhirIO.Read}, which supports use cases where you have a
- * ${@link PCollection} of message IDs. This is appropriate for reading the Fhir notifications from
+ * ${@link PCollection} of FHIR resource names in the format of projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}. This is appropriate for reading the Fhir notifications from
  * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
  *
- * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of message ID strings
+ * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of FHIR resource name strings
  * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieve a
- * {@link PCollection} containing the successfully fetched {@link String}s and/or {@link
+ * {@link PCollection} containing the successfully fetched json resources as {@link String}s and/or {@link
  * FhirIO.Read.Result#getFailedReads()}* to retrieve a {@link PCollection} of {@link
- * HealthcareIOError}* containing the resource ID that could not be fetched and the exception as a
+ * HealthcareIOError}* containing the resources that could not be fetched and the exception as a
  * {@link HealthcareIOError}, this can be used to write to the dead letter storage system of your
  * choosing. This error handling is mainly to transparently surface errors where the upstream {@link
- * PCollection}* contains IDs that are not valid or are not reachable due to permissions issues.
+ * PCollection}* contains FHIR resources that are not valid or are not reachable due to permissions issues.
  *
  * <h3>Writing</h3>
  *
@@ -1474,9 +1474,7 @@ public class FhirIO {
         try {
           long startTime = Instant.now().toEpochMilli();
           client.patchFhirResource(
-              patchParameter.getResourceName(),
-              patchParameter.getPatch(),
-              patchParameter.getQuery());
+              patchParameter.resourceName(), patchParameter.patch(), patchParameter.query());
           PATCH_RESOURCES_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
           PATCH_RESOURCES_SUCCESS.inc();
           context.output(Write.SUCCESSFUL_BODY, patchParameter.toString());

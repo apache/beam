@@ -41,9 +41,9 @@ public class FhirPatchParameterCoder extends CustomCoder<FhirPatchParameter> {
 
   @Override
   public void encode(FhirPatchParameter value, OutputStream outStream) throws IOException {
-    STRING_CODER.encode(value.getResourceName(), outStream);
-    STRING_CODER.encode(value.getPatch(), outStream);
-    MAP_CODER.encode(value.getQuery(), outStream);
+    STRING_CODER.encode(value.resourceName(), outStream);
+    STRING_CODER.encode(value.patch(), outStream);
+    MAP_CODER.encode(value.query(), outStream);
   }
 
   @Override
@@ -51,6 +51,10 @@ public class FhirPatchParameterCoder extends CustomCoder<FhirPatchParameter> {
     String resourceName = STRING_CODER.decode(inStream);
     String patch = STRING_CODER.decode(inStream);
     Map<String, String> query = MAP_CODER.decode(inStream);
-    return FhirPatchParameter.of(resourceName, patch, query);
+    return FhirPatchParameter.builder()
+        .setResourceName(resourceName)
+        .setPatch(patch)
+        .setQuery(query)
+        .build();
   }
 }
