@@ -28,6 +28,7 @@ import com.google.auto.value.AutoValue;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -58,6 +59,7 @@ import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdCoder;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.PatchResources.Input;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -65,6 +67,8 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -1429,10 +1433,36 @@ public class FhirIO {
   }
 
   /** The type Patch resources. */
-  public static class PatchResources
-      extends PTransform<PCollection<FhirPatchParameter>, Write.Result> {
+  public static class PatchResources extends PTransform<PCollection<Input>, Write.Result> {
+
+    /** Represents the input parameters for a single FHIR patch request. */
+    @DefaultSchema(AutoValueSchema.class)
+    @AutoValue
+    abstract static class Input implements Serializable {
+      abstract String getResourceName();
+
+      abstract String getPatch();
+
+      abstract @Nullable Map<String, String> getQuery();
+
+      static Builder builder() {
+        return new AutoValue_FhirIO_PatchResources_Input.Builder();
+      }
+
+      @AutoValue.Builder
+      abstract static class Builder {
+        abstract Builder setResourceName(String resourceName);
+
+        abstract Builder setPatch(String patch);
+
+        abstract Builder setQuery(Map<String, String> query);
+
+        abstract Input build();
+      }
+    }
+
     @Override
-    public FhirIO.Write.Result expand(PCollection<FhirPatchParameter> input) {
+    public FhirIO.Write.Result expand(PCollection<Input> input) {
       PCollectionTuple bodies =
           input.apply(
               ParDo.of(new PatchResourcesFn())
@@ -1443,7 +1473,7 @@ public class FhirIO {
     }
 
     /** The type Write Fhir fn. */
-    static class PatchResourcesFn extends DoFn<FhirPatchParameter, String> {
+    static class PatchResourcesFn extends DoFn<Input, String> {
 
       private static final Counter PATCH_RESOURCES_ERRORS =
           Metrics.counter(
@@ -1470,11 +1500,13 @@ public class FhirIO {
 
       @ProcessElement
       public void patchResources(ProcessContext context) {
-        FhirPatchParameter patchParameter = context.element();
+        Input patchParameter = context.element();
         try {
           long startTime = Instant.now().toEpochMilli();
           client.patchFhirResource(
-              patchParameter.resourceName(), patchParameter.patch(), patchParameter.query());
+              patchParameter.getResourceName(),
+              patchParameter.getPatch(),
+              patchParameter.getQuery());
           PATCH_RESOURCES_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
           PATCH_RESOURCES_SUCCESS.inc();
           context.output(Write.SUCCESSFUL_BODY, patchParameter.toString());

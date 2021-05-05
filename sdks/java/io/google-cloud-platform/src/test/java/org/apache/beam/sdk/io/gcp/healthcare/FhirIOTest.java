@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.PatchResources.Input;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -136,11 +137,8 @@ public class FhirIOTest {
 
   @Test
   public void test_FhirIO_failedPatch() {
-    FhirPatchParameter badPatch =
-        FhirPatchParameter.builder().setPatch("").setResourceName("").build();
-    PCollection<FhirPatchParameter> patches =
-        pipeline.apply(
-            Create.of(ImmutableList.of(badPatch)).withCoder(FhirPatchParameterCoder.of()));
+    Input badPatch = Input.builder().setPatch("").setResourceName("").build();
+    PCollection<Input> patches = pipeline.apply(Create.of(ImmutableList.of(badPatch)));
     FhirIO.Write.Result patchResult = patches.apply(FhirIO.patchResources());
 
     PCollection<HealthcareIOError<String>> failedInserts = patchResult.getFailedBodies();

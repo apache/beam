@@ -25,6 +25,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.PatchResources.Input;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -101,8 +102,8 @@ public class FhirIOPatchIT {
   public void testFhirIOPatch() throws IOException {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
-    FhirPatchParameter patchParameter =
-        FhirPatchParameter.builder()
+    Input patchParameter =
+        Input.builder()
             .setResourceName(resourceName)
             .setPatch(
                 "[{\"op\": \"replace\", \"path\": \"/birthDate\", \"value\": \"1997-05-23\"}]")
@@ -110,8 +111,7 @@ public class FhirIOPatchIT {
     String expectedSuccessBody = patchParameter.toString();
 
     // Execute patch.
-    PCollection<FhirPatchParameter> patches =
-        pipeline.apply(Create.of(patchParameter)); // .withCoder(FhirPatchParameterCoder.of()));
+    PCollection<Input> patches = pipeline.apply(Create.of(patchParameter));
     FhirIO.Write.Result result = patches.apply(FhirIO.patchResources());
 
     // Validate beam results.
@@ -137,8 +137,8 @@ public class FhirIOPatchIT {
   public void testFhirIOPatch_ifMatch() throws IOException {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
-    FhirPatchParameter patchParameter =
-        FhirPatchParameter.builder()
+    Input patchParameter =
+        Input.builder()
             .setResourceName(healthcareDataset + "/fhirStores/" + fhirStoreId + "/fhir/Patient")
             .setPatch(
                 "[{\"op\": \"replace\", \"path\": \"/birthDate\", \"value\": \"1997-06-23\"}]")
@@ -147,8 +147,7 @@ public class FhirIOPatchIT {
     String expectedSuccessBody = patchParameter.toString();
 
     // Execute patch.
-    PCollection<FhirPatchParameter> patches =
-        pipeline.apply(Create.of(patchParameter)); // .withCoder(FhirPatchParameterCoder.of()));
+    PCollection<Input> patches = pipeline.apply(Create.of(patchParameter));
     FhirIO.Write.Result result = patches.apply(FhirIO.patchResources());
 
     // Validate beam results.
