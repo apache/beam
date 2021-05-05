@@ -24,7 +24,7 @@ public class PTransformOverrideRegistrar {
             InputT input, PTransform<? super InputT, OutputT> transform) {
       if (transform instanceof OverridablePTransform) {
         PTransform<? super InputT, OutputT> overriddenTransform =
-            getOverriddenPTransform(((OverridablePTransform) transform).getTag(input));
+            getOverriddenPTransform(((OverridablePTransform) transform).getTag());
         if (overriddenTransform != null) {
             return overriddenTransform;
         }
