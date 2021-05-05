@@ -30,6 +30,7 @@ Learn about the Beam Programming Model and the concepts common to all Beam SDKs 
 * Read the [Programming Guide](/documentation/programming-guide/), which introduces all the key Beam concepts.
 * Learn about Beam's [execution model](/documentation/runtime/model) to better understand how pipelines execute.
 * Visit [Learning Resources](/documentation/resources/learning-resources) for some of our favorite articles and talks about Beam.
+* Visit the [glossary](/documentation/glossary) to learn the terminology of the Beam programming model.
 
 ## Pipeline Fundamentals
 
