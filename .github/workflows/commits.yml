@@ -18,10 +18,8 @@
 name: CheckCommits
 
 on:
-  - pull_request
-  - pull_request_review
-# TODO: Possibly trigger on comments too?
-#   - issue_comment
+  pull_request_target:
+    types: [synchronize, edited]
 
 jobs:
   Squashbot:
@@ -36,12 +34,6 @@ jobs:
         run: |
             OUTPUT=$(python scripts/ci/check_commits.py ${{ github.event.pull_request.url }})
             echo "::set-output name=result::$OUTPUT"
-#     - uses: actions/github@v1.0.0
-#       if: steps.squashbot.outputs.result != ''
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       with:
-#         args: comment "${{ steps.squashbot.outputs.result }}"
       - uses: actions/github-script@v4
         if: steps.squashbot.outputs.result != ''
         with:
