@@ -34,6 +34,7 @@ string. The tags can contain only letters, digits and _.
 import argparse
 import base64
 import json
+import mock
 from decimal import Decimal
 
 import apache_beam as beam
@@ -88,6 +89,7 @@ class SnippetUtils(object):
         transform_node.transform.fn.file_to_write = self.renames['write']
 
 
+@mock.patch('apache_beam.Pipeline', TestPipeline)
 def construct_pipeline(renames):
   """A reverse words snippet as an example for constructing a pipeline."""
   import re
@@ -97,10 +99,12 @@ def construct_pipeline(renames):
   # Unresolved reference in ReverseWords class
   import apache_beam as beam
 
-  class ReverseWords(beam.PTransform):
+  @beam.ptransform_fn
+  @beam.typehints.with_input_types(str)
+  @beam.typehints.with_output_types(str)
+  def ReverseWords(pcoll):
     """A PTransform that reverses individual elements in a PCollection."""
-    def expand(self, pcoll):
-      return pcoll | beam.Map(lambda e: e[::-1])
+    return pcoll | beam.Map(lambda e: e[::-1])
 
   def filter_words(unused_x):
     """Pass through filter to select everything."""
@@ -110,80 +114,71 @@ def construct_pipeline(renames):
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  with beam.Pipeline(options=PipelineOptions()) as p:
+  beam_options = PipelineOptions()
+  with beam.Pipeline(options=beam_options) as pipeline:
     pass  # build your pipeline here
     # [END pipelines_constructing_creating]
 
-    with TestPipeline() as p:  # Use TestPipeline for testing.
-      # pylint: disable=line-too-long
+    # [START pipelines_constructing_reading]
+    lines = pipeline | 'ReadMyFile' >> beam.io.ReadFromText(
+        'gs://some/inputData.txt')
+    # [END pipelines_constructing_reading]
 
-      # [START pipelines_constructing_reading]
-      lines = p | 'ReadMyFile' >> beam.io.ReadFromText(
-          'gs://some/inputData.txt')
-      # [END pipelines_constructing_reading]
+    # [START pipelines_constructing_applying]
+    words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+    reversed_words = words | ReverseWords()
+    # [END pipelines_constructing_applying]
 
-      # [START pipelines_constructing_applying]
-      words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-      reversed_words = words | ReverseWords()
-      # [END pipelines_constructing_applying]
+    # [START pipelines_constructing_writing]
+    filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
+    filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
+        'gs://some/outputData.txt')
+    # [END pipelines_constructing_writing]
 
-      # [START pipelines_constructing_writing]
-      filtered_words = reversed_words | 'FilterWords' >> beam.Filter(
-          filter_words)
-      filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
-          'gs://some/outputData.txt')
-      # [END pipelines_constructing_writing]
-
-      p.visit(SnippetUtils.RenameFiles(renames))
+    pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
-def model_pipelines(argv):
+def model_pipelines():
   """A wordcount snippet as a simple pipeline example."""
   # [START model_pipelines]
+  import argparse
   import re
+  import sys
 
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  class MyOptions(PipelineOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_argument(
-          '--input',
-          dest='input',
-          default='gs://dataflow-samples/shakespeare/kinglear'
-          '.txt',
-          help='Input file to process.')
-      parser.add_argument(
-          '--output',
-          dest='output',
-          required=True,
-          help='Output file to write results to.')
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output', required=True, help='Output file to write results to.')
+  args, beam_args = parser.parse_known_args(sys.argv)
 
-  pipeline_options = PipelineOptions(argv)
-  my_options = pipeline_options.view_as(MyOptions)
-
-  with beam.Pipeline(options=pipeline_options) as p:
-
+  beam_options = PipelineOptions(beam_args)
+  with beam.Pipeline(options=beam_options) as pipeline:
     (
-        p
-        | beam.io.ReadFromText(my_options.input)
+        pipeline
+        | beam.io.ReadFromText(args.input)
         | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
         | beam.Map(lambda x: (x, 1))
         | beam.combiners.Count.PerKey()
-        | beam.io.WriteToText(my_options.output))
+        | beam.io.WriteToText(args.output))
   # [END model_pipelines]
 
 
-def model_pcollection(argv):
+def model_pcollection(output_path):
   """Creating a PCollection from data in local memory."""
   # [START model_pcollection]
+  import sys
+
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  # argv = None  # if None, uses sys.argv
-  pipeline_options = PipelineOptions(argv)
-  with beam.Pipeline(options=pipeline_options) as pipeline:
+  beam_options = PipelineOptions(sys.argv)
+  with beam.Pipeline(options=beam_options) as pipeline:
     lines = (
         pipeline
         | beam.Create([
@@ -192,30 +187,21 @@ def model_pcollection(argv):
             'The slings and arrows of outrageous fortune, ',
             'Or to take arms against a sea of troubles, ',
         ]))
-
     # [END model_pcollection]
 
-    class MyOptions(PipelineOptions):
-      @classmethod
-      def _add_argparse_args(cls, parser):
-        parser.add_argument(
-            '--output',
-            dest='output',
-            required=True,
-            help='Output file to write results to.')
-
-    my_options = pipeline_options.view_as(MyOptions)
-    lines | beam.io.WriteToText(my_options.output)
+    lines | beam.io.WriteToText(output_path)
 
 
-def pipeline_options_remote(argv):
+def pipeline_options_remote():
   """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
   # [START pipeline_options_create]
+  import sys
+
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  options = PipelineOptions(flags=argv)
-
+  # If flags is None or not passed, it defaults to sys.argv
+  beam_options = PipelineOptions(flags=sys.argv)
   # [END pipeline_options_create]
 
   # [START pipeline_options_define_custom]
@@ -229,40 +215,44 @@ def pipeline_options_remote(argv):
 
   # [END pipeline_options_define_custom]
 
-  # [START pipeline_options_dataflow_service]
-  import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
+  @mock.patch('apache_beam.Pipeline')
+  def dataflow_options(mock_pipeline):
+    # [START pipeline_options_dataflow_service]
+    import sys
 
-  # Create and set your PipelineOptions.
-  # For Cloud execution, specify DataflowRunner and set the Cloud Platform
-  # project, job name, temporary files location, and region.
-  # For more information about regions, check:
-  # https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
-  options = PipelineOptions(
-      flags=argv,
-      runner='DataflowRunner',
-      project='my-project-id',
-      job_name='unique-job-name',
-      temp_location='gs://my-bucket/temp',
-      region='us-central1')
+    import apache_beam as beam
+    from apache_beam.options.pipeline_options import PipelineOptions
 
-  # Create the Pipeline with the specified options.
-  # with beam.Pipeline(options=options) as pipeline:
-  #   pass  # build your pipeline here.
-  # [END pipeline_options_dataflow_service]
+    # Create and set your PipelineOptions.
+    # For Cloud execution, specify DataflowRunner and set the Cloud Platform
+    # project, job name, temporary files location, and region.
+    # For more information about regions, check:
+    # https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+    beam_options = PipelineOptions(
+        flags=sys.argv,
+        runner='DataflowRunner',
+        project='my-project-id',
+        job_name='unique-job-name',
+        temp_location='gs://my-bucket/temp',
+        region='us-central1')
 
-  my_options = options.view_as(MyOptions)
+    # Create the Pipeline with the specified options.
+    with beam.Pipeline(options=beam_options) as pipeline:
+      pass  # build your pipeline here.
+    # [END pipeline_options_dataflow_service]
+    return beam_options
+
+  beam_options = dataflow_options()
+  my_options = beam_options.view_as(MyOptions)
 
   with TestPipeline() as p:  # Use TestPipeline for testing.
     lines = p | beam.io.ReadFromText(my_options.input)
     lines | beam.io.WriteToText(my_options.output)
 
 
-def pipeline_options_local(argv):
+@mock.patch('apache_beam.Pipeline', TestPipeline)
+def pipeline_options_local():
   """Creating a Pipeline using a PipelineOptions object for local execution."""
-
-  from apache_beam import Pipeline
-  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START pipeline_options_define_custom_with_help_and_default]
   from apache_beam.options.pipeline_options import PipelineOptions
@@ -282,38 +272,48 @@ def pipeline_options_local(argv):
   # [END pipeline_options_define_custom_with_help_and_default]
 
   # [START pipeline_options_local]
+  import sys
+
+  import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
+
   # Create and set your Pipeline Options.
-  options = PipelineOptions(flags=argv)
-  my_options = options.view_as(MyOptions)
+  beam_options = PipelineOptions(sys.argv)
+  my_options = beam_options.view_as(MyOptions)
 
-  with Pipeline(options=options) as pipeline:
-    pass  # build your pipeline here.
-    # [END pipeline_options_local]
+  with beam.Pipeline(options=beam_options) as pipeline:
+    lines = (
+        pipeline
+        | beam.io.ReadFromText(my_options.input)
+        | beam.io.WriteToText(my_options.output))
+  # [END pipeline_options_local]
 
-    with TestPipeline() as p:  # Use TestPipeline for testing.
-      lines = p | beam.io.ReadFromText(my_options.input)
-      lines | beam.io.WriteToText(my_options.output)
 
-
-def pipeline_options_command_line(argv):
+@mock.patch('apache_beam.Pipeline', TestPipeline)
+def pipeline_options_command_line():
   """Creating a Pipeline by passing a list of arguments."""
 
   # [START pipeline_options_command_line]
   # Use Python argparse module to parse custom arguments
   import argparse
+  import sys
 
   import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--input')
   parser.add_argument('--output')
-  args, beam_args = parser.parse_known_args(argv)
+  args, beam_args = parser.parse_known_args(sys.argv)
 
   # Create the Pipeline with remaining arguments.
-  with beam.Pipeline(argv=beam_args) as pipeline:
-    lines = pipeline | 'Read files' >> beam.io.ReadFromText(args.input)
-    lines | 'Write files' >> beam.io.WriteToText(args.output)
-    # [END pipeline_options_command_line]
+  beam_options = PipelineOptions(beam_args)
+  with beam.Pipeline(options=beam_options) as pipeline:
+    lines = (
+        pipeline
+        | 'Read files' >> beam.io.ReadFromText(args.input)
+        | 'Write files' >> beam.io.WriteToText(args.output))
+  # [END pipeline_options_command_line]
 
 
 def pipeline_logging(lines, output):

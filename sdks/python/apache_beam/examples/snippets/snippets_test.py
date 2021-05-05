@@ -25,6 +25,7 @@ import gzip
 import logging
 import math
 import os
+import sys
 import tempfile
 import time
 import unittest
@@ -600,15 +601,16 @@ class SnippetsTest(unittest.TestCase):
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
     result_path = temp_path + '.result'
-    snippets.model_pipelines(
-        ['--input=%s*' % temp_path, '--output=%s' % result_path])
+    test_argv = [f"--input={temp_path}*", f"--output={result_path}"]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.model_pipelines()
     self.assertEqual(
         self.get_output(result_path),
         [str(s) for s in [(u'aa', 1), (u'bb', 2), (u'cc', 3)]])
 
   def test_model_pcollection(self):
     temp_path = self.create_temp_file()
-    snippets.model_pcollection(['--output=%s' % temp_path])
+    snippets.model_pcollection(temp_path)
     self.assertEqual(
         self.get_output(temp_path),
         [
@@ -751,7 +753,9 @@ class SnippetsTest(unittest.TestCase):
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
     result_path = temp_path + '.result'
-    fn(['--input=%s*' % temp_path, '--output=%s' % result_path])
+    test_argv = [f"--input={temp_path}*", f"--output={result_path}"]
+    with mock.patch.object(sys, 'argv', test_argv):
+      fn()
     self.assertEqual(['aa', 'bb', 'cc'], self.get_output(result_path))
 
   def test_pipeline_options_local(self):
