@@ -185,15 +185,14 @@ task runPerformanceTest(type: Exec) {
 
   def test = project.findProperty('test')
   def suite = "runPerformanceTest-df${pythonVersionSuffix}"
-  def xUnitFile ="nosetests-${suite}.xml"
+  def xUnitFile ="pytest-${suite}.xml"
 
   def testOpts = project.findProperty('test-pipeline-options')
   testOpts += " --sdk_location=${files(configurations.distTarBall.files).singleFile}"
 
   setWorkingDir "${project.rootDir}/sdks/python"
-  commandLine 'sh', '-c', ". ${envdir}/bin/activate && ${envdir}/bin/python setup.py nosetests" +
-              " --tests=${test}  --test-pipeline-options=\"${testOpts}\" --with-xunitmp" +
-              " --xunitmp-file=${xUnitFile}"
+  commandLine 'sh', '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
+              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile}"
 }
 
 task mongodbioIT {

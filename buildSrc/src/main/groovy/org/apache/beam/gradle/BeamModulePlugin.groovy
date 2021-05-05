@@ -238,8 +238,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // Attribute tag that can filter the test set.
     String attribute = System.getProperty('attr')
 
-    // Extra test options pass to nose.
-    String[] extraTestOptions = ["--nocapture"]
+    // Extra test options pass to pytest.
+    String[] extraTestOptions = ["--capture=no"]
 
     // Name of Cloud KMS encryption key to use in some tests.
     String kmsKeyName = System.getProperty('kmsKeyName')
@@ -2336,9 +2336,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // Build test options that configures test environment and framework
             def testOptions = []
             if (config.tests)
-              testOptions += "--tests=$config.tests"
+              testOptions += "$config.tests"
             if (config.attribute)
-              testOptions += "--attr=$config.attribute"
+              testOptions += "-m=$config.attribute"
             testOptions.addAll(config.extraTestOptions)
             argMap["test_opts"] = testOptions
 

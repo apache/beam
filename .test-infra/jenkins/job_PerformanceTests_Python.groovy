@@ -37,7 +37,7 @@ for (pythonVersion in pythonVersions) {
     jobName           : "beam_PerformanceTests_WordCountIT_Py${pythonVersion}",
     jobDescription    : "Python SDK Performance Test - Run WordCountIT in Py${pythonVersion} with 1Gb files",
     jobTriggerPhrase  : "Run Python${pythonVersion} WordCountIT Performance Test",
-    test              : "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+    test              : "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
     gradleTaskName    : ":sdks:python:test-suites:dataflow:py${pythonVersion}:runPerformanceTest",
     pipelineOptions   : dataflowPipelineArgs + [
       job_name             : "performance-tests-wordcount-python${pythonVersion}-batch-1gb${now}",
@@ -80,7 +80,7 @@ private void createPythonPerformanceTestJob(Map testConfig) {
         )
 
     publishers {
-      archiveJunit('**/nosetests*.xml')
+      archiveJunit('**/pytest*.xml')
     }
 
     steps {
