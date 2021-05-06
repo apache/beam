@@ -118,6 +118,15 @@ task sparkValidatesRunner {
   }
 }
 
+def javaContainerSuffix
+if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+  javaContainerSuffix = 'java8'
+} else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+  javaContainerSuffix = 'java11'
+} else {
+  throw new GradleException("unsupported java version.")
+}
+
 // ValidatesRunner tests for the Python Portable runner (aka. ULR). Runs tests
 // in the integration directory with the ULR to validate that the runner behaves
 // as expected.
@@ -128,7 +137,7 @@ task sparkValidatesRunner {
 task ulrValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
-  dependsOn ":sdks:java:container:java11:docker"
+  dependsOn ":sdks:java:container:" + javaContainerSuffix + ":docker"
   dependsOn "setupVirtualenv"
   dependsOn ":sdks:python:buildPython"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
