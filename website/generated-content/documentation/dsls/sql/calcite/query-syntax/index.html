@@ -38,7 +38,7 @@ select:
         | expression [ [ AS ] alias ] } [, ...]
     [ FROM from_item  [, ...] ]
     [ WHERE bool_expression ]
-    [ GROUP BY { expression [, ...] | ROLLUP ( expression [, ...] ) } ]
+    [ GROUP BY { expression [, ...] } ]
     [ HAVING bool_expression ]
 
 set_op:
@@ -187,7 +187,7 @@ expression using <code>CROSS JOIN</code> and <code>WHERE</code>.</p><p>Example -
 ON Roster.SchoolID = TeamMascot.SchoolID;
 </code></pre><p>is equivalent to:</p><pre><code>SELECT * FROM Roster CROSS JOIN TeamMascot
 WHERE Roster.SchoolID = TeamMascot.SchoolID;
-</code></pre><h2 id=group-by-clause>GROUP BY clause</h2><p>Also see <a href=/documentation/dsls/sql/windowing-and-triggering/>Windowing & Triggering</a></p><h3 id=syntax_3>Syntax</h3><pre><code>GROUP BY { expression [, ...] | ROLLUP ( expression [, ...] ) }
+</code></pre><h2 id=group-by-clause>GROUP BY clause</h2><p>Also see <a href=/documentation/dsls/sql/windowing-and-triggering/>Windowing & Triggering</a></p><h3 id=syntax_3>Syntax</h3><pre><code>GROUP BY { expression [, ...] }
 </code></pre><p>The <code>GROUP BY</code> clause groups together rows in a table with non-distinct values
 for the <code>expression</code> in the <code>GROUP BY</code> clause. For multiple rows in the source
 table with non-distinct values for <code>expression</code>, the <code>GROUP BY</code> clause produces
