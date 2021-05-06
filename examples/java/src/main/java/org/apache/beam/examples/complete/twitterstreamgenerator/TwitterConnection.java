@@ -18,8 +18,8 @@
 package org.apache.beam.examples.complete.twitterstreamgenerator;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import twitter4j.FilterQuery;
 import twitter4j.StallWarning;
 import twitter4j.Status;
@@ -34,14 +34,15 @@ class TwitterConnection {
   private final BlockingQueue<Status> queue;
   private final TwitterStream twitterStream;
   private static final Object lock = new Object();
-  private static @Nullable TwitterConnection singleInstance = null;
+  static final ConcurrentHashMap<TwitterConfig, TwitterConnection> INSTANCE_MAP =
+      new ConcurrentHashMap<>();
 
   /**
    * Creates a new Twitter connection.
    *
-   * @param twitterConfig
+   * @param twitterConfig configuration for twitter connection
    */
-  private TwitterConnection(TwitterConfig twitterConfig) {
+  TwitterConnection(TwitterConfig twitterConfig) {
     this.queue = new LinkedBlockingQueue<>();
     ConfigurationBuilder cb = new ConfigurationBuilder();
     cb.setDebugEnabled(true)
@@ -89,12 +90,13 @@ class TwitterConnection {
 
   public static TwitterConnection getInstance(TwitterConfig twitterConfig) {
     synchronized (lock) {
-      if (singleInstance != null) {
-        return singleInstance;
+      if (INSTANCE_MAP.containsKey(twitterConfig)) {
+        return INSTANCE_MAP.get(twitterConfig);
       }
-      singleInstance = new TwitterConnection(twitterConfig);
+      TwitterConnection singleInstance = new TwitterConnection(twitterConfig);
+      INSTANCE_MAP.put(twitterConfig, singleInstance);
+      return singleInstance;
     }
-    return singleInstance;
   }
 
   public BlockingQueue<Status> getQueue() {

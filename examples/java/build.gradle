@@ -52,7 +52,6 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
-  implementation group: 'org.twitter4j', name: 'twitter4j-stream', version: '4.0.7'
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile library.java.vendored_guava_26_0_jre
   compile library.java.kafka_clients

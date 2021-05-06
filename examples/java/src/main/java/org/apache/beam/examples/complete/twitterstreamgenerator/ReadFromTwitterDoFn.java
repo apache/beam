@@ -19,7 +19,10 @@ package org.apache.beam.examples.complete.twitterstreamgenerator;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -27,6 +30,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -35,45 +40,88 @@ import twitter4j.Status;
 
 /** Splittable dofn that read live data off twitter. * */
 @DoFn.UnboundedPerElement
-final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, Status> {
-  Long maxTweetsCount;
+final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
 
-  ReadFromTwitterDoFn(Long maxTweetsCount) {
-    this.maxTweetsCount = maxTweetsCount;
+  private final DateTime startTime;
+
+  ReadFromTwitterDoFn() {
+    this.startTime = new DateTime();
   }
-
   /* Logger for class.*/
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromTwitterDoFn.class);
 
-  static class OffsetTracker extends RestrictionTracker<OffsetRange, Long> implements Serializable {
-    private OffsetRange restriction;
-    private final Long maxTweetsCount;
+  static class OffsetHolder implements Serializable {
+    public final @Nullable TwitterConfig twitterConfig;
+    public final @Nullable Long fetchedRecords;
 
-    OffsetTracker(OffsetRange holder, Long maxTweetsCount) {
-      this.restriction = holder;
-      this.maxTweetsCount = maxTweetsCount;
+    OffsetHolder(@Nullable TwitterConfig twitterConfig, @Nullable Long fetchedRecords) {
+      this.twitterConfig = twitterConfig;
+      this.fetchedRecords = fetchedRecords;
     }
 
     @Override
-    public boolean tryClaim(Long position) {
-      LOG.info("-------------- Claiming " + position + " used to have: " + restriction);
-      long fetchedRecords = this.restriction == null ? 0 : this.restriction.getTo() + 1;
-      if (fetchedRecords > maxTweetsCount) {
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      this.restriction = new OffsetRange(0, fetchedRecords);
+      OffsetHolder that = (OffsetHolder) o;
+      return Objects.equals(twitterConfig, that.twitterConfig)
+          && Objects.equals(fetchedRecords, that.fetchedRecords);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(twitterConfig, fetchedRecords);
+    }
+  }
+
+  static class OffsetTracker extends RestrictionTracker<OffsetHolder, TwitterConfig>
+      implements Serializable {
+    private OffsetHolder restriction;
+    private final DateTime startTime;
+
+    OffsetTracker(OffsetHolder holder, DateTime startTime) {
+      this.restriction = holder;
+      this.startTime = startTime;
+    }
+
+    @Override
+    public boolean tryClaim(TwitterConfig twitterConfig) {
+      LOG.info(
+          "-------------- Claiming "
+              + twitterConfig.hashCode()
+              + " used to have: "
+              + restriction.fetchedRecords);
+      long fetchedRecords =
+          this.restriction == null || this.restriction.fetchedRecords == null
+              ? 0
+              : this.restriction.fetchedRecords + 1;
+      long elapsedTime = System.currentTimeMillis() - startTime.getMillis();
+      final long millis = 60 * 1000;
+      LOG.info(
+          "-------------- Time running: {} / {}",
+          elapsedTime,
+          (twitterConfig.getMinutesToRun() * millis));
+      if (fetchedRecords > twitterConfig.getTweetsCount()
+          || elapsedTime > twitterConfig.getMinutesToRun() * millis) {
+        return false;
+      }
+      this.restriction = new OffsetHolder(twitterConfig, fetchedRecords);
       return true;
     }
 
     @Override
-    public OffsetRange currentRestriction() {
+    public OffsetHolder currentRestriction() {
       return restriction;
     }
 
     @Override
-    public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+    public SplitResult<OffsetHolder> trySplit(double fractionOfRemainder) {
       LOG.info("-------------- Trying to split: fractionOfRemainder=" + fractionOfRemainder);
-      return SplitResult.of(new OffsetRange(0, 0), restriction);
+      return SplitResult.of(new OffsetHolder(null, 0L), restriction);
     }
 
     @Override
@@ -106,37 +154,59 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, Status> {
   }
 
   @DoFn.GetInitialRestriction
-  public OffsetRange getInitialRestriction() throws IOException {
-    return new OffsetRange(0, 0);
+  public OffsetHolder getInitialRestriction(@Element TwitterConfig twitterConfig)
+      throws IOException {
+    return new OffsetHolder(null, 0L);
   }
 
   @DoFn.NewTracker
-  public RestrictionTracker<OffsetRange, Long> newTracker(
-      @DoFn.Restriction OffsetRange restriction) {
-    return new OffsetTracker(restriction, maxTweetsCount);
+  public RestrictionTracker<OffsetHolder, TwitterConfig> newTracker(
+      @Element TwitterConfig twitterConfig, @DoFn.Restriction OffsetHolder restriction) {
+    return new OffsetTracker(restriction, startTime);
+  }
+
+  @GetRestrictionCoder
+  public Coder<OffsetHolder> getRestrictionCoder() {
+    return SerializableCoder.of(OffsetHolder.class);
   }
 
   @DoFn.ProcessElement
   public DoFn.ProcessContinuation processElement(
       @Element TwitterConfig twitterConfig,
-      DoFn.OutputReceiver<Status> out,
-      RestrictionTracker<OffsetRange, Long> tracker,
+      DoFn.OutputReceiver<String> out,
+      RestrictionTracker<OffsetRange, TwitterConfig> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
     LOG.info("In Read From Twitter Do Fn");
     TwitterConnection twitterConnection = TwitterConnection.getInstance(twitterConfig);
     BlockingQueue<Status> queue = twitterConnection.getQueue();
+    if (queue.isEmpty()) {
+      if (checkIfDone(twitterConnection, twitterConfig, tracker)) {
+        return DoFn.ProcessContinuation.stop();
+      }
+    }
     while (!queue.isEmpty()) {
       Status status = queue.poll();
+      if (checkIfDone(twitterConnection, twitterConfig, tracker)) {
+        return DoFn.ProcessContinuation.stop();
+      }
       if (status != null) {
-        if (!tracker.tryClaim(status.getId())) {
-          twitterConnection.closeStream();
-          return DoFn.ProcessContinuation.stop();
-        }
         Instant currentInstant = Instant.ofEpochMilli(status.getCreatedAt().getTime());
         watermarkEstimator.setWatermark(currentInstant);
-        out.outputWithTimestamp(status, currentInstant);
+        out.outputWithTimestamp(status.getText(), currentInstant);
       }
     }
     return DoFn.ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
+  }
+
+  boolean checkIfDone(
+      TwitterConnection twitterConnection,
+      TwitterConfig twitterConfig,
+      RestrictionTracker<OffsetRange, TwitterConfig> tracker) {
+    if (!tracker.tryClaim(twitterConfig)) {
+      twitterConnection.closeStream();
+      return true;
+    } else {
+      return false;
+    }
   }
 }

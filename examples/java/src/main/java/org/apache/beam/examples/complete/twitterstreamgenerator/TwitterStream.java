@@ -37,6 +37,31 @@ import twitter4j.Status;
  * The {@link TwitterStream} pipeline is a streaming pipeline which ingests data in JSON format from
  * Twitter, and outputs the resulting records to console. Stream configurations are specified by the
  * user as template parameters. <br>
+ *
+ * <p>Concepts: API connectors and streaming; splittable Dofn and watermarking ; logging
+ *
+ * <p>To execute this pipeline locally, specify key, secret, token, token-secret and filters to
+ * filter stream with, for your twitter streaming app.You can also set number of tweets ( use set
+ * TweetsCount - default Long.MAX_VALUE ) you wish to stream and/or the number of minutes to run the
+ * pipeline ( use set MinutesToRun: default Integer.MAX_VALUE ) :
+ *
+ * <pre>{@code
+ * new TwitterConfig
+ *        .Builder()
+ *        .setKey("")
+ *        .setSecret("")
+ *        .setToken("")
+ *        .setTokenSecret("")
+ *        .setFilters(Arrays.asList("", "")).build()
+ * }</pre>
+ *
+ * <p>To change the runner( does not works on Dataflow ), specify:
+ *
+ * <pre>{@code
+ * --runner=YOUR_SELECTED_RUNNER
+ * }</pre>
+ *
+ * See examples/java/README.md for instructions about how to configure different runners.
  */
 public class TwitterStream {
 
@@ -57,20 +82,30 @@ public class TwitterStream {
                     AfterPane.elementCountAtLeast(10),
                     AfterProcessingTime.pastFirstElementInPane()
                         .plusDelayOf(Duration.standardMinutes(2)))));
-    PCollection<Status> tweetStream =
+    PCollection<String> tweetStream =
         pipeline
             .apply(
                 "Create Twitter Connection Configuration",
                 TwitterIO.readStandardStream(
-                    "", "", "", "", Arrays.asList("", ""), "", Long.MAX_VALUE))
+                    Arrays.asList(
+                        new TwitterConfig.Builder()
+                            .setKey("")
+                            .setSecret("")
+                            .setToken("")
+                            .setTokenSecret("")
+                            .setFilters(Arrays.asList("", ""))
+                            .setLanguage("en")
+                            .setTweetsCount(10L)
+                            .setMinutesToRun(1)
+                            .build())))
             .apply(Window.into(FixedWindows.of(Duration.standardSeconds(1))));
     tweetStream.apply(
         "Output Tweets to console",
         ParDo.of(
-            new DoFn<Status, Status>() {
+            new DoFn<String, String>() {
               @ProcessElement
               public void processElement(@Element Status element, OutputReceiver<Status> receiver) {
-                LOG.info("Output tweets: " + element.getText());
+                LOG.info("Output tweets: " + element);
                 receiver.output(element);
               }
             }));
