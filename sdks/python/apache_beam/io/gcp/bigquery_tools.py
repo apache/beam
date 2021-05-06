@@ -1124,7 +1124,10 @@ class BigQueryWrapper(object):
         str(self.unique_row_id) if not insert_ids else insert_ids[i] for i,
         _ in enumerate(rows)
     ]
-    rows = [fast_json_loads(fast_json_dumps(r, default=default_encoder)) for r in rows]
+    rows = [
+        fast_json_loads(fast_json_dumps(r, default=default_encoder))
+        for r in rows
+    ]
 
     result, errors = self._insert_all_rows(
         project_id, dataset_id, table_id, rows, insert_ids)
