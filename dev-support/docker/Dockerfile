@@ -42,32 +42,12 @@ ENV DEBCONF_TERSE true
 ###
 RUN apt -q update \
    && apt install -y software-properties-common apt-utils apt-transport-https ca-certificates \
-   && add-apt-repository -y ppa:deadsnakes/ppa \
-   && apt-get -q install -y --no-install-recommends \
-        bash-completion \
-        build-essential \
-        bzip2 \
-        wget \
-        curl \
-        docker.io \
-        g++ \
-        gcc \
-        git \
-        gnupg-agent \
-        rsync \
-        sudo \
-        vim \
-        locales \
-        wget \
-        time \
-        openjdk-8-jdk \
-        python3-setuptools \
-        python3-pip \
-        python3.6 \
-        python3.7 \
-        python3.8 \
-        virtualenv \
-        tox
+   && add-apt-repository -y ppa:deadsnakes/ppa
+
+RUN mkdir /package
+COPY pkglist /package/pkglist
+
+RUN apt-get -q install -y --no-install-recommends $(cat /package/pkglist)
 
 ###
 # Set the locale ( see https://stackoverflow.com/a/28406007/114196 )

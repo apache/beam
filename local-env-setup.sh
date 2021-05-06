@@ -17,7 +17,7 @@
 
 darwin_install_pip3_packages() {
     echo "Installing setuptools grpcio-tools virtualenv"
-    pip3 install setuptools grpcio-tools virtualenv
+    pip3 install setuptools grpcio-tools
     echo "Installing mypy-protobuf"
     pip3 install --user mypy-protobuf
 }
@@ -26,7 +26,7 @@ install_go_packages(){
         echo "Installing goavro"
         go get github.com/linkedin/goavro
         # As we are using bash, we are assuming .bashrc exists.
-        grep -qxF "export GOPATH=${PWD}/sdks/go/examples/.gogradle/project_gopath" ~/.bashrc 
+        grep -qxF "export GOPATH=${PWD}/sdks/go/examples/.gogradle/project_gopath" ~/.bashrc
         gopathExists=$?
         if [ $gopathExists -ne 0 ]; then
             export GOPATH=${PWD}/sdks/go/examples/.gogradle/project_gopath && echo "GOPATH was set for this session to '$GOPATH'. Make sure to add this path to your ~/.bashrc file after the execution of this script."
@@ -38,16 +38,16 @@ if [ "$(uname -s)" = "Linux" ]; then
     # Assuming Debian based Linux and the prerequisites in https://beam.apache.org/contribute/ are met:
     apt-get update
 
-    echo "Installing openjdk-8-jdk, python-setuptools, python3-pip, tox, docker.io"
-    apt-get install -y openjdk-8-jdk python-setuptools python3-pip tox docker.io # using python3-pip as Python3 is required.
+    echo "Installing dependencies listed in pkglist file"
+    apt-get install -y $(cat dev-support/docker/pkglist) # pulling dependencies from pkglist file
 
     type -P python3 > /dev/null 2>&1
     python3Exists=$?
     type -P pip3 > /dev/null 2>&1
     pip3Exists=$?
     if [ $python3Exists -eq 0  -a $pip3Exists -eq 0 ]; then
-        echo "Installing grpcio-tools mypy-protobuf and virtualenv"
-        pip3 install grpcio-tools mypy-protobuf virtualenv
+        echo "Installing grpcio-tools mypy-protobuf"
+        pip3 install grpcio-tools mypy-protobuf
     else
         echo "Python3 and pip3 are required but failed to install. Install them manually and rerun the script."
         exit
