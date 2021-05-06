@@ -94,21 +94,21 @@ class WatermarkManager(object):
                                      WatermarkManager.PCollectionNode] = {}
     self._stages_by_name: Dict[str, WatermarkManager.StageNode] = {}
 
+    def add_pcollection(
+        pcname: str,
+        snode: WatermarkManager.StageNode) -> WatermarkManager.PCollectionNode:
+      if pcname not in self._pcollections_by_name:
+        self._pcollections_by_name[pcname] = WatermarkManager.PCollectionNode(
+            pcname)
+      pcnode = self._pcollections_by_name[pcname]
+      assert isinstance(pcnode, WatermarkManager.PCollectionNode)
+      snode.inputs.add(pcnode)
+      return pcnode
+
     for s in stages:
       stage_name = s.name
       stage_node = WatermarkManager.StageNode(stage_name)
       self._stages_by_name[stage_name] = stage_node
-
-      def add_pcollection(
-          pcname: str, snode: WatermarkManager.StageNode
-      ) -> WatermarkManager.PCollectionNode:
-        if pcname not in self._pcollections_by_name:
-          self._pcollections_by_name[pcname] = WatermarkManager.PCollectionNode(
-              pcname)
-        pcnode = self._pcollections_by_name[pcname]
-        assert isinstance(pcnode, WatermarkManager.PCollectionNode)
-        snode.inputs.add(pcnode)
-        return pcnode
 
       # 1. Get stage inputs, create nodes for them, add to _stages_by_name,
       #    and add as inputs to stage node.

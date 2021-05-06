@@ -471,7 +471,7 @@ class FnApiRunner(runner.PipelineRunner):
                                     timer_family_id)] = timestamp.MAX_TIMESTAMP
             timer_watermark_data[(transform_id, timer_family_id)] = min(
                 timer_watermark_data[(transform_id, timer_family_id)],
-                decoded_timer.fire_timestamp)
+                decoded_timer.hold_timestamp)
         newly_set_timers[(transform_id, timer_family_id)] = ListBuffer(
             coder_impl=timer_coder_impl)
         newly_set_timers[(transform_id, timer_family_id)].append(out.get())

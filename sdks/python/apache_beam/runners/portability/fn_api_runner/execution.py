@@ -595,7 +595,6 @@ class FnApiRunnerExecutionContext(object):
         if t.spec.urn == bundle_processor.DATA_INPUT_URN
     }
     self.watermark_manager = WatermarkManager(stages)
-    # self.watermark_manager.show()
     self.pipeline_context = pipeline_context.PipelineContext(
         self.pipeline_components,
         iterable_state_write=self._iterable_state_write)
