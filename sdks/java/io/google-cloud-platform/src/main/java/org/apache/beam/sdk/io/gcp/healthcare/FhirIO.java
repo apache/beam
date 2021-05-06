@@ -1435,6 +1435,8 @@ public class FhirIO {
   /** The type Patch resources. */
   public static class PatchResources extends PTransform<PCollection<Input>, Write.Result> {
 
+    private PatchResources() {}
+
     /** Represents the input parameters for a single FHIR patch request. */
     @DefaultSchema(AutoValueSchema.class)
     @AutoValue
