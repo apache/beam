@@ -44,7 +44,14 @@ public class RecommendationAIUserEventIT {
 
   public static GenericJson getUserEvent() {
     GenericJson userInfo = new GenericJson().set("visitorId", "1");
-    return new GenericJson().set("eventType", "page-visit").set("userInfo", userInfo);
+    GenericJson productDetail = new GenericJson().set("id", "1").set("quantity", 1);
+    ArrayList<GenericJson> productDetails = new ArrayList<>();
+    productDetails.add(productDetail);
+    GenericJson productEventDetail = new GenericJson().set("productDetails", productDetails);
+    return new GenericJson()
+        .set("eventType", "detail-page-view")
+        .set("userInfo", userInfo)
+        .set("productEventDetail", productEventDetail);
   }
 
   @Test

@@ -70,13 +70,13 @@ public abstract class RecommendationAIPredict
 
   @AutoValue.Builder
   abstract static class Builder {
-    /** @param projectId ID of Google Cloud project to be used for creating catalog items. */
+    /** @param projectId ID of Google Cloud project to be used for the predictions. */
     public abstract Builder setProjectId(@Nullable String projectId);
 
-    /** @param catalogName Name of the catalog where the catalog items will be created. */
+    /** @param catalogName Name of the catalog to be used for predictions. */
     public abstract Builder setCatalogName(@Nullable String catalogName);
 
-    /** @param eventStore Name of the event store where the user events will be created. */
+    /** @param eventStore Name of the event store to be used for predictions. */
     public abstract Builder setEventStore(@Nullable String eventStore);
 
     /** @param placementId of the recommendation engine placement. */
@@ -88,7 +88,8 @@ public abstract class RecommendationAIPredict
   static Builder newBuilder() {
     return new AutoValue_RecommendationAIPredict.Builder()
         .setCatalogName("default_catalog")
-        .setEventStore("default_event_store");
+        .setEventStore("default_event_store")
+        .setPlacementId("recently_viewed_default");
   }
 
   abstract Builder toBuilder();

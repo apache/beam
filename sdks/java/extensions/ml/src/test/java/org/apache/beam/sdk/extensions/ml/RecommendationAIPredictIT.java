@@ -41,7 +41,7 @@ public class RecommendationAIPredictIT {
 
   public static GenericJson getUserEvent() {
     GenericJson userInfo = new GenericJson().set("visitorId", "1");
-    return new GenericJson().set("eventType", "page-visit").set("userInfo", userInfo);
+    return new GenericJson().set("eventType", "home-page-view").set("userInfo", userInfo);
   }
 
   @Test
