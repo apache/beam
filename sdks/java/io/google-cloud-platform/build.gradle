@@ -121,9 +121,6 @@ dependencies {
   compile library.java.vendored_grpc_1_26_0
   compile library.java.vendored_guava_26_0_jre
 
-  compile "org.apache.arrow:arrow-vector:4.0.0"
-  compile "org.apache.arrow:arrow-memory-core:4.0.0"
-
   compile "org.threeten:threetenbp:1.4.4"
 
   testCompile "org.apache.arrow:arrow-memory-netty:4.0.0"

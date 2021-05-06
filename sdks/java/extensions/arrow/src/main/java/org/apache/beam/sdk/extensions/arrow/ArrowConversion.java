@@ -19,14 +19,22 @@ package org.apache.beam.sdk.extensions.arrow;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.channels.Channels;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.ipc.ReadChannel;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
@@ -242,6 +250,26 @@ public class ArrowConversion {
   public static Iterable<Row> rowsFromRecordBatch(VectorSchemaRoot vectorSchemaRoot) {
     return rowsFromRecordBatch(
         ArrowSchemaTranslator.toBeamSchema(vectorSchemaRoot.getSchema()), vectorSchemaRoot);
+  }
+
+  public static VectorSchemaRoot rowFromSerializedRecordBatch(InputStream input)
+      throws IOException {
+    RootAllocator alloc = new RootAllocator(Long.MAX_VALUE);
+    ReadChannel readChannel = new ReadChannel(Channels.newChannel(input));
+    org.apache.arrow.vector.types.pojo.Schema arrowSchema =
+        MessageSerializer.deserializeSchema(readChannel);
+    VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, alloc);
+    VectorLoader vectorLoader = new VectorLoader(vectorRoot);
+    vectorRoot.clear();
+    ArrowRecordBatch arrowMessage = MessageSerializer.deserializeRecordBatch(readChannel, alloc);
+    vectorLoader.load(arrowMessage);
+    return vectorRoot;
+  }
+
+  public static org.apache.arrow.vector.types.pojo.Schema arrowSchemaFromInput(InputStream input)
+      throws IOException {
+    ReadChannel readChannel = new ReadChannel(Channels.newChannel(input));
+    return MessageSerializer.deserializeSchema(readChannel);
   }
 
   @SuppressWarnings("rawtypes")
