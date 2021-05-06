@@ -182,7 +182,7 @@ task runPojoExample(type: JavaExec) {
 }
 
 task integrationTest(type: Test) {
-  def gcpProject = project.findProperty('gcpProject') ?: 'wizeline-apache-beam'
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
   // Disable Gradle cache (it should not be used because the IT's won't run).
