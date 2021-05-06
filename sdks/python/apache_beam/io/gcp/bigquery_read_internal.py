@@ -183,7 +183,6 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
               element: 'ReadFromBigQueryRequest') -> Iterable[BoundedSource]:
     bq = bigquery_tools.BigQueryWrapper(
         temp_dataset_id=self._get_temp_dataset().datasetId)
-    # TODO(BEAM-11359): Clean up temp dataset at pipeline completion.
 
     if element.query is not None:
       self._setup_temporary_dataset(bq, element)
@@ -206,6 +205,10 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
           table_reference.projectId,
           table_reference.datasetId,
           table_reference.tableId)
+
+      bq._delete_dataset(
+          table_reference.projectId,
+          table_reference.datasetId)
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
