@@ -183,6 +183,11 @@ class CommonJobProperties {
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
     context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
 
+    // Disable file system watching for CI builds
+    // Builds are performed on a clean clone and files aren't modified, so
+    // there's no value in watching for changes.
+    context.switches("-Dorg.gradle.vfs.watch=false")
+
     // Include dependency licenses when build docker images on Jenkins, see https://s.apache.org/zt68q
     context.switches("-Pdocker-pull-licenses")
   }
