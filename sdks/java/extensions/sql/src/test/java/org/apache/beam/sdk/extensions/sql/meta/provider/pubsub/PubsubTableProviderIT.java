@@ -692,6 +692,17 @@ public class PubsubTableProviderIT implements Serializable {
     Map<String, String> argsMap =
         ((Map<String, Object>) MAPPER.convertValue(pipeline.getOptions(), Map.class).get("options"))
             .entrySet().stream()
+                .filter(
+                    (entry) -> {
+                      if (entry.getValue() instanceof List) {
+                        if (!((List) entry.getValue()).isEmpty()) {
+                          throw new IllegalArgumentException("Cannot encode list arguments");
+                        }
+                        // We can encode empty lists, just omit them.
+                        return false;
+                      }
+                      return true;
+                    })
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> toArg(entry.getValue())));
 
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
