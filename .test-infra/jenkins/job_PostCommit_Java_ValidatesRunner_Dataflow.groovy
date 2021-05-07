@@ -27,7 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
 
       description('Runs the ValidatesRunner suite on the Dataflow runner.')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 420)
       previousNames(/beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle/)
 
       // Publish all test results to Jenkins
