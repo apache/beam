@@ -397,7 +397,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_custom_merging_window(self):
     raise unittest.SkipTest("BEAM-11004")
 
-  def test_pack_combiners_disabled_by_default(self):
+  def test_pack_combiners(self):
     raise unittest.SkipTest("BEAM-12305")
 
   # Inherits all other tests.
