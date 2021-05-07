@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -81,6 +83,7 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
                   .addDoubleField("float64_nan")
                   .addLogicalTypeField("f_date", SqlTypes.DATE)
                   .addDateTimeField("f_timestamp")
+                  .addArrayField("array_int64", Schema.FieldType.INT64)
                   .build())
           .addRows(
               true /* boolean_true */,
@@ -106,7 +109,8 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
               Double.NEGATIVE_INFINITY /* float64_neg_inf */,
               Double.NaN /* float64_nan */,
               LocalDate.of(2021, 4, 26) /* f_date */,
-              new DateTime(2021, 5, 6, 3, 48, 32, DateTimeZone.UTC) /* f_timestamp */);
+              new DateTime(2021, 5, 6, 3, 48, 32, DateTimeZone.UTC) /* f_timestamp */,
+              ImmutableList.of(1L, 2L, 3L) /* array_int64 */);
 
   @Before
   public void setUp() throws NoSuchMethodException {
@@ -140,6 +144,9 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
     schema.add(
         "test_timestamp",
         ScalarFunctionImpl.create(TimestampIdentityFn.class.getMethod("eval", Timestamp.class)));
+    schema.add(
+        "test_array",
+        ScalarFunctionImpl.create(ListIdentityFn.class.getMethod("eval", List.class)));
 
     this.config = Frameworks.newConfigBuilder(config).defaultSchema(schema).build();
   }
@@ -182,6 +189,12 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
 
   public static class TimestampIdentityFn implements BeamSqlUdf {
     public Timestamp eval(Timestamp input) {
+      return input;
+    }
+  }
+
+  public static class ListIdentityFn implements BeamSqlUdf {
+    public List<Long> eval(List<Long> input) {
       return input;
     }
   }
@@ -489,5 +502,21 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
         "SELECT test_timestamp(f_timestamp) FROM table;",
         new DateTime(2021, 5, 6, 3, 48, 32, DateTimeZone.UTC),
         Schema.TypeName.DATETIME);
+  }
+
+  @Test
+  public void testArrayLiteral() {
+    runUdfTypeTest(
+        "SELECT test_array(ARRAY<INT64>[1, 2, 3]);",
+        ImmutableList.of(1L, 2L, 3L),
+        Schema.FieldType.array(Schema.FieldType.INT64));
+  }
+
+  @Test
+  public void testArrayInput() {
+    runUdfTypeTest(
+        "SELECT test_array(array_int64) FROM table;",
+        ImmutableList.of(1L, 2L, 3L),
+        Schema.FieldType.array(Schema.FieldType.INT64));
   }
 }
