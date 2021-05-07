@@ -131,11 +131,11 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 
 	for _, url := range opts.ArtifactURLs {
 		name := url[strings.LastIndexAny(url, "/")+1:]
-		jar := &df.Package{
+		pkg := &df.Package{
 			Name:     name,
 			Location: url,
 		}
-		packages = append(packages, jar)
+		packages = append(packages, pkg)
 	}
 
 	ipConfiguration := "WORKER_IP_UNSPECIFIED"
