@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.datacatalog.v1beta1.ColumnSchema;
+import com.google.cloud.datacatalog.v1beta1.PhysicalSchema;
+import com.google.cloud.datacatalog.v1beta1.PhysicalSchema.AvroSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
@@ -145,9 +147,59 @@ public class SchemaUtilsTest {
                   .build())
           .build();
 
+  private static final Schema TEST_SCHEMA2 =
+      Schema.builder()
+          .addRowField(
+              "r",
+              Schema.builder()
+                  .addField("s", FieldType.STRING)
+                  .addField("l", FieldType.INT64)
+                  .addField("d", FieldType.DOUBLE)
+                  .addField("b", FieldType.BOOLEAN)
+                  .build())
+          .build();
+
+  private static final com.google.cloud.datacatalog.v1beta1.Schema TEST_DC_SCHEMA2 =
+      com.google.cloud.datacatalog.v1beta1.Schema.newBuilder()
+          .setPhysicalSchema(
+              PhysicalSchema.newBuilder()
+                  .setAvro(
+                      AvroSchema.newBuilder()
+                          .setText(
+                              "{\n"
+                                  + "  \"type\": \"record\",\n"
+                                  + "  \"name\": \"r\",\n"
+                                  + "  \"fields\": [\n"
+                                  + "    {\n"
+                                  + "      \"name\": \"s\",\n"
+                                  + "      \"type\": \"string\"\n"
+                                  + "    },\n"
+                                  + "    {\n"
+                                  + "      \"name\": \"l\",\n"
+                                  + "      \"type\": \"long\"\n"
+                                  + "    },\n"
+                                  + "    {\n"
+                                  + "      \"name\": \"d\",\n"
+                                  + "      \"type\": \"double\"\n"
+                                  + "    },\n"
+                                  + "    {\n"
+                                  + "      \"name\": \"b\",\n"
+                                  + "      \"type\": \"boolean\"\n"
+                                  + "    }\n"
+                                  + "  ]\n"
+                                  + "}")
+                          .build())
+                  .build())
+          .build();
+
   @Test
   public void testFromDataCatalog() {
     assertEquals(TEST_SCHEMA, SchemaUtils.fromDataCatalog(TEST_DC_SCHEMA));
+  }
+
+  @Test
+  public void testFromDataCatalogPhysicalSchema() {
+    assertEquals(TEST_SCHEMA2, SchemaUtils.fromDataCatalog(TEST_DC_SCHEMA2));
   }
 
   @Test

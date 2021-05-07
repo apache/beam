@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 import com.alibaba.fastjson.JSONObject;
 import com.google.cloud.datacatalog.v1beta1.Entry;
 import java.net.URI;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,10 +41,17 @@ class PubsubTableFactory implements TableFactory {
       return Optional.empty();
     }
 
+    String format = "json"; // default PubSub message format
+    com.google.cloud.datacatalog.v1beta1.Schema dcSchema = entry.getSchema();
+    if (dcSchema.hasPhysicalSchema() && dcSchema.getPhysicalSchema().hasAvro()) {
+      format = "avro";
+    }
+    // TODO: proto
+
     return Optional.of(
         Table.builder()
             .location(getLocation(entry))
-            .properties(new JSONObject())
+            .properties(new JSONObject(Collections.singletonMap("format", format)))
             .type("pubsub")
             .comment(""));
   }

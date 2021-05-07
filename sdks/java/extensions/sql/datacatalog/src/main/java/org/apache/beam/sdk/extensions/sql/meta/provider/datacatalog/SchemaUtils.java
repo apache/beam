@@ -20,8 +20,10 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.cloud.datacatalog.v1beta1.ColumnSchema;
+import com.google.cloud.datacatalog.v1beta1.PhysicalSchema;
 import java.util.List;
 import java.util.Map;
+import org.apache.avro.Schema.Parser;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -58,11 +60,64 @@ class SchemaUtils {
 
   /** Convert DataCatalog schema to Beam schema. */
   static Schema fromDataCatalog(com.google.cloud.datacatalog.v1beta1.Schema dcSchema) {
-    return fromColumnsList(dcSchema.getColumnsList());
+    if (dcSchema.hasPhysicalSchema()) {
+      return fromPhysicalSchema(dcSchema.getPhysicalSchema());
+    } else {
+      return fromColumnsList(dcSchema.getColumnsList());
+    }
   }
 
   private static Schema fromColumnsList(List<ColumnSchema> columnsMap) {
     return columnsMap.stream().map(SchemaUtils::toBeamField).collect(toSchema());
+  }
+
+  private static Schema fromPhysicalSchema(PhysicalSchema physicalSchema) {
+    if (physicalSchema.hasAvro()) {
+      return fromAvroSchema(new Parser().parse(physicalSchema.getAvro().getText()));
+    } else if (physicalSchema.hasProtobuf()) {
+      return null; // TODO
+    } else {
+      throw new UnsupportedOperationException(
+          "Unsupported Data Catalog physical schema format. "
+              + "Currently we only support Avro and Protobuf.");
+    }
+  }
+
+  private static Schema fromAvroSchema(org.apache.avro.Schema avroSchema) {
+    return Schema.builder()
+        .addField(avroSchema.getName(), avroSchemaToBeamType(avroSchema))
+        .build();
+  }
+
+  private static Field avroFieldToBeamField(org.apache.avro.Schema.Field avroField) {
+    return Field.of(avroField.name(), avroSchemaToBeamType(avroField.schema()));
+  }
+
+  private static FieldType avroSchemaToBeamType(org.apache.avro.Schema avroSchema) {
+    switch (avroSchema.getType()) {
+      case RECORD:
+        return FieldType.row(
+            avroSchema.getFields().stream()
+                .map(SchemaUtils::avroFieldToBeamField)
+                .collect(toSchema()));
+      case ARRAY:
+        return FieldType.array(avroSchemaToBeamType(avroSchema.getElementType()));
+      case STRING:
+        return FieldType.STRING;
+      case BYTES:
+        return FieldType.BYTES;
+      case INT: // convert to INT64 because ZetaSQL does not support INT32
+      case LONG:
+        return FieldType.INT64;
+      case FLOAT: // convert to DOUBLE because ZetaSQL does not support FLOAT
+      case DOUBLE:
+        return FieldType.DOUBLE;
+      case BOOLEAN:
+        return FieldType.BOOLEAN;
+      default: // does not support Avro enum, map, union, fixed, and null types
+        throw new UnsupportedOperationException(
+            "Unsupported Avro data type: " + avroSchema.getType());
+    }
   }
 
   private static Field toBeamField(ColumnSchema column) {
