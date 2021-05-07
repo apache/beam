@@ -338,8 +338,8 @@ class PortableRunner(runner.PipelineRunner):
             # TODO: https://issues.apache.org/jira/browse/BEAM-4678
             #       https://issues.apache.org/jira/browse/BEAM-11478
             # Eventually remove the 'lift_combiners' phase from 'default'.
-            translations.lift_combiners,
             translations.pack_combiners,
+            translations.lift_combiners,
             translations.sort_stages
         ]
         partial = True
