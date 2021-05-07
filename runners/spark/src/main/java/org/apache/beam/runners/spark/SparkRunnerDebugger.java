@@ -81,15 +81,13 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
   public SparkPipelineResult run(Pipeline pipeline) {
     boolean isStreaming =
         options.isStreaming() || options.as(TestSparkPipelineOptions.class).isForceStreaming();
-    // Default to using the primitive versions of Read.Bounded and Read.Unbounded if we are
-    // executing an unbounded pipeline or the user specifically requested it.
-    if (isStreaming
-        || ExperimentalOptions.hasExperiment(
-            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
-        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
+
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")) {
+      // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
       pipeline.replaceAll(ImmutableList.of(KafkaIO.Read.KAFKA_READ_OVERRIDE));
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     }
+
     JavaSparkContext jsc = new JavaSparkContext("local[1]", "Debug_Pipeline");
     JavaStreamingContext jssc =
         new JavaStreamingContext(jsc, new org.apache.spark.streaming.Duration(1000));
