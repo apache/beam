@@ -54,6 +54,7 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
+import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
@@ -772,7 +773,11 @@ public class GcsUtilTest {
         GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
     SeekableByteChannel channel =
         new GoogleCloudStorageReadChannel(
-            null, "dummybucket", "dummyobject", null, new ClientRequestHelper<>(), readOptions);
+            null,
+            new StorageResourceId("dummybucket", "dummyobject"),
+            null,
+            new ClientRequestHelper<>(),
+            readOptions);
     channel.close();
     channel.close();
   }
