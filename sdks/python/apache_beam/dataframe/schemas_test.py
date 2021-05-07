@@ -37,7 +37,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import typehints
-from apache_beam.typehints.native_type_compatibility import _match_is_named_tuple
+from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 
 Simple = typing.NamedTuple(
     'Simple', [('name', unicode), ('id', int), ('height', float)])
@@ -227,8 +227,8 @@ class SchemasTest(unittest.TestCase):
     left = typehints.normalize(left)
     right = typehints.normalize(right)
 
-    if _match_is_named_tuple(left):
-      self.assertTrue(_match_is_named_tuple(right))
+    if match_is_named_tuple(left):
+      self.assertTrue(match_is_named_tuple(right))
       self.assertEqual(left.__annotations__, right.__annotations__)
     else:
       self.assertEqual(left, right)
