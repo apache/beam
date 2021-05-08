@@ -35,7 +35,6 @@ import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
@@ -45,7 +44,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.powermock.reflect.Whitebox;
-import org.powermock.reflect.exceptions.FieldNotFoundException;
 
 /** Tests for {@link FlinkExecutionEnvironments}. */
 public class FlinkExecutionEnvironmentsTest {
@@ -524,30 +522,18 @@ public class FlinkExecutionEnvironmentsTest {
   }
 
   private void checkHostAndPort(Object env, String expectedHost, int expectedPort) {
-    try {
-      assertThat(Whitebox.getInternalState(env, "host"), is(expectedHost));
-      assertThat(Whitebox.getInternalState(env, "port"), is(expectedPort));
-    } catch (FieldNotFoundException t) {
-      // for flink 1.10+
-      String host =
-          ((Configuration) Whitebox.getInternalState(env, "configuration"))
-              .getString(RestOptions.ADDRESS);
-      int port =
-          ((Configuration) Whitebox.getInternalState(env, "configuration"))
-              .getInteger(RestOptions.PORT);
-      assertThat(
-          new InetSocketAddress(host, port), is(new InetSocketAddress(expectedHost, expectedPort)));
-    }
+    String host =
+        ((Configuration) Whitebox.getInternalState(env, "configuration"))
+            .getString(RestOptions.ADDRESS);
+    int port =
+        ((Configuration) Whitebox.getInternalState(env, "configuration"))
+            .getInteger(RestOptions.PORT);
+    assertThat(
+        new InetSocketAddress(host, port), is(new InetSocketAddress(expectedHost, expectedPort)));
   }
 
   private String getSavepointPath(Object env) {
-    try {
-      return ((SavepointRestoreSettings) Whitebox.getInternalState(env, "savepointRestoreSettings"))
-          .getRestorePath();
-    } catch (FieldNotFoundException t) {
-      // for flink 1.10+
-      return ((Configuration) Whitebox.getInternalState(env, "configuration"))
-          .getString("execution.savepoint.path", null);
-    }
+    return ((Configuration) Whitebox.getInternalState(env, "configuration"))
+        .getString("execution.savepoint.path", null);
   }
 }

@@ -75,6 +75,7 @@
 * Kafka Beam SQL tables now ascribe meaning to the LOCATION field; previously
   it was ignored if provided.
 * `TopCombineFn` disallow `compare` as its argument (Python) ([BEAM-7372](https://issues.apache.org/jira/browse/BEAM-7372)).
+* Drop support for Flink 1.10 ([BEAM-12281](https://issues.apache.org/jira/browse/BEAM-12281)).
 
 ## Deprecations
 
