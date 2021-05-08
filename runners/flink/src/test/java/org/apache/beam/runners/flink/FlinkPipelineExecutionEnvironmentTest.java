@@ -72,7 +72,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
-import org.powermock.reflect.exceptions.FieldNotFoundException;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
 @RunWith(JUnit4.class)
@@ -431,18 +430,13 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   }
 
   private List<URL> getJars(Object env) throws Exception {
-    try {
-      return (List<URL>) Whitebox.getInternalState(env, "jarFiles");
-    } catch (FieldNotFoundException t) {
-      // for flink 1.10+
-      Configuration config = Whitebox.getInternalState(env, "configuration");
-      Class accesorClass = Class.forName("org.apache.flink.client.cli.ExecutionConfigAccessor");
-      Method fromConfigurationMethod =
-          accesorClass.getDeclaredMethod("fromConfiguration", Configuration.class);
-      Object accesor = fromConfigurationMethod.invoke(null, config);
+    Configuration config = Whitebox.getInternalState(env, "configuration");
+    Class accesorClass = Class.forName("org.apache.flink.client.cli.ExecutionConfigAccessor");
+    Method fromConfigurationMethod =
+        accesorClass.getDeclaredMethod("fromConfiguration", Configuration.class);
+    Object accesor = fromConfigurationMethod.invoke(null, config);
 
-      Method getJarsMethod = accesorClass.getDeclaredMethod("getJars");
-      return (List<URL>) getJarsMethod.invoke(accesor);
-    }
+    Method getJarsMethod = accesorClass.getDeclaredMethod("getJars");
+    return (List<URL>) getJarsMethod.invoke(accesor);
   }
 }
