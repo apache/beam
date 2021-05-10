@@ -40,7 +40,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.first': ['*'],
             'pandas.core.generic.NDFrame.head': ['*'],
             'pandas.core.generic.NDFrame.last': ['*'],
-            'pandas.core.generic.NDFrame.shift': ['*'],
+            'pandas.core.generic.NDFrame.shift': [
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
+            ],
             'pandas.core.generic.NDFrame.tail': ['*'],
             'pandas.core.generic.NDFrame.take': ['*'],
             'pandas.core.generic.NDFrame.values': ['*'],
@@ -189,8 +192,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.transpose': ['*'],
             'pandas.core.frame.DataFrame.shape': ['*'],
             'pandas.core.frame.DataFrame.shift': [
-                'df.shift(periods=3, freq="D")',
-                'df.shift(periods=3, freq="infer")'
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
             ],
             'pandas.core.frame.DataFrame.unstack': ['*'],
             'pandas.core.frame.DataFrame.memory_usage': ['*'],
@@ -388,7 +391,10 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.series.Series.pop': ['*'],
             'pandas.core.series.Series.searchsorted': ['*'],
-            'pandas.core.series.Series.shift': ['*'],
+            'pandas.core.series.Series.shift': [
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
+            ],
             'pandas.core.series.Series.take': ['*'],
             'pandas.core.series.Series.to_dict': ['*'],
             'pandas.core.series.Series.unique': ['*'],

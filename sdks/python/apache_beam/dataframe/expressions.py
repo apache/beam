@@ -348,10 +348,16 @@ class ComputedExpression(Expression):
       preserves_partition_by: The level of partitioning preserved.
     """
     if (not _get_allow_non_parallel() and
-        requires_partition_by == partitionings.Singleton()):
+        isinstance(requires_partition_by, partitionings.Singleton)):
+      reason = requires_partition_by.reason or (
+          f"Encountered non-parallelizable form of {name!r}.")
+
       raise NonParallelOperation(
-          "Using non-parallel form of %s "
-          "outside of allow_non_parallel_operations block." % name)
+          f"{reason}\n"
+          "Consider using an allow_non_parallel_operations block if you're "
+          "sure you want to do this. See "
+          "https://s.apache.org/dataframe-non-parallel-operations for more "
+          "information.")
     args = tuple(args)
     if proxy is None:
       proxy = func(*(arg.proxy() for arg in args))
@@ -406,4 +412,6 @@ def allow_non_parallel_operations(allow=True):
 
 
 class NonParallelOperation(Exception):
-  pass
+  def __init__(self, msg):
+    super(NonParallelOperation, self).__init__(self, msg)
+    self.msg = msg

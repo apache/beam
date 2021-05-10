@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import java.sql.Date;
+import java.time.LocalDate;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -27,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -73,6 +76,7 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
                   .addDoubleField("float64_inf")
                   .addDoubleField("float64_neg_inf")
                   .addDoubleField("float64_nan")
+                  .addLogicalTypeField("f_date", SqlTypes.DATE)
                   .build())
           .addRows(
               true /* boolean_true */,
@@ -96,7 +100,8 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
               2.2250738585072014e-308 /* float64_min_pos */,
               Double.POSITIVE_INFINITY /* float64_inf */,
               Double.NEGATIVE_INFINITY /* float64_neg_inf */,
-              Double.NaN /* float64_nan */);
+              Double.NaN /* float64_nan */,
+              LocalDate.of(2021, 4, 26) /* f_date */);
 
   @Before
   public void setUp() throws NoSuchMethodException {
@@ -125,6 +130,8 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
     schema.add(
         "test_float64",
         ScalarFunctionImpl.create(DoubleIdentityFn.class.getMethod("eval", Double.class)));
+    schema.add(
+        "test_date", ScalarFunctionImpl.create(DateIdentityFn.class.getMethod("eval", Date.class)));
 
     this.config = Frameworks.newConfigBuilder(config).defaultSchema(schema).build();
   }
@@ -159,12 +166,26 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
     }
   }
 
+  public static class DateIdentityFn implements BeamSqlUdf {
+    public Date eval(Date input) {
+      return input;
+    }
+  }
+
   private void runUdfTypeTest(String query, Object result, Schema.TypeName typeName) {
+    runUdfTypeTest(query, result, Schema.FieldType.of(typeName));
+  }
+
+  private void runUdfTypeTest(String query, Object result, Schema.LogicalType<?, ?> logicalType) {
+    runUdfTypeTest(query, result, Schema.FieldType.logicalType(logicalType));
+  }
+
+  private void runUdfTypeTest(String query, Object result, Schema.FieldType fieldType) {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(query);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    Schema outputSchema = Schema.builder().addField("res", Schema.FieldType.of(typeName)).build();
+    Schema outputSchema = Schema.builder().addField("res", fieldType).build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(outputSchema).addValues(result).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -427,5 +448,17 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
   public void testNaNFloat64Input() {
     runUdfTypeTest(
         "SELECT test_float64(float64_nan) FROM table;", Double.NaN, Schema.TypeName.DOUBLE);
+  }
+
+  @Test
+  public void testDateLiteral() {
+    runUdfTypeTest(
+        "SELECT test_date('2021-04-26') FROM table;", LocalDate.of(2021, 4, 26), SqlTypes.DATE);
+  }
+
+  @Test
+  public void testDateInput() {
+    runUdfTypeTest(
+        "SELECT test_date(f_date) FROM table;", LocalDate.of(2021, 4, 26), SqlTypes.DATE);
   }
 }

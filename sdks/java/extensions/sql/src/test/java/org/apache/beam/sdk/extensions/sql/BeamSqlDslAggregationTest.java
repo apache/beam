@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -134,6 +135,26 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PAssert.that(result).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /** GROUP-BY ROLLUP with bounded PCollection. */
+  @Test
+  public void testAggregationRollupWithBounded() throws Exception {
+    runAggregationRollup(boundedInput1);
+  }
+
+  /** GROUP-BY with single aggregation function with unbounded PCollection. */
+  @Test
+  public void testAggregationRollupWithUnbounded() throws Exception {
+    runAggregationRollup(unboundedInput1);
+  }
+
+  private void runAggregationRollup(PCollection<Row> input) throws Exception {
+    String sql = "SELECT f_int2 FROM PCOLLECTION GROUP BY ROLLUP(f_int2)";
+
+    exceptions.expect(SqlConversionException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+    input.apply(SqlTransform.query(sql));
   }
 
   /** GROUP-BY with multiple aggregation functions with bounded PCollection. */
