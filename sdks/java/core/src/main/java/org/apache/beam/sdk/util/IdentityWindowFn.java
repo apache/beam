@@ -68,9 +68,6 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
 
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
-    // Only compatible with itself.
-    if (this.equals(other)) return true;
-
     throw new UnsupportedOperationException(
         String.format(
             "%s.isCompatible() should never be called."
@@ -81,9 +78,6 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
 
   @Override
   public void verifyCompatibility(WindowFn<?, ?> other) {
-    // Only compatible with itself.
-    if (this.equals(other)) return;
-
     throw new UnsupportedOperationException(
         String.format(
             "%s.verifyCompatibility() should never be called."

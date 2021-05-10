@@ -100,6 +100,9 @@ public class Flatten {
       if (!inputs.getAll().isEmpty()) {
         windowingStrategy = inputs.get(0).getWindowingStrategy();
         for (PCollection<?> input : inputs.getAll()) {
+          // Skipping the comparison for the same input.
+          if (input.equals(inputs.get(0))) continue;
+
           WindowingStrategy<?, ?> other = input.getWindowingStrategy();
           if (!windowingStrategy.getWindowFn().isCompatible(other.getWindowFn())) {
             throw new IllegalStateException(
