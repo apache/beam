@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
-import com.google.cloud.datacatalog.v1beta1.ColumnSchema;
-import com.google.cloud.datacatalog.v1beta1.PhysicalSchema;
+import com.google.cloud.datacatalog.v1.ColumnSchema;
+import com.google.cloud.datacatalog.v1.PhysicalSchema;
 import java.util.List;
 import java.util.Map;
 import org.apache.avro.Schema.Parser;
@@ -59,7 +59,7 @@ class SchemaUtils {
           .build();
 
   /** Convert DataCatalog schema to Beam schema. */
-  static Schema fromDataCatalog(com.google.cloud.datacatalog.v1beta1.Schema dcSchema) {
+  static Schema fromDataCatalog(com.google.cloud.datacatalog.v1.Schema dcSchema) {
     if (dcSchema.hasPhysicalSchema()) {
       return fromPhysicalSchema(dcSchema.getPhysicalSchema());
     } else {
@@ -86,6 +86,7 @@ class SchemaUtils {
   private static Schema fromAvroSchema(org.apache.avro.Schema avroSchema) {
     return Schema.builder()
         .addField(avroSchema.getName(), avroSchemaToBeamType(avroSchema))
+        .addField("event_timestamp", FieldType.DATETIME)
         .build();
   }
 
@@ -159,9 +160,9 @@ class SchemaUtils {
   }
 
   /** Convert Beam schema to DataCatalog schema. */
-  static com.google.cloud.datacatalog.v1beta1.Schema toDataCatalog(Schema schema) {
-    com.google.cloud.datacatalog.v1beta1.Schema.Builder schemaBuilder =
-        com.google.cloud.datacatalog.v1beta1.Schema.newBuilder();
+  static com.google.cloud.datacatalog.v1.Schema toDataCatalog(Schema schema) {
+    com.google.cloud.datacatalog.v1.Schema.Builder schemaBuilder =
+        com.google.cloud.datacatalog.v1.Schema.newBuilder();
     for (Schema.Field field : schema.getFields()) {
       schemaBuilder.addColumns(fromBeamField(field));
     }

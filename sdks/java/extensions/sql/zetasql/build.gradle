@@ -51,6 +51,8 @@ dependencies {
   compile "com.google.zetasql:zetasql-client:$zetasql_version"
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
   compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
+  compile project(":sdks:java:extensions:sql:datacatalog")
+  compile project(":runners:google-cloud-dataflow-java")
   permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version" // BEAM-11761
   testCompile library.java.vendored_calcite_1_20_0
   testCompile library.java.vendored_guava_26_0_jre
@@ -66,4 +68,14 @@ test {
   // Pass jars used by Java UDF tests via system properties.
   systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
   systemProperty "beam.sql.udf.test.empty_jar_path", project(":sdks:java:extensions:sql").emptyJar.archivePath
+}
+
+task execute(type: JavaExec) {
+  main = "org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlPipeline"
+  classpath = sourceSets.main.runtimeClasspath
+}
+
+task publishAvroToPubSub(type: JavaExec) {
+  main = "org.apache.beam.sdk.extensions.sql.zetasql.PublishAvroToPubSub"
+  classpath = sourceSets.main.runtimeClasspath
 }

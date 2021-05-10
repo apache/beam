@@ -19,9 +19,9 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.datacatalog.v1beta1.ColumnSchema;
-import com.google.cloud.datacatalog.v1beta1.PhysicalSchema;
-import com.google.cloud.datacatalog.v1beta1.PhysicalSchema.AvroSchema;
+import com.google.cloud.datacatalog.v1.ColumnSchema;
+import com.google.cloud.datacatalog.v1.PhysicalSchema;
+import com.google.cloud.datacatalog.v1.PhysicalSchema.AvroSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
@@ -53,8 +53,8 @@ public class SchemaUtilsTest {
           .addRowField("f_struct", TEST_INNER_SCHEMA)
           .build();
 
-  private static final com.google.cloud.datacatalog.v1beta1.Schema TEST_DC_SCHEMA =
-      com.google.cloud.datacatalog.v1beta1.Schema.newBuilder()
+  private static final com.google.cloud.datacatalog.v1.Schema TEST_DC_SCHEMA =
+      com.google.cloud.datacatalog.v1.Schema.newBuilder()
           .addColumns(
               ColumnSchema.newBuilder()
                   .setColumn("f_int32")
@@ -159,8 +159,8 @@ public class SchemaUtilsTest {
                   .build())
           .build();
 
-  private static final com.google.cloud.datacatalog.v1beta1.Schema TEST_DC_SCHEMA2 =
-      com.google.cloud.datacatalog.v1beta1.Schema.newBuilder()
+  private static final com.google.cloud.datacatalog.v1.Schema TEST_DC_SCHEMA2 =
+      com.google.cloud.datacatalog.v1.Schema.newBuilder()
           .setPhysicalSchema(
               PhysicalSchema.newBuilder()
                   .setAvro(

@@ -23,11 +23,11 @@ import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.api.gax.rpc.PermissionDeniedException;
 import com.google.api.gax.rpc.StatusCode.Code;
-import com.google.cloud.datacatalog.v1beta1.DataCatalogClient;
-import com.google.cloud.datacatalog.v1beta1.DataCatalogSettings;
-import com.google.cloud.datacatalog.v1beta1.Entry;
-import com.google.cloud.datacatalog.v1beta1.LookupEntryRequest;
-import com.google.cloud.datacatalog.v1beta1.UpdateEntryRequest;
+import com.google.cloud.datacatalog.v1.DataCatalogClient;
+import com.google.cloud.datacatalog.v1.DataCatalogSettings;
+import com.google.cloud.datacatalog.v1.Entry;
+import com.google.cloud.datacatalog.v1.LookupEntryRequest;
+import com.google.cloud.datacatalog.v1.UpdateEntryRequest;
 import com.google.protobuf.FieldMask;
 import java.io.IOException;
 import java.util.HashMap;
@@ -192,7 +192,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
   }
 
   private Table toCalciteTable(String tableName, Entry entry) {
-    com.google.cloud.datacatalog.v1beta1.Schema dcSchema = entry.getSchema();
+    com.google.cloud.datacatalog.v1.Schema dcSchema = entry.getSchema();
     if (dcSchema.getColumnsCount() == 0 && !dcSchema.hasPhysicalSchema()) {
       throw new UnsupportedOperationException(
           "Entry doesn't have a schema. Please attach a schema to '"
@@ -218,7 +218,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
 
   @Internal
   public boolean setSchemaIfNotPresent(String resource, Schema schema) {
-    com.google.cloud.datacatalog.v1beta1.Schema dcSchema = SchemaUtils.toDataCatalog(schema);
+    com.google.cloud.datacatalog.v1.Schema dcSchema = SchemaUtils.toDataCatalog(schema);
     Entry entry =
         dataCatalog.lookupEntry(LookupEntryRequest.newBuilder().setSqlResource(resource).build());
     if (entry.getSchema().getColumnsCount() == 0) {

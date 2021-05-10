@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.cloud.datacatalog.v1beta1.Entry;
+import com.google.cloud.datacatalog.v1.Entry;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Optional;
@@ -42,7 +42,7 @@ class PubsubTableFactory implements TableFactory {
     }
 
     String format = "json"; // default PubSub message format
-    com.google.cloud.datacatalog.v1beta1.Schema dcSchema = entry.getSchema();
+    com.google.cloud.datacatalog.v1.Schema dcSchema = entry.getSchema();
     if (dcSchema.hasPhysicalSchema() && dcSchema.getPhysicalSchema().hasAvro()) {
       format = "avro";
     }
