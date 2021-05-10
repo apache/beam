@@ -46,8 +46,7 @@ RUN apt -q update \
 
 RUN mkdir /package
 COPY pkglist /package/pkglist
-
-RUN apt-get -q install -y --no-install-recommends $(cat /package/pkglist)
+RUN apt-get -q install -y --no-install-recommends $(grep -v '^#' /package/pkglist | cat)
 
 ###
 # Set the locale ( see https://stackoverflow.com/a/28406007/114196 )

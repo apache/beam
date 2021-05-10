@@ -39,7 +39,7 @@ if [ "$(uname -s)" = "Linux" ]; then
     apt-get update
 
     echo "Installing dependencies listed in pkglist file"
-    apt-get install -y $(cat dev-support/docker/pkglist) # pulling dependencies from pkglist file
+    apt-get install -y $(grep -v '^#' dev-support/docker/pkglist | cat) # pulling dependencies from pkglist file
 
     type -P python3 > /dev/null 2>&1
     python3Exists=$?
