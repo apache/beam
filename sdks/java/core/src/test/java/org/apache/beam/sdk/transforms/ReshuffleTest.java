@@ -279,7 +279,7 @@ public class ReshuffleTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class})
   public void testAssignShardFn() {
 
     PCollection<KV<String, Integer>> input =
