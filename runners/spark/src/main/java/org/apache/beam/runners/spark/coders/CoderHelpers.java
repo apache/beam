@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.ParamWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -267,8 +268,23 @@ public final class CoderHelpers {
       Coder<T> valueCoder, WindowingStrategy<?, ?> windowingStrategy) {
     WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
     Coder<? extends BoundedWindow> windowCoder = windowFn.windowCoder();
-    return (windowFn instanceof GlobalWindows)
-        ? ValueOnlyWindowedValueCoder.of(valueCoder)
+    return (isSupported(windowingStrategy) && windowFn instanceof GlobalWindows)
+        ? ParamWindowedValueCoder.of(valueCoder)
         : FullWindowedValueCoder.of(valueCoder, windowCoder);
+  }
+
+  private static boolean isSupported(WindowingStrategy<?, ?> strategy) {
+    if (strategy.needsMerge()) {
+      return false;
+    }
+
+    // It must be possible to compute the output timestamp of a pane from the input timestamp
+    // of the element with the earliest input timestamp.
+    if (!strategy.getTimestampCombiner().dependsOnlyOnEarliestTimestamp()
+        && !strategy.getTimestampCombiner().dependsOnlyOnWindow()) {
+      return false;
+    }
+
+    return true;
   }
 }
