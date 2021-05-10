@@ -276,6 +276,17 @@ class ElasticsearchIOTestCommon implements Serializable {
     executeWriteTest(write);
   }
 
+  List<String> serializeDocs(ElasticsearchIO.Write write, List<String> jsonDocs)
+      throws IOException {
+    List<String> serializedInput = new ArrayList<>();
+    for (String doc : jsonDocs) {
+      serializedInput.add(
+          DocToBulk.createBulkApiEntity(
+              write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration)));
+    }
+    return serializedInput;
+  }
+
   void testWriteWithErrors() throws Exception {
     Write write =
         ElasticsearchIO.write()
@@ -285,12 +296,6 @@ class ElasticsearchIOTestCommon implements Serializable {
         ElasticsearchIOTestUtils.createDocuments(
             numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
 
-    List<String> serializedInput = new ArrayList<>();
-    for (String doc : input) {
-      serializedInput.add(
-          DocToBulk.createBulkApiEntity(
-              write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration)));
-    }
     expectedException.expect(isA(IOException.class));
     expectedException.expectMessage(
         new CustomMatcher<String>("RegExp matcher") {
@@ -316,7 +321,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     try (DoFnTester<String, Void> fnTester =
         DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
       // inserts into Elasticsearch
-      fnTester.processBundle(serializedInput);
+      fnTester.processBundle(serializeDocs(write, input));
     }
   }
 
@@ -330,19 +335,12 @@ class ElasticsearchIOTestCommon implements Serializable {
         ElasticsearchIOTestUtils.createDocuments(
             numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
 
-    List<String> serializedInput = new ArrayList<>();
-    for (String doc : input) {
-      serializedInput.add(
-          DocToBulk.createBulkApiEntity(
-              write.getDocToBulk(), doc, getBackendVersion(connectionConfiguration)));
-    }
-
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
     try (DoFnTester<String, Void> fnTester =
         DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
       // inserts into Elasticsearch
-      fnTester.processBundle(serializedInput);
+      fnTester.processBundle(serializeDocs(write, input));
     }
   }
 
@@ -603,10 +601,10 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /**
-   * Tests that documents are correctly routed when index, type and document ID functions are
-   * provided to overwrite the defaults of using the configuration and auto-generation of the
-   * document IDs by Elasticsearch. The scientist name is used for the index, type and document ID.
-   * As a result there should be only a single document in each index/type.
+   * Tests that documents are correctly routed when routingFn function is provided to overwrite the
+   * defaults of using the configuration and auto-generation of the document IDs by Elasticsearch.
+   * The scientist name is used for routing. As a result there should be numDocs/NUM_SCIENTISTS in
+   * each index.
    */
   void testWriteWithRouting() throws Exception {
     List<String> data =
