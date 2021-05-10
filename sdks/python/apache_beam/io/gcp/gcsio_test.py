@@ -33,8 +33,12 @@ import mock
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import MetricName
+
 try:
-  from apache_beam.io.gcp import gcsio
+  from apache_beam.io.gcp import gcsio, resource_identifiers
   from apache_beam.io.gcp.internal.clients import storage
   from apitools.base.py.exceptions import HttpError
 except ImportError:
@@ -750,6 +754,28 @@ class TestGCSIO(unittest.TestCase):
     message.set_payload(test_msg)
     generator._handle_text(message)
     self.assertEqual(test_msg.encode('ascii'), output_buffer.getvalue())
+
+  def test_monitoring_info(self):
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    bucket, _ = gcsio.parse_gcs_path(file_name)
+    resource = resource_identifiers.GoogleCloudStorage(bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.insert',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: bucket,
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    with self.gcs.open(file_name, 'w') as f:
+      assert f.mode == 'w'
+    with self.gcs.open(file_name, 'r') as f:
+      assert f.mode == 'r'
+      metric_name = MetricName(
+          None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+      metric_value = MetricsEnvironment.process_wide_container().get_counter(
+          metric_name).get_cumulative()
+      self.assertEqual(metric_value, 1)
 
 
 if __name__ == '__main__':
