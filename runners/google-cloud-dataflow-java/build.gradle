@@ -151,7 +151,7 @@ def runnerV2PipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--sdkContainerImage=${dockerImageContainer}:${dockerTag}",
   // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-  "--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=appliance",
+  "--experiments=use_unified_worker,use_runner_v2,shuffle_mode=appliance",
 ]
 
 def commonLegacyExcludeCategories = [
