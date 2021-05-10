@@ -160,7 +160,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
       if (numBuckets != null) {
         hashOfShard =
             UnsignedInteger.fromIntBits(hashOfShard)
-                .mod(UnsignedInteger.valueOf(numBuckets))
+                .mod(UnsignedInteger.fromIntBits(numBuckets))
                 .intValue();
       }
       r.output(KV.of(hashOfShard, element));
