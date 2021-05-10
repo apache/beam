@@ -70,10 +70,10 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
 from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
-from apache_beam.typehints.native_type_compatibility import _match_is_named_tuple
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
+from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.utils import proto_utils
 from apache_beam.utils.timestamp import Timestamp
 
@@ -148,7 +148,7 @@ def named_fields_from_schema(
 
 
 def typing_to_runner_api(type_):
-  if _match_is_named_tuple(type_):
+  if match_is_named_tuple(type_):
     schema = None
     if hasattr(type_, _BEAM_SCHEMA_ID):
       schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
@@ -287,7 +287,7 @@ def schema_from_element_type(element_type):  # (type) -> schema_pb2.Schema
     # TODO(BEAM-10722): Make sure beam.Row generated schemas are registered and
     # de-duped
     return named_fields_to_schema(element_type._fields)
-  elif _match_is_named_tuple(element_type):
+  elif match_is_named_tuple(element_type):
     return named_tuple_to_schema(element_type)
   else:
     raise TypeError(
