@@ -786,7 +786,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
-            .withMaxParallelRquestsPerWindow(1);
+            .withMaxParallelRequestsPerWindow(1);
 
     PCollection<KV<Integer, Long>> batches =
         pipeline
@@ -811,7 +811,7 @@ class ElasticsearchIOTestCommon implements Serializable {
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBufferingDuration(Duration.standardSeconds(1))
-            .withMaxParallelRquestsPerWindow(1);
+            .withMaxParallelRequestsPerWindow(1);
 
     PCollection<KV<Integer, Long>> batches =
         pipeline

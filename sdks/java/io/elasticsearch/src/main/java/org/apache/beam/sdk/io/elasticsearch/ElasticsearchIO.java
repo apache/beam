@@ -1752,8 +1752,8 @@ public class ElasticsearchIO {
     }
 
     /** Refer to {@link BulkIO#withMaxParallelRequestsPerWindow}. */
-    public Write withMaxParallelRquestsPerWindow(int maxParallelRquestsPerWindow) {
-      bulkIO = bulkIO.withMaxParallelRequestsPerWindow(maxParallelRquestsPerWindow);
+    public Write withMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow) {
+      bulkIO = bulkIO.withMaxParallelRequestsPerWindow(maxParallelRequestsPerWindow);
       return this;
     }
 
