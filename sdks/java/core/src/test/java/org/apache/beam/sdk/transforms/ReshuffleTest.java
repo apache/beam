@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.Reshuffle.AssignShardFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -283,11 +282,8 @@ public class ReshuffleTest implements Serializable {
   public void testAssignShardFn() {
 
     PCollection<KV<String, Integer>> input =
-        pipeline
-            .apply(
-                Create.of(ARBITRARY_KVS)
-                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-            .apply(Window.into(new GlobalWindows()));
+        pipeline.apply(
+            Create.of(ARBITRARY_KVS).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PCollection<Integer> output =
         input
