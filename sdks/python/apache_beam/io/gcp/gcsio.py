@@ -34,11 +34,14 @@ import traceback
 from itertools import islice
 
 from apache_beam.internal.http_client import get_new_http
+from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import PipeStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
+from apache_beam.io.gcp import resource_identifiers
+from apache_beam.metrics import monitoring_infos
 from apache_beam.utils import retry
 
 __all__ = ['GcsIO']
@@ -586,7 +589,25 @@ class GcsDownloader(Downloader):
         auto_transfer=False,
         chunksize=self._buffer_size,
         num_retries=20)
-    self._client.objects.Get(self._get_request, download=self._downloader)
+
+    # Create a request count metric
+    resource = resource_identifiers.GoogleCloudStorage(self._bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'GcsObjectsInsert',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+
+    try:
+      response = self._client.objects.Get(
+          self._get_request, download=self._downloader)
+      service_call_metric.call('ok')
+    except HttpError as e:
+      service_call_metric.call(e)
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
