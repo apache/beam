@@ -142,7 +142,7 @@ class NexmarkBuilder {
         switches('-x shadowTestJar')
         switches('-x compileJava')
         switches('-x compileTestJava')
-        switches("-Djava.specification.version=${javaRuntimeVersion}")
+        switches("-Djava.specification.version=${JAVA_11_RUNTIME_VERSION}")
         switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}")
         if (jobSpecificSwitches != null) {
           jobSpecificSwitches.each {
