@@ -226,7 +226,7 @@ class TranslationsTest(unittest.TestCase):
     assert_is_topologically_sorted(
         optimized_pipeline_proto.root_transform_ids[0], set())
 
-  @attr('ValidatesRunner')
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_run_packable_combine_per_key(self):
     class MultipleCombines(beam.PTransform):
       def annotations(self):
@@ -256,7 +256,7 @@ class TranslationsTest(unittest.TestCase):
           | Create([('a', x) for x in vals])
           | 'multiple-combines' >> MultipleCombines())
 
-  @attr('ValidatesRunner')
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_run_packable_combine_globally(self):
     class MultipleCombines(beam.PTransform):
       def annotations(self):
