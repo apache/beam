@@ -2314,6 +2314,15 @@ class GroupByKey(PTransform):
           key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
 
   def expand(self, pcoll):
+    from apache_beam.transforms.trigger import DefaultTrigger
+    windowing = pcoll.windowing
+    if not pcoll.is_bounded and isinstance(
+        windowing.windowfn, GlobalWindows) and isinstance(windowing.triggerfn,
+                                                          DefaultTrigger):
+      raise ValueError(
+          'GroupByKey cannot be applied to an unbounded ' +
+          'PCollection with global windowing and a default trigger')
+
     return pvalue.PCollection.from_(pcoll)
 
   def infer_output_type(self, input_type):

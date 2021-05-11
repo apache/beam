@@ -282,11 +282,13 @@ def assert_that(
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
 
       keyed_singleton = pcoll.pipeline | Create([(None, None)])
+      keyed_singleton.is_bounded = True
 
       if use_global_window:
         pcoll = pcoll | WindowInto(window.GlobalWindows())
 
       keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
+      keyed_actual.is_bounded = True
 
       # This is a CoGroupByKey so that the matcher always runs, even if the
       # PCollection is empty.
