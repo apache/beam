@@ -42,3 +42,26 @@ message SimpleMessage {
   int32 id = 1;
   string name = 2;
 }
+
+message NameMessage {
+  string name = 1;
+
+  enum NameType {
+    FIRST = 0;
+    MIDDLE = 1;
+    LAST = 2;
+    SECOND_LAST = 3;
+  }
+  repeated NameType name_array = 2;
+}
+
+message NameHeightMessage {
+  string name = 1;
+  int32 height = 2;
+}
+
+message NameHeightKnowsJSMessage {
+  string name = 1;
+  int32 height = 2;
+  bool knows_javascript = 3;
+}

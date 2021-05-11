@@ -192,18 +192,21 @@ public class BeamZetaSqlCatalog {
   /**
    * Throws {@link UnsupportedOperationException} if ZetaSQL type is not supported in Java UDF.
    * Supported types are a subset of the types supported by {@link BeamJavaUdfCalcRule}.
+   *
+   * <p>Supported types should be kept in sync with {@link
+   * #validateJavaUdfCalciteType(RelDataType)}.
    */
   void validateJavaUdfZetaSqlType(Type type) {
     switch (type.getKind()) {
-      case TYPE_INT64:
-      case TYPE_DOUBLE:
       case TYPE_BOOL:
-      case TYPE_STRING:
       case TYPE_BYTES:
+      case TYPE_DATE:
+      case TYPE_DOUBLE:
+      case TYPE_INT64:
+      case TYPE_STRING:
         // These types are supported.
         break;
       case TYPE_NUMERIC:
-      case TYPE_DATE:
       case TYPE_TIME:
       case TYPE_DATETIME:
       case TYPE_TIMESTAMP:
@@ -422,10 +425,13 @@ public class BeamZetaSqlCatalog {
    * Throws {@link UnsupportedOperationException} if Calcite type is not supported in Java UDF.
    * Supported types are a subset of the corresponding Calcite types supported by {@link
    * BeamJavaUdfCalcRule}.
+   *
+   * <p>Supported types should be kept in sync with {@link #validateJavaUdfZetaSqlType(Type)}.
    */
   private void validateJavaUdfCalciteType(RelDataType type) {
     switch (type.getSqlTypeName()) {
       case BIGINT:
+      case DATE:
       case DOUBLE:
       case BOOLEAN:
       case VARCHAR:
@@ -433,7 +439,6 @@ public class BeamZetaSqlCatalog {
         // These types are supported.
         break;
       case DECIMAL:
-      case DATE:
       case TIME:
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
       case TIMESTAMP:

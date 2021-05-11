@@ -60,6 +60,10 @@ public class BeamBasicAggregationRule extends RelOptRule {
     Aggregate aggregate = call.rel(0);
     RelNode relNode = call.rel(1);
 
+    if (aggregate.getGroupType() != Aggregate.Group.SIMPLE) {
+      return;
+    }
+
     if (relNode instanceof Project || relNode instanceof Calc || relNode instanceof Filter) {
       if (isWindowed(relNode) || hasWindowedParents(relNode)) {
         // This case is expected to get handled by the 'BeamAggregationRule'

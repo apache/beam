@@ -83,6 +83,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       int windowFieldIndex) {
 
     super(cluster, traits, child, groupSet, groupSets, aggCalls);
+    assert getGroupType() == Group.SIMPLE;
 
     this.windowFn = windowFn;
     this.windowFieldIndex = windowFieldIndex;
