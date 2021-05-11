@@ -103,6 +103,9 @@ public class PubsubTableProviderIT implements Serializable {
   @Rule public transient TestPipeline filterPipeline = TestPipeline.create();
   private final SchemaIOTableProviderWrapper tableProvider = new PubsubTableProvider();
 
+  /** How long to wait on the result signal. */
+  private final Duration timeout = Duration.standardMinutes(5);
+
   @Parameters
   public static Collection<Object[]> data() {
     return Arrays.asList(
@@ -183,7 +186,7 @@ public class PubsubTableProviderIT implements Serializable {
             objectsProvider.messageIdName(ts(3), 7, "baz")));
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(5));
+    resultSignal.waitForSuccess(timeout);
   }
 
   @Test
@@ -253,7 +256,7 @@ public class PubsubTableProviderIT implements Serializable {
             objectsProvider.messageIdName(ts(3), 7, "baz")));
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(1));
+    resultSignal.waitForSuccess(timeout);
   }
 
   @Test
@@ -314,7 +317,7 @@ public class PubsubTableProviderIT implements Serializable {
     eventsTopic.publish(messages);
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(5));
+    resultSignal.waitForSuccess(timeout);
   }
 
   @Test
@@ -384,7 +387,7 @@ public class PubsubTableProviderIT implements Serializable {
             messagePayload(ts(5), "{ + }", ImmutableMap.of()))); // invalid message, will go to DLQ
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(4));
+    resultSignal.waitForSuccess(timeout);
     dlqTopic
         .assertThatTopicEventuallyReceives(
             matcherPayload(ts(4), "{ - }"), matcherPayload(ts(5), "{ + }"))
@@ -523,7 +526,7 @@ public class PubsubTableProviderIT implements Serializable {
             objectsProvider.messageIdName(ts(3), 7, "baz")));
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(5));
+    resultSignal.waitForSuccess(timeout);
   }
 
   @Test
