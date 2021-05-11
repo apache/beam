@@ -957,7 +957,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       # for this aggregation method
       _ = self._expr.proxy().aggregate(func, axis, *args, **kwargs)
       kwargs.pop('skipna')
-      self.dropna().aggregate(func, axis, *args, **kwargs)
+      return self.dropna().aggregate(func, axis, *args, **kwargs)
 
     if isinstance(func, list) and len(func) > 1:
       # level arg is ignored for multiple aggregations
@@ -2411,19 +2411,19 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         projection=name)
 
   def agg(self, fn, *args, **kwargs):
-    if callable(fn):
+    if _is_associative(fn):
+      return _liftable_agg(fn)(self, *args, **kwargs)
+    elif _is_liftable_with_sum(fn):
+      return _liftable_agg(fn, postagg_meth='sum')(self, *args, **kwargs)
+    elif _is_unliftable(fn):
+      return _unliftable_agg(fn)(self, *args, **kwargs)
+    elif callable(fn):
       return DeferredDataFrame(
           expressions.ComputedExpression(
               'agg',
               lambda gb: gb.agg(fn, *args, **kwargs), [self._expr],
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Singleton()))
-    elif _is_associative(fn):
-      return _liftable_agg(fn)(self, *args, **kwargs)
-    elif _is_liftable_with_sum(fn):
-      return _liftable_agg(fn, postagg_meth='sum')(self, *args, **kwargs)
-    elif _is_unliftable(fn):
-      return _unliftable_agg(fn)(self, *args, **kwargs)
     else:
       raise NotImplementedError(f"GroupBy.agg(func={fn!r})")
 
