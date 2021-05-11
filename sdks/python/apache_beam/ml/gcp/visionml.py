@@ -20,15 +20,10 @@
 A connector for sending API requests to the GCP Vision API.
 """
 
-from __future__ import absolute_import
-
 from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
-
-from future.utils import binary_type
-from future.utils import text_type
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
@@ -65,8 +60,8 @@ class AnnotateImage(PTransform):
 
   Batches elements together using ``util.BatchElements`` PTransform and sends
   each batch of elements to the GCP Vision API.
-  Element is a Union[text_type, binary_type] of either an URI (e.g. a GCS URI)
-  or binary_type base64-encoded image data.
+  Element is a Union[str, bytes] of either an URI (e.g. a GCS URI)
+  or bytes base64-encoded image data.
   Accepts an `AsDict` side input that maps each image to an image context.
   """
 
@@ -158,7 +153,7 @@ class AnnotateImage(PTransform):
                 metadata=self.metadata)))
 
   @typehints.with_input_types(
-      Union[text_type, binary_type], Optional[vision.types.ImageContext])
+      Union[str, bytes], Optional[vision.types.ImageContext])
   @typehints.with_output_types(List[vision.types.AnnotateImageRequest])
   def _create_image_annotation_pairs(self, element, context_side_input):
     if context_side_input:  # If we have a side input image context, use that
@@ -166,10 +161,10 @@ class AnnotateImage(PTransform):
     else:
       image_context = None
 
-    if isinstance(element, text_type):
+    if isinstance(element, str):
       image = vision.types.Image(
           source=vision.types.ImageSource(image_uri=element))
-    else:  # Typehint checks only allows text_type or binary_type
+    else:  # Typehint checks only allows str or bytes
       image = vision.types.Image(content=element)
 
     request = vision.types.AnnotateImageRequest(
@@ -185,10 +180,10 @@ class AnnotateImageWithContext(AnnotateImage):
 
   Element is a tuple of::
 
-    (Union[text_type, binary_type],
+    (Union[str, bytes],
     Optional[``vision.types.ImageContext``])
 
-  where the former is either an URI (e.g. a GCS URI) or binary_type
+  where the former is either an URI (e.g. a GCS URI) or bytes
   base64-encoded image data.
   """
   def __init__(
@@ -249,14 +244,14 @@ class AnnotateImageWithContext(AnnotateImage):
                 metadata=self.metadata)))
 
   @typehints.with_input_types(
-      Tuple[Union[text_type, binary_type], Optional[vision.types.ImageContext]])
+      Tuple[Union[str, bytes], Optional[vision.types.ImageContext]])
   @typehints.with_output_types(List[vision.types.AnnotateImageRequest])
   def _create_image_annotation_pairs(self, element, **kwargs):
     element, image_context = element  # Unpack (image, image_context) tuple
-    if isinstance(element, text_type):
+    if isinstance(element, str):
       image = vision.types.Image(
           source=vision.types.ImageSource(image_uri=element))
-    else:  # Typehint checks only allows text_type or binary_type
+    else:  # Typehint checks only allows str or bytes
       image = vision.types.Image(content=element)
 
     request = vision.types.AnnotateImageRequest(

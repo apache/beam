@@ -24,9 +24,6 @@ runtime, for example.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from builtins import object
 from functools import wraps
 from typing import Set
 
