@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
@@ -42,9 +44,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BeamFnStatusClient {
+public class BeamFnStatusClient implements AutoCloseable {
+  private static final Object COMPLETED = new Object();
   private final StreamObserver<WorkerStatusResponse> outboundObserver;
   private final BundleProcessorCache processBundleCache;
+  private final ManagedChannel channel;
+  private final CompletableFuture<Object> inboundObserverCompletion;
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnStatusClient.class);
   private final MemoryMonitor memoryMonitor;
 
@@ -53,16 +58,33 @@ public class BeamFnStatusClient {
       Function<ApiServiceDescriptor, ManagedChannel> channelFactory,
       BundleProcessorCache processBundleCache,
       PipelineOptions options) {
-    BeamFnWorkerStatusGrpc.BeamFnWorkerStatusStub stub =
-        BeamFnWorkerStatusGrpc.newStub(channelFactory.apply(apiServiceDescriptor));
-    this.outboundObserver = stub.workerStatus(new InboundObserver());
+    this.channel = channelFactory.apply(apiServiceDescriptor);
+    this.outboundObserver =
+        BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
     this.processBundleCache = processBundleCache;
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
+    this.inboundObserverCompletion = new CompletableFuture<>();
     Thread thread = new Thread(memoryMonitor);
     thread.setDaemon(true);
     thread.setPriority(Thread.MIN_PRIORITY);
     thread.setName("MemoryMonitor");
     thread.start();
+  }
+
+  @Override
+  public void close() throws Exception {
+    try {
+      Object completion = inboundObserverCompletion.get(1, TimeUnit.MINUTES);
+      if (completion != COMPLETED) {
+        LOG.warn("InboundObserver for BeamFnStatusClient completed with exception.");
+      }
+    } finally {
+      // Shut the channel down
+      channel.shutdown();
+      if (!channel.awaitTermination(10, TimeUnit.SECONDS)) {
+        channel.shutdownNow();
+      }
+    }
   }
 
   /**
@@ -222,9 +244,12 @@ public class BeamFnStatusClient {
     @Override
     public void onError(Throwable t) {
       LOG.error("Error getting SDK harness status", t);
+      inboundObserverCompletion.completeExceptionally(t);
     }
 
     @Override
-    public void onCompleted() {}
+    public void onCompleted() {
+      inboundObserverCompletion.complete(COMPLETED);
+    }
   }
 }
