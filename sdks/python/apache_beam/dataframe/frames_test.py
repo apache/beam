@@ -160,7 +160,10 @@ class DeferredFrameTest(unittest.TestCase):
     else:
       # Expectation is not a pandas object
       if isinstance(expected, float):
-        cmp = lambda x: np.isclose(expected, x)
+        if np.isnan(expected):
+          cmp = np.isnan
+        else:
+          cmp = lambda x: np.isclose(expected, x)
       else:
         cmp = expected.__eq__
       self.assertTrue(
@@ -844,6 +847,204 @@ class DeferredFrameTest(unittest.TestCase):
         df1,
         df2,
         construction_time=False)
+
+  def test_series_agg_level(self):
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.count(level=0),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.max(level=0), GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.median(level=0),
+        GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['foo', 'group']).bar.count(level=1),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.max(level=1), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.max(level='foo'),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.median(level=1),
+        GROUPBY_DF)
+
+  def test_dataframe_agg_level(self):
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).count(level=0), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).max(
+            level=0, numeric_only=False),
+        GROUPBY_DF)
+    # pandas implementation doesn't respect numeric_only argument here
+    # (https://github.com/pandas-dev/pandas/issues/40788), it
+    # always acts as if numeric_only=True. Our implmentation respects it so we
+    # need to make it explicit.
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).sum(
+            level=0, numeric_only=True),
+        GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo'])[['bar']].count(level=1),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).count(level=1), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).max(
+            level=1, numeric_only=False),
+        GROUPBY_DF)
+    # sum with str columns is order-sensitive
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).sum(
+            level=1, numeric_only=True),
+        GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).median(
+            level=0, numeric_only=True),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.drop('str', axis=1).set_index(['foo', 'group']).median(
+            level=1, numeric_only=True),
+        GROUPBY_DF)
+
+  def test_series_agg_multifunc_level(self):
+    # level= is ignored for multiple agg fns
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.agg(['min', 'max'],
+                                                          level=0),
+        GROUPBY_DF)
+
+  def test_dataframe_agg_multifunc_level(self):
+    # level= is ignored for multiple agg fns
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).agg(['min', 'max'], level=0),
+        GROUPBY_DF)
+
+  @parameterized.expand([(True, ), (False, )])
+  @unittest.skipIf(
+      PD_VERSION < (1, 2),
+      "pandas 1.1.0 produces different dtypes for these examples")
+  def test_dataframe_agg_numeric_only(self, numeric_only):
+    # Note other aggregation functions can fail on this input with
+    # numeric_only={False,None}. These are the only ones that actually work for
+    # the string inputs.
+    self._run_test(lambda df: df.max(numeric_only=numeric_only), GROUPBY_DF)
+    self._run_test(lambda df: df.min(numeric_only=numeric_only), GROUPBY_DF)
+
+  @unittest.skip(
+      "pandas implementation doesn't respect numeric_only= with "
+      "level= (https://github.com/pandas-dev/pandas/issues/40788)")
+  def test_dataframe_agg_level_numeric_only(self):
+    self._run_test(
+        lambda df: df.set_index('foo').sum(level=0, numeric_only=True),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index('foo').max(level=0, numeric_only=True),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index('foo').mean(level=0, numeric_only=True),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index('foo').median(level=0, numeric_only=True),
+        GROUPBY_DF)
+
+  def test_dataframe_agg_bool_only(self):
+    df = pd.DataFrame({
+        'all': [True for i in range(10)],
+        'any': [i % 3 == 0 for i in range(10)],
+        'int': range(10)
+    })
+
+    self._run_test(lambda df: df.all(), df)
+    self._run_test(lambda df: df.any(), df)
+    self._run_test(lambda df: df.all(bool_only=True), df)
+    self._run_test(lambda df: df.any(bool_only=True), df)
+
+  @unittest.skip(
+      "pandas doesn't implement bool_only= with level= "
+      "(https://github.com/pandas-dev/pandas/blob/"
+      "v1.2.3/pandas/core/generic.py#L10573)")
+  def test_dataframe_agg_level_bool_only(self):
+    df = pd.DataFrame({
+        'all': [True for i in range(10)],
+        'any': [i % 3 == 0 for i in range(10)],
+        'int': range(10)
+    })
+
+    self._run_test(lambda df: df.set_index('int', drop=False).all(level=0), df)
+    self._run_test(lambda df: df.set_index('int', drop=False).any(level=0), df)
+    self._run_test(
+        lambda df: df.set_index('int', drop=False).all(level=0, bool_only=True),
+        df)
+    self._run_test(
+        lambda df: df.set_index('int', drop=False).any(level=0, bool_only=True),
+        df)
+
+  def test_series_agg_np_size(self):
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).agg(np.size), GROUPBY_DF)
+
+  def test_df_agg_invalid_kwarg_raises(self):
+    self._run_error_test(lambda df: df.agg('mean', bool_only=True), GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.agg('any', numeric_only=True), GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.agg('median', min_count=3, numeric_only=True), GROUPBY_DF)
+
+  def test_series_agg_method_invalid_kwarg_raises(self):
+    self._run_error_test(lambda df: df.foo.median(min_count=3), GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.foo.agg('median', min_count=3), GROUPBY_DF)
+
+  @unittest.skipIf(
+      PD_VERSION < (1, 3),
+      (
+          "DataFrame.agg raises a different exception from the "
+          "aggregation methods. Fixed in "
+          "https://github.com/pandas-dev/pandas/pull/40543."))
+  def test_df_agg_method_invalid_kwarg_raises(self):
+    self._run_error_test(lambda df: df.mean(bool_only=True), GROUPBY_DF)
+    self._run_error_test(lambda df: df.any(numeric_only=True), GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.median(min_count=3, numeric_only=True), GROUPBY_DF)
+
+  def test_agg_min_count(self):
+    df = pd.DataFrame({
+        'good': [1, 2, 3, np.nan],
+        'bad': [np.nan, np.nan, np.nan, 4],
+    },
+                      index=['a', 'b', 'a', 'b'])
+
+    self._run_test(lambda df: df.sum(level=0, min_count=2), df)
+
+    self._run_test(lambda df: df.sum(min_count=3), df, nonparallel=True)
+    self._run_test(lambda df: df.sum(min_count=1), df, nonparallel=True)
+    self._run_test(lambda df: df.good.sum(min_count=2), df, nonparallel=True)
+    self._run_test(lambda df: df.bad.sum(min_count=2), df, nonparallel=True)
+
+  def test_groupby_sum_min_count(self):
+    df = pd.DataFrame({
+        'good': [1, 2, 3, np.nan],
+        'bad': [np.nan, np.nan, np.nan, 4],
+        'group': ['a', 'b', 'a', 'b']
+    })
+
+    self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
+
+  def test_dataframe_sum_nonnumeric_raises(self):
+    # Attempting a numeric aggregation with the str column present should
+    # raise, and suggest the numeric_only argument
+    with self.assertRaisesRegex(frame_base.WontImplementError, 'numeric_only'):
+      self._run_test(lambda df: df.sum(), GROUPBY_DF)
+
+    # numeric_only=True should work
+    self._run_test(lambda df: df.sum(numeric_only=True), GROUPBY_DF)
+    # projecting only numeric columns should too
+    self._run_test(lambda df: df[['foo', 'bar']].sum(), GROUPBY_DF)
 
 
 class AllowNonParallelTest(unittest.TestCase):
