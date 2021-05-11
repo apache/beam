@@ -154,7 +154,7 @@ class NexmarkBuilder {
   }
 
   private static String parseOptions(Map<String, Object> options) {
-    options.collect { "--${it.key}=${it.value.toString()}".replace('\"', '\\\"').replace('\'', '\\\'') }.join(' ')
+    options.collect { "--${it.key}=${it.value.toString()}" }.join(' ')
   }
 
   private static String determineStorageName(TriggeringContext triggeringContext) {
