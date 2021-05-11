@@ -82,12 +82,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(Parameterized.class)
 @SuppressWarnings({
   "keyfor",
 })
 public class PubsubTableProviderIT implements Serializable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubTableProviderIT.class);
 
   private static final Schema PAYLOAD_SCHEMA =
       Schema.builder()
@@ -237,6 +241,8 @@ public class PubsubTableProviderIT implements Serializable {
                   entries.put(row.getInt32("id"), row.getString("a1"));
                 }
               }
+
+              LOG.info("Entries: {}", entries);
 
               return entries.equals(ImmutableMap.of(3, "foo", 5, "bar", 7, "baz"));
             }));

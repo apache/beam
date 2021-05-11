@@ -305,6 +305,7 @@ public class TestPubsubSignal implements TestRule {
 
     MessageReceiver receiver =
         (com.google.pubsub.v1.PubsubMessage message, AckReplyConsumer replyConsumer) -> {
+          LOG.info("Received message: {}", message.getData().toStringUtf8());
           // Ignore empty messages
           if (message.getData().isEmpty()) {
             replyConsumer.ack();
