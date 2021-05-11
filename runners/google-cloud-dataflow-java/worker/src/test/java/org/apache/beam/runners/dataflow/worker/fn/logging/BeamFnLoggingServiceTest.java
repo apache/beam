@@ -115,7 +115,7 @@ public class BeamFnLoggingServiceTest {
     }
   }
 
-  @Test
+  @Test(timeout = 5000)
   public void testMultipleClientsFailingIsHandledGracefullyByServer() throws Exception {
     Collection<Callable<Void>> tasks = new ArrayList<>();
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
