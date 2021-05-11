@@ -79,8 +79,12 @@ def to_element_list(
       count += 1
 
 
-def elements_to_df(elements, include_window_info=False, element_type=None):
-  # type: (List[WindowedValue], bool, Any) -> DataFrame
+def elements_to_df(
+    elements,
+    include_window_info=False,
+    element_type=None,
+    reset_unnamed_indexes=True):
+  # type: (List[WindowedValue], bool, Any, bool) -> DataFrame
 
   """Parses the given elements into a Dataframe.
 
@@ -103,14 +107,29 @@ def elements_to_df(elements, include_window_info=False, element_type=None):
     if include_window_info:
       windowed_info.append([e.timestamp.micros, e.windows, e.pane_info])
 
-  rows_df = pd.DataFrame(rows, columns=columns_names)
-  if include_window_info:
+  using_dataframes = isinstance(element_type, pd.DataFrame)
+  using_series = isinstance(element_type, pd.Series)
+  if using_dataframes or using_series:
+    rows_df = pd.concat(rows)
+  else:
+    rows_df = pd.DataFrame(rows, columns=columns_names)
+
+  if include_window_info and not using_series:
     windowed_info_df = pd.DataFrame(
         windowed_info, columns=['event_time', 'windows', 'pane_info'])
     final_df = pd.concat([rows_df, windowed_info_df], axis=1)
   else:
     final_df = rows_df
 
+  # When we collect DataFrames the index for each DataFrame in each bundle
+  # starts at 0 (except for named indexes like multi-indexes). So in the case
+  # that we find a single column-index that is unnamed we reset it from 0 so
+  # the index has a range index, instead of a random numbering.
+  # This is overridable behavior if the user chooses so.
+  if (reset_unnamed_indexes and
+      isinstance(element_type, pd.core.generic.NDFrame) and
+      element_type.index.name is None and element_type.index.nlevels == 1):
+    final_df = final_df.reset_index(drop=True)
   return final_df
 
 

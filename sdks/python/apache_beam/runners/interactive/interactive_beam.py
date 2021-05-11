@@ -516,8 +516,13 @@ def show(
       recording.cancel()
 
 
-@progress_indicated
-def collect(pcoll, n='inf', duration='inf', include_window_info=False):
+# @progress_indicated
+def collect(
+    pcoll,
+    n='inf',
+    duration='inf',
+    include_window_info=False,
+    reset_unnamed_indexes=True):
   """Materializes the elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
@@ -529,6 +534,11 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     n: (optional) max number of elements to visualize. Default 'inf'.
     duration: (optional) max duration of elements to read in integer seconds or
         a string duration. Default 'inf'.
+    include_window_info: (optional) if True, appends the windowing information
+        to each row. Default False.
+    reset_unnamed_indexes: (optional) If True, resets unnamed indices. This is
+        useful because the Beam DataFrame model has non-deterministic index
+        values for DataFrames with unnamed indexes. Default True.
 
   For example::
 
@@ -539,8 +549,16 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     # Run the pipeline and bring the PCollection into memory as a Dataframe.
     in_memory_square = head(square, n=5)
   """
+  # Remember the element type so we can make an informed decision on how to
+  # collect the result in elements_to_df.
   if isinstance(pcoll, DeferredBase):
-    pcoll = to_pcollection(pcoll)
+    # Get the proxy so we can get the output shape of the DataFrame.
+    element_type = pcoll._expr.proxy()
+    pcoll = to_pcollection(
+        pcoll, yield_elements='pandas', label=str(id(pcoll._expr._id)))
+    watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
+  else:
+    element_type = pcoll.element_type
 
   assert isinstance(pcoll, beam.pvalue.PCollection), (
       '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
@@ -574,10 +592,16 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     recording.cancel()
     return pd.DataFrame()
 
+  if n == float('inf'):
+    n = None
+
+  # Collecting DataFrames may have a length > n, so slice again to be sure. Note
+  # that array[:None] returns everything.
   return elements_to_df(
       elements,
       include_window_info=include_window_info,
-      element_type=pcoll.element_type)
+      element_type=element_type,
+      reset_unnamed_indexes=reset_unnamed_indexes)[:n]
 
 
 @progress_indicated
