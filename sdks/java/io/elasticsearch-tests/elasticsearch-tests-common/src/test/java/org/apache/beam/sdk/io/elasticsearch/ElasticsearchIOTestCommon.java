@@ -34,9 +34,11 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.inse
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -67,9 +69,9 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.http.HttpEntity;
@@ -79,6 +81,10 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Duration;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
@@ -788,43 +794,78 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxParallelRequestsPerWindow(1);
 
-    PCollection<KV<Integer, Long>> batches =
-        pipeline
-            .apply(Create.of(data))
-            .apply(Window.into(new GlobalWindows()))
-            .apply(StatefulBatching.fromSpec(write.getBulkIO()))
-            .apply(Count.perKey());
+    PCollection<KV<Integer, Iterable<String>>> batches =
+        pipeline.apply(Create.of(data)).apply(StatefulBatching.fromSpec(write.getBulkIO()));
+
+    PCollection<Integer> keyValues =
+        batches
+            .apply(GroupByKey.create())
+            .apply(
+                MapElements.into(integers())
+                    .via(
+                        (SerializableFunction<KV<Integer, Iterable<Iterable<String>>>, Integer>)
+                            KV::getKey));
 
     // Number of unique keys produced should be number of maxParallelRequestsPerWindow * numWindows
-    // There is only 1 request (key) per window, and 1 (global) window ie. one key total
-    PAssert.that(batches).containsInAnyOrder(Collections.singletonList(KV.of(0, 1L)));
+    // There is only 1 request (key) per window, and 1 (global) window ie. one key total where
+    // key value is 0
+    PAssert.that(keyValues).containsInAnyOrder(0);
+
+    PAssert.that(batches).satisfies(new AssertThatHasExpectedContents(0, data));
 
     pipeline.run();
   }
 
-  void testMaxBufferingDurationAndMaxParallelRequestsPerWindow() throws Exception {
-    List<String> data =
-        ElasticsearchIOTestUtils.createDocuments(
-            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+  private static class AssertThatHasExpectedContents
+      implements SerializableFunction<Iterable<KV<Integer, Iterable<String>>>, Void> {
 
-    Write write =
-        ElasticsearchIO.write()
-            .withConnectionConfiguration(connectionConfiguration)
-            .withMaxBufferingDuration(Duration.standardSeconds(1))
-            .withMaxParallelRequestsPerWindow(1);
+    private final int key;
+    private final List<String> expectedContents;
 
-    PCollection<KV<Integer, Long>> batches =
-        pipeline
-            .apply(Create.of(data))
-            .apply(Window.into(new GlobalWindows()))
-            .apply(StatefulBatching.fromSpec(write.getBulkIO()))
-            .apply(Count.perKey());
+    AssertThatHasExpectedContents(int key, List<String> expected) {
+      this.key = key;
+      this.expectedContents = expected;
+    }
 
-    // Number of unique keys produced should be number of maxParallelRequestsPerWindow * numWindows
-    // There is only 1 request (key) per window, and 1 (global) window ie. one key total
-    PAssert.that(batches).containsInAnyOrder(Collections.singletonList(KV.of(0, 1L)));
+    @Override
+    public Void apply(Iterable<KV<Integer, Iterable<String>>> actual) {
+      assertThat(
+          actual,
+          IsIterableContainingInAnyOrder.containsInAnyOrder(
+              KvMatcher.isKv(
+                  is(key),
+                  IsIterableContainingInAnyOrder.containsInAnyOrder(expectedContents.toArray()))));
+      return null;
+    }
+  }
 
-    pipeline.run();
+  public static class KvMatcher<K, V> extends TypeSafeMatcher<KV<? extends K, ? extends V>> {
+    final Matcher<? super K> keyMatcher;
+    final Matcher<? super V> valueMatcher;
+
+    public static <K, V> KvMatcher<K, V> isKv(Matcher<K> keyMatcher, Matcher<V> valueMatcher) {
+      return new KvMatcher<>(keyMatcher, valueMatcher);
+    }
+
+    public KvMatcher(Matcher<? super K> keyMatcher, Matcher<? super V> valueMatcher) {
+      this.keyMatcher = keyMatcher;
+      this.valueMatcher = valueMatcher;
+    }
+
+    @Override
+    public boolean matchesSafely(KV<? extends K, ? extends V> kv) {
+      return keyMatcher.matches(kv.getKey()) && valueMatcher.matches(kv.getValue());
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description
+          .appendText("a KV(")
+          .appendValue(keyMatcher)
+          .appendText(", ")
+          .appendValue(valueMatcher)
+          .appendText(")");
+    }
   }
 
   /**
