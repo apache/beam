@@ -29,7 +29,7 @@ import static NexmarkDatabaseProperties.nexmarkBigQueryArgs
 import static NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
 def final JOB_SPECIFIC_OPTIONS = [
-  'influxTags' : '{\\"runnerVersion\\":\\"V2\\", \\"javaVersion\\":\\"8\\"}',
+  'influxTags' : '\'{"runnerVersion":"V2", "javaVersion":"8"}\'',
   'exportSummaryToBigQuery' : false,
   'region' : 'us-central1',
   'suite' : 'STRESS',
