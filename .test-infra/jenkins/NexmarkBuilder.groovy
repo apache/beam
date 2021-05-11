@@ -83,6 +83,7 @@ class NexmarkBuilder {
     options.put('runner', runner.option)
     options.put('bigQueryDataset', determineStorageName(triggeringContext))
     options.put('baseInfluxMeasurement', determineStorageName(triggeringContext))
+    options
   }
 
 
