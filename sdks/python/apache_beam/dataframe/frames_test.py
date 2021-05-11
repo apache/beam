@@ -98,6 +98,18 @@ class DeferredFrameTest(unittest.TestCase):
           f'Expected {expected_error!r} to be raised, but got {actual!r}'
       ) from actual
 
+  def _run_inplace_test(self, func, arg, **kwargs):
+    """Verify an inplace operation performed by func.
+
+    Checks that func performs the same inplace operation on arg, in pandas and
+    in Beam."""
+    def wrapper(df):
+      df = df.copy()
+      func(df)
+      return df
+
+    self._run_test(wrapper, arg, **kwargs)
+
   def _run_test(self, func, *args, distributed=True, nonparallel=False):
     """Verify that func(*args) produces the same result in pandas and in Beam.
 
@@ -185,13 +197,12 @@ class DeferredFrameTest(unittest.TestCase):
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
-      return df
 
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
         'Speed': [380., 370., 24., 26.]
     })
-    self._run_test(new_column, df)
+    self._run_inplace_test(new_column, df)
 
   def test_str_split(self):
     s = pd.Series([
@@ -212,13 +223,12 @@ class DeferredFrameTest(unittest.TestCase):
   def test_set_column_from_index(self):
     def new_column(df):
       df['NewCol'] = df.index
-      return df
 
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
         'Speed': [380., 370., 24., 26.]
     })
-    self._run_test(new_column, df)
+    self._run_inplace_test(new_column, df)
 
   def test_tz_localize_ambiguous_series(self):
     # This replicates a tz_localize doctest:
@@ -706,11 +716,7 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.eval('foo = a + b - c'), df)
     self._run_test(lambda df: df.query('a > b + c'), df)
 
-    def eval_inplace(df):
-      df.eval('foo = a + b - c', inplace=True)
-      return df.foo
-
-    self._run_test(eval_inplace, df)
+    self._run_inplace_test(lambda df: df.eval('foo = a + b - c'), df)
 
     # Verify that attempting to access locals raises a useful error
     deferred_df = frame_base.DeferredFrame.wrap(
@@ -726,9 +732,8 @@ class DeferredFrameTest(unittest.TestCase):
 
     def change_index_names(df):
       df.index.names = ['A', None]
-      return df
 
-    self._run_test(change_index_names, df)
+    self._run_inplace_test(change_index_names, df)
 
   @parameterized.expand((x, ) for x in [
       0,
@@ -1045,6 +1050,14 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.sum(numeric_only=True), GROUPBY_DF)
     # projecting only numeric columns should too
     self._run_test(lambda df: df[['foo', 'bar']].sum(), GROUPBY_DF)
+
+  def test_insert(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+
+    self._run_inplace_test(lambda df: df.insert(1, 'C', df.A * 2), df)
+    self._run_inplace_test(
+        lambda df: df.insert(0, 'foo', pd.Series([8], index=[1])), df)
+    self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
 
 
 class AllowNonParallelTest(unittest.TestCase):

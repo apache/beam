@@ -1478,6 +1478,47 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  def insert(self, value, **kwargs):
+    if isinstance(value, list):
+      raise frame_base.WontImplementMethod(
+          "insert(value=list) is not supported because it joins the input "
+          "list to the deferred DataFrame based on the order of the data.",
+          reason="order-sensitive")
+
+    if isinstance(value, pd.core.generic.NDFrame):
+      value = frame_base.DeferredFrame.wrap(
+          expressions.ConstantExpression(value))
+
+    if isinstance(value, frame_base.DeferredFrame):
+      def func_zip(df, value):
+        df = df.copy()
+        df.insert(value=value, **kwargs)
+        return df
+
+      inserted = frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'insert',
+              func_zip,
+              [self._expr, value._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Arbitrary()))
+    else:
+      def func_elementwise(df):
+        df = df.copy()
+        df.insert(value=value, **kwargs)
+        return df
+      inserted = frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'insert',
+              func_elementwise,
+              [self._expr],
+              requires_partition_by=partitionings.Arbitrary(),
+              preserves_partition_by=partitionings.Arbitrary()))
+
+    self._expr = inserted._expr
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   def aggregate(self, func, axis=0, *args, **kwargs):
     if 'numeric_only' in kwargs and kwargs['numeric_only']:
       # Eagerly generate a proxy to make sure numeric_only is a valid argument
