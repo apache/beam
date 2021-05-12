@@ -440,6 +440,7 @@ public class TestPubsubSignal implements TestRule {
       // check if all elements seen so far satisfy the success predicate
       try {
         if (successPredicate.apply(eventsSoFar)) {
+          LOG.info("Predicate has been satisfied. Sending SUCCESS message.");
           context.output("SUCCESS");
         }
       } catch (Throwable e) {
