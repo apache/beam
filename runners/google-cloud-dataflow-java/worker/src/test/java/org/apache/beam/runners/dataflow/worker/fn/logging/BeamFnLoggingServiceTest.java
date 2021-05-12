@@ -49,6 +49,7 @@ import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.impl.StaticLoggerBinder;
 
 /** Tests for {@link BeamFnLoggingService}. */
 @RunWith(JUnit4.class)
@@ -117,6 +118,10 @@ public class BeamFnLoggingServiceTest {
 
   @Test(timeout = 5000)
   public void testMultipleClientsFailingIsHandledGracefullyByServer() throws Exception {
+
+    final StaticLoggerBinder binder = StaticLoggerBinder.getSingleton();
+    System.out.println("Logging binder: " + binder.getLoggerFactory());
+
     Collection<Callable<Void>> tasks = new ArrayList<>();
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
     try (BeamFnLoggingService service =
