@@ -108,7 +108,7 @@ public class PubsubTableProviderIT implements Serializable {
   private final SchemaIOTableProviderWrapper tableProvider = new PubsubTableProvider();
 
   /** How long to wait on the result signal. */
-  private final Duration timeout = Duration.standardMinutes(5);
+  private final Duration timeout = Duration.standardMinutes(10);
 
   @Parameters
   public static Collection<Object[]> data() {
