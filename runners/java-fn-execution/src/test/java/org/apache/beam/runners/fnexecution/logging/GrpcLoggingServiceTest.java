@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
@@ -43,14 +44,19 @@ import org.apache.beam.vendor.grpc.v1p37p0.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link GrpcLoggingService}. */
 @RunWith(JUnit4.class)
 public class GrpcLoggingServiceTest {
   private Consumer<LogControl> messageDiscarder =
       item -> {
+        LOG.debug("Discarding message {}", item);
         // Ignore
       };
+
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcLoggingServiceTest.class);
 
   @Test
   public void testMultipleClientsSuccessfullyProcessed() throws Exception {
@@ -96,6 +102,7 @@ public class GrpcLoggingServiceTest {
 
   @Test(timeout = 5000)
   public void testMultipleClientsFailingIsHandledGracefullyByServer() throws Exception {
+    LOG.info("Started testMultipleClientsFailingIsHandledGracefullyByServer");
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
     GrpcLoggingService service =
         GrpcLoggingService.forWriter(new CollectionAppendingLogWriter(logs));
@@ -108,9 +115,8 @@ public class GrpcLoggingServiceTest {
         tasks.add(
             () -> {
               CountDownLatch waitForTermination = new CountDownLatch(1);
-              ManagedChannel channel =
-                  InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
-                      .build();
+              String url = server.getApiServiceDescriptor().getUrl();
+              ManagedChannel channel = InProcessChannelBuilder.forName(url).build();
               StreamObserver<LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
                       .logging(
@@ -118,13 +124,23 @@ public class GrpcLoggingServiceTest {
                               .withOnError(new CountDown(waitForTermination))
                               .build());
               outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
+              LOG.info("Sending onError for client {}", instructionId);
               outboundObserver.onError(new RuntimeException("Client " + instructionId));
+              LOG.info(
+                  "Sent onError for client {}. Waiting for {}", instructionId, waitForTermination);
               waitForTermination.await();
               return null;
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
       executorService.invokeAll(tasks);
+      LOG.info("Invoked all tasks");
+      executorService.shutdown();
+      // Longer than 5-second timeout. JUnit takes care of timeout failures.
+      executorService.awaitTermination(10, TimeUnit.SECONDS);
+      LOG.info("executorService terminated");
+    } finally {
+      LOG.info("Finishing testMultipleClientsFailingIsHandledGracefullyByServer");
     }
   }
 
@@ -207,7 +223,9 @@ public class GrpcLoggingServiceTest {
 
     @Override
     public void run() {
+      LOG.info("Counting down the latch {}", latch);
       latch.countDown();
+      LOG.info("Counted down the latch {}", latch);
     }
   }
 }

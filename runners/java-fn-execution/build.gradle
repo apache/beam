@@ -41,14 +41,21 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.mockito_core
+  testCompile "ch.qos.logback:logback-classic:1.2.3"
+  testCompile "org.slf4j:jul-to-slf4j:1.7.30"
   testRuntimeOnly library.java.slf4j_simple
 }
 
 test {
+  dependsOn cleanTest
   useJUnit {
     // Exclude tests that need Docker.
     excludeCategories "org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker"
   }
+
+  systemProperty 'java.util.logging.config.file', '../../logging.properties'
+  systemProperties 'logback.configurationFile' : new File(projectDir,'../../logback-test.xml').absolutePath
+  testLogging.showStandardStreams = true
 }
 
 task testDocker(type: Test) {

@@ -71,7 +71,9 @@ dependencies {
   // are all packaged into a single uber jar allowing the jar to serve as an application.
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  compile project(":runners:google-cloud-dataflow-java")
+  compile (project(":runners:google-cloud-dataflow-java")) {
+    exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+  }
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:io:google-cloud-platform")
@@ -110,7 +112,10 @@ dependencies {
   compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
   compile library.java.error_prone_annotations
   permitUnusedDeclared library.java.error_prone_annotations // BEAM-11761
-  compile library.java.slf4j_jdk14
+
+  // compile library.java.slf4j_jdk14
+  testCompile "ch.qos.logback:logback-classic:1.2.3"
+  testCompile "org.slf4j:jul-to-slf4j:1.7.30"
   permitUnusedDeclared library.java.slf4j_jdk14 // BEAM-11761
 
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
@@ -132,5 +137,8 @@ checkstyleTest.enabled = false
 javadoc.enabled = false
 
 test {
+  dependsOn cleanTest
   systemProperty 'java.util.logging.config.file', '../../../logging.properties'
+  systemProperties 'logback.configurationFile' : new File(projectDir,'../../../logback-test.xml').absolutePath
+  testLogging.showStandardStreams = true
 }

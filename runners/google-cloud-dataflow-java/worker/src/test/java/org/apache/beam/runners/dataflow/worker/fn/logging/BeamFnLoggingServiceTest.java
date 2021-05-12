@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -49,11 +50,14 @@ import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.impl.StaticLoggerBinder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link BeamFnLoggingService}. */
 @RunWith(JUnit4.class)
 public class BeamFnLoggingServiceTest {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnLoggingServiceTest.class);
+
   private Server server;
 
   private Endpoints.ApiServiceDescriptor findOpenPort() throws Exception {
@@ -118,10 +122,7 @@ public class BeamFnLoggingServiceTest {
 
   @Test(timeout = 5000)
   public void testMultipleClientsFailingIsHandledGracefullyByServer() throws Exception {
-
-    final StaticLoggerBinder binder = StaticLoggerBinder.getSingleton();
-    System.out.println("Logging binder: " + binder.getLoggerFactory());
-
+    LOG.info("Starting testMultipleClientsFailingIsHandledGracefullyByServer");
     Collection<Callable<Void>> tasks = new ArrayList<>();
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
     try (BeamFnLoggingService service =
@@ -142,17 +143,38 @@ public class BeamFnLoggingServiceTest {
               StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
                       .logging(
-                          TestStreams.withOnNext(BeamFnLoggingServiceTest::discardMessage)
-                              .withOnError(waitForTermination::countDown)
+                          TestStreams.withOnNext(
+                                  (BeamFnApi.LogControl m) -> {
+                                    LOG.info("TestStream withOnNext: {}", m);
+                                    BeamFnLoggingServiceTest.discardMessage(m);
+                                  })
+                              .withOnError(
+                                  () -> {
+                                    LOG.info("TestStream withOnError");
+                                    waitForTermination.countDown();
+                                    LOG.info("TestStream finished countDown");
+                                  })
                               .build());
               outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
+              LOG.debug("Sending RuntimeException to stub client: {}", instructionId);
               outboundObserver.onError(new RuntimeException("Client " + instructionId));
+              LOG.debug(
+                  "Sent RuntimeException to stub client: {}, waiting for {}",
+                  instructionId,
+                  waitForTermination);
               waitForTermination.await();
               return null;
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
       executorService.invokeAll(tasks);
+      LOG.info("Invoked all tasks");
+      executorService.shutdown();
+      // Longer than 5-second timeout. JUnit takes care of timeout failures.
+      executorService.awaitTermination(10, TimeUnit.SECONDS);
+      LOG.info("executorService terminated");
+    } finally {
+      LOG.info("Finished testMultipleClientsFailingIsHandledGracefullyByServer");
     }
   }
 
@@ -218,8 +240,9 @@ public class BeamFnLoggingServiceTest {
 
   private Server createServer(
       BindableService service, Endpoints.ApiServiceDescriptor serviceDescriptor) throws Exception {
-    Server server =
-        InProcessServerBuilder.forName(serviceDescriptor.getUrl()).addService(service).build();
+    String url = serviceDescriptor.getUrl();
+    LOG.info("Creating a server for URL: {}", url);
+    Server server = InProcessServerBuilder.forName(url).addService(service).build();
     server.start();
     return server;
   }
