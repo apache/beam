@@ -24,6 +24,7 @@ import os
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -50,18 +51,19 @@ class WordCountIT(unittest.TestCase):
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
-  @attr('IT', 'ValidatesContainer')
+  @attr('IT')
+  @pytest.mark.it_validatescontainer
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
 
-  @attr('ValidatesContainer')
+  @pytest.mark.it_validatescontainer
   def test_wordcount_it_with_prebuilt_sdk_container_local_docker(self):
     self._run_wordcount_it(
         wordcount.run,
         experiment='beam_fn_api',
         prebuild_sdk_container_engine='local_docker')
 
-  @attr('ValidatesContainer')
+  @pytest.mark.it_validatescontainer
   def test_wordcount_it_with_prebuilt_sdk_container_cloud_build(self):
     self._run_wordcount_it(
         wordcount.run,

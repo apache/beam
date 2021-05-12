@@ -73,10 +73,9 @@ public class LazyAggregateCombineFn<InputT, AccumT, OutputT>
 
   @Override
   public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
-    Iterator<AccumT> it = accumulators.iterator();
-    AccumT first = it.next();
-    it.remove();
-    return getAggregateFn().mergeAccumulators(first, accumulators);
+    AccumT first = accumulators.iterator().next();
+    Iterable<AccumT> rest = new SkipFirstElementIterable<>(accumulators);
+    return getAggregateFn().mergeAccumulators(first, rest);
   }
 
   @Override
@@ -98,5 +97,21 @@ public class LazyAggregateCombineFn<InputT, AccumT, OutputT>
   @Override
   public TypeVariable<?> getAccumTVariable() {
     return AggregateFn.class.getTypeParameters()[1];
+  }
+
+  /** Wrapper {@link Iterable} which always skips its first element. */
+  private static class SkipFirstElementIterable<T> implements Iterable<T> {
+    private final Iterable<T> all;
+
+    SkipFirstElementIterable(Iterable<T> all) {
+      this.all = all;
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+      Iterator<T> it = all.iterator();
+      it.next();
+      return it;
+    }
   }
 }

@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 
 import com.google.zetasql.SqlException;
 import java.lang.reflect.Method;
+import java.time.LocalDate;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Sum;
@@ -432,6 +434,24 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 .registerUdaf("my_sum", Sum.ofLongs()));
     Schema singleField = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(6L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testDateUdf() {
+    String sql =
+        String.format(
+            "CREATE FUNCTION dateIncrementAll(d DATE) RETURNS DATE LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT dateIncrementAll('2020-04-04');",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema singleField = Schema.builder().addLogicalTypeField("field1", SqlTypes.DATE).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(singleField).addValues(LocalDate.of(2021, 5, 5)).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 }

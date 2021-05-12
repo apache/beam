@@ -17,14 +17,9 @@
 
 """A connector for sending API requests to the GCP Video Intelligence API."""
 
-from __future__ import absolute_import
-
 from typing import Optional
 from typing import Tuple
 from typing import Union
-
-from future.utils import binary_type
-from future.utils import text_type
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
@@ -55,8 +50,8 @@ class AnnotateVideo(PTransform):
   ref: https://cloud.google.com/video-intelligence/docs
 
   Sends each element to the GCP Video Intelligence API. Element is a
-  Union[text_type, binary_type] of either an URI (e.g. a GCS URI) or
-  binary_type base64-encoded video data.
+  Union[str, bytes] of either an URI (e.g. a GCS URI) or
+  bytes base64-encoded video data.
   Accepts an `AsDict` side input that maps each video to a video context.
   """
   def __init__(
@@ -118,8 +113,7 @@ class AnnotateVideo(PTransform):
 
 
 @typehints.with_input_types(
-    Union[text_type, binary_type],
-    Optional[videointelligence.types.VideoContext])
+    Union[str, bytes], Optional[videointelligence.types.VideoContext])
 class _VideoAnnotateFn(DoFn):
   """A DoFn that sends each input element to the GCP Video Intelligence API
   service and outputs an element with the return result of the API
@@ -138,7 +132,7 @@ class _VideoAnnotateFn(DoFn):
     self._client = get_videointelligence_client()
 
   def _annotate_video(self, element, video_context):
-    if isinstance(element, text_type):  # Is element an URI to a GCS bucket
+    if isinstance(element, str):  # Is element an URI to a GCS bucket
       response = self._client.annotate_video(
           input_uri=element,
           features=self.features,
@@ -171,11 +165,11 @@ class AnnotateVideoWithContext(AnnotateVideo):
   Sends each element to the GCP Video Intelligence API.
   Element is a tuple of
 
-    (Union[text_type, binary_type],
+    (Union[str, bytes],
     Optional[videointelligence.types.VideoContext])
 
   where the former is either an URI (e.g. a GCS URI) or
-  binary_type base64-encoded video data
+  bytes base64-encoded video data
   """
   def __init__(self, features, location_id=None, metadata=None, timeout=120):
     """
@@ -208,8 +202,7 @@ class AnnotateVideoWithContext(AnnotateVideo):
 
 
 @typehints.with_input_types(
-    Tuple[Union[text_type, binary_type],
-          Optional[videointelligence.types.VideoContext]])
+    Tuple[Union[str, bytes], Optional[videointelligence.types.VideoContext]])
 class _VideoAnnotateFnWithContext(_VideoAnnotateFn):
   """A DoFn that unpacks each input tuple to element, video_context variables
   and sends these to the GCP Video Intelligence API service and outputs
