@@ -516,7 +516,7 @@ def show(
       recording.cancel()
 
 
-# @progress_indicated
+@progress_indicated
 def collect(
     pcoll,
     n='inf',
