@@ -299,6 +299,9 @@ class Pipeline(object):
               original_transform_node.full_label,
               original_transform_node.inputs)
 
+          replacement_transform_node.resource_hints = (
+              original_transform_node.resource_hints)
+
           # Transform execution could depend on order in which nodes are
           # considered. Hence we insert the replacement transform node to same
           # index as the original transform node. Note that this operation
