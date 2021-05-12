@@ -130,3 +130,7 @@ checkstyleMain.enabled = false
 checkstyleTest.enabled = false
 //TODO(BEAM-5659): javadoc task should be enabled in the future.
 javadoc.enabled = false
+
+test {
+  systemProperty 'java.util.logging.config.file', '../../../logging.properties'
+}
