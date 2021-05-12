@@ -2108,7 +2108,7 @@ class BeamModulePlugin implements Plugin<Project> {
           "suite": "xlangValidateRunner",
           "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
           // TODO(BEAM-10507): Remove no_xlang_transforms after fixing
-          "collect": "${config.pythonTestAttr} and not no_xlang_transforms"
+          "collect": config.pythonTestAttr + " and not no_xlang_transforms"
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
         def pythonTask = project.tasks.create(name: config.name+"PythonUsing"+sdk, type: Exec) {
