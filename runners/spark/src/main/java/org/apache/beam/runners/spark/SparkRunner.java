@@ -161,12 +161,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
 
-    // Default to using the primitive versions of Read.Bounded and Read.Unbounded if we are
-    // executing an unbounded pipeline or the user specifically requested it.
-    if (pipelineOptions.isStreaming()
-        || ExperimentalOptions.hasExperiment(
-            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
-        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")) {
+      // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
       pipeline.replaceAll(ImmutableList.of(KafkaIO.Read.KAFKA_READ_OVERRIDE));
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     }
