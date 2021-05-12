@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -84,6 +85,9 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
                   .addLogicalTypeField("f_date", SqlTypes.DATE)
                   .addDateTimeField("f_timestamp")
                   .addArrayField("array_int64", Schema.FieldType.INT64)
+                  .addDecimalField("numeric_one")
+                  .addDecimalField("numeric_max")
+                  .addDecimalField("numeric_min")
                   .build())
           .addRows(
               true /* boolean_true */,
@@ -110,7 +114,10 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
               Double.NaN /* float64_nan */,
               LocalDate.of(2021, 4, 26) /* f_date */,
               new DateTime(2021, 5, 6, 3, 48, 32, DateTimeZone.UTC) /* f_timestamp */,
-              ImmutableList.of(1L, 2L, 3L) /* array_int64 */);
+              ImmutableList.of(1L, 2L, 3L) /* array_int64 */,
+              new BigDecimal("1.000000000" /* numeric_one */),
+              new BigDecimal("99999999999999999999999999999.999999999" /* numeric_max */),
+              new BigDecimal("-99999999999999999999999999999.999999999" /* numeric_min */));
 
   @Before
   public void setUp() throws NoSuchMethodException {
@@ -147,6 +154,9 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
     schema.add(
         "test_array",
         ScalarFunctionImpl.create(ListIdentityFn.class.getMethod("eval", List.class)));
+    schema.add(
+        "test_numeric",
+        ScalarFunctionImpl.create(BigDecimalIdentityFn.class.getMethod("eval", BigDecimal.class)));
 
     this.config = Frameworks.newConfigBuilder(config).defaultSchema(schema).build();
   }
@@ -195,6 +205,12 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
 
   public static class ListIdentityFn implements BeamSqlUdf {
     public List<Long> eval(List<Long> input) {
+      return input;
+    }
+  }
+
+  public static class BigDecimalIdentityFn implements BeamSqlUdf {
+    public BigDecimal eval(BigDecimal input) {
       return input;
     }
   }
@@ -518,5 +534,53 @@ public class ZetaSqlJavaUdfTypeTest extends ZetaSqlTestBase {
         "SELECT test_array(array_int64) FROM table;",
         ImmutableList.of(1L, 2L, 3L),
         Schema.FieldType.array(Schema.FieldType.INT64));
+  }
+
+  @Test
+  public void testNumericOneLiteral() {
+    runUdfTypeTest(
+        "SELECT test_numeric(1.000000000);",
+        new BigDecimal("1.000000000"),
+        Schema.FieldType.DECIMAL);
+  }
+
+  @Test
+  public void testNumericMaxLiteral() {
+    runUdfTypeTest(
+        "SELECT test_numeric(99999999999999999999999999999.999999999);",
+        new BigDecimal("99999999999999999999999999999.999999999"),
+        Schema.FieldType.DECIMAL);
+  }
+
+  @Test
+  public void testNumericMinLiteral() {
+    runUdfTypeTest(
+        "SELECT test_numeric(-99999999999999999999999999999.999999999);",
+        new BigDecimal("-99999999999999999999999999999.999999999"),
+        Schema.FieldType.DECIMAL);
+  }
+
+  @Test
+  public void testNumericOneInput() {
+    runUdfTypeTest(
+        "SELECT test_numeric(numeric_one) FROM table;",
+        new BigDecimal("1.000000000"),
+        Schema.FieldType.DECIMAL);
+  }
+
+  @Test
+  public void testNumericMaxInput() {
+    runUdfTypeTest(
+        "SELECT test_numeric(numeric_max) FROM table;",
+        new BigDecimal("99999999999999999999999999999.999999999"),
+        Schema.FieldType.DECIMAL);
+  }
+
+  @Test
+  public void testNumericMinInput() {
+    runUdfTypeTest(
+        "SELECT test_numeric(numeric_min) FROM table;",
+        new BigDecimal("-99999999999999999999999999999.999999999"),
+        Schema.FieldType.DECIMAL);
   }
 }
