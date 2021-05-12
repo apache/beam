@@ -100,7 +100,7 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 
 				var resolvedDeps []*pipepb.ArtifactInformation
 				for _, a := range resolvedArtifacts {
-					name, _ := artifact.MustExtractFilePayload(a)
+					name, sha256 := artifact.MustExtractFilePayload(a)
 					fullTmpPath := filepath.Join(tmpPath, "/", name)
 					fullSdkPath := fullTmpPath
 					if len(cfg.SdkPath) > 0 {
@@ -111,7 +111,8 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 							TypeUrn: "beam:artifact:type:file:v1",
 							TypePayload: protox.MustEncode(
 								&pipepb.ArtifactFilePayload{
-									Path: fullSdkPath,
+									Path:   fullSdkPath,
+									Sha256: sha256,
 								},
 							),
 							RoleUrn:     a.RoleUrn,
