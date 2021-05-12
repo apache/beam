@@ -144,41 +144,38 @@ def model_pipelines():
   # [START model_pipelines]
   import argparse
   import re
-  import sys
 
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input',
+      '--input-file',
       default='gs://dataflow-samples/shakespeare/kinglear.txt',
-      help='Input file to process.')
+      help='The file path for the input text to process.')
   parser.add_argument(
-      '--output', required=True, help='Output file to write results to.')
-  args, beam_args = parser.parse_known_args(sys.argv)
+      '--output-path', required=True, help='The path prefix for output files.')
+  args, beam_args = parser.parse_known_args()
 
   beam_options = PipelineOptions(beam_args)
   with beam.Pipeline(options=beam_options) as pipeline:
     (
         pipeline
-        | beam.io.ReadFromText(args.input)
+        | beam.io.ReadFromText(args.input_file)
         | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
         | beam.Map(lambda x: (x, 1))
         | beam.combiners.Count.PerKey()
-        | beam.io.WriteToText(args.output))
+        | beam.io.WriteToText(args.output_path))
   # [END model_pipelines]
 
 
 def model_pcollection(output_path):
   """Creating a PCollection from data in local memory."""
   # [START model_pcollection]
-  import sys
-
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  beam_options = PipelineOptions(sys.argv)
+  beam_options = PipelineOptions()
   with beam.Pipeline(options=beam_options) as pipeline:
     lines = (
         pipeline
@@ -197,12 +194,9 @@ def pipeline_options_remote():
   """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
   # [START pipeline_options_create]
-  import sys
-
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  # If flags is None or not passed, it defaults to sys.argv
-  beam_options = PipelineOptions(flags=sys.argv)
+  beam_options = PipelineOptions()
   # [END pipeline_options_create]
 
   # [START pipeline_options_define_custom]
@@ -211,18 +205,22 @@ def pipeline_options_remote():
   class MyOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
-      parser.add_argument('--input')
-      parser.add_argument('--output')
+      parser.add_argument('--input-file')
+      parser.add_argument('--output-path')
 
   # [END pipeline_options_define_custom]
 
   @mock.patch('apache_beam.Pipeline')
   def dataflow_options(mock_pipeline):
     # [START pipeline_options_dataflow_service]
-    import sys
+    import argparse
 
     import apache_beam as beam
     from apache_beam.options.pipeline_options import PipelineOptions
+
+    parser = argparse.ArgumentParser()
+    # parser.add_argument('--my-arg')
+    args, beam_args = parser.parse_known_args()
 
     # Create and set your PipelineOptions.
     # For Cloud execution, specify DataflowRunner and set the Cloud Platform
@@ -230,7 +228,7 @@ def pipeline_options_remote():
     # For more information about regions, check:
     # https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
     beam_options = PipelineOptions(
-        flags=sys.argv,
+        beam_args,
         runner='DataflowRunner',
         project='my-project-id',
         job_name='unique-job-name',
@@ -247,8 +245,8 @@ def pipeline_options_remote():
   my_options = beam_options.view_as(MyOptions)
 
   with TestPipeline() as p:  # Use TestPipeline for testing.
-    lines = p | beam.io.ReadFromText(my_options.input)
-    lines | beam.io.WriteToText(my_options.output)
+    lines = p | beam.io.ReadFromText(my_options.input_file)
+    lines | beam.io.WriteToText(my_options.output_path)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
@@ -262,31 +260,35 @@ def pipeline_options_local():
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument(
-          '--input',
-          help='Input for the pipeline',
-          default='gs://my-bucket/input')
+          '--input-file',
+          default='gs://dataflow-samples/shakespeare/kinglear.txt',
+          help='The file path for the input text to process.')
       parser.add_argument(
-          '--output',
-          help='Output for the pipeline',
-          default='gs://my-bucket/output')
+          '--output-path',
+          required=True,
+          help='The path prefix for output files.')
 
   # [END pipeline_options_define_custom_with_help_and_default]
 
   # [START pipeline_options_local]
-  import sys
+  import argparse
 
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
+  parser = argparse.ArgumentParser()
+  # parser.add_argument('--my-arg')
+  args, beam_args = parser.parse_known_args()
+
   # Create and set your Pipeline Options.
-  beam_options = PipelineOptions(sys.argv)
+  beam_options = PipelineOptions(beam_args)
   my_options = beam_options.view_as(MyOptions)
 
   with beam.Pipeline(options=beam_options) as pipeline:
     lines = (
         pipeline
-        | beam.io.ReadFromText(my_options.input)
-        | beam.io.WriteToText(my_options.output))
+        | beam.io.ReadFromText(my_options.input_file)
+        | beam.io.WriteToText(my_options.output_path))
   # [END pipeline_options_local]
 
 
@@ -297,23 +299,28 @@ def pipeline_options_command_line():
   # [START pipeline_options_command_line]
   # Use Python argparse module to parse custom arguments
   import argparse
-  import sys
 
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
+  # For more details on how to use argparse, take a look at:
+  #   https://docs.python.org/3/library/argparse.html
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input')
-  parser.add_argument('--output')
-  args, beam_args = parser.parse_known_args(sys.argv)
+  parser.add_argument(
+      '--input-file',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='The file path for the input text to process.')
+  parser.add_argument(
+      '--output-path', required=True, help='The path prefix for output files.')
+  args, beam_args = parser.parse_known_args()
 
   # Create the Pipeline with remaining arguments.
   beam_options = PipelineOptions(beam_args)
   with beam.Pipeline(options=beam_options) as pipeline:
     lines = (
         pipeline
-        | 'Read files' >> beam.io.ReadFromText(args.input)
-        | 'Write files' >> beam.io.WriteToText(args.output))
+        | 'Read files' >> beam.io.ReadFromText(args.input_file)
+        | 'Write files' >> beam.io.WriteToText(args.output_path))
   # [END pipeline_options_command_line]
 
 

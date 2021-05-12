@@ -601,7 +601,11 @@ class SnippetsTest(unittest.TestCase):
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
     result_path = temp_path + '.result'
-    test_argv = [f"--input={temp_path}*", f"--output={result_path}"]
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
     with mock.patch.object(sys, 'argv', test_argv):
       snippets.model_pipelines()
     self.assertEqual(
@@ -753,7 +757,11 @@ class SnippetsTest(unittest.TestCase):
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
     result_path = temp_path + '.result'
-    test_argv = [f"--input={temp_path}*", f"--output={result_path}"]
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
     with mock.patch.object(sys, 'argv', test_argv):
       fn()
     self.assertEqual(['aa', 'bb', 'cc'], self.get_output(result_path))
