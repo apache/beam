@@ -204,12 +204,12 @@ public class BeamZetaSqlCatalog {
       case TYPE_DOUBLE:
       case TYPE_INT64:
       case TYPE_STRING:
+      case TYPE_TIMESTAMP:
         // These types are supported.
         break;
       case TYPE_NUMERIC:
       case TYPE_TIME:
       case TYPE_DATETIME:
-      case TYPE_TIMESTAMP:
       case TYPE_ARRAY:
       case TYPE_STRUCT:
       default:
@@ -431,9 +431,10 @@ public class BeamZetaSqlCatalog {
   private void validateJavaUdfCalciteType(RelDataType type) {
     switch (type.getSqlTypeName()) {
       case BIGINT:
+      case BOOLEAN:
       case DATE:
       case DOUBLE:
-      case BOOLEAN:
+      case TIMESTAMP:
       case VARCHAR:
       case VARBINARY:
         // These types are supported.
@@ -441,7 +442,6 @@ public class BeamZetaSqlCatalog {
       case DECIMAL:
       case TIME:
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-      case TIMESTAMP:
       case ARRAY:
       case ROW:
       default:
