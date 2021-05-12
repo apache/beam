@@ -69,7 +69,13 @@ public class FileReporter extends AbstractReporter {
     final String name = group.getMetricIdentifier(metricName, this);
     super.notifyOfRemovedMetric(metric, metricName, group);
     synchronized (this) {
-      ps.printf("%s: %s%n", name, Metrics.toString(metric));
+      try {
+        ps.printf("%s: %s%n", name, Metrics.toString(metric));
+      } catch (NullPointerException e) {
+        // Workaround to avoid a NPE on Flink's DeclarativeSlotManager during unregister
+        // TODO Remove once FLINK-22646 is fixed on upstream Flink.
+        log.warn("unable to log details on metric {}", name);
+      }
     }
   }
 
