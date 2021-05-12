@@ -594,7 +594,7 @@ class GcsDownloader(Downloader):
     resource = resource_identifiers.GoogleCloudStorage(self._bucket)
     labels = {
         monitoring_infos.SERVICE_LABEL: 'Storage',
-        monitoring_infos.METHOD_LABEL: 'GcsObjectsInsert',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
     }
@@ -603,8 +603,7 @@ class GcsDownloader(Downloader):
         base_labels=labels)
 
     try:
-      response = self._client.objects.Get(
-          self._get_request, download=self._downloader)
+      self._client.objects.Get(self._get_request, download=self._downloader)
       service_call_metric.call('ok')
     except HttpError as e:
       service_call_metric.call(e)
@@ -664,9 +663,23 @@ class GcsUploader(Uploader):
     #
     # The uploader by default transfers data in chunks of 1024 * 1024 bytes at
     # a time, buffering writes until that size is reached.
+
+    # Create a request count metric
+    resource = resource_identifiers.GoogleCloudStorage(self._bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.insert',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
     try:
       self._client.objects.Insert(self._insert_request, upload=self._upload)
+      service_call_metric.call('ok')
     except Exception as e:  # pylint: disable=broad-except
+      service_call_metric.call(e)
       _LOGGER.error(
           'Error in _start_upload while inserting file %s: %s',
           self._path,
