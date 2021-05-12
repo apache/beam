@@ -755,27 +755,50 @@ class TestGCSIO(unittest.TestCase):
     generator._handle_text(message)
     self.assertEqual(test_msg.encode('ascii'), output_buffer.getvalue())
 
-  def test_monitoring_info(self):
+  def test_downloader_monitoring_info(self):
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
-    bucket, _ = gcsio.parse_gcs_path(file_name)
-    resource = resource_identifiers.GoogleCloudStorage(bucket)
+    file_size = 5 * 1024 * 1024 + 100
+    random_file = self._insert_random_file(self.client, file_name, file_size)
+    self.gcs.open(file_name, 'r')
+
+    resource = resource_identifiers.GoogleCloudStorage(random_file.bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
+
+  def test_uploader_monitoring_info(self):
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    file_size = 5 * 1024 * 1024 + 100
+    random_file = self._insert_random_file(self.client, file_name, file_size)
+    f = self.gcs.open(file_name, 'w')
+
+    resource = resource_identifiers.GoogleCloudStorage(random_file.bucket)
     labels = {
         monitoring_infos.SERVICE_LABEL: 'Storage',
         monitoring_infos.METHOD_LABEL: 'Objects.insert',
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.GCS_BUCKET_LABEL: bucket,
+        monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
         monitoring_infos.STATUS_LABEL: 'ok'
     }
 
-    with self.gcs.open(file_name, 'w') as f:
-      assert f.mode == 'w'
-    with self.gcs.open(file_name, 'r') as f:
-      assert f.mode == 'r'
-      metric_name = MetricName(
-          None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
-      metric_value = MetricsEnvironment.process_wide_container().get_counter(
-          metric_name).get_cumulative()
-      self.assertEqual(metric_value, 1)
+    f.close()
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
 
 
 if __name__ == '__main__':
