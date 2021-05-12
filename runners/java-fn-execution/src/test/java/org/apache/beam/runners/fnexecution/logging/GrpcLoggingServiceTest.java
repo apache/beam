@@ -94,7 +94,7 @@ public class GrpcLoggingServiceTest {
     }
   }
 
-  @Test
+  @Test(timeout = 5000)
   public void testMultipleClientsFailingIsHandledGracefullyByServer() throws Exception {
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
     GrpcLoggingService service =
