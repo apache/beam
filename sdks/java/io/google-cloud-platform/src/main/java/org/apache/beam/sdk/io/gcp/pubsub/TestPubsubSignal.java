@@ -444,6 +444,7 @@ public class TestPubsubSignal implements TestRule {
           context.output("SUCCESS");
         }
       } catch (Throwable e) {
+        LOG.error("Error while applying predicate.", e);
         context.output("FAILURE: " + e.getMessage());
       }
     }
