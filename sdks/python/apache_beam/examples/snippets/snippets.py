@@ -424,30 +424,27 @@ def examples_wordcount_minimal(renames):
 
   import apache_beam as beam
 
-  from apache_beam.options.pipeline_options import GoogleCloudOptions
-  from apache_beam.options.pipeline_options import StandardOptions
+  # [START examples_wordcount_minimal_options]
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  # [START examples_wordcount_minimal_options]
-  options = PipelineOptions()
-  google_cloud_options = options.view_as(GoogleCloudOptions)
-  google_cloud_options.project = 'my-project-id'
-  google_cloud_options.job_name = 'myjob'
-  google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
-  google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
-  options.view_as(StandardOptions).runner = 'DataflowRunner'
+  options = PipelineOptions(
+      runner='DataflowRunner',
+      project='my-project-id',
+      job_name='unique-job-name',
+      temp_location='gs://my-bucket/temp',
+  )
   # [END examples_wordcount_minimal_options]
 
   # Run it locally for testing.
   options = PipelineOptions()
 
   # [START examples_wordcount_minimal_create]
-  p = beam.Pipeline(options=options)
+  pipeline = beam.Pipeline(options=options)
   # [END examples_wordcount_minimal_create]
 
   (
       # [START examples_wordcount_minimal_read]
-      p
+      pipeline
       | beam.io.ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt')
       # [END examples_wordcount_minimal_read]
 
@@ -468,10 +465,10 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_write]
   )
 
-  p.visit(SnippetUtils.RenameFiles(renames))
+  pipeline.visit(SnippetUtils.RenameFiles(renames))
 
   # [START examples_wordcount_minimal_run]
-  result = p.run()
+  result = pipeline.run()
   # [END examples_wordcount_minimal_run]
   result.wait_until_finish()
 
@@ -483,21 +480,21 @@ def examples_wordcount_wordcount(renames):
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  argv = []
-
   # [START examples_wordcount_wordcount_options]
-  class WordCountOptions(PipelineOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_argument(
-          '--input',
-          help='Input for the pipeline',
-          default='gs://my-bucket/input')
+  import argparse
 
-  options = PipelineOptions(argv)
-  word_count_options = options.view_as(WordCountOptions)
-  with beam.Pipeline(options=options) as p:
-    lines = p | beam.io.ReadFromText(word_count_options.input)
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--input-file',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='The file path for the input text to process.')
+  parser.add_argument(
+      '--output-path', required=True, help='The path prefix for output files.')
+  args, beam_args = parser.parse_known_args()
+
+  beam_options = PipelineOptions(beam_args)
+  with beam.Pipeline(options=beam_options) as pipeline:
+    lines = pipeline | beam.io.ReadFromText(args.input_file)
 
     # [END examples_wordcount_wordcount_options]
 
@@ -527,7 +524,7 @@ def examples_wordcount_wordcount(renames):
     # [END examples_wordcount_wordcount_dofn]
 
     formatted | beam.io.WriteToText('gs://my-bucket/counts.txt')
-    p.visit(SnippetUtils.RenameFiles(renames))
+    pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
 def examples_wordcount_templated(renames):
@@ -649,11 +646,10 @@ def examples_wordcount_debugging(renames):
     p.visit(SnippetUtils.RenameFiles(renames))
 
 
-def examples_wordcount_streaming(argv):
+def examples_wordcount_streaming():
   import apache_beam as beam
   from apache_beam import window
   from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import StandardOptions
 
   # Parse out arguments.
   parser = argparse.ArgumentParser()
@@ -674,19 +670,17 @@ def examples_wordcount_streaming(argv):
       help=(
           'Input PubSub subscription of the form '
           '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
-  known_args, pipeline_args = parser.parse_known_args(argv)
+  args, beam_args = parser.parse_known_args()
 
-  pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(StandardOptions).streaming = True
+  beam_options = PipelineOptions(beam_args, streaming=True)
 
-  with TestPipeline(options=pipeline_options) as p:
+  with TestPipeline(options=beam_options) as p:
     # [START example_wordcount_streaming_read]
     # Read from Pub/Sub into a PCollection.
-    if known_args.input_subscription:
-      lines = p | beam.io.ReadFromPubSub(
-          subscription=known_args.input_subscription)
+    if args.input_subscription:
+      lines = p | beam.io.ReadFromPubSub(subscription=args.input_subscription)
     else:
-      lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+      lines = p | beam.io.ReadFromPubSub(topic=args.input_topic)
     # [END example_wordcount_streaming_read]
 
     output = (
@@ -704,7 +698,7 @@ def examples_wordcount_streaming(argv):
 
     # [START example_wordcount_streaming_write]
     # Write to Pub/Sub
-    output | beam.io.WriteToPubSub(known_args.output_topic)
+    output | beam.io.WriteToPubSub(args.output_topic)
     # [END example_wordcount_streaming_write]
 
 

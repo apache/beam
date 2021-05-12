@@ -862,12 +862,15 @@ class SnippetsTest(unittest.TestCase):
         FakeReadFromPubSub(topic=input_topic, values=input_values))
     beam.io.WriteToPubSub = (
         FakeWriteToPubSub(topic=output_topic, values=output_values))
-    snippets.examples_wordcount_streaming([
+    test_argv = [
+        'unused_argv[0]',
         '--input_topic',
         'projects/fake-beam-test-project/topic/intopic',
         '--output_topic',
         'projects/fake-beam-test-project/topic/outtopic'
-    ])
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.examples_wordcount_streaming()
 
     # Test with custom subscription.
     input_sub = 'projects/fake-beam-test-project/subscriptions/insub'
