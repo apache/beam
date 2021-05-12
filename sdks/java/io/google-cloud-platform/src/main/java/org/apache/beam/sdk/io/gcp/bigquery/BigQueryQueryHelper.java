@@ -109,7 +109,10 @@ class BigQueryQueryHelper {
               .getReferencedTables();
       if (referencedTables != null && !referencedTables.isEmpty()) {
         TableReference referencedTable = referencedTables.get(0);
-        effectiveLocation = tableService.getTable(referencedTable).getLocation();
+        effectiveLocation =
+            tableService
+                .getDataset(referencedTable.getProjectId(), referencedTable.getDatasetId())
+                .getLocation();
       }
     }
 

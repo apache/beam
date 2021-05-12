@@ -85,10 +85,7 @@ public class ResourceHints {
   public static ResourceHints fromOptions(PipelineOptions options) {
     ResourceHintsOptions resourceHintsOptions = options.as(ResourceHintsOptions.class);
     ResourceHints result = create();
-    @Nullable List<String> hints = resourceHintsOptions.getResourceHints();
-    if (hints == null) {
-      return result;
-    }
+    List<String> hints = resourceHintsOptions.getResourceHints();
     Splitter splitter = Splitter.on('=').limit(2);
     for (String hint : hints) {
       List<String> parts = splitter.splitToList(hint);
