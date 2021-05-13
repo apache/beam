@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
@@ -125,6 +126,15 @@ public class BeamFnLoggingServiceTest {
     LOG.info("Starting testMultipleClientsFailingIsHandledGracefullyByServer");
     Collection<Callable<Void>> tasks = new ArrayList<>();
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
+    ExecutorService channelExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactory() {
+              @Override
+              public Thread newThread(Runnable r) {
+                return new Thread(r, "BeamFnLoggingServiceTest-channel-executor");
+              }
+            });
+
     try (BeamFnLoggingService service =
         new BeamFnLoggingService(
             findOpenPort(),
@@ -139,6 +149,7 @@ public class BeamFnLoggingServiceTest {
               CountDownLatch waitForTermination = new CountDownLatch(1);
               ManagedChannel channel =
                   InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
+                      .executor(channelExecutor)
                       .build();
               StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
@@ -175,6 +186,7 @@ public class BeamFnLoggingServiceTest {
       LOG.info("executorService terminated");
     } finally {
       LOG.info("Finished testMultipleClientsFailingIsHandledGracefullyByServer");
+      channelExecutor.shutdown();
     }
   }
 

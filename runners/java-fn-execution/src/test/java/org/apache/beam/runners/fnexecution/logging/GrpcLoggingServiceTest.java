@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -106,6 +107,16 @@ public class GrpcLoggingServiceTest {
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
     GrpcLoggingService service =
         GrpcLoggingService.forWriter(new CollectionAppendingLogWriter(logs));
+
+    ExecutorService channelExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactory() {
+              @Override
+              public Thread newThread(Runnable r) {
+                return new Thread(r, "GrpcLoggingServiceTest-channel-executor");
+              }
+            });
+
     try (GrpcFnServer<GrpcLoggingService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
@@ -116,7 +127,8 @@ public class GrpcLoggingServiceTest {
             () -> {
               CountDownLatch waitForTermination = new CountDownLatch(1);
               String url = server.getApiServiceDescriptor().getUrl();
-              ManagedChannel channel = InProcessChannelBuilder.forName(url).build();
+              ManagedChannel channel =
+                  InProcessChannelBuilder.forName(url).executor(channelExecutor).build();
               StreamObserver<LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
                       .logging(
@@ -141,6 +153,7 @@ public class GrpcLoggingServiceTest {
       LOG.info("executorService terminated");
     } finally {
       LOG.info("Finishing testMultipleClientsFailingIsHandledGracefullyByServer");
+      channelExecutor.shutdown();
     }
   }
 
