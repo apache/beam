@@ -554,7 +554,7 @@ public class LyftFlinkStreamingPortableTranslations {
      // Add s3 start datetime 
      JsonNode startDate = userS3Config.get("startDate");
      if (startDate != null) {
-       builder = builder.witStartDate(startDate.asText());
+       builder = builder.withStartDate(startDate.asText());
      }
 
       // Add s3 end datetime 
