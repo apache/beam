@@ -1223,10 +1223,7 @@ public class KafkaIO {
       Coder<V> valueCoder = getValueCoder(coderRegistry);
 
       // For read from unbounded in a bounded manner, we actually are not going through Read or SDF.
-      if (ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
-          || ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "use_deprecated_read")
+      if (!ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "use_sdf_read")
           || getMaxNumRecords() < Long.MAX_VALUE
           || getMaxReadTime() != null) {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
