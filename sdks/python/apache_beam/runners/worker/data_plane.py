@@ -640,7 +640,7 @@ class DataChannelFactory(metaclass=abc.ABCMeta):
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
-  def create_data_channel_from_url(self, remote_grpc_port):
+  def create_data_channel_from_url(self, url):
     # type: (str) -> Optional[GrpcClientDataChannel]
 
     """Returns a ``DataChannel`` from the given url."""
