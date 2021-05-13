@@ -127,7 +127,8 @@ public class BeamFnLoggingServiceTest {
     Collection<Callable<Void>> tasks = new ArrayList<>();
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
     ExecutorService channelExecutor =
-        Executors.newCachedThreadPool(
+        Executors.newFixedThreadPool(
+            3,
             new ThreadFactory() {
               @Override
               public Thread newThread(Runnable r) {
@@ -178,6 +179,7 @@ public class BeamFnLoggingServiceTest {
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
+      LOG.info("Invoking all tasks");
       executorService.invokeAll(tasks);
       LOG.info("Invoked all tasks");
       executorService.shutdown();

@@ -109,7 +109,8 @@ public class GrpcLoggingServiceTest {
         GrpcLoggingService.forWriter(new CollectionAppendingLogWriter(logs));
 
     ExecutorService channelExecutor =
-        Executors.newCachedThreadPool(
+        Executors.newFixedThreadPool(
+            3,
             new ThreadFactory() {
               @Override
               public Thread newThread(Runnable r) {
@@ -145,6 +146,7 @@ public class GrpcLoggingServiceTest {
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
+      LOG.info("Invoking all tasks");
       executorService.invokeAll(tasks);
       LOG.info("Invoked all tasks");
       executorService.shutdown();
