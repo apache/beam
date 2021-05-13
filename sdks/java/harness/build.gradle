@@ -44,6 +44,9 @@ applyJavaNature(
       }
       // Include all dependencies and transitive dependencies
       include(dependency(".*:.*"))
+      // li_trunk only
+      // LISAMZA-21108 exclude log4j from the uber jar
+      exclude(dependency("org.apache.logging.log4j:.*"))
     }
   })
 
