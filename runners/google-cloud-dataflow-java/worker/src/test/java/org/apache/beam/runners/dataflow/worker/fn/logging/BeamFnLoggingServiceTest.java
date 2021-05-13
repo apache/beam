@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -49,10 +50,14 @@ import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link BeamFnLoggingService}. */
 @RunWith(JUnit4.class)
 public class BeamFnLoggingServiceTest {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnLoggingServiceTest.class);
+
   private Server server;
 
   private Endpoints.ApiServiceDescriptor findOpenPort() throws Exception {
@@ -119,6 +124,19 @@ public class BeamFnLoggingServiceTest {
   public void testMultipleClientsFailingIsHandledGracefullyByServer() throws Exception {
     Collection<Callable<Void>> tasks = new ArrayList<>();
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
+    ExecutorService channelExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactory() {
+              @Override
+              public Thread newThread(Runnable r) {
+                Thread thread = new Thread(r, "BeamFnLoggingServiceTest-channel-executor");
+                thread.setUncaughtExceptionHandler(
+                    (Thread t, Throwable e) -> {
+                      LOG.error("Uncaught exception caught in " + t.getName(), e);
+                    });
+                return thread;
+              }
+            });
     try (BeamFnLoggingService service =
         new BeamFnLoggingService(
             findOpenPort(),
@@ -131,14 +149,20 @@ public class BeamFnLoggingServiceTest {
         tasks.add(
             () -> {
               CountDownLatch waitForTermination = new CountDownLatch(1);
+              LOG.info("Created latch for {}: {}", instructionId, waitForTermination);
               ManagedChannel channel =
                   InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
+                      .executor(channelExecutor)
                       .build();
               StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
                       .logging(
                           TestStreams.withOnNext(BeamFnLoggingServiceTest::discardMessage)
-                              .withOnError(waitForTermination::countDown)
+                              .withOnError(
+                                  () -> {
+                                    waitForTermination.countDown();
+                                    LOG.info("Counted down latch {}", waitForTermination);
+                                  })
                               .build());
               outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
               outboundObserver.onError(new RuntimeException("Client " + instructionId));
@@ -146,8 +170,23 @@ public class BeamFnLoggingServiceTest {
               return null;
             });
       }
-      ExecutorService executorService = Executors.newCachedThreadPool();
+      ExecutorService executorService =
+          Executors.newCachedThreadPool(
+              new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                  Thread thread = new Thread(r, "BeamFnLoggingServiceTest-task-executor");
+                  thread.setUncaughtExceptionHandler(
+                      (Thread t, Throwable e) -> {
+                        LOG.error("Uncaught exception caught in " + t.getName(), e);
+                      });
+                  return thread;
+                }
+              });
       executorService.invokeAll(tasks);
+      executorService.shutdown();
+    } finally {
+      channelExecutor.shutdown();
     }
   }
 

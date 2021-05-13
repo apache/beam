@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
@@ -43,10 +44,14 @@ import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link GrpcLoggingService}. */
 @RunWith(JUnit4.class)
 public class GrpcLoggingServiceTest {
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcLoggingServiceTest.class);
+
   private Consumer<LogControl> messageDiscarder =
       item -> {
         // Ignore
@@ -97,8 +102,35 @@ public class GrpcLoggingServiceTest {
   @Test
   public void testMultipleClientsFailingIsHandledGracefullyByServer() throws Exception {
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
+    ExecutorService channelExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactory() {
+              @Override
+              public Thread newThread(Runnable r) {
+                Thread thread = new Thread(r, "GrpcLoggingServiceTest-channel-executor");
+                thread.setUncaughtExceptionHandler(
+                    (Thread t, Throwable e) -> {
+                      LOG.error("Uncaught exception caught in " + t.getName(), e);
+                    });
+                return thread;
+              }
+            });
     GrpcLoggingService service =
         GrpcLoggingService.forWriter(new CollectionAppendingLogWriter(logs));
+
+    ExecutorService executorService =
+        Executors.newCachedThreadPool(
+            new ThreadFactory() {
+              @Override
+              public Thread newThread(Runnable r) {
+                Thread thread = new Thread(r, "GrpcLoggingServiceTest-task-executor");
+                thread.setUncaughtExceptionHandler(
+                    (Thread t, Throwable e) -> {
+                      LOG.error("Uncaught exception caught in " + t.getName(), e);
+                    });
+                return thread;
+              }
+            });
     try (GrpcFnServer<GrpcLoggingService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
@@ -108,8 +140,10 @@ public class GrpcLoggingServiceTest {
         tasks.add(
             () -> {
               CountDownLatch waitForTermination = new CountDownLatch(1);
+              LOG.info("Created latch for {}: {}", instructionId, waitForTermination);
               ManagedChannel channel =
                   InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
+                      .executor(channelExecutor)
                       .build();
               StreamObserver<LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
@@ -123,8 +157,10 @@ public class GrpcLoggingServiceTest {
               return null;
             });
       }
-      ExecutorService executorService = Executors.newCachedThreadPool();
       executorService.invokeAll(tasks);
+    } finally {
+      executorService.shutdown();
+      channelExecutor.shutdown();
     }
   }
 
@@ -208,6 +244,7 @@ public class GrpcLoggingServiceTest {
     @Override
     public void run() {
       latch.countDown();
+      LOG.info("Counted down latch {}", latch);
     }
   }
 }
