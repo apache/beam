@@ -23,7 +23,6 @@ import logging
 import unittest
 import uuid
 
-import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
