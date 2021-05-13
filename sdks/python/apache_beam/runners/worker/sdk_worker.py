@@ -56,7 +56,6 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
-from apache_beam.portability.api import endpoints_pb2  # pylint: disable=unused-import
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
@@ -68,8 +67,11 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
 from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import thread_pool_executor
-from apache_beam.utils.profiler import Profile  # pylint: disable=unused-import
 from apache_beam.utils.sentinel import Sentinel
+
+if TYPE_CHECKING:
+  from apache_beam.portability.api import endpoints_pb2
+  from apache_beam.utils.profiler import Profile
 
 ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
 OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
