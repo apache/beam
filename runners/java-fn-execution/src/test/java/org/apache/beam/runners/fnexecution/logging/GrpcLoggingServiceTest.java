@@ -133,7 +133,6 @@ public class GrpcLoggingServiceTest {
             });
     try (GrpcFnServer<GrpcLoggingService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
-
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
         final int instructionId = i;
