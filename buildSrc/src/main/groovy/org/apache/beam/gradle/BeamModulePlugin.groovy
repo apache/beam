@@ -307,7 +307,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.21.0-lyft202105111620763339'
+    project.version = '2.21.0-lyft202105131620930310-lyft20210511'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -555,7 +555,7 @@ class BeamModulePlugin implements Plugin<Project> {
         maven_exec_plugin    : "maven-plugins:maven-exec-plugin:1.6.0",
         maven_jar_plugin     : "maven-plugins:maven-jar-plugin:3.0.2",
         maven_shade_plugin   : "maven-plugins:maven-shade-plugin:3.1.0",
-        maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:2.21.0-lyft202105111620763339",
+        maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:2.21.0-lyft202105131620930310-lyft20210511",
       ],
     ]
 
