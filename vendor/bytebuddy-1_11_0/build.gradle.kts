@@ -18,7 +18,7 @@
 
 plugins { id("org.apache.beam.vendor-java") }
 
-description = "Apache Beam :: Vendored Dependencies :: ByteBuddy :: 1.10.8"
+description = "Apache Beam :: Vendored Dependencies :: ByteBuddy :: 1.11.0"
 
 group = "org.apache.beam"
 version = "0.1"
@@ -26,14 +26,14 @@ version = "0.1"
 val vendorJava = project.extensions.extraProperties.get("vendorJava") as groovy.lang.Closure<*>
 vendorJava(
   mapOf(
-    "dependencies" to listOf("net.bytebuddy:byte-buddy:1.10.8"),
+    "dependencies" to listOf("net.bytebuddy:byte-buddy:1.11.0"),
     "relocations" to mapOf(
-            "net.bytebuddy" to "org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy"),
+            "net.bytebuddy" to "org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy"),
     "exclusions" to listOf(
             "**/module-info.class"
     ),
     "groupId" to group,
-    "artifactId" to "beam-vendor-bytebuddy-1_10_8",
+    "artifactId" to "beam-vendor-bytebuddy-1_11_0",
     "version" to version
   )
 )
