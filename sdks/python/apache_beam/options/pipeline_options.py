@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
-from builtins import list
-from builtins import object
 from typing import Any
 from typing import Callable
 from typing import Dict

@@ -78,6 +78,7 @@ STREAMING=false
 WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 SUITE=""
+COLLECT_MARKERS=
 
 # Default test (nose) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -163,6 +164,16 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --pytest)
+      PYTEST="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --collect)
+      COLLECT_MARKERS="-m=$2"
+      shift # past argument
+      shift # past value
+      ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -270,11 +281,23 @@ fi
 # Run tests and validate that jobs finish successfully.
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
-echo ">>>   test options: $TEST_OPTS"
-# TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't support
-#   suite names.
-python setup.py nosetests \
-  --test-pipeline-options="$PIPELINE_OPTS" \
-  --with-xunitmp --xunitmp-file=$XUNIT_FILE \
-  --ignore-files '.*py3\d?\.py$' \
-  $TEST_OPTS
+if [[ "$PYTEST" = true ]]; then
+  echo ">>>   pytest options: $TEST_OPTS"
+  echo ">>>   collect markers: $COLLECT_MARKERS"
+  ARGS="-o junit_suite_name=$SUITE --junitxml=pytest_$SUITE.xml $TEST_OPTS"
+  # Handle markers as an independient argument from $TEST_OPTS to prevent errors in space separeted flags
+  if [ -z "$COLLECT_MARKERS" ]; then
+    pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS"
+  else
+    pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS" "$COLLECT_MARKERS"
+  fi
+else
+  echo ">>>   test options: $TEST_OPTS"
+  # TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't
+  #   support suite names.
+  python setup.py nosetests \
+    --test-pipeline-options="$PIPELINE_OPTS" \
+    --with-xunitmp --xunitmp-file=$XUNIT_FILE \
+    --ignore-files '.*py3\d?\.py$' \
+    $TEST_OPTS
+fi

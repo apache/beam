@@ -142,7 +142,20 @@ public class BeamZetaSqlCatalog {
         sqlScalarUdfs.put(createFunctionStmt.getNamePath(), createFunctionStmt);
         break;
       case USER_DEFINED_JAVA_SCALAR_FUNCTIONS:
-        validateJavaUdf(createFunctionStmt);
+        String functionName = String.join(".", createFunctionStmt.getNamePath());
+        for (FunctionArgumentType argumentType :
+            createFunctionStmt.getSignature().getFunctionArgumentList()) {
+          Type type = argumentType.getType();
+          if (type == null) {
+            throw new UnsupportedOperationException(
+                "UDF templated argument types are not supported.");
+          }
+          validateJavaUdfZetaSqlType(type, functionName);
+        }
+        if (createFunctionStmt.getReturnType() == null) {
+          throw new IllegalArgumentException("UDF return type must not be null.");
+        }
+        validateJavaUdfZetaSqlType(createFunctionStmt.getReturnType(), functionName);
         String jarPath = getJarPath(createFunctionStmt);
         ScalarFn scalarFn =
             javaUdfLoader.loadScalarFunction(createFunctionStmt.getNamePath(), jarPath);
@@ -174,29 +187,14 @@ public class BeamZetaSqlCatalog {
             ImmutableList.of(createFunctionStmt.getSignature())));
   }
 
-  void validateJavaUdf(ResolvedNodes.ResolvedCreateFunctionStmt createFunctionStmt) {
-    for (FunctionArgumentType argumentType :
-        createFunctionStmt.getSignature().getFunctionArgumentList()) {
-      Type type = argumentType.getType();
-      if (type == null) {
-        throw new UnsupportedOperationException("UDF templated argument types are not supported.");
-      }
-      validateJavaUdfZetaSqlType(type);
-    }
-    if (createFunctionStmt.getReturnType() == null) {
-      throw new IllegalArgumentException("UDF return type must not be null.");
-    }
-    validateJavaUdfZetaSqlType(createFunctionStmt.getReturnType());
-  }
-
   /**
    * Throws {@link UnsupportedOperationException} if ZetaSQL type is not supported in Java UDF.
    * Supported types are a subset of the types supported by {@link BeamJavaUdfCalcRule}.
    *
-   * <p>Supported types should be kept in sync with {@link
-   * #validateJavaUdfCalciteType(RelDataType)}.
+   * <p>Supported types should be kept in sync with {@link #validateJavaUdfCalciteType(RelDataType,
+   * String)}.
    */
-  void validateJavaUdfZetaSqlType(Type type) {
+  void validateJavaUdfZetaSqlType(Type type, String functionName) {
     switch (type.getKind()) {
       case TYPE_BOOL:
       case TYPE_BYTES:
@@ -204,17 +202,20 @@ public class BeamZetaSqlCatalog {
       case TYPE_DOUBLE:
       case TYPE_INT64:
       case TYPE_STRING:
+      case TYPE_TIMESTAMP:
         // These types are supported.
+        break;
+      case TYPE_ARRAY:
+        validateJavaUdfZetaSqlType(type.asArray().getElementType(), functionName);
         break;
       case TYPE_NUMERIC:
       case TYPE_TIME:
       case TYPE_DATETIME:
-      case TYPE_TIMESTAMP:
-      case TYPE_ARRAY:
       case TYPE_STRUCT:
       default:
         throw new UnsupportedOperationException(
-            "ZetaSQL type not allowed in Java UDF: " + type.getKind().name());
+            String.format(
+                "ZetaSQL type %s not allowed in function %s", type.getKind().name(), functionName));
     }
   }
 
@@ -365,7 +366,10 @@ public class BeamZetaSqlCatalog {
           ScalarFunctionImpl scalarFunction = (ScalarFunctionImpl) function;
           // Validate types before converting from Calcite to ZetaSQL, since the conversion may fail
           // for unsupported types.
-          validateScalarFunctionImpl(scalarFunction);
+          for (FunctionParameter parameter : scalarFunction.getParameters()) {
+            validateJavaUdfCalciteType(parameter.getType(typeFactory), functionName);
+          }
+          validateJavaUdfCalciteType(scalarFunction.getReturnType(typeFactory), functionName);
           Method method = scalarFunction.method;
           javaScalarUdfs.put(path, UserFunctionDefinitions.JavaScalarFunction.create(method, ""));
           FunctionArgumentType resultType =
@@ -414,39 +418,37 @@ public class BeamZetaSqlCatalog {
         .collect(Collectors.toList());
   }
 
-  private void validateScalarFunctionImpl(ScalarFunctionImpl scalarFunction) {
-    for (FunctionParameter parameter : scalarFunction.getParameters()) {
-      validateJavaUdfCalciteType(parameter.getType(typeFactory));
-    }
-    validateJavaUdfCalciteType(scalarFunction.getReturnType(typeFactory));
-  }
-
   /**
    * Throws {@link UnsupportedOperationException} if Calcite type is not supported in Java UDF.
    * Supported types are a subset of the corresponding Calcite types supported by {@link
    * BeamJavaUdfCalcRule}.
    *
-   * <p>Supported types should be kept in sync with {@link #validateJavaUdfZetaSqlType(Type)}.
+   * <p>Supported types should be kept in sync with {@link #validateJavaUdfZetaSqlType(Type,
+   * String)}.
    */
-  private void validateJavaUdfCalciteType(RelDataType type) {
+  private void validateJavaUdfCalciteType(RelDataType type, String functionName) {
     switch (type.getSqlTypeName()) {
       case BIGINT:
+      case BOOLEAN:
       case DATE:
       case DOUBLE:
-      case BOOLEAN:
+      case TIMESTAMP:
       case VARCHAR:
       case VARBINARY:
         // These types are supported.
         break;
+      case ARRAY:
+        validateJavaUdfCalciteType(type.getComponentType(), functionName);
+        break;
       case DECIMAL:
       case TIME:
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-      case TIMESTAMP:
-      case ARRAY:
       case ROW:
       default:
         throw new UnsupportedOperationException(
-            "Calcite type not allowed in ZetaSQL Java UDF: " + type.getSqlTypeName().getName());
+            String.format(
+                "Calcite type %s not allowed in function %s",
+                type.getSqlTypeName().getName(), functionName));
     }
   }
 
