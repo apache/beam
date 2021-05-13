@@ -115,8 +115,6 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
 
   # Need not run streaming test in batch mode.
   @attr('IT')
-  @pytest.mark.no_sickbay_batch
-  @pytest.mark.it_validatesrunner
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     """
     Runs streaming Dataflow job and verifies that user metrics are reported

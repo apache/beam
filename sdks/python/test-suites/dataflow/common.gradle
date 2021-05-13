@@ -38,9 +38,9 @@ def basicTestOpts = [
 
 def basicPytestOpts = [
     "--capture=no",  // print stdout instantly
-    "--numprocesses=8", // run tests in parallel
     "--timeout=4500", // timeout of whole command execution
     "--color=yes", // console color
+    "--log-cli-level=INFO", //log level
 ]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
@@ -137,7 +137,7 @@ task validatesRunnerBatchTests {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   def argMap = [
-          "test_opts"   : basicPytestOpts,
+          "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
           "worker_jar"  : dataflowWorkerJar,
           "sdk_location": files(configurations.distTarBall.files).singleFile,
           "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
@@ -168,22 +168,47 @@ task validatesRunnerStreamingTests {
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
-  def argMap = [
-                "test_opts": basicPytestOpts,
+  // Execute tests with xdists
+  doFirst {
+    def argMap = [
+                "test_opts": basicPytestOpts + ["--numprocesses=8"]
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
                 "worker_jar": dataflowWorkerJar,
-                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}",
+                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
                 "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
                 "collect": "it_validatesrunner and not no_sickbay_streaming"
                 ]
-  if (project.hasProperty('useRunnerV2')) {
-    argMap.put("runner_v2", "true")
-    // KMS is not supported for streaming engine.
-    argMap.put("kms_key_name", "\"\"")
+    if (project.hasProperty('useRunnerV2')) {
+      argMap.put("runner_v2", "true")
+      // KMS is not supported for streaming engine.
+      argMap.put("kms_key_name", "\"\"")
+    }
+
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
   }
 
+  // Execute tests that fail with xdists
   doLast {
+    def tests = ["apache_beam/runners/dataflow/dataflow_exercise_streaming_metrics_pipeline_test.py"]
+    def argMap = [
+                "test_opts": basicPytestOpts + ["${tests.join(' ')}"],
+                "streaming": "true",
+                "sdk_location": files(configurations.distTarBall.files).singleFile,
+                "worker_jar": dataflowWorkerJar,
+                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
+                "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
+                ]
+    if (project.hasProperty('useRunnerV2')) {
+      argMap.put("runner_v2", "true")
+      // KMS is not supported for streaming engine.
+      argMap.put("kms_key_name", "\"\"")
+    }
+
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
