@@ -90,7 +90,7 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
 
     @Override
     public boolean tryClaim(TwitterConfig twitterConfig) {
-      LOG.info(
+      LOG.debug(
           "-------------- Claiming "
               + twitterConfig.hashCode()
               + " used to have: "
@@ -101,7 +101,7 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
               : this.restriction.fetchedRecords + 1;
       long elapsedTime = System.currentTimeMillis() - startTime.getMillis();
       final long millis = 60 * 1000;
-      LOG.info(
+      LOG.debug(
           "-------------- Time running: {} / {}",
           elapsedTime,
           (twitterConfig.getMinutesToRun() * millis));
@@ -120,7 +120,7 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
 
     @Override
     public SplitResult<OffsetHolder> trySplit(double fractionOfRemainder) {
-      LOG.info("-------------- Trying to split: fractionOfRemainder=" + fractionOfRemainder);
+      LOG.debug("-------------- Trying to split: fractionOfRemainder=" + fractionOfRemainder);
       return SplitResult.of(new OffsetHolder(null, 0L), restriction);
     }
 
@@ -176,7 +176,7 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
       DoFn.OutputReceiver<String> out,
       RestrictionTracker<OffsetRange, TwitterConfig> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    LOG.info("In Read From Twitter Do Fn");
+    LOG.debug("In Read From Twitter Do Fn");
     TwitterConnection twitterConnection = TwitterConnection.getInstance(twitterConfig);
     BlockingQueue<Status> queue = twitterConnection.getQueue();
     if (queue.isEmpty()) {

@@ -104,8 +104,8 @@ public class TwitterStream {
         ParDo.of(
             new DoFn<String, String>() {
               @ProcessElement
-              public void processElement(@Element Status element, OutputReceiver<Status> receiver) {
-                LOG.info("Output tweets: " + element);
+              public void processElement(@Element String element, OutputReceiver<String> receiver) {
+                LOG.debug("Output tweets: " + element);
                 receiver.output(element);
               }
             }));
