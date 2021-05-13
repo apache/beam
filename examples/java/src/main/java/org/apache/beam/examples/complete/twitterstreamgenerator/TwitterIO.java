@@ -19,7 +19,6 @@ package org.apache.beam.examples.complete.twitterstreamgenerator;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -56,43 +55,41 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class TwitterIO {
 
-    /**
-     * Initializes the stream by converting input to a Twitter connection configuration.
-     *
-     * @param twitterConfigs list of twitter config
-     * @return PTransform of statuses
-     */
-    public static PTransform<PBegin, PCollection<String>> readStandardStream(
-            List<TwitterConfig> twitterConfigs) {
-        return new TwitterIO.Read.Builder().setTwitterConfig(twitterConfigs).build();
+  /**
+   * Initializes the stream by converting input to a Twitter connection configuration.
+   *
+   * @param twitterConfigs list of twitter config
+   * @return PTransform of statuses
+   */
+  public static PTransform<PBegin, PCollection<String>> readStandardStream(
+      List<TwitterConfig> twitterConfigs) {
+    return new TwitterIO.Read.Builder().setTwitterConfig(twitterConfigs).build();
+  }
+
+  /** A {@link PTransform} to read from Twitter stream. usage and configuration. */
+  private static class Read extends PTransform<PBegin, PCollection<String>> {
+    private final List<TwitterConfig> twitterConfigs;
+
+    private Read(Builder builder) {
+      this.twitterConfigs = builder.twitterConfigs;
     }
 
-    /**
-     * A {@link PTransform} to read from Twitter stream. usage and configuration.
-     */
-    private static class Read extends PTransform<PBegin, PCollection<String>> {
-        private final List<TwitterConfig> twitterConfigs;
-
-        private Read(Builder builder) {
-            this.twitterConfigs = builder.twitterConfigs;
-        }
-
-        @Override
-        public PCollection<String> expand(PBegin input) throws IllegalArgumentException {
-            return input.apply(Create.of(this.twitterConfigs)).apply(ParDo.of(new ReadFromTwitterDoFn()));
-        }
-
-        private static class Builder {
-            List<TwitterConfig> twitterConfigs = new ArrayList<>();
-
-            TwitterIO.Read.Builder setTwitterConfig(final List<TwitterConfig> twitterConfigs) {
-                this.twitterConfigs = twitterConfigs;
-                return this;
-            }
-
-            TwitterIO.Read build() {
-                return new TwitterIO.Read(this);
-            }
-        }
+    @Override
+    public PCollection<String> expand(PBegin input) throws IllegalArgumentException {
+      return input.apply(Create.of(this.twitterConfigs)).apply(ParDo.of(new ReadFromTwitterDoFn()));
     }
+
+    private static class Builder {
+      List<TwitterConfig> twitterConfigs = new ArrayList<>();
+
+      TwitterIO.Read.Builder setTwitterConfig(final List<TwitterConfig> twitterConfigs) {
+        this.twitterConfigs = twitterConfigs;
+        return this;
+      }
+
+      TwitterIO.Read build() {
+        return new TwitterIO.Read(this);
+      }
+    }
+  }
 }

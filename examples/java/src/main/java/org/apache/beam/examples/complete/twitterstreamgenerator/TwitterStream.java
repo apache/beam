@@ -31,7 +31,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import twitter4j.Status;
 
 /**
  * The {@link TwitterStream} pipeline is a streaming pipeline which ingests data in JSON format from
