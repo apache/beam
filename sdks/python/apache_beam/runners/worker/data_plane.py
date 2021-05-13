@@ -413,7 +413,7 @@ class _GrpcDataChannel(DataChannel):
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
-    self._exc_info = None  # type: Optional[OptExcInfo]
+    self._exc_info = (None, None, None)  # type: OptExcInfo
 
   def close(self):
     # type: () -> None
@@ -462,10 +462,9 @@ class _GrpcDataChannel(DataChannel):
             raise RuntimeError('Channel closed prematurely.')
           if abort_callback():
             return
-          if self._exc_info:
-            t, v, tb = self._exc_info
-            if t and v and tb:
-              raise t(v).with_traceback(tb)
+          t, v, tb = self._exc_info
+          if t:
+            raise t(v).with_traceback(tb)
         else:
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
