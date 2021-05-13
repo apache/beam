@@ -173,8 +173,8 @@ public class StateFetchingIterators {
   /**
    * An {@link Iterator} which fetches {@link ByteString} chunks using the State API.
    *
-   * <p>This iterator will only request a chunk on first access. Also it does not eagerly pre-fetch
-   * any future chunks and blocks whenever required to fetch the next block.
+   * <p>This iterator will only request a chunk on first access. Subsiquently it eagerly pre-fetches
+   * one future chunks at a time.
    */
   static class LazyBlockingStateFetchingIterator implements Iterator<ByteString> {
 
@@ -189,6 +189,7 @@ public class StateFetchingIterators {
     private State currentState;
     private ByteString continuationToken;
     private ByteString next;
+    private CompletableFuture<StateResponse> prefetchedResponse;
 
     LazyBlockingStateFetchingIterator(
         BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
@@ -198,21 +199,27 @@ public class StateFetchingIterators {
       this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();
     }
 
+    private void prefetch() {
+      if (prefetchedResponse == null && currentState == State.READ_REQUIRED) {
+        prefetchedResponse = new CompletableFuture<>();
+        beamFnStateClient.handle(
+                stateRequestForFirstChunk
+                        .toBuilder()
+                        .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
+                prefetchedResponse);
+      }
+    }
+
     @Override
     public boolean hasNext() {
       switch (currentState) {
         case EOF:
           return false;
         case READ_REQUIRED:
-          CompletableFuture<StateResponse> stateResponseFuture = new CompletableFuture<>();
-          beamFnStateClient.handle(
-              stateRequestForFirstChunk
-                  .toBuilder()
-                  .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
-              stateResponseFuture);
+          prefetch();
           StateResponse stateResponse;
           try {
-            stateResponse = stateResponseFuture.get();
+            stateResponse = prefetchedResponse.get();
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);
@@ -223,6 +230,7 @@ public class StateFetchingIterators {
             Throwables.throwIfUnchecked(e.getCause());
             throw new IllegalStateException(e.getCause());
           }
+          prefetchedResponse = null;
           continuationToken = stateResponse.getGet().getContinuationToken();
           next = stateResponse.getGet().getData();
           currentState = State.HAS_NEXT;
@@ -239,7 +247,12 @@ public class StateFetchingIterators {
         throw new NoSuchElementException();
       }
       // If the continuation token is empty, that means we have reached EOF.
-      currentState = ByteString.EMPTY.equals(continuationToken) ? State.EOF : State.READ_REQUIRED;
+      if (ByteString.EMPTY.equals(continuationToken)) {
+        currentState = State.EOF;
+      } else {
+        currentState = State.READ_REQUIRED;
+        prefetch();
+      }
       return next;
     }
   }
