@@ -64,7 +64,6 @@ import org.slf4j.LoggerFactory;
  */
 public class TwitterStream {
 
-  /* Logger for class.*/
   private static final Logger LOG = LoggerFactory.getLogger(TwitterStream.class);
 
   /**
