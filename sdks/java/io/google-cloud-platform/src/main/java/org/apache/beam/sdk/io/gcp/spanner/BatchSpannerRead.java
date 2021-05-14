@@ -24,7 +24,6 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import java.util.List;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -70,12 +69,12 @@ abstract class BatchSpannerRead
               .withTimestampBound(getTimestampBound());
       txView = begin.apply(createTx);
     }
-    return input
-            .apply("Generate and Read Partitions",
-                    ParDo.of(new ReadOperationsFn(getSpannerConfig(), txView)).withSideInputs(txView));
+    return input.apply(
+        "Generate and Read Partitions",
+        ParDo.of(new ReadOperationsFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
-  private static class ReadOperationsFn extends DoFn<ReadOperation,Struct> {
+  private static class ReadOperationsFn extends DoFn<ReadOperation, Struct> {
 
     private final SpannerConfig config;
     private final PCollectionView<? extends Transaction> txView;
@@ -100,10 +99,10 @@ abstract class BatchSpannerRead
     public void processElement(ProcessContext c, OffsetRangeTracker tracker) throws Exception {
       Transaction tx = c.sideInput(txView);
       BatchReadOnlyTransaction context =
-              spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
+          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
       List<Partition> partitions = execute(c.element(), context);
       BatchReadOnlyTransaction batchTx =
-              spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
+          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
       for (int i = 0; i < partitions.size(); i++) {
         if (tracker.tryClaim(Long.valueOf(i))) {
           try (ResultSet resultSet = batchTx.execute(partitions.get(i))) {
@@ -129,17 +128,15 @@ abstract class BatchSpannerRead
       // Read with index was selected.
       if (op.getIndex() != null) {
         return tx.partitionReadUsingIndex(
-                op.getPartitionOptions(),
-                op.getTable(),
-                op.getIndex(),
-                op.getKeySet(),
-                op.getColumns());
+            op.getPartitionOptions(),
+            op.getTable(),
+            op.getIndex(),
+            op.getKeySet(),
+            op.getColumns());
       }
       // Read from table was selected.
       return tx.partitionRead(
-              op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
+          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
     }
-
   }
-
 }
