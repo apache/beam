@@ -24,14 +24,15 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import java.util.List;
+
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -70,25 +71,17 @@ abstract class BatchSpannerRead
       txView = begin.apply(createTx);
     }
     return input
-        .apply(
-            "Generate Partitions",
-            ParDo.of(new GeneratePartitionsFn(getSpannerConfig(), txView)).withSideInputs(txView))
-        .apply("Shuffle partitions", Reshuffle.<Partition>viaRandomKey())
-        .apply(
-            "Read from Partitions",
-            ParDo.of(new ReadFromPartitionFn(getSpannerConfig(), txView)).withSideInputs(txView));
+            .apply("Generate and Read Partitions",
+                    ParDo.of(new ReadOperationsFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
-  @VisibleForTesting
-  static class GeneratePartitionsFn extends DoFn<ReadOperation, Partition> {
+  private static class ReadOperationsFn extends DoFn<ReadOperation,Struct> {
 
     private final SpannerConfig config;
     private final PCollectionView<? extends Transaction> txView;
-
     private transient SpannerAccessor spannerAccessor;
 
-    public GeneratePartitionsFn(
-        SpannerConfig config, PCollectionView<? extends Transaction> txView) {
+    public ReadOperationsFn(SpannerConfig config, PCollectionView<? extends Transaction> txView) {
       this.config = config;
       this.txView = txView;
     }
@@ -104,13 +97,28 @@ abstract class BatchSpannerRead
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) throws Exception {
       Transaction tx = c.sideInput(txView);
       BatchReadOnlyTransaction context =
-          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
-      for (Partition p : execute(c.element(), context)) {
-        c.output(p);
+              spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
+      List<Partition> partitions = execute(c.element(), context);
+      BatchReadOnlyTransaction batchTx =
+              spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
+      for (int i = 0; i < partitions.size(); i++) {
+        if (tracker.tryClaim(Long.valueOf(i))) {
+          try (ResultSet resultSet = batchTx.execute(partitions.get(i))) {
+            while (resultSet.next()) {
+              Struct s = resultSet.getCurrentRowAsStruct();
+              c.output(s);
+            }
+          }
+        }
       }
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRange() {
+      return new OffsetRange(0L, Long.MAX_VALUE);
     }
 
     private List<Partition> execute(ReadOperation op, BatchReadOnlyTransaction tx) {
@@ -121,55 +129,17 @@ abstract class BatchSpannerRead
       // Read with index was selected.
       if (op.getIndex() != null) {
         return tx.partitionReadUsingIndex(
-            op.getPartitionOptions(),
-            op.getTable(),
-            op.getIndex(),
-            op.getKeySet(),
-            op.getColumns());
+                op.getPartitionOptions(),
+                op.getTable(),
+                op.getIndex(),
+                op.getKeySet(),
+                op.getColumns());
       }
       // Read from table was selected.
       return tx.partitionRead(
-          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
+              op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
     }
+
   }
 
-  private static class ReadFromPartitionFn extends DoFn<Partition, Struct> {
-
-    private final SpannerConfig config;
-    private final PCollectionView<? extends Transaction> txView;
-
-    private transient SpannerAccessor spannerAccessor;
-
-    public ReadFromPartitionFn(
-        SpannerConfig config, PCollectionView<? extends Transaction> txView) {
-      this.config = config;
-      this.txView = txView;
-    }
-
-    @Setup
-    public void setup() throws Exception {
-      spannerAccessor = SpannerAccessor.getOrCreate(config);
-    }
-
-    @Teardown
-    public void teardown() throws Exception {
-      spannerAccessor.close();
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      Transaction tx = c.sideInput(txView);
-
-      BatchReadOnlyTransaction batchTx =
-          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
-
-      Partition p = c.element();
-      try (ResultSet resultSet = batchTx.execute(p)) {
-        while (resultSet.next()) {
-          Struct s = resultSet.getCurrentRowAsStruct();
-          c.output(s);
-        }
-      }
-    }
-  }
 }
