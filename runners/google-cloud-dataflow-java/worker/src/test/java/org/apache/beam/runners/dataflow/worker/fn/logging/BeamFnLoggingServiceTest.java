@@ -132,7 +132,12 @@ public class BeamFnLoggingServiceTest {
             new ThreadFactory() {
               @Override
               public Thread newThread(Runnable r) {
-                return new Thread(r, "BeamFnLoggingServiceTest-channel-executor");
+                Thread thread = new Thread(r, "BeamFnLoggingServiceTest-channel-executor");
+                thread.setUncaughtExceptionHandler(
+                    (Thread t, Throwable e) -> {
+                      LOG.error("Uncaught exception caught in " + t.getName(), e);
+                    });
+                return thread;
               }
             });
 
@@ -147,35 +152,42 @@ public class BeamFnLoggingServiceTest {
         int instructionId = i;
         tasks.add(
             () -> {
-              CountDownLatch waitForTermination = new CountDownLatch(1);
-              ManagedChannel channel =
-                  InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
-                      .executor(channelExecutor)
-                      .build();
-              StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
-                  BeamFnLoggingGrpc.newStub(channel)
-                      .logging(
-                          TestStreams.withOnNext(
-                                  (BeamFnApi.LogControl m) -> {
-                                    LOG.info("TestStream withOnNext: {}", m);
-                                    BeamFnLoggingServiceTest.discardMessage(m);
-                                  })
-                              .withOnError(
-                                  () -> {
-                                    LOG.info("TestStream withOnError");
-                                    waitForTermination.countDown();
-                                    LOG.info("TestStream finished countDown");
-                                  })
-                              .build());
-              outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
-              LOG.debug("Sending RuntimeException to stub client: {}", instructionId);
-              outboundObserver.onError(new RuntimeException("Client " + instructionId));
-              LOG.debug(
-                  "Sent RuntimeException to stub client: {}, waiting for {}",
-                  instructionId,
-                  waitForTermination);
-              waitForTermination.await();
-              return null;
+              try {
+                CountDownLatch waitForTermination = new CountDownLatch(1);
+                LOG.info("Created latch for {}: {}", instructionId, waitForTermination);
+                ManagedChannel channel =
+                    InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
+                        .executor(channelExecutor)
+                        .build();
+                StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
+                    BeamFnLoggingGrpc.newStub(channel)
+                        .logging(
+                            TestStreams.withOnNext(
+                                    (BeamFnApi.LogControl m) -> {
+                                      LOG.info("TestStream withOnNext: {}", m);
+                                      BeamFnLoggingServiceTest.discardMessage(m);
+                                    })
+                                .withOnError(
+                                    () -> {
+                                      LOG.info("Counting down the latch {}", waitForTermination);
+                                      waitForTermination.countDown();
+                                      LOG.info("Counted down the latch {}", waitForTermination);
+                                    })
+                                .build());
+                outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
+                LOG.debug("Sending RuntimeException to stub client: {}", instructionId);
+                outboundObserver.onError(new RuntimeException("Client " + instructionId));
+                LOG.debug(
+                    "Sent RuntimeException to stub client: {}, waiting for {}",
+                    instructionId,
+                    waitForTermination);
+                waitForTermination.await();
+                LOG.debug("Step {} finished", instructionId);
+                return null;
+              } catch (Throwable ex) {
+                LOG.error("Throwable detected in the task", ex);
+                throw ex;
+              }
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();

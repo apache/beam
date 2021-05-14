@@ -114,7 +114,12 @@ public class GrpcLoggingServiceTest {
             new ThreadFactory() {
               @Override
               public Thread newThread(Runnable r) {
-                return new Thread(r, "GrpcLoggingServiceTest-channel-executor");
+                Thread thread = new Thread(r, "GrpcLoggingServiceTest-channel-executor");
+                thread.setUncaughtExceptionHandler(
+                    (Thread t, Throwable e) -> {
+                      LOG.error("Uncaught exception caught in " + t.getName(), e);
+                    });
+                return thread;
               }
             });
 
@@ -126,23 +131,32 @@ public class GrpcLoggingServiceTest {
         final int instructionId = i;
         tasks.add(
             () -> {
-              CountDownLatch waitForTermination = new CountDownLatch(1);
-              String url = server.getApiServiceDescriptor().getUrl();
-              ManagedChannel channel =
-                  InProcessChannelBuilder.forName(url).executor(channelExecutor).build();
-              StreamObserver<LogEntry.List> outboundObserver =
-                  BeamFnLoggingGrpc.newStub(channel)
-                      .logging(
-                          TestStreams.withOnNext(messageDiscarder)
-                              .withOnError(new CountDown(waitForTermination))
-                              .build());
-              outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
-              LOG.info("Sending onError for client {}", instructionId);
-              outboundObserver.onError(new RuntimeException("Client " + instructionId));
-              LOG.info(
-                  "Sent onError for client {}. Waiting for {}", instructionId, waitForTermination);
-              waitForTermination.await();
-              return null;
+              try {
+                CountDownLatch waitForTermination = new CountDownLatch(1);
+                LOG.info("Created latch for {}: {}", instructionId, waitForTermination);
+                String url = server.getApiServiceDescriptor().getUrl();
+                ManagedChannel channel =
+                    InProcessChannelBuilder.forName(url).executor(channelExecutor).build();
+                StreamObserver<LogEntry.List> outboundObserver =
+                    BeamFnLoggingGrpc.newStub(channel)
+                        .logging(
+                            TestStreams.withOnNext(messageDiscarder)
+                                .withOnError(new CountDown(waitForTermination))
+                                .build());
+                outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
+                LOG.info("Sending onError for client {}", instructionId);
+                outboundObserver.onError(new RuntimeException("Client " + instructionId));
+                LOG.info(
+                    "Sent onError for client {}. Waiting for {}",
+                    instructionId,
+                    waitForTermination);
+                waitForTermination.await();
+                LOG.debug("Step {} finished", instructionId);
+                return null;
+              } catch (Throwable ex) {
+                LOG.error("Throwable detected in the task", ex);
+                throw ex;
+              }
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
