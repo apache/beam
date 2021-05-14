@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.PatchResources.Input;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -32,7 +31,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -126,27 +124,6 @@ public class FhirIOTest {
         .satisfies(
             (HealthcareIOError<String> err) -> {
               Assert.assertEquals("bad", err.getDataResource());
-              return null;
-            });
-    PCollection<Long> numFailedInserts = failedInserts.apply(Count.globally());
-
-    PAssert.thatSingleton(numFailedInserts).isEqualTo(1L);
-
-    pipeline.run();
-  }
-
-  @Test
-  public void test_FhirIO_failedPatch() {
-    Input badPatch = Input.builder().setPatch("").setResourceName("").build();
-    PCollection<Input> patches = pipeline.apply(Create.of(ImmutableList.of(badPatch)));
-    FhirIO.Write.Result patchResult = patches.apply(FhirIO.patchResources());
-
-    PCollection<HealthcareIOError<String>> failedInserts = patchResult.getFailedBodies();
-
-    PAssert.thatSingleton(failedInserts)
-        .satisfies(
-            (HealthcareIOError<String> err) -> {
-              Assert.assertEquals(badPatch.toString(), err.getDataResource());
               return null;
             });
     PCollection<Long> numFailedInserts = failedInserts.apply(Count.globally());
