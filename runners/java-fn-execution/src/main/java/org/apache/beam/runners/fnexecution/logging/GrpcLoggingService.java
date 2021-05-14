@@ -94,18 +94,30 @@ public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
   private class InboundObserver implements StreamObserver<BeamFnApi.LogEntry.List> {
     @Override
     public void onNext(BeamFnApi.LogEntry.List value) {
-      for (BeamFnApi.LogEntry logEntry : value.getLogEntriesList()) {
-        logWriter.log(logEntry);
+      try {
+        for (BeamFnApi.LogEntry logEntry : value.getLogEntriesList()) {
+          logWriter.log(logEntry);
+        }
+        LOG.debug("onNext succeeded");
+      } catch (Throwable ex) {
+        LOG.error("Throwable detected in onNext", ex);
+        throw ex;
       }
     }
 
     @Override
     public void onError(Throwable t) {
-      LOG.warn("Logging client failed unexpectedly.", t);
-      // We remove these from the connected clients map to prevent a race between
-      // the close method and this InboundObserver calling a terminal method on the
-      // StreamObserver. If we removed it, then we are responsible for the terminal call.
-      completeIfNotNull(connectedClients.remove(this));
+      try {
+        LOG.warn("Logging client failed unexpectedly.", t);
+        // We remove these from the connected clients map to prevent a race between
+        // the close method and this InboundObserver calling a terminal method on the
+        // StreamObserver. If we removed it, then we are responsible for the terminal call.
+        completeIfNotNull(connectedClients.remove(this));
+        LOG.debug("onError succeeded");
+      } catch (Throwable ex) {
+        LOG.error("Throwable detected in onError", ex);
+        throw ex;
+      }
     }
 
     @Override

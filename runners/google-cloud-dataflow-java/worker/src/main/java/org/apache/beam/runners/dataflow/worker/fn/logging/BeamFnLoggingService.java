@@ -127,20 +127,32 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
 
     @Override
     public void onNext(BeamFnApi.LogEntry.List value) {
-      DataflowWorkerLoggingMDC.setSdkHarnessId(sdkWorkerId);
-      for (BeamFnApi.LogEntry logEntry : value.getLogEntriesList()) {
-        clientLogger.accept(logEntry);
+      try {
+        DataflowWorkerLoggingMDC.setSdkHarnessId(sdkWorkerId);
+        for (BeamFnApi.LogEntry logEntry : value.getLogEntriesList()) {
+          clientLogger.accept(logEntry);
+        }
+        DataflowWorkerLoggingMDC.setSdkHarnessId(null);
+        LOG.debug("onNext succeeded");
+      } catch (Throwable ex) {
+        LOG.error("Throwable detected in onNext", ex);
+        throw ex;
       }
-      DataflowWorkerLoggingMDC.setSdkHarnessId(null);
     }
 
     @Override
     public void onError(Throwable t) {
-      LOG.warn("Logging client failed unexpectedly. ClientId: {}", sdkWorkerId, t);
-      // We remove these from the connected clients map to prevent a race between
-      // the close method and this InboundObserver calling a terminal method on the
-      // StreamObserver. If we removed it, then we are responsible for the terminal call.
-      completeIfNotNull(connectedClients.remove(this));
+      try {
+        LOG.warn("Logging client failed unexpectedly. ClientId: {}", sdkWorkerId, t);
+        // We remove these from the connected clients map to prevent a race between
+        // the close method and this InboundObserver calling a terminal method on the
+        // StreamObserver. If we removed it, then we are responsible for the terminal call.
+        completeIfNotNull(connectedClients.remove(this));
+        LOG.debug("onError succeeded");
+      } catch (Throwable ex) {
+        LOG.error("Throwable detected in onError", ex);
+        throw ex;
+      }
     }
 
     @Override
