@@ -137,12 +137,19 @@ class DisplayData(object):
       except ValueError:
         # Skip if the display data is invalid.
         return None
-      if 'value' not in display_data_dict or (
-          'label' not in display_data_dict and 'key' not in display_data_dict):
+
+      if 'key' not in display_data_dict or 'value' not in display_data_dict:
+        # Skipping DisplayData items that do not have a 'key' or 'value' set.
         return None
+
+      # We use 'label' or 'key' properties to populate the 'label' attribute of
+      # 'LabelledPayload'. 'label' is a better choice since it's expected to be
+      # more human readable but some transforms, sources, etc. may not set a
+      # 'label' property when configuring DisplayData.
       label = (
           display_data_dict['label']
           if 'label' in display_data_dict else display_data_dict['key'])
+
       value = display_data_dict['value']
       if isinstance(value, str):
         return beam_runner_api_pb2.LabelledPayload(
