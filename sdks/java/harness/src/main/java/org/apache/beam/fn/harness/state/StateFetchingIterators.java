@@ -203,10 +203,10 @@ public class StateFetchingIterators {
       if (prefetchedResponse == null && currentState == State.READ_REQUIRED) {
         prefetchedResponse = new CompletableFuture<>();
         beamFnStateClient.handle(
-                stateRequestForFirstChunk
-                        .toBuilder()
-                        .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
-                prefetchedResponse);
+            stateRequestForFirstChunk
+                .toBuilder()
+                .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
+            prefetchedResponse);
       }
     }
 
