@@ -987,6 +987,7 @@ class RunnerApiTest(unittest.TestCase):
         parent_dd = super(MyParentTransform, self).display_data()
         parent_dd['p_dd_string'] = DisplayDataItem(
             'p_dd_string_value', label='p_dd_string_label')
+        parent_dd['p_dd_string_2'] = DisplayDataItem('p_dd_string_value_2')
         parent_dd['p_dd_bool'] = DisplayDataItem(True, label='p_dd_bool_label')
         parent_dd['p_dd_int'] = DisplayDataItem(1, label='p_dd_int_label')
         return parent_dd
@@ -1000,6 +1001,7 @@ class RunnerApiTest(unittest.TestCase):
         parent_dd = super(MyPTransform, self).display_data()
         parent_dd['dd_string'] = DisplayDataItem(
             'dd_string_value', label='dd_string_label')
+        parent_dd['dd_string_2'] = DisplayDataItem('dd_string_value_2')
         parent_dd['dd_bool'] = DisplayDataItem(False, label='dd_bool_label')
         parent_dd['dd_int'] = DisplayDataItem(1.1, label='dd_int_label')
         return parent_dd
@@ -1026,6 +1028,11 @@ class RunnerApiTest(unittest.TestCase):
             beam_runner_api_pb2.DisplayData(
                 urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
                 payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_string_2',
+                    string_value='p_dd_string_value_2').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
                     label='p_dd_bool_label',
                     bool_value=True).SerializeToString()),
             beam_runner_api_pb2.DisplayData(
@@ -1038,6 +1045,11 @@ class RunnerApiTest(unittest.TestCase):
                 payload=beam_runner_api_pb2.LabelledPayload(
                     label='dd_string_label',
                     string_value='dd_string_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_string_2',
+                    string_value='dd_string_value_2').SerializeToString()),
             beam_runner_api_pb2.DisplayData(
                 urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
                 payload=beam_runner_api_pb2.LabelledPayload(
