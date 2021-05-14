@@ -36,6 +36,7 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
@@ -108,6 +109,7 @@ public class GcsUtil {
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
           hasExperiment(options, "use_grpc_for_gcs"),
+          gcsOptions.getGcpCredential(),
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
 
@@ -117,12 +119,14 @@ public class GcsUtil {
         Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
+        Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes) {
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
           executorService,
           hasExperiment(options, "use_grpc_for_gcs"),
+          credentials,
           uploadBufferSizeBytes);
     }
   }
@@ -160,9 +164,10 @@ public class GcsUtil {
   // Exposed for testing.
   final ExecutorService executorService;
 
+  private Credentials credentials;
+
   private GoogleCloudStorage googleCloudStorage;
   private GoogleCloudStorageOptions googleCloudStorageOptions;
-  private final boolean shouldUseGrpc;
 
   /** Rewrite operation setting. For testing purposes only. */
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
@@ -186,20 +191,21 @@ public class GcsUtil {
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
       Boolean shouldUseGrpc,
+      Credentials credentials,
       @Nullable Integer uploadBufferSizeBytes) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
+    this.credentials = credentials;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
-    this.shouldUseGrpc = shouldUseGrpc;
     googleCloudStorageOptions =
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setGrpcEnabled(shouldUseGrpc)
             .build();
-    googleCloudStorage = new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient);
+    googleCloudStorage = new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient, credentials);
   }
 
   // Use this only for testing purposes.
@@ -413,27 +419,15 @@ public class GcsUtil {
    */
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    // When AsyncWriteChannelOptions has toBuilder() method, the following can be changed to:
-    //       AsyncWriteChannelOptions newOptions =
-    //            wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
     int uploadChunkSize =
         (uploadBufferSizeBytes == null) ? wcOptions.getUploadChunkSize() : uploadBufferSizeBytes;
     AsyncWriteChannelOptions newOptions =
-        AsyncWriteChannelOptions.builder()
-            .setBufferSize(wcOptions.getBufferSize())
-            .setPipeBufferSize(wcOptions.getPipeBufferSize())
-            .setUploadChunkSize(uploadChunkSize)
-            .setDirectUploadEnabled(wcOptions.isDirectUploadEnabled())
-            .build();
+        wcOptions.toBuilder().setUploadChunkSize(uploadChunkSize).build();
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
-        googleCloudStorageOptions
-            .toBuilder()
-            .setWriteChannelOptions(newOptions)
-            .setGrpcEnabled(this.shouldUseGrpc)
-            .build();
+        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
     GoogleCloudStorage gcpStorage =
-        new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
+        new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient, this.credentials);
     return gcpStorage.create(
         new StorageResourceId(path.getBucket(), path.getObject()),
         CreateObjectOptions.builder().setOverwriteExisting(true).setContentType(type).build());
