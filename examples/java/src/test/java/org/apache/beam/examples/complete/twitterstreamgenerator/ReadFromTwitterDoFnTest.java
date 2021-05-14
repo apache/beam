@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -46,6 +47,7 @@ public class ReadFromTwitterDoFnTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final ExpectedException expectedException = ExpectedException.none();
   @Mock TwitterConnection twitterConnection1;
+  @Mock TwitterConnection twitterConnection2;
   @Mock Status status1;
   @Mock Status status2;
   @Mock Status status3;
@@ -90,6 +92,41 @@ public class ReadFromTwitterDoFnTest {
               pcollection.forEach(output::add);
               String[] expected = {"Breaking News1", "Breaking News2", "Breaking News3"};
               String[] actual = new String[output.size()];
+              IntStream.range(0, output.size()).forEach((i) -> actual[i] = output.get(i));
+              assertArrayEquals("Mismatch found in output", actual, expected);
+              return null;
+            });
+    pipeline.run();
+  }
+
+  @Test
+  public void testMultipleTwitterConfigs() {
+    TwitterConfig twitterConfig1 = new TwitterConfig.Builder().setTweetsCount(3L).build();
+    TwitterConfig twitterConfig2 = new TwitterConfig.Builder().setTweetsCount(2L).build();
+    TwitterConnection.INSTANCE_MAP.put(twitterConfig1, twitterConnection1);
+    TwitterConnection.INSTANCE_MAP.put(twitterConfig2, twitterConnection2);
+    when(twitterConnection1.getQueue()).thenReturn(queue1);
+    when(twitterConnection2.getQueue()).thenReturn(queue2);
+    PCollection<String> result =
+        pipeline
+            .apply(
+                "Create Twitter Connection Configuration",
+                Create.of(twitterConfig1, twitterConfig2))
+            .apply(ParDo.of(new ReadFromTwitterDoFn()));
+    PAssert.that(result)
+        .satisfies(
+            pcollection -> {
+              List<String> output = new ArrayList<>();
+              pcollection.forEach(output::add);
+              String[] expected = {
+                "Breaking News1",
+                "Breaking News2",
+                "Breaking News3",
+                "Breaking News4",
+                "Breaking News5"
+              };
+              String[] actual = new String[output.size()];
+              Collections.sort(output);
               IntStream.range(0, output.size()).forEach((i) -> actual[i] = output.get(i));
               assertArrayEquals("Mismatch found in output", actual, expected);
               return null;
