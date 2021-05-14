@@ -158,10 +158,8 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
       // org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Hashing.smear().
       int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
       if (numBuckets != null) {
-        hashOfShard =
-            UnsignedInteger.fromIntBits(hashOfShard)
-                .mod(UnsignedInteger.fromIntBits(numBuckets))
-                .intValue();
+        UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
+        hashOfShard = UnsignedInteger.fromIntBits(hashOfShard).mod(unsignedNumBuckets).intValue();
       }
       r.output(KV.of(hashOfShard, element));
     }
