@@ -41,7 +41,7 @@ import org.junit.runners.JUnit4;
  *
  * <pre>
  *  ./gradlew integrationTest -p examples/java/ -DintegrationTestPipelineOptions='[
- *  "--tempLocation=gs://your-location/"]'
+ *  "--tempLocation=gs://apache-beam-testing-developers/"]'
  *  --tests org.apache.beam.examples.cookbook.BigQueryTornadoesIT
  *  -DintegrationTestRunner=direct
  * </pre>
