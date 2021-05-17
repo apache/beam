@@ -78,7 +78,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   private final SourceRecordMapper<T> fn;
 
   private static long minutesToRun = -1;
-  private static Integer maxRecords;
+  private Integer maxRecords;
   private static DateTime startTime;
   private static final Map<String, RestrictionTracker<OffsetHolder, Map<String, Object>>>
       restrictionTrackers = new ConcurrentHashMap<>();
@@ -107,8 +107,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       Class<?> connectorClass, SourceRecordMapper<T> fn, Integer maxRecords) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
-    KafkaSourceConsumerFn.maxRecords = maxRecords;
-    LOG.warn("---------------- RUN FOR A NUMBER: {} records", KafkaSourceConsumerFn.maxRecords);
+    this.maxRecords = maxRecords;
   }
 
   @GetInitialRestriction
@@ -272,7 +271,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   }
 
   /** {@link RestrictionTracker} for Debezium connectors. */
-  static class OffsetTracker extends RestrictionTracker<OffsetHolder, Map<String, Object>> {
+  class OffsetTracker extends RestrictionTracker<OffsetHolder, Map<String, Object>> {
     private OffsetHolder restriction;
     private static final long MILLIS = 60 * 1000;
 

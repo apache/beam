@@ -85,7 +85,7 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
                     connector_class=self.connector_class,
                     connection_properties=self.connection_properties
                 ))
-            assert_that(results, is_not_empty())
+            assert_that(results, equal_to(expected_response))
 
   # Creating a container with testcontainers sometimes raises ReadTimeout
     # error. In java there are 2 retries set by default.
