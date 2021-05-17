@@ -28,7 +28,6 @@ import com.google.auto.value.AutoValue;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -59,7 +58,6 @@ import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdCoder;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.PatchResources.Input;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -67,8 +65,6 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -105,19 +101,19 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading</h3>
  *
  * <p>FHIR resources can be read with {@link FhirIO.Read}, which supports use cases where you have a
- * ${@link PCollection} of FHIR resource names in the format of projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}. This is appropriate for reading the Fhir notifications from
+ * ${@link PCollection} of message IDs. This is appropriate for reading the Fhir notifications from
  * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
  *
- * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of FHIR resource name strings
+ * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of message ID strings
  * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieve a
- * {@link PCollection} containing the successfully fetched json resources as {@link String}s and/or {@link
+ * {@link PCollection} containing the successfully fetched {@link String}s and/or {@link
  * FhirIO.Read.Result#getFailedReads()}* to retrieve a {@link PCollection} of {@link
- * HealthcareIOError}* containing the resources that could not be fetched and the exception as a
+ * HealthcareIOError}* containing the resource ID that could not be fetched and the exception as a
  * {@link HealthcareIOError}, this can be used to write to the dead letter storage system of your
  * choosing. This error handling is mainly to transparently surface errors where the upstream {@link
- * PCollection}* contains FHIR resources that are not valid or are not reachable due to permissions issues.
+ * PCollection}* contains IDs that are not valid or are not reachable due to permissions issues.
  *
  * <h3>Writing</h3>
  *
@@ -384,16 +380,6 @@ public class FhirIO {
       ValueProvider<String> destinationFhirStore,
       ValueProvider<DeidentifyConfig> deidConfig) {
     return new Deidentify(sourceFhirStore, destinationFhirStore, deidConfig);
-  }
-
-  /**
-   * Patch FHIR resources, @see <a
-   * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/patch></a>.
-   *
-   * @return the patch
-   */
-  public static PatchResources patchResources() {
-    return new PatchResources();
   }
 
   /**
@@ -1344,7 +1330,6 @@ public class FhirIO {
 
   /** The type Execute bundles. */
   public static class ExecuteBundles extends PTransform<PCollection<String>, Write.Result> {
-
     private final ValueProvider<String> fhirStore;
 
     /**
@@ -1432,109 +1417,8 @@ public class FhirIO {
     }
   }
 
-  /** The type Patch resources. */
-  public static class PatchResources extends PTransform<PCollection<Input>, Write.Result> {
-
-    private PatchResources() {}
-
-    /** Represents the input parameters for a single FHIR patch request. */
-    @DefaultSchema(AutoValueSchema.class)
-    @AutoValue
-    abstract static class Input implements Serializable {
-      abstract String getResourceName();
-
-      abstract String getPatch();
-
-      abstract @Nullable Map<String, String> getQuery();
-
-      static Builder builder() {
-        return new AutoValue_FhirIO_PatchResources_Input.Builder();
-      }
-
-      @AutoValue.Builder
-      abstract static class Builder {
-        abstract Builder setResourceName(String resourceName);
-
-        abstract Builder setPatch(String patch);
-
-        abstract Builder setQuery(Map<String, String> query);
-
-        abstract Input build();
-      }
-    }
-
-    @Override
-    public FhirIO.Write.Result expand(PCollection<Input> input) {
-      int numShards = 10;
-      int batchSize = 10000;
-      PCollectionTuple bodies =
-          // Shard input into batches to improve worker performance.
-          input
-              .apply(
-                  "Shard input",
-                  WithKeys.of(elm -> ThreadLocalRandom.current().nextInt(0, numShards)))
-              .setCoder(KvCoder.of(TextualIntegerCoder.of(), input.getCoder()))
-              .apply("Assemble batches", GroupIntoBatches.ofSize(batchSize))
-              .setCoder(KvCoder.of(TextualIntegerCoder.of(), IterableCoder.of(input.getCoder())))
-              .apply(
-                  ParDo.of(new PatchResourcesFn())
-                      .withOutputTags(Write.SUCCESSFUL_BODY, TupleTagList.of(Write.FAILED_BODY)));
-      bodies.get(Write.SUCCESSFUL_BODY).setCoder(StringUtf8Coder.of());
-      bodies.get(Write.FAILED_BODY).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
-      return Write.Result.in(input.getPipeline(), bodies);
-    }
-
-    /** The type Write Fhir fn. */
-    static class PatchResourcesFn extends DoFn<KV<Integer, Iterable<Input>>, String> {
-
-      private static final Counter PATCH_RESOURCES_ERRORS =
-          Metrics.counter(
-              PatchResourcesFn.class, BASE_METRIC_PREFIX + "patch_resources_error_count");
-      private static final Counter PATCH_RESOURCES_SUCCESS =
-          Metrics.counter(
-              PatchResourcesFn.class, BASE_METRIC_PREFIX + "patch_resources_success_count");
-      private static final Distribution PATCH_RESOURCES_LATENCY_MS =
-          Metrics.distribution(
-              PatchResourcesFn.class, BASE_METRIC_PREFIX + "patch_resources_latency_ms");
-
-      private transient HealthcareApiClient client;
-      private final ObjectMapper mapper = new ObjectMapper();
-
-      /**
-       * Initialize healthcare client.
-       *
-       * @throws IOException If the Healthcare client cannot be created.
-       */
-      @Setup
-      public void initClient() throws IOException {
-        this.client = new HttpHealthcareApiClient();
-      }
-
-      @ProcessElement
-      public void patchResources(ProcessContext context) {
-        Iterable<Input> batch = context.element().getValue();
-        for (Input patchParameter : batch) {
-          try {
-            long startTime = Instant.now().toEpochMilli();
-            client.patchFhirResource(
-                patchParameter.getResourceName(),
-                patchParameter.getPatch(),
-                patchParameter.getQuery());
-            PATCH_RESOURCES_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
-            PATCH_RESOURCES_SUCCESS.inc();
-            context.output(Write.SUCCESSFUL_BODY, patchParameter.toString());
-          } catch (IOException | HealthcareHttpException e) {
-            PATCH_RESOURCES_ERRORS.inc();
-            context.output(Write.FAILED_BODY, HealthcareIOError.of(patchParameter.toString(), e));
-          }
-        }
-      }
-    }
-  }
-
   /** Export FHIR resources from a FHIR store to new line delimited json files on GCS. */
   public static class Export extends PTransform<PBegin, PCollection<String>> {
-
     private final ValueProvider<String> fhirStore;
     private final ValueProvider<String> exportGcsUriPrefix;
 
@@ -1597,7 +1481,6 @@ public class FhirIO {
 
   /** Deidentify FHIR resources from a FHIR store to a destination FHIR store. */
   public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
-
     private final ValueProvider<String> sourceFhirStore;
     private final ValueProvider<String> destinationFhirStore;
     private final ValueProvider<DeidentifyConfig> deidConfig;
@@ -1668,7 +1551,6 @@ public class FhirIO {
   /** The type Search. */
   public static class Search<T>
       extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
-
     private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
@@ -1682,7 +1564,6 @@ public class FhirIO {
     }
 
     public static class Result implements POutput, PInput {
-
       private PCollection<KV<String, JsonArray>> keyedResources;
       private PCollection<JsonArray> resources;
 
