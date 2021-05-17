@@ -28,11 +28,19 @@ dependencies {
 
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
+// TODO(BEAM-3713) Remove once nose is removed
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
     "--nocapture",  // print stdout instantly
     "--processes=8",  // run tests in parallel
     "--process-timeout=4500", // timeout of whole command execution
+]
+
+def basicPytestOpts = [
+    "--capture=no",  // print stdout instantly
+    "--timeout=4500", // timeout of whole command execution
+    "--color=yes", // console color
+    "--log-cli-level=INFO", //log level
 ]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
@@ -48,22 +56,23 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
     doLast {
       // Basic integration tests to run in PreCommit
       def precommitTests = streaming ? [
-              "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
+              "apache_beam/examples/streaming_wordcount_it_test.py::StreamingWordCountIT::test_streaming_wordcount_it",
       ] : [
-              "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+              "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
       ]
       def testOpts = [
-              "--tests=${precommitTests.join(',')}",
-              "--nocapture",    // Print stdout instantly
-              "--processes=2",    // Number of tests running in parallel
-              "--process-timeout=1800",   // Timeout of whole command execution
+              "${precommitTests.join(' ')}",
+              "--capture=no",    // Print stdout instantly
+              "--numprocesses=2",    // Number of tests running in parallel
+              "--timeout=1800",   // Timeout of whole command execution
       ]
 
       def argMap = [
               "test_opts"   : testOpts,
               "sdk_location": files(configurations.distTarBall.files).singleFile,
               "worker_jar"  : dataflowWorkerJar,
-              "suite"       : "preCommitIT-df${pythonSuffix}"
+              "suite"       : "preCommitIT-df${pythonSuffix}",
+              "pytest"      : true, // TODO(BEAM-3713): Remove this once nose is removed.
       ]
 
       if (runnerV2) {
@@ -107,14 +116,16 @@ task postCommitIT {
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
-    def testOpts = basicTestOpts + ["--attr=IT"]
-
-    def cmdArgs = mapToArgString([
+    def testOpts = basicPytestOpts + ["--numprocesses=8"]
+    def argMap = [
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
-        "suite": "postCommitIT-df${pythonVersionSuffix}"
-    ])
+        "suite": "postCommitIT-df${pythonVersionSuffix}",
+        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+        "collect": "it_postcommit"
+    ]
+    def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
