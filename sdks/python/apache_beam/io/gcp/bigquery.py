@@ -2084,5 +2084,5 @@ class ReadAllFromBigQuery(PTransform):
 
     return (
         sources_to_read
-        | SDFBoundedSourceReader()
+        | SDFBoundedSourceReader(data_to_display=self.display_data())
         | _PassThroughThenCleanup(beam.pvalue.AsIter(cleanup_locations)))
