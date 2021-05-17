@@ -82,12 +82,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(Parameterized.class)
 @SuppressWarnings({
   "keyfor",
 })
 public class PubsubTableProviderIT implements Serializable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubTableProviderIT.class);
 
   private static final Schema PAYLOAD_SCHEMA =
       Schema.builder()
@@ -102,6 +106,9 @@ public class PubsubTableProviderIT implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient TestPipeline filterPipeline = TestPipeline.create();
   private final SchemaIOTableProviderWrapper tableProvider = new PubsubTableProvider();
+
+  /** How long to wait on the result signal. */
+  private final Duration timeout = Duration.standardMinutes(10);
 
   @Parameters
   public static Collection<Object[]> data() {
@@ -183,7 +190,7 @@ public class PubsubTableProviderIT implements Serializable {
             objectsProvider.messageIdName(ts(3), 7, "baz")));
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(5));
+    resultSignal.waitForSuccess(timeout);
   }
 
   @Test
@@ -235,6 +242,8 @@ public class PubsubTableProviderIT implements Serializable {
                 }
               }
 
+              LOG.info("Entries: {}", entries);
+
               return entries.equals(ImmutableMap.of(3, "foo", 5, "bar", 7, "baz"));
             }));
 
@@ -253,7 +262,7 @@ public class PubsubTableProviderIT implements Serializable {
             objectsProvider.messageIdName(ts(3), 7, "baz")));
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(1));
+    resultSignal.waitForSuccess(timeout);
   }
 
   @Test
@@ -314,7 +323,7 @@ public class PubsubTableProviderIT implements Serializable {
     eventsTopic.publish(messages);
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(5));
+    resultSignal.waitForSuccess(timeout);
   }
 
   @Test
@@ -384,7 +393,7 @@ public class PubsubTableProviderIT implements Serializable {
             messagePayload(ts(5), "{ + }", ImmutableMap.of()))); // invalid message, will go to DLQ
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(4));
+    resultSignal.waitForSuccess(timeout);
     dlqTopic
         .assertThatTopicEventuallyReceives(
             matcherPayload(ts(4), "{ - }"), matcherPayload(ts(5), "{ + }"))
@@ -523,7 +532,7 @@ public class PubsubTableProviderIT implements Serializable {
             objectsProvider.messageIdName(ts(3), 7, "baz")));
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(5));
+    resultSignal.waitForSuccess(timeout);
   }
 
   @Test
