@@ -91,7 +91,7 @@ See the [Contributor Guide](https://beam.apache.org/contribute) for more tips on
         </a><br>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Java_PVR_Samza/lastCompletedBuild/">
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Java_PVR_Samza/lastCompletedBuild/badge/icon?subject=Portable">
-        </a>        
+        </a>
       </td>
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Java_ValidatesRunner_Spark/lastCompletedBuild/">
