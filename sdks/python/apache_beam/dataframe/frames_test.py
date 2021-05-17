@@ -449,6 +449,14 @@ class DeferredFrameTest(unittest.TestCase):
             level='group').apply(median_sum_fn),
         df)
 
+  def test_groupby_apply_preserves_column_order(self):
+    df = GROUPBY_DF
+
+    self._run_test(
+        lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
+            lambda x: x),
+        df)
+
   @unittest.skip('BEAM-11710')
   def test_groupby_aggregate_grouped_column(self):
     df = pd.DataFrame({

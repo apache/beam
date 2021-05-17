@@ -2560,53 +2560,55 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
 
   def apply(self, fn, *args, **kwargs):
-    if self._grouping_columns and not self._projection:
-      grouping_columns = self._grouping_columns
-      def fn_wrapper(x, *args, **kwargs):
-        # Remove grouped columns from the index
-        x = x.droplevel(grouping_columns)
-        return fn(x, *args, **kwargs)
-    else:
-      fn_wrapper = fn
-
     project = _maybe_project_func(self._projection)
 
     # Unfortunately pandas does not execute fn to determine the right proxy.
     # We run user fn on a proxy here to detect the return type and generate the
     # proxy.
-    result = fn_wrapper(project(self._ungrouped_with_index.proxy()))
+    result = fn(project(self._ungrouped_with_index.proxy()))
     if isinstance(result, pd.core.generic.NDFrame):
-      proxy = result[:0]
+      if len(result):
+        proxy = result[:0]
 
-      def index_to_arrays(index):
-        return [index.get_level_values(level)
-                for level in range(index.nlevels)]
+        def index_to_arrays(index):
+          return [index.get_level_values(level)
+                  for level in range(index.nlevels)]
 
-      # The final result will have the grouped indexes + the indexes from the
-      # result
-      proxy.index = pd.MultiIndex.from_arrays(
-          index_to_arrays(self._ungrouped.proxy().index) +
-          index_to_arrays(proxy.index),
-          names=self._ungrouped.proxy().index.names + proxy.index.names)
+        # The final result will have the grouped indexes + the indexes from the
+        # result
+        proxy.index = pd.MultiIndex.from_arrays(
+            index_to_arrays(self._ungrouped.proxy().index) +
+            index_to_arrays(proxy.index),
+            names=self._ungrouped.proxy().index.names + proxy.index.names)
+      else:
+        proxy = result
     else:
       # The user fn returns some non-pandas type. The expected result is a
       # Series where each element is the result of one user fn call.
       dtype = pd.Series([result]).dtype
       proxy = pd.Series([], dtype=dtype, index=self._ungrouped.proxy().index)
 
-    levels = self._grouping_indexes + self._grouping_columns
+    grouping_indexes = self._grouping_indexes
+    grouping_columns = self._grouping_columns
+
+    def do_partition_apply(df):
+      # Remove columns from index, we only needed them there for partitioning
+      df = df.reset_index(grouping_columns, drop=True)
+
+      gb = df.groupby(level=grouping_indexes or None,
+                      by=grouping_columns or None)
+
+      gb = project(gb)
+      return gb.apply(fn, *args, **kwargs)
 
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'apply',
-            lambda df: project(df.groupby(level=levels)).apply(
-                fn_wrapper,
-                *args,
-                **kwargs),
+            do_partition_apply,
             [self._ungrouped_with_index],
             proxy=proxy,
-            requires_partition_by=partitionings.Index(levels),
-            preserves_partition_by=partitionings.Index(levels)))
+            requires_partition_by=partitionings.Index(self._grouping_indexes + self._grouping_columns),
+            preserves_partition_by=partitionings.Index(self._grouping_indexes)))
 
   aggregate = agg
 
