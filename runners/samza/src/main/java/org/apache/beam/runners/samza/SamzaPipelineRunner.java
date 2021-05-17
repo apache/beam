@@ -57,7 +57,7 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
     options.setRunner(SamzaRunner.class);
     try {
       final SamzaRunner runner = SamzaRunner.fromOptions(options);
-      PortablePipelineResult result = runner.runPortablePipeline(fusedPipeline, jobInfo);
+      final PortablePipelineResult result = runner.runPortablePipeline(fusedPipeline, jobInfo);
 
       final SamzaExecutionEnvironment exeEnv = options.getSamzaExecutionEnvironment();
       if (exeEnv == SamzaExecutionEnvironment.LOCAL
