@@ -177,7 +177,7 @@ task validatesRunnerStreamingTests {
                 "worker_jar": dataflowWorkerJar,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
                 "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
-                "collect": "it_validatesrunner and not no_sickbay_streaming"
+                "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist"
                 ]
     if (project.hasProperty('useRunnerV2')) {
       argMap.put("runner_v2", "true")
@@ -194,14 +194,14 @@ task validatesRunnerStreamingTests {
 
   // Execute tests that fail with xdists
   doLast {
-    def tests = ["apache_beam/runners/dataflow/dataflow_exercise_streaming_metrics_pipeline_test.py"]
     def argMap = [
-                "test_opts": basicPytestOpts + ["${tests.join(' ')}"],
+                "test_opts": basicPytestOpts,
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
                 "worker_jar": dataflowWorkerJar,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
                 "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
+                "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist"
                 ]
     if (project.hasProperty('useRunnerV2')) {
       argMap.put("runner_v2", "true")
