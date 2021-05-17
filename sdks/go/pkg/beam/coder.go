@@ -46,7 +46,7 @@ import (
 // this explicitly, and file an issue on the BEAM JIRA so the issue may
 // be resolved.
 // https://issues.apache.org/jira/projects/BEAM/issues/
-var EnableSchemas bool = false
+var EnableSchemas bool = true
 
 func init() {
 	runtime.RegisterInit(func() {
