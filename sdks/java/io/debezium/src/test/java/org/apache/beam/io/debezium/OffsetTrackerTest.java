@@ -40,8 +40,8 @@ public class OffsetTrackerTest implements Serializable {
             MySqlConnector.class, new SourceRecordJson.SourceRecordJsonMapper(), maxNumRecords);
     KafkaSourceConsumerFn.OffsetHolder restriction =
         kafkaSourceConsumerFn.getInitialRestriction(new HashMap<>());
-    KafkaSourceConsumerFn.OffsetTracker tracker =
-        new KafkaSourceConsumerFn.OffsetTracker(restriction);
+    KafkaSourceConsumerFn<String>.OffsetTracker tracker =
+            kafkaSourceConsumerFn.new OffsetTracker(restriction);
 
     for (int records = 0; records < maxNumRecords; records++) {
       assertTrue("OffsetTracker should continue", tracker.tryClaim(position));
@@ -59,8 +59,8 @@ public class OffsetTrackerTest implements Serializable {
             MySqlConnector.class, new SourceRecordJson.SourceRecordJsonMapper(), minutesToRun);
     KafkaSourceConsumerFn.OffsetHolder restriction =
         kafkaSourceConsumerFn.getInitialRestriction(new HashMap<>());
-    KafkaSourceConsumerFn.OffsetTracker tracker =
-        new KafkaSourceConsumerFn.OffsetTracker(restriction);
+    KafkaSourceConsumerFn<String>.OffsetTracker tracker =
+         kafkaSourceConsumerFn.new OffsetTracker(restriction);
 
     assertTrue(tracker.tryClaim(position));
 

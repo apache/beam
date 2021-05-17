@@ -303,7 +303,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       long elapsedTime = System.currentTimeMillis() - startTime.getMillis();
       int fetchedRecords =
           this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords + 1;
-      LOG.debug("------------FETCHED RECORDS {} / MAX RECORDS {}", fetchedRecords, maxRecords);
+      LOG.debug("------------Fetched records {} / {}", fetchedRecords, maxRecords);
       LOG.debug("-------------- Time running: {} / {}", elapsedTime, (minutesToRun * MILLIS));
       this.restriction = new OffsetHolder(position, this.restriction.history, fetchedRecords);
       LOG.debug("-------------- History: {}", this.restriction.history);
