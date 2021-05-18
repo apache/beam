@@ -1059,6 +1059,40 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.insert(0, 'foo', pd.Series([8], index=[1])), df)
     self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
 
+  def test_series_agg_std(self):
+    s = pd.Series(range(10))
+
+    self._run_test(lambda s: s.agg('std'), s)
+    self._run_test(lambda s: s.agg('var'), s)
+    self._run_test(lambda s: s.agg(['std', 'sum']), s)
+    self._run_test(lambda s: s.agg(['var']), s)
+
+  def test_std_all_na(self):
+    s = pd.Series([np.nan] * 10)
+
+    self._run_test(lambda s: s.agg('std'), s)
+    self._run_test(lambda s: s.std(), s)
+
+  def test_std_mostly_na_with_ddof(self):
+    df = pd.DataFrame({
+        'one': [i if i % 8 == 0 else np.nan for i in range(8)],
+        'two': [i if i % 4 == 0 else np.nan for i in range(8)],
+        'three': [i if i % 2 == 0 else np.nan for i in range(8)],
+    },
+                      index=pd.MultiIndex.from_arrays(
+                          [list(range(8)), list(reversed(range(8)))],
+                          names=['forward', None]))
+
+    self._run_test(lambda df: df.std(), df)  # ddof=1
+    self._run_test(lambda df: df.std(ddof=0), df)
+    self._run_test(lambda df: df.std(ddof=2), df)
+    self._run_test(lambda df: df.std(ddof=3), df)
+    self._run_test(lambda df: df.std(ddof=4), df)
+
+  def test_dataframe_std(self):
+    self._run_test(lambda df: df.std(numeric_only=True), GROUPBY_DF)
+    self._run_test(lambda df: df.var(numeric_only=True), GROUPBY_DF)
+
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
