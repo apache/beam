@@ -564,13 +564,27 @@ class GcsDownloader(Downloader):
     self._bucket, self._name = parse_gcs_path(path)
     self._buffer_size = buffer_size
 
+    # Create a request count metric
+    resource = resource_identifiers.GoogleCloudStorage(self._bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+
     # Get object state.
     self._get_request = (
         storage.StorageObjectsGetRequest(
             bucket=self._bucket, object=self._name))
     try:
       metadata = self._get_object_metadata(self._get_request)
+      service_call_metric.call('ok')
     except HttpError as http_error:
+      service_call_metric.call(http_error)
       if http_error.status_code == 404:
         raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
       else:
@@ -589,18 +603,6 @@ class GcsDownloader(Downloader):
         auto_transfer=False,
         chunksize=self._buffer_size,
         num_retries=20)
-
-    # Create a request count metric
-    resource = resource_identifiers.GoogleCloudStorage(self._bucket)
-    labels = {
-        monitoring_infos.SERVICE_LABEL: 'Storage',
-        monitoring_infos.METHOD_LABEL: 'Objects.get',
-        monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
-    }
-    service_call_metric = ServiceCallMetric(
-        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
-        base_labels=labels)
 
     try:
       self._client.objects.Get(self._get_request, download=self._downloader)
