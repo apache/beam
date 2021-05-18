@@ -60,7 +60,8 @@ public class MapValues<K, V1, V2>
    * @param <NewKeyT> the type of the keys in the input and output {@code PCollection}s
    * @param <NewValueT> the type of the values in the input {@code PCollection}
    */
-  public <NewKeyT, NewValueT> MapValues<NewKeyT, NewValueT, V2> via(SerializableFunction<NewValueT, V2> fn) {
+  public <NewKeyT, NewValueT> MapValues<NewKeyT, NewValueT, V2> via(
+      SerializableFunction<NewValueT, V2> fn) {
     return new MapValues<>(
         Contextful.fn(
             ((element, c) -> KV.of(element.getKey(), fn.apply(element.getValue()))),
