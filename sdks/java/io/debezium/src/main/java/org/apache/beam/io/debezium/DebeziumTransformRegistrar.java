@@ -34,6 +34,9 @@ import org.slf4j.LoggerFactory;
 /** Exposes {@link DebeziumIO.Read} as an external transform for cross-language usage. */
 @Experimental(Experimental.Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
   private static final Logger LOG = LoggerFactory.getLogger(DebeziumTransformRegistrar.class);
   public static final String READ_JSON_URN = "beam:external:java:debezium:read:v1";
@@ -45,14 +48,12 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
         (Class<? extends ExternalTransformBuilder<?, ?, ?>>) (Class<?>) ReadBuilder.class);
   }
 
-  public static class CrossLanguageConfiguration {
-    private @Nullable String username;
-    private @Nullable String password;
-    private @Nullable String host;
-    private @Nullable String port;
-    private @Nullable Connectors connectorClass;
-    private @Nullable List<String> connectionProperties;
-    private @Nullable Long maxNumberOfRecords;
+  private abstract static class CrossLanguageConfiguration {
+    String username;
+    String password;
+    String host;
+    String port;
+    Connectors connectorClass;
 
     public void setUsername(String username) {
       this.username = username;
@@ -73,22 +74,26 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
     public void setConnectorClass(String connectorClass) {
       this.connectorClass = Connectors.fromName(connectorClass);
     }
-
-    public void setConnectionProperties(List<String> connectionProperties) {
-      this.connectionProperties = connectionProperties;
-    }
-
-    public void setMaxNumberOfRecords(@Nullable Long maxNumberOfRecords) {
-      this.maxNumberOfRecords = maxNumberOfRecords;
-    }
   }
 
   public static class ReadBuilder
-      implements ExternalTransformBuilder<CrossLanguageConfiguration, PBegin, PCollection<String>> {
+      implements ExternalTransformBuilder<ReadBuilder.Configuration, PBegin, PCollection<String>> {
+
+    public static class Configuration extends CrossLanguageConfiguration {
+      private @Nullable List<String> connectionProperties;
+      private @Nullable Long maxNumberOfRecords;
+
+      public void setConnectionProperties(@Nullable List<String> connectionProperties) {
+        this.connectionProperties = connectionProperties;
+      }
+
+      public void setMaxNumberOfRecords(@Nullable Long maxNumberOfRecords) {
+        this.maxNumberOfRecords = maxNumberOfRecords;
+      }
+    }
 
     @Override
-    public PTransform<PBegin, PCollection<String>> buildExternal(
-        CrossLanguageConfiguration configuration) {
+    public PTransform<PBegin, PCollection<String>> buildExternal(Configuration configuration) {
       DebeziumIO.ConnectorConfiguration connectorConfiguration =
           DebeziumIO.ConnectorConfiguration.create()
               .withUsername(configuration.username)
