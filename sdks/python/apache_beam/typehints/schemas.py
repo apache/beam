@@ -30,7 +30,7 @@ Imposes a mapping between common Python types and Beam portable schemas
   np.float64  <-----> DOUBLE
   float       ------> DOUBLE
   bool        <-----> BOOLEAN
-  str <-----> STRING
+  str         <-----> STRING
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
