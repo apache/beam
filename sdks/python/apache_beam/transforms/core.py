@@ -2887,6 +2887,15 @@ class Create(PTransform):
       values = values.items()
     self.values = tuple(values)
     self.reshuffle = reshuffle
+    self._coder = typecoders.registry.get_coder(self.get_output_type())
+
+  def __getstate__(self):
+    serialized_values = [self._coder.encode(v) for v in self.values]
+    return serialized_values, self.reshuffle, self._coder
+
+  def __setstate__(self, state):
+    serialized_values, self.reshuffle, self._coder = state
+    self.values = [self._coder.decode(v) for v in serialized_values]
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> typing.Tuple[str, bytes]
@@ -2908,8 +2917,7 @@ class Create(PTransform):
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
-    coder = typecoders.registry.get_coder(self.get_output_type())
-    serialized_values = [coder.encode(v) for v in self.values]
+    serialized_values = [self._coder.encode(v) for v in self.values]
     reshuffle = self.reshuffle
 
     # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
@@ -2929,12 +2937,11 @@ class Create(PTransform):
         | Impulse()
         | FlatMap(lambda _: serialized_values).with_output_types(bytes)
         | MaybeReshuffle().with_output_types(bytes)
-        | Map(coder.decode).with_output_types(self.get_output_type()))
+        | Map(self._coder.decode).with_output_types(self.get_output_type()))
 
   def as_read(self):
     from apache_beam.io import iobase
-    coder = typecoders.registry.get_coder(self.get_output_type())
-    source = self._create_source_from_iterable(self.values, coder)
+    source = self._create_source_from_iterable(self.values, self._coder)
     return iobase.Read(source).with_output_types(self.get_output_type())
 
   def get_windowing(self, unused_inputs):
