@@ -91,6 +91,8 @@ dependencies {
   compile "org.apache.commons:commons-lang3:3.9"
   compile "org.apache.httpcomponents:httpclient:4.5.13"
   compile "org.apache.httpcomponents:httpcore:4.4.13"
+  compile ("org.twitter4j:twitter4j-stream:4.0.7")
+  compile ("org.twitter4j:twitter4j-core:4.0.7")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile project(":sdks:java:extensions:ml")
