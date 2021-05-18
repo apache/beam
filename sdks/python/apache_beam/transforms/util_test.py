@@ -713,8 +713,8 @@ class GroupIntoBatchesTest(unittest.TestCase):
               max_buffering_duration_secs,
               fake_clock)
           | "count elements in batch" >> Map(lambda x: (None, len(x[1])))
-          | "global window" >> WindowInto(GlobalWindows())
           | GroupByKey()
+          | "global window" >> WindowInto(GlobalWindows())
           | FlatMapTuple(lambda k, vs: vs))
 
       # Window duration is 6 and batch size is 5, so output batch size
