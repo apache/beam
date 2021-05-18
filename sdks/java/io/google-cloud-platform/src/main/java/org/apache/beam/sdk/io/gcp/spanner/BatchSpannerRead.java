@@ -27,9 +27,10 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -74,6 +75,7 @@ abstract class BatchSpannerRead
         ParDo.of(new ReadOperationsFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
+  @UnboundedPerElement
   private static class ReadOperationsFn extends DoFn<ReadOperation, Struct> {
 
     private final SpannerConfig config;
@@ -96,14 +98,15 @@ abstract class BatchSpannerRead
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) throws Exception {
+    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker)
+        throws Exception {
       Transaction tx = c.sideInput(txView);
       BatchReadOnlyTransaction context =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
       List<Partition> partitions = execute(c.element(), context);
       BatchReadOnlyTransaction batchTx =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
-      for (int i = 0; i < partitions.size(); i++) {
+      for (int i = (int) tracker.currentRestriction().getFrom(); i < partitions.size(); i++) {
         if (tracker.tryClaim(Long.valueOf(i))) {
           try (ResultSet resultSet = batchTx.execute(partitions.get(i))) {
             while (resultSet.next()) {
