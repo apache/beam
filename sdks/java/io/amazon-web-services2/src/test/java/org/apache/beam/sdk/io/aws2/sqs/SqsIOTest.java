@@ -83,7 +83,7 @@ public class SqsIOTest {
   }
 
   @Test
-  public void checkpointCoderIsSane() {
+  public void testCheckpointCoderIsSane() {
     setupOneMessage();
     CoderProperties.coderSerializable(source.getCheckpointMarkCoder());
     // Since we only serialize/deserialize the 'notYetReadIds', and we don't want to make
@@ -92,7 +92,7 @@ public class SqsIOTest {
   }
 
   @Test
-  public void readOneMessage() throws IOException {
+  public void testReadOneMessage() throws IOException {
     setupOneMessage();
     UnboundedSource.UnboundedReader<SqsMessage> reader =
         source.createReader(pipeline.getOptions(), null);
@@ -107,7 +107,7 @@ public class SqsIOTest {
   }
 
   @Test
-  public void timeoutAckAndRereadOneMessage() throws IOException {
+  public void testTimeoutAckAndRereadOneMessage() throws IOException {
     setupOneMessage();
     UnboundedSource.UnboundedReader<SqsMessage> reader =
         source.createReader(pipeline.getOptions(), null);
@@ -133,7 +133,7 @@ public class SqsIOTest {
   }
 
   @Test
-  public void multipleReaders() throws IOException {
+  public void testMultipleReaders() throws IOException {
     List<String> incoming = new ArrayList<>();
     for (int i = 0; i < 2; i++) {
       incoming.add(String.format("data_%d", i));
@@ -249,7 +249,7 @@ public class SqsIOTest {
 
   /** Tests that checkpoints finalized after the reader is closed succeed. */
   @Test
-  public void closeWithActiveCheckpoints() throws Exception {
+  public void testCloseWithActiveCheckpoints() throws Exception {
     setupOneMessage();
     UnboundedSource.UnboundedReader<SqsMessage> reader =
         source.createReader(pipeline.getOptions(), null);
