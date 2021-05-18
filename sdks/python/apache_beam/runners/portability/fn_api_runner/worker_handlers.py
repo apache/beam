@@ -316,7 +316,7 @@ class WorkerHandler(object):
       urn,  # type: str
       payload_type  # type: Optional[Type[T]]
   ):
-    # type: (...) -> Callable[[Callable[[T, sdk_worker.StateHandler, ExtendedProvisionInfo, GrpcServer], WorkerHandler]], Callable[[T, sdk_worker.StateHandler, ExtendedProvisionInfo, GrpcServer], WorkerHandler]]
+    # type: (...) -> Callable[[Type[WorkerHandler]], Callable[[T, sdk_worker.StateHandler, ExtendedProvisionInfo, GrpcServer], WorkerHandler]]
     def wrapper(constructor):
       # type: (Callable) -> Callable
       cls._registered_environments[urn] = constructor, payload_type  # type: ignore[assignment]
@@ -343,7 +343,7 @@ class WorkerHandler(object):
 # This takes a WorkerHandlerManager instead of GrpcServer, so it is not
 # compatible with WorkerHandler.register_environment.  There is a special case
 # in WorkerHandlerManager.get_worker_handlers() that allows it to work.
-@WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON, None)  # type: ignore[arg-type]
+@WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedWorkerHandler(WorkerHandler):
   """An in-memory worker_handler for fn API control, state and data planes."""
 
@@ -361,7 +361,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     state_cache = StateCache(STATE_CACHE_SIZE)
     self.bundle_processor_cache = sdk_worker.BundleProcessorCache(
         SingletonStateHandlerFactory(
-            sdk_worker.CachingStateHandler(state_cache, state)),
+            sdk_worker.GlobalCachingStateHandler(state_cache, state)),
         data_plane.InMemoryDataChannelFactory(
             self.data_plane_handler.inverse()),
         worker_manager._process_bundle_descriptors)
@@ -1052,6 +1052,10 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
         # defaultdict that _state uses.
         pass
     return _Future.done()
+
+  def done(self):
+    # type: () -> None
+    pass
 
   @staticmethod
   def _to_key(state_key):
