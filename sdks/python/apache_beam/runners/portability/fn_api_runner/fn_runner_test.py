@@ -52,6 +52,7 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.portability import python_urns
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -994,7 +995,7 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
-  def _test_pack_combiners(self, experiments, expect_packed):
+  def test_pack_combiners(self):
     counter = beam.metrics.Metrics.counter('ns', 'num_values')
 
     def min_with_counter(values):
@@ -1005,18 +1006,22 @@ class FnApiRunnerTest(unittest.TestCase):
       counter.inc()
       return max(values)
 
+    class PackableCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
+      def expand(self, pcoll):
+        assert_that(
+            pcoll | 'PackableMin' >> beam.CombineGlobally(min_with_counter),
+            equal_to([10]),
+            label='AssertMin')
+        assert_that(
+            pcoll | 'PackableMax' >> beam.CombineGlobally(max_with_counter),
+            equal_to([30]),
+            label='AssertMax')
+
     with self.create_pipeline() as p:
-      for experiment in experiments:
-        p._options.view_as(DebugOptions).add_experiment(experiment)
-      pcoll = p | beam.Create([10, 20, 30])
-      assert_that(
-          pcoll | 'PackableMin' >> beam.CombineGlobally(min_with_counter),
-          equal_to([10]),
-          label='AssertMin')
-      assert_that(
-          pcoll | 'PackableMax' >> beam.CombineGlobally(max_with_counter),
-          equal_to([30]),
-          label='AssertMax')
+      _ = p | beam.Create([10, 20, 30]) | PackableCombines()
 
     res = p.run()
     res.wait_until_finish()
@@ -1029,28 +1034,18 @@ class FnApiRunnerTest(unittest.TestCase):
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names = set(m.key.step for m in counters)
-    if expect_packed:
-      self.assertFalse(
-          any([re.match(unpacked_min_step_name_regex, s) for s in step_names]))
-      self.assertFalse(
-          any([re.match(unpacked_max_step_name_regex, s) for s in step_names]))
-      self.assertTrue(
-          any([re.match(packed_step_name_regex, s) for s in step_names]))
-    else:
-      self.assertTrue(
-          any([re.match(unpacked_min_step_name_regex, s) for s in step_names]))
-      self.assertTrue(
-          any([re.match(unpacked_max_step_name_regex, s) for s in step_names]))
-      self.assertFalse(
-          any([re.match(packed_step_name_regex, s) for s in step_names]))
-
-  def test_pack_combiners_disabled_by_default(self):
-    self._test_pack_combiners(experiments=(), expect_packed=False)
-
-  @unittest.skip("BEAM-11694")
-  def test_pack_combiners_enabled_by_experiment(self):
-    self._test_pack_combiners(
-        experiments=('pre_optimize=all', ), expect_packed=True)
+    self.assertFalse(
+        any([
+            re.match(unpacked_min_step_name_regex, s) and
+            not re.match(packed_step_name_regex, s) for s in step_names
+        ]))
+    self.assertFalse(
+        any([
+            re.match(unpacked_max_step_name_regex, s) and
+            not re.match(packed_step_name_regex, s) for s in step_names
+        ]))
+    self.assertTrue(
+        any([re.match(packed_step_name_regex, s) for s in step_names]))
 
 
 # These tests are kept in a separate group so that they are
@@ -1450,7 +1445,8 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             is_drain=is_drain))
 
 
@@ -1459,7 +1455,10 @@ class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(
-                state_cache_size=0, data_buffer_time_limit_ms=0),
+                state_cache_size=0,
+                data_buffer_time_limit_ms=0,
+                capabilities=environments.python_sdk_capabilities(),
+                artifacts=()),
             is_drain=is_drain))
 
 
@@ -1566,7 +1565,8 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     # to the bundle process request.
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             is_drain=is_drain))
 
   def test_checkpoint(self):
@@ -1948,7 +1948,8 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment.
+            default(),
             progress_request_frequency=0.5))
 
   def test_lull_logging(self):
