@@ -56,10 +56,10 @@ public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PColl
    * Returns a {@code MapKeys<K1, K2, V>} {@code PTransform} for a {@code ProcessFunction<NewK1,
    * K2>} with predefined {@link #outputType}.
    *
-   * @param <NewK1> the type of the keys in the input {@code PCollection}
-   * @param <V1> the type of the values in the input and output {@code PCollection}s
+   * @param <NewKeyT> the type of the keys in the input {@code PCollection}
+   * @param <NewValueT> the type of the values in the input and output {@code PCollection}s
    */
-  public <V1, NewK1> MapKeys<NewK1, K2, V1> via(SerializableFunction<NewK1, K2> fn) {
+  public <NewValueT, NewKeyT> MapKeys<NewKeyT, K2, NewValueT> via(SerializableFunction<NewKeyT, K2> fn) {
     return new MapKeys<>(
         Contextful.fn(
             ((element, c) -> KV.of(fn.apply(element.getKey()), element.getValue())),

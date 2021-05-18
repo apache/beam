@@ -57,10 +57,10 @@ public class MapValues<K, V1, V2>
    * Returns a {@link MapValues} transform for a {@code ProcessFunction<NewV1, V2>} with predefined
    * {@link #outputType}.
    *
-   * @param <K1> the type of the keys in the input and output {@code PCollection}s
-   * @param <NewV1> the type of the values in the input {@code PCollection}
+   * @param <NewKeyT> the type of the keys in the input and output {@code PCollection}s
+   * @param <NewValueT> the type of the values in the input {@code PCollection}
    */
-  public <K1, NewV1> MapValues<K1, NewV1, V2> via(SerializableFunction<NewV1, V2> fn) {
+  public <NewKeyT, NewValueT> MapValues<NewKeyT, NewValueT, V2> via(SerializableFunction<NewValueT, V2> fn) {
     return new MapValues<>(
         Contextful.fn(
             ((element, c) -> KV.of(element.getKey(), fn.apply(element.getValue()))),
