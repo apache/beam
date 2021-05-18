@@ -113,7 +113,7 @@ class FnApiRunner(runner.PipelineRunner):
     """
     super(FnApiRunner, self).__init__()
     self._default_environment = (
-        default_environment or environments.EmbeddedPythonEnvironment())
+        default_environment or environments.EmbeddedPythonEnvironment.default())
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
@@ -167,12 +167,14 @@ class FnApiRunner(runner.PipelineRunner):
     running_mode = \
       options.view_as(pipeline_options.DirectOptions).direct_running_mode
     if running_mode == 'multi_threading':
-      self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
+      self._default_environment = (
+          environments.EmbeddedPythonGrpcEnvironment.default())
     elif running_mode == 'multi_processing':
       command_string = '%s -m apache_beam.runners.worker.sdk_worker_main' \
                     % sys.executable
-      self._default_environment = environments.SubprocessSDKEnvironment(
-          command_string=command_string)
+      self._default_environment = (
+          environments.SubprocessSDKEnvironment.from_command_string(
+              command_string=command_string))
 
     if running_mode == 'in_memory' and self._num_workers != 1:
       _LOGGER.warning(
