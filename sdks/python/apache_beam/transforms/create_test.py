@@ -24,8 +24,8 @@ import unittest
 from apache_beam import Create
 from apache_beam import coders
 from apache_beam.coders import FastPrimitivesCoder
-from apache_beam.io import source_test_utils
 from apache_beam.internal import pickler
+from apache_beam.io import source_test_utils
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -132,8 +132,10 @@ class CreateTest(unittest.TestCase):
         sorted(unpickled_create.values, key=lambda v: v.value))
 
     with self.assertRaises(NotImplementedError):
-      create_unpicklable = Create([_Unpicklable(1), 2])
-      pickler.dumps(create_unpicklable)
+      # As there is no special coder for Union types, this will fall back to
+      # FastPrimitivesCoder, which in turn falls back to pickling.
+      create_mixed_types = Create([_Unpicklable(1), 2])
+      pickler.dumps(create_mixed_types)
 
 
 class _Unpicklable(object):
