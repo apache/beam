@@ -1574,10 +1574,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     by = subset or list(self.columns)
 
-    # Workaround a bug where groupby.apply() that returns a single-element Series
-    # moves index label to column
+    # Workaround a bug where groupby.apply() that returns a single-element
+    # Series moves index label to column
     return self.groupby(by).apply(
-        lambda df: pd.DataFrame(df.duplicated(keep=keep, subset=subset), columns=[None])).droplevel(by)[None]
+        lambda df: pd.DataFrame(df.duplicated(keep=keep, subset=subset),
+                                columns=[None])).droplevel(by)[None]
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -2567,7 +2568,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     # Unfortunately pandas does not execute fn to determine the right proxy.
     # We run user fn on a proxy here to detect the return type and generate the
     # proxy.
-    fn_input = project(self._ungrouped_with_index.proxy().reset_index(grouping_columns, drop=True))
+    fn_input = project(self._ungrouped_with_index.proxy().reset_index(
+        grouping_columns, drop=True))
     result = fn(fn_input)
     if isinstance(result, pd.core.generic.NDFrame):
       if result.index is fn_input.index:
@@ -2608,8 +2610,9 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             do_partition_apply,
             [self._ungrouped_with_index],
             proxy=proxy,
-            requires_partition_by=partitionings.Index(self._grouping_indexes + self._grouping_columns),
-            preserves_partition_by=partitionings.Index(self._grouping_indexes)))
+            requires_partition_by=partitionings.Index(grouping_indexes +
+                                                      grouping_columns),
+            preserves_partition_by=partitionings.Index(grouping_indexes)))
 
   aggregate = agg
 
