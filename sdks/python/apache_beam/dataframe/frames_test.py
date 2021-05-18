@@ -457,6 +457,16 @@ class DeferredFrameTest(unittest.TestCase):
             lambda x: x),
         df)
 
+  def test_groupby_apply_modified_index(self):
+    df = GROUPBY_DF
+
+    # If apply fn modifies the index then the output will include the grouped
+    # index
+    self._run_test(
+        lambda df: df.groupby('group').apply(
+            lambda x: x[x.foo > x.foo.median()]),
+        df)
+
   @unittest.skip('BEAM-11710')
   def test_groupby_aggregate_grouped_column(self):
     df = pd.DataFrame({

@@ -2561,13 +2561,18 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   def apply(self, fn, *args, **kwargs):
     project = _maybe_project_func(self._projection)
+    grouping_indexes = self._grouping_indexes
+    grouping_columns = self._grouping_columns
 
     # Unfortunately pandas does not execute fn to determine the right proxy.
     # We run user fn on a proxy here to detect the return type and generate the
     # proxy.
-    result = fn(project(self._ungrouped_with_index.proxy()))
+    fn_input = project(self._ungrouped_with_index.proxy().reset_index(grouping_columns, drop=True))
+    result = fn(fn_input)
     if isinstance(result, pd.core.generic.NDFrame):
-      if len(result):
+      if result.index is fn_input.index:
+        proxy = result
+      else:
         proxy = result[:0]
 
         def index_to_arrays(index):
@@ -2580,16 +2585,12 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             index_to_arrays(self._ungrouped.proxy().index) +
             index_to_arrays(proxy.index),
             names=self._ungrouped.proxy().index.names + proxy.index.names)
-      else:
-        proxy = result
     else:
       # The user fn returns some non-pandas type. The expected result is a
       # Series where each element is the result of one user fn call.
       dtype = pd.Series([result]).dtype
       proxy = pd.Series([], dtype=dtype, index=self._ungrouped.proxy().index)
 
-    grouping_indexes = self._grouping_indexes
-    grouping_columns = self._grouping_columns
 
     def do_partition_apply(df):
       # Remove columns from index, we only needed them there for partitioning
