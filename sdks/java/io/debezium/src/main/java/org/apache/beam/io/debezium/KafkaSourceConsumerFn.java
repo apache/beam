@@ -262,13 +262,13 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     public final @Nullable Integer fetchedRecords;
     public final @Nullable Integer maxRecords;
     public final long minutesToRun;
+
     OffsetHolder(
         @Nullable Map<String, ?> offset,
         @Nullable List<?> history,
         @Nullable Integer fetchedRecords,
-	    @Nullable Integer maxRecords,
-        long minutesToRun
-        ) {
+        @Nullable Integer maxRecords,
+        long minutesToRun) {
       this.offset = offset;
       this.history = history == null ? new ArrayList<>() : history;
       this.fetchedRecords = fetchedRecords;
@@ -277,9 +277,9 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     }
 
     OffsetHolder(
-            @Nullable Map<String, ?> offset,
-            @Nullable List<?> history,
-            @Nullable Integer fetchedRecords) {
+        @Nullable Map<String, ?> offset,
+        @Nullable List<?> history,
+        @Nullable Integer fetchedRecords) {
       this(offset, history, fetchedRecords, null, -1);
     }
   }
@@ -318,9 +318,17 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       int fetchedRecords =
           this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords + 1;
       LOG.debug("------------Fetched records {} / {}", fetchedRecords, this.restriction.maxRecords);
-      LOG.debug("-------------- Time running: {} / {}", elapsedTime, (this.restriction.minutesToRun * MILLIS));
-      this.restriction = new OffsetHolder(position, this.restriction.history, fetchedRecords,
-              this.restriction.maxRecords, this.restriction.minutesToRun);
+      LOG.debug(
+          "-------------- Time running: {} / {}",
+          elapsedTime,
+          (this.restriction.minutesToRun * MILLIS));
+      this.restriction =
+          new OffsetHolder(
+              position,
+              this.restriction.history,
+              fetchedRecords,
+              this.restriction.maxRecords,
+              this.restriction.minutesToRun);
       LOG.debug("-------------- History: {}", this.restriction.history);
 
       if (this.restriction.maxRecords == null && this.restriction.minutesToRun == -1) {
