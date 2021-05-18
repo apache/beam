@@ -29,6 +29,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedInteger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -157,7 +158,8 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
       // org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Hashing.smear().
       int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
       if (numBuckets != null) {
-        hashOfShard %= numBuckets;
+        UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
+        hashOfShard = UnsignedInteger.fromIntBits(hashOfShard).mod(unsignedNumBuckets).intValue();
       }
       r.output(KV.of(hashOfShard, element));
     }
