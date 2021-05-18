@@ -137,14 +137,14 @@ class ReadFromDebezium(ExternalTransform):
         :param host: database host
         :param port: database port
         :param max_number_of_records: maximum number of records
-        to be fetched before stop.
+                                      to be fetched before stop.
         :param connection_properties: properties of the debezium
                                       connection passed as string
                                       with format
                                       [propertyName=property;]*
         :param expansion_service: The address (host:port)
-        of the ExpansionService.
-        """
+                                  of the ExpansionService.
+    """
     super(ReadFromDebezium, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
