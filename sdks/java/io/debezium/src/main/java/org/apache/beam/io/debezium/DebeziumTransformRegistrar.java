@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.io.debezium;
 
 import com.google.auto.service.AutoService;
-import com.google.auto.value.AutoValue;
-import io.debezium.annotation.VisibleForTesting;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
@@ -32,92 +31,88 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Map;
-
-/**
- * Exposes {@link DebeziumIO.Read} as an external transform for cross-language usage.
- */
+/** Exposes {@link DebeziumIO.Read} as an external transform for cross-language usage. */
 @Experimental(Experimental.Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
-    private static final Logger LOG = LoggerFactory.getLogger(DebeziumTransformRegistrar.class);
-    public static final String READ_JSON_URN = "beam:external:java:debezium:read:v1";
+  private static final Logger LOG = LoggerFactory.getLogger(DebeziumTransformRegistrar.class);
+  public static final String READ_JSON_URN = "beam:external:java:debezium:read:v1";
+
+  @Override
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+    return ImmutableMap.of(
+        READ_JSON_URN,
+        (Class<? extends ExternalTransformBuilder<?, ?, ?>>) (Class<?>) ReadBuilder.class);
+  }
+
+  public static class CrossLanguageConfiguration {
+    private String username;
+    private String password;
+    private String host;
+    private String port;
+    private Connectors connectorClass;
+    private @Nullable List<String> connectionProperties;
+    private @Nullable Long maxNumberOfRecords;
+
+    public void setUsername(String username) {
+      this.username = username;
+    }
+
+    public void setPassword(String password) {
+      this.password = password;
+    }
+
+    public void setHost(String host) {
+      this.host = host;
+    }
+
+    public void setPort(String port) {
+      this.port = port;
+    }
+
+    public void setConnectorClass(String connectorClass) {
+      this.connectorClass = Connectors.fromName(connectorClass);
+    }
+
+    public void setConnectionProperties(List<String> connectionProperties) {
+      this.connectionProperties = connectionProperties;
+    }
+
+    public void setMaxNumberOfRecords(@Nullable Long maxNumberOfRecords) {
+      this.maxNumberOfRecords = maxNumberOfRecords;
+    }
+  }
+
+  public static class ReadBuilder
+      implements ExternalTransformBuilder<CrossLanguageConfiguration, PBegin, PCollection<String>> {
 
     @Override
-    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
-        return ImmutableMap.of(
-                READ_JSON_URN,
-                (Class<? extends ExternalTransformBuilder<?, ?, ?>>) (Class<?>) ReadBuilder.class);
+    public PTransform<PBegin, PCollection<String>> buildExternal(
+        CrossLanguageConfiguration configuration) {
+      DebeziumIO.ConnectorConfiguration connectorConfiguration =
+          DebeziumIO.ConnectorConfiguration.create()
+              .withUsername(configuration.username)
+              .withPassword(configuration.password)
+              .withHostName(configuration.host)
+              .withPort(configuration.port)
+              .withConnectorClass(configuration.connectorClass.getConnector());
+
+      for (String connectionProperty : configuration.connectionProperties) {
+        String[] parts = connectionProperty.split("=", -1);
+        String key = parts[0];
+        String value = parts[1];
+        connectorConfiguration.withConnectionProperty(key, value);
+      }
+
+      DebeziumIO.Read<String> readTransform =
+          DebeziumIO.readAsJson().withConnectorConfiguration(connectorConfiguration);
+
+      if (configuration.maxNumberOfRecords != null) {
+        readTransform =
+            readTransform.withMaxNumberOfRecords(configuration.maxNumberOfRecords.intValue());
+      }
+
+      return readTransform;
     }
-
-    public static class CrossLanguageConfiguration {
-        private String username;
-        private String password;
-        private String host;
-        private String port;
-        private Connectors connectorClass;
-        private @Nullable List<String> connectionProperties;
-        private @Nullable Long maxNumberOfRecords;
-
-        public void setUsername(String username) {
-            this.username = username;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
-
-        public void setHost(String host) {
-            this.host = host;
-        }
-
-        public void setPort(String port) {
-            this.port = port;
-        }
-
-        public void setConnectorClass(String connectorClass) {
-            this.connectorClass = Connectors.fromName(connectorClass);
-        }
-
-        public void setConnectionProperties(List<String> connectionProperties) {
-            this.connectionProperties = connectionProperties;
-        }
-
-        public void setMaxNumberOfRecords(@Nullable Long maxNumberOfRecords) {
-            this.maxNumberOfRecords = maxNumberOfRecords;
-        }
-    }
-
-    public static class ReadBuilder
-            implements ExternalTransformBuilder<CrossLanguageConfiguration, PBegin, PCollection<String>> {
-
-        @Override
-        public PTransform<PBegin, PCollection<String>> buildExternal(
-                CrossLanguageConfiguration configuration) {
-            DebeziumIO.ConnectorConfiguration connectorConfiguration = DebeziumIO.ConnectorConfiguration
-                    .create()
-                    .withUsername(configuration.username)
-                    .withPassword(configuration.password)
-                    .withHostName(configuration.host)
-                    .withPort(configuration.port)
-                    .withConnectorClass(configuration.connectorClass.getConnector());
-
-            for (String connectionProperty : configuration.connectionProperties) {
-                String[] parts = connectionProperty.split("=", -1);
-                String key = parts[0];
-                String value = parts[1];
-                connectorConfiguration.withConnectionProperty(key, value);
-            }
-
-            DebeziumIO.Read<String> readTransform = DebeziumIO.readAsJson()
-                    .withConnectorConfiguration(connectorConfiguration);
-
-            if (configuration.maxNumberOfRecords != null) {
-                readTransform = readTransform.withMaxNumberOfRecords(configuration.maxNumberOfRecords.intValue());
-            }
-
-            return readTransform;
-        }
-    }
+  }
 }

@@ -79,65 +79,56 @@
 # pytype: skip-file
 
 from enum import Enum
-
-from typing import Optional
-from typing import NamedTuple
 from typing import List
+from typing import NamedTuple
+from typing import Optional
 
-import apache_beam as beam
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
-from apache_beam.typehints.schemas import typing_to_runner_api
 
-__all__ = [
-    'ReadFromDebezium',
-    'Connector'
-]
+__all__ = ['ReadFromDebezium', 'DriverClassName']
+
 
 def default_io_expansion_service():
-    return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
+  return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
 
 
 class DriverClassName(Enum):
-    MYSQL = 'MySQL'
-    POSTGRESQL = 'PostgreSQL'
-    ORACLE = 'Oracle'
-    DB2 = 'Db2'
+  MYSQL = 'MySQL'
+  POSTGRESQL = 'PostgreSQL'
+  ORACLE = 'Oracle'
+  DB2 = 'Db2'
 
 
 ReadFromDebeziumSchema = NamedTuple(
     'ReadFromDebeziumSchema',
-    [('connector_class', str),
-     ('username', str),
-     ('password', str),
-     ('host', str),
-     ('port', str),
-     ('max_number_of_records', Optional[int]),
-     ('connection_properties', List[str])]
-)
+    [('connector_class', str), ('username', str), ('password', str),
+     ('host', str), ('port', str), ('max_number_of_records', Optional[int]),
+     ('connection_properties', List[str])])
 
 
 class ReadFromDebezium(ExternalTransform):
-    """
-        An external PTransform which reads from Debezium and returns a JSON string
-        for each item in the specified database connection.
+  """
+        An external PTransform which reads from Debezium and returns
+        a JSON string for each item in the specified database
+        connection.
 
         Experimental; no backwards compatibility guarantees.
     """
-    URN = 'beam:external:java:debezium:read:v1'
+  URN = 'beam:external:java:debezium:read:v1'
 
-    def __init__(
-            self,
-            connector_class,
-            username,
-            password,
-            host,
-            port,
-            max_number_of_records=None,
-            connection_properties=[],
-            expansion_service=None):
-        """
+  def __init__(
+      self,
+      connector_class,
+      username,
+      password,
+      host,
+      port,
+      max_number_of_records=None,
+      connection_properties=None,
+      expansion_service=None):
+    """
         Initializes a read operation from Debezium.
 
         :param connector_class: name of the jdbc driver class
@@ -145,22 +136,24 @@ class ReadFromDebezium(ExternalTransform):
         :param password: database password
         :param host: database host
         :param port: database port
-        :param max_number_of_records: maximum number of records to be fetched before stop.
-        :param connection_properties: properties of the debezium connection
-                                      passed as string with format
+        :param max_number_of_records: maximum number of records
+        to be fetched before stop.
+        :param connection_properties: properties of the debezium
+                                      connection passed as string
+                                      with format
                                       [propertyName=property;]*
-        :param expansion_service: The address (host:port) of the ExpansionService.
+        :param expansion_service: The address (host:port)
+        of the ExpansionService.
         """
-        super(ReadFromDebezium, self).__init__(
-            self.URN,
-            NamedTupleBasedPayloadBuilder(
-                ReadFromDebeziumSchema(
-                    connector_class=connector_class.value,
-                    username=username,
-                    password=password,
-                    host=host,
-                    port=port,
-                    max_number_of_records=max_number_of_records,
-                    connection_properties=connection_properties
-                )),
-            expansion_service or default_io_expansion_service())
+    super(ReadFromDebezium, self).__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            ReadFromDebeziumSchema(
+                connector_class=connector_class.value,
+                username=username,
+                password=password,
+                host=host,
+                port=port,
+                max_number_of_records=max_number_of_records,
+                connection_properties=connection_properties)),
+        expansion_service or default_io_expansion_service())
