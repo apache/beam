@@ -80,7 +80,7 @@ def to_element_list(
 
 
 def elements_to_df(elements, include_window_info=False, element_type=None):
-  # type: (List[WindowedValue], bool, Any, bool) -> DataFrame
+  # type: (List[WindowedValue], bool, Any) -> DataFrame
 
   """Parses the given elements into a Dataframe.
 
