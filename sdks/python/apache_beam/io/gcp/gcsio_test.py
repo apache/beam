@@ -775,7 +775,7 @@ class TestGCSIO(unittest.TestCase):
     metric_value = MetricsEnvironment.process_wide_container().get_counter(
         metric_name).get_cumulative()
 
-    self.assertEqual(metric_value, 1)
+    self.assertEqual(metric_value, 2)
 
   def test_uploader_monitoring_info(self):
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'

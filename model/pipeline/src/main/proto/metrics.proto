@@ -413,6 +413,8 @@ message MonitoringInfo {
     BIGQUERY_TABLE = 13 [(label_props) = { name: "BIGQUERY_TABLE" }];
     BIGQUERY_VIEW = 14 [(label_props) = { name: "BIGQUERY_VIEW" }];
     BIGQUERY_QUERY_NAME = 15 [(label_props) = { name: "BIGQUERY_QUERY_NAME" }];
+    GCS_BUCKET = 16 [(label_props) = { name: "GCS_BUCKET"}];
+    GCS_PROJECT_ID = 17 [(label_props) = { name: "GCS_PROJECT_ID"}];
   }
 
   // A set of key and value labels which define the scope of the metric. For
