@@ -28,6 +28,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,14 +42,18 @@ public class MapValuesTest {
 
   private static final List<KV<String, Integer>> TABLE =
       ImmutableList.of(KV.of("one", 1), KV.of("two", 2), KV.of("dup", 2));
+  private static final List<KV<String, String>> WORDS_TABLE =
+      ImmutableList.of(
+          KV.of("Length = 3", "one"), KV.of("Length = 4", "three"), KV.of("Length = 0", ""));
 
   private static final List<KV<String, Integer>> EMPTY_TABLE = new ArrayList<>();
+  public static final String EXPECTED_FAILURE_MESSAGE = "/ by zero";
 
   @Rule public final TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMapValues() {
+  public void testMapValuesInto() {
 
     PCollection<KV<String, Integer>> input =
         p.apply(
@@ -57,12 +62,38 @@ public class MapValuesTest {
 
     PCollection<KV<String, Double>> output =
         input
-            .apply(MapValues.via(Integer::doubleValue))
+            .apply(
+                MapValues.into(TypeDescriptors.doubles())
+                    .via((SerializableFunction<Integer, Double>) input1 -> input1 * 2d))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), DoubleCoder.of()));
 
     PAssert.that(output)
         .containsInAnyOrder(
-            ImmutableList.of(KV.of("one", 1.0d), KV.of("two", 2.0d), KV.of("dup", 2.0d)));
+            ImmutableList.of(KV.of("one", 2.0d), KV.of("two", 4.0d), KV.of("dup", 4.0d)));
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapValuesWithFailures() {
+
+    PCollection<KV<String, String>> input =
+        p.apply(
+            Create.of(WORDS_TABLE)
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())));
+
+    WithFailures.Result<PCollection<KV<String, Integer>>, String> result =
+        input.apply(
+            MapValues.into(TypeDescriptors.integers())
+                .<String, String>via(word -> 1 / word.length())
+                .exceptionsInto(TypeDescriptors.strings())
+                .exceptionsVia(ee -> ee.exception().getMessage()));
+    result.output().setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+
+    PAssert.that(result.output())
+        .containsInAnyOrder(ImmutableList.of(KV.of("Length = 3", 0), KV.of("Length = 4", 0)));
+    PAssert.that(result.failures()).containsInAnyOrder(EXPECTED_FAILURE_MESSAGE);
 
     p.run();
   }
@@ -78,7 +109,7 @@ public class MapValuesTest {
 
     PCollection<KV<String, Double>> output =
         input
-            .apply(MapValues.via(Integer::doubleValue))
+            .apply(MapValues.into(TypeDescriptors.doubles()).via(Integer::doubleValue))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), DoubleCoder.of()));
 
     PAssert.that(output).empty();
