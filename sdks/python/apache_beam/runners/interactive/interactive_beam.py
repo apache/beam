@@ -517,12 +517,7 @@ def show(
 
 
 @progress_indicated
-def collect(
-    pcoll,
-    n='inf',
-    duration='inf',
-    include_window_info=False,
-    reset_unnamed_indexes=True):
+def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   """Materializes the elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
@@ -536,9 +531,6 @@ def collect(
         a string duration. Default 'inf'.
     include_window_info: (optional) if True, appends the windowing information
         to each row. Default False.
-    reset_unnamed_indexes: (optional) If True, resets unnamed indices. This is
-        useful because the Beam DataFrame model has non-deterministic index
-        values for DataFrames with unnamed indexes. Default True.
 
   For example::
 
@@ -555,7 +547,7 @@ def collect(
     # Get the proxy so we can get the output shape of the DataFrame.
     element_type = pcoll._expr.proxy()
     pcoll = to_pcollection(
-        pcoll, yield_elements='pandas', label=str(id(pcoll._expr._id)))
+        pcoll, yield_elements='pandas', label=str(pcoll._expr))
     watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
   else:
     element_type = pcoll.element_type
@@ -600,8 +592,7 @@ def collect(
   return elements_to_df(
       elements,
       include_window_info=include_window_info,
-      element_type=element_type,
-      reset_unnamed_indexes=reset_unnamed_indexes)[:n]
+      element_type=element_type)[:n]
 
 
 @progress_indicated

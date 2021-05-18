@@ -304,7 +304,8 @@ class InteractiveRunnerTest(unittest.TestCase):
     ie.current_env().track_user_pipelines()
 
     df_expected = pd.DataFrame({'square': [1, 4, 9], 'cube': [1, 8, 27]})
-    pd.testing.assert_frame_equal(df_expected, ib.collect(df, n=10))
+    pd.testing.assert_frame_equal(
+        df_expected, ib.collect(df, n=10).reset_index(drop=True))
 
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_dataframes_with_grouped_index(self):
@@ -405,9 +406,11 @@ class InteractiveRunnerTest(unittest.TestCase):
 
     df_expected = pd.DataFrame({'square': [1, 4, 9], 'cube': [1, 8, 27]})
     pd.testing.assert_series_equal(
-        df_expected['square'], ib.collect(df['square'], n=10))
+        df_expected['square'],
+        ib.collect(df['square'], n=10).reset_index(drop=True))
     pd.testing.assert_series_equal(
-        df_expected['cube'], ib.collect(df['cube'], n=10))
+        df_expected['cube'],
+        ib.collect(df['cube'], n=10).reset_index(drop=True))
 
 
 if __name__ == '__main__':

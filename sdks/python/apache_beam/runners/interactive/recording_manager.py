@@ -302,8 +302,7 @@ class RecordingManager:
     # Convert them one-by-one to generate a unique label for each. This allows
     # caching at a more fine-grained granularity.
     for df in watched_dataframes:
-      pcoll = to_pcollection(
-          df, yield_elements='pandas', label=str(id(df._expr._id)))
+      pcoll = to_pcollection(df, yield_elements='pandas', label=str(df._expr))
       watched_pcollections.add(pcoll)
     for pcoll in pcolls:
       if pcoll not in watched_pcollections:

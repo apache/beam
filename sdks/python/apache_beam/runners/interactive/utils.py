@@ -79,11 +79,7 @@ def to_element_list(
       count += 1
 
 
-def elements_to_df(
-    elements,
-    include_window_info=False,
-    element_type=None,
-    reset_unnamed_indexes=True):
+def elements_to_df(elements, include_window_info=False, element_type=None):
   # type: (List[WindowedValue], bool, Any, bool) -> DataFrame
 
   """Parses the given elements into a Dataframe.
@@ -121,15 +117,6 @@ def elements_to_df(
   else:
     final_df = rows_df
 
-  # When we collect DataFrames the index for each DataFrame in each bundle
-  # starts at 0 (except for named indexes like multi-indexes). So in the case
-  # that we find a single column-index that is unnamed we reset it from 0 so
-  # the index has a range index, instead of a random numbering.
-  # This is overridable behavior if the user chooses so.
-  if (reset_unnamed_indexes and
-      isinstance(element_type, pd.core.generic.NDFrame) and
-      element_type.index.name is None and element_type.index.nlevels == 1):
-    final_df = final_df.reset_index(drop=True)
   return final_df
 
 

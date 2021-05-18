@@ -104,7 +104,8 @@ class ParseToDataframeTest(unittest.TestCase):
 
     els = [windowed_value(pd.DataFrame(Record(n, 0, 0))) for n in range(10)]
 
-    actual_df = utils.elements_to_df(els, element_type=deferred._expr.proxy())
+    actual_df = utils.elements_to_df(
+        els, element_type=deferred._expr.proxy()).reset_index(drop=True)
     expected_df = pd.concat([e.value for e in els], ignore_index=True)
     pd.testing.assert_frame_equal(actual_df, expected_df)
 
@@ -116,33 +117,10 @@ class ParseToDataframeTest(unittest.TestCase):
 
     els = [windowed_value(pd.Series([n])) for n in range(10)]
 
-    actual_df = utils.elements_to_df(els, element_type=deferred._expr.proxy())
+    actual_df = utils.elements_to_df(
+        els, element_type=deferred._expr.proxy()).reset_index(drop=True)
     expected_df = pd.concat([e.value for e in els], ignore_index=True)
     pd.testing.assert_series_equal(actual_df, expected_df)
-
-  def test_parse_reset_unnamed_indexes(self):
-    """Tests that reset_unnamed_indexes = False does not reset the result index.
-    """
-    deferred = to_dataframe(beam.Pipeline() | beam.Create([Record(0, 0, 0)]))
-
-    els = [windowed_value(pd.DataFrame(Record(n, 0, 0))) for n in range(10)]
-
-    actual_df = utils.elements_to_df(
-        els, element_type=deferred._expr.proxy(), reset_unnamed_indexes=False)
-    expected_df = pd.concat([e.value for e in els], ignore_index=False)
-    pd.testing.assert_frame_equal(actual_df, expected_df)
-
-  def test_parse_does_not_reset_named_indexes(self):
-    """Tests that named indexes are not reset.
-    """
-    deferred = to_dataframe(
-        beam.Pipeline() | beam.Create([Record(0, 0, 0)])).rename_axis('index')
-
-    els = [windowed_value(pd.DataFrame({'col': [n]})) for n in range(10)]
-
-    actual_df = utils.elements_to_df(els, element_type=deferred._expr.proxy())
-    expected_df = pd.concat([e.value for e in els], ignore_index=False)
-    pd.testing.assert_frame_equal(actual_df, expected_df)
 
 
 class ToElementListTest(unittest.TestCase):
