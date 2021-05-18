@@ -355,10 +355,8 @@ class DeferredFrameTest(_AbstractFrameTest):
   def test_set_index(self):
     df = pd.DataFrame({
         # [19, 18, ..]
-        'index1': reversed(range(20)),
-        # [15, 16, .., 0, 1, .., 13, 14]
-        'index2': np.roll(range(20), 5),
-        # ['', 'a', 'bb', ...]
+        'index1': reversed(range(20)),  # [15, 16, .., 0, 1, .., 13, 14]
+        'index2': np.roll(range(20), 5),  # ['', 'a', 'bb', ...]
         'values': [chr(ord('a') + i) * i for i in range(20)],
     })
 
@@ -678,17 +676,10 @@ class DeferredFrameTest(_AbstractFrameTest):
         np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
 
     self._run_test(
-        lambda df: df.quantile(0.1, axis='columns'),
-        df,
-        nonparallel=True,
-        check_proxy=False)
-    self._run_test(
-        lambda df: df.quantile([0.1, 0.9], axis='columns'),
-        df,
-        nonparallel=True,
-        check_proxy=False)
+        lambda df: df.quantile(0.1, axis='columns'), df, check_proxy=False)
 
-    self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
+    self._run_test(
+        lambda df: df.quantile(0.1, axis='columns'), df, check_proxy=False)
     with self.assertRaisesRegex(frame_base.WontImplementError,
                                 r"df\.quantile\(q=0\.1, axis='columns'\)"):
       self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
@@ -796,7 +787,9 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_inplace_test(lambda df: df.insert(1, 'C', df.A * 2), df)
     self._run_inplace_test(
-        lambda df: df.insert(0, 'foo', pd.Series([8], index=[1])), df)
+        lambda df: df.insert(0, 'foo', pd.Series([8], index=[1])),
+        df,
+        check_proxy=False)
     self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
 
   def test_drop_duplicates(self):
@@ -1107,7 +1100,8 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).max(
             level=0, numeric_only=False),
-        GROUPBY_DF)
+        GROUPBY_DF,
+        check_proxy=False)
     # pandas implementation doesn't respect numeric_only argument here
     # (https://github.com/pandas-dev/pandas/issues/40788), it
     # always acts as if numeric_only=True. Our implmentation respects it so we
@@ -1125,7 +1119,8 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).max(
             level=1, numeric_only=False),
-        GROUPBY_DF)
+        GROUPBY_DF,
+        check_proxy=False)
     # sum with str columns is order-sensitive
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).sum(
@@ -1152,7 +1147,8 @@ class AggregationTest(_AbstractFrameTest):
     # level= is ignored for multiple agg fns
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).agg(['min', 'max'], level=0),
-        GROUPBY_DF)
+        GROUPBY_DF,
+        check_proxy=False)
 
   @parameterized.expand([(True, ), (False, )])
   @unittest.skipIf(
@@ -1162,8 +1158,12 @@ class AggregationTest(_AbstractFrameTest):
     # Note other aggregation functions can fail on this input with
     # numeric_only={False,None}. These are the only ones that actually work for
     # the string inputs.
-    self._run_test(lambda df: df.max(numeric_only=numeric_only), GROUPBY_DF)
-    self._run_test(lambda df: df.min(numeric_only=numeric_only), GROUPBY_DF)
+    self._run_test(lambda df: df.max(numeric_only=numeric_only),
+                   GROUPBY_DF,
+                   check_proxy=False)
+    self._run_test(lambda df: df.min(numeric_only=numeric_only),
+                   GROUPBY_DF,
+                   check_proxy=False)
 
   @unittest.skip(
       "pandas implementation doesn't respect numeric_only= with "
@@ -1216,7 +1216,9 @@ class AggregationTest(_AbstractFrameTest):
 
   def test_series_agg_np_size(self):
     self._run_test(
-        lambda df: df.set_index(['group', 'foo']).agg(np.size), GROUPBY_DF)
+        lambda df: df.set_index(['group', 'foo']).agg(np.size),
+        GROUPBY_DF,
+        check_proxy=False)
 
   def test_df_agg_invalid_kwarg_raises(self):
     self._run_error_test(lambda df: df.agg('mean', bool_only=True), GROUPBY_DF)
