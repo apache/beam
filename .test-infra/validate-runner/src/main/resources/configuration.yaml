@@ -19,5 +19,6 @@ batch:
   - dataflow: beam_PostCommit_Java_VR_Dataflow_V2
 stream:
   - flink: beam_PostCommit_Java_PVR_Flink_Streaming
+  - samza: beam_PostCommit_Java_PVR_Samza
 server: https://ci-beam.apache.org/
 jsonapi: testReport/api/json
