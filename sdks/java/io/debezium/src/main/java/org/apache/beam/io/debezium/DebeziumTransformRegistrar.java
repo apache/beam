@@ -46,11 +46,11 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
   }
 
   public static class CrossLanguageConfiguration {
-    private String username;
-    private String password;
-    private String host;
-    private String port;
-    private Connectors connectorClass;
+    private @Nullable String username;
+    private @Nullable String password;
+    private @Nullable String host;
+    private @Nullable String port;
+    private @Nullable Connectors connectorClass;
     private @Nullable List<String> connectionProperties;
     private @Nullable Long maxNumberOfRecords;
 
@@ -97,11 +97,13 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
               .withPort(configuration.port)
               .withConnectorClass(configuration.connectorClass.getConnector());
 
-      for (String connectionProperty : configuration.connectionProperties) {
-        String[] parts = connectionProperty.split("=", -1);
-        String key = parts[0];
-        String value = parts[1];
-        connectorConfiguration.withConnectionProperty(key, value);
+      if (configuration.connectionProperties != null) {
+        for (String connectionProperty : configuration.connectionProperties) {
+          String[] parts = connectionProperty.split("=", -1);
+          String key = parts[0];
+          String value = parts[1];
+          connectorConfiguration.withConnectionProperty(key, value);
+        }
       }
 
       DebeziumIO.Read<String> readTransform =
