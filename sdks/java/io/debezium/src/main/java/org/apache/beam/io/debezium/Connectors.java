@@ -24,7 +24,7 @@ import io.debezium.connector.postgresql.PostgresConnector;
 import io.debezium.connector.sqlserver.SqlServerConnector;
 import org.apache.kafka.connect.source.SourceConnector;
 
-/** Enumeration of debezium connectors */
+/** Enumeration of debezium connectors. */
 public enum Connectors {
   MYSQL("MySQL", MySqlConnector.class),
   POSTGRES("PostgreSQL", PostgresConnector.class),
@@ -41,18 +41,18 @@ public enum Connectors {
     this.connector = connector;
   }
 
-  /** The name of this connector class */
+  /** The name of this connector class. */
   public String getName() {
     return name;
   }
 
-  /** Class connector to debezium */
+  /** Class connector to debezium. */
   public Class<? extends SourceConnector> getConnector() {
     return connector;
   }
 
   /**
-   * Returns a connector class corresponding to the given connector name
+   * Returns a connector class corresponding to the given connector name.
    *
    * @param connectorName The name of the connector. Ex.: MySQL
    * @return Connector enum representing the given connector name.
