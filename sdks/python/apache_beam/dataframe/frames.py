@@ -570,7 +570,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   combine = frame_base._proxy_method(
       'combine',
       base=pd.DataFrame,
-      requires_partition_by=expressions.partitionings.Singleton(),
+      requires_partition_by=expressions.partitionings.Singleton(
+          reason="combine() is not parallelizable because func might operate "
+          "on the full dataset."),
       preserves_partition_by=expressions.partitionings.Singleton())
 
   @property
