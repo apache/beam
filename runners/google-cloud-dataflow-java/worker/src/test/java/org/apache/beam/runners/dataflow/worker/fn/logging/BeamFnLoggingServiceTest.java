@@ -24,6 +24,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -32,6 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.harness.test.TestStreams;
@@ -126,11 +128,12 @@ public class BeamFnLoggingServiceTest {
             ServerStreamObserverFactory.fromOptions(PipelineOptionsFactory.create())::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor())) {
       server = createServer(service, service.getApiServiceDescriptor());
+      CountDownLatch waitForTermination = new CountDownLatch(3);
+      final BlockingQueue<StreamObserver<List>> outboundObservers = new LinkedBlockingQueue<>();
       for (int i = 1; i <= 3; ++i) {
         int instructionId = i;
         tasks.add(
             () -> {
-              CountDownLatch waitForTermination = new CountDownLatch(1);
               ManagedChannel channel =
                   InProcessChannelBuilder.forName(service.getApiServiceDescriptor().getUrl())
                       .build();
@@ -141,13 +144,16 @@ public class BeamFnLoggingServiceTest {
                               .withOnError(waitForTermination::countDown)
                               .build());
               outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
-              outboundObserver.onError(new RuntimeException("Client " + instructionId));
-              waitForTermination.await();
+              outboundObservers.add(outboundObserver);
               return null;
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
       executorService.invokeAll(tasks);
+      for (int i = 1; i <= 3; ++i) {
+        outboundObservers.take().onError(new RuntimeException("Client " + i));
+      }
+      waitForTermination.await();
     }
   }
 

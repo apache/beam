@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -102,12 +103,14 @@ public class GrpcLoggingServiceTest {
     try (GrpcFnServer<GrpcLoggingService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
+      CountDownLatch waitForTermination = new CountDownLatch(3);
+      final BlockingQueue<StreamObserver<LogEntry.List>> outboundObservers =
+          new LinkedBlockingQueue<>();
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
         final int instructionId = i;
         tasks.add(
             () -> {
-              CountDownLatch waitForTermination = new CountDownLatch(1);
               ManagedChannel channel =
                   InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
                       .build();
@@ -118,13 +121,17 @@ public class GrpcLoggingServiceTest {
                               .withOnError(new CountDown(waitForTermination))
                               .build());
               outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
-              outboundObserver.onError(new RuntimeException("Client " + instructionId));
-              waitForTermination.await();
+              outboundObservers.add(outboundObserver);
               return null;
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
       executorService.invokeAll(tasks);
+
+      for (int i = 1; i <= 3; ++i) {
+        outboundObservers.take().onError(new RuntimeException("Client " + i));
+      }
+      waitForTermination.await();
     }
   }
 
