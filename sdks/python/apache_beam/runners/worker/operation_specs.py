@@ -23,8 +23,6 @@ source, write to a sink, parallel do, etc.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 
 from apache_beam import coders
