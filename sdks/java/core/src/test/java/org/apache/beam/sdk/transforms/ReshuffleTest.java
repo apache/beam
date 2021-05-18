@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Reshuffle.AssignShardFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -271,6 +273,25 @@ public class ReshuffleTest implements Serializable {
 
     PCollection<KV<String, Long>> reshuffled = input.apply(Reshuffle.of());
     PAssert.that(reshuffled.apply(Values.create())).containsInAnyOrder(0L, 1L, 2L);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testAssignShardFn() {
+
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.of(ARBITRARY_KVS).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<Integer> output =
+        input
+            .apply(ParDo.of(new AssignShardFn<>(2)))
+            .apply(GroupByKey.create())
+            .apply(MapElements.into(integers()).via(KV::getKey));
+
+    PAssert.that(output).containsInAnyOrder(ImmutableList.of(0, 1));
 
     pipeline.run();
   }
