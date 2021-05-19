@@ -26,9 +26,11 @@ import (
 
 func TestEnsureUniqueName(t *testing.T) {
 	tests := []struct {
+		name    string
 		in, exp map[string]*pipepb.PTransform
 	}{
 		{
+			name: "AlreadyUnique",
 			in: map[string]*pipepb.PTransform{
 				"1": {UniqueName: "a"},
 				"2": {UniqueName: "b"},
@@ -41,6 +43,7 @@ func TestEnsureUniqueName(t *testing.T) {
 			},
 		},
 		{
+			name: "NeedsUniqueLeaves",
 			in: map[string]*pipepb.PTransform{
 				"2": {UniqueName: "a"},
 				"1": {UniqueName: "a"},
@@ -52,13 +55,118 @@ func TestEnsureUniqueName(t *testing.T) {
 				"3": {UniqueName: "a'2"},
 			},
 		},
+		{
+			name: "StripUniqueLeaves",
+			in: map[string]*pipepb.PTransform{
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "a'1"},
+				"3": {UniqueName: "a'2"},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "a'1"},
+				"3": {UniqueName: "a'2"},
+			},
+		},
+		{
+			name: "NonTopologicalIdOrder",
+			in: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a", Subtransforms: []string{"s1"}},
+				"s3": {UniqueName: "a", Subtransforms: []string{"s2"}}, // root
+			},
+			exp: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a/a/a/a"},
+				"s1": {UniqueName: "a/a/a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a/a", Subtransforms: []string{"s1"}},
+				"s3": {UniqueName: "a", Subtransforms: []string{"s2"}}, // root
+			},
+		},
+		{
+			name: "UniqueComps",
+			in: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a"},
+				"e2": {UniqueName: "a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a", Subtransforms: []string{"e2"}},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
+			},
+		},
+		{
+			name: "StripComps",
+			in: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
+			},
+		},
+		{
+			name: "large",
+			in: map[string]*pipepb.PTransform{
+				"e1":  {UniqueName: "a"},
+				"e2":  {UniqueName: "a"},
+				"e3":  {UniqueName: "a"},
+				"e4":  {UniqueName: "a"},
+				"e5":  {UniqueName: "a"},
+				"e6":  {UniqueName: "a"},
+				"e7":  {UniqueName: "a"},
+				"e8":  {UniqueName: "a"},
+				"e9":  {UniqueName: "a"},
+				"e10": {UniqueName: "a"},
+				"e11": {UniqueName: "a"},
+				"e12": {UniqueName: "a"},
+				"s1":  {UniqueName: "a", Subtransforms: []string{"s2", "s3"}},
+				"s2":  {UniqueName: "a", Subtransforms: []string{"s4", "s5"}},
+				"s3":  {UniqueName: "a", Subtransforms: []string{"s6", "s7"}},
+				"s4":  {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s5":  {UniqueName: "a", Subtransforms: []string{"e2", "e3"}},
+				"s6":  {UniqueName: "a", Subtransforms: []string{"e4", "e5", "e6"}},
+				"s7":  {UniqueName: "a", Subtransforms: []string{"e7", "e8", "e9", "e10", "e11", "e12"}},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"e1":  {UniqueName: "a/a/a/a"},
+				"e2":  {UniqueName: "a/a/a'1/a"},
+				"e3":  {UniqueName: "a/a/a'1/a'1"},
+				"e4":  {UniqueName: "a/a'1/a/a"},
+				"e5":  {UniqueName: "a/a'1/a/a'1"},
+				"e6":  {UniqueName: "a/a'1/a/a'2"},
+				"e7":  {UniqueName: "a/a'1/a'1/a"},
+				"e8":  {UniqueName: "a/a'1/a'1/a'1"},
+				"e9":  {UniqueName: "a/a'1/a'1/a'2"},
+				"e10": {UniqueName: "a/a'1/a'1/a'3"},
+				"e11": {UniqueName: "a/a'1/a'1/a'4"},
+				"e12": {UniqueName: "a/a'1/a'1/a'5"},
+				"s1":  {UniqueName: "a", Subtransforms: []string{"s2", "s3"}},
+				"s2":  {UniqueName: "a/a", Subtransforms: []string{"s4", "s5"}},
+				"s3":  {UniqueName: "a/a'1", Subtransforms: []string{"s6", "s7"}},
+				"s4":  {UniqueName: "a/a/a", Subtransforms: []string{"e1"}},
+				"s5":  {UniqueName: "a/a/a'1", Subtransforms: []string{"e2", "e3"}},
+				"s6":  {UniqueName: "a/a'1/a", Subtransforms: []string{"e4", "e5", "e6"}},
+				"s7":  {UniqueName: "a/a'1/a'1", Subtransforms: []string{"e7", "e8", "e9", "e10", "e11", "e12"}},
+			},
+		},
 	}
 
 	for _, test := range tests {
-		actual := ensureUniqueNames(test.in)
-		if !cmp.Equal(actual, test.exp, cmp.Comparer(proto.Equal)) {
-			t.Errorf("ensureUniqueName(%v) = %v, want %v", test.in, actual, test.exp)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			actual := ensureUniqueNames(test.in)
+			if d := cmp.Diff(test.exp, actual, protocmp.Transform()); d != "" {
+				t.Errorf("ensureUniqueName(%v) = %v, want %v\n %v", test.in, actual, test.exp, d)
+			}
+		})
 	}
 }
 
