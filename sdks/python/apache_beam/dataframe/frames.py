@@ -1035,8 +1035,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "Aggregation with min_count= requires collecting all data on a "
             "single node.")
 
-      # We have specialized distributed implementations for std and var
-      if base_func in ('std', 'var'):
+      # We have specialized distributed implementations for these
+      if base_func in ('quantile', 'std', 'var', 'corr', 'cov', 'nunique'):
         result = getattr(self, base_func)(*args, **kwargs)
         if isinstance(func, list):
           with expressions.allow_non_parallel_operations(True):
@@ -2754,14 +2754,31 @@ def _unliftable_agg(meth):
         ))
                                if is_categorical_grouping
                                else partitionings.Index()),
-        preserves_partition_by=partitionings.Arbitrary())
+        # Some aggregation methods (e.g. corr/cov) add additional index levels.
+        # We only preserve the ones that existed _before_ the groupby.
+        preserves_partition_by=partitionings.Index(
+            list(range(self._ungrouped.proxy().index.nlevels))))
     return frame_base.DeferredFrame.wrap(post_agg)
 
   return wrapper
 
 LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
 LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
-UNLIFTABLE_AGGREGATIONS = ['mean', 'median', 'std', 'var']
+UNLIFTABLE_AGGREGATIONS = ['mean',
+                           'median',
+                           'quantile',
+                           'describe',
+                           # TODO: The below all have specialized distributed
+                           # implementations, but they require tracking
+                           # multiple intermediate series, which is difficult
+                           # to lift in groupby
+                           'std',
+                           'var',
+                           'corr',
+                           'cov',
+                           'nunique']
+ALL_AGGREGATIONS = (LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
+                    UNLIFTABLE_AGGREGATIONS)
 
 for meth in LIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth))

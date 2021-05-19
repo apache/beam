@@ -23,7 +23,7 @@ from parameterized import parameterized
 import apache_beam as beam
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
-from apache_beam.dataframe import frames  # pylint: disable=unused-import
+from apache_beam.dataframe import frames
 
 PD_VERSION = tuple(map(int, pd.__version__.split('.')))
 
@@ -330,29 +330,28 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.add_suffix('_col'), df)
     self._run_test(lambda s: s.add_prefix('_col'), s)
 
-  def test_groupby(self):
-    df = pd.DataFrame({
-        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
-        'value': [None if i % 11 == 0 else i for i in range(100)]
-    })
-    self._run_test(lambda df: df.groupby('group').agg(sum), df)
-    self._run_test(lambda df: df.groupby('group').sum(), df)
-    self._run_test(lambda df: df.groupby('group').median(), df)
-    self._run_test(lambda df: df.groupby('group').size(), df)
-    self._run_test(lambda df: df.groupby('group').count(), df)
-    self._run_test(lambda df: df.groupby('group').max(), df)
-    self._run_test(lambda df: df.groupby('group').min(), df)
-    self._run_test(lambda df: df.groupby('group').mean(), df)
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby_agg(self, agg_type):
+    self._run_test(lambda df: df.groupby('group').agg(sum), GROUPBY_DF)
 
-    self._run_test(lambda df: df[df.value > 30].groupby('group').sum(), df)
-    self._run_test(lambda df: df[df.value > 30].groupby('group').mean(), df)
-    self._run_test(lambda df: df[df.value > 30].groupby('group').size(), df)
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby_with_filter(self, agg_type):
+    self._run_test(
+        lambda df: getattr(df[df.foo > 30].groupby('group'), agg_type)(),
+        GROUPBY_DF)
 
-    # Grouping by a series is not currently supported
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).sum(), df)
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).mean(), df)
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).size(), df)
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby(self, agg_type):
+    self._run_test(
+        lambda df: getattr(df.groupby('group'), agg_type)(), GROUPBY_DF)
 
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @unittest.skip("Grouping by a series is not currently supported")
+  def test_groupby_series(self, agg_type):
+    self._run_test(
+        lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)(), df)
+
+  def test_groupby_user_guide(self):
     # Example from https://pandas.pydata.org/docs/user_guide/groupby.html
     arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
               ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
@@ -366,29 +365,33 @@ class DeferredFrameTest(unittest.TestCase):
 
     self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
 
-  def test_groupby_project(self):
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby_project_series(self, agg_type):
     df = GROUPBY_DF
 
-    self._run_test(lambda df: df.groupby('group').foo.agg(sum), df)
+    if agg_type == 'describe':
+      self.skipTest(
+          "BEAM-12366: proxy generation of SeriesGroupBy.describe "
+          "fails")
+    if agg_type in ('corr', 'cov'):
+      self.skipTest(
+          "BEAM-12367: SeriesGroupBy.{corr, cov} do not raise the "
+          "expected error.")
 
-    self._run_test(lambda df: df.groupby('group').sum(), df)
-    self._run_test(lambda df: df.groupby('group').foo.sum(), df)
-    self._run_test(lambda df: df.groupby('group').bar.sum(), df)
-    self._run_test(lambda df: df.groupby('group')['foo'].sum(), df)
-    self._run_test(lambda df: df.groupby('group')['baz'].sum(), df)
-    self._run_error_test(
-        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(), df)
-    self._run_error_test(lambda df: df.groupby('group')[['bat']].sum(), df)
-    self._run_error_test(lambda df: df.groupby('group').bat.sum(), df)
+    self._run_test(lambda df: getattr(df.groupby('group').foo, agg_type)(), df)
+    self._run_test(lambda df: getattr(df.groupby('group').bar, agg_type)(), df)
+    self._run_test(
+        lambda df: getattr(df.groupby('group')['foo'], agg_type)(), df)
+    self._run_test(
+        lambda df: getattr(df.groupby('group')['bar'], agg_type)(), df)
 
-    self._run_test(lambda df: df.groupby('group').median(), df)
-    self._run_test(lambda df: df.groupby('group').foo.median(), df)
-    self._run_test(lambda df: df.groupby('group').bar.median(), df)
-    self._run_test(lambda df: df.groupby('group')['foo'].median(), df)
-    self._run_test(lambda df: df.groupby('group')['baz'].median(), df)
-    self._run_test(lambda df: df.groupby('group')[['bar', 'baz']].median(), df)
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby_project_series(self, agg_type):
+    self._run_test(
+        lambda df: getattr(df.groupby('group')[['bar', 'baz']], agg_type)(),
+        GROUPBY_DF)
 
-  def test_groupby_errors_non_existent_projection(self):
+  def test_groupby_errors_bad_projection(self):
     df = GROUPBY_DF
 
     # non-existent projection column
@@ -397,6 +400,11 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_error_test(lambda df: df.groupby('group')[['bad']].median(), df)
 
     self._run_error_test(lambda df: df.groupby('group').bad.median(), df)
+
+    self._run_error_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(), df)
+    self._run_error_test(lambda df: df.groupby('group')[['bat']].sum(), df)
+    self._run_error_test(lambda df: df.groupby('group').bat.sum(), df)
 
   def test_groupby_errors_non_existent_label(self):
     df = GROUPBY_DF
