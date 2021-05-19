@@ -276,6 +276,46 @@ class DeferredFrameTest(unittest.TestCase):
             }), axis=1),
         df)
 
+  def test_combine_dataframe(self):
+    df = pd.DataFrame({'A': [0, 0], 'B': [4, 4]})
+    df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
+    take_smaller = lambda s1, s2: s1 if s1.sum() < s2.sum() else s2
+    self._run_test(
+        lambda df,
+        df2: df.combine(df2, take_smaller),
+        df,
+        df2,
+        nonparallel=True)
+
+  def test_combine_dataframe_fill(self):
+    df1 = pd.DataFrame({'A': [0, 0], 'B': [None, 4]})
+    df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
+    take_smaller = lambda s1, s2: s1 if s1.sum() < s2.sum() else s2
+    self._run_test(
+        lambda df1,
+        df2: df1.combine(df2, take_smaller, fill_value=-5),
+        df1,
+        df2,
+        nonparallel=True)
+
+  def test_combine_Series(self):
+    with expressions.allow_non_parallel_operations():
+      s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
+      s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
+      self._run_test(lambda s1, s2: s1.combine(s2, max), s1, s2)
+
+  def test_combine_first_dataframe(self):
+    df1 = pd.DataFrame({'A': [None, 0], 'B': [None, 4]})
+    df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
+
+    self._run_test(lambda df1, df2: df1.combine_first(df2), df1, df2)
+
+  def test_combine_first_series(self):
+    s1 = pd.Series([1, np.nan])
+    s2 = pd.Series([3, 4])
+
+    self._run_test(lambda s1, s2: s1.combine_first(s2), s1, s2)
+
   def test_add_prefix(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [3, 4, 5, 6]})
     s = pd.Series([1, 2, 3, 4])
