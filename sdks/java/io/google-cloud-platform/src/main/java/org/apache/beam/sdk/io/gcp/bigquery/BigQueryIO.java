@@ -602,11 +602,8 @@ public class BigQueryIO {
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
-      if (schemaAndRecord.getRow() != null) {
-        return BigQueryUtils.toTableRow().apply(schemaAndRecord.getRow());
-      }
-      throw new IllegalStateException(
-          "Record should be of instance GenericRecord (for Avro format) or of instance Row (for Arrow format), but it is not.");
+      return BigQueryUtils.toTableRow()
+          .apply(BigQueryUtils.schemaAndRecordtoBeamRow(schemaAndRecord, null));
     }
   }
 

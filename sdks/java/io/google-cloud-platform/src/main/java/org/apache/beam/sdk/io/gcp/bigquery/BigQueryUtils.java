@@ -51,6 +51,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
@@ -471,11 +472,11 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
-  public static Row toBeamRow(SchemaAndRecord record, Schema schema, ConversionOptions options) {
+  public static Row schemaAndRecordtoBeamRow(SchemaAndRecord record, Schema schema) {
     if (record.getRow() != null) {
       return record.getRow();
     }
-    return toBeamRow(record.getRecord(), schema, options);
+    return AvroUtils.toBeamRowStrict(record.getRecord(), schema);
   }
 
   public static TableRow convertGenericRecordToTableRow(
