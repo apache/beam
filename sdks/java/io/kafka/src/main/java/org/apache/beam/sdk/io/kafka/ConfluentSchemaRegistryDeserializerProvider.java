@@ -60,7 +60,8 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
       SerializableFunction<Void, SchemaRegistryClient> schemaRegistryClientProviderFn,
       String schemaRegistryUrl,
       String subject,
-      @Nullable Integer version) {
+      @Nullable Integer version,
+      @Nullable Map<String, ?> schemaRegistryConfigs) {
     checkArgument(
         schemaRegistryClientProviderFn != null,
         "You should provide a schemaRegistryClientProviderFn.");
@@ -74,17 +75,23 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl, String subject) {
-    return of(schemaRegistryUrl, subject, null);
+    return of(schemaRegistryUrl, subject, null, null);
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
-      String schemaRegistryUrl, String subject, @Nullable Integer version) {
+      String schemaRegistryUrl,
+      String subject,
+      @Nullable Integer version,
+      @Nullable Map<String, ?> schemaRegistryConfigs) {
     return new ConfluentSchemaRegistryDeserializerProvider(
         (SerializableFunction<Void, SchemaRegistryClient>)
-            input -> new CachedSchemaRegistryClient(schemaRegistryUrl, Integer.MAX_VALUE),
+            input ->
+                new CachedSchemaRegistryClient(
+                    schemaRegistryUrl, Integer.MAX_VALUE, schemaRegistryConfigs),
         schemaRegistryUrl,
         subject,
-        version);
+        version,
+        schemaRegistryConfigs);
   }
 
   @Override

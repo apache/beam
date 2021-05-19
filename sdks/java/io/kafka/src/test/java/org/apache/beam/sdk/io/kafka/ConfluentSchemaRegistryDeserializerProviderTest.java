@@ -51,14 +51,16 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
 
     AvroCoder coderV0 =
         (AvroCoder)
-            mockDeserializerProvider(schemaRegistryUrl, subject, null).getCoder(coderRegistry);
+            mockDeserializerProvider(schemaRegistryUrl, subject, null, null)
+                .getCoder(coderRegistry);
     assertEquals(AVRO_SCHEMA, coderV0.getSchema());
 
     try {
       Integer version = mockRegistryClient.getVersion(subject, AVRO_SCHEMA_V1);
       AvroCoder coderV1 =
           (AvroCoder)
-              mockDeserializerProvider(schemaRegistryUrl, subject, version).getCoder(coderRegistry);
+              mockDeserializerProvider(schemaRegistryUrl, subject, version, null)
+                  .getCoder(coderRegistry);
       assertEquals(AVRO_SCHEMA_V1, coderV1.getSchema());
     } catch (IOException | RestClientException e) {
       throw new RuntimeException("Unable to register schema for subject: " + subject, e);
@@ -90,7 +92,7 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
                 .build());
 
     Object deserialized =
-        mockDeserializerProvider(schemaRegistryUrl, subject, null)
+        mockDeserializerProvider(schemaRegistryUrl, subject, null, null)
             .getDeserializer(new HashMap<>(), true)
             .deserialize(subject, bytes);
 
@@ -105,13 +107,17 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
   }
 
   static <T> DeserializerProvider<T> mockDeserializerProvider(
-      String schemaRegistryUrl, String subject, Integer version) {
+      String schemaRegistryUrl,
+      String subject,
+      Integer version,
+      Map<String, ?> schemaRegistryConfigs) {
     return new ConfluentSchemaRegistryDeserializerProvider<>(
         (SerializableFunction<Void, SchemaRegistryClient>)
             input -> mockSchemaRegistryClient(schemaRegistryUrl, subject),
         schemaRegistryUrl,
         subject,
-        version);
+        version,
+        schemaRegistryConfigs);
   }
 
   private static SchemaRegistryClient mockSchemaRegistryClient(
