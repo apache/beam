@@ -572,7 +572,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
   @AutoValue
   abstract static class TimerKey<K> {
-    abstract K getKey();
+    abstract @Nullable K getKey();
 
     abstract StateNamespace getStateNamespace();
 
