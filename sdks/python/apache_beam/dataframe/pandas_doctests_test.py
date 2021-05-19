@@ -218,7 +218,14 @@ class DoctestTest(unittest.TestCase):
                 "df.melt(id_vars=[('A', 'D')], value_vars=[('B', 'E')])",
                 "df.melt(id_vars=['A'], value_vars=['B'],\n" +
                 "        var_name='myVarname', value_name='myValname')"
-            ]
+            ],
+            # Most keep= options are order-sensitive
+            'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
+            'pandas.core.frame.DataFrame.duplicated': [
+                'df.duplicated()',
+                "df.duplicated(keep='last')",
+                "df.duplicated(subset=['brand'])",
+            ],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
@@ -270,8 +277,6 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 'df.cov(min_periods=12)',
             ],
-            'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
-            'pandas.core.frame.DataFrame.duplicated': ['*'],
             'pandas.core.frame.DataFrame.idxmax': ['*'],
             'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.rename': [
@@ -408,6 +413,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
+            'pandas.core.series.Series.drop_duplicates': [
+                's.drop_duplicates()',
+                "s.drop_duplicates(keep='last')",
+            ],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -433,7 +442,6 @@ class DoctestTest(unittest.TestCase):
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
-            'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
