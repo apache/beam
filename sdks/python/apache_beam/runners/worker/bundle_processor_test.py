@@ -18,8 +18,6 @@
 """Unit tests for bundle processing."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 
 from apache_beam.runners.worker.bundle_processor import DataInputOperation

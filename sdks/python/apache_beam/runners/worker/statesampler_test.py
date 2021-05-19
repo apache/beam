@@ -18,13 +18,9 @@
 """Tests for state sampler."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import time
 import unittest
-from builtins import range
 
 from tenacity import retry
 from tenacity import stop_after_attempt

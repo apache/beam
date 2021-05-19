@@ -262,7 +262,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       orig_nlevels = self._expr.proxy().index.nlevels
       to_group_with_index = expressions.ComputedExpression(
           'map_index_keep_orig',
-          lambda df: df.set_index([df.index.map(by), df.index]),
+          lambda df: df.set_index([df.index.map(by), df.index], drop=False),
           [self._expr],
           requires_partition_by=partitionings.Arbitrary(),
           # Partitioning by the original indexes is preserved
@@ -314,7 +314,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         #                                        grouping_columns)._expr
         to_group_with_index = expressions.ComputedExpression(
             'move_grouped_columns_to_index',
-            lambda df: df.set_index([df.index] + grouping_columns),
+            lambda df: df.set_index([df.index] + grouping_columns, drop=False),
             [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Index(
@@ -565,6 +565,16 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return self._expr.proxy().dtype
 
   isin = frame_base._elementwise_method('isin', base=pd.DataFrame)
+  combine_first = frame_base._elementwise_method(
+      'combine_first', base=pd.DataFrame)
+
+  combine = frame_base._proxy_method(
+      'combine',
+      base=pd.DataFrame,
+      requires_partition_by=expressions.partitionings.Singleton(
+          reason="combine() is not parallelizable because func might operate "
+          "on the full dataset."),
+      preserves_partition_by=expressions.partitionings.Singleton())
 
   @property
   def ndim(self):
@@ -949,6 +959,34 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   to_string = frame_base.wont_implement_method(
       pd.Series, 'to_string', reason="non-deferred-result")
 
+  def _wrap_in_df(self):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'wrap_in_df',
+            lambda s: pd.DataFrame(s),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary(),
+        ))
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def duplicated(self, keep):
+    # Re-use the DataFrame based duplcated, extract the series back out
+    df = self._wrap_in_df()
+
+    return df.duplicated(keep=keep)[df.columns[0]]
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def drop_duplicates(self, keep):
+    # Re-use the DataFrame based drop_duplicates, extract the series back out
+    df = self._wrap_in_df()
+
+    return df.drop_duplicates(keep=keep)[df.columns[0]]
+
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def aggregate(self, func, axis, *args, **kwargs):
@@ -958,7 +996,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       _ = self._expr.proxy().aggregate(func, axis, *args, **kwargs)
       kwargs.pop('skipna')
       return self.dropna().aggregate(func, axis, *args, **kwargs)
-
     if isinstance(func, list) and len(func) > 1:
       # level arg is ignored for multiple aggregations
       _ = kwargs.pop('level', None)
@@ -1530,6 +1567,54 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary()))
 
     self._expr = inserted._expr
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def duplicated(self, keep, subset):
+    # TODO(BEAM-12074): Document keep="any"
+    if keep == 'any':
+      keep = 'first'
+    elif keep is not False:
+      raise frame_base.WontImplementError(
+          f"duplicated(keep={keep!r}) is not supported because it is "
+          "sensitive to the order of the data. Only keep=False and "
+          "keep=\"any\" are supported.",
+          reason="order-sensitive")
+
+    by = subset or list(self.columns)
+
+    # Workaround a bug where groupby.apply() that returns a single-element
+    # Series moves index label to column
+    return self.groupby(by).apply(
+        lambda df: pd.DataFrame(df.duplicated(keep=keep, subset=subset),
+                                columns=[None]))[None]
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def drop_duplicates(self, keep, subset, ignore_index):
+    # TODO(BEAM-12074): Document keep="any"
+    if keep == 'any':
+      keep = 'first'
+    elif keep is not False:
+      raise frame_base.WontImplementError(
+          f"drop_duplicates(keep={keep!r}) is not supported because it is "
+          "sensitive to the order of the data. Only keep=False and "
+          "keep=\"any\" are supported.",
+          reason="order-sensitive")
+
+    if ignore_index is not False:
+      raise frame_base.WontImplementError(
+          "drop_duplicates(ignore_index=False) is not supported because it "
+          "requires generating a new index that is sensitive to the order of "
+          "the data.",
+          reason="order-sensitive")
+
+    by = subset or list(self.columns)
+
+    return self.groupby(by).apply(
+        lambda df: df.drop_duplicates(keep=keep, subset=subset)).droplevel(by)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -2486,60 +2571,58 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
 
   def apply(self, fn, *args, **kwargs):
-    if self._grouping_columns and not self._projection:
-      grouping_columns = self._grouping_columns
-      def fn_wrapper(x, *args, **kwargs):
-        # TODO(BEAM-11710): Moving a column to an index and back is lossy
-        # since indexes dont support as many dtypes. We should keep the original
-        # column in groupby() instead. We need it anyway in case the grouping
-        # column is projected, which is allowed.
-
-        # Move the columns back to columns
-        x = x.assign(**{col: x.index.get_level_values(col)
-                        for col in grouping_columns})
-        x = x.droplevel(grouping_columns)
-        return fn(x, *args, **kwargs)
-    else:
-      fn_wrapper = fn
-
     project = _maybe_project_func(self._projection)
+    grouping_indexes = self._grouping_indexes
+    grouping_columns = self._grouping_columns
 
     # Unfortunately pandas does not execute fn to determine the right proxy.
     # We run user fn on a proxy here to detect the return type and generate the
     # proxy.
-    result = fn_wrapper(project(self._ungrouped_with_index.proxy()))
+    fn_input = project(self._ungrouped_with_index.proxy().reset_index(
+        grouping_columns, drop=True))
+    result = fn(fn_input)
     if isinstance(result, pd.core.generic.NDFrame):
-      proxy = result[:0]
+      if result.index is fn_input.index:
+        proxy = result
+      else:
+        proxy = result[:0]
 
-      def index_to_arrays(index):
-        return [index.get_level_values(level)
-                for level in range(index.nlevels)]
+        def index_to_arrays(index):
+          return [index.get_level_values(level)
+                  for level in range(index.nlevels)]
 
-      # The final result will have the grouped indexes + the indexes from the
-      # result
-      proxy.index = pd.MultiIndex.from_arrays(
-          index_to_arrays(self._ungrouped.proxy().index) +
-          index_to_arrays(proxy.index),
-          names=self._ungrouped.proxy().index.names + proxy.index.names)
+        # The final result will have the grouped indexes + the indexes from the
+        # result
+        proxy.index = pd.MultiIndex.from_arrays(
+            index_to_arrays(self._ungrouped.proxy().index) +
+            index_to_arrays(proxy.index),
+            names=self._ungrouped.proxy().index.names + proxy.index.names)
     else:
       # The user fn returns some non-pandas type. The expected result is a
       # Series where each element is the result of one user fn call.
       dtype = pd.Series([result]).dtype
       proxy = pd.Series([], dtype=dtype, index=self._ungrouped.proxy().index)
 
-    levels = self._grouping_indexes + self._grouping_columns
+
+    def do_partition_apply(df):
+      # Remove columns from index, we only needed them there for partitioning
+      df = df.reset_index(grouping_columns, drop=True)
+
+      gb = df.groupby(level=grouping_indexes or None,
+                      by=grouping_columns or None)
+
+      gb = project(gb)
+      return gb.apply(fn, *args, **kwargs)
 
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'apply',
-            lambda df: project(df.groupby(level=levels)).apply(
-                fn_wrapper,
-                *args,
-                **kwargs),
+            do_partition_apply,
             [self._ungrouped_with_index],
             proxy=proxy,
-            requires_partition_by=partitionings.Index(levels),
-            preserves_partition_by=partitionings.Index(levels)))
+            requires_partition_by=partitionings.Index(grouping_indexes +
+                                                      grouping_columns),
+            preserves_partition_by=partitionings.Index(grouping_indexes)))
 
   aggregate = agg
 
