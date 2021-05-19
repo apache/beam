@@ -241,11 +241,11 @@ def dumps(o, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     try:
-      s = dill.dumps(o)
+      s = dill.dumps(o, byref=True)
     except Exception:  # pylint: disable=broad-except
       if enable_trace:
         dill.dill._trace(True)  # pylint: disable=protected-access
-        s = dill.dumps(o)
+        s = dill.dumps(o, byref=True)
       else:
         raise
     finally:
