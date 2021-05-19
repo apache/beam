@@ -602,14 +602,9 @@ public class BigQueryIO {
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
-      // TODO(BEAM-9114): Implement a function to encapsulate row conversion logic.
-      if (schemaAndRecord.getRecord() != null) {
-        return BigQueryAvroUtils.convertGenericRecordToTableRow(
-            schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
-      } else if (schemaAndRecord.getRow() != null) {
+      if (schemaAndRecord.getRow() != null) {
         return BigQueryUtils.toTableRow().apply(schemaAndRecord.getRow());
       }
-
       throw new IllegalStateException(
           "Record should be of instance GenericRecord (for Avro format) or of instance Row (for Arrow format), but it is not.");
     }

@@ -471,6 +471,13 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
+  public static Row toBeamRow(SchemaAndRecord record, Schema schema, ConversionOptions options) {
+    if (record.getRow() != null) {
+      return record.getRow();
+    }
+    return toBeamRow(record.getRecord(), schema, options);
+  }
+
   public static TableRow convertGenericRecordToTableRow(
       GenericRecord record, TableSchema tableSchema) {
     return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
