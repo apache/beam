@@ -23,6 +23,7 @@ import (
 
 	// Library imports
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -45,6 +46,7 @@ func init() {
 	runtime.RegisterFunction(encVarIntZ)
 	runtime.RegisterFunction(encVarUintZ)
 	runtime.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int32) []byte)(nil)).Elem(), funcMakerInt32ГSliceOfByte)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int64) []byte)(nil)).Elem(), funcMakerInt64ГSliceOfByte)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, []byte) (typex.T, error))(nil)).Elem(), funcMakerReflect۰TypeSliceOfByteГTypex۰TError)

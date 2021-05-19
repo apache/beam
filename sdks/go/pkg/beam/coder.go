@@ -24,10 +24,8 @@ import (
 	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/jsonx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
@@ -46,15 +44,7 @@ import (
 // this explicitly, and file an issue on the BEAM JIRA so the issue may
 // be resolved.
 // https://issues.apache.org/jira/projects/BEAM/issues/
-var EnableSchemas bool = false
-
-func init() {
-	runtime.RegisterInit(func() {
-		if EnableSchemas {
-			schema.Initialize()
-		}
-	})
-}
+var EnableSchemas bool = true
 
 type jsonCoder interface {
 	json.Marshaler
