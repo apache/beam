@@ -10996,6 +10996,24 @@ SplunkIO
 &lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/splunk/SplunkIO.html">org.apache.beam.sdk.io.splunk.SplunkIO&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
+&lt;tr class="language-java">
+&lt;td>
+FhirIO
+&lt;/td>
+&lt;td>Provides an API for reading and writing resources to Google Cloud Healthcare Fhir API.&lt;/td>
+&lt;td style="word-break: break-all;">
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html">org.apache.beam.sdk.io.gcp.healthcare.FhirIO&lt;/a>&lt;/div>
+&lt;/td>
+&lt;/tr>
+&lt;tr class="language-java">
+&lt;td>
+HL7v2IO
+&lt;/td>
+&lt;td>Provides an API for reading from and writing to Google Cloud Healthcare HL7v2 API.&lt;/td>
+&lt;td style="word-break: break-all;">
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html">org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO&lt;/a>&lt;/div>
+&lt;/td>
+&lt;/tr>
 &lt;/table>
 &lt;h1 id="in-progress-io-transforms">In-Progress I/O Transforms&lt;/h1>
 &lt;p>This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the JIRA issue, or on the GitHub PR linked to by the JIRA issue (if there is one).&lt;/p>
