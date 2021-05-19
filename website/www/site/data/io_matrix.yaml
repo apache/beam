@@ -382,3 +382,15 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.splunk.SplunkIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/splunk/SplunkIO.html
+      - transform: FhirIO
+        description: Provides an API for reading and writing resources to Google Cloud Healthcare Fhir API.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.FhirIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html
+      - transform: HL7v2IO
+        description: Provides an API for reading from and writing to Google Cloud Healthcare HL7v2 API.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html
