@@ -1578,7 +1578,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     # Series moves index label to column
     return self.groupby(by).apply(
         lambda df: pd.DataFrame(df.duplicated(keep=keep, subset=subset),
-                                columns=[None])).droplevel(by)[None]
+                                columns=[None]))[None]
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
