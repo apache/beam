@@ -51,6 +51,7 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import fn_api_runner
@@ -1026,26 +1027,19 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-    unpacked_min_step_name_regex = r'.*PackableMin.*CombinePerKey.*'
-    unpacked_max_step_name_regex = r'.*PackableMax.*CombinePerKey.*'
     packed_step_name_regex = (
         r'.*Packed.*PackableMin.*CombinePerKey.*PackableMax.*CombinePerKey.*' +
         'Pack.*')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names = set(m.key.step for m in counters)
-    self.assertFalse(
-        any([
-            re.match(unpacked_min_step_name_regex, s) and
-            not re.match(packed_step_name_regex, s) for s in step_names
-        ]))
-    self.assertFalse(
-        any([
-            re.match(unpacked_max_step_name_regex, s) and
-            not re.match(packed_step_name_regex, s) for s in step_names
-        ]))
-    self.assertTrue(
-        any([re.match(packed_step_name_regex, s) for s in step_names]))
+    pipeline_options = p._options
+    if pipeline_options.view_as(StandardOptions).streaming:
+      self.assertFalse(
+          any([re.match(packed_step_name_regex, s) for s in step_names]))
+    else:
+      self.assertTrue(
+          any([re.match(packed_step_name_regex, s) for s in step_names]))
 
 
 # These tests are kept in a separate group so that they are
