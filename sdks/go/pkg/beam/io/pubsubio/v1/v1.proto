@@ -21,7 +21,9 @@
  */
 syntax = "proto3";
 
-package v1;
+package org.apache.beam.sdks.go.pkg.beam.io.pubsubio.v1;
+
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio/v1;v1";
 
 message PubSubPayload {
     enum Op {
