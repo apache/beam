@@ -186,8 +186,10 @@ task runJava11(type: JavaExec) {
   args nexmarkArgsList.toArray()
 }
 
-tasks.withType(JavaCompile).configureEach {
-  javaCompiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(8)
+if (!project.hasProperty("compileAndRunTestsWithJava11")) {
+  tasks.withType(JavaCompile).configureEach {
+    javaCompiler = javaToolchains.compilerFor {
+      languageVersion = JavaLanguageVersion.of(8)
+    }
   }
 }
