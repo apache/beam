@@ -81,7 +81,6 @@ func init() {
 	beam.RegisterRunner("DataflowRunner", Execute)
 
 	perf.RegisterProfCaptureHook("gcs_profile_writer", gcsRecorderHook)
-	pipelinex.IdempotentNormalize = true
 }
 
 var unique int32

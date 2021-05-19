@@ -46,7 +46,8 @@ func Update(p *pipepb.Pipeline, values *pipepb.Components) (*pipepb.Pipeline, er
 
 // IdempotentNormalize determines whether to use the idempotent version
 // of ensureUniqueNames or the legacy version.
-var IdempotentNormalize bool
+// TODO(BEAM-12341): Cleanup once nothing depends on the legacy implementation.
+var IdempotentNormalize bool = true
 
 // Normalize recomputes derivative information in the pipeline, such
 // as roots and input/output for composite transforms. It also
@@ -227,6 +228,12 @@ func (s idSorted) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+// Go SDK ids for transforms are "e#" or "s#" and we want to
+// sort them properly at the root level at least. Cross lang
+// transforms or expanded nodes (like CoGBK) don't follow this
+// format should be sorted lexicographically, but are wrapped in
+// a composite ptransform meaning they're compared to fewer
+// transforms.
 var idParseExp = regexp.MustCompile(`(\D*)(\d*)`)
 
 func (s idSorted) Less(i, j int) bool {
