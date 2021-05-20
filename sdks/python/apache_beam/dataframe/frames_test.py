@@ -997,18 +997,30 @@ class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_groupby_agg(self, agg_type):
-    self._run_test(lambda df: df.groupby('group').agg(sum), GROUPBY_DF)
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+    self._run_test(lambda df: df.groupby('group').agg(agg_type), GROUPBY_DF)
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_groupby_with_filter(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
     self._run_test(
         lambda df: getattr(df[df.foo > 30].groupby('group'), agg_type)(),
         GROUPBY_DF)
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_groupby(self, agg_type):
-    self._run_test(
-        lambda df: getattr(df.groupby('group'), agg_type)(), GROUPBY_DF)
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+      self._run_test(
+          lambda df: getattr(df.groupby('group'), agg_type)(), GROUPBY_DF)
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   @unittest.skip("Grouping by a series is not currently supported")
@@ -1053,6 +1065,10 @@ class GroupByTest(_AbstractFrameTest):
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_groupby_project_dataframe(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
     self._run_test(
         lambda df: getattr(df.groupby('group')[['bar', 'baz']], agg_type)(),
         GROUPBY_DF)
