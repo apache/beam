@@ -17,26 +17,24 @@
  */
 package org.apache.beam.io.debezium;
 
-import io.debezium.connector.db2.Db2Connector;
-import io.debezium.connector.mysql.MySqlConnector;
-import io.debezium.connector.oracle.OracleConnector;
-import io.debezium.connector.postgresql.PostgresConnector;
-import io.debezium.connector.sqlserver.SqlServerConnector;
 import org.apache.kafka.connect.source.SourceConnector;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Enumeration of debezium connectors. */
 public enum Connectors {
-  MYSQL("MySQL", MySqlConnector.class),
-  POSTGRES("PostgreSQL", PostgresConnector.class),
-  SQLSERVER("SQLServer", SqlServerConnector.class),
-  ORACLE("Oracle", OracleConnector.class),
-  DB2("DB2", Db2Connector.class),
+  MYSQL("MySQL", "io.debezium.connector.mysql.MySqlConnector"),
+  POSTGRES("PostgreSQL", "io.debezium.connector.postgresql.PostgresConnector"),
+  SQLSERVER("SQLServer", "io.debezium.connector.sqlserver.SqlServerConnector"),
+  ORACLE("Oracle", "io.debezium.connector.oracle.OracleConnector"),
+  DB2("DB2", "io.debezium.connector.db2.Db2Connector"),
   ;
-
+  private static final Logger LOG = LoggerFactory.getLogger(Connectors.class);
   private final String name;
-  private final Class<? extends SourceConnector> connector;
+  private final String connector;
 
-  Connectors(String name, Class<? extends SourceConnector> connector) {
+  Connectors(String name, String connector) {
     this.name = name;
     this.connector = connector;
   }
@@ -47,8 +45,14 @@ public enum Connectors {
   }
 
   /** Class connector to debezium. */
-  public Class<? extends SourceConnector> getConnector() {
-    return connector;
+  public @Nullable Class<? extends SourceConnector> getConnector() {
+    Class<? extends SourceConnector> connectorClass = null;
+    try {
+      connectorClass = (Class<? extends SourceConnector>) Class.forName(this.connector);
+    } catch (ClassCastException | ClassNotFoundException e) {
+      LOG.error("Connector class is not found", e);
+    }
+    return connectorClass;
   }
 
   /**

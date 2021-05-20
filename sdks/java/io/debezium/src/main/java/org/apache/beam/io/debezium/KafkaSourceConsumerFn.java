@@ -91,8 +91,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    * @param fn a SourceRecordMapper
    * @param minutesToRun Maximum time to run (in minutes)
    */
-  public KafkaSourceConsumerFn(
-      Class<?> connectorClass, SourceRecordMapper<T> fn, long minutesToRun) {
+  KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, long minutesToRun) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
     this.minutesToRun = minutesToRun;
@@ -104,8 +103,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    * @param connectorClass Supported Debezium connector class
    * @param fn a SourceRecordMapper
    */
-  public KafkaSourceConsumerFn(
-      Class<?> connectorClass, SourceRecordMapper<T> fn, Integer maxRecords) {
+  KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, Integer maxRecords) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
     this.maxRecords = maxRecords;

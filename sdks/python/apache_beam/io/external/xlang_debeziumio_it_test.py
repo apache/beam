@@ -65,13 +65,25 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
       logging.error('Could not stop the DB container.')
 
   def test_xlang_debezium_read(self):
-    expected_response = [
-        '{"metadata":{"connector":"postgresql","version":"1.3.1.Final",' +
-        '"name":"dbserver1","database":"inventory","schema":"inventory",' +
-        '"table":"customers"},"before":null,"after":{"fields":{"last_name":' +
-        '"Thomas","id":1001,"first_name":"Sally","email":' +
-        '"sally.thomas@acme.com"}}}'
-    ]
+    expected_response = [{
+        "metadata": {
+            "connector": "postgresql",
+            "version": "1.3.1.Final",
+            "name": "dbserver1",
+            "database": "inventory",
+            "schema": "inventory",
+            "table": "customers"
+        },
+        "before": None,
+        "after": {
+            "fields": {
+                "last_name": "Thomas",
+                "id": 1001,
+                "first_name": "Sally",
+                "email": "sally.thomas@acme.com"
+            }
+        }
+    }]
 
     with TestPipeline() as p:
       p.not_use_test_runner_api = True

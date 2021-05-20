@@ -78,11 +78,15 @@
 
 # pytype: skip-file
 
+import json
 from enum import Enum
 from typing import List
 from typing import NamedTuple
 from typing import Optional
 
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
@@ -108,10 +112,17 @@ ReadFromDebeziumSchema = NamedTuple(
      ('connection_properties', List[str])])
 
 
-class ReadFromDebezium(ExternalTransform):
+class _JsonStringToDictionaries(DoFn):
+  """ A DoFn that consumes a JSON string and yields a python dictionary """
+  def process(self, json_string):
+    obj = json.loads(json_string)
+    yield obj
+
+
+class ReadFromDebezium(PTransform):
   """
         An external PTransform which reads from Debezium and returns
-        a JSON string for each item in the specified database
+        a Dictionary for each item in the specified database
         connection.
 
         Experimental; no backwards compatibility guarantees.
@@ -145,15 +156,20 @@ class ReadFromDebezium(ExternalTransform):
         :param expansion_service: The address (host:port)
                                   of the ExpansionService.
     """
-    super(ReadFromDebezium, self).__init__(
-        self.URN,
-        NamedTupleBasedPayloadBuilder(
-            ReadFromDebeziumSchema(
-                connector_class=connector_class.value,
-                username=username,
-                password=password,
-                host=host,
-                port=port,
-                max_number_of_records=max_number_of_records,
-                connection_properties=connection_properties)),
-        expansion_service or default_io_expansion_service())
+    self.params = ReadFromDebeziumSchema(
+        connector_class=connector_class.value,
+        username=username,
+        password=password,
+        host=host,
+        port=port,
+        max_number_of_records=max_number_of_records,
+        connection_properties=connection_properties)
+    self.expansion_service = expansion_service or default_io_expansion_service()
+
+  def expand(self, pbegin):
+    return (
+        pbegin | ExternalTransform(
+            self.URN,
+            NamedTupleBasedPayloadBuilder(self.params),
+            self.expansion_service,
+        ) | ParDo(_JsonStringToDictionaries()))
