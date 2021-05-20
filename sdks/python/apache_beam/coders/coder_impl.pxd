@@ -36,6 +36,7 @@ cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingO
 # Temporarily untyped to allow monkeypatching on failed import.
 #cdef type WindowedValue
 
+cdef bint is_compiled
 
 cdef class CoderImpl(object):
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)

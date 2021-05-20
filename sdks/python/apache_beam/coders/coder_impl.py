@@ -83,6 +83,9 @@ except ImportError:
 else:
   SLOW_STREAM = False
 
+is_compiled = False
+fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
+
 if TYPE_CHECKING or SLOW_STREAM:
   from .slow_stream import InputStream as create_InputStream
   from .slow_stream import OutputStream as create_OutputStream
@@ -91,10 +94,8 @@ if TYPE_CHECKING or SLOW_STREAM:
 
   if False:  # pylint: disable=using-constant-test
     # This clause is interpreted by the compiler.
-    from cython import compiled as is_compiled
-  else:
-    is_compiled = False
-    fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
+    from cython import compiled as _is_compiled
+    is_compiled = _is_compiled
 
 else:
   # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
