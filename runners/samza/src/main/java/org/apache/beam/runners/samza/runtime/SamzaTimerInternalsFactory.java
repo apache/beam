@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import com.google.auto.value.AutoValue;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -445,7 +446,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           final Long timestamp = eventTimeTimerState.get(timerKey).read();
 
           if (timestamp != null) {
-            final KeyedTimerData keyedTimerDataInStore =
+            final KeyedTimerData<K> keyedTimerDataInStore =
                 TimerKey.toKeyedTimerData(timerKey, timestamp, TimeDomain.EVENT_TIME, keyCoder);
             timestampSortedEventTimeTimerState.remove(keyedTimerDataInStore);
           }
@@ -553,7 +554,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           // inline the migration code
           while (eventTimersIter.hasNext()) {
             final Map.Entry<TimerKey<K>, Long> entry = eventTimersIter.next();
-            final KeyedTimerData keyedTimerData =
+            final KeyedTimerData<K> keyedTimerData =
                 TimerKey.toKeyedTimerData(
                     entry.getKey(), entry.getValue(), TimeDomain.EVENT_TIME, keyCoder);
             timestampSortedEventTimeTimerState.add(keyedTimerData);
@@ -569,99 +570,66 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     }
   }
 
-  private static class TimerKey<K> {
-    private final K key;
-    private final StateNamespace stateNamespace;
-    private final String timerId;
+  @AutoValue
+  abstract static class TimerKey<K> {
+    abstract @Nullable K getKey();
+
+    abstract StateNamespace getStateNamespace();
+
+    abstract String getTimerId();
+
+    abstract String getTimerFamilyId();
+
+    static <K> Builder<K> builder() {
+      return new AutoValue_SamzaTimerInternalsFactory_TimerKey.Builder<>();
+    }
 
     static <K> TimerKey<K> of(KeyedTimerData<K> keyedTimerData) {
       final TimerInternals.TimerData timerData = keyedTimerData.getTimerData();
-      return new TimerKey<>(
-          keyedTimerData.getKey(), timerData.getNamespace(), timerData.getTimerId());
+      return TimerKey.<K>builder()
+          .setKey(keyedTimerData.getKey())
+          .setStateNamespace(timerData.getNamespace())
+          .setTimerId(timerData.getTimerId())
+          .setTimerFamilyId(timerData.getTimerFamilyId())
+          .build();
     }
 
     static <K> KeyedTimerData<K> toKeyedTimerData(
         TimerKey<K> timerKey, long timestamp, TimeDomain domain, Coder<K> keyCoder) {
       byte[] keyBytes = null;
-      if (keyCoder != null && timerKey.key != null) {
+      if (keyCoder != null && timerKey.getKey() != null) {
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-          keyCoder.encode(timerKey.key, baos);
+          keyCoder.encode(timerKey.getKey(), baos);
         } catch (IOException e) {
-          throw new RuntimeException("Could not encode key: " + timerKey.key, e);
+          throw new RuntimeException("Could not encode key: " + timerKey.getKey(), e);
         }
         keyBytes = baos.toByteArray();
       }
 
-      return new KeyedTimerData<K>(
+      return new KeyedTimerData<>(
           keyBytes,
-          timerKey.key,
+          timerKey.getKey(),
           TimerInternals.TimerData.of(
-              timerKey.timerId,
-              timerKey.stateNamespace,
+              timerKey.getTimerId(),
+              timerKey.getTimerFamilyId(),
+              timerKey.getStateNamespace(),
               new Instant(timestamp),
               new Instant(timestamp),
               domain));
     }
 
-    private TimerKey(K key, StateNamespace stateNamespace, String timerId) {
-      this.key = key;
-      this.stateNamespace = stateNamespace;
-      this.timerId = timerId;
-    }
+    @AutoValue.Builder
+    abstract static class Builder<K> {
+      abstract Builder<K> setKey(K key);
 
-    public K getKey() {
-      return key;
-    }
+      abstract Builder<K> setStateNamespace(StateNamespace stateNamespace);
 
-    public StateNamespace getStateNamespace() {
-      return stateNamespace;
-    }
+      abstract Builder<K> setTimerId(String timerId);
 
-    public String getTimerId() {
-      return timerId;
-    }
+      abstract Builder<K> setTimerFamilyId(String timerFamilyId);
 
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      TimerKey<?> timerKey = (TimerKey<?>) o;
-
-      if (key != null ? !key.equals(timerKey.key) : timerKey.key != null) {
-        return false;
-      }
-      if (!stateNamespace.equals(timerKey.stateNamespace)) {
-        return false;
-      }
-
-      return timerId.equals(timerKey.timerId);
-    }
-
-    @Override
-    public int hashCode() {
-      int result = key != null ? key.hashCode() : 0;
-      result = 31 * result + stateNamespace.hashCode();
-      result = 31 * result + timerId.hashCode();
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "TimerKey{"
-          + "key="
-          + key
-          + ", stateNamespace="
-          + stateNamespace
-          + ", timerId='"
-          + timerId
-          + '\''
-          + '}';
+      abstract TimerKey<K> build();
     }
   }
 
@@ -682,12 +650,14 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         throws CoderException, IOException {
 
       // encode the timestamp first
-      STRING_CODER.encode(value.timerId, outStream);
-      STRING_CODER.encode(value.stateNamespace.stringKey(), outStream);
+      STRING_CODER.encode(value.getTimerId(), outStream);
+      STRING_CODER.encode(value.getStateNamespace().stringKey(), outStream);
 
       if (keyCoder != null) {
-        keyCoder.encode(value.key, outStream);
+        keyCoder.encode(value.getKey(), outStream);
       }
+
+      STRING_CODER.encode(value.getTimerFamilyId(), outStream);
     }
 
     @Override
@@ -703,7 +673,16 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         key = keyCoder.decode(inStream);
       }
 
-      return new TimerKey<>(key, namespace, timerId);
+      // check if the stream has more available bytes. This is to ensure backward compatibility with
+      // old rocksdb state which does not encode timer family data
+      final String timerFamilyId = inStream.available() > 0 ? STRING_CODER.decode(inStream) : "";
+
+      return TimerKey.<K>builder()
+          .setTimerId(timerId)
+          .setStateNamespace(namespace)
+          .setKey(key)
+          .setTimerFamilyId(timerFamilyId)
+          .build();
     }
 
     @Override

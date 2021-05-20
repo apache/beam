@@ -19,13 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import sys
 import typing
-from builtins import next
 
 from apache_beam.typehints import typehints
 
@@ -107,7 +104,7 @@ def _match_is_exactly_iterable(user_type):
   return getattr(user_type, '__origin__', None) is expected_origin
 
 
-def _match_is_named_tuple(user_type):
+def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
       hasattr(user_type, '_field_types'))
@@ -133,12 +130,6 @@ def _match_is_union(user_type):
   # For non-subscripted unions (Python 2.7.14+ with typing 3.64)
   if user_type is typing.Union:
     return True
-
-  try:  # Python 3.5.2
-    if isinstance(user_type, typing.UnionMeta):
-      return True
-  except AttributeError:
-    pass
 
   try:  # Python 3.5.4+, or Python 2.7.14+ with typing 3.64
     return user_type.__origin__ is typing.Union
@@ -234,7 +225,7 @@ def convert_to_beam_type(typ):
       # We just convert it to Any for now.
       # This MUST appear before the entry for the normal Tuple.
       _TypeMapEntry(
-          match=_match_is_named_tuple, arity=0, beam_type=typehints.Any),
+          match=match_is_named_tuple, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Tuple),
           arity=-1,

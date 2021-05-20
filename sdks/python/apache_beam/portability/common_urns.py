@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from apache_beam.portability.api.beam_runner_api_pb2_urns import BeamConstants
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardArtifacts
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardCoders

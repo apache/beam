@@ -23,8 +23,6 @@ See additional runtime_type_check=True tests in ptransform_test.py.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import os
 import tempfile
 import unittest

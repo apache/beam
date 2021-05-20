@@ -19,24 +19,31 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import re
+import functools
 import sys
+import typing
 import unittest
 
-import future.tests.base  # pylint: disable=unused-import
-
+from apache_beam import Map
 from apache_beam.typehints import Any
+from apache_beam.typehints import Dict
 from apache_beam.typehints import List
+from apache_beam.typehints import Tuple
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import decorators
 from apache_beam.typehints import typehints
 
+T = TypeVariable('T')
+# Name is 'T' so it converts to a beam type with the same name.
+# mypy requires that the name of the variable match, so we must ignore this.
+T_typing = typing.TypeVar('T')  # type: ignore
+
 
 class IOTypeHintsTest(unittest.TestCase):
   def test_get_signature(self):
-    # Basic coverage only to make sure function works in Py2 and Py3.
+    # Basic coverage only to make sure function works.
     def fn(a, b=1, *c, **d):
       return a, b, c, d
 
@@ -55,7 +62,6 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(s.return_annotation, List[Any])
 
   def test_from_callable_without_annotations(self):
-    # Python 2 doesn't support annotations. See decorators_test_py3.py for that.
     def fn(a, b=None, *args, **kwargs):
       return a, b, args, kwargs
 
@@ -120,8 +126,7 @@ class IOTypeHintsTest(unittest.TestCase):
     origin = ''.join(
         decorators.IOTypeHints.empty().with_input_types(str).origin)
     self.assertRegex(origin, __name__)
-    # TODO: use self.assertNotRegex once py2 support is removed.
-    self.assertIsNone(re.search(r'\b_make_traceback', origin), msg=origin)
+    self.assertNotRegex(origin, r'\b_make_traceback')
 
   def test_origin(self):
     th = decorators.IOTypeHints.empty()
@@ -152,6 +157,140 @@ class IOTypeHintsTest(unittest.TestCase):
     th2 = th.with_output_types(int)
     th = th.with_defaults(th2)
     self.assertNotEqual(expected_id, id(th))
+
+  def test_from_callable(self):
+    def fn(
+        a: int,
+        b: str = '',
+        *args: Tuple[T],
+        foo: List[int],
+        **kwargs: Dict[str, str]) -> Tuple[Any, ...]:
+      return a, b, args, foo, kwargs
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(
+        th.input_types, ((int, str, Tuple[T]), {
+            'foo': List[int], 'kwargs': Dict[str, str]
+        }))
+    self.assertEqual(th.output_types, ((Tuple[Any, ...], ), {}))
+
+  def test_from_callable_partial_annotations(self):
+    def fn(a: int, b=None, *args, foo: List[int], **kwargs):
+      return a, b, args, foo, kwargs
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(
+        th.input_types,
+        ((int, Any, Tuple[Any, ...]), {
+            'foo': List[int], 'kwargs': Dict[Any, Any]
+        }))
+    self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_from_callable_class(self):
+    class Class(object):
+      def __init__(self, unused_arg: int):
+        pass
+
+    th = decorators.IOTypeHints.from_callable(Class)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((Class, ), {}))
+
+  def test_from_callable_method(self):
+    class Class(object):
+      def method(self, arg: T = None) -> None:
+        pass
+
+    th = decorators.IOTypeHints.from_callable(Class.method)
+    self.assertEqual(th.input_types, ((Any, T), {}))
+    self.assertEqual(th.output_types, ((None, ), {}))
+
+    th = decorators.IOTypeHints.from_callable(Class().method)
+    self.assertEqual(th.input_types, ((T, ), {}))
+    self.assertEqual(th.output_types, ((None, ), {}))
+
+  def test_from_callable_convert_to_beam_types(self):
+    def fn(
+        a: typing.List[int],
+        b: str = '',
+        *args: typing.Tuple[T_typing],
+        foo: typing.List[int],
+        **kwargs: typing.Dict[str, str]) -> typing.Tuple[typing.Any, ...]:
+      return a, b, args, foo, kwargs
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(
+        th.input_types,
+        ((List[int], str, Tuple[T]), {
+            'foo': List[int], 'kwargs': Dict[str, str]
+        }))
+    self.assertEqual(th.output_types, ((Tuple[Any, ...], ), {}))
+
+  def test_from_callable_partial(self):
+    def fn(a: int) -> int:
+      return a
+
+    # functools.partial objects don't have __name__ attributes by default.
+    fn = functools.partial(fn, 1)
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertRegex(th.debug_str(), r'unknown')
+
+  def test_getcallargs_forhints(self):
+    def fn(
+        a: int,
+        b: str = '',
+        *args: Tuple[T],
+        foo: List[int],
+        **kwargs: Dict[str, str]) -> Tuple[Any, ...]:
+      return a, b, args, foo, kwargs
+
+    callargs = decorators.getcallargs_forhints(fn, float, foo=List[str])
+    self.assertDictEqual(
+        callargs,
+        {
+            'a': float,
+            'b': str,
+            'args': Tuple[T],
+            'foo': List[str],
+            'kwargs': Dict[str, str]
+        })
+
+  def test_getcallargs_forhints_default_arg(self):
+    # Default args are not necessarily types, so they should be ignored.
+    def fn(a=List[int], b=None, *args, foo=(), **kwargs) -> Tuple[Any, ...]:
+      return a, b, args, foo, kwargs
+
+    callargs = decorators.getcallargs_forhints(fn)
+    self.assertDictEqual(
+        callargs,
+        {
+            'a': Any,
+            'b': Any,
+            'args': Tuple[Any, ...],
+            'foo': Any,
+            'kwargs': Dict[Any, Any]
+        })
+
+  def test_getcallargs_forhints_missing_arg(self):
+    def fn(a, b=None, *args, foo, **kwargs):
+      return a, b, args, foo, kwargs
+
+    with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'a'"):
+      decorators.getcallargs_forhints(fn, foo=List[int])
+    with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'foo'"):
+      decorators.getcallargs_forhints(fn, 5)
+
+  def test_origin(self):
+    def annotated(e: str) -> str:
+      return e
+
+    t = Map(annotated)
+    th = t.get_type_hints()
+    th = th.with_input_types(str)
+    self.assertRegex(th.debug_str(), r'with_input_types')
+    th = th.with_output_types(str)
+    self.assertRegex(
+        th.debug_str(),
+        r'(?s)with_output_types.*with_input_types.*Map.annotated')
 
 
 class WithTypeHintsTest(unittest.TestCase):
@@ -229,6 +368,38 @@ class DecoratorsTest(unittest.TestCase):
     self.assertFalse(decorators._disable_from_callable)
     decorators.disable_type_annotations()
     self.assertTrue(decorators._disable_from_callable)
+
+
+class DecoratorsTest(unittest.TestCase):
+  def test_no_annotations(self):
+    def fn(a: int) -> int:
+      return a
+
+    with self.assertRaisesRegex(TypeCheckError,
+                                r'requires .*int.* but got .*str'):
+      _ = ['a', 'b', 'c'] | Map(fn)
+
+    # Same pipeline doesn't raise without annotations on fn.
+    fn = decorators.no_annotations(fn)
+    _ = ['a', 'b', 'c'] | Map(fn)
+
+
+class DecoratorsTest(unittest.TestCase):
+  def test_no_annotations(self):
+    def fn(a: int) -> int:
+      return a
+
+    _ = [1, 2, 3] | Map(fn)  # Doesn't raise - correct types.
+
+    with self.assertRaisesRegex(TypeCheckError,
+                                r'requires .*int.* but got .*str'):
+      _ = ['a', 'b', 'c'] | Map(fn)
+
+    @decorators.no_annotations
+    def fn2(a: int) -> int:
+      return a
+
+    _ = ['a', 'b', 'c'] | Map(fn2)  # Doesn't raise - no input type hints.
 
 
 if __name__ == '__main__':

@@ -56,6 +56,7 @@ type JobOptions struct {
 	WorkerRegion        string
 	WorkerZone          string
 	ContainerImage      string
+	ArtifactURLs        []string // Additional packages for workers.
 
 	// Autoscaling settings
 	Algorithm     string
@@ -126,6 +127,15 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		}
 		packages = append(packages, jar)
 		experiments = append(experiments, "use_staged_dataflow_worker_jar")
+	}
+
+	for _, url := range opts.ArtifactURLs {
+		name := url[strings.LastIndexAny(url, "/")+1:]
+		pkg := &df.Package{
+			Name:     name,
+			Location: url,
+		}
+		packages = append(packages, pkg)
 	}
 
 	ipConfiguration := "WORKER_IP_UNSPECIFIED"

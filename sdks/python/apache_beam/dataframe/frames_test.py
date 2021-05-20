@@ -45,12 +45,15 @@ def _get_deferred_args(*args):
 
 
 class DeferredFrameTest(unittest.TestCase):
-  def _run_error_test(self, func, *args):
+  def _run_error_test(
+      self, func, *args, construction_time=True, distributed=True):
     """Verify that func(*args) raises the same exception in pandas and in Beam.
 
-    Note that for Beam this only checks for exceptions that are raised during
-    expression generation (i.e. construction time). Execution time exceptions
-    are not helpful."""
+    Note that by default this only checks for exceptions that the Beam DataFrame
+    API raises during expression generation (i.e. construction time).
+    Exceptions raised while the pipeline is executing are less helpful, but
+    are sometimes unavoidable (e.g. data validation exceptions), to check for
+    these exceptions use construction_time=False."""
     deferred_args = _get_deferred_args(*args)
 
     # Get expected error
@@ -64,14 +67,29 @@ class DeferredFrameTest(unittest.TestCase):
           f"returned:\n{expected}")
 
     # Get actual error
-    try:
-      _ = func(*deferred_args)._expr
-    except Exception as e:
-      actual = e
-    else:
-      raise AssertionError(
-          "Expected an error:\n{expected_error}\nbut Beam successfully "
-          "generated an expression.")
+    if construction_time:
+      try:
+        _ = func(*deferred_args)._expr
+      except Exception as e:
+        actual = e
+      else:
+        raise AssertionError(
+            f"Expected an error:\n{expected_error}\nbut Beam successfully "
+            f"generated an expression.")
+    else:  # not construction_time
+      # Check for an error raised during pipeline execution
+      expr = func(*deferred_args)._expr
+      session_type = (
+          expressions.PartitioningSession
+          if distributed else expressions.Session)
+      try:
+        result = session_type({}).evaluate(expr)
+      except Exception as e:
+        actual = e
+      else:
+        raise AssertionError(
+            f"Expected an error:\n{expected_error}\nbut Beam successfully "
+            f"Computed the result:\n{result}.")
 
     # Verify
     if (not isinstance(actual, type(expected_error)) or
@@ -79,6 +97,18 @@ class DeferredFrameTest(unittest.TestCase):
       raise AssertionError(
           f'Expected {expected_error!r} to be raised, but got {actual!r}'
       ) from actual
+
+  def _run_inplace_test(self, func, arg, **kwargs):
+    """Verify an inplace operation performed by func.
+
+    Checks that func performs the same inplace operation on arg, in pandas and
+    in Beam."""
+    def wrapper(df):
+      df = df.copy()
+      func(df)
+      return df
+
+    self._run_test(wrapper, arg, **kwargs)
 
   def _run_test(self, func, *args, distributed=True, nonparallel=False):
     """Verify that func(*args) produces the same result in pandas and in Beam.
@@ -99,8 +129,15 @@ class DeferredFrameTest(unittest.TestCase):
     deferred_args = _get_deferred_args(*args)
     if nonparallel:
       # First run outside a nonparallel block to confirm this raises as expected
-      with self.assertRaises(expressions.NonParallelOperation):
-        _ = func(*deferred_args)
+      with self.assertRaises(expressions.NonParallelOperation) as raised:
+        func(*deferred_args)
+
+      if raised.exception.msg.startswith(
+          "Encountered non-parallelizable form of"):
+        raise AssertionError(
+            "Default NonParallelOperation raised, please specify a reason in "
+            "the Singleton() partitioning requirement for this operation."
+        ) from raised.exception
 
       # Re-run in an allow non parallel block to get an expression to verify
       with beam.dataframe.allow_non_parallel_operations():
@@ -135,7 +172,10 @@ class DeferredFrameTest(unittest.TestCase):
     else:
       # Expectation is not a pandas object
       if isinstance(expected, float):
-        cmp = lambda x: np.isclose(expected, x)
+        if np.isnan(expected):
+          cmp = np.isnan
+        else:
+          cmp = lambda x: np.isclose(expected, x)
       else:
         cmp = expected.__eq__
       self.assertTrue(
@@ -157,13 +197,12 @@ class DeferredFrameTest(unittest.TestCase):
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
-      return df
 
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
         'Speed': [380., 370., 24., 26.]
     })
-    self._run_test(new_column, df)
+    self._run_inplace_test(new_column, df)
 
   def test_str_split(self):
     s = pd.Series([
@@ -184,13 +223,12 @@ class DeferredFrameTest(unittest.TestCase):
   def test_set_column_from_index(self):
     def new_column(df):
       df['NewCol'] = df.index
-      return df
 
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
         'Speed': [380., 370., 24., 26.]
     })
-    self._run_test(new_column, df)
+    self._run_inplace_test(new_column, df)
 
   def test_tz_localize_ambiguous_series(self):
     # This replicates a tz_localize doctest:
@@ -237,6 +275,46 @@ class DeferredFrameTest(unittest.TestCase):
                 'A': 123, 'B': 456
             }), axis=1),
         df)
+
+  def test_combine_dataframe(self):
+    df = pd.DataFrame({'A': [0, 0], 'B': [4, 4]})
+    df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
+    take_smaller = lambda s1, s2: s1 if s1.sum() < s2.sum() else s2
+    self._run_test(
+        lambda df,
+        df2: df.combine(df2, take_smaller),
+        df,
+        df2,
+        nonparallel=True)
+
+  def test_combine_dataframe_fill(self):
+    df1 = pd.DataFrame({'A': [0, 0], 'B': [None, 4]})
+    df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
+    take_smaller = lambda s1, s2: s1 if s1.sum() < s2.sum() else s2
+    self._run_test(
+        lambda df1,
+        df2: df1.combine(df2, take_smaller, fill_value=-5),
+        df1,
+        df2,
+        nonparallel=True)
+
+  def test_combine_Series(self):
+    with expressions.allow_non_parallel_operations():
+      s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
+      s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
+      self._run_test(lambda s1, s2: s1.combine(s2, max), s1, s2)
+
+  def test_combine_first_dataframe(self):
+    df1 = pd.DataFrame({'A': [None, 0], 'B': [None, 4]})
+    df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
+
+    self._run_test(lambda df1, df2: df1.combine_first(df2), df1, df2)
+
+  def test_combine_first_series(self):
+    s1 = pd.Series([1, np.nan])
+    s2 = pd.Series([3, 4])
+
+    self._run_test(lambda s1, s2: s1.combine_first(s2), s1, s2)
 
   def test_add_prefix(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [3, 4, 5, 6]})
@@ -409,6 +487,24 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.set_index(['str', 'group', 'bool']).groupby(
             level='group').apply(median_sum_fn),
+        df)
+
+  def test_groupby_apply_preserves_column_order(self):
+    df = GROUPBY_DF
+
+    self._run_test(
+        lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
+            lambda x: x),
+        df)
+
+  def test_groupby_apply_modified_index(self):
+    df = GROUPBY_DF
+
+    # If apply fn modifies the index then the output will include the grouped
+    # index
+    self._run_test(
+        lambda df: df.groupby('group').apply(
+            lambda x: x[x.foo > x.foo.median()]),
         df)
 
   @unittest.skip('BEAM-11710')
@@ -678,11 +774,7 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.eval('foo = a + b - c'), df)
     self._run_test(lambda df: df.query('a > b + c'), df)
 
-    def eval_inplace(df):
-      df.eval('foo = a + b - c', inplace=True)
-      return df.foo
-
-    self._run_test(eval_inplace, df)
+    self._run_inplace_test(lambda df: df.eval('foo = a + b - c'), df)
 
     # Verify that attempting to access locals raises a useful error
     deferred_df = frame_base.DeferredFrame.wrap(
@@ -698,9 +790,8 @@ class DeferredFrameTest(unittest.TestCase):
 
     def change_index_names(df):
       df.index.names = ['A', None]
-      return df
 
-    self._run_test(change_index_names, df)
+    self._run_inplace_test(change_index_names, df)
 
   @parameterized.expand((x, ) for x in [
       0,
@@ -722,13 +813,14 @@ class DeferredFrameTest(unittest.TestCase):
             lambda x: (x.foo + x.bar).median()),
         df)
 
-  def test_quantile_axis_columns(self):
+  def test_quantile(self):
     df = pd.DataFrame(
         np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
 
-    with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
+    self._run_test(lambda df: df.quantile(0.1), df, nonparallel=True)
+    self._run_test(lambda df: df.quantile([0.1, 0.9]), df, nonparallel=True)
 
+    self._run_test(lambda df: df.quantile(0.1, axis='columns'), df)
     with self.assertRaisesRegex(frame_base.WontImplementError,
                                 r"df\.quantile\(q=0\.1, axis='columns'\)"):
       self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
@@ -742,6 +834,7 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
 
   def test_dataframe_melt(self):
+
     df = pd.DataFrame({
         'A': {
             0: 'a', 1: 'b', 2: 'c'
@@ -783,6 +876,448 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.melt(
             id_vars=[('A', 'D')], value_vars=[('B', 'E')], ignore_index=False),
         df)
+
+  def test_fillna_columns(self):
+    df = pd.DataFrame(
+        [[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1], [np.nan, np.nan, np.nan, 5],
+         [np.nan, 3, np.nan, 4], [3, np.nan, np.nan, 4]],
+        columns=list('ABCD'))
+
+    self._run_test(lambda df: df.fillna(method='ffill', axis='columns'), df)
+    self._run_test(
+        lambda df: df.fillna(method='ffill', axis='columns', limit=1), df)
+    self._run_test(
+        lambda df: df.fillna(method='bfill', axis='columns', limit=1), df)
+
+    # Intended behavior is unclear here. See
+    # https://github.com/pandas-dev/pandas/issues/40989
+    # self._run_test(lambda df: df.fillna(axis='columns', value=100,
+    #                                     limit=2), df)
+
+  def test_append_verify_integrity(self):
+    df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
+    df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
+
+    self._run_error_test(
+        lambda s1,
+        s2: s1.append(s2, verify_integrity=True),
+        df1['A'],
+        df2['A'],
+        construction_time=False)
+    self._run_error_test(
+        lambda df1,
+        df2: df1.append(df2, verify_integrity=True),
+        df1,
+        df2,
+        construction_time=False)
+
+  def test_series_agg_level(self):
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.count(level=0),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.max(level=0), GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.median(level=0),
+        GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['foo', 'group']).bar.count(level=1),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.max(level=1), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.max(level='foo'),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.median(level=1),
+        GROUPBY_DF)
+
+  def test_dataframe_agg_level(self):
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).count(level=0), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).max(
+            level=0, numeric_only=False),
+        GROUPBY_DF)
+    # pandas implementation doesn't respect numeric_only argument here
+    # (https://github.com/pandas-dev/pandas/issues/40788), it
+    # always acts as if numeric_only=True. Our implmentation respects it so we
+    # need to make it explicit.
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).sum(
+            level=0, numeric_only=True),
+        GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo'])[['bar']].count(level=1),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).count(level=1), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).max(
+            level=1, numeric_only=False),
+        GROUPBY_DF)
+    # sum with str columns is order-sensitive
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).sum(
+            level=1, numeric_only=True),
+        GROUPBY_DF)
+
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).median(
+            level=0, numeric_only=True),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.drop('str', axis=1).set_index(['foo', 'group']).median(
+            level=1, numeric_only=True),
+        GROUPBY_DF)
+
+  def test_series_agg_multifunc_level(self):
+    # level= is ignored for multiple agg fns
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).bar.agg(['min', 'max'],
+                                                          level=0),
+        GROUPBY_DF)
+
+  def test_dataframe_agg_multifunc_level(self):
+    # level= is ignored for multiple agg fns
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).agg(['min', 'max'], level=0),
+        GROUPBY_DF)
+
+  @parameterized.expand([(True, ), (False, )])
+  @unittest.skipIf(
+      PD_VERSION < (1, 2),
+      "pandas 1.1.0 produces different dtypes for these examples")
+  def test_dataframe_agg_numeric_only(self, numeric_only):
+    # Note other aggregation functions can fail on this input with
+    # numeric_only={False,None}. These are the only ones that actually work for
+    # the string inputs.
+    self._run_test(lambda df: df.max(numeric_only=numeric_only), GROUPBY_DF)
+    self._run_test(lambda df: df.min(numeric_only=numeric_only), GROUPBY_DF)
+
+  @unittest.skip(
+      "pandas implementation doesn't respect numeric_only= with "
+      "level= (https://github.com/pandas-dev/pandas/issues/40788)")
+  def test_dataframe_agg_level_numeric_only(self):
+    self._run_test(
+        lambda df: df.set_index('foo').sum(level=0, numeric_only=True),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index('foo').max(level=0, numeric_only=True),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index('foo').mean(level=0, numeric_only=True),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df.set_index('foo').median(level=0, numeric_only=True),
+        GROUPBY_DF)
+
+  def test_dataframe_agg_bool_only(self):
+    df = pd.DataFrame({
+        'all': [True for i in range(10)],
+        'any': [i % 3 == 0 for i in range(10)],
+        'int': range(10)
+    })
+
+    self._run_test(lambda df: df.all(), df)
+    self._run_test(lambda df: df.any(), df)
+    self._run_test(lambda df: df.all(bool_only=True), df)
+    self._run_test(lambda df: df.any(bool_only=True), df)
+
+  @unittest.skip(
+      "pandas doesn't implement bool_only= with level= "
+      "(https://github.com/pandas-dev/pandas/blob/"
+      "v1.2.3/pandas/core/generic.py#L10573)")
+  def test_dataframe_agg_level_bool_only(self):
+    df = pd.DataFrame({
+        'all': [True for i in range(10)],
+        'any': [i % 3 == 0 for i in range(10)],
+        'int': range(10)
+    })
+
+    self._run_test(lambda df: df.set_index('int', drop=False).all(level=0), df)
+    self._run_test(lambda df: df.set_index('int', drop=False).any(level=0), df)
+    self._run_test(
+        lambda df: df.set_index('int', drop=False).all(level=0, bool_only=True),
+        df)
+    self._run_test(
+        lambda df: df.set_index('int', drop=False).any(level=0, bool_only=True),
+        df)
+
+  def test_series_agg_np_size(self):
+    self._run_test(
+        lambda df: df.set_index(['group', 'foo']).agg(np.size), GROUPBY_DF)
+
+  def test_df_agg_invalid_kwarg_raises(self):
+    self._run_error_test(lambda df: df.agg('mean', bool_only=True), GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.agg('any', numeric_only=True), GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.agg('median', min_count=3, numeric_only=True), GROUPBY_DF)
+
+  def test_series_agg_method_invalid_kwarg_raises(self):
+    self._run_error_test(lambda df: df.foo.median(min_count=3), GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.foo.agg('median', min_count=3), GROUPBY_DF)
+
+  @unittest.skipIf(
+      PD_VERSION < (1, 3),
+      (
+          "DataFrame.agg raises a different exception from the "
+          "aggregation methods. Fixed in "
+          "https://github.com/pandas-dev/pandas/pull/40543."))
+  def test_df_agg_method_invalid_kwarg_raises(self):
+    self._run_error_test(lambda df: df.mean(bool_only=True), GROUPBY_DF)
+    self._run_error_test(lambda df: df.any(numeric_only=True), GROUPBY_DF)
+    self._run_error_test(
+        lambda df: df.median(min_count=3, numeric_only=True), GROUPBY_DF)
+
+  def test_agg_min_count(self):
+    df = pd.DataFrame({
+        'good': [1, 2, 3, np.nan],
+        'bad': [np.nan, np.nan, np.nan, 4],
+    },
+                      index=['a', 'b', 'a', 'b'])
+
+    self._run_test(lambda df: df.sum(level=0, min_count=2), df)
+
+    self._run_test(lambda df: df.sum(min_count=3), df, nonparallel=True)
+    self._run_test(lambda df: df.sum(min_count=1), df, nonparallel=True)
+    self._run_test(lambda df: df.good.sum(min_count=2), df, nonparallel=True)
+    self._run_test(lambda df: df.bad.sum(min_count=2), df, nonparallel=True)
+
+  def test_groupby_sum_min_count(self):
+    df = pd.DataFrame({
+        'good': [1, 2, 3, np.nan],
+        'bad': [np.nan, np.nan, np.nan, 4],
+        'group': ['a', 'b', 'a', 'b']
+    })
+
+    self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
+
+  def test_dataframe_sum_nonnumeric_raises(self):
+    # Attempting a numeric aggregation with the str column present should
+    # raise, and suggest the numeric_only argument
+    with self.assertRaisesRegex(frame_base.WontImplementError, 'numeric_only'):
+      self._run_test(lambda df: df.sum(), GROUPBY_DF)
+
+    # numeric_only=True should work
+    self._run_test(lambda df: df.sum(numeric_only=True), GROUPBY_DF)
+    # projecting only numeric columns should too
+    self._run_test(lambda df: df[['foo', 'bar']].sum(), GROUPBY_DF)
+
+  def test_insert(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+
+    self._run_inplace_test(lambda df: df.insert(1, 'C', df.A * 2), df)
+    self._run_inplace_test(
+        lambda df: df.insert(0, 'foo', pd.Series([8], index=[1])), df)
+    self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
+
+  def test_series_agg_std(self):
+    s = pd.Series(range(10))
+
+    self._run_test(lambda s: s.agg('std'), s)
+    self._run_test(lambda s: s.agg('var'), s)
+    self._run_test(lambda s: s.agg(['std', 'sum']), s)
+    self._run_test(lambda s: s.agg(['var']), s)
+
+  def test_std_all_na(self):
+    s = pd.Series([np.nan] * 10)
+
+    self._run_test(lambda s: s.agg('std'), s)
+    self._run_test(lambda s: s.std(), s)
+
+  def test_std_mostly_na_with_ddof(self):
+    df = pd.DataFrame({
+        'one': [i if i % 8 == 0 else np.nan for i in range(8)],
+        'two': [i if i % 4 == 0 else np.nan for i in range(8)],
+        'three': [i if i % 2 == 0 else np.nan for i in range(8)],
+    },
+                      index=pd.MultiIndex.from_arrays(
+                          [list(range(8)), list(reversed(range(8)))],
+                          names=['forward', None]))
+
+    self._run_test(lambda df: df.std(), df)  # ddof=1
+    self._run_test(lambda df: df.std(ddof=0), df)
+    self._run_test(lambda df: df.std(ddof=2), df)
+    self._run_test(lambda df: df.std(ddof=3), df)
+    self._run_test(lambda df: df.std(ddof=4), df)
+
+  def test_dataframe_std(self):
+    self._run_test(lambda df: df.std(numeric_only=True), GROUPBY_DF)
+    self._run_test(lambda df: df.var(numeric_only=True), GROUPBY_DF)
+
+  def test_drop_duplicates(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    self._run_test(lambda df: df.drop_duplicates(keep=False), df)
+    self._run_test(
+        lambda df: df.drop_duplicates(subset=['brand'], keep=False), df)
+    self._run_test(
+        lambda df: df.drop_duplicates(subset=['brand', 'style'], keep=False),
+        df)
+
+
+class BeamSpecificTest(unittest.TestCase):
+  """Tests for functionality that's specific to the Beam DataFrame API.
+
+  These features don't exist in pandas so we must verify them independently."""
+  def assert_frame_data_equivalent(self, actual, expected):
+    """Verify that actual is the same as expected, ignoring the index and order
+    of the data."""
+    def sort_and_drop_index(df):
+      if isinstance(df, pd.Series):
+        df = df.sort_values()
+      elif isinstance(df, pd.DataFrame):
+        df = df.sort_values(by=list(df.columns))
+
+      return df.reset_index(drop=True)
+
+    actual = sort_and_drop_index(actual)
+    expected = sort_and_drop_index(expected)
+
+    if isinstance(expected, pd.Series):
+      pd.testing.assert_series_equal(actual, expected)
+    elif isinstance(expected, pd.DataFrame):
+      pd.testing.assert_frame_equal(actual, expected)
+
+  def _run_test(self, func, *args, distributed=True):
+    deferred_args = [
+        frame_base.DeferredFrame.wrap(
+            expressions.ConstantExpression(arg, arg[0:0])) for arg in args
+    ]
+
+    session_type = (
+        expressions.PartitioningSession if distributed else expressions.Session)
+
+    return session_type({}).evaluate(func(*deferred_args)._expr)
+
+  def test_drop_duplicates_keep_any(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._run_test(lambda df: df.drop_duplicates(keep='any'), df)
+
+    # Verify that the result is the same as conventional drop_duplicates
+    self.assert_frame_data_equivalent(result, df.drop_duplicates())
+
+  def test_drop_duplicates_keep_any_subset(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._run_test(
+        lambda df: df.drop_duplicates(keep='any', subset=['brand']), df)
+
+    self.assertTrue(result.brand.unique)
+    self.assert_frame_data_equivalent(
+        result.brand, df.drop_duplicates(subset=['brand']).brand)
+
+  def test_series_drop_duplicates_keep_any(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._run_test(lambda df: df.brand.drop_duplicates(keep='any'), df)
+
+    self.assert_frame_data_equivalent(result, df.brand.drop_duplicates())
+
+  def test_duplicated_keep_any(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._run_test(lambda df: df.duplicated(keep='any'), df)
+
+    # Verify that the result is the same as conventional duplicated
+    self.assert_frame_data_equivalent(result, df.duplicated())
+
+  def test_nsmallest_any(self):
+    df = pd.DataFrame({
+        'population': [
+            59000000,
+            65000000,
+            434000,
+            434000,
+            434000,
+            337000,
+            337000,
+            11300,
+            11300
+        ],
+        'GDP': [1937894, 2583560, 12011, 4520, 12128, 17036, 182, 38, 311],
+        'alpha-2': ["IT", "FR", "MT", "MV", "BN", "IS", "NR", "TV", "AI"]
+    },
+                      index=[
+                          "Italy",
+                          "France",
+                          "Malta",
+                          "Maldives",
+                          "Brunei",
+                          "Iceland",
+                          "Nauru",
+                          "Tuvalu",
+                          "Anguilla"
+                      ])
+
+    result = self._run_test(
+        lambda df: df.population.nsmallest(3, keep='any'), df)
+
+    # keep='any' should produce the same result as keep='first',
+    # but not necessarily with the same index
+    self.assert_frame_data_equivalent(result, df.population.nsmallest(3))
+
+  def test_nlargest_any(self):
+    df = pd.DataFrame({
+        'population': [
+            59000000,
+            65000000,
+            434000,
+            434000,
+            434000,
+            337000,
+            337000,
+            11300,
+            11300
+        ],
+        'GDP': [1937894, 2583560, 12011, 4520, 12128, 17036, 182, 38, 311],
+        'alpha-2': ["IT", "FR", "MT", "MV", "BN", "IS", "NR", "TV", "AI"]
+    },
+                      index=[
+                          "Italy",
+                          "France",
+                          "Malta",
+                          "Maldives",
+                          "Brunei",
+                          "Iceland",
+                          "Nauru",
+                          "Tuvalu",
+                          "Anguilla"
+                      ])
+
+    result = self._run_test(
+        lambda df: df.population.nlargest(3, keep='any'), df)
+
+    # keep='any' should produce the same result as keep='first',
+    # but not necessarily with the same index
+    self.assert_frame_data_equivalent(result, df.population.nlargest(3))
 
 
 class AllowNonParallelTest(unittest.TestCase):

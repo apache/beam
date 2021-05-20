@@ -19,15 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import logging
 import queue
 import threading
 import traceback
-from builtins import object
-from builtins import range
 
 from apache_beam.coders import observable
 from apache_beam.io import iobase

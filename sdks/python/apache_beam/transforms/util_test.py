@@ -27,7 +27,7 @@ import time
 import unittest
 import warnings
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import GroupByKey
@@ -543,7 +543,7 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
 
@@ -713,8 +713,8 @@ class GroupIntoBatchesTest(unittest.TestCase):
               max_buffering_duration_secs,
               fake_clock)
           | "count elements in batch" >> Map(lambda x: (None, len(x[1])))
-          | "global window" >> WindowInto(GlobalWindows())
           | GroupByKey()
+          | "global window" >> WindowInto(GlobalWindows())
           | FlatMapTuple(lambda k, vs: vs))
 
       # Window duration is 6 and batch size is 5, so output batch size

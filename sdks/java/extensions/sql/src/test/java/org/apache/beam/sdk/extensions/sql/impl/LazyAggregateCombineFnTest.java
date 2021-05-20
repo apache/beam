@@ -19,12 +19,14 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.sql.udf.AggregateFn;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,6 +41,13 @@ public class LazyAggregateCombineFnTest {
     LazyAggregateCombineFn<Long, ?, ?> combiner = new LazyAggregateCombineFn<>(new Sum());
     Coder<?> coder = combiner.getAccumulatorCoder(CoderRegistry.createDefault(), VarLongCoder.of());
     assertThat(coder, instanceOf(VarLongCoder.class));
+  }
+
+  @Test
+  public void mergeAccumulators() {
+    LazyAggregateCombineFn<Long, Long, Long> combiner = new LazyAggregateCombineFn<>(new Sum());
+    long merged = combiner.mergeAccumulators(ImmutableList.of(1L, 1L));
+    assertEquals(2L, merged);
   }
 
   public static class Sum implements AggregateFn<Long, Long, Long> {

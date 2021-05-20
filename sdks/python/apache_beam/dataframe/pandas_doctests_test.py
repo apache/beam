@@ -40,7 +40,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.first': ['*'],
             'pandas.core.generic.NDFrame.head': ['*'],
             'pandas.core.generic.NDFrame.last': ['*'],
-            'pandas.core.generic.NDFrame.shift': ['*'],
+            'pandas.core.generic.NDFrame.shift': [
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
+            ],
             'pandas.core.generic.NDFrame.tail': ['*'],
             'pandas.core.generic.NDFrame.take': ['*'],
             'pandas.core.generic.NDFrame.values': ['*'],
@@ -189,8 +192,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.transpose': ['*'],
             'pandas.core.frame.DataFrame.shape': ['*'],
             'pandas.core.frame.DataFrame.shift': [
-                'df.shift(periods=3, freq="D")',
-                'df.shift(periods=3, freq="infer")'
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
             ],
             'pandas.core.frame.DataFrame.unstack': ['*'],
             'pandas.core.frame.DataFrame.memory_usage': ['*'],
@@ -215,7 +218,14 @@ class DoctestTest(unittest.TestCase):
                 "df.melt(id_vars=[('A', 'D')], value_vars=[('B', 'E')])",
                 "df.melt(id_vars=['A'], value_vars=['B'],\n" +
                 "        var_name='myVarname', value_name='myValname')"
-            ]
+            ],
+            # Most keep= options are order-sensitive
+            'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
+            'pandas.core.frame.DataFrame.duplicated': [
+                'df.duplicated()',
+                "df.duplicated(keep='last')",
+                "df.duplicated(subset=['brand'])",
+            ],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
@@ -230,13 +240,6 @@ class DoctestTest(unittest.TestCase):
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
 
-            # We can implement this as a zipping operator, but it won't have the
-            # same capability. The doctest includes an example that branches on
-            # a deferred result.
-            'pandas.core.frame.DataFrame.combine': ['*'],
-
-            # Can be implemented as a zipping operator
-            'pandas.core.frame.DataFrame.combine_first': ['*'],
 
             # Difficult to parallelize but should be possible?
             'pandas.core.frame.DataFrame.dot': [
@@ -274,8 +277,6 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 'df.cov(min_periods=12)',
             ],
-            'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
-            'pandas.core.frame.DataFrame.duplicated': ['*'],
             'pandas.core.frame.DataFrame.idxmax': ['*'],
             'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.rename': [
@@ -395,7 +396,10 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.series.Series.pop': ['*'],
             'pandas.core.series.Series.searchsorted': ['*'],
-            'pandas.core.series.Series.shift': ['*'],
+            'pandas.core.series.Series.shift': [
+                'df.shift(periods=3)',
+                'df.shift(periods=3, fill_value=0)',
+            ],
             'pandas.core.series.Series.take': ['*'],
             'pandas.core.series.Series.to_dict': ['*'],
             'pandas.core.series.Series.unique': ['*'],
@@ -409,6 +413,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
+            'pandas.core.series.Series.drop_duplicates': [
+                's.drop_duplicates()',
+                "s.drop_duplicates(keep='last')",
+            ],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -429,14 +437,11 @@ class DoctestTest(unittest.TestCase):
             # Throws NotImplementedError when modifying df
             'pandas.core.series.Series.transform': ['df'],
             'pandas.core.series.Series.autocorr': ['*'],
-            'pandas.core.series.Series.combine': ['*'],
-            'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
-            'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],

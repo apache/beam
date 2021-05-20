@@ -329,6 +329,7 @@ PROTO_TYPE = 100
 DATACLASS_TYPE = 101
 NAMED_TUPLE_TYPE = 102
 ENUM_TYPE = 103
+NESTED_STATE_TYPE = 104
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -442,24 +443,50 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic_step_label))
       self.encode_type(type(value), stream)
-      self.iterable_coder_impl.encode_to_stream(
-          [getattr(value, field.name) for field in dataclasses.fields(value)],
-          stream,
-          True)
+      values = [
+          getattr(value, field.name) for field in dataclasses.fields(value)
+      ]
+      try:
+        self.iterable_coder_impl.encode_to_stream(values, stream, True)
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
       stream.write_byte(NAMED_TUPLE_TYPE)
       self.encode_type(type(value), stream)
-      self.iterable_coder_impl.encode_to_stream(value, stream, True)
+      try:
+        self.iterable_coder_impl.encode_to_stream(value, stream, True)
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif isinstance(value, enum.Enum):
       stream.write_byte(ENUM_TYPE)
       self.encode_type(type(value), stream)
       # Enum values can be of any type.
-      self.encode_to_stream(value.value, stream, True)
+      try:
+        self.encode_to_stream(value.value, stream, True)
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
+    elif hasattr(value, "__getstate__"):
+      if not hasattr(value, "__setstate__"):
+        raise TypeError(
+            "Unable to deterministically encode '%s' of type '%s', "
+            "for the input of '%s'. The object defines __getstate__ but not "
+            "__setstate__." %
+            (value, type(value), self.requires_deterministic_step_label))
+      stream.write_byte(NESTED_STATE_TYPE)
+      self.encode_type(type(value), stream)
+      state_value = value.__getstate__()
+      try:
+        self.encode_to_stream(state_value, stream, True)
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     else:
-      raise TypeError(
-          "Unable to deterministically encode '%s' of type '%s', "
-          "please provide a type hint for the input of '%s'" %
-          (value, type(value), self.requires_deterministic_step_label))
+      raise TypeError(self._deterministic_encoding_error_msg(value))
+
+  def _deterministic_encoding_error_msg(self, value):
+    return (
+        "Unable to deterministically encode '%s' of type '%s', "
+        "please provide a type hint for the input of '%s'" %
+        (value, type(value), self.requires_deterministic_step_label))
 
   def encode_type(self, t, stream):
     stream.write(dill.dumps(t), True)
@@ -510,6 +537,12 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t == ENUM_TYPE:
       cls = self.decode_type(stream)
       return cls(self.decode_from_stream(stream, True))
+    elif t == NESTED_STATE_TYPE:
+      cls = self.decode_type(stream)
+      state = self.decode_from_stream(stream, True)
+      value = cls.__new__(cls)
+      value.__setstate__(state)
+      return value
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:

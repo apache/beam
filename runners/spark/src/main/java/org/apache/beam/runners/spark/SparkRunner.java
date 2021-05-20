@@ -46,7 +46,6 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarkAdvanci
 import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -65,7 +64,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -161,13 +159,14 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
 
-    // Default to using the primitive versions of Read.Bounded and Read.Unbounded if we are
-    // executing an unbounded pipeline or the user specifically requested it.
-    if (pipelineOptions.isStreaming()
-        || ExperimentalOptions.hasExperiment(
-            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
-        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
-      pipeline.replaceAll(ImmutableList.of(KafkaIO.Read.KAFKA_READ_OVERRIDE));
+    // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
+    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")) {
+      // Populate experiments directly to have Kafka use legacy read.
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api_use_deprecated_read");
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), "use_deprecated_read");
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     }
 

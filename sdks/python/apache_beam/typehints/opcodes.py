@@ -29,15 +29,11 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import inspect
 import logging
 import sys
 import types
 from functools import reduce
-
-from past.builtins import unicode
 
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
@@ -160,7 +156,7 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
   base = Const.unwrap(state.stack.pop())
-  if base in (str, unicode):
+  if base is str:
     out = base
   elif (isinstance(index, Const) and isinstance(index.value, int) and
         isinstance(base, typehints.IndexableTypeConstraint)):

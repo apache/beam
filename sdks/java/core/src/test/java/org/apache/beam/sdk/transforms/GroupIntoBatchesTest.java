@@ -48,6 +48,7 @@ import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -204,7 +205,9 @@ public class GroupIntoBatchesTest implements Serializable {
                       numFullBatches > totalNumBatches / 2);
                   return null;
                 });
-    pipeline.run();
+    pipeline
+        .runWithAdditionalOptionArgs(ImmutableList.of("--targetParallelism=1"))
+        .waitUntilFinish();
   }
 
   /** test behavior when the number of input elements is not evenly divisible by batch size. */

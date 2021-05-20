@@ -25,6 +25,7 @@ import (
 	// Library imports
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -43,8 +44,11 @@ func init() {
 	runtime.RegisterFunction(schemaEnc)
 	runtime.RegisterFunction(swapKVFn)
 	runtime.RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*createFn)(nil)).Elem(), wrapMakerCreateFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, []byte) (typex.T, error))(nil)).Elem(), funcMakerReflect۰TypeSliceOfByteГTypex۰TError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, typex.T) ([]byte, error))(nil)).Elem(), funcMakerReflect۰TypeTypex۰TГSliceOfByteError)
