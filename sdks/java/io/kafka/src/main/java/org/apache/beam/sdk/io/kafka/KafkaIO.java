@@ -310,6 +310,27 @@ import org.slf4j.LoggerFactory;
  *    ...
  * }</pre>
  *
+ * <p>You can also pass properties to the schema registry client allowing you to configure authentication</p>
+ *
+ * <pre>{@code
+ *
+ * ImmutableMap<String, Object> csrConfig =
+ *     ImmutableMap.<String, Object>builder()
+ *         .put(AbstractKafkaAvroSerDeConfig.BASIC_AUTH_CREDENTIALS_SOURCE,"USER_INFO")
+ *         .put(AbstractKafkaAvroSerDeConfig.USER_INFO_CONFIG,"<username>:<password>")
+ *         .build();
+ *
+ * PCollection<KafkaRecord<Long, GenericRecord>> input = pipeline
+ *   .apply(KafkaIO.<Long, GenericRecord>read()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("my_topic")
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      // Use Confluent Schema Registry, specify schema registry URL, value subject and schema registry client configuration
+ *      .withValueDeserializer(
+ *          ConfluentSchemaRegistryDeserializerProvider.of("https://localhost:8081", "my_topic-value", null, csrConfig))
+ *    ...
+ * }</pre>
+ *
  * <h2>Read from Kafka as a {@link DoFn}</h2>
  *
  * {@link ReadSourceDescriptors} is the {@link PTransform} that takes a PCollection of {@link
