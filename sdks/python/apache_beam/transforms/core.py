@@ -2314,14 +2314,29 @@ class GroupByKey(PTransform):
           key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
 
   def expand(self, pcoll):
+    from apache_beam.transforms.trigger import DataLossReason
     from apache_beam.transforms.trigger import DefaultTrigger
     windowing = pcoll.windowing
+    trigger = windowing.triggerfn
     if not pcoll.is_bounded and isinstance(
-        windowing.windowfn, GlobalWindows) and isinstance(windowing.triggerfn,
+        windowing.windowfn, GlobalWindows) and isinstance(trigger,
                                                           DefaultTrigger):
       raise ValueError(
           'GroupByKey cannot be applied to an unbounded ' +
           'PCollection with global windowing and a default trigger')
+
+    if not pcoll.pipeline.allow_unsafe_triggers:
+      unsafe_reason = trigger.may_lose_data(windowing)
+      if unsafe_reason != DataLossReason.NO_POTENTIAL_LOSS:
+        msg = 'Unsafe trigger: `{}` may lose data. '.format(trigger)
+        msg += 'Reason: {}. '.format(
+            str(unsafe_reason).replace('DataLossReason.', ''))
+        msg += 'This can be overriden with the --allow_unsafe_triggers flag.'
+        raise ValueError(msg)
+    else:
+      _LOGGER.warning(
+          'Skipping trigger safety check. '
+          'This could lead to incomplete or missing groups.')
 
     return pvalue.PCollection.from_(pcoll)
 

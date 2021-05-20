@@ -41,13 +41,16 @@ import apache_beam.typehints as typehints
 from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import is_empty
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
@@ -479,6 +482,33 @@ class PTransformTest(unittest.TestCase):
         'global windowing and a default trigger'):
       with TestPipeline() as pipeline:
         pipeline | TestStream() | beam.GroupByKey()
+
+  def test_group_by_key_unsafe_trigger(self):
+    with self.assertRaisesRegex(ValueError, 'Unsafe trigger'):
+      with TestPipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.Create([(None, None)])
+            | WindowInto(
+                window.GlobalWindows(),
+                trigger=trigger.AfterCount(5),
+                accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+            | beam.GroupByKey())
+
+  def test_group_by_key_allow_unsafe_triggers(self):
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    with TestPipeline(options=test_options) as pipeline:
+      pcoll = (
+          pipeline
+          | beam.Create([(1, 1), (1, 2), (1, 3), (1, 4)])
+          | WindowInto(
+              window.GlobalWindows(),
+              trigger=trigger.AfterCount(5),
+              accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+          | beam.GroupByKey())
+      # We need five, but it only has four - Displays how this option is
+      # dangerous.
+      assert_that(pcoll, is_empty())
 
   def test_group_by_key_reiteration(self):
     class MyDoFn(beam.DoFn):
