@@ -27,6 +27,7 @@ dependencies {
     compile library.java.vendored_guava_26_0_jre
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile "org.apache.arrow:arrow-vector:4.0.0"
+    compile "org.apache.arrow:arrow-memory-core:4.0.0"
     compile "joda-time:joda-time:2.10.10"
     testCompile "org.apache.arrow:arrow-memory-netty:4.0.0"
     testCompile library.java.junit
