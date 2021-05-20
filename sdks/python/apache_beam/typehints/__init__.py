@@ -17,8 +17,6 @@
 
 """A package defining the syntax and decorator semantics for type-hints."""
 
-from __future__ import absolute_import
-
 # pylint: disable=wildcard-import
 from apache_beam.typehints.typehints import *
 from apache_beam.typehints.decorators import *
