@@ -22,7 +22,7 @@ Only those coders listed in __all__ are part of the public API of this module.
 # pytype: skip-file
 
 import base64
-from builtins import object
+import pickle
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -37,8 +37,6 @@ from typing import TypeVar
 from typing import overload
 
 import google.protobuf.wrappers_pb2
-from future.moves import pickle
-from past.builtins import unicode
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
@@ -414,7 +412,7 @@ class StrUtf8Coder(Coder):
     return True
 
   def to_type_hint(self):
-    return unicode
+    return str
 
 
 Coder.register_structured_urn(common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
