@@ -126,9 +126,10 @@ class _AbstractFrameTest(unittest.TestCase):
             expression to verify.
         check_proxy (bool): Whether or not to check that the proxy of the
             generated expression matches the actual result, defaults to True.
-            Ideally we would verify this for every test, but some operations
-            currently produce the wrong proxy and we need an escape hatch.
-            Remove this option once all these cases are fixed."""
+            This option should NOT be set to False in tests added for new
+            operations if at all possible. Instead make sure the new operation
+            produces the correct proxy. This flag only exists as an escape hatch
+            until existing failures can be addressed (BEAM-12379)."""
     # Compute expected value
     expected = func(*args)
 
