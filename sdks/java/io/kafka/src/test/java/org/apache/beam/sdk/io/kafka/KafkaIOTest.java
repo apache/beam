@@ -449,9 +449,9 @@ public class KafkaIOTest {
             .withBootstrapServers("localhost:9092")
             .withTopic(topic)
             .withKeyDeserializer(
-                mockDeserializerProvider(schemaRegistryUrl, keySchemaSubject, null, null))
+                mockDeserializerProvider(schemaRegistryUrl, keySchemaSubject, null))
             .withValueDeserializer(
-                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null, null))
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
                     ImmutableList.of(topic),
@@ -486,7 +486,7 @@ public class KafkaIOTest {
             .withTopic(topic)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(
-                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null, null))
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
                     ImmutableList.of(topic),
