@@ -30,7 +30,7 @@ dependencies {
     permitUnusedDeclared library.java.protobuf_java // BEAM-11761
     compile library.java.slf4j_api
     compile library.java.vendored_guava_26_0_jre
-    compile library.java.vendored_grpc_1_26_0
+    compile library.java.vendored_grpc_1_36_0
 
     testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
     testCompile library.java.guava_testlib

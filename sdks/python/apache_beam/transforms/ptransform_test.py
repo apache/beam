@@ -44,6 +44,7 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import WindowInto
@@ -470,6 +471,14 @@ class PTransformTest(unittest.TestCase):
                                                  (2, 2), (1, 3)])
       result = pcoll | 'Group' >> beam.GroupByKey() | _SortLists
       assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
+
+  def test_group_by_key_unbounded_global_default_trigger(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'GroupByKey cannot be applied to an unbounded PCollection with ' +
+        'global windowing and a default trigger'):
+      with TestPipeline() as pipeline:
+        pipeline | TestStream() | beam.GroupByKey()
 
   def test_group_by_key_reiteration(self):
     class MyDoFn(beam.DoFn):

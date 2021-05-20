@@ -36,8 +36,11 @@ def nexmarkProfilingProperty = "nexmark.profile"
 def nexmarkRunnerProperty = "nexmark.runner"
 def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
         ?: ":runners:direct-java"
+def nexmarkRunnerVersionProperty = "nexmark.runner.version"
+def nexmarkRunnerVersion = project.findProperty(nexmarkRunnerVersionProperty)
 def shouldProvideSpark = ":runners:spark:2".equals(nexmarkRunnerDependency)
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(nexmarkRunnerDependency)
+def isDataflowRunnerV2 = isDataflowRunner && "V2".equals(nexmarkRunnerVersion)
 def runnerConfiguration = ":runners:direct-java".equals(nexmarkRunnerDependency) ? "shadow" : null
 
 if (isDataflowRunner) {
@@ -46,7 +49,11 @@ if (isDataflowRunner) {
    * the following projects are evaluated before we evaluate this project. This is because
    * we are attempting to reference a property from the project directly.
    */
-  evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+  if (isDataflowRunnerV2) {
+    evaluationDependsOn(":runners:google-cloud-dataflow-java")
+  } else {
+    evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+  }
 }
 
 configurations {
@@ -102,6 +109,40 @@ if (shouldProvideSpark) {
   }
 }
 
+def getNexmarkArgs = {
+  def nexmarkArgsStr =  project.findProperty(nexmarkArgsProperty) ?: ""
+  def nexmarkArgsList = new ArrayList<String>()
+  Collections.addAll(nexmarkArgsList, nexmarkArgsStr.split())
+
+  if (isDataflowRunner) {
+    if (isDataflowRunnerV2) {
+      nexmarkArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
+      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerImageName
+      nexmarkArgsList.add("--sdkContainerImage=${sdkContainerImage}")
+
+      // TODO(BEAM-12295) enable all queries once issues with runner V2 is fixed.
+      if (nexmarkArgsList.contains("--streaming=true")) {
+        nexmarkArgsList.add("--skipQueries=AVERAGE_PRICE_FOR_CATEGORY,AVERAGE_SELLING_PRICE_BY_SELLER,WINNING_BIDS,BOUNDED_SIDE_INPUT_JOIN,SESSION_SIDE_INPUT_JOIN,PORTABILITY_BATCH") // 4, 6, 9, 13, 14, 15
+      } else {
+        nexmarkArgsList.add("--skipQueries=LOCAL_ITEM_SUGGESTION,AVERAGE_PRICE_FOR_CATEGORY,AVERAGE_SELLING_PRICE_BY_SELLER,HIGHEST_BID,WINNING_BIDS,SESSION_SIDE_INPUT_JOIN,BOUNDED_SIDE_INPUT_JOIN") // 3, 4, 6, 7, 9, 13, 14, 15
+      }
+    } else {
+      def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+      // Provide job with a customizable worker jar.
+      // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
+      // More context and discussions can be found in PR#6694.
+      nexmarkArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}".toString())
+      nexmarkArgsList.add('--workerHarnessContainerImage=')
+
+      def nexmarkProfile =  project.findProperty(nexmarkProfilingProperty) ?: ""
+      if (nexmarkProfile.equals("true")) {
+        nexmarkArgsList.add('--profilingAgentConfiguration={ "APICurated": true }')
+      }
+    }
+  }
+  return nexmarkArgsList
+}
+
 // Execute the Nexmark queries or suites via Gradle.
 //
 // Parameters:
@@ -112,27 +153,43 @@ if (shouldProvideSpark) {
 //   -Pnexmark.args
 //       Specify the command line for invoking org.apache.beam.sdk.nexmark.Main
 task run(type: JavaExec) {
-  def nexmarkArgsStr =  project.findProperty(nexmarkArgsProperty) ?: ""
-  def nexmarkArgsList = new ArrayList<String>()
-  Collections.addAll(nexmarkArgsList, nexmarkArgsStr.split())
-
+  def nexmarkArgsList = getNexmarkArgs()
   if (isDataflowRunner) {
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-    // Provide job with a customizable worker jar.
-    // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
-    // More context and discussions can be found in PR#6694.
-    nexmarkArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}".toString())
-    nexmarkArgsList.add('--workerHarnessContainerImage=')
-
-    def nexmarkProfile =  project.findProperty(nexmarkProfilingProperty) ?: ""
-    if (nexmarkProfile.equals("true")) {
-      nexmarkArgsList.add('--profilingAgentConfiguration={ "APICurated": true }')
+    if (isDataflowRunnerV2) {
+      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
+      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
+    } else {
+      dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     }
   }
-
   main = "org.apache.beam.sdk.nexmark.Main"
   classpath = configurations.gradleRun
   args nexmarkArgsList.toArray()
+}
+
+// Execute the Nexmark queries or suites via Gradle using Java 11.
+task runJava11(type: JavaExec) {
+  def nexmarkArgsList = getNexmarkArgs()
+  if (isDataflowRunner) {
+    if (isDataflowRunnerV2) {
+      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
+      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
+    } else {
+      dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+    }
+  }
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+  main = "org.apache.beam.sdk.nexmark.Main"
+  classpath = configurations.gradleRun
+  args nexmarkArgsList.toArray()
+}
+
+if (!project.hasProperty("compileAndRunTestsWithJava11")) {
+  tasks.withType(JavaCompile).configureEach {
+    javaCompiler = javaToolchains.compilerFor {
+      languageVersion = JavaLanguageVersion.of(8)
+    }
+  }
 }

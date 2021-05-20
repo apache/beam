@@ -152,7 +152,6 @@ dependencies {
   compile project(":runners:core-java")
   compile project(":runners:java-fn-execution")
   compile project(":runners:java-job-service")
-  compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
@@ -161,7 +160,7 @@ dependencies {
   compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(path: ":model:job-management", configuration: "shadow")
   compile project(":sdks:java:fn-execution")
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile library.java.vendored_guava_26_0_jre
   provided "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
   provided "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
