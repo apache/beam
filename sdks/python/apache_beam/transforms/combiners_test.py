@@ -23,7 +23,7 @@ import random
 import unittest
 
 import hamcrest as hc
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -811,7 +811,7 @@ class LatestCombineFnTest(unittest.TestCase):
 #
 # Test cases for streaming.
 #
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class TimestampCombinerTest(unittest.TestCase):
   def test_combiner_earliest(self):
     """Test TimestampCombiner with EARLIEST."""

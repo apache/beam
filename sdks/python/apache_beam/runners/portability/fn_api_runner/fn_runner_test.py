@@ -35,9 +35,9 @@ from typing import Dict
 from typing import Tuple
 
 import hamcrest  # pylint: disable=ungrouped-imports
+import pytest
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
-from nose.plugins.attrib import attr
 from tenacity import retry
 from tenacity import stop_after_attempt
 
@@ -1989,7 +1989,7 @@ class StateBackedTestElementType(object):
     return (self.__class__, (self.num_elements, 'x' * self.num_elements))
 
 
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class FnApiBasedStateBackedCoderTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(
