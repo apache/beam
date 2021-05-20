@@ -25,7 +25,8 @@ $(document).ready(function () {
             ACTIVE_CLASS: "active",
             EXPANDED_CLASS: "expanded",
             DESKTOP_BREAKPOINT: 1280,
-            OPEN_CLASS: "open"
+            OPEN_CLASS: "open",
+            LOCAL_HOST: "//localhost:1313"
         };
 
         var expandCollapseItem = function (item, effect) {
@@ -83,7 +84,8 @@ $(document).ready(function () {
 
             "displayActiveItem": function () {
                 const currentLocation = window.location.pathname + window.location.hash;
-                var activeItem = document.querySelectorAll("nav [href='" + currentLocation + "']");
+                const currentLocationDev = CONST.LOCAL_HOST + currentLocation;
+                var activeItem = document.querySelectorAll("nav [href='" + currentLocation + "'], nav [href='" + currentLocationDev + "']");
                 if (activeItem && activeItem.length > 0) {
                     activeItem = activeItem[0];
                     activeItem.classList.add(CONST.ACTIVE_CLASS);
