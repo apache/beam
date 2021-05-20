@@ -21,7 +21,6 @@
 import logging
 import math
 import unittest
-from builtins import range
 
 from apache_beam.coders import slow_stream
 
