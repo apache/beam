@@ -31,8 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
@@ -58,13 +58,12 @@ public abstract class PubsubClient implements Closeable {
   }
 
   /**
-   * Return timestamp as ms-since-unix-epoch corresponding to {@code timestamp}. Return {@literal
-   * null} if no timestamp could be found. Throw {@link IllegalArgumentException} if timestamp
-   * cannot be recognized.
+   * Return timestamp as ms-since-unix-epoch corresponding to {@code timestamp}. Throw {@link
+   * IllegalArgumentException} if timestamp cannot be recognized.
    */
-  private static @Nullable Long asMsSinceEpoch(@Nullable String timestamp) {
-    if (Strings.isNullOrEmpty(timestamp)) {
-      return null;
+  protected static Long parseTimestampAsMsSinceEpoch(String timestamp) {
+    if (timestamp.isEmpty()) {
+      throw new IllegalArgumentException("Empty timestamp.");
     }
     try {
       // Try parsing as milliseconds since epoch. Note there is no way to parse a
@@ -81,40 +80,28 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * Return the timestamp (in ms since unix epoch) to use for a Pubsub message with {@code
-   * attributes} and {@code pubsubTimestamp}.
+   * timestampAttribute} and {@code attriutes}.
    *
-   * <p>If {@code timestampAttribute} is non-{@literal null} then the message attributes must
-   * contain that attribute, and the value of that attribute will be taken as the timestamp.
-   * Otherwise the timestamp will be taken from the Pubsub publish timestamp {@code
-   * pubsubTimestamp}.
+   * <p>The message attributes must contain {@code timestampAttribute}, and the value of that
+   * attribute will be taken as the timestamp.
    *
    * @throws IllegalArgumentException if the timestamp cannot be recognized as a ms-since-unix-epoch
    *     or RFC3339 time.
    */
-  protected static long extractTimestamp(
-      @Nullable String timestampAttribute,
-      @Nullable String pubsubTimestamp,
-      @Nullable Map<String, String> attributes) {
-    Long timestampMsSinceEpoch;
-    if (Strings.isNullOrEmpty(timestampAttribute)) {
-      timestampMsSinceEpoch = asMsSinceEpoch(pubsubTimestamp);
-      checkArgument(
-          timestampMsSinceEpoch != null,
-          "Cannot interpret PubSub publish timestamp: %s",
-          pubsubTimestamp);
-    } else {
-      String value = attributes == null ? null : attributes.get(timestampAttribute);
-      checkArgument(
-          value != null,
-          "PubSub message is missing a value for timestamp attribute %s",
-          timestampAttribute);
-      timestampMsSinceEpoch = asMsSinceEpoch(value);
-      checkArgument(
-          timestampMsSinceEpoch != null,
-          "Cannot interpret value of attribute %s as timestamp: %s",
-          timestampAttribute,
-          value);
-    }
+  protected static long extractTimestampAttribute(
+      String timestampAttribute, @Nullable Map<String, String> attributes) {
+    Preconditions.checkState(!timestampAttribute.isEmpty());
+    String value = attributes == null ? null : attributes.get(timestampAttribute);
+    checkArgument(
+        value != null,
+        "PubSub message is missing a value for timestamp attribute %s",
+        timestampAttribute);
+    Long timestampMsSinceEpoch = parseTimestampAsMsSinceEpoch(value);
+    checkArgument(
+        timestampMsSinceEpoch != null,
+        "Cannot interpret value of attribute %s as timestamp: %s",
+        timestampAttribute,
+        value);
     return timestampMsSinceEpoch;
   }
 
