@@ -82,7 +82,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.asof': ['*'],
             'pandas.core.generic.NDFrame.at_time': ['*'],
             'pandas.core.generic.NDFrame.between_time': ['*'],
-            'pandas.core.generic.NDFrame.describe': ['*'],
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
@@ -594,7 +593,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
         },
         not_implemented_ok={
-            'pandas.core.groupby.groupby.GroupBy.describe': ['*'],
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
@@ -657,12 +655,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.filter': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': [
+                "df.groupby('id').filter(lambda g: (g.nunique() > 1).any())",
+            ],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.filter': ['*'],
-            'pandas.core.groupby.generic.SeriesGroupBy.describe': ['*'],
         },
         skip={
             'pandas.core.groupby.generic.SeriesGroupBy.cov': [

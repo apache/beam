@@ -1036,8 +1036,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "single node.")
 
       # We have specialized distributed implementations for these
-      if base_func in ('quantile', 'std', 'var', 'corr', 'cov', 'nunique'):
-        result = getattr(self, base_func)(*args, **kwargs)
+      if base_func in ('quantile', 'std', 'var', 'nunique'):
+        result = getattr(self, base_func)(*args, axis=axis, **kwargs)
         if isinstance(func, list):
           with expressions.allow_non_parallel_operations(True):
             return frame_base.DeferredFrame.wrap(
@@ -1094,6 +1094,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   any = frame_base._agg_method('any')
   # TODO(BEAM-12074): Document that Series.count(level=) will drop NaN's
   count = frame_base._agg_method('count')
+  describe = frame_base._agg_method('describe')
   min = frame_base._agg_method('min')
   max = frame_base._agg_method('max')
   prod = product = frame_base._agg_method('prod')
@@ -1618,42 +1619,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
-  def aggregate(self, func, axis=0, *args, **kwargs):
-    if 'numeric_only' in kwargs and kwargs['numeric_only']:
-      # Eagerly generate a proxy to make sure numeric_only is a valid argument
-      # for this aggregation method
-      _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
-
-      projected = self[[name for name, dtype in self.dtypes.items()
-                        if pd.core.dtypes.common.is_numeric_dtype(dtype)]]
-      kwargs.pop('numeric_only')
-      return projected.agg(func, axis, *args, **kwargs)
-
-    if 'bool_only' in kwargs and kwargs['bool_only']:
-      # Eagerly generate a proxy to make sure bool_only is a valid argument
-      # for this aggregation method
-      _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
-
-      projected = self[[name for name, dtype in self.dtypes.items()
-                        if pd.core.dtypes.common.is_bool_dtype(dtype)]]
-      kwargs.pop('bool_only')
-      return projected.agg(func, axis, *args, **kwargs)
-
-    nonnumeric_columns = [name for (name, dtype) in self.dtypes.items()
-                          if not pd.core.dtypes.common.is_numeric_dtype(dtype)]
-    if _is_numeric(func) and len(nonnumeric_columns):
-      if 'numeric_only' in kwargs and kwargs['numeric_only'] is False:
-        # User has opted in to execution with non-numeric columns, they
-        # will accept runtime errors
-        pass
-      else:
-        raise frame_base.WontImplementError(
-            f"Numeric aggregation ({func!r}) on a DataFrame containing "
-            f"non-numeric columns ({*nonnumeric_columns,!r} is not supported, "
-            "unless `numeric_only=` is specified.\n"
-            "Use `numeric_only=True` to only aggregate over numeric columns.\n"
-            "Use `numeric_only=False` to aggregate over all columns. Note this "
-            "is not recommended, as it could result in execution time errors.")
+  def aggregate(self, func, axis, *args, **kwargs):
 
     if axis is None:
       # Aggregate across all elements by first aggregating across columns,
@@ -1677,10 +1643,46 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             [self._expr],
             requires_partition_by=partitionings.Singleton()))
     else:
-      # In the general case, compute the aggregation of each column separately,
-      # then recombine.
+      # In the general case, we will compute the aggregation of each column
+      # separately, then recombine.
+
+      # First, handle any kwargs that cause a projection, by eagerly generating
+      # the proxy, and only including the columns that are in the output.
+      PROJECT_KWARGS = ('numeric_only', 'bool_only', 'include', 'exclude')
+      proxy = self._expr.proxy().agg(func, axis, *args, **kwargs)
+
+      if isinstance(proxy, pd.DataFrame):
+        projected = self[list(proxy.columns)]
+      elif isinstance(proxy, pd.Series):
+        projected = self[list(proxy.index)]
+      else:
+        projected = self
+
+      nonnumeric_columns = [name for (name, dtype) in projected.dtypes.items()
+                            if not
+                            pd.core.dtypes.common.is_numeric_dtype(dtype)]
+
+      if _is_numeric(func) and len(nonnumeric_columns):
+        if 'numeric_only' in kwargs and kwargs['numeric_only'] is False:
+          # User has opted in to execution with non-numeric columns, they
+          # will accept runtime errors
+          pass
+        else:
+          raise frame_base.WontImplementError(
+              f"Numeric aggregation ({func!r}) on a DataFrame containing "
+              f"non-numeric columns ({*nonnumeric_columns,!r} is not "
+              "supported, unless `numeric_only=` is specified.\n"
+              "Use `numeric_only=True` to only aggregate over numeric "
+              "columns.\nUse `numeric_only=False` to aggregate over all "
+              "columns. Note this is not recommended, as it could result in "
+              "execution time errors.")
+
+      for key in PROJECT_KWARGS:
+        if key in kwargs:
+          kwargs.pop(key)
+
       if not isinstance(func, dict):
-        col_names = list(self._expr.proxy().columns)
+        col_names = list(projected._expr.proxy().columns)
         func = {col: func for col in col_names}
       else:
         col_names = list(func.keys())
@@ -1692,12 +1694,20 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           # If any of the columns do multiple aggregations, they all must use
           # "list" style output
           funcs = [funcs]
-        aggregated_cols.append(self[col].agg(funcs, *args, **kwargs))
+        aggregated_cols.append(projected[col].agg(funcs, *args, **kwargs))
       # The final shape is different depending on whether any of the columns
       # were aggregated by a list of aggregators.
       with expressions.allow_non_parallel_operations():
-        if (any(isinstance(funcs, list) for funcs in func.values()) or
-            'level' in kwargs):
+        if isinstance(proxy, pd.Series):
+          return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'join_aggregate',
+                  lambda *cols: pd.Series(
+                      {col: value for col, value in zip(col_names, cols)}),
+                [col._expr for col in aggregated_cols],
+                requires_partition_by=partitionings.Singleton(),
+                proxy=projected._expr.proxy().agg(func, *args, **kwargs)))
+        elif isinstance(proxy, pd.DataFrame):
           return frame_base.DeferredFrame.wrap(
               expressions.ComputedExpression(
                   'join_aggregate',
@@ -1706,14 +1716,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                   [col._expr for col in aggregated_cols],
                   requires_partition_by=partitionings.Singleton()))
         else:
-          return frame_base.DeferredFrame.wrap(
-            expressions.ComputedExpression(
-                'join_aggregate',
-                  lambda *cols: pd.Series(
-                      {col: value for col, value in zip(col_names, cols)}),
-                [col._expr for col in aggregated_cols],
-                requires_partition_by=partitionings.Singleton(),
-                proxy=self._expr.proxy().agg(func, *args, **kwargs)))
+          raise AssertionError("Unexpected proxy type for "
+                               f"DataFrame.aggregate!: proxy={proxy!r}, "
+                               f"type(proxy)={type(proxy)!r}")
+
 
   agg = aggregate
 
@@ -2410,6 +2416,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
   count = frame_base._agg_method('count')
+  describe = frame_base._agg_method('describe')
   max = frame_base._agg_method('max')
   min = frame_base._agg_method('min')
   prod = product = frame_base._agg_method('prod')
