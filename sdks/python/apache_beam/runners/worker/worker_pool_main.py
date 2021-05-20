@@ -29,8 +29,6 @@ This entry point is used by the Python SDK container in worker pool mode.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import atexit
 import logging

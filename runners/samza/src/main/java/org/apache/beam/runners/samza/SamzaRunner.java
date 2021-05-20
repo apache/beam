@@ -37,6 +37,7 @@ import org.apache.beam.runners.samza.translation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PValue;
@@ -111,7 +112,16 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   @Override
   public SamzaPipelineResult run(Pipeline pipeline) {
+    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")) {
+      // Populate experiments directly to have Kafka use legacy read.
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api_use_deprecated_read");
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), "use_deprecated_read");
+    }
     SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+
     MetricsEnvironment.setMetricsSupported(true);
 
     if (LOG.isDebugEnabled()) {

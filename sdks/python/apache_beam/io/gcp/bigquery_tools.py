@@ -642,6 +642,9 @@ class BigQueryWrapper(object):
           service_call_metric.call(error.reason)
     except HttpError as e:
       service_call_metric.call(e)
+
+      # Re-reise the exception so that we re-try appropriately.
+      raise
     finally:
       self._latency_histogram_metric.update(
           int(time.time() * 1000) - started_millis)

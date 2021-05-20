@@ -46,6 +46,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -161,6 +162,9 @@ public class ReadTest implements Serializable {
     PAssert.that(input)
         .containsInAnyOrder(
             LongStream.rangeClosed(1L, numElements).boxed().collect(Collectors.toList()));
+    // TODO(BEAM-10670): Remove additional experiments when SDF read is default.
+    ExperimentalOptions.addExperiment(
+        pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
     // Force the pipeline to run with one thread to ensure the reader will be reused on one DoFn
     // instance.
     // We are not able to use DirectOptions because of circular dependency.

@@ -16,22 +16,24 @@
  * limitations under the License.
  */
 
-import org.apache.beam.gradle.GrpcVendoring_1_26_0
+plugins { id("org.apache.beam.vendor-java") }
 
-plugins { id 'org.apache.beam.vendor-java' }
-
-description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.26.0"
+description = "Apache Beam :: Vendored Dependencies :: ByteBuddy :: 1.11.0"
 
 group = "org.apache.beam"
-version = "0.3"
+version = "0.1"
 
+val vendorJava = project.extensions.extraProperties.get("vendorJava") as groovy.lang.Closure<*>
 vendorJava(
-  dependencies: GrpcVendoring_1_26_0.dependencies(),
-  runtimeDependencies: GrpcVendoring_1_26_0.runtimeDependencies(),
-  testDependencies: GrpcVendoring_1_26_0.testDependencies(),
-  relocations: GrpcVendoring_1_26_0.relocations(),
-  exclusions: GrpcVendoring_1_26_0.exclusions(),
-  artifactId: "beam-vendor-grpc-1_26_0",
-  groupId: group,
-  version: version,
+  mapOf(
+    "dependencies" to listOf("net.bytebuddy:byte-buddy:1.11.0"),
+    "relocations" to mapOf(
+            "net.bytebuddy" to "org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy"),
+    "exclusions" to listOf(
+            "**/module-info.class"
+    ),
+    "groupId" to group,
+    "artifactId" to "beam-vendor-bytebuddy-1_11_0",
+    "version" to version
+  )
 )
