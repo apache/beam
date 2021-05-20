@@ -97,7 +97,7 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   testCompile library.java.guava_testlib
   testCompile library.java.junit
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
@@ -393,6 +393,8 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime',
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys100MB',
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys10MB',
+      // TODO(BEAM-12353): Identify whether it's bug or a feature gap.
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
 
       'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
     ]
@@ -476,6 +478,9 @@ task validatesRunnerV2Streaming {
       "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty",
 
       'org.apache.beam.sdk.io.CountingSourceTest.testBoundedSourceSplits',
+
+      // TODO(BEAM-12353): Identify whether it's bug or a feature gap.
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
     ]
   ))
 }

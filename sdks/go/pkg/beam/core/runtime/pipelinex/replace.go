@@ -19,8 +19,11 @@ package pipelinex
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -41,6 +44,11 @@ func Update(p *pipepb.Pipeline, values *pipepb.Components) (*pipepb.Pipeline, er
 	return Normalize(ret)
 }
 
+// IdempotentNormalize determines whether to use the idempotent version
+// of ensureUniqueNames or the legacy version.
+// TODO(BEAM-12341): Cleanup once nothing depends on the legacy implementation.
+var IdempotentNormalize bool = true
+
 // Normalize recomputes derivative information in the pipeline, such
 // as roots and input/output for composite transforms. It also
 // ensures that unique names are so and topologically sorts each
@@ -51,7 +59,11 @@ func Normalize(p *pipepb.Pipeline) (*pipepb.Pipeline, error) {
 	}
 
 	ret := shallowClonePipeline(p)
-	ret.Components.Transforms = ensureUniqueNames(ret.Components.Transforms)
+	if IdempotentNormalize {
+		ret.Components.Transforms = ensureUniqueNames(ret.Components.Transforms)
+	} else {
+		ret.Components.Transforms = ensureUniqueNamesLegacy(ret.Components.Transforms)
+	}
 	ret.Components.Transforms = computeCompositeInputOutput(ret.Components.Transforms)
 	ret.RootTransformIds = computeRoots(ret.Components.Transforms)
 	return ret, nil
@@ -207,9 +219,146 @@ func externalIns(counted map[string]bool, xforms map[string]*pipepb.PTransform, 
 	}
 }
 
-// ensureUniqueNames ensures that each name is unique. Any conflict is
-// resolved by adding '1, '2, etc to the name.
+type idSorted []string
+
+func (s idSorted) Len() int {
+	return len(s)
+}
+func (s idSorted) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+// Go SDK ids for transforms are "e#" or "s#" and we want to
+// sort them properly at the root level at least. Cross lang
+// transforms or expanded nodes (like CoGBK) don't follow this
+// format should be sorted lexicographically, but are wrapped in
+// a composite ptransform meaning they're compared to fewer
+// transforms.
+var idParseExp = regexp.MustCompile(`(\D*)(\d*)`)
+
+func (s idSorted) Less(i, j int) bool {
+	// We want to sort alphabetically by id prefix
+	// and numerically by id suffix.
+	// Otherwise, values are compared lexicographically.
+	iM := idParseExp.FindStringSubmatch(s[i])
+	jM := idParseExp.FindStringSubmatch(s[j])
+	if iM == nil || jM == nil {
+		return s[i] < s[j]
+	}
+	// check if the letters match.
+	if iM[1] < jM[1] {
+		return true
+	}
+	if iM[1] > jM[1] {
+		return false
+	}
+	// The letters match, check the numbers.
+	// We can ignore the errors here due to the regex check.
+	iN, _ := strconv.Atoi(iM[2])
+	jN, _ := strconv.Atoi(jM[2])
+	if iN < jN {
+		return true
+	}
+	return false
+}
+
+func separateCompsAndLeaves(xforms map[string]*pipepb.PTransform) (comp, leaf []string) {
+	var cs, ls idSorted
+	for id, pt := range xforms {
+		if len(pt.GetSubtransforms()) == 0 {
+			// No subtransforms, it's a leaf!
+			ls = append(ls, id)
+		} else {
+			// Subtransforms, it's a composite
+			cs = append(cs, id)
+		}
+	}
+	// Sort the transforms to make to make renaming deterministic.
+	sort.Sort(cs)
+	sort.Sort(ls)
+	return []string(cs), []string(ls)
+}
+
+// ensureUniqueNames ensures that each name is unique.
+//
+// Subtransforms are prefixed with the names of their parent, separated by a '/'.
+// Any conflict is resolved by adding '1, '2, etc to the name.
 func ensureUniqueNames(xforms map[string]*pipepb.PTransform) map[string]*pipepb.PTransform {
+	ret := reflectx.ShallowClone(xforms).(map[string]*pipepb.PTransform)
+
+	comp, leaf := separateCompsAndLeaves(xforms)
+	parentLookup := make(map[string]string) // childID -> parentID
+	for _, parentID := range comp {
+		t := xforms[parentID]
+		children := t.GetSubtransforms()
+		for _, childID := range children {
+			parentLookup[childID] = parentID
+		}
+	}
+
+	parentNameCache := make(map[string]string) // parentID -> parentName
+	seen := make(map[string]bool)
+	// Closure to to make the names unique so we can handle all the parent ids first.
+	uniquify := func(id string) string {
+		t := xforms[id]
+		base := path.Base(t.GetUniqueName())
+		var prefix string
+		if parentID, ok := parentLookup[id]; ok {
+			prefix = getParentName(parentNameCache, parentLookup, parentID, xforms)
+		}
+		base = prefix + base
+		name := findFreeName(seen, base)
+		seen[name] = true
+
+		if name != t.UniqueName {
+			upd := ShallowClonePTransform(t)
+			upd.UniqueName = name
+			ret[id] = upd
+		}
+		return name
+	}
+	for _, id := range comp {
+		name := uniquify(id)
+		parentNameCache[id] = name + "/"
+	}
+	for _, id := range leaf {
+		uniquify(id)
+	}
+	return ret
+}
+
+func getParentName(nameCache, parentLookup map[string]string, parentID string, xforms map[string]*pipepb.PTransform) string {
+	if name, ok := nameCache[parentID]; ok {
+		return name
+	}
+	var parts []string
+	curID := parentID
+	for {
+		t := xforms[curID]
+		// Construct composite names from scratch if the parent's not
+		// already in the cache. Otherwise there's a risk of errors from
+		// not following topological orderings.
+		parts = append(parts, path.Base(t.GetUniqueName()))
+		if pid, ok := parentLookup[curID]; ok {
+			curID = pid
+			continue
+		}
+		break
+	}
+
+	// reverse the parts so parents are first.
+	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
+		parts[i], parts[j] = parts[j], parts[i]
+	}
+	name := strings.Join(parts, "/") + "/"
+	nameCache[parentID] = name
+	return name
+}
+
+// ensureUniqueNamesLegacy ensures that each name is unique. Any conflict is
+// resolved by adding '1, '2, etc to the name.
+// Older version that wasn't idempotent. Sticking around for temporary migration purposes.
+func ensureUniqueNamesLegacy(xforms map[string]*pipepb.PTransform) map[string]*pipepb.PTransform {
 	ret := reflectx.ShallowClone(xforms).(map[string]*pipepb.PTransform)
 
 	// Sort the transforms to make to make renaming deterministic.

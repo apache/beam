@@ -29,6 +29,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -74,7 +75,19 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    // Portable flink only support SDF as read.
+    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
+      if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")) {
+        // Populate experiments directly to have Kafka use legacy read.
+        ExperimentalOptions.addExperiment(
+            pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api_use_deprecated_read");
+        ExperimentalOptions.addExperiment(
+            pipeline.getOptions().as(ExperimentalOptions.class), "use_deprecated_read");
+      }
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
+
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
 
     MetricsEnvironment.setMetricsSupported(true);
