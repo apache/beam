@@ -310,10 +310,10 @@ import org.slf4j.LoggerFactory;
  *    ...
  * }</pre>
  *
- * <p>You can also pass properties to the schema registry client allowing you to configure authentication</p>
+ * <p>You can also pass properties to the schema registry client allowing you to configure
+ * authentication
  *
  * <pre>{@code
- *
  * ImmutableMap<String, Object> csrConfig =
  *     ImmutableMap.<String, Object>builder()
  *         .put(AbstractKafkaAvroSerDeConfig.BASIC_AUTH_CREDENTIALS_SOURCE,"USER_INFO")
