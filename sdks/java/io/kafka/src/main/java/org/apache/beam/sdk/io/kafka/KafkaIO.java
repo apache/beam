@@ -1228,10 +1228,26 @@ public class KafkaIO {
           || ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "use_deprecated_read")
           || getMaxNumRecords() < Long.MAX_VALUE
-          || getMaxReadTime() != null) {
+          || getMaxReadTime() != null
+          || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+    }
+
+    private boolean runnerRequiresLegacyRead(PipelineOptions options) {
+      // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
+      // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
+      // TODO(BEAM-10670): Remove this special check when we address performance issue.
+      if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
+        return false;
+      }
+      if (options.getRunner().getName().startsWith("org.apache.beam.runners.dataflow.")) {
+        return false;
+      } else if (ExperimentalOptions.hasExperiment(options, "beam_fn_api")) {
+        return false;
+      }
+      return true;
     }
 
     /**
