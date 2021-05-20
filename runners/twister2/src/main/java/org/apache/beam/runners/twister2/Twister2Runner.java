@@ -92,14 +92,9 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     pipeline.replaceAll(getDefaultOverrides());
 
     // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
-    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")) {
-      // Populate experiments directly to have Kafka use legacy read.
-      ExperimentalOptions.addExperiment(
-          pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api_use_deprecated_read");
-      ExperimentalOptions.addExperiment(
-          pipeline.getOptions().as(ExperimentalOptions.class), "use_deprecated_read");
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
 
     env.translate(pipeline);
     setupSystem(options);
