@@ -795,7 +795,13 @@ class SnippetsTest(unittest.TestCase):
   def test_examples_wordcount(self, pipeline):
     temp_path = self.create_temp_file('abc def ghi\n abc jkl')
     result_path = self.create_temp_file()
-    pipeline({'read': temp_path, 'write': result_path})
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      pipeline()
     self.assertEqual(
         self.get_output(result_path), ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
 
@@ -876,12 +882,15 @@ class SnippetsTest(unittest.TestCase):
     input_sub = 'projects/fake-beam-test-project/subscriptions/insub'
     beam.io.ReadFromPubSub = FakeReadFromPubSub(
         subscription=input_sub, values=input_values)
-    snippets.examples_wordcount_streaming([
+    test_argv = [
+        'unused_argv[0]',
         '--input_subscription',
         'projects/fake-beam-test-project/subscriptions/insub',
         '--output_topic',
         'projects/fake-beam-test-project/topic/outtopic'
-    ])
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.examples_wordcount_streaming()
 
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']

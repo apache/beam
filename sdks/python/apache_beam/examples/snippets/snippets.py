@@ -473,7 +473,7 @@ def examples_wordcount_minimal(renames):
   result.wait_until_finish()
 
 
-def examples_wordcount_wordcount(renames):
+def examples_wordcount_wordcount():
   """WordCount example snippets."""
   import re
 
@@ -499,16 +499,16 @@ def examples_wordcount_wordcount(renames):
     # [END examples_wordcount_wordcount_options]
 
     # [START examples_wordcount_wordcount_composite]
-    class CountWords(beam.PTransform):
-      def expand(self, pcoll):
-        return (
-            pcoll
-            # Convert lines of text into individual words.
-            | 'ExtractWords' >>
-            beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+    @beam.ptransform_fn
+    def CountWords(pcoll):
+      return (
+          pcoll
+          # Convert lines of text into individual words.
+          | 'ExtractWords' >>
+          beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
 
-            # Count the number of times each word occurs.
-            | beam.combiners.Count.PerElement())
+          # Count the number of times each word occurs.
+          | beam.combiners.Count.PerElement())
 
     counts = lines | CountWords()
 
@@ -523,8 +523,7 @@ def examples_wordcount_wordcount(renames):
     formatted = counts | beam.ParDo(FormatAsTextFn())
     # [END examples_wordcount_wordcount_dofn]
 
-    formatted | beam.io.WriteToText('gs://my-bucket/counts.txt')
-    pipeline.visit(SnippetUtils.RenameFiles(renames))
+    formatted | beam.io.WriteToText(args.output_path)
 
 
 def examples_wordcount_templated(renames):
