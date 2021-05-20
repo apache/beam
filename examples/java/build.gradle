@@ -80,7 +80,7 @@ dependencies {
   provided library.java.commons_io
   provided library.java.commons_csv
   runtime project(path: ":runners:direct-java", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile library.java.vendored_guava_26_0_jre
   compile "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
   compile ("io.confluent:kafka-avro-serializer:5.3.2") {
