@@ -84,6 +84,7 @@ import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -1218,8 +1219,8 @@ public class BigQueryIOStorageReadTest {
 
     @Override
     public KV<String, Long> apply(SchemaAndRecord input) {
-      return KV.of(
-          input.getRecord().get("name").toString(), (Long) input.getRecord().get("number"));
+      GenericRecord record = AvroUtils.toGenericRecord(input.getRow(), null);
+      return KV.of(record.get("name").toString(), (Long) record.get("number"));
     }
   }
 

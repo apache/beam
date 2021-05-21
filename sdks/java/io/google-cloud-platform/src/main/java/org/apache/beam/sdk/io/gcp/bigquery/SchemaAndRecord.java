@@ -27,23 +27,16 @@ import org.apache.beam.sdk.values.Row;
  * table (or query) it was generated from.
  */
 public class SchemaAndRecord {
-  private final Object record;
+  private final Row record;
   private final TableSchema tableSchema;
 
-  public SchemaAndRecord(Object record, TableSchema tableSchema) {
+  public SchemaAndRecord(Row record, TableSchema tableSchema) {
     this.record = record;
     this.tableSchema = tableSchema;
   }
 
-  public GenericRecord getRecord() {
-    if (!(record instanceof GenericRecord)) {
-      throw new IllegalStateException("Object is not GenericRecord");
-    }
-    return (GenericRecord) record;
-  }
-
   public @Nullable Row getRow() {
-    return record instanceof Row ? (Row) record : null;
+    return record;
   }
 
   public TableSchema getTableSchema() {

@@ -472,11 +472,13 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
-  public static Row schemaAndRecordtoBeamRow(SchemaAndRecord record, Schema schema) {
-    if (record.getRow() != null) {
-      return record.getRow();
+  public static Row convertRecordToRow(Object record, Schema schema) {
+    if (record instanceof Row) {
+      return (Row) record;
+    } else if (record instanceof GenericRecord) {
+      return AvroUtils.toBeamRowStrict((GenericRecord) record, schema);
     }
-    return AvroUtils.toBeamRowStrict(record.getRecord(), schema);
+    return null;
   }
 
   public static TableRow convertGenericRecordToTableRow(

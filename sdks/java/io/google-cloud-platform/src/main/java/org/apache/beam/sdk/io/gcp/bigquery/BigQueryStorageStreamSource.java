@@ -229,7 +229,10 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         reader.processReadRowsResponse(response);
       }
 
-      current = parseFn.apply(new SchemaAndRecord(reader.readSingleRecord(), tableSchema));
+      current =
+          parseFn.apply(
+              new SchemaAndRecord(
+                  BigQueryUtils.convertRecordToRow(reader.readSingleRecord(), null), tableSchema));
 
       // Updates the fraction consumed value. This value is calculated by interpolating between
       // the fraction consumed value from the previous server response (or zero if we're consuming

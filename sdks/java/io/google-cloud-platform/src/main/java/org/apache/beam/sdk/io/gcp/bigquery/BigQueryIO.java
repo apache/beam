@@ -602,8 +602,7 @@ public class BigQueryIO {
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
-      return BigQueryUtils.toTableRow()
-          .apply(BigQueryUtils.schemaAndRecordtoBeamRow(schemaAndRecord, null));
+      return BigQueryUtils.toTableRow().apply(schemaAndRecord.getRow());
     }
   }
 
