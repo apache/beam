@@ -27,7 +27,7 @@ import time
 import unittest
 import warnings
 
-import pytest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import GroupByKey
@@ -543,7 +543,7 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
-  @pytest.mark.it_validatesrunner
+  @attr('ValidatesRunner')
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
 

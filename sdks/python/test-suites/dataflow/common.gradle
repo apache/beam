@@ -28,19 +28,11 @@ dependencies {
 
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
-// TODO(BEAM-3713) Remove once nose is removed
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
     "--nocapture",  // print stdout instantly
     "--processes=8",  // run tests in parallel
     "--process-timeout=4500", // timeout of whole command execution
-]
-
-def basicPytestOpts = [
-    "--capture=no",  // print stdout instantly
-    "--timeout=4500", // timeout of whole command execution
-    "--color=yes", // console color
-    "--log-cli-level=INFO", //log level
 ]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
@@ -136,14 +128,12 @@ task validatesRunnerBatchTests {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-batch"]
   def argMap = [
-          "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
+          "test_opts"   : testOpts,
           "worker_jar"  : dataflowWorkerJar,
           "sdk_location": files(configurations.distTarBall.files).singleFile,
-          "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
-          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
-          "collect": "it_validatesrunner and not no_sickbay_batch"
-          ]
+          "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}"]
 
   if (project.hasProperty('useRunnerV2')) {
     argMap.put("runner_v2", "true")
@@ -168,47 +158,19 @@ task validatesRunnerStreamingTests {
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
-  // Execute tests with xdists
-  doFirst {
-    def argMap = [
-                "test_opts": basicPytestOpts + ["--numprocesses=8"],
+  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
+  def argMap = ["test_opts": testOpts,
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
                 "worker_jar": dataflowWorkerJar,
-                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
-                "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
-                "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist"
-                ]
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-      // KMS is not supported for streaming engine.
-      argMap.put("kms_key_name", "\"\"")
-    }
-
-    def cmdArgs = mapToArgString(argMap)
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
-    }
+                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}"]
+  if (project.hasProperty('useRunnerV2')) {
+    argMap.put("runner_v2", "true")
+    // KMS is not supported for streaming engine.
+    argMap.put("kms_key_name", "\"\"")
   }
 
-  // Execute tests that fail with xdists
   doLast {
-    def argMap = [
-                "test_opts": basicPytestOpts,
-                "streaming": "true",
-                "sdk_location": files(configurations.distTarBall.files).singleFile,
-                "worker_jar": dataflowWorkerJar,
-                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
-                "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed
-                "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist"
-                ]
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-      // KMS is not supported for streaming engine.
-      argMap.put("kms_key_name", "\"\"")
-    }
-
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
