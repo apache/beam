@@ -906,6 +906,18 @@ public class AvroUtils {
                         .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
                         .collect(Collectors.toList()));
             break;
+
+          case "NVARCHAR":
+          case "VARCHAR":
+          case "LONGNVARCHAR":
+          case "LONGVARCHAR":
+            baseType = org.apache.avro.Schema.create(Type.STRING);
+            break;
+
+          case "DATE":
+            baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
+            break;
+
           default:
             throw new RuntimeException(
                 "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -1017,6 +1029,16 @@ public class AvroUtils {
                   typeWithNullability.type.getTypes().get(oneOfValue.getCaseType().getValue()),
                   oneOfValue.getValue());
             }
+
+          case "NVARCHAR":
+          case "VARCHAR":
+          case "LONGNVARCHAR":
+          case "LONGVARCHAR":
+            return new Utf8((String) value);
+
+          case "DATE":
+            return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
+
           default:
             throw new RuntimeException(
                 "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
