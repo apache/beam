@@ -150,7 +150,8 @@ public class Read {
           .apply(ParDo.of(new OutputSingleSource<>(source)))
           .setCoder(SerializableCoder.of(new TypeDescriptor<BoundedSource<T>>() {}))
           .apply(ParDo.of(new BoundedSourceAsSDFWrapperFn<>()))
-          .setCoder(source.getOutputCoder());
+          .setCoder(source.getOutputCoder())
+          .setTypeDescriptor(source.getOutputCoder().getEncodedTypeDescriptor());
     }
 
     /** Returns the {@code BoundedSource} used to create this {@code Read} {@code PTransform}. */
