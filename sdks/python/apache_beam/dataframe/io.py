@@ -14,6 +14,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Sources and sinks for the Beam DataFrame API.
+
+Sources
+#######
+This module provides analogs for pandas ``read`` methods, like
+:func:`pandas.read_csv`. However Beam sources like :func:`read_csv`
+create a Beam :class:`~apache_beam.PTransform`, and return a
+:class:`~apache_beam.dataframe.frames.DeferredDataFrame` or
+:class:`~apache_beam.dataframe.frames.DeferredSeries` representing the contents
+of the referenced file(s) or data source.
+
+The result of these methods must be applied to a :class:`~apache_beam.Pipeline`
+object, for example::
+
+    df = p | beam.dataframe.io.read_csv(...)
+
+Sinks
+#####
+This module also defines analogs for pandas sink, or ``to``, methods that
+generate a Beam :class:`~apache_beam.PTransform`. Generally these should be
+called from :class:`~apache_beam.dataframe.frames.DeferredDataFrame` instances,
+for example with
+:meth:`~apache_beam.dataframe.frames.DeferredDataFrame.to_csv`.
+"""
+
 import itertools
 import re
 from io import BytesIO
@@ -31,20 +56,12 @@ _DEFAULT_LINES_CHUNKSIZE = 10_000
 _DEFAULT_BYTES_CHUNKSIZE = 1 << 20
 
 
+@frame_base.with_docs_from(pd)
 def read_csv(path, *args, splittable=False, **kwargs):
-  """Emulates `pd.read_csv` from Pandas, but as a Beam PTransform.
-
-  Use this as
-
-      df = p | beam.dataframe.io.read_csv(...)
-
-  to get a deferred Beam dataframe representing the contents of the file.
-
-  If your files are large and records do not contain quoted newlines, you may
-  pass the extra argument splittable=True to enable dynamic splitting for this
-  read on newlines. Using this option for records that do contain quoted
-  newlines may result in partial records and data corruption.
-  """
+  """If your files are large and records do not contain quoted newlines, you may
+  pass the extra argument ``splittable=True`` to enable dynamic splitting for
+  this read on newlines. Using this option for records that do contain quoted
+  newlines may result in partial records and data corruption."""
   if 'nrows' in kwargs:
     raise ValueError('nrows not yet supported')
   return _ReadFromPandas(
@@ -62,15 +79,19 @@ def _as_pc(df):
   return convert.to_pcollection(df, yield_elements='pandas')
 
 
+@frame_base.with_docs_from(pd.DataFrame)
 def to_csv(df, path, *args, **kwargs):
+
   return _as_pc(df) | _WriteToPandas(
       'to_csv', path, args, kwargs, incremental=True, binary=False)
 
 
+@frame_base.with_docs_from(pd)
 def read_fwf(path, *args, **kwargs):
   return _ReadFromPandas(pd.read_fwf, path, args, kwargs, incremental=True)
 
 
+@frame_base.with_docs_from(pd)
 def read_json(path, *args, **kwargs):
   if 'nrows' in kwargs:
     raise NotImplementedError('nrows not yet supported')
@@ -88,6 +109,7 @@ def read_json(path, *args, **kwargs):
       binary=False)
 
 
+@frame_base.with_docs_from(pd.DataFrame)
 def to_json(df, path, orient=None, *args, **kwargs):
   if orient is None:
     if isinstance(df._expr.proxy(), pd.DataFrame):
@@ -106,6 +128,7 @@ def to_json(df, path, orient=None, *args, **kwargs):
       binary=False)
 
 
+@frame_base.with_docs_from(pd)
 def read_html(path, *args, **kwargs):
   return _ReadFromPandas(
       lambda *args,
@@ -115,6 +138,7 @@ def read_html(path, *args, **kwargs):
       kwargs)
 
 
+@frame_base.with_docs_from(pd.DataFrame)
 def to_html(df, path, *args, **kwargs):
   return _as_pc(df) | _WriteToPandas(
       'to_html',
@@ -129,24 +153,33 @@ def to_html(df, path, *args, **kwargs):
 
 def _binary_reader(format):
   func = getattr(pd, 'read_%s' % format)
-  return lambda path, *args, **kwargs: _ReadFromPandas(func, path, args, kwargs)
+  result = lambda path, *args, **kwargs: _ReadFromPandas(func, path, args,
+                                                         kwargs)
+  result.__name__ = f'read_{format}'
+
+  return result
 
 
 def _binary_writer(format):
-  return (
+  result = (
       lambda df,
       path,
       *args,
       **kwargs: _as_pc(df) | _WriteToPandas(f'to_{format}', path, args, kwargs))
+  result.__name__ = f'to_{format}'
+  return result
 
 
 for format in ('excel', 'feather', 'parquet', 'stata'):
-  globals()['read_%s' % format] = _binary_reader(format)
-  globals()['to_%s' % format] = _binary_writer(format)
+  globals()['read_%s' % format] = frame_base.with_docs_from(pd)(
+      _binary_reader(format))
+  globals()['to_%s' % format] = frame_base.with_docs_from(pd.DataFrame)(
+      _binary_writer(format))
 
 for format in ('sas', 'spss'):
   if hasattr(pd, 'read_%s' % format):  # Depends on pandas version.
-    globals()['read_%s' % format] = _binary_reader(format)
+    globals()['read_%s' % format] = frame_base.with_docs_from(pd)(
+        _binary_reader(format))
 
 read_clipboard = to_clipboard = frame_base.not_implemented_method('clipboard')
 read_msgpack = frame_base.wont_implement_method(
