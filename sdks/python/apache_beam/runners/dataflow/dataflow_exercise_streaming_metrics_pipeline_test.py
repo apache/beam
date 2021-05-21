@@ -113,6 +113,9 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     return dataflow_exercise_streaming_metrics_pipeline.run(argv)
 
   # Need not run streaming test in batch mode.
+  @pytest.mark.it_validatesrunner
+  @pytest.mark.no_sickbay_batch
+  @pytest.mark.no_xdist
   @pytest.mark.it_postcommit
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     """
