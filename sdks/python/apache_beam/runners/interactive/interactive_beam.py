@@ -545,6 +545,8 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   # collect the result in elements_to_df.
   if isinstance(pcoll, DeferredBase):
     # Get the proxy so we can get the output shape of the DataFrame.
+    # TODO(BEAM-11064): Once type hints are implemented for pandas, use those
+    # instead of the proxy.
     element_type = pcoll._expr.proxy()
     pcoll = to_pcollection(
         pcoll, yield_elements='pandas', label=str(pcoll._expr))
