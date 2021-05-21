@@ -78,6 +78,20 @@ def populate_not_implemented(pd_type):
   return wrapper
 
 
+def _fillna_alias(method):
+  def wrapper(self, *args, **kwargs):
+    return self.fillna(*args, method=method, **kwargs)
+
+  wrapper.__name__ = method
+  wrapper.__doc__ = (
+      f'{method} is only supported for axis="columns". '
+      'axis="index" is order-sensitive.')
+
+  return frame_base.with_docs_from(pd.DataFrame)(
+      frame_base.args_to_kwargs(pd.DataFrame)(
+          frame_base.populate_defaults(pd.DataFrame)(wrapper)))
+
+
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   __array__ = frame_base.wont_implement_method(
@@ -178,18 +192,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=partitionings.Arbitrary()))
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def ffill(self, **kwargs):
-    return self.fillna(method='ffill', **kwargs)
-
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def bfill(self, **kwargs):
-    return self.fillna(method='bfill', **kwargs)
-
-  pad = ffill
-  backfill = bfill
+  ffill = _fillna_alias('ffill')
+  bfill = _fillna_alias('bfill')
+  backfill = _fillna_alias('backfill')
+  pad = _fillna_alias('pad')
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
