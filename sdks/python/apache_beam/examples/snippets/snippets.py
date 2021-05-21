@@ -412,7 +412,6 @@ def pipeline_monitoring():
     # [END pipeline_monitoring_execution]
 
 
-
 def examples_wordcount_minimal():
   """MinimalWordCount example snippets."""
   import re
@@ -580,7 +579,6 @@ def examples_wordcount_templated():
         | 'Write' >> WriteToText(args.output_path))
 
 
-
 def examples_wordcount_debugging(renames):
   """DebuggingWordCount example snippets."""
   import re
@@ -686,7 +684,8 @@ def examples_wordcount_streaming():
     # [START example_wordcount_streaming_read]
     # Read from Pub/Sub into a PCollection.
     if args.input_subscription:
-      lines = pipeline | beam.io.ReadFromPubSub(subscription=args.input_subscription)
+      lines = pipeline | beam.io.ReadFromPubSub(
+          subscription=args.input_subscription)
     else:
       lines = pipeline | beam.io.ReadFromPubSub(topic=args.input_topic)
     # [END example_wordcount_streaming_read]
@@ -1014,7 +1013,8 @@ def model_textio(renames):
   # [START model_textio_read]
   with beam.Pipeline(options=PipelineOptions()) as pipeline:
     # [START model_pipelineio_read]
-    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText('path/to/input-*.csv')
+    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+        'path/to/input-*.csv')
     # [END model_pipelineio_read]
     # [END model_textio_read]
 
@@ -1080,7 +1080,8 @@ def model_datastoreio():
   # [END model_datastoreio_write]
 
 
-def model_bigqueryio(pipeline, write_project='', write_dataset='', write_table=''):
+def model_bigqueryio(
+    pipeline, write_project='', write_dataset='', write_table=''):
   """Using a Read and Write transform to read/write from/to BigQuery."""
 
   # [START model_bigqueryio_table_spec]
@@ -1187,7 +1188,7 @@ def model_bigqueryio(pipeline, write_project='', write_dataset='', write_table='
   # [START model_bigqueryio_write_dynamic_destinations]
   fictional_characters_view = beam.pvalue.AsDict(
       pipeline | 'CreateCharacters' >> beam.Create([('Yoda', True),
-                                             ('Obi Wan Kenobi', True)]))
+                                                    ('Obi Wan Kenobi', True)]))
 
   def table_fn(element, fictional_characters):
     if element in fictional_characters:
@@ -1259,7 +1260,8 @@ def model_multiple_pcollections_flatten(contents, output_path):
   with TestPipeline() as pipeline:  # Use TestPipeline for testing.
 
     # Partition into deciles
-    partitioned = pipeline | beam.Create(contents) | beam.Partition(partition_fn, 3)
+    partitioned = pipeline | beam.Create(contents) | beam.Partition(
+        partition_fn, 3)
     pcoll1 = partitioned[0]
     pcoll2 = partitioned[1]
     pcoll3 = partitioned[2]
@@ -1476,8 +1478,7 @@ def accessing_valueprovider_info_after_run():
     _ = (
         pipeline
         | beam.Create([None])
-        | 'LogValueProvs' >> beam.ParDo(
-            LogValueProvidersFn(args.string_value)))
+        | 'LogValueProvs' >> beam.ParDo(LogValueProvidersFn(args.string_value)))
 
     # The main pipeline.
     result_pc = (
