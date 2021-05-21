@@ -93,8 +93,9 @@ if TYPE_CHECKING or SLOW_STREAM:
   from .slow_stream import get_varint_size
 
   try:
-    is_compiled = get_is_compiled()
-  except NameError:  # raised if coder_impl.pxd is not processed by cython.
+    import cython
+    is_compiled = cython.compiled
+  except ImportError:
     pass
 
 else:

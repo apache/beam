@@ -36,9 +36,6 @@ cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingO
 # Temporarily untyped to allow monkeypatching on failed import.
 #cdef type WindowedValue
 
-cdef inline bint get_is_compiled() nogil:
-  return cython.compiled
-
 cdef bint is_compiled
 
 cdef class CoderImpl(object):
