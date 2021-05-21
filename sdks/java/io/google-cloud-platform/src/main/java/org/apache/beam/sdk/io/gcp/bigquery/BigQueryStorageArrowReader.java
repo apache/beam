@@ -46,6 +46,8 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
         ArrowConversion.ArrowSchemaTranslator.toBeamSchema(
             ArrowConversion.arrowSchemaFromInput(input));
     this.rowCount = 0;
+    this.read = null;
+    this.alloc = null;
   }
 
   @Override
@@ -83,9 +85,13 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
   @Override
   public void resetBuffer() {
     recordBatchIterable = null;
-    alloc.close();
+    if (alloc != null) {
+      alloc.close();
+    }
     try {
-      read.close();
+      if (read != null) {
+        read.close();
+      }
     } catch (IOException e) {
       throw new RuntimeException(e.getMessage());
     }
@@ -93,9 +99,13 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   @Override
   public void close() {
-    alloc.close();
+    if (alloc != null) {
+      alloc.close();
+    }
     try {
-      read.close();
+      if (read != null) {
+        read.close();
+      }
     } catch (IOException e) {
       throw new RuntimeException(e.getMessage());
     }
