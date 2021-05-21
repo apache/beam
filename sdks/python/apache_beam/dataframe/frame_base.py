@@ -324,13 +324,6 @@ def _proxy_function(
     return wrapper
 
 
-def _agg_method(func):
-  def wrapper(self, *args, **kwargs):
-    return self.agg(func, *args, **kwargs)
-
-  return wrapper
-
-
 def wont_implement_method(base_type, name, reason=None, explanation=None):
   """Generate a stub method that raises WontImplementError.
 

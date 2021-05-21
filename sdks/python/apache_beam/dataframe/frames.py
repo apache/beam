@@ -92,6 +92,38 @@ def _fillna_alias(method):
           frame_base.populate_defaults(pd.DataFrame)(wrapper)))
 
 
+LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
+LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
+UNLIFTABLE_AGGREGATIONS = ['mean',
+                           'median',
+                           'quantile',
+                           'describe',
+                           # TODO: The below all have specialized distributed
+                           # implementations, but they require tracking
+                           # multiple intermediate series, which is difficult
+                           # to lift in groupby
+                           'std',
+                           'var',
+                           'corr',
+                           'cov',
+                           'nunique']
+ALL_AGGREGATIONS = (LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
+                    UNLIFTABLE_AGGREGATIONS)
+
+
+def _agg_method(base, func):
+  def wrapper(self, *args, **kwargs):
+    return self.agg(func, *args, **kwargs)
+
+  if func in UNLIFTABLE_AGGREGATIONS:
+    wrapper.__doc__ = (
+        f"``{func}`` cannot currently be parallelized, it will "
+        "require collecting all data on a single node.")
+  wrapper.__name__ = func
+
+  return frame_base.with_docs_from(base)(wrapper)
+
+
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   __array__ = frame_base.wont_implement_method(
@@ -1096,17 +1128,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   clip = frame_base._elementwise_method('clip', base=pd.Series)
 
-  all = frame_base._agg_method('all')
-  any = frame_base._agg_method('any')
+  all = _agg_method(pd.Series, 'all')
+  any = _agg_method(pd.Series, 'any')
   # TODO(BEAM-12074): Document that Series.count(level=) will drop NaN's
-  count = frame_base._agg_method('count')
-  describe = frame_base._agg_method('describe')
-  min = frame_base._agg_method('min')
-  max = frame_base._agg_method('max')
-  prod = product = frame_base._agg_method('prod')
-  sum = frame_base._agg_method('sum')
-  mean = frame_base._agg_method('mean')
-  median = frame_base._agg_method('median')
+  count = _agg_method(pd.Series, 'count')
+  describe = _agg_method(pd.Series, 'describe')
+  min = _agg_method(pd.Series, 'min')
+  max = _agg_method(pd.Series, 'max')
+  prod = product = _agg_method(pd.Series, 'prod')
+  sum = _agg_method(pd.Series, 'sum')
+  mean = _agg_method(pd.Series, 'mean')
+  median = _agg_method(pd.Series, 'median')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')
@@ -2433,18 +2465,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   stack = frame_base._elementwise_method('stack', base=pd.DataFrame)
 
-  all = frame_base._agg_method('all')
-  any = frame_base._agg_method('any')
-  count = frame_base._agg_method('count')
-  describe = frame_base._agg_method('describe')
-  max = frame_base._agg_method('max')
-  min = frame_base._agg_method('min')
-  prod = product = frame_base._agg_method('prod')
-  sum = frame_base._agg_method('sum')
-  mean = frame_base._agg_method('mean')
-  median = frame_base._agg_method('median')
-  std = frame_base._agg_method('std')
-  var = frame_base._agg_method('var')
+  all = _agg_method(pd.DataFrame, 'all')
+  any = _agg_method(pd.DataFrame, 'any')
+  count = _agg_method(pd.DataFrame, 'count')
+  describe = _agg_method(pd.DataFrame, 'describe')
+  max = _agg_method(pd.DataFrame, 'max')
+  min = _agg_method(pd.DataFrame, 'min')
+  prod = product = _agg_method(pd.DataFrame, 'prod')
+  sum = _agg_method(pd.DataFrame, 'sum')
+  mean = _agg_method(pd.DataFrame, 'mean')
+  median = _agg_method(pd.DataFrame, 'median')
+  std = _agg_method(pd.DataFrame, 'std')
+  var = _agg_method(pd.DataFrame, 'var')
 
   take = frame_base.wont_implement_method(pd.DataFrame, 'take',
                                           reason='deprecated')
@@ -2788,24 +2820,6 @@ def _unliftable_agg(meth):
     return frame_base.DeferredFrame.wrap(post_agg)
 
   return wrapper
-
-LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
-LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
-UNLIFTABLE_AGGREGATIONS = ['mean',
-                           'median',
-                           'quantile',
-                           'describe',
-                           # TODO: The below all have specialized distributed
-                           # implementations, but they require tracking
-                           # multiple intermediate series, which is difficult
-                           # to lift in groupby
-                           'std',
-                           'var',
-                           'corr',
-                           'cov',
-                           'nunique']
-ALL_AGGREGATIONS = (LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
-                    UNLIFTABLE_AGGREGATIONS)
 
 for meth in LIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth))
