@@ -252,10 +252,8 @@ public class ArrowConversion {
         ArrowSchemaTranslator.toBeamSchema(vectorSchemaRoot.getSchema()), vectorSchemaRoot);
   }
 
-  public static VectorSchemaRoot rowFromSerializedRecordBatch(InputStream input)
-      throws IOException {
-    RootAllocator alloc = new RootAllocator(Long.MAX_VALUE);
-    ReadChannel readChannel = new ReadChannel(Channels.newChannel(input));
+  public static VectorSchemaRoot rowFromSerializedRecordBatch(
+      RootAllocator alloc, ReadChannel readChannel) throws IOException {
     org.apache.arrow.vector.types.pojo.Schema arrowSchema =
         MessageSerializer.deserializeSchema(readChannel);
     VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, alloc);

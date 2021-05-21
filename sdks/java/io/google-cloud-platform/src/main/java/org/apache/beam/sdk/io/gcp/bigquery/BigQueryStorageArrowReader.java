@@ -22,8 +22,11 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.Channels;
 import java.util.Iterator;
 import javax.annotation.Nullable;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.values.Row;
 
@@ -33,6 +36,8 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
   private @Nullable Iterator<Row> recordBatchIterable;
   private long rowCount;
   private ArrowSchema protoSchema;
+  private RootAllocator alloc;
+  private ReadChannel read;
 
   BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
     protoSchema = readSession.getArrowSchema();
@@ -48,10 +53,12 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
     com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
         readRowsResponse.getArrowRecordBatch();
     rowCount = recordBatch.getRowCount();
-    InputStream input = protoSchema.getSerializedSchema().newInput();
+    this.read = new ReadChannel(Channels.newChannel(protoSchema.getSerializedSchema().newInput()));
+    this.alloc = new RootAllocator(Long.MAX_VALUE);
     recordBatchIterable =
         ArrowConversion.rowsFromRecordBatch(
-                arrowBeamSchema, ArrowConversion.rowFromSerializedRecordBatch(input))
+                arrowBeamSchema,
+                ArrowConversion.rowFromSerializedRecordBatch(this.alloc, this.read))
             .iterator();
   }
 
@@ -76,11 +83,21 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
   @Override
   public void resetBuffer() {
     recordBatchIterable = null;
+    alloc.close();
+    try {
+      read.close();
+    } catch (IOException e) {
+      throw new RuntimeException(e.getMessage());
+    }
   }
 
   @Override
   public void close() {
-    // vectorRoot.close();
-    // alloc.close();
+    alloc.close();
+    try {
+      read.close();
+    } catch (IOException e) {
+      throw new RuntimeException(e.getMessage());
+    }
   }
 }
