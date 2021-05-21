@@ -376,6 +376,14 @@ def not_implemented_method(op, jira='BEAM-9547'):
   def wrapper(*args, **kwargs):
     raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
 
+  wrapper.__name__ = op
+  wrapper.__doc__ = (
+      f"{op!r} is not implemented yet.\n\n"
+      f"If support for {op!r} is important to you, please let the Beam "
+      "community know by `writing to user@beam.apache.org "
+      "<https://beam.apache.org/community/contact-us/>`_ or commenting on "
+      f"`{jira} <https://issues.apache.org/jira/{jira}>`_.")
+
   return wrapper
 
 
