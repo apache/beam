@@ -57,6 +57,9 @@ import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
 import org.bson.Document;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.WriteModel;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -136,7 +139,7 @@ public class MongoDbIO {
         .setSslEnabled(false)
         .setIgnoreSSLCertificate(false)
         .setSslInvalidHostNameAllowed(false)
-        .setOrdered(true)
+        .setOrdered(true).setIsUpdate(false).
         .build();
   }
 
@@ -744,6 +747,16 @@ public class MongoDbIO {
 
     abstract long batchSize();
 
+    abstract boolean isUpdate();
+
+    abstract String updateKey();
+
+    abstract String updateOperator();
+
+    abstract String updateField();
+
+    abstract UpdateOptions updateOptions();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -765,6 +778,16 @@ public class MongoDbIO {
       abstract Builder setCollection(String collection);
 
       abstract Builder setBatchSize(long batchSize);
+
+      abstract Builder setIsUpdate(boolean isUpdate);
+
+      abstract Builder setUpdateKey(String updateKey);
+
+      abstract Builder setUpdateOperator(String operator);
+
+      abstract Builder setUpdateField(String updateField);
+
+      abstract Builder setUpdateOptions(UpdateOptions updateOptions);
 
       abstract Write build();
     }
@@ -856,6 +879,26 @@ public class MongoDbIO {
       return builder().setBatchSize(batchSize).build();
     }
 
+    public Write withIsUpdate(boolean isUpdate) {
+      return builder().setIsUpdate(true);
+    }
+
+    public Write withUpdateKey(String updateKey) {
+      return builder().setUpdateKey(updateKey);
+    }
+
+    public Write withUpdateOperator(String updateOperator) {
+      return builder().setUpdateOperator(updateOperator);
+    }
+
+    public Write withUpdateField(String updateField) {
+      return builder().setUpdateField(updateField);
+    }
+
+    public Write withUpdateOptions(UpdateOptions updateOptions) {
+      return builder().setUpdateOptions(updateOptions);
+    }
+
     @Override
     public PDone expand(PCollection<Document> input) {
       checkArgument(uri() != null, "withUri() is required");
@@ -877,6 +920,11 @@ public class MongoDbIO {
       builder.add(DisplayData.item("database", database()));
       builder.add(DisplayData.item("collection", collection()));
       builder.add(DisplayData.item("batchSize", batchSize()));
+      builder.add(DisplayData.item("isUpdate", isUpdate()));
+      builder.add(DisplayData.item("updateKey", updateKey()));
+      builder.add(DisplayData.item("updateOperator", updateOperator()));
+      builder.add(DisplayData.item("updateOptions", updateOptions()));
+      builder.add(DisplayData.item("updateField", updateField()));
     }
 
     static class WriteFn extends DoFn<Document, Void> {
@@ -910,9 +958,14 @@ public class MongoDbIO {
       public void processElement(ProcessContext ctx) {
         // Need to copy the document because mongoCollection.insertMany() will mutate it
         // before inserting (will assign an id).
+
         batch.add(new Document(ctx.element()));
         if (batch.size() >= spec.batchSize()) {
-          flush();
+          if (spec.isUpdate()) {
+            flushUpdate();
+          } else {
+            flush();
+          }
         }
       }
 
@@ -927,8 +980,32 @@ public class MongoDbIO {
         }
         MongoDatabase mongoDatabase = client.getDatabase(spec.database());
         MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
+
         try {
           mongoCollection.insertMany(batch, new InsertManyOptions().ordered(spec.ordered()));
+        } catch (MongoBulkWriteException e) {
+          if (spec.ordered()) {
+            throw e;
+          }
+        }
+
+        batch.clear();
+      }
+
+      private void flushUpdate() {
+        if (batch.isEmpty()) {
+          return;
+        }
+        MongoDatabase mongoDatabase = client.getDatabase(spec.database());
+        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
+        List<WriteModel<Document>> actions = new ArrayList<>();
+        try {
+          for (Document doc : batch) {
+            actions.add(new UpdateOneModel<>(new Document("_id",spec.updateKey()),
+                    new Document(spec.updateOperator(), new Document(spec.updateField(), doc)), updateOptions));
+
+          }
+          mongoCollection.bulkWrite(actions, spec.updateOptions());
         } catch (MongoBulkWriteException e) {
           if (spec.ordered()) {
             throw e;
