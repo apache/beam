@@ -1413,14 +1413,13 @@ class ConstructionTimeTest(unittest.TestCase):
 
 class DocstringTest(unittest.TestCase):
   @parameterized.expand([
-      (frames.DeferredDataFrame, pd.DataFrame),
+      #(frames.DeferredDataFrame, pd.DataFrame),
       (frames.DeferredSeries, pd.Series),
-      (frames._DeferredIndex, pd.Index),
+      #(frames._DeferredIndex, pd.Index),
       (frames._DeferredStringMethods, pd.core.strings.StringMethods),
-      (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
-      (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+      #(frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
+      #(frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
   ])
-  @unittest.skip('BEAM-12074')
   def test_docs_defined(self, beam_type, pd_type):
     beam_attrs = set(dir(beam_type))
     pd_attrs = set(dir(pd_type))
