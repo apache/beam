@@ -36,8 +36,8 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
   private @Nullable Iterator<Row> recordBatchIterable;
   private long rowCount;
   private ArrowSchema protoSchema;
-  private RootAllocator alloc;
-  private ReadChannel read;
+  private @Nullable RootAllocator alloc;
+  private @Nullable ReadChannel read;
 
   BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
     protoSchema = readSession.getArrowSchema();
