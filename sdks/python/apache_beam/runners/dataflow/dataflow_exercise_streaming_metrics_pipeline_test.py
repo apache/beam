@@ -116,7 +116,6 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
   @pytest.mark.it_validatesrunner
   @pytest.mark.no_sickbay_batch
   @pytest.mark.no_xdist
-  @pytest.mark.it_postcommit
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     """
     Runs streaming Dataflow job and verifies that user metrics are reported

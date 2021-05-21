@@ -33,7 +33,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
         commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
         publishers {
-          archiveJunit('**/pytest*.xml')
+          archiveJunit('**/nosetests*.xml') //TODO(BEAM-3713) Change to pytest
         }
 
         // Execute shell command to test Python SDK.
