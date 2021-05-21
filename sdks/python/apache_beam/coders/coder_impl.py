@@ -92,10 +92,10 @@ if TYPE_CHECKING or SLOW_STREAM:
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
 
-  if False:  # pylint: disable=using-constant-test
-    # This clause is interpreted by the compiler.
-    from cython import compiled as _is_compiled
-    is_compiled = _is_compiled
+  try:
+    is_compiled = get_is_compiled()
+  except NameError:  # raised if coder_impl.pxd is not processed by cython.
+    pass
 
 else:
   # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
