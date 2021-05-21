@@ -39,7 +39,7 @@ pygmentsStyle = "tango"
 
 summaryLength = "30"
 
-canonifyURLs = true
+canonifyURLs = false
 
 [markup.goldmark.renderer]
 unsafe= true
