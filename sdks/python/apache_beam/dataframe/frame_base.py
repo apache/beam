@@ -191,7 +191,7 @@ def _elementwise_function(
 def _proxy_function(
     func,  # type: Union[Callable, str]
     name=None,  # type: Optional[str]
-    restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
+    restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
     inplace=False,  # type: bool
     base=None,  # type: Optional[type]
     requires_partition_by=partitionings.Singleton(
@@ -312,10 +312,14 @@ def _proxy_function(
     else:
       return DeferredFrame.wrap(result_expr)
 
-  # TODO(BEAM-12074): Generate docs that include "Divergences" section
-  # documenting restrictions.
-  if base is not None and not restrictions:
-    return with_docs_from(base, name=name)(wrapper)
+  wrapper.__name__ = name
+  if restrictions:
+    wrapper.__doc__ = "\n".join(
+        f"Only {kw}={value!r} is supported"
+        for (kw, value) in restrictions.items())
+
+  if base is not None:
+    return with_docs_from(base)(wrapper)
   else:
     return wrapper
 

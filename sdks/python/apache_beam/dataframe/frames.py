@@ -1732,9 +1732,23 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   info = frame_base.wont_implement_method(
       pd.DataFrame, 'info', reason="non-deferred-result")
 
-  clip = frame_base._elementwise_method(
-      'clip', restrictions={'axis': lambda axis: axis in (0, 'index')},
-      base=pd.DataFrame)
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def clip(self, axis, **kwargs):
+    """lower and upper must be :class:`DeferredSeries` instances, or constants.
+    array-like arguments are not supported as they are order-sensitive."""
+
+    if any(isinstance(kwargs.get(arg, None), frame_base.DeferredFrame)
+           for arg in ('upper', 'lower')) and axis not in (0, 'index'):
+      raise frame_base.WontImplementError(
+          "axis must be 'index' when upper and/or lower are a DeferredFrame",
+          reason='order-sensitive')
+
+    return frame_base._elementwise_method('clip', base=pd.DataFrame)(self,
+                                                                     axis=axis,
+                                                                     **kwargs)
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
