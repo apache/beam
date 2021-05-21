@@ -361,7 +361,6 @@ def pipeline_monitoring():
   import argparse
   import re
   import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
 
   class ExtractWordsFn(beam.DoFn):
     def process(self, element):
