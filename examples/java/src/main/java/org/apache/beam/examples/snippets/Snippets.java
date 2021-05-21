@@ -71,6 +71,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.Join;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -225,7 +226,9 @@ public class Snippets {
       PCollection<Double> maxTemperatures =
           p.apply(
               BigQueryIO.read(
-                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+                      (SchemaAndRecord elem) ->
+                          (Double)
+                              AvroUtils.toGenericRecord(elem.getRow(), null).get("max_temperature"))
                   .from(tableSpec)
                   .withCoder(DoubleCoder.of()));
       // [END BigQueryReadFunction]
@@ -236,7 +239,9 @@ public class Snippets {
       PCollection<Double> maxTemperatures =
           p.apply(
               BigQueryIO.read(
-                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+                      (SchemaAndRecord elem) ->
+                          (Double)
+                              AvroUtils.toGenericRecord(elem.getRow(), null).get("max_temperature"))
                   .fromQuery(
                       "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]")
                   .withCoder(DoubleCoder.of()));
@@ -248,7 +253,9 @@ public class Snippets {
       PCollection<Double> maxTemperatures =
           p.apply(
               BigQueryIO.read(
-                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+                      (SchemaAndRecord elem) ->
+                          (Double)
+                              AvroUtils.toGenericRecord(elem.getRow(), null).get("max_temperature"))
                   .fromQuery(
                       "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
                   .usingStandardSql()
@@ -390,7 +397,7 @@ public class Snippets {
           p.apply(
               BigQueryIO.read(
                       (SchemaAndRecord elem) -> {
-                        GenericRecord record = elem.getRecord();
+                        GenericRecord record = AvroUtils.toGenericRecord(elem.getRow(), null);
                         return new WeatherData(
                             (Long) record.get("year"),
                             (Long) record.get("month"),
