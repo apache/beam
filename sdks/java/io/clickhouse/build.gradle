@@ -67,3 +67,8 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
+
+processTestResources {
+  // BEAM-12390: config.d/zookeeper_default.xml should have xx4 permission.
+  fileMode 0644
+}
