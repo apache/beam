@@ -111,7 +111,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_${processingType}\" WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'v2' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_${processingType}\" WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'V2' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -229,7 +229,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'v2' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'V2' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -338,14 +338,36 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "$m",
+          "alias": "[[m]]_java8",
           "groupBy": [],
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeMs\" FROM \"forever\"./nexmark_${ID}_\\w*${processingType}/ WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'v2' AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\"./nexmark_${ID}_\\w*${processingType}/ WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'V2' AND \"javaVersion\" = '8' AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "alias": "[[m]]_java11",
+          "groupBy": [],
+          "measurement": "",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\"./nexmark_${ID}_\\w*${processingType}/ WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'V2' AND \"javaVersion\" = '11' AND $timeFilter GROUP BY \"runner\"",
+          "rawQuery": true,
+          "refId": "B",
           "resultFormat": "time_series",
           "select": [
             [
