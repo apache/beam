@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
 import com.google.cloud.Timestamp;
-import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** Model for the partition metadata database table used in the Connector. */
 public class PartitionMetadata {
