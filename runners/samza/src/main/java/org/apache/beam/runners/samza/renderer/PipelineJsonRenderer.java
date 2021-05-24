@@ -32,8 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A JSON renderer for BEAM {@link Pipeline} DAG.
- * This is a LinkedIn specific change to display the Beam DAG in the Samza dashboard.
+ * A JSON renderer for BEAM {@link Pipeline} DAG. This is a LinkedIn specific change to display the
+ * Beam DAG in the Samza dashboard.
  */
 @Experimental
 public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {

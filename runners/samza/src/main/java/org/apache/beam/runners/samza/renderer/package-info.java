@@ -15,23 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.runners.TransformHierarchy;
-
-/**
- * Interface to get I/O information for a Beam job. This is a LinkedIn specific change that helps
- * display I/O information in the Beam DAG in the Samza dashboard.
- */
-@Experimental
-public interface BeamIO {
-
-  /** Get I/O topic name and cluster. */
-  String getIOInfo(TransformHierarchy.Node node);
-
-  /** A registrar for {@link BeamIO}. */
-  interface BeamIORegistrar {
-    BeamIO getBeamIO();
-  }
-}
+/** Internal implementation of the Beam runner for Apache Samza. */
+package org.apache.beam.runners.samza.renderer;
