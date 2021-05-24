@@ -140,7 +140,6 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
@@ -1711,6 +1710,12 @@ public class DataflowRunnerTest implements Serializable {
 
   private void verifyGroupIntoBatchesOverride(
       Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
+    verifyGroupIntoBatchesOverrideCount(p, withShardedKey, expectOverriden);
+    verifyGroupIntoBatchesOverrideBytes(p, withShardedKey, expectOverriden);
+  }
+
+  private void verifyGroupIntoBatchesOverrideCount(
+      Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
     final int batchSize = 2;
     List<KV<String, Integer>> testValues =
         Arrays.asList(KV.of("A", 1), KV.of("B", 0), KV.of("A", 2), KV.of("A", 4), KV.of("A", 8));
@@ -1737,24 +1742,93 @@ public class DataflowRunnerTest implements Serializable {
     }
     PAssert.thatMultimap(output)
         .satisfies(
-            new SerializableFunction<Map<String, Iterable<Iterable<Integer>>>, Void>() {
-              @Override
-              public Void apply(Map<String, Iterable<Iterable<Integer>>> input) {
-                assertEquals(2, input.size());
-                assertThat(input.keySet(), containsInAnyOrder("A", "B"));
-                Map<String, Integer> sums = new HashMap<>();
-                for (Map.Entry<String, Iterable<Iterable<Integer>>> entry : input.entrySet()) {
-                  for (Iterable<Integer> batch : entry.getValue()) {
-                    assertThat(Iterables.size(batch), lessThanOrEqualTo(batchSize));
-                    for (Integer value : batch) {
-                      sums.put(entry.getKey(), value + sums.getOrDefault(entry.getKey(), 0));
-                    }
+            i -> {
+              assertEquals(2, i.size());
+              assertThat(i.keySet(), containsInAnyOrder("A", "B"));
+              Map<String, Integer> sums = new HashMap<>();
+              for (Map.Entry<String, Iterable<Iterable<Integer>>> entry : i.entrySet()) {
+                for (Iterable<Integer> batch : entry.getValue()) {
+                  assertThat(Iterables.size(batch), lessThanOrEqualTo(batchSize));
+                  for (Integer value : batch) {
+                    sums.put(entry.getKey(), value + sums.getOrDefault(entry.getKey(), 0));
                   }
                 }
-                assertEquals(15, (int) sums.get("A"));
-                assertEquals(0, (int) sums.get("B"));
-                return null;
               }
+              assertEquals(15, (int) sums.get("A"));
+              assertEquals(0, (int) sums.get("B"));
+              return null;
+            });
+    p.run();
+
+    AtomicBoolean sawGroupIntoBatchesOverride = new AtomicBoolean(false);
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform() instanceof GroupIntoBatchesOverride.BatchGroupIntoBatches) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.BatchGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    if (expectOverriden) {
+      assertTrue(sawGroupIntoBatchesOverride.get());
+    } else {
+      assertFalse(sawGroupIntoBatchesOverride.get());
+    }
+  }
+
+  private void verifyGroupIntoBatchesOverrideBytes(
+      Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
+    final long batchSizeBytes = 2;
+    List<KV<String, String>> testValues =
+        Arrays.asList(
+            KV.of("A", "a"),
+            KV.of("A", "ab"),
+            KV.of("A", "abc"),
+            KV.of("A", "abcd"),
+            KV.of("A", "abcde"));
+    PCollection<KV<String, String>> input = p.apply(Create.of(testValues));
+    PCollection<KV<String, Iterable<String>>> output;
+    if (withShardedKey) {
+      output =
+          input
+              .apply(GroupIntoBatches.<String, String>ofByteSize(batchSizeBytes).withShardedKey())
+              .apply(
+                  "StripShardId",
+                  MapElements.via(
+                      new SimpleFunction<
+                          KV<ShardedKey<String>, Iterable<String>>,
+                          KV<String, Iterable<String>>>() {
+                        @Override
+                        public KV<String, Iterable<String>> apply(
+                            KV<ShardedKey<String>, Iterable<String>> input) {
+                          return KV.of(input.getKey().getKey(), input.getValue());
+                        }
+                      }));
+    } else {
+      output = input.apply(GroupIntoBatches.ofByteSize(batchSizeBytes));
+    }
+    PAssert.thatMultimap(output)
+        .satisfies(
+            i -> {
+              assertEquals(1, i.size());
+              assertThat(i.keySet(), containsInAnyOrder("A"));
+              Iterable<Iterable<String>> batches = i.get("A");
+              assertEquals(5, Iterables.size(batches));
+              return null;
             });
     p.run();
 
