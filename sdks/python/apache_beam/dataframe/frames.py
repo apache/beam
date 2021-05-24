@@ -117,7 +117,7 @@ def _agg_method(base, func):
 
   if func in UNLIFTABLE_AGGREGATIONS:
     wrapper.__doc__ = (
-        f"``{func}`` cannot currently be parallelized, it will "
+        f"``{func}`` cannot currently be parallelized. It will "
         "require collecting all data on a single node.")
   wrapper.__name__ = func
 
@@ -1180,7 +1180,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         agg_func = func
         singleton_reason = (
             f"Aggregation function {func!r} cannot currently be "
-            "parallelized, it requires collecting all data for "
+            "parallelized. It requires collecting all data for "
             "this Series on a single node.")
       with expressions.allow_non_parallel_operations(allow_nonparallel_final):
         return frame_base.DeferredFrame.wrap(
@@ -1371,7 +1371,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     else:
       requires_partition_by = partitionings.Singleton(
           reason=(
-              f"replace(limit={limit!r}) cannot currently be parallelized, it "
+              f"replace(limit={limit!r}) cannot currently be parallelized. It "
               "requires collecting all data on a single node."))
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -2491,7 +2491,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       requires_partition_by = partitionings.Arbitrary()
     else:
       requires_partition_by = partitionings.Singleton(reason=(
-         f"replace(limit={limit!r}) cannot currently be parallelized, it "
+         f"replace(limit={limit!r}) cannot currently be parallelized. It "
          "requires collecting all data on a single node."))
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
