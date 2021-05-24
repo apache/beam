@@ -19,13 +19,11 @@
 
 # pytype: skip-file
 
-import http.server
 import json
 import logging
 import os
 import re
 import sys
-import threading
 import traceback
 
 from google.protobuf import text_format  # type: ignore # not in typeshed
@@ -40,44 +38,11 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
-from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class StatusServer(object):
-  def start(self, status_http_port=0):
-    """Executes the serving loop for the status server.
-
-    Args:
-      status_http_port(int): Binding port for the debug server.
-        Default is 0 which means any free unsecured port
-    """
-    class StatusHttpHandler(http.server.BaseHTTPRequestHandler):
-      """HTTP handler for serving stacktraces of all threads."""
-      def do_GET(self):  # pylint: disable=invalid-name
-        """Return all thread stacktraces information for GET request."""
-        self.send_response(200)
-        self.send_header('Content-Type', 'text/plain')
-        self.end_headers()
-
-        self.wfile.write(thread_dump().encode('utf-8'))
-
-      def log_message(self, f, *args):
-        """Do not log any messages."""
-        pass
-
-    self.httpd = httpd = http.server.HTTPServer(('localhost', status_http_port),
-                                                StatusHttpHandler)
-    _LOGGER.info(
-        'Status HTTP server running at %s:%s',
-        httpd.server_name,
-        httpd.server_port)
-
-    httpd.serve_forever()
 
 
 def create_harness(environment, dry_run=False):
@@ -164,7 +129,6 @@ def main(unused_argv):
   fn_log_handler, sdk_harness = create_harness(os.environ)
   try:
     _LOGGER.info('Python sdk harness starting.')
-    _start_status_server()
     sdk_harness.run()
     _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
@@ -173,15 +137,6 @@ def main(unused_argv):
   finally:
     if fn_log_handler:
       fn_log_handler.close()
-
-
-def _start_status_server():
-  # Start status HTTP server thread.
-  thread = threading.Thread(
-      name='status_http_server', target=StatusServer().start)
-  thread.daemon = True
-  thread.setName('status-server-demon')
-  thread.start()
 
 
 def _load_pipeline_options(options_json):
