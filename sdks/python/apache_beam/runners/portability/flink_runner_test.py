@@ -423,10 +423,10 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
     raise unittest.SkipTest("BEAM-7252")
 
   def test_pack_combiners(self):
-    raise unittest.SkipTest(
-        "Stages produced by translations.pack_combiners are fused "
-        "by translations.greedily_fuse, which prevent the stages "
-        "from being detecting using counters by the test.")
+    # Stages produced by translations.pack_combiners are fused
+    # by translations.greedily_fuse, which prevent the stages
+    # from being detecting using counters by the test.
+    self._test_pack_combiners(self, assert_using_counter_names=False)
 
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):

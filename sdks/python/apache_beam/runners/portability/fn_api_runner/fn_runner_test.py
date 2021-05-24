@@ -996,7 +996,7 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
-  def test_pack_combiners(self):
+  def _test_pack_combiners(self, assert_using_counter_names):
     counter = beam.metrics.Metrics.counter('ns', 'num_values')
 
     def min_with_counter(values):
@@ -1034,12 +1034,16 @@ class FnApiRunnerTest(unittest.TestCase):
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names = set(m.key.step for m in counters)
     pipeline_options = p._options
-    if pipeline_options.view_as(StandardOptions).streaming:
-      self.assertFalse(
-          any([re.match(packed_step_name_regex, s) for s in step_names]))
-    else:
-      self.assertTrue(
-          any([re.match(packed_step_name_regex, s) for s in step_names]))
+    if assert_using_counter_names:
+      if pipeline_options.view_as(StandardOptions).streaming:
+        self.assertFalse(
+            any([re.match(packed_step_name_regex, s) for s in step_names]))
+      else:
+        self.assertTrue(
+            any([re.match(packed_step_name_regex, s) for s in step_names]))
+
+  def test_pack_combiners(self):
+    self._test_pack_combiners(self, assert_using_counter_names=True)
 
 
 # These tests are kept in a separate group so that they are
