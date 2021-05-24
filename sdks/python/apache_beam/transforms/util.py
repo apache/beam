@@ -51,6 +51,7 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import MapTuple
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
+from apache_beam.transforms.core import _fn_takes_side_inputs
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.timeutil import TimeDomain
@@ -731,13 +732,16 @@ class Reshuffle(PTransform):
 
 
 @ptransform_fn
-def WithKeys(pcoll, k):
+def WithKeys(pcoll, k, *args, **kwargs):
   """PTransform that takes a PCollection, and either a constant key or a
   callable, and returns a PCollection of (K, V), where each of the values in
   the input PCollection has been paired with either the constant key or a key
-  computed from the value.
+  computed from the value.  The callable may optionally accept positional or
+  keyword arguments, which should be passed to WithKeys directly.
   """
   if callable(k):
+    if _fn_takes_side_inputs(k):
+      return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
     return pcoll | Map(lambda v: (k(v), v))
   return pcoll | Map(lambda v: (k, v))
 

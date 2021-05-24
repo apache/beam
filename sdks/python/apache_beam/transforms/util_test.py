@@ -628,6 +628,17 @@ class WithKeysTest(unittest.TestCase):
       with_keys = pc | util.WithKeys(lambda x: x * x)
     assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
 
+  @staticmethod
+  def _test_args_kwargs_fn(x, multiply, subtract):
+    return x * multiply - subtract
+
+  def test_args_kwargs_k(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      with_keys = pc | util.WithKeys(
+          WithKeysTest._test_args_kwargs_fn, 2, subtract=1)
+    assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
+
 
 class GroupIntoBatchesTest(unittest.TestCase):
   NUM_ELEMENTS = 10
