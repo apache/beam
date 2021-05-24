@@ -33,10 +33,11 @@ object, for example::
 Sinks
 #####
 This module also defines analogs for pandas sink, or ``to``, methods that
-generate a Beam :class:`~apache_beam.PTransform`. Generally these should be
-called from :class:`~apache_beam.dataframe.frames.DeferredDataFrame` instances,
-for example with
-:meth:`~apache_beam.dataframe.frames.DeferredDataFrame.to_csv`.
+generate a Beam :class:`~apache_beam.PTransform`. Users should prefer calling
+these operations from :class:`~apache_beam.dataframe.frames.DeferredDataFrame`
+instances (for example with
+:meth:`DeferredDataFrame.to_csv
+<apache_beam.dataframe.frames.DeferredDataFrame.to_csv>`).
 """
 
 import itertools

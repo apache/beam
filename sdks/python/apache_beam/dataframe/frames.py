@@ -135,8 +135,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.maybe_inplace
   def drop(self, labels, axis, index, columns, errors, **kwargs):
     """drop is not parallelizable when dropping from the index and
-    errors="raise" specified. It requires collecting all data on a single node
-    in order to detect if one of the index values is missing."""
+    errors="raise" is specified. It requires collecting all data on a single
+    node in order to detect if one of the index values is missing."""
     if labels is not None:
       if index is not None or columns is not None:
         raise ValueError("Cannot specify both 'labels' and 'index'/'columns'")
@@ -199,7 +199,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def fillna(self, value, method, axis, limit, **kwargs):
-    """When axis="index", both method and limit must be None,
+    """When ``axis="index"``, both ``method`` and ``limit`` must be ``None``.
     otherwise this operation is order-sensitive."""
     # Default value is None, but is overriden with index.
     axis = axis or 'index'
@@ -402,10 +402,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def tz_localize(self, ambiguous, **kwargs):
-    """``ambiguous`` may not be set to 'infer' as it's semantics are
-    order-sensitive. Similarly specifying ``ambiguous`` as an ndarray is
+    """``ambiguous`` cannot be set to 'infer' as its semantics are
+    order-sensitive. Similarly, specifying ``ambiguous`` as an ndarray is
     order-sensitive, but you can achieve similar functionality by specifying
-    ambiguous as a Series."""
+    ``ambiguous`` as a Series."""
     if isinstance(ambiguous, np.ndarray):
       raise frame_base.WontImplementError(
           "tz_localize(ambiguous=ndarray) is not supported because it makes "
@@ -1068,11 +1068,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def duplicated(self, keep):
-    """Only keep=False and keep="any" are supported, other values of keep make
-    this an order-sensitive operation. Note keep="any" is a Beam-specific
-    option that guarantees only one duplicate will be kept, but unlike "first"
-    and "last" it makes no guarantees about _which_ duplicate element is
-    kept."""
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # Re-use the DataFrame based duplcated, extract the series back out
     df = self._wrap_in_df()
 
@@ -1083,11 +1083,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def drop_duplicates(self, keep):
-    """Only keep=False and keep="any" are supported, other values of keep make
-    this an order-sensitive operation. Note keep="any" is a Beam-specific
-    option that guarantees only one duplicate will be kept, but unlike "first"
-    and "last" it makes no guarantees about _which_ duplicate element is
-    kept."""
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # Re-use the DataFrame based drop_duplicates, extract the series back out
     df = self._wrap_in_df()
 
@@ -1254,11 +1254,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def nlargest(self, keep, **kwargs):
-    """Only keep=False and keep="any" are supported, other values of keep make
-    this an order-sensitive operation. Note keep="any" is a Beam-specific
-    option that guarantees only one duplicate will be kept, but unlike "first"
-    and "last" it makes no guarantees about _which_ duplicate element is
-    kept."""
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # TODO(robertwb): Document 'any' option.
     # TODO(robertwb): Consider (conditionally) defaulting to 'any' if no
     # explicit keep parameter is requested.
@@ -1287,11 +1287,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def nsmallest(self, keep, **kwargs):
-    """Only keep=False and keep="any" are supported, other values of keep make
-    this an order-sensitive operation. Note keep="any" is a Beam-specific
-    option that guarantees only one duplicate will be kept, but unlike "first"
-    and "last" it makes no guarantees about _which_ duplicate element is
-    kept."""
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
@@ -1354,7 +1354,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.maybe_inplace
   def replace(self, to_replace, value, limit, method, **kwargs):
     """`method` is not supported in the Beam DataFrame API because it is
-    order-sensitive, it must not be specified.
+    order-sensitive. It cannot be specified.
 
     If `limit` is specified this operation is not parallelizable."""
     if method is not None and not isinstance(to_replace,
@@ -1398,13 +1398,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   def unique(self, as_series=False):
     """unique() is not supported by default because it produces a
-    non-deferred result, a numpy array. You may use the Beam-specific argument
+    non-deferred result: a numpy array. You can use the Beam-specific argument
     ``unique(as_series=True)`` to get the result as a :class:`DeferredSeries`"""
 
     if not as_series:
       raise frame_base.WontImplementError(
           "unique() is not supported by default because it produces a "
-          "non-deferred result, a numpy array. You may use the Beam-specific "
+          "non-deferred result: a numpy array. You can use the Beam-specific "
           "argument unique(as_series=True) to get the result as a "
           "DeferredSeries",
           reason="non-deferred-result")
@@ -1710,11 +1710,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def duplicated(self, keep, subset):
-    """Only keep=False and keep="any" are supported, other values of keep make
-    this an order-sensitive operation. Note keep="any" is a Beam-specific
-    option that guarantees only one duplicate will be kept, but unlike "first"
-    and "last" it makes no guarantees about _which_ duplicate element is
-    kept."""
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # TODO(BEAM-12074): Document keep="any"
     if keep == 'any':
       keep = 'first'
@@ -1738,11 +1738,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def drop_duplicates(self, keep, subset, ignore_index):
-    """Only keep=False and keep="any" are supported, other values of keep make
-    this an order-sensitive operation. Note keep="any" is a Beam-specific
-    option that guarantees only one duplicate will be kept, but unlike "first"
-    and "last" it makes no guarantees about _which_ duplicate element is
-    kept."""
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # TODO(BEAM-12074): Document keep="any"
     if keep == 'any':
       keep = 'first'
@@ -1887,7 +1887,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.maybe_inplace
   def clip(self, axis, **kwargs):
     """lower and upper must be :class:`DeferredSeries` instances, or constants.
-    array-like arguments are not supported as they are order-sensitive."""
+    Array-like arguments are not supported because they are order-sensitive."""
 
     if any(isinstance(kwargs.get(arg, None), frame_base.DeferredFrame)
            for arg in ('upper', 'lower')) and axis not in (0, 'index'):
@@ -2304,11 +2304,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def nlargest(self, keep, **kwargs):
-    """Only keep=False and keep="any" are supported, other values of keep make
-    this an order-sensitive operation. Note keep="any" is a Beam-specific
-    option that guarantees only one duplicate will be kept, but unlike "first"
-    and "last" it makes no guarantees about _which_ duplicate element is
-    kept."""
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
@@ -2336,11 +2336,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def nsmallest(self, keep, **kwargs):
-    """Only keep=False and keep="any" are supported, other values of keep make
-    this an order-sensitive operation. Note keep="any" is a Beam-specific
-    option that guarantees only one duplicate will be kept, but unlike "first"
-    and "last" it makes no guarantees about _which_ duplicate element is
-    kept."""
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
