@@ -64,6 +64,10 @@ class DoctestTest(unittest.TestCase):
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
                 "s.replace('a', None)",
+                # Implicitly uses method='pad', but output doesn't rely on that
+                # behavior. Verified indepently in
+                # frames_test.py::DeferredFrameTest::test_replace
+                "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
             ],
             'pandas.core.generic.NDFrame.fillna': [
                 "df.fillna(method='ffill')",
@@ -183,6 +187,10 @@ class DoctestTest(unittest.TestCase):
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
                 "s.replace('a', None)",
+                # Implicitly uses method='pad', but output doesn't rely on that
+                # behavior. Verified indepently in
+                # frames_test.py::DeferredFrameTest::test_replace
+                "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
             ],
             'pandas.core.frame.DataFrame.to_records': ['*'],
             'pandas.core.frame.DataFrame.to_dict': ['*'],
@@ -407,6 +415,15 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.append': [
                 's1.append(s2, ignore_index=True)',
             ],
+            'pandas.core.series.Series.replace': [
+                "s.replace([1, 2], method='bfill')",
+                # Relies on method='pad'
+                "s.replace('a', None)",
+                # Implicitly uses method='pad', but output doesn't rely on that
+                # behavior. Verified indepently in
+                # frames_test.py::DeferredFrameTest::test_replace
+                "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
+            ],
             'pandas.core.series.Series.sort_index': ['*'],
             'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
@@ -449,7 +466,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
-            'pandas.core.series.Series.replace': ['*'],
+            # Raises right exception, but testing framework has matching issues.
+            'pandas.core.series.Series.replace': [
+                "df.replace({'a string': 'new value', True: False})  # raises"
+            ],
             'pandas.core.series.Series.reset_index': ['*'],
             'pandas.core.series.Series.searchsorted': [
                 # This doctest seems to be incorrectly parsed.

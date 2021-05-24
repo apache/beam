@@ -766,6 +766,18 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.drop_duplicates(subset=['brand', 'style'], keep=False),
         df)
 
+  def test_replace(self):
+    # verify a replace() doctest case that doesn't quite work in Beam as it uses
+    # the default method='pad'
+    df = pd.DataFrame({'A': ['bat', 'foo', 'bait'], 'B': ['abc', 'bar', 'xyz']})
+
+    self._run_test(
+        lambda df: df.replace(
+            regex={
+                r'^ba.$': 'new', 'foo': 'xyz'
+            }, method=None),
+        df)
+
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""

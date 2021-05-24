@@ -404,6 +404,43 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def replace(self, to_replace, value, limit, method, **kwargs):
+    """``method`` is not supported in the Beam DataFrame API because it is
+    order-sensitive. It cannot be specified.
+
+    If ``limit`` is specified this operation is not parallelizable."""
+    if method is not None and not isinstance(to_replace,
+                                             dict) and value is None:
+      # pandas only relies on method if to_replace is not a dictionary, and
+      # value is None
+      raise frame_base.WontImplementError(
+          f"replace(method={method!r}) is not supported because it is "
+          "order sensitive. Only replace(method=None) is supported.",
+          reason="order-sensitive")
+
+    if limit is None:
+      requires_partition_by = partitionings.Arbitrary()
+    else:
+      requires_partition_by = partitionings.Singleton(
+          reason=(
+              f"replace(limit={limit!r}) cannot currently be parallelized. It "
+              "requires collecting all data on a single node."))
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'replace',
+            lambda df: df.replace(
+                to_replace=to_replace,
+                value=value,
+                limit=limit,
+                method=method,
+                **kwargs), [self._expr],
+            preserves_partition_by=partitionings.Arbitrary(),
+            requires_partition_by=requires_partition_by))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   def tz_localize(self, ambiguous, **kwargs):
     """``ambiguous`` cannot be set to ``"infer"`` as its semantics are
     order-sensitive. Similarly, specifying ``ambiguous`` as an
@@ -1411,43 +1448,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'pop', reason="non-deferred-result")
 
   rename_axis = frame_base._elementwise_method('rename_axis', base=pd.Series)
-
-  @frame_base.with_docs_from(pd.Series, name='is_unique')
-  @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
-  @frame_base.maybe_inplace
-  def replace(self, to_replace, value, limit, method, **kwargs):
-    """``method`` is not supported in the Beam DataFrame API because it is
-    order-sensitive. It cannot be specified.
-
-    If ``limit`` is specified this operation is not parallelizable."""
-    if method is not None and not isinstance(to_replace,
-                                             dict) and value is None:
-      # pandas only relies on method if to_replace is not a dictionary, and
-      # value is None
-      raise frame_base.WontImplementError(
-          f"replace(method={method!r}) is not supported because it is "
-          "order sensitive. Only replace(method=None) is supported.",
-          reason="order-sensitive")
-
-    if limit is None:
-      requires_partition_by = partitionings.Arbitrary()
-    else:
-      requires_partition_by = partitionings.Singleton(
-          reason=(
-              f"replace(limit={limit!r}) cannot currently be parallelized. It "
-              "requires collecting all data on a single node."))
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'replace',
-            lambda df: df.replace(
-                to_replace=to_replace,
-                value=value,
-                limit=limit,
-                method=method,
-                **kwargs), [self._expr],
-            preserves_partition_by=partitionings.Arbitrary(),
-            requires_partition_by=requires_partition_by))
 
   round = frame_base._elementwise_method('round', base=pd.Series)
 
