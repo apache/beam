@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auth.Credentials;
@@ -230,14 +231,15 @@ public class PubsubGrpcClient extends PubsubClient {
       @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Timestamp.
-      String pubsubTimestampString = null;
-      Timestamp timestampProto = pubsubMessage.getPublishTime();
-      if (timestampProto != null) {
-        pubsubTimestampString =
-            String.valueOf(timestampProto.getSeconds() + timestampProto.getNanos() / 1000L);
+      long timestampMsSinceEpoch;
+      if (Strings.isNullOrEmpty(timestampAttribute)) {
+        Timestamp timestampProto = pubsubMessage.getPublishTime();
+        checkArgument(timestampProto != null, "Pubsub message is missing timestamp proto");
+        timestampMsSinceEpoch =
+            timestampProto.getSeconds() * 1000 + timestampProto.getNanos() / 1000L / 1000L;
+      } else {
+        timestampMsSinceEpoch = extractTimestampAttribute(timestampAttribute, attributes);
       }
-      long timestampMsSinceEpoch =
-          extractTimestamp(timestampAttribute, pubsubTimestampString, attributes);
 
       // Ack id.
       String ackId = message.getAckId();
