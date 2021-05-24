@@ -634,7 +634,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
-        vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
+        vendored_bytebuddy_1_11_0                   : "org.apache.beam:beam-vendor-bytebuddy-1_11_0:0.1",
         vendored_grpc_1_36_0                        : "org.apache.beam:beam-vendor-grpc-1_36_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
