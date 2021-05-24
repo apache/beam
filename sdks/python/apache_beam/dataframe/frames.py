@@ -135,7 +135,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.maybe_inplace
   def drop(self, labels, axis, index, columns, errors, **kwargs):
     """drop is not parallelizable when dropping from the index and
-    errors="raise" is specified. It requires collecting all data on a single
+    ``errors="raise"`` is specified. It requires collecting all data on a single
     node in order to detect if one of the index values is missing."""
     if labels is not None:
       if index is not None or columns is not None:
@@ -402,10 +402,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def tz_localize(self, ambiguous, **kwargs):
-    """``ambiguous`` cannot be set to 'infer' as its semantics are
-    order-sensitive. Similarly, specifying ``ambiguous`` as an ndarray is
-    order-sensitive, but you can achieve similar functionality by specifying
-    ``ambiguous`` as a Series."""
+    """``ambiguous`` cannot be set to ``"infer"`` as its semantics are
+    order-sensitive. Similarly, specifying ``ambiguous`` as an
+    :class:`~numpy.ndarray` is order-sensitive, but you can achieve similar
+    functionality by specifying ``ambiguous`` as a Series."""
     if isinstance(ambiguous, np.ndarray):
       raise frame_base.WontImplementError(
           "tz_localize(ambiguous=ndarray) is not supported because it makes "
@@ -574,7 +574,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def where(self, cond, other, errors, **kwargs):
-    """where is not parallelizable when errors="ignore" is specified."""
+    """where is not parallelizable when ``errors="ignore"`` is specified."""
     requires = partitionings.Arbitrary()
     deferred_args = {}
     actual_args = {}
@@ -625,7 +625,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def mask(self, cond, **kwargs):
-    """mask is not parallelizable when errors="ignore" is specified."""
+    """mask is not parallelizable when ``errors="ignore"`` is specified."""
     return self.where(~cond, **kwargs)
 
   @property
@@ -762,7 +762,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def append(self, to_append, ignore_index, verify_integrity, **kwargs):
-    """ignore_index=True is not supported, because it requires generating an
+    """``ignore_index=True`` is not supported, because it requires generating an
     order-sensitive index."""
     if not isinstance(to_append, DeferredSeries):
       raise frame_base.WontImplementError(
@@ -844,9 +844,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.DataFrame)
   def dot(self, other):
-    """other must be a :class:`DeferredDataFrame` or :class:`DeferredSeries`
-    instance. Computing the dot product with an array-like is not supported as
-    it is order-sensitive."""
+    """``other`` must be a :class:`DeferredDataFrame` or :class:`DeferredSeries`
+    instance. Computing the dot product with an array-like is not supported
+    because it is order-sensitive."""
     left = self._expr
     if isinstance(other, DeferredSeries):
       right = expressions.ComputedExpression(
@@ -948,7 +948,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def corr(self, other, method, min_periods):
-    """Only method='pearson' is currently parallelizable."""
+    """Only ``method='pearson'`` is currently parallelizable."""
     if method == 'pearson':  # Note that this is the default.
       x, y = self.dropna().align(other.dropna(), 'inner')
       return x._corr_aligned(y, min_periods)
@@ -1353,10 +1353,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def replace(self, to_replace, value, limit, method, **kwargs):
-    """`method` is not supported in the Beam DataFrame API because it is
+    """``method`` is not supported in the Beam DataFrame API because it is
     order-sensitive. It cannot be specified.
 
-    If `limit` is specified this operation is not parallelizable."""
+    If ``limit`` is specified this operation is not parallelizable."""
     if method is not None and not isinstance(to_replace,
                                              dict) and value is None:
       # pandas only relies on method if to_replace is not a dictionary, and
@@ -1397,9 +1397,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.Series)
   def unique(self, as_series=False):
-    """unique() is not supported by default because it produces a
-    non-deferred result: a numpy array. You can use the Beam-specific argument
-    ``unique(as_series=True)`` to get the result as a :class:`DeferredSeries`"""
+    """unique is not supported by default because it produces a
+    non-deferred result: an :class:`~numpy.ndarray`. You can use the
+    Beam-specific argument ``unique(as_series=True)`` to get the result as
+    a :class:`DeferredSeries`"""
 
     if not as_series:
       raise frame_base.WontImplementError(
@@ -1886,8 +1887,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def clip(self, axis, **kwargs):
-    """lower and upper must be :class:`DeferredSeries` instances, or constants.
-    Array-like arguments are not supported because they are order-sensitive."""
+    """``lower`` and ``upper`` must be :class:`DeferredSeries` instances, or
+    constants.  Array-like arguments are not supported because they are
+    order-sensitive."""
 
     if any(isinstance(kwargs.get(arg, None), frame_base.DeferredFrame)
            for arg in ('upper', 'lower')) and axis not in (0, 'index'):
@@ -3162,8 +3164,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
   @frame_base.populate_defaults(pd.core.strings.StringMethods)
   def cat(self, others, join, **kwargs):
-    """If defined, `others` must be a :class:`DeferredSeries` or a `list` of
-    `DeferredSeries`."""
+    """If defined, ``others`` must be a :class:`DeferredSeries` or a ``list`` of
+    ``DeferredSeries``."""
     if others is None:
       # Concatenate series into a single String
       requires = partitionings.Singleton(reason=(
@@ -3203,8 +3205,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
   @frame_base.with_docs_from(pd.core.strings.StringMethods)
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
   def repeat(self, repeats):
-    """`repeats` must be an `int` or a :class:`DeferredSeries`. Lists are not
-    supported because they make this operation order-sensitive."""
+    """``repeats`` must be an ``int`` or a :class:`DeferredSeries`. Lists are
+    not supported because they make this operation order-sensitive."""
     if isinstance(repeats, int):
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
