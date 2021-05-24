@@ -105,7 +105,7 @@ def construct_pipeline(renames):
   @beam.typehints.with_output_types(str)
   def ReverseWords(pcoll):
     """A PTransform that reverses individual elements in a PCollection."""
-    return pcoll | beam.Map(lambda e: e[::-1])
+    return pcoll | beam.Map(lambda word: word[::-1])
 
   def filter_words(unused_x):
     """Pass through filter to select everything."""
@@ -113,10 +113,8 @@ def construct_pipeline(renames):
 
   # [START pipelines_constructing_creating]
   import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
 
-  beam_options = PipelineOptions()
-  with beam.Pipeline(options=beam_options) as pipeline:
+  with beam.Pipeline() as pipeline:
     pass  # build your pipeline here
     # [END pipelines_constructing_creating]
 
@@ -173,10 +171,8 @@ def model_pcollection(output_path):
   """Creating a PCollection from data in local memory."""
   # [START model_pcollection]
   import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
 
-  beam_options = PipelineOptions()
-  with beam.Pipeline(options=beam_options) as pipeline:
+  with beam.Pipeline() as pipeline:
     lines = (
         pipeline
         | beam.Create([
@@ -842,7 +838,7 @@ def model_custom_source(count):
 
   # Using the source in an example pipeline.
   # [START model_custom_source_use_new_source]
-  with beam.Pipeline(options=PipelineOptions()) as pipeline:
+  with beam.Pipeline() as pipeline:
     numbers = pipeline | 'ProduceNumbers' >> beam.io.Read(CountingSource(count))
     # [END model_custom_source_use_new_source]
 
@@ -851,7 +847,7 @@ def model_custom_source(count):
         lines, equal_to(['line ' + str(number) for number in range(0, count)]))
 
   # [START model_custom_source_use_ptransform]
-  with beam.Pipeline(options=PipelineOptions()) as pipeline:
+  with beam.Pipeline() as pipeline:
     numbers = pipeline | 'ProduceNumbers' >> ReadFromCountingSource(count)
     # [END model_custom_source_use_ptransform]
 
@@ -1510,8 +1506,7 @@ def side_input_slow_update(
       yield (left, x)
 
   # Create pipeline.
-  beam_options = PipelineOptions()
-  pipeline = beam.Pipeline(options=beam_options)
+  pipeline = beam.Pipeline()
   side_input = (
       pipeline
       | 'PeriodicImpulse' >> PeriodicImpulse(
