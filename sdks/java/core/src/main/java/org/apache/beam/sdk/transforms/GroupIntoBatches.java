@@ -129,6 +129,30 @@ public class GroupIntoBatches<K, InputT>
     public abstract SerializableFunction<InputT, Long> getElementByteSize();
 
     public abstract Duration getMaxBufferingDuration();
+
+    public SerializableFunction<InputT, Long> getWeigher(Coder<InputT> valueCoder) {
+      SerializableFunction<InputT, Long> weigher = getElementByteSize();
+      if (getBatchSizeBytes() < Long.MAX_VALUE) {
+        if (weigher == null) {
+          // If the user didn't specify a byte-size function, then use the Coder to determine the
+          // byte
+          // size.
+          // Note: if Coder.isRegisterByteSizeObserverCheap == false, then this will be expensive.
+          weigher =
+              (InputT element) -> {
+                try {
+                  ByteSizeObserver observer = new ByteSizeObserver();
+                  valueCoder.registerByteSizeObserver(element, observer);
+                  observer.advance();
+                  return observer.getElementByteSize();
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              };
+        }
+      }
+      return weigher;
+    }
   }
 
   private final BatchingParams<InputT> params;
@@ -267,25 +291,7 @@ public class GroupIntoBatches<K, InputT>
     KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
     final Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
 
-    SerializableFunction<InputT, Long> weigher = params.getElementByteSize();
-    if (params.getBatchSizeBytes() < Long.MAX_VALUE) {
-      if (weigher == null) {
-        // If the user didn't specify a byte-size function, then use the Coder to determine the byte
-        // size.
-        // Note: if Coder.isRegisterByteSizeObserverCheap == false, then this will be expensive.
-        weigher =
-            (InputT element) -> {
-              try {
-                ByteSizeObserver observer = new ByteSizeObserver();
-                valueCoder.registerByteSizeObserver(element, observer);
-                observer.advance();
-                return observer.getElementByteSize();
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            };
-      }
-    }
+    SerializableFunction<InputT, Long> weigher = params.getWeigher(valueCoder);
     return input.apply(
         ParDo.of(
             new GroupIntoBatchesDoFn<>(
