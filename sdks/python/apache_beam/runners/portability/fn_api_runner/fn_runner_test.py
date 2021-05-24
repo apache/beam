@@ -1043,7 +1043,7 @@ class FnApiRunnerTest(unittest.TestCase):
             any([re.match(packed_step_name_regex, s) for s in step_names]))
 
   def test_pack_combiners(self):
-    self._test_pack_combiners(self, assert_using_counter_names=True)
+    self._test_pack_combiners(assert_using_counter_names=True)
 
 
 # These tests are kept in a separate group so that they are
