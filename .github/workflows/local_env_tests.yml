@@ -26,12 +26,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['sdks/python/**', 'model/**']
-  workflow_dispatch:
-    inputs:
-      runDataflow:
-        description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
-        default: false
+    paths: ['dev-support/**', 'buildSrc/**', '**/build.gradle', 'sdks/python/setup.py', 'sdks/python/tox.ini']
 
 jobs:
   run_local_env_install_ubuntu:

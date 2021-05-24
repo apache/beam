@@ -33,8 +33,10 @@ install_go_packages(){
         fi
 }
 
+kernelname=$(uname -s)
+
 # Running on Linux
-if [ "$(uname -s)" = "Linux" ]; then
+if [ "$kernelname" = "Linux" ]; then
     # Assuming Debian based Linux and the prerequisites in https://beam.apache.org/contribute/ are met:
     apt-get update
 
@@ -61,10 +63,9 @@ if [ "$(uname -s)" = "Linux" ]; then
         echo "Go is required. Install it manually from https://golang.org/doc/install and rerun the script."
         exit
     fi
-fi
 
 # Running on Mac
-if [ "$(uname -s)" = "Darwin" ]; then
+elif [ "$kernelname" = "Darwin" ]; then
     # Check for Homebrew, install if we don't have it
     type -P brew > /dev/null 2>&1
     brewExists=$?
@@ -122,4 +123,6 @@ if [ "$(uname -s)" = "Darwin" ]; then
         echo "Go is required. Install it manually from https://golang.org/doc/install and rerun the script."
         exit
     fi
+
+else echo "Unrecognized Kernel Name: $kernelname"
 fi
