@@ -2115,11 +2115,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               requires_partition_by=partitionings.Singleton(),
               proxy=proxy))
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def corrwith(self, other, axis, drop, method):
-    if axis not in (0, 'index'):
-      raise NotImplementedError('corrwith(axis=%r)' % axis)
+    if axis in (1, 'columns'):
+      return self._elementwise(
+          lambda df, other: df.corrwith(other, axis=axis, drop=drop,
+                                        method=method),
+          'corrwith',
+          other_args=(other,))
+
+
     if not isinstance(other, frame_base.DeferredFrame):
       other = frame_base.DeferredFrame.wrap(
           expressions.ConstantExpression(other))

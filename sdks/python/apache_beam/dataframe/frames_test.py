@@ -602,6 +602,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.corrwith(df.a), df)
     self._run_test(lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]), df)
 
+    df2 = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df, df2: df.corrwith(df2, axis=1), df, df2)
+
   @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
   def test_applymap_na_action(self):
     # Replicates a doctest for na_action which is incompatible with
