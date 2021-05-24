@@ -42,7 +42,7 @@ public class PubsubClientTest {
 
   private long parse(String timestamp) {
     Map<String, String> map = ImmutableMap.of("myAttribute", timestamp);
-    return PubsubClient.extractTimestamp("myAttribute", null, map);
+    return PubsubClient.extractTimestampAttribute("myAttribute", map);
   }
 
   private void roundTripRfc339(String timestamp) {
@@ -54,23 +54,16 @@ public class PubsubClientTest {
   }
 
   @Test
-  public void noTimestampAttributeReturnsPubsubPublish() {
-    final long time = 987654321L;
-    long timestamp = PubsubClient.extractTimestamp(null, String.valueOf(time), null);
-    assertEquals(time, timestamp);
-  }
-
-  @Test
   public void noTimestampAttributeAndInvalidPubsubPublishThrowsError() {
     thrown.expect(NumberFormatException.class);
-    PubsubClient.extractTimestamp(null, "not-a-date", null);
+    PubsubClient.parseTimestampAsMsSinceEpoch("not-a-date");
   }
 
   @Test
   public void timestampAttributeWithNullAttributesThrowsError() {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("PubSub message is missing a value for timestamp attribute myAttribute");
-    PubsubClient.extractTimestamp("myAttribute", null, null);
+    PubsubClient.extractTimestampAttribute("myAttribute", null);
   }
 
   @Test
@@ -78,14 +71,14 @@ public class PubsubClientTest {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("PubSub message is missing a value for timestamp attribute myAttribute");
     Map<String, String> map = ImmutableMap.of("otherLabel", "whatever");
-    PubsubClient.extractTimestamp("myAttribute", null, map);
+    PubsubClient.extractTimestampAttribute("myAttribute", map);
   }
 
   @Test
   public void timestampAttributeParsesMillisecondsSinceEpoch() {
     long time = 1446162101123L;
     Map<String, String> map = ImmutableMap.of("myAttribute", String.valueOf(time));
-    long timestamp = PubsubClient.extractTimestamp("myAttribute", null, map);
+    long timestamp = PubsubClient.extractTimestampAttribute("myAttribute", map);
     assertEquals(time, timestamp);
   }
 
