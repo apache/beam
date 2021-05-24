@@ -156,12 +156,26 @@ def create_harness(environment, dry_run=False):
       profiler_factory=profiler.Profile.factory_from_options(
           sdk_pipeline_options.view_as(ProfilingOptions)),
       enable_heap_dump=enable_heap_dump)
-  return fn_log_handler, sdk_harness
+  return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
-  fn_log_handler, sdk_harness = create_harness(os.environ)
+  fn_log_handler, sdk_harness, sdk_pipeline_options = create_harness(os.environ)
+  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+  if 'enable_google_cloud_profiler' in experiments:
+    try:
+      import googlecloudprofiler
+      job_id = os.environ["JOB_ID"]
+      job_name = os.environ["JOB_NAME"]
+      if job_id and job_name:
+        googlecloudprofiler.start(
+            service=job_name, service_version=job_id, verbose=1)
+      else:
+        raise RuntimeError('Unable to find the job id or job name from envvar.')
+    except Exception as e:  # pylint: disable=broad-except
+      _LOGGER.warning(
+          'Unable to start google cloud profiler due to error: %s' % e)
   try:
     _LOGGER.info('Python sdk harness starting.')
     _start_status_server()
