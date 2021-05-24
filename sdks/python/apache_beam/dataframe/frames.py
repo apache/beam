@@ -436,7 +436,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton()))
 
-  @property
+  @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
   def size(self):
     sizes = expressions.ComputedExpression(
@@ -644,12 +644,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           "on the full dataset."),
       preserves_partition_by=expressions.partitionings.Singleton())
 
-  @property
+  @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
   def ndim(self):
     return self._expr.proxy().ndim
 
-  @property
+  @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
   def index(self):
     return _DeferredIndex(self)
@@ -680,7 +680,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(DeferredDataFrameOrSeries):
-  @property
+  @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def name(self):
     return self._expr.proxy().name
@@ -698,7 +698,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         requires_partition_by=partitionings.Arbitrary(),
         preserves_partition_by=partitionings.Arbitrary())
 
-  @property
+  @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def dtype(self):
     return self._expr.proxy().dtype
@@ -1193,7 +1193,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   agg = aggregate
 
-  @property
+  @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def axes(self):
     return [self.index]
@@ -1313,7 +1313,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary(),
               requires_partition_by=partitionings.Singleton()))
 
-  @property
+  @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def is_unique(self):
     def set_index(s):
@@ -1440,7 +1440,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           "because it relies on memory-sharing semantics that are "
           "not compatible with the Beam model"))
 
-  @property
+  @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def str(self):
     return _DeferredStringMethods(self._expr)
