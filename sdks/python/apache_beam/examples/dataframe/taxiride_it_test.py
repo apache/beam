@@ -25,6 +25,7 @@ import unittest
 import uuid
 
 import pandas as pd
+from nose.plugins.attrib import attr
 
 from apache_beam.examples.dataframe import taxiride
 from apache_beam.io.filesystems import FileSystems
@@ -43,6 +44,7 @@ class TaxirideIT(unittest.TestCase):
   def tearDown(self):
     FileSystems.delete([self.outdir + '/'])
 
+  @attr('IT')
   def test_aggregation(self):
     taxiride.run_aggregation_pipeline(
         self.test_pipeline,
@@ -69,6 +71,7 @@ class TaxirideIT(unittest.TestCase):
 
     pd.testing.assert_frame_equal(expected, result)
 
+  @attr('IT')
   def test_enrich(self):
     # Standard workers OOM with the enrich pipeline
     self.test_pipeline.get_pipeline_options().view_as(
