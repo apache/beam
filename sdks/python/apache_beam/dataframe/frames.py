@@ -1662,7 +1662,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                             if not
                             pd.core.dtypes.common.is_numeric_dtype(dtype)]
 
-      if _is_numeric(func) and len(nonnumeric_columns):
+      if _is_numeric(func) and nonnumeric_columns:
         if 'numeric_only' in kwargs and kwargs['numeric_only'] is False:
           # User has opted in to execution with non-numeric columns, they
           # will accept runtime errors
