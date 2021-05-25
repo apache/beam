@@ -824,11 +824,15 @@ class FnApiRunnerTest(unittest.TestCase):
             | beam.Create(['a', 'b'])
             | 'StageA' >> beam.Map(lambda x: x)
             | 'StageB' >> beam.Map(lambda x: x)
+            | 'FusionBreakBeforeRaise' >> beam.Reshuffle()
             | 'StageC' >> beam.Map(raise_error)
+            | 'FusionBreakAfterRaise' >> beam.Reshuffle()
             | 'StageD' >> beam.Map(lambda x: x))
     message = e_cm.exception.args[0]
     self.assertIn('StageC', message)
+    self.assertNotIn('StageA', message)
     self.assertNotIn('StageB', message)
+    self.assertNotIn('StageD', message)
 
   def test_error_traceback_includes_user_code(self):
     def first(x):
