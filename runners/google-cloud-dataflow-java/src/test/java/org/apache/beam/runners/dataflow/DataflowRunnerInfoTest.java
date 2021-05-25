@@ -49,12 +49,16 @@ public class DataflowRunnerInfoTest {
         String.format("FnAPI environment major version number %s is not a number", version),
         version.matches("\\d+"));
 
-    // Validate container version does not contain the property name (indicating it was not filled
-    // in).
+    // Validate container versions do not contain the property name.
     assertThat(
-        "container version invalid",
-        info.getContainerVersion(),
-        not(containsString("dataflow.container_version")));
+        "legacy container version invalid",
+        info.getFnApiDevContainerVersion(),
+        not(containsString("dataflow.legacy_container_version")));
+
+    assertThat(
+        "FnAPI container version invalid",
+        info.getLegacyDevContainerVersion(),
+        not(containsString("dataflow.fnapi_container_version")));
 
     // Validate container base repository does not contain the property name
     // (indicating it was not filled in).
