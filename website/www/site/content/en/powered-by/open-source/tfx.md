@@ -20,4 +20,4 @@ limitations under the License.
 -->
 
 **[TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx):**  TensorFlow Extended (TFX) is an end-to-end platform
-  for deploying production ML pipelines.
+  for deploying production ML pipelines based on Apache Beam.
