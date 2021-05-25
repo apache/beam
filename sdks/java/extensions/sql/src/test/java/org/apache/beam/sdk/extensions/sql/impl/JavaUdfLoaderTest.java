@@ -18,12 +18,13 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assume.assumeFalse;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.nio.file.ProviderNotFoundException;
 import java.util.Collections;
 import java.util.Iterator;
+import org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateFunctionTest;
 import org.apache.beam.sdk.extensions.sql.udf.UdfProvider;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Before;
@@ -46,8 +47,18 @@ public class JavaUdfLoaderTest {
 
   @Before
   public void setUp() {
-    assumeFalse(jarPath.isEmpty());
-    assumeFalse(emptyJarPath.isEmpty());
+    if (jarPath == null) {
+      fail(
+          String.format(
+              "System property %s must be set to run %s.",
+              jarPathProperty, SqlCreateFunctionTest.class.getSimpleName()));
+    }
+    if (emptyJarPath == null) {
+      fail(
+          String.format(
+              "System property %s must be set to run %s.",
+              emptyJarPathProperty, SqlCreateFunctionTest.class.getSimpleName()));
+    }
   }
 
   /**
