@@ -1708,25 +1708,21 @@ public class DataflowRunnerTest implements Serializable {
     verifyMergingStatefulParDoRejected(options);
   }
 
-  private void verifyGroupIntoBatchesOverride(
-      Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
-    verifyGroupIntoBatchesOverrideCount(p, withShardedKey, expectOverriden);
-    verifyGroupIntoBatchesOverrideBytes(p, withShardedKey, expectOverriden);
-  }
-
   private void verifyGroupIntoBatchesOverrideCount(
       Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
     final int batchSize = 2;
     List<KV<String, Integer>> testValues =
         Arrays.asList(KV.of("A", 1), KV.of("B", 0), KV.of("A", 2), KV.of("A", 4), KV.of("A", 8));
-    PCollection<KV<String, Integer>> input = p.apply(Create.of(testValues));
+    PCollection<KV<String, Integer>> input = p.apply("CreateValuesCount", Create.of(testValues));
     PCollection<KV<String, Iterable<Integer>>> output;
     if (withShardedKey) {
       output =
           input
-              .apply(GroupIntoBatches.<String, Integer>ofSize(batchSize).withShardedKey())
               .apply(
-                  "StripShardId",
+                  "GroupIntoBatchesCount",
+                  GroupIntoBatches.<String, Integer>ofSize(batchSize).withShardedKey())
+              .apply(
+                  "StripShardIdCount",
                   MapElements.via(
                       new SimpleFunction<
                           KV<ShardedKey<String>, Iterable<Integer>>,
@@ -1738,7 +1734,7 @@ public class DataflowRunnerTest implements Serializable {
                         }
                       }));
     } else {
-      output = input.apply(GroupIntoBatches.ofSize(batchSize));
+      output = input.apply("GroupIntoBatchesCount", GroupIntoBatches.ofSize(batchSize));
     }
     PAssert.thatMultimap(output)
         .satisfies(
@@ -1800,14 +1796,16 @@ public class DataflowRunnerTest implements Serializable {
             KV.of("A", "abc"),
             KV.of("A", "abcd"),
             KV.of("A", "abcde"));
-    PCollection<KV<String, String>> input = p.apply(Create.of(testValues));
+    PCollection<KV<String, String>> input = p.apply("CreateValuesBytes", Create.of(testValues));
     PCollection<KV<String, Iterable<String>>> output;
     if (withShardedKey) {
       output =
           input
-              .apply(GroupIntoBatches.<String, String>ofByteSize(batchSizeBytes).withShardedKey())
               .apply(
-                  "StripShardId",
+                  "GroupIntoBatchesBytes",
+                  GroupIntoBatches.<String, String>ofByteSize(batchSizeBytes).withShardedKey())
+              .apply(
+                  "StripShardIdBytes",
                   MapElements.via(
                       new SimpleFunction<
                           KV<ShardedKey<String>, Iterable<String>>,
@@ -1819,7 +1817,7 @@ public class DataflowRunnerTest implements Serializable {
                         }
                       }));
     } else {
-      output = input.apply(GroupIntoBatches.ofByteSize(batchSizeBytes));
+      output = input.apply("GroupIntoBatchesBytes", GroupIntoBatches.ofByteSize(batchSizeBytes));
     }
     PAssert.thatMultimap(output)
         .satisfies(
@@ -1864,29 +1862,52 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testBatchGroupIntoBatchesOverride() {
+  public void testBatchGroupIntoBatchesOverrideCount() {
     // Ignore this test for streaming pipelines.
     assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
-    verifyGroupIntoBatchesOverride(pipeline, false, true);
+    verifyGroupIntoBatchesOverrideCount(pipeline, false, true);
   }
 
   @Test
-  public void testBatchGroupIntoBatchesWithShardedKeyOverride() throws IOException {
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testBatchGroupIntoBatchesOverrideBytes() {
+    // Ignore this test for streaming pipelines.
+    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
+    verifyGroupIntoBatchesOverrideBytes(pipeline, false, true);
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyOverrideCount() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     Pipeline p = Pipeline.create(options);
-    verifyGroupIntoBatchesOverride(p, true, true);
+    verifyGroupIntoBatchesOverrideCount(p, true, true);
   }
 
   @Test
-  public void testStreamingGroupIntoBatchesOverride() throws IOException {
+  public void testBatchGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, true, true);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesOverrideCount() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     options.as(StreamingOptions.class).setStreaming(true);
     Pipeline p = Pipeline.create(options);
-    verifyGroupIntoBatchesOverride(p, false, false);
+    verifyGroupIntoBatchesOverrideCount(p, false, false);
   }
 
   @Test
-  public void testStreamingGroupIntoBatchesWithShardedKeyOverride() throws IOException {
+  public void testStreamingGroupIntoBatchesOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, false, false);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyOverrideCount() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     List<String> experiments =
         new ArrayList<>(
@@ -1898,7 +1919,23 @@ public class DataflowRunnerTest implements Serializable {
     dataflowOptions.setExperiments(experiments);
     dataflowOptions.setStreaming(true);
     Pipeline p = Pipeline.create(options);
-    verifyGroupIntoBatchesOverride(p, true, true);
+    verifyGroupIntoBatchesOverrideCount(p, true, true);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setExperiments(experiments);
+    dataflowOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, true, true);
   }
 
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
