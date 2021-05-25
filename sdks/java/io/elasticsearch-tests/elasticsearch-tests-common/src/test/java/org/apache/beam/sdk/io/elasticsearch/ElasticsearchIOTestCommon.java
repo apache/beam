@@ -69,7 +69,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
@@ -798,13 +797,9 @@ class ElasticsearchIOTestCommon implements Serializable {
         pipeline.apply(Create.of(data)).apply(StatefulBatching.fromSpec(write.getBulkIO()));
 
     PCollection<Integer> keyValues =
-        batches
-            .apply(GroupByKey.create())
-            .apply(
-                MapElements.into(integers())
-                    .via(
-                        (SerializableFunction<KV<Integer, Iterable<Iterable<String>>>, Integer>)
-                            KV::getKey));
+        batches.apply(
+            MapElements.into(integers())
+                .via((SerializableFunction<KV<Integer, Iterable<String>>, Integer>) KV::getKey));
 
     // Number of unique keys produced should be number of maxParallelRequestsPerWindow * numWindows
     // There is only 1 request (key) per window, and 1 (global) window ie. one key total where
