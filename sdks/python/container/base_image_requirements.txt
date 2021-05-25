@@ -48,6 +48,7 @@ google-cloud-bigquery==1.26.1
 google-cloud-bigtable==1.0.0
 google-cloud-core==1.4.1
 google-cloud-datastore==1.7.4
+google-cloud-profiler==3.0.4
 
 # Optional packages
 cython==0.29.13
