@@ -92,9 +92,7 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
                     })
                 .withPollInterval(pollDuration)
                 .withTerminationPerInput(
-                    terminate
-                        ? Watch.Growth.afterTotalOf(pollDuration.multipliedBy(10))
-                        : Watch.Growth.never()));
+                    terminate ? Watch.Growth.afterIterations(10) : Watch.Growth.never()));
     return partitions.apply(
         MapElements.into(TypeDescriptor.of(SubscriptionPartition.class))
             .via(kv -> SubscriptionPartition.of(subscription, kv.getValue())));
