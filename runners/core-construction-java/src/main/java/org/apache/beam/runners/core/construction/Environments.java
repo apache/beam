@@ -91,7 +91,8 @@ public class Environments {
 
   public enum JavaVersion {
     java8("java", "1.8"),
-    java11("java11", "11");
+    java11("java11", "11"),
+    java17("java17", "17");
 
     // Legacy name, as used in container image
     private final String legacyName;
