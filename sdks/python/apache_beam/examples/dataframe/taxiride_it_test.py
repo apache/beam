@@ -54,7 +54,8 @@ class TaxirideIT(unittest.TestCase):
         os.path.join(
             os.path.dirname(__file__),
             'data',
-            'taxiride_2018_aggregation_truth.csv'))
+            'taxiride_2018_aggregation_truth.csv'),
+        comment='#')
     expected = expected.sort_values('DOLocationID').reset_index(drop=True)
 
     def read_csv(path):
@@ -82,7 +83,8 @@ class TaxirideIT(unittest.TestCase):
     expected = pd.read_csv(
         os.path.join(
             os.path.dirname(__file__), 'data',
-            'taxiride_2018_enrich_truth.csv'))
+            'taxiride_2018_enrich_truth.csv'),
+        comment='#')
     expected = expected.sort_values('Borough').reset_index(drop=True)
 
     def read_csv(path):
