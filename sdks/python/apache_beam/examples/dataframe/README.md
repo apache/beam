@@ -22,12 +22,12 @@
 This module contains example pipelines that use the [Beam DataFrame
 API](https://beam.apache.org/documentation/dsls/dataframes/overview/).
 
-### Pre-requisites
+## Pre-requisites
 
 You must have `apache-beam>=2.30.0` installed in order to run these pipelines,
 since the `apache_beam.exampels.dataframe` module was added in that release.
 
-### Wordcount Pipeline
+## Wordcount Pipeline
 
 Wordcount is the "Hello World" of data analytic systems, so of course we
 had to implement it for the Beam DataFrame API! See `wordcount.py` for the
@@ -39,7 +39,7 @@ in conjunction with
 and
 [to_pcollection](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.convert.html#apache_beam.dataframe.convert.to_pcollection).
 
-#### Running the pipeline
+### Running the pipeline
 
 To run the pipeline locally:
 
@@ -64,7 +64,7 @@ DUKE: 3
 ...
 ```
 
-### Taxi Ride Example Pipelines
+## Taxi Ride Example Pipelines
 
 `taxiride.py` contains implementations for two DataFrame pipelines that
 process the well-known [NYC Taxi
@@ -78,7 +78,7 @@ aggregation on the drop-off location ID. The `borough_enrich` pipeline extends
 this example by joining the zone lookup table to find the borough where each
 drop off occurred, and aggregation
 
-#### Data
+### Data
 Some snapshots of NYC taxi data have been staged in
 `gs://apache-beam-samples` for use with these example pipelines:
 
@@ -91,7 +91,7 @@ Some snapshots of NYC taxi data have been staged in
 - `gs://apache-beam-samples/nyc_taxi/misc/taxi+_zone_lookup.csv`: Lookup table
   with information about Zone IDs. Used by the `borough_enrich` pipeline.
 
-#### Running `location_id_agg`
+### Running `location_id_agg`
 To run the aggregation pipeline locally, use the following command:
 ```sh
 python -m apache_beam.examples.dataframe.taxiride \
@@ -116,7 +116,7 @@ DOLocationID,passenger_count
 ...
 ```
 
-#### Running `borough_enrich`
+### Running `borough_enrich`
 To run the enrich pipeline locally, use the command:
 ```sh
 python -m apache_beam.examples.dataframe.taxiride \
