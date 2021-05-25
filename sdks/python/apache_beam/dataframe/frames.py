@@ -872,7 +872,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     ``level=None``, is allowed.
 
     Filling NaN values via ``method`` is not supported, because it is
-    `order-sensitive <https://s.apache.org/dataframe-order-sensitive-operatons>`_.
+    `order-sensitive
+    <https://s.apache.org/dataframe-order-sensitive-operatons>`_.
     Only the default, ``method=None``, is allowed."""
     if level is not None:
       raise NotImplementedError('per-level align')
@@ -1641,8 +1642,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     ``level=None``, is allowed.
 
     Filling NaN values via ``method`` is not supported, because it is
-    `order-sensitive <https://s.apache.org/dataframe-order-sensitive-operatons>`_.
-    Only the default, ``method=None``, is allowed.
+    `order-sensitive
+    <https://s.apache.org/dataframe-order-sensitive-operatons>`_. Only the
+    default, ``method=None``, is allowed.
 
     ``copy=False`` is not supported because its behavior (whether or not it is
     an inplace oepration) depends on the data."""
