@@ -65,6 +65,7 @@ import org.slf4j.LoggerFactory;
 public class GroupIntoBatchesTest implements Serializable {
 
   private static final int BATCH_SIZE = 5;
+  private static final long BATCH_SIZE_BYTES = 25;
   private static final long EVEN_NUM_ELEMENTS = 10;
   private static final long ODD_NUM_ELEMENTS = 11;
   private static final int ALLOWED_LATENESS = 0;
@@ -96,7 +97,7 @@ public class GroupIntoBatchesTest implements Serializable {
 
   @Test
   @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
-  public void testInGlobalWindow() {
+  public void testInGlobalWindowBatchSizeCount() {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
             .apply("Input data", Create.of(data))
@@ -124,6 +125,99 @@ public class GroupIntoBatchesTest implements Serializable {
             });
     PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
         .isEqualTo(EVEN_NUM_ELEMENTS / BATCH_SIZE);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  public void testInGlobalWindowBatchSizeByteSize() {
+    PCollection<KV<String, Iterable<String>>> collection =
+        pipeline
+            .apply("Input data", Create.of(data))
+            .apply(GroupIntoBatches.ofByteSize(BATCH_SIZE_BYTES))
+            // set output coder
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+    PAssert.that("Incorrect batch size in one or more elements", collection)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
+
+              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
+                for (KV<String, Iterable<String>> element : listToCheck) {
+                  long byteSize = 0;
+                  for (String str : element.getValue()) {
+                    if (byteSize >= BATCH_SIZE_BYTES) {
+                      // We already reached the batch size, so extra elements are not expected.
+                      return false;
+                    }
+                    try {
+                      byteSize += StringUtf8Coder.of().getEncodedElementByteSize(str);
+                    } catch (Exception e) {
+                      throw new RuntimeException(e);
+                    }
+                  }
+                }
+                return true;
+              }
+
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<String>>> input) {
+                assertTrue(checkBatchSizes(input));
+                return null;
+              }
+            });
+    PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
+        .isEqualTo(3L);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  public void testInGlobalWindowBatchSizeByteSizeFn() {
+    PCollection<KV<String, Iterable<String>>> collection =
+        pipeline
+            .apply("Input data", Create.of(data))
+            .apply(
+                GroupIntoBatches.ofByteSize(
+                    BATCH_SIZE_BYTES,
+                    s -> {
+                      try {
+                        return 2 * StringUtf8Coder.of().getEncodedElementByteSize(s);
+                      } catch (Exception e) {
+                        throw new RuntimeException(e);
+                      }
+                    }))
+            // set output coder
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+    PAssert.that("Incorrect batch size in one or more elements", collection)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
+
+              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
+                for (KV<String, Iterable<String>> element : listToCheck) {
+                  long byteSize = 0;
+                  for (String str : element.getValue()) {
+                    if (byteSize >= BATCH_SIZE_BYTES) {
+                      // We already reached the batch size, so extra elements are not expected.
+                      return false;
+                    }
+                    try {
+                      byteSize += 2 * StringUtf8Coder.of().getEncodedElementByteSize(str);
+                    } catch (Exception e) {
+                      throw new RuntimeException(e);
+                    }
+                  }
+                }
+                return true;
+              }
+
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<String>>> input) {
+                assertTrue(checkBatchSizes(input));
+                return null;
+              }
+            });
+    PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
+        .isEqualTo(5L);
     pipeline.run();
   }
 
