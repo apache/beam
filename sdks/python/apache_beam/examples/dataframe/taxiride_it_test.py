@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import logging
 import os
 import unittest
 import uuid
@@ -27,9 +28,8 @@ import pandas as pd
 
 from apache_beam.examples.dataframe import taxiride
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import open_shards
 from apache_beam.options.pipeline_options import WorkerOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class TaxirideIT(unittest.TestCase):
@@ -100,4 +100,5 @@ class TaxirideIT(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  googletest.main()
+  logging.getLogger().setLevel(logging.DEBUG)
+  unittest.main()

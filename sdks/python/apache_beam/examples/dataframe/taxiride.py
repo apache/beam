@@ -25,14 +25,11 @@ import argparse
 import logging
 
 import apache_beam as beam
-from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.io import read_csv
-from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import WorkerOptions
 
-ZONE_LOOKUP_PATH = "gs://apache-beam-samples/nyc_taxi/misc/taxi+_zone_lookup.csv"
+ZONE_LOOKUP_PATH = (
+    "gs://apache-beam-samples/nyc_taxi/misc/taxi+_zone_lookup.csv")
 
 
 def run_aggregation_pipeline(pipeline, input_path, output_path):

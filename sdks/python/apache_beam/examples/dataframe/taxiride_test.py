@@ -22,7 +22,6 @@
 
 from __future__ import absolute_import
 
-import collections
 import logging
 import os
 import re
@@ -39,6 +38,7 @@ from apache_beam.testing.util import open_shards
 class TaxiRideExampleTest(unittest.TestCase):
 
   # First 10 lines from gs://apache-beam-samples/nyc_taxi/misc/sample.csv
+  # pylint: disable=line-too-long
   SAMPLE_RIDES = """VendorID,tpep_pickup_datetime,tpep_dropoff_datetime,passenger_count,trip_distance,RatecodeID,store_and_fwd_flag,PULocationID,DOLocationID,payment_type,fare_amount,extra,mta_tax,tip_amount,tolls_amount,improvement_surcharge,total_amount,congestion_surcharge
   1,2019-01-01 00:46:40,2019-01-01 00:53:20,1,1.50,1,N,151,239,1,7,0.5,0.5,1.65,0,0.3,9.95,
   1,2019-01-01 00:59:47,2019-01-01 01:18:59,1,2.60,1,N,239,246,1,14,0.5,0.5,1,0,0.3,16.3,
@@ -50,6 +50,7 @@ class TaxiRideExampleTest(unittest.TestCase):
   1,2019-01-01 00:21:28,2019-01-01 00:28:37,1,1.30,1,N,163,229,1,6.5,0.5,0.5,1.25,0,0.3,9.05,
   1,2019-01-01 00:32:01,2019-01-01 00:45:39,1,3.70,1,N,229,7,1,13.5,0.5,0.5,3.7,0,0.3,18.5
   """
+  # pylint: enable=line-too-long
 
   SAMPLE_ZONE_LOOKUP = """"LocationID","Borough","Zone","service_zone"
   7,"Queens","Astoria","Boro Zone"
