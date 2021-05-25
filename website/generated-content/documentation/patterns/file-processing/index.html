@@ -44,9 +44,9 @@ function openMenu(){addPlaceholder();blockScroll();}</script><div class="clearfi
                 <span class=c1>// We can now access the file and its metadata.
 </span><span class=c1></span>                <span class=n>LOG</span><span class=o>.</span><span class=na>info</span><span class=o>(</span><span class=s>&#34;File Metadata resourceId is {} &#34;</span><span class=o>,</span> <span class=n>file</span><span class=o>.</span><span class=na>getMetadata</span><span class=o>().</span><span class=na>resourceId</span><span class=o>());</span>
               <span class=o>}</span>
-            <span class=o>}));</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
+            <span class=o>}));</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>pipeline</span><span class=p>:</span>
   <span class=n>readable_files</span> <span class=o>=</span> <span class=p>(</span>
-      <span class=n>p</span>
+      <span class=n>pipeline</span>
       <span class=o>|</span> <span class=n>fileio</span><span class=o>.</span><span class=n>MatchFiles</span><span class=p>(</span><span class=s1>&#39;hdfs://path/to/*.txt&#39;</span><span class=p>)</span>
       <span class=o>|</span> <span class=n>fileio</span><span class=o>.</span><span class=n>ReadMatches</span><span class=p>()</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Reshuffle</span><span class=p>())</span>

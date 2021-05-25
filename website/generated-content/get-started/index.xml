@@ -2448,13 +2448,15 @@ sections, we will specify the pipeline&amp;rsquo;s runner.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="n">google_cloud_options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GoogleCloudOptions&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">google_cloud_options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">project&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;my-project-id&amp;#39;&lt;/span>
-&lt;span class="n">google_cloud_options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">job_name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;myjob&amp;#39;&lt;/span>
-&lt;span class="n">google_cloud_options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">staging_location&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;gs://your-bucket-name-here/staging&amp;#39;&lt;/span>
-&lt;span class="n">google_cloud_options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">temp_location&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;gs://your-bucket-name-here/temp&amp;#39;&lt;/span>
-&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">StandardOptions&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">runner&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;DataflowRunner&amp;#39;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
+&lt;span class="n">input_file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;gs://dataflow-samples/shakespeare/kinglear.txt&amp;#39;&lt;/span>
+&lt;span class="n">output_path&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;gs://my-bucket/counts.txt&amp;#39;&lt;/span>
+&lt;span class="n">beam_options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">runner&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;DataflowRunner&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">project&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;my-project-id&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">job_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;unique-job-name&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">temp_location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://my-bucket/temp&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java language-py">The next step is to create a &lt;code>Pipeline&lt;/code> object with the options we&amp;rsquo;ve just
@@ -2476,7 +2478,7 @@ The scope allows grouping into composite transforms.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">p&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">pipeline&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam_options&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -2519,8 +2521,8 @@ data stored in a publicly accessible Google Cloud Storage bucket (&amp;ldquo;gs:
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;gs://dataflow-samples/shakespeare/kinglear.txt&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">input_file&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -2667,7 +2669,7 @@ resulting output file.&lt;/li>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;gs://my-bucket/counts.txt&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">output_path&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -3070,8 +3072,8 @@ is the &lt;code>PCollection&amp;lt;KV&amp;lt;String, Long&amp;gt;&amp;gt;&lt;/co
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">CountWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="nd">@beam.ptransform_fn&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">CountWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">pcoll&lt;/span>
 &lt;span class="c1"># Convert lines of text into individual words.&lt;/span>
@@ -3129,17 +3131,18 @@ values for them. You can then access the options values in your pipeline code.&l
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">WordCountOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="nd">@classmethod&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">_add_argparse_args&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">cls&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">argparse&lt;/span>
+&lt;span class="n">parser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">argparse&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ArgumentParser&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;--input&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Input for the pipeline&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://my-bucket/input&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">word_count_options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">WordCountOptions&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">word_count_options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="s1">&amp;#39;--input-file&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://dataflow-samples/shakespeare/kinglear.txt&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The file path for the input text to process.&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;--output-path&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">required&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The path prefix for output files.&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">args&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">beam_args&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">parse_known_args&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">beam_options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam_args&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam_options&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">args&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_file&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>

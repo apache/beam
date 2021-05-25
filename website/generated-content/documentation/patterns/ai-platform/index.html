@@ -26,9 +26,9 @@ function openMenu(){addPlaceholder();blockScroll();}</script><div class="clearfi
     <span class=n>extract_syntax</span><span class=o>=</span><span class=bp>True</span><span class=p>,</span>
 <span class=p>)</span>
 
-<span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
+<span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>pipeline</span><span class=p>:</span>
   <span class=n>responses</span> <span class=o>=</span> <span class=p>(</span>
-      <span class=n>p</span>
+      <span class=n>pipeline</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span>
           <span class=s1>&#39;My experience so far has been fantastic! &#39;</span>
           <span class=s1>&#39;I</span><span class=se>\&#39;</span><span class=s1>d really recommend this product.&#39;</span>

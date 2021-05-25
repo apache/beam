@@ -206,7 +206,7 @@ then extracts the <code>max_temperature</code> column.</p><div class="language-j
     <span class=k>return</span> <span class=n>rows</span><span class=o>;</span>
   <span class=o>}</span>
 <span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>max_temperatures</span> <span class=o>=</span> <span class=p>(</span>
-    <span class=n>p</span>
+    <span class=n>pipeline</span>
     <span class=o>|</span> <span class=s1>&#39;ReadTable&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>ReadFromBigQuery</span><span class=p>(</span><span class=n>table</span><span class=o>=</span><span class=n>table_spec</span><span class=p>)</span>
     <span class=c1># Each row is a dictionary where the keys are the BigQuery columns</span>
     <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>elem</span><span class=p>:</span> <span class=n>elem</span><span class=p>[</span><span class=s1>&#39;max_temperature&#39;</span><span class=p>]))</span></code></pre></div></div></div><h3 id=reading-with-a-query-string>Reading with a query string</h3><p class=language-java>If you don&rsquo;t want to read an entire table, you can supply a query string with
@@ -242,7 +242,7 @@ the <code>fromQuery</code> method.</p><p class=language-py>If you don&rsquo;t wa
     <span class=k>return</span> <span class=n>rows</span><span class=o>;</span>
   <span class=o>}</span>
 <span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>max_temperatures</span> <span class=o>=</span> <span class=p>(</span>
-    <span class=n>p</span>
+    <span class=n>pipeline</span>
     <span class=o>|</span> <span class=s1>&#39;QueryTable&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>ReadFromBigQuery</span><span class=p>(</span>
         <span class=n>query</span><span class=o>=</span><span class=s1>&#39;SELECT max_temperature FROM &#39;</span>\
               <span class=s1>&#39;[clouddataflow-readonly:samples.weather_stations]&#39;</span><span class=p>)</span>
@@ -256,7 +256,7 @@ in the following example:</p><div class="language-java snippet"><div class="note
                 <span class=s>&#34;SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`&#34;</span><span class=o>)</span>
             <span class=o>.</span><span class=na>usingStandardSql</span><span class=o>()</span>
             <span class=o>.</span><span class=na>withCoder</span><span class=o>(</span><span class=n>DoubleCoder</span><span class=o>.</span><span class=na>of</span><span class=o>()));</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>max_temperatures</span> <span class=o>=</span> <span class=p>(</span>
-    <span class=n>p</span>
+    <span class=n>pipeline</span>
     <span class=o>|</span> <span class=s1>&#39;QueryTableStdSQL&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>ReadFromBigQuery</span><span class=p>(</span>
         <span class=n>query</span><span class=o>=</span><span class=s1>&#39;SELECT max_temperature FROM &#39;</span>\
               <span class=s1>&#39;`clouddataflow-readonly.samples.weather_stations`&#39;</span><span class=p>,</span>
@@ -584,7 +584,7 @@ table already exists, it will be replaced.</p><div class="language-java snippet"
 
     <span class=c1>// pipeline.run().waitUntilFinish();
 </span><span class=c1></span>  <span class=o>}</span>
-<span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>quotes</span> <span class=o>=</span> <span class=n>p</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span>
+<span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>quotes</span> <span class=o>=</span> <span class=n>pipeline</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span>
     <span class=p>{</span>
         <span class=s1>&#39;source&#39;</span><span class=p>:</span> <span class=s1>&#39;Mahatma Gandhi&#39;</span><span class=p>,</span> <span class=s1>&#39;quote&#39;</span><span class=p>:</span> <span class=s1>&#39;My life is my message.&#39;</span>
     <span class=p>},</span>
@@ -715,8 +715,8 @@ different table for each year.</p><div class="language-java snippet"><div class=
                     <span class=o>.</span><span class=na>set</span><span class=o>(</span><span class=s>&#34;maxTemp&#34;</span><span class=o>,</span> <span class=n>elem</span><span class=o>.</span><span class=na>maxTemp</span><span class=o>))</span>
         <span class=o>.</span><span class=na>withCreateDisposition</span><span class=o>(</span><span class=n>CreateDisposition</span><span class=o>.</span><span class=na>CREATE_IF_NEEDED</span><span class=o>)</span>
         <span class=o>.</span><span class=na>withWriteDisposition</span><span class=o>(</span><span class=n>WriteDisposition</span><span class=o>.</span><span class=na>WRITE_TRUNCATE</span><span class=o>));</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>fictional_characters_view</span> <span class=o>=</span> <span class=n>beam</span><span class=o>.</span><span class=n>pvalue</span><span class=o>.</span><span class=n>AsDict</span><span class=p>(</span>
-    <span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;CreateCharacters&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([(</span><span class=s1>&#39;Yoda&#39;</span><span class=p>,</span> <span class=bp>True</span><span class=p>),</span>
-                                           <span class=p>(</span><span class=s1>&#39;Obi Wan Kenobi&#39;</span><span class=p>,</span> <span class=bp>True</span><span class=p>)]))</span>
+    <span class=n>pipeline</span> <span class=o>|</span> <span class=s1>&#39;CreateCharacters&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([(</span><span class=s1>&#39;Yoda&#39;</span><span class=p>,</span> <span class=bp>True</span><span class=p>),</span>
+                                                  <span class=p>(</span><span class=s1>&#39;Obi Wan Kenobi&#39;</span><span class=p>,</span> <span class=bp>True</span><span class=p>)]))</span>
 
 <span class=k>def</span> <span class=nf>table_fn</span><span class=p>(</span><span class=n>element</span><span class=p>,</span> <span class=n>fictional_characters</span><span class=p>):</span>
   <span class=k>if</span> <span class=n>element</span> <span class=ow>in</span> <span class=n>fictional_characters</span><span class=p>:</span>

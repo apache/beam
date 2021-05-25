@@ -35,9 +35,9 @@ limitations under the License.
 &lt;span class="n">extract_entity_sentiment&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="n">extract_syntax&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="p">)&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="n">responses&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
 &lt;span class="s1">&amp;#39;My experience so far has been fantastic! &amp;#39;&lt;/span>
 &lt;span class="s1">&amp;#39;I&lt;/span>&lt;span class="se">\&amp;#39;&lt;/span>&lt;span class="s1">d really recommend this product.&amp;#39;&lt;/span>
@@ -906,8 +906,8 @@ bundle_start = bundle_stop&lt;/code>&lt;/pre>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>with beam.Pipeline(options=PipelineOptions()) as p:
-numbers = p | &amp;#39;ProduceNumbers&amp;#39; &amp;gt;&amp;gt; beam.io.Read(CountingSource(count))&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>with beam.Pipeline() as pipeline:
+numbers = pipeline | &amp;#39;ProduceNumbers&amp;#39; &amp;gt;&amp;gt; beam.io.Read(CountingSource(count))&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>&lt;strong>Note:&lt;/strong> When you create a source that end-users are going to use, we
@@ -990,8 +990,8 @@ return pcoll | iobase.Read(_CountingSource(self._count))&lt;/code>&lt;/pre>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>with beam.Pipeline(options=PipelineOptions()) as p:
-numbers = p | &amp;#39;ProduceNumbers&amp;#39; &amp;gt;&amp;gt; ReadFromCountingSource(count)&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>with beam.Pipeline() as pipeline:
+numbers = pipeline | &amp;#39;ProduceNumbers&amp;#39; &amp;gt;&amp;gt; ReadFromCountingSource(count)&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>For the sink, rename &lt;code>SimpleKVSink&lt;/code> to &lt;code>_SimpleKVSink&lt;/code>. Then, create the wrapper &lt;code>PTransform&lt;/code>, called &lt;code>WriteToKVSink&lt;/code>:&lt;/p>
@@ -1017,8 +1017,8 @@ _SimpleKVSink(self._simplekv, self._url, self._final_table_name))&lt;/code>&lt;/
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>with beam.Pipeline(options=PipelineOptions()) as p:
-kvs = p | &amp;#39;CreateKVs&amp;#39; &amp;gt;&amp;gt; beam.core.Create(KVs)
+&lt;pre>&lt;code>with beam.Pipeline(options=PipelineOptions()) as pipeline:
+kvs = pipeline | &amp;#39;CreateKVs&amp;#39; &amp;gt;&amp;gt; beam.core.Create(KVs)
 kvs | &amp;#39;WriteToSimpleKV&amp;#39; &amp;gt;&amp;gt; WriteToKVSink(
 simplekv, &amp;#39;http://url_to_simple_kv/&amp;#39;, final_table_name)&lt;/code>&lt;/pre>
 &lt;/div>
@@ -3797,8 +3797,7 @@ to the &lt;code>Pipeline&lt;/code> object when you create the object.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="k">pass&lt;/span> &lt;span class="c1"># build your pipeline here&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -3841,8 +3840,7 @@ as demonstrated in the following example code:&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="k">pass&lt;/span> &lt;span class="c1"># build your pipeline here&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -3895,8 +3893,8 @@ adding &lt;code>input&lt;/code> and &lt;code>output&lt;/code> custom options:&lt
 &lt;span class="k">class&lt;/span> &lt;span class="nc">MyOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="nd">@classmethod&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">_add_argparse_args&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">cls&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--input&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--output&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--input-file&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--output-path&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -3940,13 +3938,13 @@ a command-line argument, and a default value.&lt;/p>
 &lt;span class="nd">@classmethod&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">_add_argparse_args&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">cls&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;--input&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Input for the pipeline&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://my-bucket/input&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="s1">&amp;#39;--input-file&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://dataflow-samples/shakespeare/kinglear.txt&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The file path for the input text to process.&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;--output&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Output for the pipeline&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://my-bucket/output&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="s1">&amp;#39;--output-path&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">required&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The path prefix for output files.&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
@@ -4033,7 +4031,7 @@ a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ReadMyFile&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ReadMyFile&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;span class="s1">&amp;#39;gs://some/inputData.txt&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -4086,10 +4084,7 @@ itself.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
-&lt;span class="c1"># argv = None # if None, uses sys.argv&lt;/span>
-&lt;span class="n">pipeline_options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">pipeline_options&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="n">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">pipeline&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
@@ -5738,8 +5733,8 @@ appeared in the original data.&lt;/li>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># The CountWords Composite Transform inside the WordCount pipeline.&lt;/span>
-&lt;span class="k">class&lt;/span> &lt;span class="nc">CountWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="nd">@beam.ptransform_fn&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">CountWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">pcoll&lt;/span>
 &lt;span class="c1"># Convert lines of text into individual words.&lt;/span>
@@ -5909,7 +5904,8 @@ suffix &amp;ldquo;.csv&amp;rdquo; in the given location:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ReadFromText&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;path/to/input-*.csv&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ReadFromText&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;path/to/input-*.csv&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>To read data from disparate sources into a single &lt;code>PCollection&lt;/code>, read each one
@@ -10278,9 +10274,9 @@ If you also set the &lt;code>withExtendedErrorInfo&lt;/code> property , you will
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py"> &lt;span class="c1"># Create pipeline.&lt;/span>
 &lt;span class="n">schema&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">({&lt;/span>&lt;span class="s1">&amp;#39;fields&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;STRING&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;mode&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;REQUIRED&amp;#39;&lt;/span>&lt;span class="p">}]})&lt;/span>
-&lt;span class="n">p&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">pipeline&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="n">errors&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Data&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Data&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">])&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;CreateBrokenData&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span>
 &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">src&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">src&lt;/span>&lt;span class="p">}&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="n">src&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="bp">None&lt;/span>&lt;span class="p">})&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;WriteToBigQuery&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
@@ -13653,9 +13649,9 @@ limitations under the License.
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="n">readable_files&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">fileio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MatchFiles&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;hdfs://path/to/*.txt&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">fileio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadMatches&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Reshuffle&lt;/span>&lt;span class="p">())&lt;/span>
@@ -15106,7 +15102,7 @@ then extracts the &lt;code>max_temperature&lt;/code> column.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">max_temperatures&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ReadTable&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromBigQuery&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_spec&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="c1"># Each row is a dictionary where the keys are the BigQuery columns&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;max_temperature&amp;#39;&lt;/span>&lt;span class="p">]))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
@@ -15159,7 +15155,7 @@ the &lt;code>fromQuery&lt;/code> method.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">max_temperatures&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;QueryTable&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;span class="n">query&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;SELECT max_temperature FROM &amp;#39;&lt;/span>\
 &lt;span class="s1">&amp;#39;[clouddataflow-readonly:samples.weather_stations]&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
@@ -15190,7 +15186,7 @@ in the following example:&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">max_temperatures&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;QueryTableStdSQL&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;span class="n">query&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;SELECT max_temperature FROM &amp;#39;&lt;/span>\
 &lt;span class="s1">&amp;#39;`clouddataflow-readonly.samples.weather_stations`&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
@@ -15765,7 +15761,7 @@ table already exists, it will be replaced.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">quotes&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">quotes&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
 &lt;span class="p">{&lt;/span>
 &lt;span class="s1">&amp;#39;source&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;Mahatma Gandhi&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;quote&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;My life is my message.&amp;#39;&lt;/span>
 &lt;span class="p">},&lt;/span>
@@ -15948,7 +15944,7 @@ different table for each year.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">fictional_characters_view&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AsDict&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;CreateCharacters&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([(&lt;/span>&lt;span class="s1">&amp;#39;Yoda&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">True&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;CreateCharacters&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([(&lt;/span>&lt;span class="s1">&amp;#39;Yoda&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">True&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Obi Wan Kenobi&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">True&lt;/span>&lt;span class="p">)]))&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">table_fn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fictional_characters&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">if&lt;/span> &lt;span class="n">element&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">fictional_characters&lt;/span>&lt;span class="p">:&lt;/span>

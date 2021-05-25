@@ -156,17 +156,16 @@ PCollection element.</li><li>Apply the side input.</li></ol><div class="language
     <span class=k>yield</span> <span class=p>(</span><span class=n>left</span><span class=p>,</span> <span class=n>x</span><span class=p>)</span>
 
 <span class=c1># Create pipeline.</span>
-<span class=n>pipeline_options</span> <span class=o>=</span> <span class=n>PipelineOptions</span><span class=p>()</span>
-<span class=n>p</span> <span class=o>=</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>(</span><span class=n>options</span><span class=o>=</span><span class=n>pipeline_options</span><span class=p>)</span>
+<span class=n>pipeline</span> <span class=o>=</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span>
 <span class=n>side_input</span> <span class=o>=</span> <span class=p>(</span>
-    <span class=n>p</span>
+    <span class=n>pipeline</span>
     <span class=o>|</span> <span class=s1>&#39;PeriodicImpulse&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>PeriodicImpulse</span><span class=p>(</span>
         <span class=n>first_timestamp</span><span class=p>,</span> <span class=n>last_timestamp</span><span class=p>,</span> <span class=n>interval</span><span class=p>,</span> <span class=bp>True</span><span class=p>)</span>
     <span class=o>|</span> <span class=s1>&#39;MapToFileName&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>src_file_pattern</span> <span class=o>+</span> <span class=nb>str</span><span class=p>(</span><span class=n>x</span><span class=p>))</span>
     <span class=o>|</span> <span class=s1>&#39;ReadFromFile&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>ReadAllFromText</span><span class=p>())</span>
 
 <span class=n>main_input</span> <span class=o>=</span> <span class=p>(</span>
-    <span class=n>p</span>
+    <span class=n>pipeline</span>
     <span class=o>|</span> <span class=s1>&#39;MpImpulse&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>sample_main_input_elements</span><span class=p>)</span>
     <span class=o>|</span>
     <span class=s1>&#39;MapMpToTimestamped&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>src</span><span class=p>:</span> <span class=n>TimestampedValue</span><span class=p>(</span><span class=n>src</span><span class=p>,</span> <span class=n>src</span><span class=p>))</span>
