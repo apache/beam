@@ -31,6 +31,7 @@ import unittest
 
 import pandas as pd
 
+import apache_beam as beam
 from apache_beam.examples.dataframe import taxiride
 from apache_beam.testing.util import open_shards
 
@@ -79,7 +80,8 @@ class TaxiRideExampleTest(unittest.TestCase):
     rides = pd.read_csv(self.input_path)
     expected_counts = rides.groupby('DOLocationID').passenger_count.sum()
 
-    taxiride.run_aggregation_pipeline([], self.input_path, self.output_path)
+    taxiride.run_aggregation_pipeline(
+        beam.Pipeline(), self.input_path, self.output_path)
 
     # Parse result file and compare.
     # TODO(BEAM-XXXX): taxiride examples should produce int sums, not floats
@@ -104,10 +106,8 @@ class TaxiRideExampleTest(unittest.TestCase):
         how='left')
     expected_counts = rides.groupby('Borough').passenger_count.sum()
 
-    taxiride.run_enrich_pipeline([],
-                                 self.input_path,
-                                 self.output_path,
-                                 self.lookup_path)
+    taxiride.run_enrich_pipeline(
+        beam.Pipeline(), self.input_path, self.output_path, self.lookup_path)
 
     # Parse result file and compare.
     # TODO(BEAM-XXXX): taxiride examples should produce int sums, not floats
