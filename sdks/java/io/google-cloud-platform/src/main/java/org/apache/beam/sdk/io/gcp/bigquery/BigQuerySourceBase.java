@@ -247,8 +247,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
           @Override
           public T apply(GenericRecord input) {
-            return parseFn.apply(
-                new SchemaAndRecord(BigQueryUtils.convertRecordToRow(input, null), schema.get()));
+            return parseFn.apply(new SchemaAndRecord(input, schema.get()));
           }
         };
 

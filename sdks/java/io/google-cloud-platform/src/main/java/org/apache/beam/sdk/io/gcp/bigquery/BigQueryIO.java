@@ -602,7 +602,8 @@ public class BigQueryIO {
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
-      return BigQueryUtils.toTableRow().apply(schemaAndRecord.getRow());
+      return BigQueryAvroUtils.convertGenericRecordToTableRow(
+          schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
     }
   }
 

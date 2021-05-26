@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -162,10 +164,22 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private long rowsConsumedFromCurrentResponse;
     private long totalRowsInCurrentResponse;
 
+    private enum ReaderType {
+      AVRO_READER,
+      ARROW_READER;
+    }
+
+    private ReaderType readerType;
+
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
       this.source = source;
       this.reader = BigQueryStorageReaderFactory.getReader(source.readSession);
+      if (this.reader instanceof BigQueryStorageArrowReader) {
+        this.readerType = ReaderType.ARROW_READER;
+      } else {
+        this.readerType = ReaderType.AVRO_READER;
+      }
       this.parseFn = source.parseFn;
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
@@ -229,10 +243,15 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         reader.processReadRowsResponse(response);
       }
 
-      current =
-          parseFn.apply(
-              new SchemaAndRecord(
-                  BigQueryUtils.convertRecordToRow(reader.readSingleRecord(), null), tableSchema));
+      SchemaAndRecord schemaAndRecord;
+      if (this.readerType == ReaderType.ARROW_READER) {
+        schemaAndRecord = new SchemaAndRecord((Row) reader.readSingleRecord(), tableSchema);
+      } else {
+        schemaAndRecord =
+            new SchemaAndRecord((GenericRecord) reader.readSingleRecord(), tableSchema);
+      }
+
+      current = parseFn.apply(schemaAndRecord);
 
       // Updates the fraction consumed value. This value is calculated by interpolating between
       // the fraction consumed value from the previous server response (or zero if we're consuming

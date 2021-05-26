@@ -74,7 +74,6 @@ import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServe
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -578,8 +577,8 @@ public class BigQueryIOStorageQueryTest {
       implements SerializableFunction<SchemaAndRecord, KV<String, Long>> {
     @Override
     public KV<String, Long> apply(SchemaAndRecord input) {
-      GenericRecord record = AvroUtils.toGenericRecord(input.getRow(), null);
-      return KV.of(record.get("name").toString(), (Long) record.get("number"));
+      return KV.of(
+          input.getRecord().get("name").toString(), (Long) input.getRecord().get("number"));
     }
   }
 

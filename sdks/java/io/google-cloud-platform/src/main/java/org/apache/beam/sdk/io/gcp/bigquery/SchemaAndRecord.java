@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -27,15 +27,20 @@ import org.apache.beam.sdk.values.Row;
  * table (or query) it was generated from.
  */
 public class SchemaAndRecord {
-  private final Row record;
+  private final GenericRecord record;
   private final TableSchema tableSchema;
 
-  public SchemaAndRecord(Row record, TableSchema tableSchema) {
+  public SchemaAndRecord(GenericRecord record, TableSchema tableSchema) {
     this.record = record;
     this.tableSchema = tableSchema;
   }
 
-  public @Nullable Row getRow() {
+  public SchemaAndRecord(Row record, TableSchema tableSchema) {
+    this.tableSchema = tableSchema;
+    this.record = AvroUtils.toGenericRecord(record, null);
+  }
+
+  public GenericRecord getRecord() {
     return record;
   }
 
