@@ -31,8 +31,11 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.InsertManyOptions;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.WriteModel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -57,9 +60,6 @@ import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
 import org.bson.Document;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.WriteModel;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -139,7 +139,8 @@ public class MongoDbIO {
         .setSslEnabled(false)
         .setIgnoreSSLCertificate(false)
         .setSslInvalidHostNameAllowed(false)
-        .setOrdered(true).setIsUpdate(false).
+        .setOrdered(true)
+        .setIsUpdate(false)
         .build();
   }
 
@@ -749,13 +750,11 @@ public class MongoDbIO {
 
     abstract boolean isUpdate();
 
-    abstract String updateKey();
+    abstract @Nullable String updateKey();
 
-    abstract String updateOperator();
+    abstract @Nullable String updateOperator();
 
-    abstract String updateField();
-
-    abstract UpdateOptions updateOptions();
+    abstract @Nullable String updateField();
 
     abstract Builder builder();
 
@@ -786,8 +785,6 @@ public class MongoDbIO {
       abstract Builder setUpdateOperator(String operator);
 
       abstract Builder setUpdateField(String updateField);
-
-      abstract Builder setUpdateOptions(UpdateOptions updateOptions);
 
       abstract Write build();
     }
@@ -880,23 +877,19 @@ public class MongoDbIO {
     }
 
     public Write withIsUpdate(boolean isUpdate) {
-      return builder().setIsUpdate(true);
+      return builder().setIsUpdate(isUpdate).build();
     }
 
     public Write withUpdateKey(String updateKey) {
-      return builder().setUpdateKey(updateKey);
+      return builder().setUpdateKey(updateKey).build();
     }
 
     public Write withUpdateOperator(String updateOperator) {
-      return builder().setUpdateOperator(updateOperator);
+      return builder().setUpdateOperator(updateOperator).build();
     }
 
     public Write withUpdateField(String updateField) {
-      return builder().setUpdateField(updateField);
-    }
-
-    public Write withUpdateOptions(UpdateOptions updateOptions) {
-      return builder().setUpdateOptions(updateOptions);
+      return builder().setUpdateField(updateField).build();
     }
 
     @Override
@@ -920,11 +913,11 @@ public class MongoDbIO {
       builder.add(DisplayData.item("database", database()));
       builder.add(DisplayData.item("collection", collection()));
       builder.add(DisplayData.item("batchSize", batchSize()));
-      builder.add(DisplayData.item("isUpdate", isUpdate()));
-      builder.add(DisplayData.item("updateKey", updateKey()));
-      builder.add(DisplayData.item("updateOperator", updateOperator()));
-      builder.add(DisplayData.item("updateOptions", updateOptions()));
-      builder.add(DisplayData.item("updateField", updateField()));
+      // builder.add(DisplayData.item("isUpdate", isUpdate()));
+      // builder.add(DisplayData.item("updateKey", updateKey()));
+      // builder.add(DisplayData.item("updateOperator", updateOperator()));
+      // builder.add(Data.item("updateOptions", updateOptions()));
+      // builder.add(DisplayData.item("updateField", updateField()));
     }
 
     static class WriteFn extends DoFn<Document, Void> {
@@ -971,7 +964,11 @@ public class MongoDbIO {
 
       @FinishBundle
       public void finishBundle() {
-        flush();
+        if (spec.isUpdate()) {
+          flushUpdate();
+        } else {
+          flush();
+        }
       }
 
       private void flush() {
@@ -1001,11 +998,12 @@ public class MongoDbIO {
         List<WriteModel<Document>> actions = new ArrayList<>();
         try {
           for (Document doc : batch) {
-            actions.add(new UpdateOneModel<>(new Document("_id",spec.updateKey()),
-                    new Document(spec.updateOperator(), new Document(spec.updateField(), doc)), updateOptions));
-
+            actions.add(
+                new UpdateOneModel<>(
+                    new Document("_id", doc.get(spec.updateKey())),
+                    new Document(spec.updateOperator(), new Document(spec.updateField(), doc))));
           }
-          mongoCollection.bulkWrite(actions, spec.updateOptions());
+          mongoCollection.bulkWrite(actions, new BulkWriteOptions().ordered(spec.ordered()));
         } catch (MongoBulkWriteException e) {
           if (spec.ordered()) {
             throw e;
