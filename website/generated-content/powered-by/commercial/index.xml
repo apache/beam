@@ -23,7 +23,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;p>Neo4j is a graph database management system that leverages data relationships between data records to enable fast queries. They use Apache Beam support in Kettle to do everything and more in project Hop. The various Apache Beam runners are now directly supported as Hop pipeline engines.
-&lt;a href="http://hop.apache.org">Apache Hop (incubating)&lt;/a>: Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.&lt;/p></description></item><item><title>Powered-By: Combining the Power of Beam With Three Other Apache Technologies for Fun and Profit</title><link>/powered-by/commercial/ricardo/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/ricardo/</guid><description>
+&lt;a href="http://hop.apache.org">Apache Hop (incubating)&lt;/a>: Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.&lt;/p></description></item><item><title>Powered-By: Cloud Dataflow</title><link>/powered-by/commercial/dataflow/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/dataflow/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>&lt;strong>&lt;a href="https://cloud.google.com/dataflow">Cloud Dataflow&lt;/a>:&lt;/strong> Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem.&lt;/p></description></item><item><title>Powered-By: Combining the Power of Beam With Three Other Apache Technologies for Fun and Profit</title><link>/powered-by/commercial/ricardo/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/ricardo/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
