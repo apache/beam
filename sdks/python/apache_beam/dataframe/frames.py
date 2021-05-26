@@ -94,21 +94,24 @@ def _fillna_alias(method):
 
 LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
 LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
-UNLIFTABLE_AGGREGATIONS = ['mean',
-                           'median',
-                           'quantile',
-                           'describe',
-                           # TODO: The below all have specialized distributed
-                           # implementations, but they require tracking
-                           # multiple intermediate series, which is difficult
-                           # to lift in groupby
-                           'std',
-                           'var',
-                           'corr',
-                           'cov',
-                           'nunique']
-ALL_AGGREGATIONS = (LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
-                    UNLIFTABLE_AGGREGATIONS)
+UNLIFTABLE_AGGREGATIONS = [
+    'mean',
+    'median',
+    'quantile',
+    'describe',
+    # TODO: The below all have specialized distributed
+    # implementations, but they require tracking
+    # multiple intermediate series, which is difficult
+    # to lift in groupby
+    'std',
+    'var',
+    'corr',
+    'cov',
+    'nunique'
+]
+ALL_AGGREGATIONS = (
+    LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
+    UNLIFTABLE_AGGREGATIONS)
 
 
 def _agg_method(base, func):
