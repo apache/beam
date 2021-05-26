@@ -37,8 +37,6 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
   compile project(":sdks:java:io:jdbc")
   permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
-  compile project(":sdks:java:io:debezium")
-  permitUnusedDeclared project(":sdks:java:io:debezium") // BEAM-11761
   // Include postgres so it can be used with external JDBC
   compile library.java.postgres
   permitUnusedDeclared library.java.postgres // BEAM-11761

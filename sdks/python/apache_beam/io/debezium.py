@@ -48,7 +48,7 @@
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) a expansion service jar and use
   that to expand transforms. Currently Debezium transform use the
-  'beam-sdks-java-io-expansion-service' jar for this purpose.
+  'beam-sdks-java-io-debezium-expansion-service' jar for this purpose.
 
   *Option 2: specify a custom expansion service*
 
@@ -95,7 +95,8 @@ __all__ = ['ReadFromDebezium', 'DriverClassName']
 
 
 def default_io_expansion_service():
-  return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
+  return BeamJarExpansionService(
+      'sdks:java:io:debezium:expansion-service:shadowJar')
 
 
 class DriverClassName(Enum):
