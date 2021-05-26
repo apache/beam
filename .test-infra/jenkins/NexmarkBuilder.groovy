@@ -122,8 +122,10 @@ class NexmarkBuilder {
       // Run with Java 11
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(':sdks:java:testing:nexmark:runJava11')
+        tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
+        switches("-PcompileAndRunTestsWithJava11")
+        switches("-Pjava11Home=${commonJobProperties.JAVA_11_HOME}")
         switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
         if (jobSpecificSwitches != null) {
