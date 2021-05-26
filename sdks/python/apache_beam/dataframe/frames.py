@@ -2369,26 +2369,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Singleton(),
               requires_partition_by=partitionings.Singleton()))
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  def nunique(self, **kwargs):
-    if kwargs.get('axis', None) in (1, 'columns'):
-      requires_partition_by = partitionings.Arbitrary()
-      preserves_partition_by = partitionings.Index()
-    else:
-      # TODO(BEAM-9547): This could be implemented in a distributed fashion,
-      # perhaps by deferring to a distributed drop_duplicates
-      requires_partition_by = partitionings.Singleton(reason=(
-         "nunique(axis='index') is not currently parallelizable."
-      ))
-      preserves_partition_by = partitionings.Singleton()
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'nunique',
-            lambda df: df.nunique(**kwargs),
-            [self._expr],
-            preserves_partition_by=preserves_partition_by,
-            requires_partition_by=requires_partition_by))
-
   plot = frame_base.wont_implement_method(pd.DataFrame, 'plot',
                                                       reason="plotting-tools")
 
@@ -2603,6 +2583,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   sum = _agg_method(pd.DataFrame, 'sum')
   mean = _agg_method(pd.DataFrame, 'mean')
   median = _agg_method(pd.DataFrame, 'median')
+  nunique = _agg_method(pd.DataFrame, 'nunique')
   std = _agg_method(pd.DataFrame, 'std')
   var = _agg_method(pd.DataFrame, 'var')
 
