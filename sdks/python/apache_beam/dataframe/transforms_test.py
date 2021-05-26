@@ -18,7 +18,6 @@ import typing
 import unittest
 
 import pandas as pd
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -64,7 +63,7 @@ def df_equal_to(expected):
 
 
 AnimalSpeed = typing.NamedTuple(
-    'AnimalSpeed', [('Animal', unicode), ('Speed', int)])
+    'AnimalSpeed', [('Animal', str), ('Speed', int)])
 coders.registry.register_coder(AnimalSpeed, coders.RowCoder)
 Nested = typing.NamedTuple(
     'Nested', [('id', int), ('animal_speed', AnimalSpeed)])
