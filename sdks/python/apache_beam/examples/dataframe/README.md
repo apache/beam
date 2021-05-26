@@ -33,7 +33,7 @@ when executing DataFrame API pipelines on distributed runners.
 ## Wordcount Pipeline
 
 Wordcount is the "Hello World" of data analytic systems, so of course we
-had to implement it for the Beam DataFrame API! See `wordcount.py` for the
+had to implement it for the Beam DataFrame API! See [`wordcount.py`](./wordcount.py) for the
 implementation. Note it demonstrates how to integrate the DataFrame API with
 a larger Beam pipeline by using [Beam
 Schemas](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
@@ -69,7 +69,7 @@ DUKE: 3
 
 ## Taxi Ride Example Pipelines
 
-`taxiride.py` contains implementations for two DataFrame pipelines that
+[`taxiride.py`](./taxiride.py) contains implementations for two DataFrame pipelines that
 process the well-known [NYC Taxi
 dataset](https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page). These
 pipelines don't use any Beam primitives. Instead they build end-to-end pipelines
