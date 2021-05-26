@@ -25,7 +25,6 @@ import math
 import os.path
 import sys
 import unittest
-from builtins import map
 from copy import deepcopy
 from typing import Dict
 from typing import Tuple

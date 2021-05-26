@@ -190,8 +190,12 @@ public class PubsubJsonClient extends PubsubClient {
       }
 
       // Timestamp.
-      long timestampMsSinceEpoch =
-          extractTimestamp(timestampAttribute, message.getMessage().getPublishTime(), attributes);
+      long timestampMsSinceEpoch;
+      if (Strings.isNullOrEmpty(timestampAttribute)) {
+        timestampMsSinceEpoch = parseTimestampAsMsSinceEpoch(message.getMessage().getPublishTime());
+      } else {
+        timestampMsSinceEpoch = extractTimestampAttribute(timestampAttribute, attributes);
+      }
 
       // Ack id.
       String ackId = message.getAckId();

@@ -47,8 +47,6 @@ Typical usage::
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-
 import abc
 import logging
 import os
@@ -56,8 +54,6 @@ import re
 import shutil
 import tempfile
 import unicodedata
-from builtins import object
-from builtins import zip
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
@@ -72,7 +68,6 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 
-from future.utils import with_metaclass
 from google.protobuf import message
 
 from apache_beam import pvalue
@@ -1374,8 +1369,7 @@ class AppliedPTransform(object):
         part._merge_outer_resource_hints()
 
 
-class PTransformOverride(with_metaclass(abc.ABCMeta,
-                                        object)):  # type: ignore[misc]
+class PTransformOverride(metaclass=abc.ABCMeta):
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.

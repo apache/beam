@@ -310,6 +310,27 @@ import org.slf4j.LoggerFactory;
  *    ...
  * }</pre>
  *
+ * <p>You can also pass properties to the schema registry client allowing you to configure
+ * authentication
+ *
+ * <pre>{@code
+ * ImmutableMap<String, Object> csrConfig =
+ *     ImmutableMap.<String, Object>builder()
+ *         .put(AbstractKafkaAvroSerDeConfig.BASIC_AUTH_CREDENTIALS_SOURCE,"USER_INFO")
+ *         .put(AbstractKafkaAvroSerDeConfig.USER_INFO_CONFIG,"<username>:<password>")
+ *         .build();
+ *
+ * PCollection<KafkaRecord<Long, GenericRecord>> input = pipeline
+ *   .apply(KafkaIO.<Long, GenericRecord>read()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("my_topic")
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      // Use Confluent Schema Registry, specify schema registry URL, value subject and schema registry client configuration
+ *      .withValueDeserializer(
+ *          ConfluentSchemaRegistryDeserializerProvider.of("https://localhost:8081", "my_topic-value", null, csrConfig))
+ *    ...
+ * }</pre>
+ *
  * <h2>Read from Kafka as a {@link DoFn}</h2>
  *
  * {@link ReadSourceDescriptors} is the {@link PTransform} that takes a PCollection of {@link
@@ -1228,10 +1249,26 @@ public class KafkaIO {
           || ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "use_deprecated_read")
           || getMaxNumRecords() < Long.MAX_VALUE
-          || getMaxReadTime() != null) {
+          || getMaxReadTime() != null
+          || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+    }
+
+    private boolean runnerRequiresLegacyRead(PipelineOptions options) {
+      // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
+      // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
+      // TODO(BEAM-10670): Remove this special check when we address performance issue.
+      if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
+        return false;
+      }
+      if (options.getRunner().getName().startsWith("org.apache.beam.runners.dataflow.")) {
+        return false;
+      } else if (ExperimentalOptions.hasExperiment(options, "beam_fn_api")) {
+        return false;
+      }
+      return true;
     }
 
     /**

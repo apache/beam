@@ -74,14 +74,24 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl, String subject) {
-    return of(schemaRegistryUrl, subject, null);
+    return of(schemaRegistryUrl, subject, null, null);
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl, String subject, @Nullable Integer version) {
+    return of(schemaRegistryUrl, subject, version, null);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl,
+      String subject,
+      @Nullable Integer version,
+      @Nullable Map<String, ?> schemaRegistryConfigs) {
     return new ConfluentSchemaRegistryDeserializerProvider(
         (SerializableFunction<Void, SchemaRegistryClient>)
-            input -> new CachedSchemaRegistryClient(schemaRegistryUrl, Integer.MAX_VALUE),
+            input ->
+                new CachedSchemaRegistryClient(
+                    schemaRegistryUrl, Integer.MAX_VALUE, schemaRegistryConfigs),
         schemaRegistryUrl,
         subject,
         version);

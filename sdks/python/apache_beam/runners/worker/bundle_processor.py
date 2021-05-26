@@ -19,10 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import base64
 import bisect
 import collections
@@ -31,8 +27,6 @@ import json
 import logging
 import random
 import threading
-from builtins import next
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -52,7 +46,6 @@ from typing import TypeVar
 from typing import Union
 from typing import cast
 
-from future.utils import itervalues
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
@@ -174,7 +167,7 @@ class DataInputOperation(RunnerIOOperation):
   def __init__(self,
                operation_name,  # type: Union[str, common.NameContext]
                step_name,
-               consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
+               consumers,  # type: Mapping[Any, List[operations.Operation]]
                counter_factory,  # type: counters.CounterFactory
                state_sampler,  # type: statesampler.StateSampler
                windowed_coder,  # type: coders.Coder
@@ -197,7 +190,7 @@ class DataInputOperation(RunnerIOOperation):
             self.counter_factory,
             self.name_context.step_name,
             0,
-            next(iter(itervalues(consumers))),
+            next(iter(consumers.values())),
             self.windowed_coder,
             self._get_runtime_performance_hints())
     ]
@@ -963,7 +956,7 @@ class BundleProcessor(object):
       # (transform_id, timer_family_id).
       data_channels = collections.defaultdict(
           list
-      )  # type: DefaultDict[data_plane.GrpcClientDataChannel, List[Union[str, Tuple[str, str]]]]
+      )  # type: DefaultDict[data_plane.DataChannel, List[Union[str, Tuple[str, str]]]]
 
       # Add expected data inputs for each data channel.
       input_op_by_transform_id = {}
@@ -976,13 +969,13 @@ class BundleProcessor(object):
         data_channels[self.timer_data_channel].extend(
             list(self.timers_info.keys()))
 
-      # Set up timer output stream for DoOperation.
-      for ((transform_id, timer_family_id),
-           timer_info) in self.timers_info.items():
-        output_stream = self.timer_data_channel.output_timer_stream(
-            instruction_id, transform_id, timer_family_id)
-        timer_info.output_stream = output_stream
-        self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
+        # Set up timer output stream for DoOperation.
+        for ((transform_id, timer_family_id),
+             timer_info) in self.timers_info.items():
+          output_stream = self.timer_data_channel.output_timer_stream(
+              instruction_id, transform_id, timer_family_id)
+          timer_info.output_stream = output_stream
+          self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
 
       # Process data and timer inputs
       for data_channel, expected_inputs in data_channels.items():

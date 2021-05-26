@@ -63,6 +63,7 @@
 
 ## New Features / Improvements
 
+* `CREATE FUNCTION` DDL statement added to Calcite SQL syntax. `JAR` and `AGGREGATE` are now reserved keywords. ([BEAM-12339](https://issues.apache.org/jira/browse/BEAM-12339)).
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
@@ -72,6 +73,7 @@
   longer considered equal to `Row(y=4, x=3)` (BEAM-11929).
 * Kafka Beam SQL tables now ascribe meaning to the LOCATION field; previously
   it was ignored if provided.
+* `TopCombineFn` disallow `compare` as its argument (Python) ([BEAM-7372](https://issues.apache.org/jira/browse/BEAM-7372)).
 
 ## Deprecations
 

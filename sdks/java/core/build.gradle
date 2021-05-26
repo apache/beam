@@ -75,8 +75,8 @@ dependencies {
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow library.java.vendored_bytebuddy_1_10_8
-  shadow library.java.vendored_grpc_1_26_0
+  shadow library.java.vendored_bytebuddy_1_11_0
+  shadow library.java.vendored_grpc_1_36_0
   shadow library.java.vendored_guava_26_0_jre
   compile library.java.antlr_runtime
   compile library.java.commons_compress

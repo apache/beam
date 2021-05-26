@@ -21,19 +21,16 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.AfterFirst;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
@@ -48,10 +45,9 @@ import org.slf4j.LoggerFactory;
 public class StorageApiLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiLoads.class);
-  static final int FILE_TRIGGERING_RECORD_COUNT = 100;
+  static final int MAX_BATCH_SIZE_BYTES = 2 * 1024 * 1024;
 
   private final Coder<DestinationT> destinationCoder;
-  private final Coder<ElementT> elementCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final CreateDisposition createDisposition;
   private final String kmsKey;
@@ -61,7 +57,6 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
-      Coder<ElementT> elementCoder,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       CreateDisposition createDisposition,
       String kmsKey,
@@ -69,7 +64,6 @@ public class StorageApiLoads<DestinationT, ElementT>
       BigQueryServices bqServices,
       int numShards) {
     this.destinationCoder = destinationCoder;
-    this.elementCoder = elementCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
@@ -86,25 +80,17 @@ public class StorageApiLoads<DestinationT, ElementT>
   public WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
-        input.apply(
-            "rewindowIntoGlobal",
-            Window.<KV<DestinationT, ElementT>>into(new GlobalWindows())
-                .triggering(
-                    Repeatedly.forever(
-                        AfterFirst.of(
-                            AfterProcessingTime.pastFirstElementInPane()
-                                .plusDelayOf(triggeringFrequency),
-                            AfterPane.elementCountAtLeast(FILE_TRIGGERING_RECORD_COUNT))))
-                .discardingFiredPanes());
+        input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
 
     // First shard all the records.
     // TODO(reuvenlax): Add autosharding support so that users don't have to pick a shard count.
-    PCollection<KV<ShardedKey<DestinationT>, ElementT>> shardedRecords =
+    PCollection<KV<ShardedKey<DestinationT>, byte[]>> shardedRecords =
         inputInGlobalWindow
+            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations))
             .apply(
                 "AddShard",
                 ParDo.of(
-                    new DoFn<KV<DestinationT, ElementT>, KV<ShardedKey<DestinationT>, ElementT>>() {
+                    new DoFn<KV<DestinationT, byte[]>, KV<ShardedKey<DestinationT>, byte[]>>() {
                       int shardNumber;
 
                       @Setup
@@ -114,8 +100,8 @@ public class StorageApiLoads<DestinationT, ElementT>
 
                       @ProcessElement
                       public void processElement(
-                          @Element KV<DestinationT, ElementT> element,
-                          OutputReceiver<KV<ShardedKey<DestinationT>, ElementT>> o) {
+                          @Element KV<DestinationT, byte[]> element,
+                          OutputReceiver<KV<ShardedKey<DestinationT>, byte[]>> o) {
                         DestinationT destination = element.getKey();
                         ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
                         buffer.putInt(++shardNumber % numShards);
@@ -123,10 +109,14 @@ public class StorageApiLoads<DestinationT, ElementT>
                             KV.of(ShardedKey.of(destination, buffer.array()), element.getValue()));
                       }
                     }))
-            .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), elementCoder));
+            .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), ByteArrayCoder.of()));
 
-    PCollection<KV<ShardedKey<DestinationT>, Iterable<ElementT>>> groupedRecords =
-        shardedRecords.apply("GroupIntoShards", GroupByKey.create());
+    PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>> groupedRecords =
+        shardedRecords.apply(
+            "GroupIntoBatches",
+            GroupIntoBatches.<ShardedKey<DestinationT>, byte[]>ofByteSize(
+                    MAX_BATCH_SIZE_BYTES, (byte[] e) -> (long) e.length)
+                .withMaxBufferingDuration(triggeringFrequency));
 
     groupedRecords.apply(
         "StorageApiWriteSharded",

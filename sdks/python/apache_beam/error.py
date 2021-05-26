@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 
 class BeamError(Exception):
   """Base class for all Beam errors."""

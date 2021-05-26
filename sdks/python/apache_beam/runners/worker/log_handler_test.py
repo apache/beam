@@ -17,12 +17,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import re
 import unittest
-from builtins import range
 
 import grpc
 

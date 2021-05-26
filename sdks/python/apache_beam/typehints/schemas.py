@@ -30,7 +30,7 @@ Imposes a mapping between common Python types and Beam portable schemas
   np.float64  <-----> DOUBLE
   float       ------> DOUBLE
   bool        <-----> BOOLEAN
-  str/unicode <-----> STRING
+  str         <-----> STRING
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
@@ -51,8 +51,6 @@ wrapping the type in :code:`Optional`.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from typing import Any
 from typing import ByteString
 from typing import Generic
@@ -64,7 +62,6 @@ from typing import TypeVar
 from uuid import uuid4
 
 import numpy as np
-from past.builtins import unicode
 
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
@@ -108,7 +105,7 @@ _PRIMITIVES = (
     (np.int64, schema_pb2.INT64),
     (np.float32, schema_pb2.FLOAT),
     (np.float64, schema_pb2.DOUBLE),
-    (unicode, schema_pb2.STRING),
+    (str, schema_pb2.STRING),
     (bool, schema_pb2.BOOLEAN),
     (bytes, schema_pb2.BYTES),
 )
@@ -142,7 +139,7 @@ def named_fields_to_schema(names_and_types):
 
 
 def named_fields_from_schema(
-    schema):  # (schema_pb2.Schema) -> typing.List[typing.Tuple[unicode, type]]
+    schema):  # (schema_pb2.Schema) -> typing.List[typing.Tuple[str, type]]
   return [(field.name, typing_from_runner_api(field.type))
           for field in schema.fields]
 
@@ -296,7 +293,7 @@ def schema_from_element_type(element_type):  # (type) -> schema_pb2.Schema
 
 
 def named_fields_from_element_type(
-    element_type):  # (type) -> typing.List[typing.Tuple[unicode, type]]
+    element_type):  # (type) -> typing.List[typing.Tuple[str, type]]
   return named_fields_from_schema(schema_from_element_type(element_type))
 
 
@@ -332,7 +329,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
   @classmethod
   def urn(cls):
-    # type: () -> unicode
+    # type: () -> str
 
     """Return the URN used to identify this logical type"""
     raise NotImplementedError()
