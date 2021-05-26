@@ -25,7 +25,7 @@ API](https://beam.apache.org/documentation/dsls/dataframes/overview/).
 ## Pre-requisites
 
 You must have `apache-beam>=2.30.0` installed in order to run these pipelines,
-because the `apache_beam.exampels.dataframe` module was added in that release.
+because the `apache_beam.examples.dataframe` module was added in that release.
 Additionally using the DataFrame API requires `pandas>=1.0.0` to be installed
 in your local Python session. The _same_ version should be installed on workers
 when executing DataFrame API pipelines on distributed runners.
@@ -72,22 +72,22 @@ DUKE: 3
 `taxiride.py` contains implementations for two DataFrame pipelines that
 process the well-known [NYC Taxi
 dataset](https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page). These
-pipelines don't use any Beam primitives, instead they build end-to-end pipelines
+pipelines don't use any Beam primitives. Instead they build end-to-end pipelines
 using the DataFrame API, by leveraging [DataFrame
 IOs](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.io.html).
 
-The module defines two pipelines. The `location_id_agg` pipline does a grouped
+The module defines two pipelines. The `location_id_agg` pipeline does a grouped
 aggregation on the drop-off location ID. The `borough_enrich` pipeline extends
 this example by joining the zone lookup table to find the borough where each
-drop off occurred, and aggregation
+drop off occurred, and aggregate per borough.
 
 ### Data
 Some snapshots of NYC taxi data have been staged in
 `gs://apache-beam-samples` for use with these example pipelines:
 
 - `gs://apache-beam-samples/nyc_taxi/2017/yellow_tripdata_2017-*.csv`: CSV files
-  containing taxiride data for each month of 2017 (similar directories exist for
-  2018 and 2019).
+  containing taxi ride data for each month of 2017 (similar directories exist
+  for 2018 and 2019).
 - `gs://apache-beam-samples/nyc_taxi/misc/sample.csv`: A sample of 1 million
   records from the beginning of 2019. At ~85 MiB this is a manageable size for
   processing locally.
