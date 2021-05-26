@@ -564,6 +564,12 @@ class GcsDownloader(Downloader):
     self._bucket, self._name = parse_gcs_path(path)
     self._buffer_size = buffer_size
 
+    # Get object bucket
+    projectId = None
+    bucket_metadata = self._get_bucket(bucket_name=self._bucket)
+    if bucket_metadata:
+      projectId = bucket_metadata.id
+
     # Create a request count metric
     resource = resource_identifiers.GoogleCloudStorage(self._bucket)
     labels = {
@@ -571,6 +577,7 @@ class GcsDownloader(Downloader):
         monitoring_infos.METHOD_LABEL: 'Objects.get',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: projectId
     }
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
@@ -615,6 +622,14 @@ class GcsDownloader(Downloader):
   def _get_object_metadata(self, get_request):
     return self._client.objects.Get(get_request)
 
+  def _get_bucket(self, bucket_name):
+    """Returns a bucket from its name, or None if it does not exist."""
+    try:
+      request = storage.StorageBucketsGetRequest(bucket=bucket_name)
+      return self._client.buckets.Get(request)
+    except HttpError:
+      return None
+
   @property
   def size(self):
     return self._size
@@ -632,6 +647,7 @@ class GcsUploader(Uploader):
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._mime_type = mime_type
+    self._bucket_metadata = self._get_bucket(bucket_name=self._bucket)
 
     # Set up communication with child thread.
     parent_conn, child_conn = multiprocessing.Pipe()
@@ -666,6 +682,10 @@ class GcsUploader(Uploader):
     # The uploader by default transfers data in chunks of 1024 * 1024 bytes at
     # a time, buffering writes until that size is reached.
 
+    projectId = None
+    if self._bucket_metadata:
+      projectId = self._bucket_metadata.id
+
     # Create a request count metric
     resource = resource_identifiers.GoogleCloudStorage(self._bucket)
     labels = {
@@ -673,6 +693,7 @@ class GcsUploader(Uploader):
         monitoring_infos.METHOD_LABEL: 'Objects.insert',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: projectId
     }
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
@@ -706,3 +727,11 @@ class GcsUploader(Uploader):
     # Check for exception since the last put() call.
     if self._upload_thread.last_error is not None:
       raise self._upload_thread.last_error  # pylint: disable=raising-bad-type
+
+  def _get_bucket(self, bucket_name):
+    """Returns a bucket from its name, or None if it does not exist."""
+    try:
+      request = storage.StorageBucketsGetRequest(bucket=bucket_name)
+      return self._client.buckets.Get(request)
+    except HttpError:
+      return None

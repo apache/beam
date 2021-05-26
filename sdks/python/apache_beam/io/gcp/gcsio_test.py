@@ -54,6 +54,7 @@ class FakeGcsClient(object):
 
   def __init__(self):
     self.objects = FakeGcsObjects()
+    self.buckets = FakeGcsBuckets()
     # Referenced in GcsIO.copy_batch() and GcsIO.delete_batch().
     self._http = object()
 
@@ -81,6 +82,17 @@ class FakeFile(object):
         size=len(self.contents),
         crc32c=self.crc32c,
         updated=last_updated_datetime)
+
+
+class FakeGcsBuckets(object):
+  def __init__(self):
+    pass
+
+  def get_bucket(self, bucket):
+    return storage.Bucket(id=DEFAULT_GCP_PROJECT, name=bucket)
+
+  def Get(self, get_request):
+    return self.get_bucket(get_request.bucket)
 
 
 class FakeGcsObjects(object):
@@ -767,6 +779,7 @@ class TestGCSIO(unittest.TestCase):
         monitoring_infos.METHOD_LABEL: 'Objects.get',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_GCP_PROJECT,
         monitoring_infos.STATUS_LABEL: 'ok'
     }
 
@@ -789,6 +802,7 @@ class TestGCSIO(unittest.TestCase):
         monitoring_infos.METHOD_LABEL: 'Objects.insert',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_GCP_PROJECT,
         monitoring_infos.STATUS_LABEL: 'ok'
     }
 
