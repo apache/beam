@@ -171,6 +171,7 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
           ':sdks:java:io:kinesis:expansion-service:shadowJar',
           ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
+          ':sdks:java:io:debezium:expansion-service:shadowJar'
   ]
 
   doLast {
