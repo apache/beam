@@ -355,7 +355,16 @@ When you look into the contents of the file, you'll see that they contain unique
 
 {{< highlight class="runner-direct" >}}
 $ more counts*
-
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
