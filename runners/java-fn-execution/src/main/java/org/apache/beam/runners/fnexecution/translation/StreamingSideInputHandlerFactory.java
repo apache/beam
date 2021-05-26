@@ -40,7 +40,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /**
  * {@link StateRequestHandler} that uses {@link org.apache.beam.runners.core.SideInputHandler} to
- * access the Flink broadcast state that represents side inputs.
+ * access the broadcast state that represents side inputs.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)

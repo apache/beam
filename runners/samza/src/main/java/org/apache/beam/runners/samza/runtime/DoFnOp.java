@@ -88,6 +88,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private final WindowingStrategy windowingStrategy;
   private final OutputManagerFactory<OutT> outputManagerFactory;
   // NOTE: we use HashMap here to guarantee Serializability
+  // Mapping from view id to a view
   private final HashMap<String, PCollectionView<?>> idToViewMap;
   private final String transformFullName;
   private final String transformId;
@@ -109,6 +110,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient PushbackSideInputDoFnRunner<InT, FnOutT> pushbackFnRunner;
   private transient SideInputHandler sideInputHandler;
   private transient DoFnInvoker<InT, FnOutT> doFnInvoker;
+  // Mapping from side input id to a view
   private transient SamzaPipelineOptions samzaPipelineOptions;
 
   // This is derivable from pushbackValues which is persisted to a store.

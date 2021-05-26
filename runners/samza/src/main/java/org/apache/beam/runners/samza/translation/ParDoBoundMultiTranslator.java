@@ -310,11 +310,10 @@ class ParDoBoundMultiTranslator<InT, OutT>
             windowedInputCoder.getValueCoder(), // input coder not in use
             windowedInputCoder,
             Collections.emptyMap(), // output coders not in use
-            new ArrayList<>(
-                sideInputMapping.values()), // sideInputs not in use until side input support
+            new ArrayList<>(sideInputMapping.values()),
             new ArrayList<>(idToTupleTagMap.values()), // used by java runner only
             ctx.getPortableWindowStrategy(inputId, stagePayload.getComponents()),
-            idToViewMapping, // idToViewMap not in use until side input support
+            idToViewMapping,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             ctx.getTransformFullName(),
             ctx.getTransformId(),
