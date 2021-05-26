@@ -23,7 +23,7 @@ from parameterized import parameterized
 import apache_beam as beam
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
-from apache_beam.dataframe import frames  # pylint: disable=unused-import
+from apache_beam.dataframe import frames
 
 PD_VERSION = tuple(map(int, pd.__version__.split('.')))
 
@@ -44,7 +44,8 @@ def _get_deferred_args(*args):
   ]
 
 
-class DeferredFrameTest(unittest.TestCase):
+class _AbstractFrameTest(unittest.TestCase):
+  """Test sub-class with utilities for verifying DataFrame operations."""
   def _run_error_test(
       self, func, *args, construction_time=True, distributed=True):
     """Verify that func(*args) raises the same exception in pandas and in Beam.
@@ -181,6 +182,9 @@ class DeferredFrameTest(unittest.TestCase):
       self.assertTrue(
           cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
+
+class DeferredFrameTest(_AbstractFrameTest):
+  """Miscellaneous tessts for DataFrame operations."""
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
     b = pd.Series([100, 200, 300])
@@ -330,88 +334,6 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.add_suffix('_col'), df)
     self._run_test(lambda s: s.add_prefix('_col'), s)
 
-  def test_groupby(self):
-    df = pd.DataFrame({
-        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
-        'value': [None if i % 11 == 0 else i for i in range(100)]
-    })
-    self._run_test(lambda df: df.groupby('group').agg(sum), df)
-    self._run_test(lambda df: df.groupby('group').sum(), df)
-    self._run_test(lambda df: df.groupby('group').median(), df)
-    self._run_test(lambda df: df.groupby('group').size(), df)
-    self._run_test(lambda df: df.groupby('group').count(), df)
-    self._run_test(lambda df: df.groupby('group').max(), df)
-    self._run_test(lambda df: df.groupby('group').min(), df)
-    self._run_test(lambda df: df.groupby('group').mean(), df)
-
-    self._run_test(lambda df: df[df.value > 30].groupby('group').sum(), df)
-    self._run_test(lambda df: df[df.value > 30].groupby('group').mean(), df)
-    self._run_test(lambda df: df[df.value > 30].groupby('group').size(), df)
-
-    # Grouping by a series is not currently supported
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).sum(), df)
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).mean(), df)
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).size(), df)
-
-    # Example from https://pandas.pydata.org/docs/user_guide/groupby.html
-    arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
-              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
-
-    index = pd.MultiIndex.from_arrays(arrays, names=['first', 'second'])
-
-    df = pd.DataFrame({
-        'A': [1, 1, 1, 1, 2, 2, 3, 3], 'B': np.arange(8)
-    },
-                      index=index)
-
-    self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
-
-  def test_groupby_project(self):
-    df = GROUPBY_DF
-
-    self._run_test(lambda df: df.groupby('group').foo.agg(sum), df)
-
-    self._run_test(lambda df: df.groupby('group').sum(), df)
-    self._run_test(lambda df: df.groupby('group').foo.sum(), df)
-    self._run_test(lambda df: df.groupby('group').bar.sum(), df)
-    self._run_test(lambda df: df.groupby('group')['foo'].sum(), df)
-    self._run_test(lambda df: df.groupby('group')['baz'].sum(), df)
-    self._run_error_test(
-        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(), df)
-    self._run_error_test(lambda df: df.groupby('group')[['bat']].sum(), df)
-    self._run_error_test(lambda df: df.groupby('group').bat.sum(), df)
-
-    self._run_test(lambda df: df.groupby('group').median(), df)
-    self._run_test(lambda df: df.groupby('group').foo.median(), df)
-    self._run_test(lambda df: df.groupby('group').bar.median(), df)
-    self._run_test(lambda df: df.groupby('group')['foo'].median(), df)
-    self._run_test(lambda df: df.groupby('group')['baz'].median(), df)
-    self._run_test(lambda df: df.groupby('group')[['bar', 'baz']].median(), df)
-
-  def test_groupby_errors_non_existent_projection(self):
-    df = GROUPBY_DF
-
-    # non-existent projection column
-    self._run_error_test(
-        lambda df: df.groupby('group')[['bar', 'baz']].bar.median(), df)
-    self._run_error_test(lambda df: df.groupby('group')[['bad']].median(), df)
-
-    self._run_error_test(lambda df: df.groupby('group').bad.median(), df)
-
-  def test_groupby_errors_non_existent_label(self):
-    df = GROUPBY_DF
-
-    # non-existent grouping label
-    self._run_error_test(
-        lambda df: df.groupby(['really_bad', 'foo', 'bad']).foo.sum(), df)
-    self._run_error_test(lambda df: df.groupby('bad').foo.sum(), df)
-
-  def test_groupby_callable(self):
-    df = GROUPBY_DF
-
-    self._run_test(lambda df: df.groupby(lambda x: x % 2).foo.sum(), df)
-    self._run_test(lambda df: df.groupby(lambda x: x % 5).median(), df)
-
   def test_set_index(self):
     df = pd.DataFrame({
         # [19, 18, ..]
@@ -464,64 +386,6 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.drop(index='falcon', level=0, errors='ignore'), df)
     self._run_test(
         lambda df: df.drop(index='cow', columns='small', errors='ignore'), df)
-
-  def test_groupby_apply(self):
-    df = GROUPBY_DF
-
-    def median_sum_fn(x):
-      return (x.foo + x.bar).median()
-
-    # Note this is the same as DataFrameGroupBy.describe. Using it here is
-    # just a convenient way to test apply() with a user fn that returns a Series
-    describe = lambda df: df.describe()
-
-    self._run_test(lambda df: df.groupby('group').foo.apply(describe), df)
-    self._run_test(
-        lambda df: df.groupby('group')[['foo', 'bar']].apply(describe), df)
-    self._run_test(lambda df: df.groupby('group').apply(median_sum_fn), df)
-    self._run_test(
-        lambda df: df.set_index('group').foo.groupby(level=0).apply(describe),
-        df)
-    self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
-    self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
-    self._run_test(
-        lambda df: df.set_index(['str', 'group', 'bool']).groupby(
-            level='group').apply(median_sum_fn),
-        df)
-
-  def test_groupby_apply_preserves_column_order(self):
-    df = GROUPBY_DF
-
-    self._run_test(
-        lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
-            lambda x: x),
-        df)
-
-  def test_groupby_apply_modified_index(self):
-    df = GROUPBY_DF
-
-    # If apply fn modifies the index then the output will include the grouped
-    # index
-    self._run_test(
-        lambda df: df.groupby('group').apply(
-            lambda x: x[x.foo > x.foo.median()]),
-        df)
-
-  @unittest.skip('BEAM-11710')
-  def test_groupby_aggregate_grouped_column(self):
-    df = pd.DataFrame({
-        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
-        'foo': [None if i % 11 == 0 else i for i in range(100)],
-        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
-        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
-    })
-
-    self._run_test(lambda df: df.groupby('group').group.count(), df)
-    self._run_test(lambda df: df.groupby('group')[['group', 'bar']].count(), df)
-    self._run_test(
-        lambda df: df.groupby('group')[['group', 'bar']].apply(
-            lambda x: x.describe()),
-        df)
 
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
@@ -760,15 +624,6 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.applymap(lambda x: len(str(x)), na_action='ignore'), df)
 
-  def test_categorical_groupby(self):
-    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
-    df['B'] = df['B'].astype(pd.CategoricalDtype(list('cab')))
-    df = df.set_index('B')
-    # TODO(BEAM-11190): These aggregations can be done in index partitions, but
-    # it will require a little more complex logic
-    self._run_test(lambda df: df.groupby(level=0).sum(), df, nonparallel=True)
-    self._run_test(lambda df: df.groupby(level=0).mean(), df, nonparallel=True)
-
   def test_dataframe_eval_query(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
     self._run_test(lambda df: df.eval('foo = a + b - c'), df)
@@ -793,26 +648,6 @@ class DeferredFrameTest(unittest.TestCase):
 
     self._run_inplace_test(change_index_names, df)
 
-  @parameterized.expand((x, ) for x in [
-      0,
-      [1],
-      3,
-      [0, 3],
-      [2, 1],
-      ['foo', 0],
-      [1, 'str'],
-      [3, 0, 2, 1],
-  ])
-  def test_groupby_level_agg(self, level):
-    df = GROUPBY_DF.set_index(['group', 'foo', 'bar', 'str'], drop=False)
-    self._run_test(lambda df: df.groupby(level=level).bar.max(), df)
-    self._run_test(
-        lambda df: df.groupby(level=level).sum(numeric_only=True), df)
-    self._run_test(
-        lambda df: df.groupby(level=level).apply(
-            lambda x: (x.foo + x.bar).median()),
-        df)
-
   def test_quantile(self):
     df = pd.DataFrame(
         np.array([[1, 1], [2, 10], [3, 100], [4, 100]]), columns=['a', 'b'])
@@ -824,14 +659,6 @@ class DeferredFrameTest(unittest.TestCase):
     with self.assertRaisesRegex(frame_base.WontImplementError,
                                 r"df\.quantile\(q=0\.1, axis='columns'\)"):
       self._run_test(lambda df: df.quantile([0.1, 0.5], axis='columns'), df)
-
-  @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
-  def test_groupby_count_na(self):
-    # Verify we can do a groupby.count() that doesn't drop NaN values
-    self._run_test(
-        lambda df: df.groupby('foo', dropna=True).bar.count(), GROUPBY_DF)
-    self._run_test(
-        lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
 
   def test_dataframe_melt(self):
 
@@ -1089,14 +916,14 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.good.sum(min_count=2), df, nonparallel=True)
     self._run_test(lambda df: df.bad.sum(min_count=2), df, nonparallel=True)
 
-  def test_groupby_sum_min_count(self):
-    df = pd.DataFrame({
-        'good': [1, 2, 3, np.nan],
-        'bad': [np.nan, np.nan, np.nan, 4],
-        'group': ['a', 'b', 'a', 'b']
-    })
-
-    self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
+  def test_categorical_groupby(self):
+    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
+    df['B'] = df['B'].astype(pd.CategoricalDtype(list('cab')))
+    df = df.set_index('B')
+    # TODO(BEAM-11190): These aggregations can be done in index partitions, but
+    # it will require a little more complex logic
+    self._run_test(lambda df: df.groupby(level=0).sum(), df, nonparallel=True)
+    self._run_test(lambda df: df.groupby(level=0).mean(), df, nonparallel=True)
 
   def test_dataframe_sum_nonnumeric_raises(self):
     # Attempting a numeric aggregation with the str column present should
@@ -1164,6 +991,211 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.drop_duplicates(subset=['brand', 'style'], keep=False),
         df)
+
+
+class GroupByTest(_AbstractFrameTest):
+  """Tests for DataFrame/Series GroupBy operations."""
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby_agg(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+    self._run_test(lambda df: df.groupby('group').agg(agg_type), GROUPBY_DF)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby_with_filter(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+    self._run_test(
+        lambda df: getattr(df[df.foo > 30].groupby('group'), agg_type)(),
+        GROUPBY_DF)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+      self._run_test(
+          lambda df: getattr(df.groupby('group'), agg_type)(), GROUPBY_DF)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @unittest.skip("Grouping by a series is not currently supported")
+  def test_groupby_series(self, agg_type):
+    self._run_test(
+        lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)(),
+        GROUPBY_DF)
+
+  def test_groupby_user_guide(self):
+    # Example from https://pandas.pydata.org/docs/user_guide/groupby.html
+    arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
+              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
+
+    index = pd.MultiIndex.from_arrays(arrays, names=['first', 'second'])
+
+    df = pd.DataFrame({
+        'A': [1, 1, 1, 1, 2, 2, 3, 3], 'B': np.arange(8)
+    },
+                      index=index)
+
+    self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby_project_series(self, agg_type):
+    df = GROUPBY_DF
+
+    if agg_type == 'describe':
+      self.skipTest(
+          "BEAM-12366: proxy generation of SeriesGroupBy.describe "
+          "fails")
+    if agg_type in ('corr', 'cov'):
+      self.skipTest(
+          "BEAM-12367: SeriesGroupBy.{corr, cov} do not raise the "
+          "expected error.")
+
+    self._run_test(lambda df: getattr(df.groupby('group').foo, agg_type)(), df)
+    self._run_test(lambda df: getattr(df.groupby('group').bar, agg_type)(), df)
+    self._run_test(
+        lambda df: getattr(df.groupby('group')['foo'], agg_type)(), df)
+    self._run_test(
+        lambda df: getattr(df.groupby('group')['bar'], agg_type)(), df)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_groupby_project_dataframe(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+    self._run_test(
+        lambda df: getattr(df.groupby('group')[['bar', 'baz']], agg_type)(),
+        GROUPBY_DF)
+
+  def test_groupby_errors_bad_projection(self):
+    df = GROUPBY_DF
+
+    # non-existent projection column
+    self._run_error_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.median(), df)
+    self._run_error_test(lambda df: df.groupby('group')[['bad']].median(), df)
+
+    self._run_error_test(lambda df: df.groupby('group').bad.median(), df)
+
+    self._run_error_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(), df)
+    self._run_error_test(lambda df: df.groupby('group')[['bat']].sum(), df)
+    self._run_error_test(lambda df: df.groupby('group').bat.sum(), df)
+
+  def test_groupby_errors_non_existent_label(self):
+    df = GROUPBY_DF
+
+    # non-existent grouping label
+    self._run_error_test(
+        lambda df: df.groupby(['really_bad', 'foo', 'bad']).foo.sum(), df)
+    self._run_error_test(lambda df: df.groupby('bad').foo.sum(), df)
+
+  def test_groupby_callable(self):
+    df = GROUPBY_DF
+
+    self._run_test(lambda df: df.groupby(lambda x: x % 2).foo.sum(), df)
+    self._run_test(lambda df: df.groupby(lambda x: x % 5).median(), df)
+
+  def test_groupby_apply(self):
+    df = GROUPBY_DF
+
+    def median_sum_fn(x):
+      return (x.foo + x.bar).median()
+
+    # Note this is the same as DataFrameGroupBy.describe. Using it here is
+    # just a convenient way to test apply() with a user fn that returns a Series
+    describe = lambda df: df.describe()
+
+    self._run_test(lambda df: df.groupby('group').foo.apply(describe), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['foo', 'bar']].apply(describe), df)
+    self._run_test(lambda df: df.groupby('group').apply(median_sum_fn), df)
+    self._run_test(
+        lambda df: df.set_index('group').foo.groupby(level=0).apply(describe),
+        df)
+    self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
+    self._run_test(
+        lambda df: df.set_index(['str', 'group', 'bool']).groupby(
+            level='group').apply(median_sum_fn),
+        df)
+
+  def test_groupby_apply_preserves_column_order(self):
+    df = GROUPBY_DF
+
+    self._run_test(
+        lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
+            lambda x: x),
+        df)
+
+  def test_groupby_apply_modified_index(self):
+    df = GROUPBY_DF
+
+    # If apply fn modifies the index then the output will include the grouped
+    # index
+    self._run_test(
+        lambda df: df.groupby('group').apply(
+            lambda x: x[x.foo > x.foo.median()]),
+        df)
+
+  @unittest.skip('BEAM-11710')
+  def test_groupby_aggregate_grouped_column(self):
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'foo': [None if i % 11 == 0 else i for i in range(100)],
+        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
+        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    })
+
+    self._run_test(lambda df: df.groupby('group').group.count(), df)
+    self._run_test(lambda df: df.groupby('group')[['group', 'bar']].count(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['group', 'bar']].apply(
+            lambda x: x.describe()),
+        df)
+
+  @parameterized.expand((x, ) for x in [
+      0,
+      [1],
+      3,
+      [0, 3],
+      [2, 1],
+      ['foo', 0],
+      [1, 'str'],
+      [3, 0, 2, 1],
+  ])
+  def test_groupby_level_agg(self, level):
+    df = GROUPBY_DF.set_index(['group', 'foo', 'bar', 'str'], drop=False)
+    self._run_test(lambda df: df.groupby(level=level).bar.max(), df)
+    self._run_test(
+        lambda df: df.groupby(level=level).sum(numeric_only=True), df)
+    self._run_test(
+        lambda df: df.groupby(level=level).apply(
+            lambda x: (x.foo + x.bar).median()),
+        df)
+
+  @unittest.skipIf(PD_VERSION < (1, 1), "drop_na added in pandas 1.1.0")
+  def test_groupby_count_na(self):
+    # Verify we can do a groupby.count() that doesn't drop NaN values
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=True).bar.count(), GROUPBY_DF)
+    self._run_test(
+        lambda df: df.groupby('foo', dropna=False).bar.count(), GROUPBY_DF)
+
+  def test_groupby_sum_min_count(self):
+    df = pd.DataFrame({
+        'good': [1, 2, 3, np.nan],
+        'bad': [np.nan, np.nan, np.nan, 4],
+        'group': ['a', 'b', 'a', 'b']
+    })
+
+    self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
 
 class BeamSpecificTest(unittest.TestCase):
