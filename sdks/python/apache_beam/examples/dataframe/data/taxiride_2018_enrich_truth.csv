@@ -14,35 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-"""Python Dataflow error classes."""
-
-# pytype: skip-file
-
-
-class BeamError(Exception):
-  """Base class for all Beam errors."""
-
-
-class PipelineError(BeamError):
-  """An error in the pipeline object (e.g. a PValue not linked to it)."""
-
-
-class PValueError(BeamError):
-  """An error related to a PValue object (e.g. value is not computed)."""
-
-
-class RunnerError(BeamError):
-  """An error related to a Runner object (e.g. cannot find a runner to run)."""
-
-
-class RuntimeValueProviderError(RuntimeError):
-  """An error related to a ValueProvider object raised during runtime."""
-
-
-class SideInputError(BeamError):
-  """An error related to a side input to a parallel Do operation."""
-
-
-class TransformError(BeamError):
-  """An error related to a PTransform object."""
+# Expected output for apache_beam.examples.dataframe.taxiride enrich
+# pipeline with input gs://apache-beam-samples/nyc_taxi/2018/*.csv
+Borough,passenger_count
+Manhattan,145129096
+Queens,8024331
+Brooklyn,6972533
+Bronx,1074423
+EWR,322785
+Unknown,2407529
+Staten Island,39659
