@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
+package org.apache.beam.runners.fnexecution.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -40,13 +40,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /**
  * {@link StateRequestHandler} that uses {@link org.apache.beam.runners.core.SideInputHandler} to
- * access the Flink broadcast state that represents side inputs.
+ * access the broadcast state that represents side inputs.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFactory {
+public class StreamingSideInputHandlerFactory implements SideInputHandlerFactory {
 
   // Map from side input id to global PCollection id.
   private final Map<SideInputId, PCollectionView<?>> sideInputToCollection;
@@ -56,7 +56,7 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
    * Creates a new state handler for the given stage. Note that this requires a traversal of the
    * stage itself, so this should only be called once per stage rather than once per bundle.
    */
-  public static FlinkStreamingSideInputHandlerFactory forStage(
+  public static StreamingSideInputHandlerFactory forStage(
       ExecutableStage stage,
       Map<SideInputId, PCollectionView<?>> viewMapping,
       org.apache.beam.runners.core.SideInputHandler runnerHandler) {
@@ -76,12 +76,12 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
               sideInputId.getLocalName()));
     }
 
-    FlinkStreamingSideInputHandlerFactory factory =
-        new FlinkStreamingSideInputHandlerFactory(sideInputBuilder.build(), runnerHandler);
+    StreamingSideInputHandlerFactory factory =
+        new StreamingSideInputHandlerFactory(sideInputBuilder.build(), runnerHandler);
     return factory;
   }
 
-  private FlinkStreamingSideInputHandlerFactory(
+  private StreamingSideInputHandlerFactory(
       Map<SideInputId, PCollectionView<?>> sideInputToCollection,
       org.apache.beam.runners.core.SideInputHandler runnerHandler) {
     this.sideInputToCollection = sideInputToCollection;
