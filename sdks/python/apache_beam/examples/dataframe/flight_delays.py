@@ -47,28 +47,8 @@ def input_date(date):
     raise ValueError("There's no data after 2012-12-31")
   return date
 
-def run(argv=None):
-  """Main entry point; defines and runs the wordcount pipeline."""
-  parser = argparse.ArgumentParser()
-  parser.add_argument(
-      '--start_date',
-      dest='start_date',
-      type=input_date,
-      default='2012-12-22',
-      help='YYY-MM-DD lower bound (inclusive) for input dataset.')
-  parser.add_argument(
-      '--end_date',
-      dest='end_date',
-      type=input_date,
-      default='2012-12-26',
-      help='YYY-MM-DD upper bound (inclusive) for input dataset.')
-  parser.add_argument(
-      '--output',
-      dest='output',
-      required=True,
-      help='Location to write the output.')
-  known_args, pipeline_args = parser.parse_known_args(argv)
-
+def run_flight_delay_pipeline(pipeline, start_date=None, end_date=None,
+                              output=None):
   query = f"""
   SELECT
     date,
@@ -78,24 +58,25 @@ def run(argv=None):
     departure_delay,
     arrival_delay
   FROM `bigquery-samples.airline_ontime_data.flights`
-  WHERE date >= '{known_args.start_date}' AND date <= '{known_args.end_date}'
+  WHERE date >= '{start_date}' AND date <= '{end_date}'
   """
 
   # Import this here to avoid pickling the main session.
   import time
   import datetime
+  from apache_beam import window
 
   def to_unixtime(s):
     return time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d").timetuple())
 
   # The pipeline will be run on exiting the with block.
-  with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
+  with pipeline as p:
     tbl = (
         p
         | 'read table' >> beam.io.ReadFromBigQuery(
             query=query, use_standard_sql=True)
         | 'assign ts' >> beam.Map(
-            lambda x: beam.window.TimestampedValue(x, to_unixtime(x['date'])))
+            lambda x: window.TimestampedValue(x, to_unixtime(x['date'])))
         | 'set schema' >> beam.Select(
             date=lambda x: str(x['date']),
             airline=lambda x: str(x['airline']),
@@ -105,10 +86,40 @@ def run(argv=None):
             arrival_delay=lambda x: float(x['arrival_delay'])))
     daily = tbl | 'daily windows' >> beam.WindowInto(
         beam.window.FixedWindows(60 * 60 * 24))
+
     # group the flights data by carrier
     df = to_dataframe(daily)
     result = df.groupby('airline').apply(get_delay_at_top_airports)
-    result.to_csv(known_args.output)
+    result.to_csv(output)
+
+
+def run(argv=None):
+  """Main entry point; defines and runs the wordcount pipeline."""
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--start_date',
+      dest='start_date',
+      type=input_date,
+      default='2012-12-22',
+      help='YYYY-MM-DD lower bound (inclusive) for input dataset.')
+  parser.add_argument(
+      '--end_date',
+      dest='end_date',
+      type=input_date,
+      default='2012-12-26',
+      help='YYYY-MM-DD upper bound (inclusive) for input dataset.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Location to write the output.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  run_flight_delay_pipeline(
+      beam.Pipeline(options=PipelineOptions(pipeline_args)),
+      start_date=known_args.start_date,
+      end_date=known_args.end_date,
+      output=known_args.output)
 
 
 if __name__ == '__main__':
