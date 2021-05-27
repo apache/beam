@@ -26,8 +26,6 @@ import logging
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.dataframe.convert import to_pcollection
-from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
 
 

@@ -22,11 +22,8 @@
 
 from __future__ import absolute_import
 
-import collections
 import logging
 import os
-import re
-import tempfile
 import unittest
 import uuid
 
