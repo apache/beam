@@ -1322,7 +1322,8 @@ class PubSubBigQueryIT(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*matchers),
         wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
-        streaming=True)
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     def add_schema_info(element):
       yield {'number': element}
