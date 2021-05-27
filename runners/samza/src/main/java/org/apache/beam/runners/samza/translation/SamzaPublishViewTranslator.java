@@ -49,6 +49,10 @@ class SamzaPublishViewTranslator<ElemT, ViewT>
     ctx.registerViewStream(transform.getView(), outputStream);
   }
 
+  /**
+   * This method is used to translate both native Java PublishView transform as well as portable
+   * side input broadcasting into Samza.
+   */
   static <ElemT> MessageStream<OpMessage<Iterable<ElemT>>> doTranslate(
       MessageStream<OpMessage<Iterable<ElemT>>> inputStream,
       Coder<WindowedValue<Iterable<ElemT>>> coder,

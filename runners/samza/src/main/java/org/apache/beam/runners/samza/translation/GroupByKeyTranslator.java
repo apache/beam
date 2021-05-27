@@ -143,6 +143,10 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     return ConfigBuilder.createRocksDBStoreConfig(options);
   }
 
+  /**
+   * The method is used to translate both portable GBK transform as well as grouping side inputs
+   * into Samza.
+   */
   static <K, InputT, OutputT> MessageStream<OpMessage<KV<K, OutputT>>> doTranslatePortable(
       RunnerApi.PCollection input,
       MessageStream<OpMessage<KV<K, InputT>>> inputStream,
