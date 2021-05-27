@@ -79,7 +79,7 @@ jobs:
           submodules: recursive
       # :sdks:java:core:test
       - name: Run :sdks:java:core:test
-        id: java_core_test-${{ matrix.os }}
+        id: java_core_test-matrix.os
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: :sdks:java:core:test
@@ -91,7 +91,7 @@ jobs:
           path: sdks/java/core/build/reports/tests/test
       # :sdks:java:harness:test
       - name: Run :sdks:java:harness:test
-        id: java_harness_test-${{ matrix.os }}
+        id: java_harness_test-matrix.os
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: :sdks:java:harness:test
@@ -104,7 +104,7 @@ jobs:
           path: sdks/java/harness/build/reports/tests/test
       # :runners:core-java:test
       - name: Run :runners:core-java:test
-        id: java_runners_test-${{ matrix.os }}
+        id: java_runners_test-matrix.os
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: :runners:core-java:test
@@ -113,16 +113,16 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: java_unit_tests-runners-core-java-test-${{ matrix.os }}
+          name: java_unit_tests-runners-core-java-test-matrix.os
           path: runners/core-java/build/reports/tests/test
       - name: "Java Unit Tests Status Report"
         if: always()
         run: echo $jobstatus
         env:
           jobstatus: job.status
-          corestatus: steps.java_core_test-${{ matrix.os }}.outputs.status
-          harnessstatus: steps.java_harness_test-${{ matrix.os }}.outputs.status
-          runersstatus: steps.java_runners_test-${{ matrix.os }}.outputs.status
+          corestatus: steps.java_core_test-matrix.os.outputs.status
+          harnessstatus: steps.java_harness_test-matrix.os.outputs.status
+          runersstatus: steps.java_runners_test-matrix.os.outputs.status
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
@@ -138,7 +138,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Run WordCount Unix
-        id: run_java_wordcount_direct_runner-${{matrix.os}}
+        id: run_java_wordcount_direct_runner-matrix.os
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
@@ -148,14 +148,14 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: java_wordcount_direct_runner-${{matrix.os}}
+          name: java_wordcount_direct_runner-matrix.os
           path: examples/java/build/reports/tests/integrationTest
       - name: "Java Word Count Direct Runner Status Report"
         if: always()
         run: echo $jobstatus
         env:
           jobstatus: job.status
-          directrunnerstatus: steps.run_java_wordcount_direct_runner-${{matrix.os}}.outputs.status
+          directrunnerstatus: steps.run_java_wordcount_direct_runner-matrix.os.outputs.status
 
   java_wordcount_dataflow:
     name: 'Java Wordcount Dataflow'
@@ -187,7 +187,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
       - name: Run WordCount
-        id: run_java_wordcount_dataflow-${{matrix.os}}
+        id: run_java_wordcount_dataflow-matrix.os
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
@@ -197,11 +197,11 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: java_wordcount_dataflow-${{matrix.os}}
+          name: java_wordcount_dataflow-matrix.os
           path: examples/java/build/reports/tests/integrationTest
       - name: "Java Word Count Dataflow Status Report"
         if: always()
         run: echo $jobstatus
         env:
           jobstatus: job.status
-          directrunnerstatus: steps.run_java_wordcount_dataflow-${{matrix.os}}.outputs.status
+          directrunnerstatus: steps.run_java_wordcount_dataflow-matrix.os.outputs.status
