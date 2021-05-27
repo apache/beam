@@ -125,12 +125,12 @@ jobs:
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix
-        id: python_unit_tests-unix-${{ matrix.params.py_ver }}
+        id: python_unit_tests-unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
       - name: Run tests basic windows
-        id: python_unit_tests-windows-${{ matrix.params.py_ver }}
+        id: python_unit_tests-windows
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win
@@ -145,8 +145,8 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: job.status
-          statusbasictestsunix: steps.python_unit_tests-unix-${{ matrix.params.py_ver }}.outputs.status
-          statusbasictestswindows: steps.python_unit_tests-windows-${{ matrix.params.py_ver }}.outputs.status
+          statusbasictestsunix: steps.python_unit_tests-unix.outputs.status
+          statusbasictestswindows: steps.python_unit_tests-windows.outputs.status
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
@@ -175,7 +175,7 @@ jobs:
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e .
       - name: Run WordCount
-        id: run_python_wordcount_direct_runner-${{matrix.os}}-${{ matrix.python }}
+        id: run_python_wordcount_direct_runner
         working-directory: ./sdks/python
         shell: bash
         run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
@@ -184,7 +184,7 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: job.status
-          directrunnerstatus: steps.run_python_wordcount_direct_runner-${{matrix.os}}-${{ matrix.python }}.outputs.status
+          directrunnerstatus: steps.run_python_wordcount_direct_runner.outputs.status
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
@@ -227,7 +227,7 @@ jobs:
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e ".[gcp]"
       - name: Run WordCount
-        id: run_python_wordcount_dataflow-${{matrix.os}}-${{ matrix.python }}
+        id: run_python_wordcount_dataflow
         working-directory: ./sdks/python
         shell: bash
         run: |
@@ -244,4 +244,4 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: job.status
-          directrunnerstatus: steps.run_python_wordcount_dataflow-${{matrix.os}}-${{ matrix.python }}.outputs.status
+          directrunnerstatus: steps.run_python_wordcount_dataflow.outputs.status
