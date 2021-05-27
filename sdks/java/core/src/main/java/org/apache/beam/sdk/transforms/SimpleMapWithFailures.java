@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
 import org.apache.beam.sdk.values.PCollection;
@@ -29,15 +27,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A {@code PTransform} that adds exception handling to {@link MapKeys} and {@link MapValues} using
  * {@link MapElements.MapWithFailures}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
-public class SimpleMapWithFailures<InputT, OutputT, FailureT>
+class SimpleMapWithFailures<InputT, OutputT, FailureT>
     extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 
   private final transient TypeDescriptor<OutputT> outputType;
   private final Contextful<Fn<InputT, OutputT>> fn;
-  private final transient @Nullable TypeDescriptor<FailureT> failureType;
+  private final transient TypeDescriptor<FailureT> failureType;
   private final @Nullable ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
   private final String transformName;
 
@@ -46,7 +41,7 @@ public class SimpleMapWithFailures<InputT, OutputT, FailureT>
       Contextful<Fn<InputT, OutputT>> fn,
       TypeDescriptor<OutputT> outputType,
       @Nullable ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler,
-      @Nullable TypeDescriptor<FailureT> failureType) {
+      TypeDescriptor<FailureT> failureType) {
     this.transformName = transformName;
     this.fn = fn;
     this.outputType = outputType;
@@ -56,7 +51,9 @@ public class SimpleMapWithFailures<InputT, OutputT, FailureT>
 
   @Override
   public WithFailures.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
-    checkArgument(exceptionHandler != null, ".exceptionsVia() is required");
+    if (exceptionHandler == null) {
+      throw new NullPointerException(".exceptionsVia() is required");
+    }
     return input.apply(
         transformName,
         MapElements.into(outputType)

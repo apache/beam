@@ -26,6 +26,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
 /**
  * {@code MapValues} maps a {@code SerializableFunction<V1,V2>} over values of a {@code
@@ -44,9 +45,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <V1> the type of the values in the input {@code PCollection}
  * @param <V2> the type of the elements in the output {@code PCollection}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MapValues<K, V1, V2>
     extends PTransform<PCollection<KV<K, V1>>, PCollection<KV<K, V2>>> {
 
@@ -105,6 +103,7 @@ public class MapValues<K, V1, V2>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
+  @RequiresNonNull("fn")
   public <FailureT> SimpleMapWithFailures<KV<K, V1>, KV<K, V2>, FailureT> exceptionsInto(
       TypeDescriptor<FailureT> failureTypeDescriptor) {
     return new SimpleMapWithFailures<>(
@@ -140,6 +139,7 @@ public class MapValues<K, V1, V2>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
+  @RequiresNonNull("fn")
   public <FailureT> SimpleMapWithFailures<KV<K, V1>, KV<K, V2>, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<KV<K, V1>>, FailureT> exceptionHandler) {
     return new SimpleMapWithFailures<>(
@@ -152,8 +152,10 @@ public class MapValues<K, V1, V2>
 
   @Override
   public PCollection<KV<K, V2>> expand(PCollection<KV<K, V1>> input) {
-    checkNotNull(fn, "Must specify a function on MapValues using .via()");
-    return input.apply("MapValues", MapElements.into(getKvTypeDescriptor()).via(fn));
+    return input.apply(
+        "MapValues",
+        MapElements.into(getKvTypeDescriptor())
+            .via(checkNotNull(fn, "Must specify a function on MapValues using .via()")));
   }
 
   private TypeDescriptor<KV<K, V2>> getKvTypeDescriptor() {

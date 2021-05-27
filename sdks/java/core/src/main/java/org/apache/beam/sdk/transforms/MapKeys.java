@@ -26,6 +26,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
 /**
  * {@code MapKeys} maps a {@code SerializableFunction<K1,K2>} over keys of a {@code
@@ -44,9 +45,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <K1> the type of the keys in the input {@code PCollection}
  * @param <K2> the type of the keys in the output {@code PCollection}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PCollection<KV<K2, V>>> {
 
   private final transient TypeDescriptor<K2> outputType;
@@ -104,6 +102,7 @@ public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PColl
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
+  @RequiresNonNull("fn")
   public <FailureT> SimpleMapWithFailures<KV<K1, V>, KV<K2, V>, FailureT> exceptionsInto(
       TypeDescriptor<FailureT> failureTypeDescriptor) {
     return new SimpleMapWithFailures<>(
@@ -139,6 +138,7 @@ public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PColl
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
+  @RequiresNonNull("fn")
   public <FailureT> SimpleMapWithFailures<KV<K1, V>, KV<K2, V>, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<KV<K1, V>>, FailureT> exceptionHandler) {
     return new SimpleMapWithFailures<>(
@@ -151,8 +151,10 @@ public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PColl
 
   @Override
   public PCollection<KV<K2, V>> expand(PCollection<KV<K1, V>> input) {
-    checkNotNull(fn, "Must specify a function on MapKeys using .via()");
-    return input.apply("MapKeys", MapElements.into(getKvTypeDescriptor()).via(fn));
+    return input.apply(
+        "MapKeys",
+        MapElements.into(getKvTypeDescriptor())
+            .via(checkNotNull(fn, "Must specify a function on MapKeys using .via()")));
   }
 
   private TypeDescriptor<KV<K2, V>> getKvTypeDescriptor() {
