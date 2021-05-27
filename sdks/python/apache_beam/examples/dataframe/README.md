@@ -143,3 +143,40 @@ Queens,81138
 Staten Island,531
 Unknown,28527
 ```
+
+## Flight Delay pipeline (added in 2.31.0)
+[`flight_delays.py`](./flight_delays.py) contains an implementation of
+a pipeline that processes the flight ontime data from
+`bigquery-samples.airline_ontime_data.flights`. It uses a conventional Beam
+pipeline to read from BigQuery, apply a 24-hour rolling window, and define a
+Beam schema for the data. Then it converts to DataFrames in order to perform
+a complex aggregation using `GroupBy.apply`, and write the result out with
+`to_csv`. Note that the DataFrame computation respects the 24-hour window
+applied above, and results are partitioned into separate files per day.
+
+### Running the pipeline
+To run the pipeline locally:
+
+```sh
+python -m apache_beam.examples.dataframe.flight_delays \
+  --start_date 2012-12-24 \
+  --end_date 2012-12-25 \
+  --output gs://<bucket>/<dir>/delays.csv \
+  --project <gcp-project> \
+  --temp_location gs://<bucket>/<dir>
+```
+
+Note a GCP `project` and `temp_location` are required for reading from BigQuery.
+
+This will produce files like
+`gs://<bucket>/<dir>/delays.csv-2012-12-23T00:00:00-2012-12-24T00:00:00-XXXXX-of-YYYYY`
+with contents tracking average delays per airline on that day, for example:
+```
+airline,departure_delay,arrival_delay
+EV,10.01901901901902,4.431431431431432
+HA,-1.0829015544041452,0.010362694300518135
+UA,19.142555438225976,11.07180570221753
+VX,62.755102040816325,62.61224489795919
+WN,12.074298711144806,6.717968157695224
+...
+```
