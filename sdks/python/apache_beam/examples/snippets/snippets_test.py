@@ -1081,8 +1081,8 @@ class SnippetsTest(unittest.TestCase):
       assert_that(counts, equal_to([('a', 4), ('b', 2), ('a', 1)]))
 
   def test_model_setting_trigger(self):
-    pipeline_options = PipelineOptions()
-    pipeline_options.view_as(StandardOptions).streaming = True
+    pipeline_options = PipelineOptions(
+        flags=['--streaming', '--allow_unsafe_triggers'])
 
     with TestPipeline(options=pipeline_options) as p:
       test_stream = (
@@ -1136,8 +1136,8 @@ class SnippetsTest(unittest.TestCase):
       assert_that(counts, equal_to([('a', 3), ('b', 2), ('a', 2), ('c', 2)]))
 
   def test_model_other_composite_triggers(self):
-    pipeline_options = PipelineOptions()
-    pipeline_options.view_as(StandardOptions).streaming = True
+    pipeline_options = PipelineOptions(
+        flags=['--streaming', '--allow_unsafe_triggers'])
 
     with TestPipeline(options=pipeline_options) as p:
       test_stream = (
