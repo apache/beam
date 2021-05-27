@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.translation;
 
 import java.util.List;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,18 +36,29 @@ class SamzaPublishViewTranslator<ElemT, ViewT>
       SamzaPublishView<ElemT, ViewT> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
-    doTranslate(transform, node, ctx);
-  }
-
-  private static <ElemT, ViewT> void doTranslate(
-      SamzaPublishView<ElemT, ViewT> transform,
-      TransformHierarchy.Node node,
-      TranslationContext ctx) {
-
     final PCollection<List<ElemT>> input = ctx.getInput(transform);
     final MessageStream<OpMessage<Iterable<ElemT>>> inputStream = ctx.getMessageStream(input);
     @SuppressWarnings("unchecked")
     final Coder<WindowedValue<Iterable<ElemT>>> elementCoder = (Coder) SamzaCoders.of(input);
+    final String viewId = ctx.getViewId(transform.getView());
+
+    final MessageStream<OpMessage<Iterable<ElemT>>> outputStream =
+        doTranslate(
+            inputStream, elementCoder, ctx.getTransformId(), viewId, ctx.getPipelineOptions());
+
+    ctx.registerViewStream(transform.getView(), outputStream);
+  }
+
+  /**
+   * This method is used to translate both native Java PublishView transform as well as portable
+   * side input broadcasting into Samza.
+   */
+  static <ElemT> MessageStream<OpMessage<Iterable<ElemT>>> doTranslate(
+      MessageStream<OpMessage<Iterable<ElemT>>> inputStream,
+      Coder<WindowedValue<Iterable<ElemT>>> coder,
+      String transformId,
+      String viewId,
+      SamzaPipelineOptions options) {
 
     final MessageStream<WindowedValue<Iterable<ElemT>>> elementStream =
         inputStream
@@ -55,15 +67,10 @@ class SamzaPublishViewTranslator<ElemT, ViewT>
 
     // TODO: once SAMZA-1580 is resolved, this optimization will go directly inside Samza
     final MessageStream<WindowedValue<Iterable<ElemT>>> broadcastStream =
-        ctx.getPipelineOptions().getMaxSourceParallelism() == 1
+        options.getMaxSourceParallelism() == 1
             ? elementStream
-            : elementStream.broadcast(
-                SamzaCoders.toSerde(elementCoder), "view-" + ctx.getTransformId());
+            : elementStream.broadcast(SamzaCoders.toSerde(coder), "view-" + transformId);
 
-    final String viewId = ctx.getViewId(transform.getView());
-    final MessageStream<OpMessage<Iterable<ElemT>>> outputStream =
-        broadcastStream.map(element -> OpMessage.ofSideInput(viewId, element));
-
-    ctx.registerViewStream(transform.getView(), outputStream);
+    return broadcastStream.map(element -> OpMessage.ofSideInput(viewId, element));
   }
 }
