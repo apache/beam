@@ -56,6 +56,12 @@ jobs:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
           GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
+      - name: "GCP Variables Status Report"
+        if: always()
+        run: echo $jobstatus
+        env:
+          jobstatus: job.status
+          gcpstatus: steps.check_gcp_variables.outputs.status
 
   build_python_sdk_source:
     name: 'Build python source distribution'
@@ -119,10 +125,12 @@ jobs:
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix
+        id: python_unit_tests-unix-${{ matrix.params.py_ver }}
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
       - name: Run tests basic windows
+        id: python_unit_tests-windows-${{ matrix.params.py_ver }}
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win
@@ -132,6 +140,13 @@ jobs:
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
           path: sdks/python/pytest**.xml
+      - name: "Python Unit Tests Status Report"
+        if: always()
+        run: echo $jobstatus
+        env:
+          jobstatus: job.status
+          statusbasictestsunix: steps.python_unit_tests-unix-${{ matrix.params.py_ver }}.outputs.status
+          statusbasictestswindows: steps.python_unit_tests-windows-${{ matrix.params.py_ver }}.outputs.status
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
@@ -160,9 +175,16 @@ jobs:
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e .
       - name: Run WordCount
+        id: run_python_wordcount_direct_runner-${{matrix.os}}-${{ matrix.python }}
         working-directory: ./sdks/python
         shell: bash
         run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
+      - name: "Python Word Count Direct Runner Status Report"
+        if: always()
+        run: echo $jobstatus
+        env:
+          jobstatus: job.status
+          directrunnerstatus: steps.run_python_wordcount_direct_runner-${{matrix.os}}-${{ matrix.python }}.outputs.status
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
@@ -205,6 +227,7 @@ jobs:
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e ".[gcp]"
       - name: Run WordCount
+        id: run_python_wordcount_dataflow-${{matrix.os}}-${{ matrix.python }}
         working-directory: ./sdks/python
         shell: bash
         run: |
@@ -216,3 +239,9 @@ jobs:
             --region ${{ secrets.GCP_REGION }} \
             --temp_location gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/python_wordcount_dataflow/ \
             --sdk_location ../../apache-beam-source/apache-beam-source.tar.gz
+      - name: "Python Word Count Dataflow Status Report"
+        if: always()
+        run: echo $jobstatus
+        env:
+          jobstatus: job.status
+          directrunnerstatus: steps.run_python_wordcount_dataflow-${{matrix.os}}-${{ matrix.python }}.outputs.status
