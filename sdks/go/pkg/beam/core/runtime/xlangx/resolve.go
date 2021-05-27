@@ -80,7 +80,7 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 	}
 	paths = make(map[string]string)
 	for _, e := range edges {
-		if e.Op == graph.External {
+		if e.Op == graph.External && e.External != nil {
 			components, err := graphx.ExpandedComponents(e.External.Expanded)
 			if err != nil {
 				return nil, errors.WithContextf(err,
