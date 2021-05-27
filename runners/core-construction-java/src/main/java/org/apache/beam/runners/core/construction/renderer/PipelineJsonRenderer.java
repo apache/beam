@@ -19,15 +19,11 @@ package org.apache.beam.runners.core.construction.renderer;
 
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.BeamIO;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,12 +72,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
                     "  \"enclosingNode\":\"%s\",",
                     escapeString(enclosingNodeName.isEmpty() ? OUTERMOST_NODE : enclosingNodeName));
         }
-
-        String ioInfo = getIOTopicInfo(node);
-        if (!ioInfo.isEmpty()) {
-            writeLine(" \"ioInfo\":\"%s\",", escapeString(ioInfo));
-        }
-
         writeLine("  \"ChildNode\":[");
         enterBlock();
         return CompositeBehavior.ENTER_TRANSFORM;
@@ -174,19 +164,4 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     private static String shortenTag(String tag) {
         return tag.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
     }
-
-    private String getIOTopicInfo(TransformHierarchy.Node node) {
-        final BeamIO beamIO;
-        final Iterator<BeamIO.BeamIORegistrar> beamIORegistrarIterator =
-                ServiceLoader.load(BeamIO.BeamIORegistrar.class).iterator();
-        beamIO = beamIORegistrarIterator.hasNext() ?
-                Iterators.getOnlyElement(beamIORegistrarIterator).getBeamIO() : null;
-
-        String nodeInfo = "";
-        if (beamIO != null) {
-            nodeInfo = beamIO.getIOInfo(node);
-        }
-        return nodeInfo;
-    }
-
 }
