@@ -42,6 +42,7 @@ def get_delay_at_top_airports(aa):
   top_airports = total.nlargest(10, keep='all')
   return aa[aa['arrival_airport'].isin(top_airports.index.values)].mean()
 
+
 def input_date(date):
   import datetime
   parsed = datetime.datetime.strptime(date, '%Y-%m-%d')
@@ -49,8 +50,9 @@ def input_date(date):
     raise ValueError("There's no data after 2012-12-31")
   return date
 
-def run_flight_delay_pipeline(pipeline, start_date=None, end_date=None,
-                              output=None):
+
+def run_flight_delay_pipeline(
+    pipeline, start_date=None, end_date=None, output=None):
   query = f"""
   SELECT
     date,
@@ -77,8 +79,8 @@ def run_flight_delay_pipeline(pipeline, start_date=None, end_date=None,
         p
         | 'read table' >> beam.io.ReadFromBigQuery(
             query=query, use_standard_sql=True)
-        | 'assign ts' >> beam.Map(
-            lambda x: window.TimestampedValue(x, to_unixtime(x['date'])))
+        | 'assign ts' >>
+        beam.Map(lambda x: window.TimestampedValue(x, to_unixtime(x['date'])))
         | 'set schema' >> beam.Select(
             date=lambda x: str(x['date']),
             airline=lambda x: str(x['airline']),

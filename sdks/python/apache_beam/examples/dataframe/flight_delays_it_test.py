@@ -105,10 +105,11 @@ class FlightDelaysTest(unittest.TestCase):
 
   @attr('IT')
   def test_flight_delays(self):
-    flight_delays.run_flight_delay_pipeline(self.test_pipeline,
-                                            start_date='2012-12-23',
-                                            end_date='2012-12-25',
-                                            output=self.output_path)
+    flight_delays.run_flight_delay_pipeline(
+        self.test_pipeline,
+        start_date='2012-12-23',
+        end_date='2012-12-25',
+        output=self.output_path)
 
     def read_csv(path):
       with FileSystems.open(path) as fp:
@@ -121,18 +122,18 @@ class FlightDelaysTest(unittest.TestCase):
               [f'{self.output_path}-{date}*'])[0].metadata_list)
       result_df = result_df.sort_values('airline').reset_index(drop=True)
 
-      expected_df = pd.DataFrame(expectation,
-                                 columns=['airline', 'departure_delay',
-                                          'arrival_delay'])
+      expected_df = pd.DataFrame(
+          expectation, columns=['airline', 'departure_delay', 'arrival_delay'])
       expected_df = expected_df.sort_values('airline').reset_index(drop=True)
 
       try:
         pd.testing.assert_frame_equal(result_df, expected_df)
       except AssertionError as e:
-        raise AssertionError(f"date={date!r} result DataFrame:\n\n"
-                             f"{result_df}\n\n"
-                             "Differs from Expectation:\n\n"
-                             f"{expected_df}") from e
+        raise AssertionError(
+            f"date={date!r} result DataFrame:\n\n"
+            f"{result_df}\n\n"
+            "Differs from Expectation:\n\n"
+            f"{expected_df}") from e
 
 
 if __name__ == '__main__':
