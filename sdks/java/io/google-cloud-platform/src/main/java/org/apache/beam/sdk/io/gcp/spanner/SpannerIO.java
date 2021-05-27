@@ -26,6 +26,8 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
@@ -49,10 +51,15 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitions;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ReadPartitionChangeStream;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.usermodel.DataChangesRecord;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.Deserializer;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -388,6 +395,20 @@ public class SpannerIO {
         .setMaxNumMutations(DEFAULT_MAX_NUM_MUTATIONS)
         .setMaxNumRows(DEFAULT_MAX_NUM_ROWS)
         .setFailureMode(FailureMode.FAIL_FAST)
+        .build();
+  }
+
+  /**
+   * Creates an uninitialized instance of {@link ReadChangeStream}. Before use, the {@link
+   * ReadChangeStream} must be configured with a {@link ReadChangeStream#withProjectId}, {@link
+   * ReadChangeStream#withInstanceId}, and {@link ReadChangeStream#withDatabaseId} that identify the
+   * Cloud Spanner database being written. It must also be configured with the start time and the
+   * change stream name.
+   */
+  @Experimental
+  public static ReadChangeStream readChangeStream() {
+    return new AutoValue_SpannerIO_ReadChangeStream.Builder()
+        .setSpannerConfig(SpannerConfig.create())
         .build();
   }
 
@@ -1239,6 +1260,138 @@ public class SpannerIO {
         throw new RuntimeException(e);
       }
       return bos.toByteArray();
+    }
+  }
+
+  @AutoValue
+  public abstract static class ReadChangeStream
+      extends PTransform<PBegin, PCollection<DataChangesRecord>> {
+
+    abstract SpannerConfig getSpannerConfig();
+
+    abstract String getChangeStreamName();
+
+    abstract Timestamp getInclusiveStartAt();
+
+    abstract Timestamp getExclusiveEndAt();
+
+    abstract Deserializer getDeserializer();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+
+      abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
+
+      abstract Builder setChangeStreamName(String changeStreamName);
+
+      abstract Builder setInclusiveStartAt(Timestamp inclusiveStartAt);
+
+      abstract Builder setExclusiveEndAt(Timestamp exclusiveEndAt);
+
+      abstract Builder setDeserializer(Deserializer deserializer);
+
+      abstract ReadChangeStream build();
+    }
+
+    /** Specifies the Cloud Spanner configuration. */
+    public ReadChangeStream withSpannerConfig(SpannerConfig spannerConfig) {
+      return toBuilder().setSpannerConfig(spannerConfig).build();
+    }
+
+    /** Specifies the Cloud Spanner project. */
+    public ReadChangeStream withProjectId(String projectId) {
+      return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
+    }
+
+    /** Specifies the Cloud Spanner project. */
+    public ReadChangeStream withProjectId(ValueProvider<String> projectId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withProjectId(projectId));
+    }
+
+    /** Specifies the Cloud Spanner instance. */
+    public ReadChangeStream withInstanceId(String instanceId) {
+      return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
+    }
+
+    /** Specifies the Cloud Spanner instance. */
+    public ReadChangeStream withInstanceId(ValueProvider<String> instanceId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withInstanceId(instanceId));
+    }
+
+    /** Specifies the Cloud Spanner database. */
+    public ReadChangeStream withDatabaseId(String databaseId) {
+      return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
+    }
+
+    /** Specifies the Cloud Spanner database. */
+    public ReadChangeStream withDatabaseId(ValueProvider<String> databaseId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDatabaseId(databaseId));
+    }
+
+    /** Specifies the change stream name. */
+    public ReadChangeStream withChangeStreamName(String changeStreamName) {
+      return toBuilder().setChangeStreamName(changeStreamName).build();
+    }
+
+    /** Specifies the time that the change stream should be read from. */
+    public ReadChangeStream withInclusiveStartAt(Timestamp timestamp) {
+      return toBuilder().setInclusiveStartAt(timestamp).build();
+    }
+
+    /** Specifies the end time of the change stream. */
+    public ReadChangeStream withExclusiveEndAt(Timestamp timestamp) {
+      return toBuilder().setExclusiveEndAt(timestamp).build();
+    }
+
+    /**
+     * Specifies the class to be used to transform the data records read from the change stream into
+     * Java objects or other serial formats.
+     */
+    public ReadChangeStream withDeserializer(Deserializer deserializer) {
+      return toBuilder().setDeserializer(deserializer).build();
+    }
+
+    @Override
+    public PCollection<DataChangesRecord> expand(PBegin input) {
+      checkArgument(
+          getSpannerConfig() != null,
+          "SpannerIO.readChangeStream() requires the spanner config to be set.");
+      checkArgument(
+          getSpannerConfig().getProjectId() != null,
+          "SpannerIO.readChangeStream() requires the project ID to be set.");
+      checkArgument(
+          getSpannerConfig().getInstanceId() != null,
+          "SpannerIO.readChangeStream() requires the instance ID to be set.");
+      checkArgument(
+          getSpannerConfig().getDatabaseId() != null,
+          "SpannerIO.readChangeStream() requires the database ID to be set.");
+      checkArgument(
+          getChangeStreamName() != null,
+          "SpannerIO.readChangeStream() requires the name of the change stream to be set.");
+      checkArgument(
+          getInclusiveStartAt() != null,
+          "SpannerIO.readChangeStream() requires the start time to be set.");
+
+      SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(getSpannerConfig());
+      DatabaseAdminClient dbAdminClient = spannerAccessor.getDatabaseAdminClient();
+
+      PipelineInitializer pipelineInitializer = new PipelineInitializer();
+      pipelineInitializer.initialize(
+          dbAdminClient,
+          DatabaseId.of(
+              getSpannerConfig().getProjectId().get(),
+              getSpannerConfig().getInstanceId().get(),
+              getSpannerConfig().getDatabaseId().get()));
+
+      return input
+          .apply("Execute query", Create.of(1))
+          .apply(ParDo.of(new DetectNewPartitions()))
+          .apply(new ReadPartitionChangeStream());
     }
   }
 
