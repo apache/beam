@@ -61,7 +61,7 @@ jobs:
         if: always()
         run: echo $jobstatus
         env:
-          jobstatus: ${{ jobs.check_gcp_variables.status }}
+          jobstatus: ${{ job.status }}
           gcpstatus: ${{ steps.check_gcp_variables.outputs.status }}
 
   java_unit_tests:
@@ -119,7 +119,7 @@ jobs:
         if: always()
         run: echo $jobstatus
         env:
-          jobstatus: ${{ jobs.java_unit_tests.status }}
+          jobstatus: ${{ jobs.status }}
           corestatus: steps.java_core_test.outputs.status
           harnessstatus: steps.java_harness_test.outputs.status
           runersstatus: steps.java_runners_test.outputs.status
