@@ -148,7 +148,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
     this.outbox = outbox;
     this.metricsContainer = new JetMetricsContainer(stepId, ownerId, context);
 
-    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, pipelineOptions.get());
+    doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    doFnInvoker.invokeSetup();
 
     if (ordinalToSideInput.isEmpty()) {
       sideInputReader = NullSideInputReader.of(Collections.emptyList());

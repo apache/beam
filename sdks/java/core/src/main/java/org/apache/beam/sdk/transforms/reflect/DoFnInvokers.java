@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** Static utilities for working with {@link DoFnInvoker}. */
@@ -47,10 +46,10 @@ public class DoFnInvokers {
    * <p>On success returns an {@link DoFnInvoker} for the given {@link DoFn}.
    */
   public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> tryInvokeSetupFor(
-      DoFn<InputT, OutputT> fn, PipelineOptions options) {
+      DoFn<InputT, OutputT> fn) {
     DoFnInvoker<InputT, OutputT> doFnInvoker = invokerFor(fn);
     try {
-      doFnInvoker.invokeSetup(new DoFnSetupArgumentProvider<>(fn, options));
+      doFnInvoker.invokeSetup();
     } catch (Exception e) {
       try {
         doFnInvoker.invokeTeardown();
@@ -60,46 +59,5 @@ public class DoFnInvokers {
       throw e;
     }
     return doFnInvoker;
-  }
-
-  /** An {@link DoFnInvoker.ArgumentProvider} for {@link DoFn.Setup @Setup}. */
-  private static class DoFnSetupArgumentProvider<InputT, OutputT>
-      extends DoFnInvoker.BaseArgumentProvider<InputT, OutputT> {
-    /** A concrete implementation of {@link DoFn.SetupContext}. */
-    private class Context extends DoFn<InputT, OutputT>.SetupContext {
-      private Context() {
-        fn.super();
-      }
-
-      @Override
-      public PipelineOptions getPipelineOptions() {
-        return options;
-      }
-    }
-
-    private final DoFn fn;
-    private final Context context;
-    private final PipelineOptions options;
-
-    private DoFnSetupArgumentProvider(DoFn fn, PipelineOptions options) {
-      this.fn = fn;
-      this.options = options;
-      this.context = new Context();
-    }
-
-    @Override
-    public PipelineOptions pipelineOptions() {
-      return options;
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
-      return context;
-    }
-
-    @Override
-    public String getErrorContext() {
-      return "SimpleDoFnRunner/Setup";
-    }
   }
 }

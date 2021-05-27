@@ -23,8 +23,6 @@ import static org.hamcrest.Matchers.instanceOf;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -48,10 +46,9 @@ public class DoFnLifecycleManagersTest {
 
   @Test
   public void removeAllWhenManagersThrowSuppressesAndThrows() throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
-    DoFnLifecycleManager first = DoFnLifecycleManager.of(new ThrowsInCleanupFn("foo"), options);
-    DoFnLifecycleManager second = DoFnLifecycleManager.of(new ThrowsInCleanupFn("bar"), options);
-    DoFnLifecycleManager third = DoFnLifecycleManager.of(new ThrowsInCleanupFn("baz"), options);
+    DoFnLifecycleManager first = DoFnLifecycleManager.of(new ThrowsInCleanupFn("foo"));
+    DoFnLifecycleManager second = DoFnLifecycleManager.of(new ThrowsInCleanupFn("bar"));
+    DoFnLifecycleManager third = DoFnLifecycleManager.of(new ThrowsInCleanupFn("baz"));
     first.get();
     second.get();
     third.get();
@@ -95,10 +92,9 @@ public class DoFnLifecycleManagersTest {
 
   @Test
   public void whenManagersSucceedSucceeds() throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
-    DoFnLifecycleManager first = DoFnLifecycleManager.of(new EmptyFn(), options);
-    DoFnLifecycleManager second = DoFnLifecycleManager.of(new EmptyFn(), options);
-    DoFnLifecycleManager third = DoFnLifecycleManager.of(new EmptyFn(), options);
+    DoFnLifecycleManager first = DoFnLifecycleManager.of(new EmptyFn());
+    DoFnLifecycleManager second = DoFnLifecycleManager.of(new EmptyFn());
+    DoFnLifecycleManager third = DoFnLifecycleManager.of(new EmptyFn());
     first.get();
     second.get();
     third.get();

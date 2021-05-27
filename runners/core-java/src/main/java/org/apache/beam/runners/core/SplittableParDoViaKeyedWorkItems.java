@@ -319,9 +319,9 @@ public class SplittableParDoViaKeyedWorkItems {
     }
 
     @Setup
-    public void setup(SetupContext c) throws Exception {
+    public void setup() throws Exception {
       invoker = DoFnInvokers.invokerFor(fn);
-      invoker.invokeSetup(wrapContextAsSetup(c));
+      invoker.invokeSetup();
     }
 
     @Teardown
@@ -546,31 +546,6 @@ public class SplittableParDoViaKeyedWorkItems {
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
               stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
-    }
-
-    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapContextAsSetup(
-        final SetupContext baseContext) {
-      return new BaseArgumentProvider<InputT, OutputT>() {
-        @Override
-        public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
-          return fn.new SetupContext() {
-            @Override
-            public PipelineOptions getPipelineOptions() {
-              return baseContext.getPipelineOptions();
-            }
-          };
-        }
-
-        @Override
-        public PipelineOptions pipelineOptions() {
-          return baseContext.getPipelineOptions();
-        }
-
-        @Override
-        public String getErrorContext() {
-          return "SplittableParDoViaKeyedWorkItems/Setup";
-        }
-      };
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapContextAsStartBundle(

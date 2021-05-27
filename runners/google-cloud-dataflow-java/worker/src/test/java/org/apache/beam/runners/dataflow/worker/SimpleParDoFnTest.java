@@ -218,7 +218,7 @@ public class SimpleParDoFnTest {
     ParDoFn userParDoFn =
         new SimpleParDoFn<>(
             options,
-            DoFnInstanceManagers.cloningPool(fnInfo, options),
+            DoFnInstanceManagers.cloningPool(fnInfo),
             new EmptySideInputReader(),
             MAIN_OUTPUT,
             ImmutableMap.of(
@@ -440,7 +440,7 @@ public class SimpleParDoFnTest {
     ParDoFn userParDoFn =
         new SimpleParDoFn<>(
             options,
-            DoFnInstanceManagers.cloningPool(fnInfo, options),
+            DoFnInstanceManagers.cloningPool(fnInfo),
             NullSideInputReader.empty(),
             MAIN_OUTPUT,
             ImmutableMap.of(MAIN_OUTPUT, 0, new TupleTag<String>("declared"), 1),

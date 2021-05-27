@@ -28,7 +28,6 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -51,7 +50,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   @Before
   public void setup() {
-    lifecycleManager = DoFnLifecycleManager.of(new TestFn(), PipelineOptionsFactory.create());
+    lifecycleManager = DoFnLifecycleManager.of(new TestFn());
   }
 
   @Test

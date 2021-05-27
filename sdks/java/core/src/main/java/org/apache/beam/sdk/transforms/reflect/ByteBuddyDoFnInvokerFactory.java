@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessCon
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SetupContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
@@ -118,7 +117,6 @@ import org.slf4j.LoggerFactory;
 })
 class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
-  public static final String SETUP_CONTEXT_PARAMETER_METHOD = "setupContext";
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
@@ -479,7 +477,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .intercept(
                 delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.finishBundle()))
             .method(ElementMatchers.named("invokeSetup"))
-            .intercept(delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.setup()))
+            .intercept(delegateOrNoop(clazzDescription, signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
             .intercept(delegateOrNoop(clazzDescription, signature.teardown()))
             .method(ElementMatchers.named("invokeOnWindowExpiration"))
@@ -872,15 +870,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     return parameter.match(
         new Cases<StackManipulation>() {
-
-          @Override
-          public StackManipulation dispatch(SetupContextParameter p) {
-            return new StackManipulation.Compound(
-                pushDelegate,
-                MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(
-                        SETUP_CONTEXT_PARAMETER_METHOD, DoFn.class)));
-          }
 
           @Override
           public StackManipulation dispatch(StartBundleContextParameter p) {

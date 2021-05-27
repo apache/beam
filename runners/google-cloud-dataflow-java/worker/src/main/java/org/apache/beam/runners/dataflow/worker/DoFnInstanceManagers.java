@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -34,8 +33,8 @@ public class DoFnInstanceManagers {
    * deserializing the provided bytes. {@link DoFnInstanceManager} will call {@link DoFn.Setup} as
    * required before returning the {@link DoFnInfo}, and {@link DoFn.Teardown} as appropriate.
    */
-  public static DoFnInstanceManager cloningPool(DoFnInfo<?, ?> info, PipelineOptions options) {
-    return new ConcurrentQueueInstanceManager(info, options);
+  public static DoFnInstanceManager cloningPool(DoFnInfo<?, ?> info) {
+    return new ConcurrentQueueInstanceManager(info);
   }
 
   /**
@@ -53,12 +52,10 @@ public class DoFnInstanceManagers {
   private static class ConcurrentQueueInstanceManager implements DoFnInstanceManager {
     private final byte[] serializedFnInfo;
     private final ConcurrentLinkedQueue<DoFnInfo<?, ?>> fns;
-    private final PipelineOptions options;
 
-    private ConcurrentQueueInstanceManager(DoFnInfo<?, ?> info, PipelineOptions options) {
+    private ConcurrentQueueInstanceManager(DoFnInfo<?, ?> info) {
       this.serializedFnInfo = SerializableUtils.serializeToByteArray(info);
-      this.fns = new ConcurrentLinkedQueue<>();
-      this.options = options;
+      fns = new ConcurrentLinkedQueue<>();
     }
 
     @Override
@@ -83,7 +80,7 @@ public class DoFnInstanceManagers {
     private DoFnInfo<?, ?> deserializeCopy() throws Exception {
       DoFnInfo<?, ?> fn;
       fn = (DoFnInfo<?, ?>) SerializableUtils.deserializeFromByteArray(serializedFnInfo, null);
-      DoFnInvokers.tryInvokeSetupFor(fn.getDoFn(), options);
+      DoFnInvokers.invokerFor(fn.getDoFn()).invokeSetup();
       return fn;
     }
 
