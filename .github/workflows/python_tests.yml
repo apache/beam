@@ -58,10 +58,10 @@ jobs:
           GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
       - name: "GCP Variables Status Report"
         if: always()
-        run: echo $jobstatus
+        run: echo $gcpstatus
         env:
-          jobstatus: job.status
-          gcpstatus: steps.check_gcp_variables.outputs.status
+          jobstatus: ${{ job.status }}
+          gcpstatus: ${{ steps.check_gcp_variables.outputs.status }}
 
   build_python_sdk_source:
     name: 'Build python source distribution'
@@ -144,7 +144,7 @@ jobs:
         if: always()
         run: echo $jobstatus
         env:
-          jobstatus: job.status
+          jobstatus: ${{ job.status }}
           statusbasictestsunix: steps.python_unit_tests-unix.outputs.status
           statusbasictestswindows: steps.python_unit_tests-windows.outputs.status
 
@@ -183,7 +183,7 @@ jobs:
         if: always()
         run: echo $jobstatus
         env:
-          jobstatus: job.status
+          jobstatus: ${{ job.status }}
           directrunnerstatus: steps.run_python_wordcount_direct_runner.outputs.status
 
   python_wordcount_dataflow:
@@ -243,5 +243,5 @@ jobs:
         if: always()
         run: echo $jobstatus
         env:
-          jobstatus: job.status
+          jobstatus: ${{ job.status }}
           directrunnerstatus: steps.run_python_wordcount_dataflow.outputs.status

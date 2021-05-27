@@ -59,7 +59,7 @@ jobs:
           GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
       - name: "GCP Variables Status Report"
         if: always()
-        run: echo $jobstatus
+        run: echo $gcpstatus
         env:
           jobstatus: ${{ job.status }}
           gcpstatus: ${{ steps.check_gcp_variables.outputs.status }}
@@ -154,7 +154,7 @@ jobs:
         if: always()
         run: echo $jobstatus
         env:
-          jobstatus: job.status
+          jobstatus: ${{ job.status }}
           directrunnerstatus: steps.run_java_wordcount_direct_runner.outputs.status
 
   java_wordcount_dataflow:
@@ -203,5 +203,5 @@ jobs:
         if: always()
         run: echo $jobstatus
         env:
-          jobstatus: job.status
+          jobstatus: ${{ job.status }}
           directrunnerstatus: steps.run_java_wordcount_dataflow.outputs.status
