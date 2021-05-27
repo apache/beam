@@ -62,7 +62,7 @@ jobs:
         run: echo $gcpstatus
         env:
           jobstatus: ${{ job.status }}
-          gcpstatus: ${{ steps.check_gcp_variables.outputs.status }}
+          gcpstatus: ${{ steps.check_gcp_variables.outcome }}
 
   java_unit_tests:
     name: 'Java Unit Tests'
@@ -120,9 +120,9 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          corestatus: steps.java_core_test.outputs.status
-          harnessstatus: steps.java_harness_test.outputs.status
-          runersstatus: steps.java_runners_test.outputs.status
+          corestatus: steps.java_core_test.outcome
+          harnessstatus: steps.java_harness_test.outcome
+          runersstatus: steps.java_runners_test.outcome
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
@@ -155,7 +155,7 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          directrunnerstatus: steps.run_java_wordcount_direct_runner.outputs.status
+          directrunnerstatus: steps.run_java_wordcount_direct_runner.outcome
 
   java_wordcount_dataflow:
     name: 'Java Wordcount Dataflow'
@@ -204,4 +204,4 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          directrunnerstatus: steps.run_java_wordcount_dataflow.outputs.status
+          directrunnerstatus: steps.run_java_wordcount_dataflow.outcome

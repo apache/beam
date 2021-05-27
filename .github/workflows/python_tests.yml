@@ -61,7 +61,7 @@ jobs:
         run: echo $gcpstatus
         env:
           jobstatus: ${{ job.status }}
-          gcpstatus: ${{ steps.check_gcp_variables.outputs.status }}
+          gcpstatus: ${{ steps.check_gcp_variables.outcome }}
 
   build_python_sdk_source:
     name: 'Build python source distribution'
@@ -145,8 +145,8 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          statusbasictestsunix: steps.python_unit_tests-unix.outputs.status
-          statusbasictestswindows: steps.python_unit_tests-windows.outputs.status
+          statusbasictestsunix: steps.python_unit_tests-unix.outcome
+          statusbasictestswindows: steps.python_unit_tests-windows.outcome
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
@@ -184,7 +184,7 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          directrunnerstatus: steps.run_python_wordcount_direct_runner.outputs.status
+          directrunnerstatus: steps.run_python_wordcount_direct_runner.outcome
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
@@ -244,4 +244,4 @@ jobs:
         run: echo $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          directrunnerstatus: steps.run_python_wordcount_dataflow.outputs.status
+          directrunnerstatus: steps.run_python_wordcount_dataflow.outcome
