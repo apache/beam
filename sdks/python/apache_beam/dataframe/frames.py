@@ -78,15 +78,68 @@ def populate_not_implemented(pd_type):
   return wrapper
 
 
+def _fillna_alias(method):
+  def wrapper(self, *args, **kwargs):
+    return self.fillna(*args, method=method, **kwargs)
+
+  wrapper.__name__ = method
+  wrapper.__doc__ = (
+      f'{method} is only supported for axis="columns". '
+      'axis="index" is order-sensitive.')
+
+  return frame_base.with_docs_from(pd.DataFrame)(
+      frame_base.args_to_kwargs(pd.DataFrame)(
+          frame_base.populate_defaults(pd.DataFrame)(wrapper)))
+
+
+LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
+LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
+UNLIFTABLE_AGGREGATIONS = [
+    'mean',
+    'median',
+    'quantile',
+    'describe',
+    # TODO: The below all have specialized distributed
+    # implementations, but they require tracking
+    # multiple intermediate series, which is difficult
+    # to lift in groupby
+    'std',
+    'var',
+    'corr',
+    'cov',
+    'nunique'
+]
+ALL_AGGREGATIONS = (
+    LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
+    UNLIFTABLE_AGGREGATIONS)
+
+
+def _agg_method(base, func):
+  def wrapper(self, *args, **kwargs):
+    return self.agg(func, *args, **kwargs)
+
+  if func in UNLIFTABLE_AGGREGATIONS:
+    wrapper.__doc__ = (
+        f"``{func}`` cannot currently be parallelized. It will "
+        "require collecting all data on a single node.")
+  wrapper.__name__ = func
+
+  return frame_base.with_docs_from(base)(wrapper)
+
+
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   __array__ = frame_base.wont_implement_method(
       pd.Series, '__array__', reason="non-deferred-result")
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def drop(self, labels, axis, index, columns, errors, **kwargs):
+    """drop is not parallelizable when dropping from the index and
+    ``errors="raise"`` is specified. It requires collecting all data on a single
+    node in order to detect if one of the index values is missing."""
     if labels is not None:
       if index is not None or columns is not None:
         raise ValueError("Cannot specify both 'labels' and 'index'/'columns'")
@@ -110,6 +163,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if index is not None and errors == 'raise':
       # In order to raise an error about missing index values, we'll
       # need to collect the entire dataframe.
+      # TODO: This could be parallelized by putting index values in a
+      # ConstantExpression and partitioning by index.
       requires = partitionings.Singleton(
           reason=(
               "drop(errors='raise', axis='index') is not currently "
@@ -130,6 +185,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             proxy=proxy,
             requires_partition_by=requires))
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def droplevel(self, level, axis):
@@ -141,10 +197,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Arbitrary()
             if axis in (1, 'column') else partitionings.Singleton()))
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def fillna(self, value, method, axis, limit, **kwargs):
+    """When ``axis="index"``, both ``method`` and ``limit`` must be ``None``.
+    otherwise this operation is order-sensitive."""
     # Default value is None, but is overriden with index.
     axis = axis or 'index'
 
@@ -178,22 +237,21 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=partitionings.Arbitrary()))
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def ffill(self, **kwargs):
-    return self.fillna(method='ffill', **kwargs)
+  ffill = _fillna_alias('ffill')
+  bfill = _fillna_alias('bfill')
+  backfill = _fillna_alias('backfill')
+  pad = _fillna_alias('pad')
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def bfill(self, **kwargs):
-    return self.fillna(method='bfill', **kwargs)
-
-  pad = ffill
-  backfill = bfill
-
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def groupby(self, by, level, axis, as_index, group_keys, **kwargs):
+    """``as_index`` and ``group_keys`` must both be ``True``.
+
+    Aggregations grouping by a categorical column with ``observed=False`` set
+    are not currently parallelizable
+    (`BEAM-11190<https://issues.apache.org/jira/browse/BEAM-11190>_`).
+    """
     if not as_index:
       raise NotImplementedError('groupby(as_index=False)')
     if not group_keys:
@@ -274,7 +332,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       grouping_indexes = [0]
 
     elif isinstance(by, DeferredSeries):
-
+      # TODO(BEAM-11305)
       raise NotImplementedError(
           "grouping by a Series is not yet implemented. You can group by a "
           "DataFrame column by specifying its name.")
@@ -343,9 +401,14 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       'astype', base=pd.core.generic.NDFrame)
   copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def tz_localize(self, ambiguous, **kwargs):
+    """``ambiguous`` cannot be set to ``"infer"`` as its semantics are
+    order-sensitive. Similarly, specifying ``ambiguous`` as an
+    :class:`~numpy.ndarray` is order-sensitive, but you can achieve similar
+    functionality by specifying ``ambiguous`` as a Series."""
     if isinstance(ambiguous, np.ndarray):
       raise frame_base.WontImplementError(
           "tz_localize(ambiguous=ndarray) is not supported because it makes "
@@ -376,7 +439,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton()))
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.DataFrame)
   def size(self):
     sizes = expressions.ComputedExpression(
         'get_sizes',
@@ -412,7 +476,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
 
+  @frame_base.with_docs_from(pd.DataFrame)
   def bool(self):
+    # TODO: Documentation about DeferredScalar
     # Will throw if any partition has >1 element
     bools = expressions.ComputedExpression(
         'get_bools',
@@ -433,6 +499,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
 
+  @frame_base.with_docs_from(pd.DataFrame)
   def equals(self, other):
     intermediate = expressions.ComputedExpression(
         'equals_partitioned',
@@ -505,10 +572,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Arbitrary(),
         ))
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def where(self, cond, other, errors, **kwargs):
+    """where is not parallelizable when ``errors="ignore"`` is specified."""
     requires = partitionings.Arbitrary()
     deferred_args = {}
     actual_args = {}
@@ -554,10 +623,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Index(),
         ))
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def mask(self, cond, **kwargs):
+    """mask is not parallelizable when ``errors="ignore"`` is specified."""
     return self.where(~cond, **kwargs)
 
   @property
@@ -576,15 +647,24 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           "on the full dataset."),
       preserves_partition_by=expressions.partitionings.Singleton())
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.DataFrame)
   def ndim(self):
     return self._expr.proxy().ndim
 
-  def _get_index(self):
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.DataFrame)
+  def index(self):
     return _DeferredIndex(self)
 
-  index = property(
-      _get_index, frame_base.not_implemented_method('index (setter)'))
+  @index.setter
+  def _set_index(self, value):
+    # TODO: assigning the index is generally order-sensitive, but we could
+    # support it in some rare cases, e.g. when assigning the index from one
+    # of a DataFrame's columns
+    raise NotImplementedError(
+        "Assigning an index is not yet supported. "
+        "Consider using set_index() instead.")
 
   hist = frame_base.wont_implement_method(
       pd.DataFrame, 'hist', reason="plotting-tools")
@@ -603,7 +683,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(DeferredDataFrameOrSeries):
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
   def name(self):
     return self._expr.proxy().name
 
@@ -620,7 +701,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         requires_partition_by=partitionings.Arbitrary(),
         preserves_partition_by=partitionings.Arbitrary())
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
   def dtype(self):
     return self._expr.proxy().dtype
 
@@ -672,12 +754,19 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           "because it produces a non-deferred result.",
           reason="non-deferred-result")
 
+  @frame_base.with_docs_from(pd.Series)
   def keys(self):
     return self.index
 
+  # Series.T == transpose, which is a no-op
+  T = frame_base._elementwise_method('T', base=pd.Series)
+
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def append(self, to_append, ignore_index, verify_integrity, **kwargs):
+    """``ignore_index=True`` is not supported, because it requires generating an
+    order-sensitive index."""
     if not isinstance(to_append, DeferredSeries):
       raise frame_base.WontImplementError(
           "append() only accepts DeferredSeries instances, received " +
@@ -756,7 +845,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
+  @frame_base.with_docs_from(pd.DataFrame)
   def dot(self, other):
+    """``other`` must be a :class:`DeferredDataFrame` or :class:`DeferredSeries`
+    instance. Computing the dot product with an array-like is not supported
+    because it is order-sensitive."""
     left = self._expr
     if isinstance(other, DeferredSeries):
       right = expressions.ComputedExpression(
@@ -854,9 +947,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               combine_moments, [moments],
               requires_partition_by=partitionings.Singleton()))
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def corr(self, other, method, min_periods):
+    """Only ``method='pearson'`` is currently parallelizable."""
     if method == 'pearson':  # Note that this is the default.
       x, y = self.dropna().align(other.dropna(), 'inner')
       return x._corr_aligned(y, min_periods)
@@ -884,6 +979,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     return cov.apply(
         lambda cov, std_x, std_y: cov / (std_x * std_y), args=[std_x, std_y])
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def cov(self, other, min_periods, ddof):
@@ -934,6 +1030,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               combine_co_moments, [moments],
               requires_partition_by=partitionings.Singleton()))
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
@@ -969,27 +1066,42 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Arbitrary(),
         ))
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def duplicated(self, keep):
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # Re-use the DataFrame based duplcated, extract the series back out
     df = self._wrap_in_df()
 
     return df.duplicated(keep=keep)[df.columns[0]]
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def drop_duplicates(self, keep):
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # Re-use the DataFrame based drop_duplicates, extract the series back out
     df = self._wrap_in_df()
 
     return df.drop_duplicates(keep=keep)[df.columns[0]]
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def aggregate(self, func, axis, *args, **kwargs):
+    """Some aggregation methods cannot be parallelized, and computing
+    them will require collecting all data on a single machine."""
     if kwargs.get('skipna', False):
       # Eagerly generate a proxy to make sure skipna is a valid argument
       # for this aggregation method
@@ -1035,9 +1147,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "Aggregation with min_count= requires collecting all data on a "
             "single node.")
 
-      # We have specialized distributed implementations for std and var
-      if base_func in ('std', 'var'):
-        result = getattr(self, base_func)(*args, **kwargs)
+      # We have specialized distributed implementations for these
+      if base_func in ('quantile', 'std', 'var', 'nunique'):
+        result = getattr(self, base_func)(*args, axis=axis, **kwargs)
         if isinstance(func, list):
           with expressions.allow_non_parallel_operations(True):
             return frame_base.DeferredFrame.wrap(
@@ -1071,7 +1183,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         agg_func = func
         singleton_reason = (
             f"Aggregation function {func!r} cannot currently be "
-            "parallelized, it requires collecting all data for "
+            "parallelized. It requires collecting all data for "
             "this Series on a single node.")
       with expressions.allow_non_parallel_operations(allow_nonparallel_final):
         return frame_base.DeferredFrame.wrap(
@@ -1084,22 +1196,24 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   agg = aggregate
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
   def axes(self):
     return [self.index]
 
   clip = frame_base._elementwise_method('clip', base=pd.Series)
 
-  all = frame_base._agg_method('all')
-  any = frame_base._agg_method('any')
+  all = _agg_method(pd.Series, 'all')
+  any = _agg_method(pd.Series, 'any')
   # TODO(BEAM-12074): Document that Series.count(level=) will drop NaN's
-  count = frame_base._agg_method('count')
-  min = frame_base._agg_method('min')
-  max = frame_base._agg_method('max')
-  prod = product = frame_base._agg_method('prod')
-  sum = frame_base._agg_method('sum')
-  mean = frame_base._agg_method('mean')
-  median = frame_base._agg_method('median')
+  count = _agg_method(pd.Series, 'count')
+  describe = _agg_method(pd.Series, 'describe')
+  min = _agg_method(pd.Series, 'min')
+  max = _agg_method(pd.Series, 'max')
+  prod = product = _agg_method(pd.Series, 'prod')
+  sum = _agg_method(pd.Series, 'sum')
+  mean = _agg_method(pd.Series, 'mean')
+  median = _agg_method(pd.Series, 'median')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')
@@ -1139,9 +1253,15 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   __contains__ = frame_base.wont_implement_method(
       pd.Series, '__contains__', reason="non-deferred-result")
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def nlargest(self, keep, **kwargs):
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # TODO(robertwb): Document 'any' option.
     # TODO(robertwb): Consider (conditionally) defaulting to 'any' if no
     # explicit keep parameter is requested.
@@ -1166,9 +1286,15 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary(),
               requires_partition_by=partitionings.Singleton()))
 
+  @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def nsmallest(self, keep, **kwargs):
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
@@ -1190,7 +1316,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary(),
               requires_partition_by=partitionings.Singleton()))
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
   def is_unique(self):
     def set_index(s):
       s = s[:]
@@ -1224,10 +1351,15 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   rename_axis = frame_base._elementwise_method('rename_axis', base=pd.Series)
 
+  @frame_base.with_docs_from(pd.Series, name='is_unique')
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def replace(self, to_replace, value, limit, method, **kwargs):
+    """``method`` is not supported in the Beam DataFrame API because it is
+    order-sensitive. It cannot be specified.
+
+    If ``limit`` is specified this operation is not parallelizable."""
     if method is not None and not isinstance(to_replace,
                                              dict) and value is None:
       # pandas only relies on method if to_replace is not a dictionary, and
@@ -1242,7 +1374,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     else:
       requires_partition_by = partitionings.Singleton(
           reason=(
-              f"replace(limit={limit!r}) cannot currently be parallelized, it "
+              f"replace(limit={limit!r}) cannot currently be parallelized. It "
               "requires collecting all data on a single node."))
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -1266,12 +1398,19 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   to_frame = frame_base._elementwise_method('to_frame', base=pd.Series)
 
+  @frame_base.with_docs_from(pd.Series)
   def unique(self, as_series=False):
+    """unique is not supported by default because it produces a
+    non-deferred result: an :class:`~numpy.ndarray`. You can use the
+    Beam-specific argument ``unique(as_series=True)`` to get the result as
+    a :class:`DeferredSeries`"""
+
     if not as_series:
       raise frame_base.WontImplementError(
           "unique() is not supported by default because it produces a "
-          "non-deferred result, a numpy array. You may call it with "
-          "unique(as_series=True) to get the result as a DeferredSeries",
+          "non-deferred result: a numpy array. You can use the Beam-specific "
+          "argument unique(as_series=True) to get the result as a "
+          "DeferredSeries",
           reason="non-deferred-result")
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -1281,6 +1420,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Singleton(
                 reason="unique() cannot currently be parallelized.")))
 
+  @frame_base.with_docs_from(pd.Series)
   def update(self, other):
     self._expr = expressions.ComputedExpression(
         'update',
@@ -1303,7 +1443,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           "because it relies on memory-sharing semantics that are "
           "not compatible with the Beam model"))
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
   def str(self):
     return _DeferredStringMethods(self._expr)
 
@@ -1568,10 +1709,16 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     self._expr = inserted._expr
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def duplicated(self, keep, subset):
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # TODO(BEAM-12074): Document keep="any"
     if keep == 'any':
       keep = 'first'
@@ -1590,10 +1737,16 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         lambda df: pd.DataFrame(df.duplicated(keep=keep, subset=subset),
                                 columns=[None]))[None]
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def drop_duplicates(self, keep, subset, ignore_index):
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     # TODO(BEAM-12074): Document keep="any"
     if keep == 'any':
       keep = 'first'
@@ -1616,44 +1769,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     return self.groupby(by).apply(
         lambda df: df.drop_duplicates(keep=keep, subset=subset)).droplevel(by)
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
-  def aggregate(self, func, axis=0, *args, **kwargs):
-    if 'numeric_only' in kwargs and kwargs['numeric_only']:
-      # Eagerly generate a proxy to make sure numeric_only is a valid argument
-      # for this aggregation method
-      _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
-
-      projected = self[[name for name, dtype in self.dtypes.items()
-                        if pd.core.dtypes.common.is_numeric_dtype(dtype)]]
-      kwargs.pop('numeric_only')
-      return projected.agg(func, axis, *args, **kwargs)
-
-    if 'bool_only' in kwargs and kwargs['bool_only']:
-      # Eagerly generate a proxy to make sure bool_only is a valid argument
-      # for this aggregation method
-      _ = self._expr.proxy().agg(func, axis, *args, **kwargs)
-
-      projected = self[[name for name, dtype in self.dtypes.items()
-                        if pd.core.dtypes.common.is_bool_dtype(dtype)]]
-      kwargs.pop('bool_only')
-      return projected.agg(func, axis, *args, **kwargs)
-
-    nonnumeric_columns = [name for (name, dtype) in self.dtypes.items()
-                          if not pd.core.dtypes.common.is_numeric_dtype(dtype)]
-    if _is_numeric(func) and len(nonnumeric_columns):
-      if 'numeric_only' in kwargs and kwargs['numeric_only'] is False:
-        # User has opted in to execution with non-numeric columns, they
-        # will accept runtime errors
-        pass
-      else:
-        raise frame_base.WontImplementError(
-            f"Numeric aggregation ({func!r}) on a DataFrame containing "
-            f"non-numeric columns ({*nonnumeric_columns,!r} is not supported, "
-            "unless `numeric_only=` is specified.\n"
-            "Use `numeric_only=True` to only aggregate over numeric columns.\n"
-            "Use `numeric_only=False` to aggregate over all columns. Note this "
-            "is not recommended, as it could result in execution time errors.")
+  def aggregate(self, func, axis, *args, **kwargs):
 
     if axis is None:
       # Aggregate across all elements by first aggregating across columns,
@@ -1677,10 +1796,46 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             [self._expr],
             requires_partition_by=partitionings.Singleton()))
     else:
-      # In the general case, compute the aggregation of each column separately,
-      # then recombine.
+      # In the general case, we will compute the aggregation of each column
+      # separately, then recombine.
+
+      # First, handle any kwargs that cause a projection, by eagerly generating
+      # the proxy, and only including the columns that are in the output.
+      PROJECT_KWARGS = ('numeric_only', 'bool_only', 'include', 'exclude')
+      proxy = self._expr.proxy().agg(func, axis, *args, **kwargs)
+
+      if isinstance(proxy, pd.DataFrame):
+        projected = self[list(proxy.columns)]
+      elif isinstance(proxy, pd.Series):
+        projected = self[list(proxy.index)]
+      else:
+        projected = self
+
+      nonnumeric_columns = [name for (name, dtype) in projected.dtypes.items()
+                            if not
+                            pd.core.dtypes.common.is_numeric_dtype(dtype)]
+
+      if _is_numeric(func) and nonnumeric_columns:
+        if 'numeric_only' in kwargs and kwargs['numeric_only'] is False:
+          # User has opted in to execution with non-numeric columns, they
+          # will accept runtime errors
+          pass
+        else:
+          raise frame_base.WontImplementError(
+              f"Numeric aggregation ({func!r}) on a DataFrame containing "
+              f"non-numeric columns ({*nonnumeric_columns,!r} is not "
+              "supported, unless `numeric_only=` is specified.\n"
+              "Use `numeric_only=True` to only aggregate over numeric "
+              "columns.\nUse `numeric_only=False` to aggregate over all "
+              "columns. Note this is not recommended, as it could result in "
+              "execution time errors.")
+
+      for key in PROJECT_KWARGS:
+        if key in kwargs:
+          kwargs.pop(key)
+
       if not isinstance(func, dict):
-        col_names = list(self._expr.proxy().columns)
+        col_names = list(projected._expr.proxy().columns)
         func = {col: func for col in col_names}
       else:
         col_names = list(func.keys())
@@ -1692,12 +1847,20 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           # If any of the columns do multiple aggregations, they all must use
           # "list" style output
           funcs = [funcs]
-        aggregated_cols.append(self[col].agg(funcs, *args, **kwargs))
+        aggregated_cols.append(projected[col].agg(funcs, *args, **kwargs))
       # The final shape is different depending on whether any of the columns
       # were aggregated by a list of aggregators.
       with expressions.allow_non_parallel_operations():
-        if (any(isinstance(funcs, list) for funcs in func.values()) or
-            'level' in kwargs):
+        if isinstance(proxy, pd.Series):
+          return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'join_aggregate',
+                  lambda *cols: pd.Series(
+                      {col: value for col, value in zip(col_names, cols)}),
+                [col._expr for col in aggregated_cols],
+                requires_partition_by=partitionings.Singleton(),
+                proxy=projected._expr.proxy().agg(func, *args, **kwargs)))
+        elif isinstance(proxy, pd.DataFrame):
           return frame_base.DeferredFrame.wrap(
               expressions.ComputedExpression(
                   'join_aggregate',
@@ -1706,14 +1869,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                   [col._expr for col in aggregated_cols],
                   requires_partition_by=partitionings.Singleton()))
         else:
-          return frame_base.DeferredFrame.wrap(
-            expressions.ComputedExpression(
-                'join_aggregate',
-                  lambda *cols: pd.Series(
-                      {col: value for col, value in zip(col_names, cols)}),
-                [col._expr for col in aggregated_cols],
-                requires_partition_by=partitionings.Singleton(),
-                proxy=self._expr.proxy().agg(func, *args, **kwargs)))
+          raise AssertionError("Unexpected proxy type for "
+                               f"DataFrame.aggregate!: proxy={proxy!r}, "
+                               f"type(proxy)={type(proxy)!r}")
+
 
   agg = aggregate
 
@@ -1726,9 +1885,24 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   info = frame_base.wont_implement_method(
       pd.DataFrame, 'info', reason="non-deferred-result")
 
-  clip = frame_base._elementwise_method(
-      'clip', restrictions={'axis': lambda axis: axis in (0, 'index')},
-      base=pd.DataFrame)
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def clip(self, axis, **kwargs):
+    """``lower`` and ``upper`` must be :class:`DeferredSeries` instances, or
+    constants.  Array-like arguments are not supported because they are
+    order-sensitive."""
+
+    if any(isinstance(kwargs.get(arg, None), frame_base.DeferredFrame)
+           for arg in ('upper', 'lower')) and axis not in (0, 'index'):
+      raise frame_base.WontImplementError(
+          "axis must be 'index' when upper and/or lower are a DeferredFrame",
+          reason='order-sensitive')
+
+    return frame_base._elementwise_method('clip', base=pd.DataFrame)(self,
+                                                                     axis=axis,
+                                                                     **kwargs)
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -2131,9 +2305,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
       return merged.reset_index(drop=True)
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def nlargest(self, keep, **kwargs):
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
@@ -2157,9 +2337,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Singleton(),
               requires_partition_by=partitionings.Singleton()))
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def nsmallest(self, keep, **kwargs):
+    """Only ``keep=False`` and ``keep="any"`` are supported. Other values of
+    ``keep`` make this an order-sensitive operation. Note ``keep="any"`` is
+    a Beam-specific option that guarantees only one duplicate will be kept, but
+    unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
+    duplicate element is kept."""
     if keep == 'any':
       keep = 'first'
     elif keep != 'all':
@@ -2310,7 +2496,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       requires_partition_by = partitionings.Arbitrary()
     else:
       requires_partition_by = partitionings.Singleton(reason=(
-         f"replace(limit={limit!r}) cannot currently be parallelized, it "
+         f"replace(limit={limit!r}) cannot currently be parallelized. It "
          "requires collecting all data on a single node."))
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -2407,17 +2593,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   stack = frame_base._elementwise_method('stack', base=pd.DataFrame)
 
-  all = frame_base._agg_method('all')
-  any = frame_base._agg_method('any')
-  count = frame_base._agg_method('count')
-  max = frame_base._agg_method('max')
-  min = frame_base._agg_method('min')
-  prod = product = frame_base._agg_method('prod')
-  sum = frame_base._agg_method('sum')
-  mean = frame_base._agg_method('mean')
-  median = frame_base._agg_method('median')
-  std = frame_base._agg_method('std')
-  var = frame_base._agg_method('var')
+  all = _agg_method(pd.DataFrame, 'all')
+  any = _agg_method(pd.DataFrame, 'any')
+  count = _agg_method(pd.DataFrame, 'count')
+  describe = _agg_method(pd.DataFrame, 'describe')
+  max = _agg_method(pd.DataFrame, 'max')
+  min = _agg_method(pd.DataFrame, 'min')
+  prod = product = _agg_method(pd.DataFrame, 'prod')
+  sum = _agg_method(pd.DataFrame, 'sum')
+  mean = _agg_method(pd.DataFrame, 'mean')
+  median = _agg_method(pd.DataFrame, 'median')
+  std = _agg_method(pd.DataFrame, 'std')
+  var = _agg_method(pd.DataFrame, 'var')
 
   take = frame_base.wont_implement_method(pd.DataFrame, 'take',
                                           reason='deprecated')
@@ -2754,14 +2941,13 @@ def _unliftable_agg(meth):
         ))
                                if is_categorical_grouping
                                else partitionings.Index()),
-        preserves_partition_by=partitionings.Arbitrary())
+        # Some aggregation methods (e.g. corr/cov) add additional index levels.
+        # We only preserve the ones that existed _before_ the groupby.
+        preserves_partition_by=partitionings.Index(
+            list(range(self._ungrouped.proxy().index.nlevels))))
     return frame_base.DeferredFrame.wrap(post_agg)
 
   return wrapper
-
-LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
-LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
-UNLIFTABLE_AGGREGATIONS = ['mean', 'median', 'std', 'var']
 
 for meth in LIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth))
@@ -2977,9 +3163,12 @@ class _DeferredILoc(object):
 
 
 class _DeferredStringMethods(frame_base.DeferredBase):
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
   @frame_base.populate_defaults(pd.core.strings.StringMethods)
   def cat(self, others, join, **kwargs):
+    """If defined, ``others`` must be a :class:`DeferredSeries` or a ``list`` of
+    ``DeferredSeries``."""
     if others is None:
       # Concatenate series into a single String
       requires = partitionings.Singleton(reason=(
@@ -3016,8 +3205,11 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
   def repeat(self, repeats):
+    """``repeats`` must be an ``int`` or a :class:`DeferredSeries`. Lists are
+    not supported because they make this operation order-sensitive."""
     if isinstance(repeats, int):
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
