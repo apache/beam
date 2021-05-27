@@ -37,7 +37,9 @@ def get_delay_at_top_airports(aa):
       'departure_airport': 'airport'
   }).airport.value_counts()
   total = arr + dep
-  top_airports = total.nlargest(10)
+  # Note we keep all to include duplicates.
+  # This ensures the result is deterministic
+  top_airports = total.nlargest(10, keep='all')
   return aa[aa['arrival_airport'].isin(top_airports.index.values)].mean()
 
 def input_date(date):
