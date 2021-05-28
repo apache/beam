@@ -394,6 +394,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     Pipeline pipeline = Pipeline.create();
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    // TODO(BEAM-10670): Remove this when we address performance issue.
+    ExperimentalOptions.addExperiment(
+        pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
 
     ClassLoader classLoader = Environments.class.getClassLoader();
     if (classLoader == null) {
