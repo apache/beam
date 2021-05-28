@@ -911,9 +911,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     # quantiles
     requires = partitionings.Singleton(
         reason=(
-            "Computing quantiles across index cannot currently be parallelized. "
-            "See BEAM-12167 tracking the possible addition of an approximate, "
-            "parallelizable implementation of quantile."))
+            "Computing quantiles across index cannot currently be "
+            "parallelized. See BEAM-12167 tracking the possible addition of an "
+            "approximate, parallelizable implementation of quantile."))
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
