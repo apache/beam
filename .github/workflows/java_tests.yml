@@ -24,7 +24,7 @@ on:
     inputs:
       runDataflow:
         description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
-        default: true
+        default: false
   schedule:
     - cron: '10 2 * * *'
   push:
@@ -34,8 +34,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
-            'examples/kotlin/**', 'release/**', 'buildSrc/**', '.github/**']
-# TODO(BEAM-12104) Remove .github/** Just for testing
+            'examples/kotlin/**', 'release/**', 'buildSrc/**']
 
 jobs:
 
@@ -139,12 +138,10 @@ jobs:
       - check_gcp_variables
     runs-on: ${{ matrix.os }}
     if: |
-      needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
-#      TODO(BEAM-12104) Uncomment this, only for testing
-#      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
-#        (github.event_name == 'push' || github.event_name == 'schedule') ||
-#        (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
-#      )
+      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
+        (github.event_name == 'push' || github.event_name == 'schedule') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
+      )
     strategy:
       fail-fast: false
       matrix:
@@ -175,7 +172,7 @@ jobs:
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
-            -DintegrationTestPipelineOptions=["--runner=DataflowRunner","--project=${{ secrets.GCP_PROJECT_ID }}","--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/","--serviceAccount=${{ secrets.GCP_SA_EMAIL }}"]
+            -DintegrationTestPipelineOptions=["--runner=DataflowRunner","--project=${{ secrets.GCP_PROJECT_ID }}","--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/"]
             -DintegrationTestRunner=dataflow
       - name: Upload test logs
         uses: actions/upload-artifact@v2
