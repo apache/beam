@@ -63,7 +63,6 @@ import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
-import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
@@ -82,6 +81,7 @@ import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
+import org.apache.beam.runners.fnexecution.translation.StreamingSideInputHandlerFactory;
 import org.apache.beam.runners.fnexecution.wire.ByteStringCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -314,7 +314,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       checkNotNull(super.sideInputHandler);
       StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
           Preconditions.checkNotNull(
-              FlinkStreamingSideInputHandlerFactory.forStage(
+              StreamingSideInputHandlerFactory.forStage(
                   executableStage, sideInputIds, super.sideInputHandler));
       try {
         sideInputStateHandler =
