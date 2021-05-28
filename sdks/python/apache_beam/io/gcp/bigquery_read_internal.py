@@ -187,6 +187,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     if element.query is not None:
       self._setup_temporary_dataset(bq, element)
       table_reference = self._execute_query(bq, element)
+      created_temp_dataset = True
     else:
       assert element.table
       table_reference = bigquery_tools.parse_table_reference(
@@ -206,9 +207,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
           table_reference.datasetId,
           table_reference.tableId)
 
-      bq._delete_dataset(
-          table_reference.projectId,
-          table_reference.datasetId)
+    if created_temp_dataset:
+      self._clean_temporary_dataset(bq, element)
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -233,6 +233,12 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     location = bq.get_query_location(
         self._get_project(), element.query, not element.use_standard_sql)
     bq.create_temporary_dataset(self._get_project(), location)
+
+  def _clean_temporary_dataset(
+      self,
+      bq: bigquery_tools.BigQueryWrapper,
+      element: 'ReadFromBigQueryRequest'):
+    bq.clean_up_temporary_dataset(self._get_project())
 
   def _execute_query(
       self,
