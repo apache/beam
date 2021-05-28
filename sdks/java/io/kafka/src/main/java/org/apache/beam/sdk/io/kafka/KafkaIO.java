@@ -1263,7 +1263,14 @@ public class KafkaIO {
       if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
         return false;
       }
-      if (options.getRunner().getName().startsWith("org.apache.beam.runners.dataflow.")) {
+      boolean isDataflowRunner;
+      try {
+        isDataflowRunner =
+            options.getRunner().getName().startsWith("org.apache.beam.runners.dataflow.");
+      } catch (IllegalArgumentException e) {
+        isDataflowRunner = false;
+      }
+      if (isDataflowRunner) {
         return false;
       } else if (ExperimentalOptions.hasExperiment(options, "beam_fn_api")) {
         return false;
