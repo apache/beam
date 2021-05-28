@@ -3390,6 +3390,10 @@ class _DeferredIndex(object):
     return self._frame._expr.proxy().index.ndim
 
   @property
+  def dtype(self):
+    return self._frame._expr.proxy().index.dtype
+
+  @property
   def nlevels(self):
     return self._frame._expr.proxy().index.nlevels
 
@@ -3402,26 +3406,44 @@ class _DeferredLoc(object):
   def __init__(self, frame):
     self._frame = frame
 
-  def __getitem__(self, index):
-    if isinstance(index, tuple):
-      rows, cols = index
+  def __getitem__(self, key):
+    if isinstance(key, tuple):
+      rows, cols = key
       return self[rows][cols]
-    elif isinstance(index, list) and index and isinstance(index[0], bool):
-      # Aligned by numerical index.
-      raise NotImplementedError(type(index))
-    elif isinstance(index, list):
+    elif isinstance(key, list) and key and isinstance(key[0], bool):
+      # Aligned by numerical key.
+      raise NotImplementedError(type(key))
+    elif isinstance(key, list):
       # Select rows, but behaves poorly on missing values.
-      raise NotImplementedError(type(index))
-    elif isinstance(index, slice):
+      raise NotImplementedError(type(key))
+    elif isinstance(key, slice):
       args = [self._frame._expr]
-      func = lambda df: df.loc[index]
-    elif isinstance(index, frame_base.DeferredFrame):
-      args = [self._frame._expr, index._expr]
-      func = lambda df, index: df.loc[index]
-    elif callable(index):
+      func = lambda df: df.loc[key]
+    elif isinstance(key, frame_base.DeferredFrame):
+      args = [self._frame._expr, key._expr]
+      func = lambda df, key: df.loc[key]
+      if (isinstance(key, DeferredSeries) and
+          pd.core.dtypes.common.is_integer_dtype(key.dtype) and
+          pd.core.dtypes.common.is_integer_dtype(self._frame.index.dtype)):
+        # Move the Series values into the key. We want to colocate with
+        # self._frame based on values.
+        def data_to_index(s):
+          s = s.copy()
+          s.index = s
+          return s
 
-      def checked_callable_index(df):
-        computed_index = index(df)
+        reindexed_expr = expressions.ComputedExpression(
+            'data_to_index',
+            data_to_index,
+            [key._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Singleton(),
+        )
+        args = [self._frame._expr, reindexed_expr]
+    elif callable(key):
+
+      def checked_callable_key(df):
+        computed_index = key(df)
         if isinstance(computed_index, tuple):
           row_index, _ = computed_index
         else:
@@ -3434,9 +3456,9 @@ class _DeferredLoc(object):
         return computed_index
 
       args = [self._frame._expr]
-      func = lambda df: df.loc[checked_callable_index]
+      func = lambda df: df.loc[checked_callable_key]
     else:
-      raise NotImplementedError(type(index))
+      raise NotImplementedError(type(key))
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
