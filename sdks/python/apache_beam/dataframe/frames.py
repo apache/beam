@@ -685,6 +685,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   rolling = frame_base.wont_implement_method(
       pd.DataFrame, 'rolling', reason='event-time-semantics')
 
+  sparse = property(frame_base.not_implemented_method('sparse', 'BEAM-12425'))
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -2656,8 +2658,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   style = property(frame_base.wont_implement_method(
       pd.DataFrame, 'style', reason="non-deferred-result"))
-
-  sparse = property(frame_base.not_implemented_method('sparse', 'BEAM-12425'))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
