@@ -117,12 +117,12 @@ jobs:
           path: runners/core-java/build/reports/tests/test
       - name: "Java Unit Tests Status Report"
         if: always()
-        run: echo $jobstatus
+        run: echo $runersstatus
         env:
           jobstatus: ${{ job.status }}
-          corestatus: steps.java_core_test.outcome
-          harnessstatus: steps.java_harness_test.outcome
-          runersstatus: steps.java_runners_test.outcome
+          corestatus: ${{ steps.java_core_test.outcome }}
+          harnessstatus: ${{ steps.java_harness_test.outcome }}
+          runersstatus: ${{ steps.java_runners_test.outcome }}
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
@@ -152,10 +152,10 @@ jobs:
           path: examples/java/build/reports/tests/integrationTest
       - name: "Java Word Count Direct Runner Status Report"
         if: always()
-        run: echo $jobstatus
+        run: echo $directrunnerstatus
         env:
           jobstatus: ${{ job.status }}
-          directrunnerstatus: steps.run_java_wordcount_direct_runner.outcome
+          directrunnerstatus: ${{ steps.run_java_wordcount_direct_runner.outcome }}
 
   java_wordcount_dataflow:
     name: 'Java Wordcount Dataflow'
@@ -201,7 +201,7 @@ jobs:
           path: examples/java/build/reports/tests/integrationTest
       - name: "Java Word Count Dataflow Status Report"
         if: always()
-        run: echo $jobstatus
+        run: echo $directrunnerstatus
         env:
           jobstatus: ${{ job.status }}
-          directrunnerstatus: steps.run_java_wordcount_dataflow.outcome
+          directrunnerstatus: ${{ steps.run_java_wordcount_dataflow.outcome }}
