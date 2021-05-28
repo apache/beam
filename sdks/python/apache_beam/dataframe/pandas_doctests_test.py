@@ -77,6 +77,8 @@ class DoctestTest(unittest.TestCase):
                 'df.where(m, -df) == np.where(m, df, -df)'
             ],
             'pandas.core.generic.NDFrame.interpolate': ['*'],
+            'pandas.core.generic.NDFrame.resample': ['*'],
+            'pandas.core.generic.NDFrame.rolling': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -90,8 +92,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.reindex': ['*'],
             'pandas.core.generic.NDFrame.reindex_like': ['*'],
             'pandas.core.generic.NDFrame.replace': ['*'],
-            'pandas.core.generic.NDFrame.resample': ['*'],
-            'pandas.core.generic.NDFrame.rolling': ['*'],
             'pandas.core.generic.NDFrame.sample': ['*'],
             'pandas.core.generic.NDFrame.set_flags': ['*'],
             'pandas.core.generic.NDFrame.squeeze': ['*'],
@@ -591,10 +591,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': ['*'],
             'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
         },
         not_implemented_ok={
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
-            'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.quantile': ['*'],
             'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
