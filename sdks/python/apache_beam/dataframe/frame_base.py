@@ -591,6 +591,12 @@ _WONT_IMPLEMENT_REASONS = {
         'explanation': "because it is a plotting tool",
         'url': 'https://s.apache.org/dataframe-plotting-tools',
     },
+    'event-time-semantics': {
+        'explanation': (
+            "because implementing it would require integrating with Beam "
+            "event-time semantics"),
+        'url': 'https://s.apache.org/dataframe-event-time-semantics',
+    },
     'deprecated': {
         'explanation': "because it is deprecated in pandas",
     },

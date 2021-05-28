@@ -679,6 +679,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
+  resample = frame_base.wont_implement_method(
+      pd.DataFrame, 'resample', reason='event-time-semantics')
+
+  rolling = frame_base.wont_implement_method(
+      pd.DataFrame, 'rolling', reason='event-time-semantics')
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -2857,6 +2863,11 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       DataFrameGroupBy, 'groups', reason="non-deferred-result"))
   indices = property(frame_base.wont_implement_method(
       DataFrameGroupBy, 'indices', reason="non-deferred-result"))
+
+  resample = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'resample', reason='event-time-semantics')
+  rolling = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'rolling', reason='event-time-semantics')
 
 def _maybe_project_func(projection: Optional[List[str]]):
   """ Returns identity func if projection is empty or None, else returns
