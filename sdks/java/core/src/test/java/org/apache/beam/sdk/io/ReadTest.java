@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.greaterThanOrEqua
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingSource.CounterMark;
@@ -63,6 +65,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -147,6 +150,17 @@ public class ReadTest implements Serializable {
     assertThat(unboundedDisplayData, includesDisplayDataFor("source", unboundedSource));
     assertThat(unboundedDisplayData, hasDisplayItem("maxRecords", 1234));
     assertThat(unboundedDisplayData, hasDisplayItem("maxReadTime", maxReadTime));
+  }
+
+  @Test
+  public void testReadBoundedPreservesTypeDescriptor() {
+    PCollection<String> input = pipeline.apply(Read.from(new SerializableBoundedSource()));
+    TypeDescriptor<String> typeDescriptor = input.getTypeDescriptor();
+    assertEquals(String.class, typeDescriptor.getType());
+
+    ListBoundedSource<Long> longs = new ListBoundedSource<>(VarLongCoder.of());
+    PCollection<List<Long>> numbers = pipeline.apply(Read.from(longs));
+    assertEquals(new TypeDescriptor<List<Long>>() {}, numbers.getTypeDescriptor());
   }
 
   @Test
@@ -258,6 +272,35 @@ public class ReadTest implements Serializable {
     @Override
     public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
+    }
+  }
+
+  private static class ListBoundedSource<T> extends BoundedSource<List<T>> {
+    private Coder<T> coder;
+
+    ListBoundedSource(Coder<T> coder) {
+      this.coder = coder;
+    }
+
+    @Override
+    public List<? extends BoundedSource<List<T>>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      return null;
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return 0;
+    }
+
+    @Override
+    public BoundedReader<List<T>> createReader(PipelineOptions options) throws IOException {
+      return null;
+    }
+
+    @Override
+    public Coder<List<T>> getOutputCoder() {
+      return ListCoder.of(coder);
     }
   }
 
