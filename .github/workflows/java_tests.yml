@@ -36,6 +36,7 @@ on:
     paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
             'examples/kotlin/**', 'release/**', 'buildSrc/**']
 
+
 jobs:
 
   check_gcp_variables:
