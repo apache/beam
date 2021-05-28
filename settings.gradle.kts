@@ -51,6 +51,7 @@ include(":release:go-licenses:java")
 include(":release:go-licenses:py")
 
 include(":examples:java")
+include(":examples:twitter-stream-generator")
 include(":examples:kotlin")
 include(":model:fn-execution")
 include(":model:job-management")

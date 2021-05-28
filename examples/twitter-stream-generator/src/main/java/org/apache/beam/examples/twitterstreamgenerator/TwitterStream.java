@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.twitterstreamgenerator;
+package org.apache.beam.examples.twitterstreamgenerator;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
