@@ -1590,6 +1590,19 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           "repeat(repeats=) value must be an int or a "
           f"DeferredSeries (encountered {type(repeats)}).")
 
+  @frame_base.with_docs_from(pd.Series)
+  def argsort(self, *args, **kwargs):
+    """argsort is not currently parallelizable."""
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'argsort',
+            lambda df: df.argsort(*args, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Singleton(
+                # TODO: Partitioned sort then n-way merge?
+                reason="argsort is not currently parallelizable."),
+            preserves_partition_by=partitionings.Arbitrary()))
+
 
 @populate_not_implemented(pd.DataFrame)
 @frame_base.DeferredFrame._register_for(pd.DataFrame)

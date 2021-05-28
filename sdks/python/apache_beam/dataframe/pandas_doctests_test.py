@@ -102,10 +102,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.transform': ['*'],
             'pandas.core.generic.NDFrame.truncate': ['*'],
             'pandas.core.generic.NDFrame.xs': ['*'],
-            # argsort unimplemented
-            'pandas.core.generic.NDFrame.abs': [
-                'df.loc[(df.c - 43).abs().argsort()]',
-            ],
         },
         skip={
             # Internal test
