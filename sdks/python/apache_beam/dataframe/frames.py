@@ -1454,6 +1454,39 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   # proxy
   #transform = frame_base._elementwise_method('transform', base=pd.Series)
 
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def repeat(self, repeats, axis):
+    """``repeats`` must be an ``int`` or a :class:`DeferredSeries`. Lists are
+    not supported because they make this operation order-sensitive."""
+    if isinstance(repeats, int):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'repeat',
+              lambda series: series.repeat(repeats), [self._expr],
+              requires_partition_by=partitionings.Arbitrary(),
+              preserves_partition_by=partitionings.Arbitrary()))
+    elif isinstance(repeats, frame_base.DeferredBase):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'repeat',
+              lambda series,
+              repeats_series: series.repeat(repeats_series),
+              [self._expr, repeats._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Arbitrary()))
+    elif isinstance(repeats, list):
+      raise frame_base.WontImplementError(
+          "repeat(repeats=) repeats must be an int or a DeferredSeries. "
+          "Lists are not supported because they make this operation sensitive "
+          "to the order of the data.",
+          reason="order-sensitive")
+    else:
+      raise TypeError(
+          "repeat(repeats=) value must be an int or a "
+          f"DeferredSeries (encountered {type(repeats)}).")
+
 
 @populate_not_implemented(pd.DataFrame)
 @frame_base.DeferredFrame._register_for(pd.DataFrame)

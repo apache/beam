@@ -416,6 +416,9 @@ class DoctestTest(unittest.TestCase):
                 's.drop_duplicates()',
                 "s.drop_duplicates(keep='last')",
             ],
+            'pandas.core.series.Series.repeat': [
+                's.repeat([1, 2, 3])'
+            ],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -448,7 +451,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
-            'pandas.core.series.Series.repeat': ['*'],
             'pandas.core.series.Series.replace': ['*'],
             'pandas.core.series.Series.reset_index': ['*'],
             'pandas.core.series.Series.searchsorted': [
