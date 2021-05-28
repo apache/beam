@@ -26,7 +26,7 @@ class CommonTestProperties {
   }
 
   static String getFlinkVersion() {
-    return "1.12"
+    return "1.13"
   }
 
   enum Runner {
