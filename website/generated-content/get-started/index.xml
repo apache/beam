@@ -1130,8 +1130,9 @@ limitations under the License.
 &lt;nav id="TableOfContents">
 &lt;ul>
 &lt;li>&lt;a href="#set-up-your-development-environment">Set up your Development Environment&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#get-the-wordcount-code">Get the WordCount Code&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#get-the-example-code">Get the Example Code&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#optional-convert-from-maven-to-gradle-project">Optional: Convert from Maven to Gradle Project&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#get-sample-text">Get sample text&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#run-a-pipeline">Run a pipeline&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#run-wordcount-using-maven">Run WordCount Using Maven&lt;/a>&lt;/li>
@@ -1154,8 +1155,8 @@ limitations under the License.
 &lt;p>Optional: Install &lt;a href="https://gradle.org/install/">Gradle&lt;/a> if you would like to convert your Maven project into Gradle.&lt;/p>
 &lt;/li>
 &lt;/ol>
-&lt;h2 id="get-the-wordcount-code">Get the WordCount Code&lt;/h2>
-&lt;p>The easiest way to get a copy of the WordCount pipeline is to use the following command to generate a simple Maven project that contains Beam&amp;rsquo;s WordCount examples and builds against the most recent Beam release:&lt;/p>
+&lt;h2 id="get-the-example-code">Get the Example Code&lt;/h2>
+&lt;p>Use the following command to generate a Maven project that contains Beam&amp;rsquo;s WordCount examples and builds against the most recent Beam release:&lt;/p>
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1188,7 +1189,7 @@ limitations under the License.
 -D interactiveMode=false&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;p>This will create a directory &lt;code>word-count-beam&lt;/code> that contains a simple &lt;code>pom.xml&lt;/code> and a series of example pipelines that count words in text files.&lt;/p>
+&lt;p>This will create a &lt;code>word-count-beam&lt;/code> directory that contains a &lt;code>pom.xml&lt;/code> and several example pipelines that count words in text files.&lt;/p>
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1286,6 +1287,14 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 &lt;/div>
 &lt;/li>
 &lt;/ol>
+&lt;h2 id="get-sample-text">Get sample text&lt;/h2>
+&lt;blockquote>
+&lt;p>If you&amp;rsquo;re planning to use the DataflowRunner, you can skip this step. The runner will pull text directly from Google Cloud Storage.&lt;/p>
+&lt;/blockquote>
+&lt;ol>
+&lt;li>In the &lt;strong>word-count-beam&lt;/strong> directory, create a file called &lt;strong>sample.txt&lt;/strong>.&lt;/li>
+&lt;li>Add some text to the file. For this example, you can use the text of Shakespeare&amp;rsquo;s &lt;a href="https://storage.cloud.google.com/apache-beam-samples/shakespeare/sonnets.txt">Sonnets&lt;/a>.&lt;/li>
+&lt;/ol>
 &lt;h2 id="run-a-pipeline">Run a pipeline&lt;/h2>
 &lt;p>A single Beam pipeline can run on multiple Beam &lt;a href="/documentation#runners">runners&lt;/a>, including the &lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>, &lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>, &lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>, &lt;a href="/documentation/runners/jet">JetRunner&lt;/a>, or &lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>. The &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup. If you&amp;rsquo;re just trying out Beam and you&amp;rsquo;re not sure what to use, use the &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a>.&lt;/p>
 &lt;p>The general process for running a pipeline goes like this:&lt;/p>
@@ -1309,7 +1318,7 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=/path/to/inputfile --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
+-Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1318,7 +1327,7 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--runner=FlinkRunner --inputFile=/path/to/inputfile --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
+-Dexec.args=&amp;#34;--runner=FlinkRunner --inputFile=sample.txt --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1328,7 +1337,7 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 &lt;/a>
 &lt;pre>&lt;code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
---inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts&amp;#34; -Pflink-runner
+--inputFile=sample.txt --output=/tmp/counts&amp;#34; -Pflink-runner
 You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1338,7 +1347,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--runner=SparkRunner --inputFile=/path/to/inputfile --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
+-Dexec.args=&amp;#34;--runner=SparkRunner --inputFile=sample.txt --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1361,7 +1370,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=/path/to/inputfile --output=/tmp/counts --runner=SamzaRunner&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
+-Dexec.args=&amp;#34;--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1370,7 +1379,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
---runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts&lt;/code>&lt;/pre>
+--runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1380,7 +1389,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 &lt;/a>
 &lt;pre>&lt;code>$ mvn package -Pjet-runner
 $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
---runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts&lt;/code>&lt;/pre>
+--runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>For Windows PowerShell:&lt;/p>
@@ -1390,7 +1399,7 @@ $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordC
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
--D exec.args=&amp;#34;--inputFile=/path/to/inputfile --output=counts&amp;#34; -P direct-runner&lt;/code>&lt;/pre>
+-D exec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -P direct-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1399,7 +1408,7 @@ $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordC
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
--D exec.args=&amp;#34;--runner=FlinkRunner --inputFile=/path/to/inputfile --output=counts&amp;#34; -P flink-runner&lt;/code>&lt;/pre>
+-D exec.args=&amp;#34;--runner=FlinkRunner --inputFile=sample.txt --output=counts&amp;#34; -P flink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1409,7 +1418,7 @@ $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordC
 &lt;/a>
 &lt;pre>&lt;code>PS&amp;gt; mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
---inputFile=C:\path\to\quickstart\pom.xml --output=C:\tmp\counts&amp;#34; -P flink-runner
+--inputFile=C:\path\to\quickstart\sample.txt --output=C:\tmp\counts&amp;#34; -P flink-runner
 You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1419,7 +1428,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
--D exec.args=&amp;#34;--runner=SparkRunner --inputFile=/path/to/inputfile --output=counts&amp;#34; -P spark-runner&lt;/code>&lt;/pre>
+-D exec.args=&amp;#34;--runner=SparkRunner --inputFile=sample.txt --output=counts&amp;#34; -P spark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1442,7 +1451,7 @@ PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.Word
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
--D exec.args=&amp;#34;--inputFile=/path/to/inputfile --output=/tmp/counts --runner=SamzaRunner&amp;#34; -P samza-runner&lt;/code>&lt;/pre>
+-D exec.args=&amp;#34;--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner&amp;#34; -P samza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1452,7 +1461,7 @@ PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.Word
 &lt;/a>
 &lt;pre>&lt;code>PS&amp;gt; mvn package -P nemo-runner -DskipTests
 PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
---runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts&lt;/code>&lt;/pre>
+--runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1462,7 +1471,7 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;/a>
 &lt;pre>&lt;code>PS&amp;gt; mvn package -P jet-runner
 PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
---runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts&lt;/code>&lt;/pre>
+--runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="run-wordcount-using-gradle">Run WordCount Using Gradle&lt;/h3>
@@ -1473,7 +1482,7 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=/path/to/inputfile --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
+-Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1506,7 +1515,7 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=/path/to/inputfile --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
+-Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class="snippet">
@@ -1616,13 +1625,16 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ more counts*
-api: 9
-bundled: 1
-old: 4
-Apache: 2
-The: 1
-limitations: 1
-Foundation: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1632,13 +1644,16 @@ Foundation: 1
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ more counts*
-The: 1
-api: 9
-old: 4
-Apache: 2
-limitations: 1
-bundled: 1
-Foundation: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1648,13 +1663,16 @@ Foundation: 1
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ more /tmp/counts*
-The: 1
-api: 9
-old: 4
-Apache: 2
-limitations: 1
-bundled: 1
-Foundation: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1664,14 +1682,16 @@ Foundation: 1
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ more counts*
-beam: 27
-SF: 1
-fat: 1
-job: 1
-limitations: 1
-require: 1
-of: 11
-profile: 10
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1681,14 +1701,16 @@ profile: 10
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ gsutil cat gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
-feature: 15
-smother&amp;#39;st: 1
-revelry: 1
-bashfulness: 1
-Bashful: 1
-Below: 2
-deserves: 32
-barrenly: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1698,13 +1720,16 @@ barrenly: 1
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ more /tmp/counts*
-api: 7
-are: 2
-can: 2
-com: 14
-end: 14
-for: 14
-has: 2
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1714,14 +1739,16 @@ has: 2
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ more counts*
-cluster: 2
-handler: 1
-plugins: 9
-exclusions: 14
-finalName: 2
-Adds: 2
-java: 7
-xml: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1731,16 +1758,16 @@ xml: 1
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>$ more counts*
-FlinkRunner: 1
-cleanupDaemonThreads: 2
-sdks: 4
-unit: 1
-Apache: 3
-IO: 2
-copyright: 1
-governing: 1
-overrides: 1
-YARN: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
