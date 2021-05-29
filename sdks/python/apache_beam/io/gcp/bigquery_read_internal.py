@@ -192,6 +192,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       assert element.table
       table_reference = bigquery_tools.parse_table_reference(
           element.table, project=self._get_project())
+      created_temp_dataset = False
 
     if not table_reference.projectId:
       table_reference.projectId = self._get_project()
