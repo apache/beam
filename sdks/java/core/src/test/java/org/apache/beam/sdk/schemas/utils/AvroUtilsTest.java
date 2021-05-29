@@ -26,6 +26,7 @@ import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.sql.JDBCType;
 import java.util.List;
 import java.util.Map;
 import org.apache.avro.Conversions;
@@ -57,6 +58,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Test;
@@ -551,6 +554,80 @@ public class AvroUtilsTest {
   }
 
   @Test
+  public void testJdbcLogicalVarCharRowDataToAvroSchema() {
+    String expectedAvroSchemaJson =
+        "{ "
+            + " \"name\": \"topLevelRecord\", "
+            + " \"type\": \"record\", "
+            + " \"fields\": [{ "
+            + "   \"name\": \"my_varchar_field\", "
+            + "   \"type\": \"string\" "
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"my_longvarchar_field\", "
+            + "   \"type\": \"string\" "
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"my_nvarchar_field\", "
+            + "   \"type\": \"string\" "
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"my_longnvarchar_field\", "
+            + "   \"type\": \"string\" "
+            + "  } "
+            + " ] "
+            + "}";
+
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("my_varchar_field", FieldType.logicalType(JdbcStringType.VARCHAR)))
+            .addField(
+                Field.of("my_longvarchar_field", FieldType.logicalType(JdbcStringType.LONGVARCHAR)))
+            .addField(Field.of("my_nvarchar_field", FieldType.logicalType(JdbcStringType.NVARCHAR)))
+            .addField(
+                Field.of(
+                    "my_longnvarchar_field", FieldType.logicalType(JdbcStringType.LONGNVARCHAR)))
+            .build();
+
+    assertEquals(
+        new org.apache.avro.Schema.Parser().parse(expectedAvroSchemaJson),
+        AvroUtils.toAvroSchema(beamSchema));
+  }
+
+  @Test
+  public void testJdbcLogicalVarCharRowDataToGenericRecord() {
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("my_varchar_field", FieldType.logicalType(JdbcStringType.VARCHAR)))
+            .addField(
+                Field.of("my_longvarchar_field", FieldType.logicalType(JdbcStringType.LONGVARCHAR)))
+            .addField(Field.of("my_nvarchar_field", FieldType.logicalType(JdbcStringType.NVARCHAR)))
+            .addField(
+                Field.of(
+                    "my_longnvarchar_field", FieldType.logicalType(JdbcStringType.LONGNVARCHAR)))
+            .build();
+
+    Row rowData =
+        Row.withSchema(beamSchema)
+            .addValue("varchar_value")
+            .addValue("longvarchar_value")
+            .addValue("nvarchar_value")
+            .addValue("longnvarchar_value")
+            .build();
+
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecord expectedRecord =
+        new GenericRecordBuilder(avroSchema)
+            .set("my_varchar_field", "varchar_value")
+            .set("my_longvarchar_field", "longvarchar_value")
+            .set("my_nvarchar_field", "nvarchar_value")
+            .set("my_longnvarchar_field", "longnvarchar_value")
+            .build();
+
+    assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
+  }
+
+  @Test
   public void testBeamRowToGenericRecord() {
     GenericRecord genericRecord = AvroUtils.toGenericRecord(getBeamRow(), null);
     assertEquals(getAvroSchema(), genericRecord.getSchema());
@@ -639,5 +716,45 @@ public class AvroUtilsTest {
     assertEquals(
         AvroUtils.getFromRowFunction(GenericRecord.class),
         AvroUtils.getFromRowFunction(GenericRecord.class));
+  }
+
+  /** Helper class that simulates a JDBC Logical String types. */
+  private static class JdbcStringType implements Schema.LogicalType<String, String> {
+
+    private static final JdbcStringType VARCHAR = new JdbcStringType(JDBCType.VARCHAR);
+    private static final JdbcStringType NVARCHAR = new JdbcStringType(JDBCType.NVARCHAR);
+    private static final JdbcStringType LONGVARCHAR = new JdbcStringType(JDBCType.LONGVARCHAR);
+    private static final JdbcStringType LONGNVARCHAR = new JdbcStringType(JDBCType.LONGNVARCHAR);
+
+    private final String identifier;
+
+    private JdbcStringType(JDBCType jdbcType) {
+      this.identifier = jdbcType.getName();
+    }
+
+    @Override
+    public String getIdentifier() {
+      return identifier;
+    }
+
+    @Override
+    public @Nullable FieldType getArgumentType() {
+      return Schema.FieldType.INT32;
+    }
+
+    @Override
+    public FieldType getBaseType() {
+      return Schema.FieldType.STRING;
+    }
+
+    @Override
+    public @NonNull String toBaseType(@NonNull String input) {
+      return input;
+    }
+
+    @Override
+    public @NonNull String toInputType(@NonNull String base) {
+      return base;
+    }
   }
 }
