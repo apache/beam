@@ -32,7 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Dataflow',
 
       // Publish all test results to Jenkins
       publishers {
-        archiveJunit('**/pytest*.xml')
+        archiveJunit('**/nosetests*.xml') // TODO(BEAM-3713) Change to pytest before merge (Testing)
       }
 
       // Gradle goals for this job.
