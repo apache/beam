@@ -918,6 +918,11 @@ public class AvroUtils {
             baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
             break;
 
+          case "TIME":
+            baseType =
+                LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
+            break;
+
           default:
             throw new RuntimeException(
                 "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -1038,6 +1043,9 @@ public class AvroUtils {
 
           case "DATE":
             return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
+
+          case "TIME":
+            return (int) ((Instant) value).getMillis();
 
           default:
             throw new RuntimeException(

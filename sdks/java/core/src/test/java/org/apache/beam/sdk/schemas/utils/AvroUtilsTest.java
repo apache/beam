@@ -62,6 +62,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Days;
+import org.joda.time.Instant;
+import org.joda.time.LocalTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -580,13 +583,11 @@ public class AvroUtilsTest {
 
     Schema beamSchema =
         Schema.builder()
-            .addField(Field.of("my_varchar_field", FieldType.logicalType(JdbcStringType.VARCHAR)))
+            .addField(Field.of("my_varchar_field", FieldType.logicalType(JdbcType.VARCHAR)))
+            .addField(Field.of("my_longvarchar_field", FieldType.logicalType(JdbcType.LONGVARCHAR)))
+            .addField(Field.of("my_nvarchar_field", FieldType.logicalType(JdbcType.NVARCHAR)))
             .addField(
-                Field.of("my_longvarchar_field", FieldType.logicalType(JdbcStringType.LONGVARCHAR)))
-            .addField(Field.of("my_nvarchar_field", FieldType.logicalType(JdbcStringType.NVARCHAR)))
-            .addField(
-                Field.of(
-                    "my_longnvarchar_field", FieldType.logicalType(JdbcStringType.LONGNVARCHAR)))
+                Field.of("my_longnvarchar_field", FieldType.logicalType(JdbcType.LONGNVARCHAR)))
             .build();
 
     assertEquals(
@@ -598,13 +599,11 @@ public class AvroUtilsTest {
   public void testJdbcLogicalVarCharRowDataToGenericRecord() {
     Schema beamSchema =
         Schema.builder()
-            .addField(Field.of("my_varchar_field", FieldType.logicalType(JdbcStringType.VARCHAR)))
+            .addField(Field.of("my_varchar_field", FieldType.logicalType(JdbcType.VARCHAR)))
+            .addField(Field.of("my_longvarchar_field", FieldType.logicalType(JdbcType.LONGVARCHAR)))
+            .addField(Field.of("my_nvarchar_field", FieldType.logicalType(JdbcType.NVARCHAR)))
             .addField(
-                Field.of("my_longvarchar_field", FieldType.logicalType(JdbcStringType.LONGVARCHAR)))
-            .addField(Field.of("my_nvarchar_field", FieldType.logicalType(JdbcStringType.NVARCHAR)))
-            .addField(
-                Field.of(
-                    "my_longnvarchar_field", FieldType.logicalType(JdbcStringType.LONGNVARCHAR)))
+                Field.of("my_longnvarchar_field", FieldType.logicalType(JdbcType.LONGNVARCHAR)))
             .build();
 
     Row rowData =
@@ -622,6 +621,68 @@ public class AvroUtilsTest {
             .set("my_longvarchar_field", "longvarchar_value")
             .set("my_nvarchar_field", "nvarchar_value")
             .set("my_longnvarchar_field", "longnvarchar_value")
+            .build();
+
+    assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
+  }
+
+  @Test
+  public void testJdbcLogicalDateAndTimeRowDataToAvroSchema() {
+    String expectedAvroSchemaJson =
+        "{ "
+            + " \"name\": \"topLevelRecord\", "
+            + " \"type\": \"record\", "
+            + " \"fields\": [{ "
+            + "   \"name\": \"my_date_field\", "
+            + "   \"type\": { \"type\": \"int\", \"logicalType\": \"date\" }"
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"my_time_field\", "
+            + "   \"type\": { \"type\": \"int\", \"logicalType\": \"time-millis\" }"
+            + "  }"
+            + " ] "
+            + "}";
+
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("my_date_field", FieldType.logicalType(JdbcType.DATE)))
+            .addField(Field.of("my_time_field", FieldType.logicalType(JdbcType.TIME)))
+            .build();
+
+    assertEquals(
+        new org.apache.avro.Schema.Parser().parse(expectedAvroSchemaJson),
+        AvroUtils.toAvroSchema(beamSchema));
+  }
+
+  @Test
+  public void testJdbcLogicalDateAndTimeRowDataToGenericRecord() {
+    // Test Fixed clock at
+    DateTime testDateTime = DateTime.parse("2021-05-29T11:15:16.234Z");
+
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("my_date_field", FieldType.logicalType(JdbcType.DATE)))
+            .addField(Field.of("my_time_field", FieldType.logicalType(JdbcType.TIME)))
+            .build();
+
+    Row rowData =
+        Row.withSchema(beamSchema)
+            .addValue(testDateTime.toLocalDate().toDateTime(LocalTime.MIDNIGHT).toInstant())
+            .addValue(Instant.ofEpochMilli(testDateTime.toLocalTime().millisOfDay().get()))
+            .build();
+
+    int daysFromEpoch =
+        Days.daysBetween(
+                Instant.EPOCH,
+                testDateTime.toLocalDate().toDateTime(LocalTime.MIDNIGHT).toInstant())
+            .getDays();
+    int timeSinceMidNight = testDateTime.toLocalTime().getMillisOfDay();
+
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecord expectedRecord =
+        new GenericRecordBuilder(avroSchema)
+            .set("my_date_field", daysFromEpoch)
+            .set("my_time_field", timeSinceMidNight)
             .build();
 
     assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
@@ -718,18 +779,30 @@ public class AvroUtilsTest {
         AvroUtils.getFromRowFunction(GenericRecord.class));
   }
 
-  /** Helper class that simulates a JDBC Logical String types. */
-  private static class JdbcStringType implements Schema.LogicalType<String, String> {
+  /** Helper class that simulates a JDBC Logical types. */
+  private static class JdbcType<T> implements Schema.LogicalType<T, T> {
 
-    private static final JdbcStringType VARCHAR = new JdbcStringType(JDBCType.VARCHAR);
-    private static final JdbcStringType NVARCHAR = new JdbcStringType(JDBCType.NVARCHAR);
-    private static final JdbcStringType LONGVARCHAR = new JdbcStringType(JDBCType.LONGVARCHAR);
-    private static final JdbcStringType LONGNVARCHAR = new JdbcStringType(JDBCType.LONGNVARCHAR);
+    private static final JdbcType<String> VARCHAR =
+        new JdbcType<>(JDBCType.VARCHAR, FieldType.INT32, FieldType.STRING);
+    private static final JdbcType<String> NVARCHAR =
+        new JdbcType<>(JDBCType.NVARCHAR, FieldType.INT32, FieldType.STRING);
+    private static final JdbcType<String> LONGVARCHAR =
+        new JdbcType<>(JDBCType.LONGVARCHAR, FieldType.INT32, FieldType.STRING);
+    private static final JdbcType<String> LONGNVARCHAR =
+        new JdbcType<>(JDBCType.LONGNVARCHAR, FieldType.INT32, FieldType.STRING);
+    private static final JdbcType<Instant> DATE =
+        new JdbcType<>(JDBCType.DATE, FieldType.STRING, FieldType.DATETIME);
+    private static final JdbcType<Instant> TIME =
+        new JdbcType<>(JDBCType.TIME, FieldType.STRING, FieldType.DATETIME);
 
     private final String identifier;
+    private final FieldType argumentType;
+    private final FieldType baseType;
 
-    private JdbcStringType(JDBCType jdbcType) {
+    private JdbcType(JDBCType jdbcType, FieldType argumentType, FieldType baseType) {
       this.identifier = jdbcType.getName();
+      this.argumentType = argumentType;
+      this.baseType = baseType;
     }
 
     @Override
@@ -739,21 +812,21 @@ public class AvroUtilsTest {
 
     @Override
     public @Nullable FieldType getArgumentType() {
-      return Schema.FieldType.INT32;
+      return argumentType;
     }
 
     @Override
     public FieldType getBaseType() {
-      return Schema.FieldType.STRING;
+      return baseType;
     }
 
     @Override
-    public @NonNull String toBaseType(@NonNull String input) {
+    public @NonNull T toBaseType(@NonNull T input) {
       return input;
     }
 
     @Override
-    public @NonNull String toInputType(@NonNull String base) {
+    public @NonNull T toInputType(@NonNull T base) {
       return base;
     }
   }
