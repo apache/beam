@@ -26,7 +26,7 @@ plugins {
 
 applyJavaNature(
         exportJavadoc: false,
-        automaticModuleName: 'org.apache.beam.examples',
+        automaticModuleName: 'org.apache.beam.examples.twitterstreamgenerator',
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -71,8 +71,8 @@ dependencies {
     // Add dependencies for the PreCommit configurations
     // For each runner a project level dependency on the examples project.
     for (String runner : preCommitRunners) {
-        delegate.add(runner + "PreCommit", project(":examples:java"))
-        delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntime"))
+        delegate.add(runner + "PreCommit", project(":examples:twitter-stream-generator"))
+        delegate.add(runner + "PreCommit", project(path: ":examples:twitter-stream-generator", configuration: "testRuntime"))
     }
     directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
     flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
