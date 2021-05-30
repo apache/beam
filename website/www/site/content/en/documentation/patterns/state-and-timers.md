@@ -93,13 +93,13 @@ public void onTimer(
 
 In order to be able to deal with a situation in which no windowing is applied and the element just flow through the Global Window, we take a slightly different approach:
 
-- we keep the `BagState` and eventtime `TimerSpec`
-- we add another `TimerSpec` called "bufferTimer" which allows us to buffer events for a certain time before sending them to an external system and that will fire everytime the "maxBufferingDuration" is exceeded.
+- we keep the `BagState`.
+- we replace the `TimerSpec` called "eventTimer" with a `TimerSpec` called "bufferTimer" which allows us to buffer events for a certain time before sending them to an external system and that will fire everytime the "maxBufferingDuration" is exceeded.
+- we add a `CombiningState` called "minEventTime" that keeps track of the event with the lowest eventTime that has come in thusfar.
 - we split out the "clearBuffer" logic which is called everytime either:
-    1) we exceed the number of elements in the batch
-    2) we exceed the "maxBufferingDuration" set by the user
-    3) an eventtime window closes
-and which will output the elements, empty the buffer and reset the "bufferTimer".
+    1) we exceed the number of elements in the batch.
+    2) we exceed the "maxBufferingDuration" set by the user.
+and which will output the elements up until that point in event time, empty the buffer and reset the "bufferTimer".
 
 A possible implementation looks like this:
 
@@ -108,15 +108,15 @@ static class BatchRequestGlobal extends DoFn<KV<String, String>, KV<String, Iter
 
   private final Integer maxBatchSize;
   private final Long maxBufferingDuration;
-
+  
   @StateId("elementsBag")
-  private final StateSpec<BagState<KV<String, String>>> elementsBag = StateSpecs.bag();
+  private final StateSpec<OrderedListState<KV<String, String>>> elementsBag = StateSpecs.orderedList(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
-  @TimerId("eventTimer")
-  private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+  @StateId("minEventTime")
+  private final StateSpec<CombiningState<Long, long[], Long>> minEventTime = StateSpecs.combining(Min.ofLongs());
 
   @TimerId("bufferTimer")
-  private final TimerSpec bufferTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+  private final TimerSpec bufferTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
   public BatchRequestGlobal(Integer maxBatchSize, Long maxBufferingDuration) {
     this.maxBatchSize = maxBatchSize;
@@ -128,19 +128,27 @@ static class BatchRequestGlobal extends DoFn<KV<String, String>, KV<String, Iter
           @Element KV<String, String> element,
           OutputReceiver<KV<String, Iterable<String>>> out,
           @StateId("elementsBag") BagState<KV<String, String>> elementsBag,
-          @TimerId("eventTimer") Timer eventTimer,
+          @StateId("minEventTime") CombiningState<Long, long[], Long> minTimestamp,
           @TimerId("bufferTimer") Timer bufferTimer,
           BoundedWindow w) {
-    eventTimer.set(w.maxTimestamp());
-    int numElements = Iterables.size((elementsBag.read()));
+    long currentElementTimestamp = element.getTimestamp().getMillis();
+    long currentMinTimestamp = minTimestamp.read();
+    // If minTimestamp is empty, we assume the elementsBag statecell is empty, and thus set the timer to the current event time + maxBufferDuration
+    if(minTimestamp.isEmpty().read() || currentElementTimestamp < currentMinTimestamp) {
+      bufferTimer.set(new Instant(currentElementTimestamp + maxBufferingDuration));
+      // Keep track of the minimum element timestamp currently stored in the bag.
+      minTimestamp.add(element.getTimestamp().getMillis());
+      currentMinTimestamp = currentElementTimestamp;
+    }
 
-    if (numElements == 0) {
-      bufferTimer.offset(new Duration(maxBufferingDuration)).setRelative();
-    }
-    if (numElements >= maxBatchSize) {
-      clearBuffer(elementsBag, out, bufferTimer);
-    }
+    // Add current element to the OrderedStateList
     elementsBag.add(element);
+    
+    int numElements = Iterables.size((elementsBag.readRange(new Instant(currentMinTimestamp), new Instant(bufferTimer.currentEventTime()))));
+    if (numElements >= maxBatchSize) {
+      System.out.println("Max batch size reached for elements with key: " + element.getValue().getKey());
+      clearBuffer(elementsBag, out, bufferTimer, minTimestamp);
+    }
   }
 
   @OnTimer("bufferTimer")
@@ -148,15 +156,7 @@ static class BatchRequestGlobal extends DoFn<KV<String, String>, KV<String, Iter
           @StateId("elementsBag") BagState<KV<String, String>> elementsBag,
           OutputReceiver<KV<String, Iterable<String>>> out,
           @TimerId("bufferTimer") Timer bufferTimer) {
-    clearBuffer(elementsBag, out, bufferTimer);
-  }
-
-  @OnTimer("eventTimer")
-  public void onTimer(
-          @StateId("elementsBag") BagState<KV<String, String>> elementsBag,
-          OutputReceiver<KV<String, Iterable<String>>> out,
-          @TimerId("bufferTimer") Timer bufferTimer) {
-    clearBuffer(elementsBag, out, bufferTimer);
+    clearBuffer(elementsBag, out, bufferTimer, minTimestamp);
   }
 
   private void clearBuffer(
@@ -164,16 +164,20 @@ static class BatchRequestGlobal extends DoFn<KV<String, String>, KV<String, Iter
           OutputReceiver<KV<String, Iterable<String>>> output,
           @Nullable Timer bufferingTimer
   ) {
-    Iterable<KV<String, String>> bagContents = elementsBag.read();
+    Iterable<TimestampedValue<KV<String, String>>> bagContents = elementsBag.readRange(new Instant(minTimestamp.read()), new Instant(bufferTimer.currentEventTime())); // replace by readRange from 'start' until current event-time
     List<String> rows = new ArrayList<String>();
-    bagContents.forEach(element -> { rows.add(element.getValue()); });
+    bagContents.forEach(element -> { rows.add(element.getValue().getValue()); });
     if (bagContents.iterator().hasNext()) {
-      output.output(KV.of(bagContents.iterator().next().getKey(), rows));
+      output.output(KV.of(bagContents.iterator().next().getValue().getKey(), rows));
     }
-    elementsBag.clear();
+    elementsBag.clearRange(new Instant(minTimestamp.read()), new Instant(bufferTimer.currentEventTime())); // replace by clearRange from 'start' until current event-time
 
-    if (bufferingTimer != null && maxBufferingDuration != null) {
-      bufferingTimer.offset(new Duration(maxBufferingDuration)).setRelative();
+    minTimestamp.clear();
+    if(!elementsBag.isEmpty().read()) {
+      long firstElementTimestamp = elementsBag.read().iterator().next().getTimestamp().getMillis();
+      bufferTimer.set(new Instant(firstElementTimestamp
+                + maxBufferingDuration));
+      minTimestamp.add(firstElementTimestamp);
     }
   }
 }
