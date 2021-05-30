@@ -94,14 +94,10 @@ def preCommitRunnerClass = [
         flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
         sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
-def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
 for (String runner : preCommitRunners) {
     tasks.create(name: runner + "PreCommit", type: Test) {
         def preCommitBeamTestPipelineOptions = [
-                "--project=${gcpProject}",
-                "--tempRoot=${gcsTempRoot}",
                 "--runner=" + preCommitRunnerClass[runner],
         ]
         classpath = configurations."${runner}PreCommit"
