@@ -68,6 +68,7 @@ dependencies {
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile project(":sdks:java:io:jdbc")
   testCompile project(path: ":examples:java", configuration: "testRuntime")
+  testCompile project(path: ":examples:twitter-stream-generator", configuration: "testRuntime")
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile library.java.testcontainers_elasticsearch
   testCompile "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
@@ -103,6 +104,7 @@ dependencies {
   delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime"))
 
   sparkRunner project(path: ":examples:java", configuration: "testRuntime")
+  sparkRunner project(path: ":examples:twitter-stream-generator", configuration: "testRuntime")
   sparkRunner project(":runners:spark:2")
   sparkRunner project(":sdks:java:io:hadoop-file-system")
   sparkRunner library.java.spark_streaming
