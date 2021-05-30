@@ -115,7 +115,7 @@ task preCommit() {
 }
 
 task execute (type:JavaExec) {
-    main = System.getProperty("mainClass")
+    main = "org.apache.beam.examples.twitterstreamgenerator.TwitterStream"
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
     args System.getProperty("exec.args", "").split()
