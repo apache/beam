@@ -64,6 +64,7 @@
 ## New Features / Improvements
 
 * `CREATE FUNCTION` DDL statement added to Calcite SQL syntax. `JAR` and `AGGREGATE` are now reserved keywords. ([BEAM-12339](https://issues.apache.org/jira/browse/BEAM-12339)).
+* Flink 1.13 is now supported by the Flink runner ([BEAM-12277](https://issues.apache.org/jira/browse/BEAM-12277)).
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
@@ -93,6 +94,8 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Allow splitting apart document serialization and IO for ElasticsearchIO
+* Support Bulk API request size optimization through addition of ElasticsearchIO.Write.withStatefulBatches
 
 ## New Features / Improvements
 
