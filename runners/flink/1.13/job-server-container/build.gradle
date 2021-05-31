@@ -16,20 +16,11 @@
  * limitations under the License.
  */
 
-def basePath = '..'
-/* All properties required for loading the Spark build script */
-project.ext {
-  // Set the version of all Spark-related dependencies here.
-  spark_version = '3.1.2'
-  spark_scala_version = '2.12'
+def basePath = '../../job-server-container'
 
-  // Version specific code overrides.
-  main_source_overrides = ['./src/main/java']
-  test_source_overrides = ['./src/test/java']
-  main_resources_overrides = []
-  test_resources_overrides = []
-  archives_base_name = 'beam-runners-spark-3'
+project.ext {
+  resource_path = basePath
 }
 
 // Load the main build script which contains all build logic.
-apply from: "$basePath/spark_runner.gradle"
+apply from: "$basePath/flink_job_server_container.gradle"

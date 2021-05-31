@@ -238,6 +238,11 @@ class Pipeline(object):
     # type: () -> PipelineOptions
     return self._options
 
+  @property
+  def allow_unsafe_triggers(self):
+    # type: () -> bool
+    return self._options.view_as(TypeOptions).allow_unsafe_triggers
+
   def _current_transform(self):
     # type: () -> AppliedPTransform
 

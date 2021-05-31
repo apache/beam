@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
@@ -151,7 +150,8 @@ public class Read {
           .apply(ParDo.of(new OutputSingleSource<>(source)))
           .setCoder(SerializableCoder.of(new TypeDescriptor<BoundedSource<T>>() {}))
           .apply(ParDo.of(new BoundedSourceAsSDFWrapperFn<>()))
-          .setCoder(source.getOutputCoder());
+          .setCoder(source.getOutputCoder())
+          .setTypeDescriptor(source.getOutputCoder().getEncodedTypeDescriptor());
     }
 
     /** Returns the {@code BoundedSource} used to create this {@code Read} {@code PTransform}. */
@@ -259,26 +259,26 @@ public class Read {
    * <p>We model the element as the original source and the restriction as the sub-source. This
    * allows us to split the sub-source over and over yet still receive "source" objects as inputs.
    */
-  static class BoundedSourceAsSDFWrapperFn<T> extends DoFn<BoundedSource<T>, T> {
+  static class BoundedSourceAsSDFWrapperFn<T, BoundedSourceT extends BoundedSource<T>>
+      extends DoFn<BoundedSourceT, T> {
     private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceAsSDFWrapperFn.class);
     private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
 
     @GetInitialRestriction
-    public BoundedSource<T> initialRestriction(@Element BoundedSource<T> element) {
+    public BoundedSourceT initialRestriction(@Element BoundedSourceT element) {
       return element;
     }
 
     @GetSize
-    public double getSize(
-        @Restriction BoundedSource<T> restriction, PipelineOptions pipelineOptions)
+    public double getSize(@Restriction BoundedSourceT restriction, PipelineOptions pipelineOptions)
         throws Exception {
       return restriction.getEstimatedSizeBytes(pipelineOptions);
     }
 
     @SplitRestriction
     public void splitRestriction(
-        @Restriction BoundedSource<T> restriction,
-        OutputReceiver<BoundedSource<T>> receiver,
+        @Restriction BoundedSourceT restriction,
+        OutputReceiver<BoundedSourceT> receiver,
         PipelineOptions pipelineOptions)
         throws Exception {
       long estimatedSize = restriction.getEstimatedSizeBytes(pipelineOptions);
@@ -288,20 +288,22 @@ public class Read {
           Math.min(
               DEFAULT_DESIRED_BUNDLE_SIZE_BYTES,
               Math.max(1L, estimatedSize / DEFAULT_DESIRED_NUM_SPLITS));
-      for (BoundedSource<T> split : restriction.split(splitBundleSize, pipelineOptions)) {
+      List<BoundedSourceT> splits =
+          (List<BoundedSourceT>) restriction.split(splitBundleSize, pipelineOptions);
+      for (BoundedSourceT split : splits) {
         receiver.output(split);
       }
     }
 
     @NewTracker
-    public RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> restrictionTracker(
-        @Restriction BoundedSource<T> restriction, PipelineOptions pipelineOptions) {
+    public RestrictionTracker<BoundedSourceT, TimestampedValue<T>[]> restrictionTracker(
+        @Restriction BoundedSourceT restriction, PipelineOptions pipelineOptions) {
       return new BoundedSourceAsSDFRestrictionTracker<>(restriction, pipelineOptions);
     }
 
     @ProcessElement
     public void processElement(
-        RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> tracker,
+        RestrictionTracker<BoundedSourceT, TimestampedValue<T>[]> tracker,
         OutputReceiver<T> receiver)
         throws IOException {
       TimestampedValue<T>[] out = new TimestampedValue[1];
@@ -311,23 +313,24 @@ public class Read {
     }
 
     @GetRestrictionCoder
-    public Coder<BoundedSource<T>> restrictionCoder() {
-      return SerializableCoder.of(new TypeDescriptor<BoundedSource<T>>() {});
+    public Coder<BoundedSourceT> restrictionCoder() {
+      return SerializableCoder.of(new TypeDescriptor<BoundedSourceT>() {});
     }
 
     /**
      * A fake restriction tracker which adapts to the {@link BoundedSource} API. The restriction
      * object is used to advance the underlying source and to "return" the current element.
      */
-    private static class BoundedSourceAsSDFRestrictionTracker<T>
-        extends RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> {
-      private final BoundedSource<T> initialRestriction;
+    private static class BoundedSourceAsSDFRestrictionTracker<
+            BoundedSourceT extends BoundedSource<T>, T>
+        extends RestrictionTracker<BoundedSourceT, TimestampedValue<T>[]> {
+      private final BoundedSourceT initialRestriction;
       private final PipelineOptions pipelineOptions;
       private BoundedSource.BoundedReader<T> currentReader;
       private boolean claimedAll;
 
       BoundedSourceAsSDFRestrictionTracker(
-          BoundedSource<T> initialRestriction, PipelineOptions pipelineOptions) {
+          BoundedSourceT initialRestriction, PipelineOptions pipelineOptions) {
         this.initialRestriction = initialRestriction;
         this.pipelineOptions = pipelineOptions;
       }
@@ -393,15 +396,15 @@ public class Read {
 
       /** The value is invalid if {@link #tryClaim} has ever thrown an exception. */
       @Override
-      public BoundedSource<T> currentRestriction() {
+      public BoundedSourceT currentRestriction() {
         if (currentReader == null) {
           return initialRestriction;
         }
-        return currentReader.getCurrentSource();
+        return (BoundedSourceT) currentReader.getCurrentSource();
       }
 
       @Override
-      public SplitResult<BoundedSource<T>> trySplit(double fractionOfRemainder) {
+      public SplitResult<BoundedSourceT> trySplit(double fractionOfRemainder) {
         if (currentReader == null) {
           return null;
         }
@@ -416,7 +419,7 @@ public class Read {
           return null;
         }
         BoundedSource<T> primary = currentReader.getCurrentSource();
-        return SplitResult.of(primary, residual);
+        return (SplitResult<BoundedSourceT>) SplitResult.of(primary, residual);
       }
 
       @Override
@@ -990,15 +993,16 @@ public class Read {
     }
   }
 
-  private static class OutputSingleSource<T extends HasDisplayData> extends DoFn<byte[], T> {
-    private final T source;
+  private static class OutputSingleSource<T, SourceT extends Source<T>>
+      extends DoFn<byte[], SourceT> {
+    private final SourceT source;
 
-    private OutputSingleSource(T source) {
+    private OutputSingleSource(SourceT source) {
       this.source = source;
     }
 
     @ProcessElement
-    public void processElement(OutputReceiver<T> outputReceiver) {
+    public void processElement(OutputReceiver<SourceT> outputReceiver) {
       outputReceiver.output(source);
     }
 

@@ -35,9 +35,9 @@ If you're interested in contributing to the Apache Beam Java codebase, see the [
 
 1. Optional: Install [Gradle](https://gradle.org/install/) if you would like to convert your Maven project into Gradle.
 
-## Get the WordCount Code
+## Get the Example Code
 
-The easiest way to get a copy of the WordCount pipeline is to use the following command to generate a simple Maven project that contains Beam's WordCount examples and builds against the most recent Beam release:
+Use the following command to generate a Maven project that contains Beam's WordCount examples and builds against the most recent Beam release:
 
 {{< highlight class="shell-unix" >}}
 $ mvn archetype:generate \
@@ -63,7 +63,7 @@ PS> mvn archetype:generate `
  -D interactiveMode=false
 {{< /highlight >}}
 
-This will create a directory `word-count-beam` that contains a simple `pom.xml` and a series of example pipelines that count words in text files.
+This will create a `word-count-beam` directory that contains a `pom.xml` and several example pipelines that count words in text files.
 
 {{< highlight class="shell-unix" >}}
 $ cd word-count-beam/
@@ -142,6 +142,13 @@ task execute (type:JavaExec) {
 $ gradle build
 {{< /highlight >}}
 
+## Get sample text
+
+> If you're planning to use the DataflowRunner, you can skip this step. The runner will pull text directly from Google Cloud Storage.
+
+1. In the **word-count-beam** directory, create a file called **sample.txt**.
+1. Add some text to the file. For this example, you can use the text of Shakespeare's [Sonnets](https://storage.cloud.google.com/apache-beam-samples/shakespeare/sonnets.txt).
+
 ## Run a pipeline
 
 A single Beam pipeline can run on multiple Beam [runners](/documentation#runners), including the [FlinkRunner](/documentation/runners/flink), [SparkRunner](/documentation/runners/spark), [NemoRunner](/documentation/runners/nemo), [JetRunner](/documentation/runners/jet), or [DataflowRunner](/documentation/runners/dataflow). The [DirectRunner](/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup. If you're just trying out Beam and you're not sure what to use, use the [DirectRunner](/documentation/runners/direct).
@@ -163,25 +170,25 @@ For Unix shells:
 
 {{< highlight class="runner-direct" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=/path/to/inputfile --output=counts" -Pdirect-runner
+     -Dexec.args="--inputFile=sample.txt --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=/path/to/inputfile --output=counts" -Pflink-runner
+     -Dexec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -Pflink-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+                  --inputFile=sample.txt --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 {{< /highlight >}}
 
 {{< highlight class="runner-spark" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=/path/to/inputfile --output=counts" -Pspark-runner
+     -Dexec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -Pspark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -197,43 +204,43 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 {{< highlight class="runner-samza-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=/path/to/inputfile --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
+     -Dexec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-nemo" >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
-     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+     --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts
 {{< /highlight >}}
 
 {{< highlight class="runner-jet" >}}
 $ mvn package -Pjet-runner
 $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
-     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
+     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/sample.txt --output=counts
 {{< /highlight >}}
 
 For Windows PowerShell:
 
 {{< highlight class="runner-direct" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--inputFile=/path/to/inputfile --output=counts" -P direct-runner
+ -D exec.args="--inputFile=sample.txt --output=counts" -P direct-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--runner=FlinkRunner --inputFile=/path/to/inputfile --output=counts" -P flink-runner
+ -D exec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -P flink-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
 PS> mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
-               --inputFile=C:\path\to\quickstart\pom.xml --output=C:\tmp\counts" -P flink-runner
+               --inputFile=C:\path\to\quickstart\sample.txt --output=C:\tmp\counts" -P flink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 {{< /highlight >}}
 
 {{< highlight class="runner-spark" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--runner=SparkRunner --inputFile=/path/to/inputfile --output=counts" -P spark-runner
+ -D exec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -P spark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -249,19 +256,19 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 
 {{< highlight class="runner-samza-local" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
-     -D exec.args="--inputFile=/path/to/inputfile --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
+     -D exec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-nemo" >}}
 PS> mvn package -P nemo-runner -DskipTests
 PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
-      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+      --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts
 {{< /highlight >}}
 
 {{< highlight class="runner-jet" >}}
 PS> mvn package -P jet-runner
 PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
-      --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
+      --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/sample.txt --output=counts
 {{< /highlight >}}
 
 ### Run WordCount Using Gradle
@@ -270,7 +277,7 @@ For Unix shells (Instructions currently only available for Direct, Spark, and Da
 
 {{< highlight class="runner-direct">}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=/path/to/inputfile --output=counts" -Pdirect-runner
+    -Dexec.args="--inputFile=sample.txt --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-apex">}}
@@ -287,7 +294,7 @@ We are working on adding the instruction for this runner!
 
 {{< highlight class="runner-spark" >}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=/path/to/inputfile --output=counts" -Pspark-runner
+    -Dexec.args="--inputFile=sample.txt --output=counts" -Pspark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -348,104 +355,122 @@ When you look into the contents of the file, you'll see that they contain unique
 
 {{< highlight class="runner-direct" >}}
 $ more counts*
-api: 9
-bundled: 1
-old: 4
-Apache: 2
-The: 1
-limitations: 1
-Foundation: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 $ more counts*
-The: 1
-api: 9
-old: 4
-Apache: 2
-limitations: 1
-bundled: 1
-Foundation: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
 $ more /tmp/counts*
-The: 1
-api: 9
-old: 4
-Apache: 2
-limitations: 1
-bundled: 1
-Foundation: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
 {{< highlight class="runner-spark" >}}
 $ more counts*
-beam: 27
-SF: 1
-fat: 1
-job: 1
-limitations: 1
-require: 1
-of: 11
-profile: 10
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
 
 {{< highlight class="runner-dataflow" >}}
 $ gsutil cat gs://<your-gcs-bucket>/counts*
-feature: 15
-smother'st: 1
-revelry: 1
-bashfulness: 1
-Bashful: 1
-Below: 2
-deserves: 32
-barrenly: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
 {{< highlight class="runner-samza-local" >}}
 $ more /tmp/counts*
-api: 7
-are: 2
-can: 2
-com: 14
-end: 14
-for: 14
-has: 2
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
 {{< highlight class="runner-nemo" >}}
 $ more counts*
-cluster: 2
-handler: 1
-plugins: 9
-exclusions: 14
-finalName: 2
-Adds: 2
-java: 7
-xml: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
 {{< highlight class="runner-jet" >}}
 $ more counts*
-FlinkRunner: 1
-cleanupDaemonThreads: 2
-sdks: 4
-unit: 1
-Apache: 3
-IO: 2
-copyright: 1
-governing: 1
-overrides: 1
-YARN: 1
+wrought: 2
+st: 32
+fresher: 1
+of: 351
+souls: 2
+CXVIII: 1
+reviewest: 1
+untold: 1
+th: 1
+single: 4
 ...
 {{< /highlight >}}
 
