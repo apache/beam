@@ -31,7 +31,7 @@ applyJavaNature(
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
-description = "Apache Beam :: Examples :: Java"
+description = "Apache Beam :: Examples :: Twitter Stream Generator"
 ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for processing virtually any size data. This
 artifact includes all Apache Beam Java SDK examples."""
