@@ -32,6 +32,7 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct.clock import TestClock
@@ -1187,6 +1188,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
     with TestPipeline() as p:
       # TODO(BEAM-8601): Pass this during pipeline construction.
       p._options.view_as(StandardOptions).streaming = True
+      p._options.view_as(TypeOptions).allow_unsafe_triggers = True
 
       # We can have at most one test stream per pipeline, so we share it.
       inputs_and_expected = p | read_test_stream
