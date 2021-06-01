@@ -142,7 +142,7 @@ jobs:
           path: sdks/python/pytest**.xml
       - name: "Python Unit Tests Status Report"
         if: always()
-        run: echo $statusbasictestswindows
+        run: echo ${{ steps.python_unit_tests-unix.name }}
         env:
           jobstatus: ${{ job.status }}
           statusbasictestsunix: ${{ steps.python_unit_tests-unix.outcome }}
