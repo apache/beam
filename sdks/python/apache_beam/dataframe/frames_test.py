@@ -542,6 +542,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
 
+    self._run_test(lambda df: df.num_wings.value_counts(), df)
+    self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
     self._run_test(lambda s: s[...], s)
