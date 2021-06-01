@@ -291,7 +291,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
-            'pandas.core.frame.DataFrame.value_counts': ['*'],
 
             'pandas.core.frame.DataFrame.to_records': [
                 'df.index = df.index.rename("I")',
@@ -716,7 +715,6 @@ class DoctestTest(unittest.TestCase):
             'to_numeric': ['*'],
             'to_timedelta': ['*'],
             'unique': ['*'],
-            'value_counts': ['*'],
             'wide_to_long': ['*'],
         },
         wont_implement_ok={
