@@ -550,7 +550,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     """``sort_values`` is not implemented.
 
     It is not implemented for ``axis=index`` because it imposes an ordering on
-    the dataset, and we cannot guarantee it will be maintained (see
+    the dataset, and it likely will not be maintained (see
     https://s.apache.org/dataframe-order-sensitive-operations).
 
     It is not implemented for ``axis=columns`` because it makes the order of
@@ -561,8 +561,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       # support
       raise frame_base.WontImplementError(
           "sort_values(axis=index) is not supported because it imposes an "
-          "ordering on the dataset which we cannot guarantee will be "
-          "preserved.",
+          "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
     else:
       # axis=columns will reorder the columns based on the data
