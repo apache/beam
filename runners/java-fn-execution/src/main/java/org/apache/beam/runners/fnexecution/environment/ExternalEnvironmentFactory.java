@@ -113,6 +113,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint());
     BeamFnApi.StartWorkerResponse startWorkerResponse =
         BeamFnExternalWorkerPoolGrpc.newBlockingStub(managedChannel)
+            .withWaitForReady()
             .startWorker(startWorkerRequest);
     if (!startWorkerResponse.getError().isEmpty()) {
       throw new RuntimeException(startWorkerResponse.getError());
