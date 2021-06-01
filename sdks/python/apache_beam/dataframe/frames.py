@@ -704,26 +704,6 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
-  @frame_base.with_docs_from(pd.DataFrame)
-  def value_counts(
-      self, subset=None, sort=False, normalize=False, ascending=False):
-    """``sort`` is ``False`` by default, and ``sort=True`` is not supported
-    because it imposes an ordering on the dataset which likely will not be
-    preserved."""
-
-    if sort:
-      raise frame_base.WontImplementMethod(
-          "value_counts(sort=True) is not supported because it imposes an "
-          "ordering on the dataset which likely will not be preserved.",
-          reason="order-sensitive")
-    columns = subset or list(self.columns)
-    result = self.groupby(columns).size()
-
-    if normalize:
-      return result / self.dropna().length()
-    else:
-      return result
-
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -2708,6 +2688,26 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             lambda df: df.melt(ignore_index=False, **kwargs), [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  def value_counts(self, subset=None, sort=False, normalize=False,
+                   ascending=False):
+    """``sort`` is ``False`` by default, and ``sort=True`` is not supported
+    because it imposes an ordering on the dataset which likely will not be
+    preserved."""
+
+    if sort:
+      raise frame_base.WontImplementMethod(
+          "value_counts(sort=True) is not supported because it imposes an "
+          "ordering on the dataset which likely will not be preserved.",
+          reason="order-sensitive")
+    columns = subset or list(self.columns)
+    result = self.groupby(columns).size()
+
+    if normalize:
+      return result/self.dropna().length()
+    else:
+      return result
 
 
 for io_func in dir(io):
