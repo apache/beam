@@ -53,6 +53,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
@@ -197,10 +198,19 @@ class SchemaUtil {
     };
   }
 
-  /** Converts numeric fields with specified precision and scale. */
+  /**
+   * Converts numeric fields with specified precision and scale to {@link
+   * LogicalTypes.FixedPrecisionNumeric}. If a precision of numeric field is not specified, then
+   * converts such field to {@link FieldType#DECIMAL}.
+   */
   private static BeamFieldConverter beamLogicalNumericField(String identifier) {
     return (index, md) -> {
       int precision = md.getPrecision(index);
+      if (precision == Integer.MAX_VALUE || precision == -1) {
+        // If a precision is not specified, the column stores values as given (e.g. in Oracle DB)
+        return Schema.Field.of(md.getColumnLabel(index), FieldType.DECIMAL)
+            .withNullable(md.isNullable(index) == ResultSetMetaData.columnNullable);
+      }
       int scale = md.getScale(index);
       Schema.FieldType fieldType =
           Schema.FieldType.logicalType(
