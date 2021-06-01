@@ -828,7 +828,8 @@ class GroupByTest(_AbstractFrameTest):
       self.skipTest(
           "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
           "fails in pandas < 1.2")
-    self._run_test(lambda df: df.groupby('group').agg(agg_type), GROUPBY_DF)
+    self._run_test(lambda df: df.groupby('group').agg(agg_type), GROUPBY_DF,
+                   check_proxy=False)
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_groupby_with_filter(self, agg_type):
@@ -838,7 +839,8 @@ class GroupByTest(_AbstractFrameTest):
           "fails in pandas < 1.2")
     self._run_test(
         lambda df: getattr(df[df.foo > 30].groupby('group'), agg_type)(),
-        GROUPBY_DF)
+        GROUPBY_DF,
+        check_proxy=False)
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_groupby(self, agg_type):
@@ -898,7 +900,8 @@ class GroupByTest(_AbstractFrameTest):
           "fails in pandas < 1.2")
     self._run_test(
         lambda df: getattr(df.groupby('group')[['bar', 'baz']], agg_type)(),
-        GROUPBY_DF)
+        GROUPBY_DF,
+        check_proxy=False)
 
   def test_groupby_errors_bad_projection(self):
     df = GROUPBY_DF
