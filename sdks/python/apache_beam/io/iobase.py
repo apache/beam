@@ -1125,7 +1125,7 @@ class WriteImpl(ptransform.PTransform):
       if min_shards == 1:
         keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
       else:
-        keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(min_shards))
+        keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
       write_result_coll = (
           keyed_pcoll
           | core.WindowInto(window.GlobalWindows())
@@ -1226,17 +1226,13 @@ def _finalize_write(
 
 
 class _RoundRobinKeyFn(core.DoFn):
-  def __init__(self, count):
-    # type: (int) -> None
-    self.count = count
-
   def start_bundle(self):
-    self.counter = random.randint(0, self.count - 1)
+    self.counter = random.random()
 
-  def process(self, element):
-    self.counter += 1
-    if self.counter >= self.count:
-      self.counter -= self.count
+  def process(self, element, count):
+    if self.counter < 1:
+      self.counter = int(self.counter * count)
+    self.counter = (1 + self.counter) % count
     yield self.counter, element
 
 
