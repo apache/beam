@@ -1409,7 +1409,7 @@ class ConstructionTimeTest(unittest.TestCase):
 
   @parameterized.expand(DF.columns)
   def test_series_name(self, col_name):
-    self._run_test(lambda df: df[col_name])
+    self._run_test(lambda df: df[col_name].name)
 
   @parameterized.expand(DF.columns)
   def test_series_dtype(self, col_name):
