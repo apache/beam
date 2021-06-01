@@ -142,13 +142,12 @@ jobs:
           path: sdks/python/pytest**.xml
       - name: "Python Unit Tests Status Report"
         if: always()
-        with:
-          name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
         run: echo $name
         env:
+          name: unit-tests-${{matrix.os}}-${{matrix.params.py_ver}}
           jobstatus: ${{ job.status }}
           statusbasictestsunix: ${{ steps.python_unit_tests-unix.outcome }}
-          namebasictestsunix: Run tests basic unix
+          statusbasictestwindows: ${{ steps.python_unit_tests-windows.outcome }}
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
