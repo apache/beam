@@ -2008,8 +2008,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                   lambda *cols: pd.Series(
                       {col: value for col, value in zip(col_names, cols)}),
                 [col._expr for col in aggregated_cols],
-                requires_partition_by=partitionings.Singleton(),
-                proxy=projected._expr.proxy().agg(func, *args, **kwargs)))
+                requires_partition_by=partitionings.Singleton()))
         elif isinstance(proxy, pd.DataFrame):
           return frame_base.DeferredFrame.wrap(
               expressions.ComputedExpression(
