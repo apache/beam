@@ -62,7 +62,7 @@ public final class PubsubMessages {
   public static PubsubMessage fromProto(com.google.pubsub.v1.PubsubMessage proto) {
     if (!proto.getOrderingKey().isEmpty()) {
       LOG.warn(
-          "Dropping ordering key for message id `%s` with key `%s`.",
+          "Dropping ordering key for message id `{}` with key `{}`.",
           proto.getMessageId(), proto.getOrderingKey());
     }
     return new PubsubMessage(
