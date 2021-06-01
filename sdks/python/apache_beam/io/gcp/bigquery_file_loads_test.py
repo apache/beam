@@ -840,7 +840,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(state_matcher, bq_matcher), streaming=True)
+        on_success_matcher=all_of(state_matcher, bq_matcher),
+        streaming=True,
+        allow_unsafe_triggers=True)
     with beam.Pipeline(argv=args) as p:
       stream_source = (
           TestStream().advance_watermark_to(0).advance_processing_time(
