@@ -46,6 +46,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 DEFAULT_GCP_PROJECT = 'apache-beam-testing'
+DEFAULT_PROJECT_NUMBER = 1
 
 
 class FakeGcsClient(object):
@@ -89,7 +90,7 @@ class FakeGcsBuckets(object):
     pass
 
   def get_bucket(self, bucket):
-    return storage.Bucket(id=DEFAULT_GCP_PROJECT, name=bucket)
+    return storage.Bucket(name=bucket, projectNumber=DEFAULT_PROJECT_NUMBER)
 
   def Get(self, get_request):
     return self.get_bucket(get_request.bucket)
@@ -779,7 +780,7 @@ class TestGCSIO(unittest.TestCase):
         monitoring_infos.METHOD_LABEL: 'Objects.get',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_GCP_PROJECT,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_PROJECT_NUMBER,
         monitoring_infos.STATUS_LABEL: 'ok'
     }
 
@@ -802,7 +803,7 @@ class TestGCSIO(unittest.TestCase):
         monitoring_infos.METHOD_LABEL: 'Objects.insert',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_GCP_PROJECT,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_PROJECT_NUMBER,
         monitoring_infos.STATUS_LABEL: 'ok'
     }
 

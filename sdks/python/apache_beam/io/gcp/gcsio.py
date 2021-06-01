@@ -156,6 +156,14 @@ class GcsIO(object):
           response_encoding='utf8')
     self.client = storage_client
     self._rewrite_cb = None
+    self.bucket_to_project_number = {}
+
+  def get_project_number(self, bucket):
+    if bucket not in self.bucket_to_project_number:
+      bucket_metadata = self.get_bucket(bucket_name=bucket)
+      self.bucket_to_project_number[bucket] = bucket_metadata.projectNumber
+
+    return self.bucket_to_project_number[bucket]
 
   def _set_rewrite_response_callback(self, callback):
     """For testing purposes only. No backward compatibility guarantees.
@@ -211,13 +219,20 @@ class GcsIO(object):
     """
     if mode == 'r' or mode == 'rb':
       downloader = GcsDownloader(
-          self.client, filename, buffer_size=read_buffer_size)
+          self.client,
+          filename,
+          buffer_size=read_buffer_size,
+          get_project_number=self.get_project_number)
       return io.BufferedReader(
           DownloaderStream(
               downloader, read_buffer_size=read_buffer_size, mode=mode),
           buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
-      uploader = GcsUploader(self.client, filename, mime_type)
+      uploader = GcsUploader(
+          self.client,
+          filename,
+          mime_type,
+          get_project_number=self.get_project_number)
       return io.BufferedWriter(
           UploaderStream(uploader, mode=mode), buffer_size=128 * 1024)
     else:
@@ -558,17 +573,14 @@ class GcsIO(object):
 
 
 class GcsDownloader(Downloader):
-  def __init__(self, client, path, buffer_size):
+  def __init__(self, client, path, buffer_size, get_project_number):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._buffer_size = buffer_size
+    self._get_project_number = get_project_number
 
-    # Get object bucket
-    projectId = None
-    bucket_metadata = self._get_bucket(bucket_name=self._bucket)
-    if bucket_metadata:
-      projectId = bucket_metadata.id
+    project_number = self._get_project_number(self._bucket)
 
     # Create a request count metric
     resource = resource_identifiers.GoogleCloudStorage(self._bucket)
@@ -577,7 +589,7 @@ class GcsDownloader(Downloader):
         monitoring_infos.METHOD_LABEL: 'Objects.get',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: projectId
+        monitoring_infos.GCS_PROJECT_ID_LABEL: project_number
     }
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
@@ -622,14 +634,6 @@ class GcsDownloader(Downloader):
   def _get_object_metadata(self, get_request):
     return self._client.objects.Get(get_request)
 
-  def _get_bucket(self, bucket_name):
-    """Returns a bucket from its name, or None if it does not exist."""
-    try:
-      request = storage.StorageBucketsGetRequest(bucket=bucket_name)
-      return self._client.buckets.Get(request)
-    except HttpError:
-      return None
-
   @property
   def size(self):
     return self._size
@@ -642,12 +646,12 @@ class GcsDownloader(Downloader):
 
 
 class GcsUploader(Uploader):
-  def __init__(self, client, path, mime_type):
+  def __init__(self, client, path, mime_type, get_project_number):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._mime_type = mime_type
-    self._bucket_metadata = self._get_bucket(bucket_name=self._bucket)
+    self._get_project_number = get_project_number
 
     # Set up communication with child thread.
     parent_conn, child_conn = multiprocessing.Pipe()
@@ -682,9 +686,7 @@ class GcsUploader(Uploader):
     # The uploader by default transfers data in chunks of 1024 * 1024 bytes at
     # a time, buffering writes until that size is reached.
 
-    projectId = None
-    if self._bucket_metadata:
-      projectId = self._bucket_metadata.id
+    project_number = self._get_project_number(self._bucket)
 
     # Create a request count metric
     resource = resource_identifiers.GoogleCloudStorage(self._bucket)
@@ -693,7 +695,7 @@ class GcsUploader(Uploader):
         monitoring_infos.METHOD_LABEL: 'Objects.insert',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: projectId
+        monitoring_infos.GCS_PROJECT_ID_LABEL: project_number
     }
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
@@ -727,11 +729,3 @@ class GcsUploader(Uploader):
     # Check for exception since the last put() call.
     if self._upload_thread.last_error is not None:
       raise self._upload_thread.last_error  # pylint: disable=raising-bad-type
-
-  def _get_bucket(self, bucket_name):
-    """Returns a bucket from its name, or None if it does not exist."""
-    try:
-      request = storage.StorageBucketsGetRequest(bucket=bucket_name)
-      return self._client.buckets.Get(request)
-    except HttpError:
-      return None
