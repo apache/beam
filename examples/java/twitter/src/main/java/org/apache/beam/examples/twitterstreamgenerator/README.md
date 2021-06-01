@@ -34,6 +34,7 @@ This directory contains an example pipelines for how to perform continues stream
 
 - Java 8
 - Twitter developer app account and streaming credentials.
+- Direct runner or Flink runner.
 
 This section describes what is needed to get the example up and running.
 
