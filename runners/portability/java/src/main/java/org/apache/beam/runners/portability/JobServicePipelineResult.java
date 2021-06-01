@@ -54,7 +54,10 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   private org.apache.beam.model.jobmanagement.v1.JobApi.MetricResults jobMetrics;
 
   JobServicePipelineResult(
-      ByteString jobId, int jobServerTimeout, CloseableResource<JobServiceBlockingStub> jobService, Runnable cleanup) {
+      ByteString jobId,
+      int jobServerTimeout,
+      CloseableResource<JobServiceBlockingStub> jobService,
+      Runnable cleanup) {
     this.jobId = jobId;
     this.jobServerTimeout = jobServerTimeout;
     this.jobService = jobService;
@@ -67,7 +70,8 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
     if (terminalState != null) {
       return terminalState;
     }
-    JobServiceBlockingStub stub = jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
+    JobServiceBlockingStub stub =
+        jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
     JobStateEvent response =
         stub.getState(GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build());
     return getJavaState(response.getState());
@@ -137,7 +141,8 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   }
 
   private void waitForTerminalState() {
-    JobServiceBlockingStub stub = jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
+    JobServiceBlockingStub stub =
+        jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
     GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build();
     JobStateEvent response = stub.getState(request);
     State lastState = getJavaState(response.getState());
@@ -159,7 +164,10 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
       JobMessagesRequest messageStreamRequest =
           JobMessagesRequest.newBuilder().setJobIdBytes(jobId).build();
       Iterator<JobMessagesResponse> messageStreamIterator =
-          jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS).getMessageStream(messageStreamRequest);
+          jobService
+              .get()
+              .withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS)
+              .getMessageStream(messageStreamRequest);
       while (messageStreamIterator.hasNext()) {
         JobMessage messageResponse = messageStreamIterator.next().getMessageResponse();
         if (messageResponse.getImportance() == JobMessage.MessageImportance.JOB_MESSAGE_ERROR) {
