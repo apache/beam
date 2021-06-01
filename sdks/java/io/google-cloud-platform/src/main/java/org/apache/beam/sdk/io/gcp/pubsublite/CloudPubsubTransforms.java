@@ -18,20 +18,21 @@
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import static com.google.cloud.pubsublite.cloudpubsub.MessageTransforms.toCpsPublishTransformer;
+import static com.google.cloud.pubsublite.cloudpubsub.MessageTransforms.toCpsSubscribeTransformer;
 
 import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A class providing a conversion validity check between Cloud Pub/Sub and Pub/Sub Lite message
- * types.
- */
-public final class CloudPubsubChecks {
-  private CloudPubsubChecks() {}
+/** A class providing transforms between Cloud Pub/Sub and Pub/Sub Lite message types. */
+public final class CloudPubsubTransforms {
+  private CloudPubsubTransforms() {}
 
   /**
    * Ensure that all messages that pass through can be converted to Cloud Pub/Sub messages using the
@@ -47,5 +48,22 @@ public final class CloudPubsubChecks {
               Object unused = toCpsPublishTransformer().transform(Message.fromProto(message));
               return message;
             });
+  }
+
+  /**
+   * Transform messages read from Pub/Sub Lite to their equivalent Cloud Pub/Sub Message that would
+   * have been read from PubsubIO.
+   *
+   * <p>Will fail the pipeline if a message has multiple attributes per map key.
+   */
+  public static PTransform<PCollection<? extends SequencedMessage>, PCollection<PubsubMessage>>
+      toCloudPubsubMessages() {
+    return MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+        .via(
+            message ->
+                PubsubMessages.fromProto(
+                    toCpsSubscribeTransformer()
+                        .transform(
+                            com.google.cloud.pubsublite.SequencedMessage.fromProto(message))));
   }
 }
