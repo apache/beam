@@ -223,14 +223,14 @@ task runPerformanceTest(type: Exec) {
 
   def test = project.findProperty('test')
   def suite = "runPerformanceTest-df${pythonVersionSuffix}"
-  def xUnitFile ="pytest-${suite}.xml"
+  def xUnitFile ="nosetests_pytest-${suite}.xml" // TODO(BEAM-3713) Remove nosetests_ prefix before merge (Testing)
 
   def testOpts = project.findProperty('test-pipeline-options')
   testOpts += " --sdk_location=${files(configurations.distTarBall.files).singleFile}"
 
   setWorkingDir "${project.rootDir}/sdks/python"
   commandLine 'sh', '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
-              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile}"
+              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=1800"
 }
 
 task mongodbioIT {
