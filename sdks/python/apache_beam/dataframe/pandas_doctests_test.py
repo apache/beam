@@ -449,12 +449,17 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", "b"]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
-                # Grouping by a series is not supported
-                'ser.groupby(ser > 100).mean()',
             ],
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
+            'pandas.core.series.Series.groupby': [
+                # TODO(BEAM-11393): This example requires aligning two series
+                # with non-unique indexes. It only works in pandas because
+                # pandas can recognize the indexes are identical and elide the
+                # alignment.
+                'ser.groupby(ser > 100).mean()',
+            ],
             # error formatting
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
