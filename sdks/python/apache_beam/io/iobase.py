@@ -1227,11 +1227,11 @@ def _finalize_write(
 
 class _RoundRobinKeyFn(core.DoFn):
   def start_bundle(self):
-    self.counter = random.random()
+    self.counter = None
 
   def process(self, element, count):
-    if self.counter < 1:
-      self.counter = int(self.counter * count)
+    if self.counter is None:
+      self.counter = int(random.random() * count)
     self.counter = (1 + self.counter) % count
     yield self.counter, element
 
