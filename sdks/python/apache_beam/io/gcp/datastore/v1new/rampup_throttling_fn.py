@@ -5,6 +5,7 @@ from typing import TypeVar
 
 from apache_beam import typehints
 from apache_beam.io.gcp.datastore.v1new import util
+from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import DoFn
 from apache_beam.utils.retry import FuzzedExponentialIntervals
 
@@ -43,6 +44,8 @@ class RampupThrottlingFn(DoFn):
     self._num_workers = num_workers
     self._successful_ops = util.MovingSum(window_ms=1000, bucket_ms=1000)
     self._first_instant = datetime.datetime.now()
+    self._throttled_secs = Metrics.counter(
+        RampupThrottlingFn, "cumulativeThrottlingSeconds")
 
   def _calc_max_ops_budget(
       self,
@@ -50,7 +53,7 @@ class RampupThrottlingFn(DoFn):
       current_instant: datetime.datetime):
     """Function that returns per-second budget according to best practices.
 
-    The exact function is `500 / num_shards * 1.5^max(0, (x-5)/5)`, where x is
+    The exact function is `500 / num_workers * 1.5^max(0, (x-5)/5)`, where x is
     the number of minutes since start time.
     """
     timedelta_since_first = current_instant - first_instant
@@ -78,3 +81,4 @@ class RampupThrottlingFn(DoFn):
         backoff_ms = next(backoff)
         _LOG.info('Delaying by %sms to conform to gradual ramp-up.', backoff_ms)
         time.sleep(backoff_ms)
+        self._throttled_secs.inc(backoff_ms)
