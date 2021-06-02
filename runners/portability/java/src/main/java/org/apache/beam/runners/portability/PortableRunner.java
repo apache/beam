@@ -209,8 +209,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
       // Run the job and wait for a result, we don't set a timeout here because
       // it may take a long time for a job to complete and streaming
-      // jobs currently never return a response.
-      RunJobResponse runJobResponse = jobService.withDeadline(null).run(runJobRequest);
+      // jobs never return a response.
+      RunJobResponse runJobResponse = jobService.run(runJobRequest);
 
       LOG.info("RunJobResponse: {}", runJobResponse);
       ByteString jobId = runJobResponse.getJobIdBytes();

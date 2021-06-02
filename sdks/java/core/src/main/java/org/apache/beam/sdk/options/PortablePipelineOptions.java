@@ -38,7 +38,7 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
       "Job service request timeout in seconds. The timeout "
           + "determines the max time the driver program will wait to "
           + "get a response from the job server. NOTE: the timeout does not "
-          + "apply to the actual pipeline run time. The driver program can "
+          + "apply to the actual pipeline run time. The driver program will "
           + "still wait for job completion indefinitely.")
   @Default.Integer(60)
   int getJobServerTimeout();
