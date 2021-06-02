@@ -318,9 +318,20 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           preserves_partition_by=partitionings.Singleton())
 
       orig_nlevels = self._expr.proxy().index.nlevels
+
+      def prepend_mapped_index(df):
+        df = df.copy()
+
+        index = df.index.to_frame()
+        index.insert(0, None, df.index.map(by))
+
+        df.index = pd.MultiIndex.from_frame(
+            index, names=[None] + list(df.index.names))
+        return df
+
       to_group_with_index = expressions.ComputedExpression(
           'map_index_keep_orig',
-          lambda df: df.set_index([df.index.map(by), df.index], drop=False),
+          prepend_mapped_index,
           [self._expr],
           requires_partition_by=partitionings.Arbitrary(),
           # Partitioning by the original indexes is preserved
