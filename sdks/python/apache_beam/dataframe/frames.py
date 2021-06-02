@@ -397,6 +397,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         grouping_indexes=grouping_indexes)
 
   abs = frame_base._elementwise_method('abs', base=pd.core.generic.NDFrame)
+  # TODO: Disallow astype('category')
   astype = frame_base._elementwise_method(
       'astype', base=pd.core.generic.NDFrame)
   copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
@@ -1447,6 +1448,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   def str(self):
     return _DeferredStringMethods(self._expr)
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
+  def cat(self):
+    return _DeferredCategoricalMethods(self._expr)
 
   apply = frame_base._elementwise_method('apply', base=pd.Series)
   map = frame_base._elementwise_method('map', base=pd.Series)
@@ -3318,6 +3324,60 @@ for method in ELEMENTWISE_STRING_METHODS:
           frame_base._elementwise_method(make_str_func(method),
                                          name=method,
                                          base=pd.core.strings.StringMethods))
+
+
+def make_cat_func(method):
+  def func(df, *args, **kwargs):
+    return getattr(df.cat, method)(*args, **kwargs)
+
+  return func
+
+
+class _DeferredCategoricalMethods(frame_base.DeferredBase):
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
+  def categories(self):
+    return self._expr.proxy().cat.categories
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
+  def ordered(self):
+    return self._expr.proxy().cat.ordered
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
+  def codes(self):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'codes',
+            lambda s: s.cat.codes,
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary(),
+        )
+    )
+
+  remove_unused_categories = frame_base.wont_implement_method(
+      pd.core.arrays.categorical.CategoricalAccessor,
+      'remove_unused_categories', reason="non-deferred-columns")
+
+ELEMENTWISE_CATEGORICAL_METHODS = [
+    'add_categories',
+    'as_ordered',
+    'as_unordered',
+    'remove_categories',
+    'rename_categories',
+    'reorder_categories',
+    'set_categories',
+]
+
+for method in ELEMENTWISE_CATEGORICAL_METHODS:
+  setattr(_DeferredCategoricalMethods,
+          method,
+          frame_base._elementwise_method(
+              make_cat_func(method), name=method,
+              base=pd.core.arrays.categorical.CategoricalAccessor))
+
 
 for base in ['add',
              'sub',
