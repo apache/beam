@@ -25,6 +25,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi.ArrayType;
+import org.apache.beam.model.pipeline.v1.SchemaApi.ArrayTypeValue;
+import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicType;
+import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicTypeValue;
+import org.apache.beam.model.pipeline.v1.SchemaApi.FieldValue;
+import org.apache.beam.model.pipeline.v1.SchemaApi.LogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -32,6 +38,8 @@ import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -172,6 +180,108 @@ public class SchemaTranslationTest {
 
       Schema decodedSchema = SchemaTranslation.schemaFromProto(schemaProto);
       assertThat(decodedSchema, equalTo(schema));
+    }
+  }
+
+  /** Tests round-trip proto encodings for {@link Schema}. */
+  @RunWith(Parameterized.class)
+  public static class FromProtoToProtoTest {
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<SchemaApi.Schema> data() {
+      SchemaApi.Schema.Builder builder = SchemaApi.Schema.newBuilder();
+      // A go 'int'
+      builder.addFields(
+          SchemaApi.Field.newBuilder()
+              .setName("goInt")
+              .setDescription("An int from go")
+              .setType(
+                  SchemaApi.FieldType.newBuilder()
+                      .setLogicalType(
+                          SchemaApi.LogicalType.newBuilder()
+                              .setUrn("gosdk:int")
+                              .setRepresentation(
+                                  SchemaApi.FieldType.newBuilder()
+                                      .setAtomicType(SchemaApi.AtomicType.INT64))
+                              .build()))
+              .setId(0)
+              .setEncodingPosition(0)
+              .build());
+      // A pickled python object
+      builder.addFields(
+          SchemaApi.Field.newBuilder()
+              .setName("pythonObject")
+              .setType(
+                  SchemaApi.FieldType.newBuilder()
+                      .setLogicalType(
+                          SchemaApi.LogicalType.newBuilder()
+                              .setUrn("pythonsdk:value")
+                              .setPayload(
+                                  ByteString.copyFrom(
+                                      "some payload describing a python type", Charsets.UTF_8))
+                              .setRepresentation(
+                                  SchemaApi.FieldType.newBuilder()
+                                      .setAtomicType(SchemaApi.AtomicType.BYTES))
+                              .build()))
+              .setId(1)
+              .setEncodingPosition(1)
+              .build());
+      // An enum logical type that Java doesn't know about
+      builder.addFields(
+          SchemaApi.Field.newBuilder()
+              .setName("enum")
+              .setType(
+                  SchemaApi.FieldType.newBuilder()
+                      .setLogicalType(
+                          LogicalType.newBuilder()
+                              .setUrn("strange_enum")
+                              .setArgumentType(
+                                  SchemaApi.FieldType.newBuilder()
+                                      .setArrayType(
+                                          ArrayType.newBuilder()
+                                              .setElementType(
+                                                  SchemaApi.FieldType.newBuilder()
+                                                      .setAtomicType(AtomicType.STRING))))
+                              .setArgument(
+                                  FieldValue.newBuilder()
+                                      .setArrayValue(
+                                          ArrayTypeValue.newBuilder()
+                                              .addElement(
+                                                  FieldValue.newBuilder()
+                                                      .setAtomicValue(
+                                                          AtomicTypeValue.newBuilder()
+                                                              .setString("FOO")
+                                                              .build())
+                                                      .build())
+                                              .addElement(
+                                                  FieldValue.newBuilder()
+                                                      .setAtomicValue(
+                                                          AtomicTypeValue.newBuilder()
+                                                              .setString("BAR")
+                                                              .build())
+                                                      .build())
+                                              .build())
+                                      .build())
+                              .setRepresentation(
+                                  SchemaApi.FieldType.newBuilder().setAtomicType(AtomicType.BYTE))
+                              .build()))
+              .setId(2)
+              .setEncodingPosition(2)
+              .build());
+      SchemaApi.Schema unknownLogicalTypeSchema = builder.build();
+
+      return ImmutableList.<SchemaApi.Schema>builder().add(unknownLogicalTypeSchema).build();
+    }
+
+    @Parameter(0)
+    public SchemaApi.Schema schemaProto;
+
+    @Test
+    public void fromProtoAndToProto() throws Exception {
+      Schema decodedSchema = SchemaTranslation.schemaFromProto(schemaProto);
+
+      SchemaApi.Schema reencodedSchemaProto = SchemaTranslation.schemaToProto(decodedSchema, true);
+
+      assertThat(reencodedSchemaProto, equalTo(schemaProto));
     }
   }
 }
