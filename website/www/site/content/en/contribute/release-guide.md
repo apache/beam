@@ -882,7 +882,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   ```
   **Flink Local Runner**
   ```
-  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.13:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
