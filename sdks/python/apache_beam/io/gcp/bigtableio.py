@@ -40,7 +40,9 @@ those generated rows in the table.
 import logging
 
 import apache_beam as beam
+from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.metrics import Metrics
+from apache_beam.metrics import monitoring_infos
 from apache_beam.transforms.display import DisplayDataItem
 
 _LOGGER = logging.getLogger(__name__)
@@ -110,6 +112,18 @@ class _BigTableWriteFn(beam.DoFn):
 
   def finish_bundle(self):
     self.batcher.flush()
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'BigTable',
+        monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
+        monitoring_infos.RESOURCE_LABEL: self.table.nam,
+        monitoring_infos.BIGTABLE_PROJECT_ID: self.beam_options['project_id'],
+        monitoring_infos.INSANCE_ID: self.beam_options['instance_id'],
+        monitoring_infos.TABLE_ID: self.beam_options['table_id']
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+    service_call_metric.call('ok')
     self.batcher = None
 
   def display_data(self):
