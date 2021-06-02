@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-"""Test for the wordcount example."""
+"""Test for the flight delay example."""
 
 # pytype: skip-file
 

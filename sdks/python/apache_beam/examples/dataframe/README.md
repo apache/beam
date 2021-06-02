@@ -169,7 +169,7 @@ python -m apache_beam.examples.dataframe.flight_delays \
 Note a GCP `project` and `temp_location` are required for reading from BigQuery.
 
 This will produce files like
-`gs://<bucket>/<dir>/delays.csv-2012-12-23T00:00:00-2012-12-24T00:00:00-XXXXX-of-YYYYY`
+`gs://<bucket>/<dir>/delays.csv-2012-12-24T00:00:00-2012-12-25T00:00:00-XXXXX-of-YYYYY`
 with contents tracking average delays per airline on that day, for example:
 ```
 airline,departure_delay,arrival_delay

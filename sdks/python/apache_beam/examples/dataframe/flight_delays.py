@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""A word-counting workflow using dataframes."""
+"""A pipeline using dataframes to compute typical flight delay times."""
 
 # pytype: skip-file
 
@@ -29,23 +29,28 @@ from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.options.pipeline_options import PipelineOptions
 
 
-def get_delay_at_top_airports(aa):
-  arr = aa.rename(columns={'arrival_airport': 'airport'}).airport.value_counts()
-  dep = aa.rename(columns={
+def get_mean_delay_at_top_airports(airline_df):
+  arr = airline_df.rename(columns={
+      'arrival_airport': 'airport'
+  }).airport.value_counts()
+  dep = airline_df.rename(columns={
       'departure_airport': 'airport'
   }).airport.value_counts()
   total = arr + dep
   # Note we keep all to include duplicates.
   # This ensures the result is deterministic
   top_airports = total.nlargest(10, keep='all')
-  return aa[aa['arrival_airport'].isin(top_airports.index.values)].mean()
+  at_top_airports = airline_df['arrival_airport'].isin(
+      top_airports.index.values)
+  return airline_df[at_top_airports].mean()
 
 
 def input_date(date):
   import datetime
   parsed = datetime.datetime.strptime(date, '%Y-%m-%d')
-  if parsed > datetime.datetime(2012, 12, 31):
-    raise ValueError("There's no data after 2012-12-31")
+  if (parsed > datetime.datetime(2012, 12, 31) or
+      parsed < datetime.datetime(2002, 1, 1)):
+    raise ValueError("There's only data from 2002-01-01 to 2012-12-31")
   return date
 
 
@@ -77,8 +82,10 @@ def run_flight_delay_pipeline(
         p
         | 'read table' >> beam.io.ReadFromBigQuery(
             query=query, use_standard_sql=True)
-        | 'assign ts' >>
+        | 'assign timestamp' >>
         beam.Map(lambda x: window.TimestampedValue(x, to_unixtime(x['date'])))
+        # Use beam.Select to make sure data has a schema
+        # The casts in lambdas ensure data types are properly inferred
         | 'set schema' >> beam.Select(
             date=lambda x: str(x['date']),
             airline=lambda x: str(x['airline']),
@@ -86,17 +93,18 @@ def run_flight_delay_pipeline(
             arrival_airport=lambda x: str(x['arrival_airport']),
             departure_delay=lambda x: float(x['departure_delay']),
             arrival_delay=lambda x: float(x['arrival_delay'])))
+
     daily = tbl | 'daily windows' >> beam.WindowInto(
         beam.window.FixedWindows(60 * 60 * 24))
 
     # group the flights data by carrier
     df = to_dataframe(daily)
-    result = df.groupby('airline').apply(get_delay_at_top_airports)
+    result = df.groupby('airline').apply(get_mean_delay_at_top_airports)
     result.to_csv(output)
 
 
 def run(argv=None):
-  """Main entry point; defines and runs the wordcount pipeline."""
+  """Main entry point; defines and runs the flight delay pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--start_date',
