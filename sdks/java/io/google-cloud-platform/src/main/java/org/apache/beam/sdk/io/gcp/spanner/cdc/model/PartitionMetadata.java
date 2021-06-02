@@ -15,14 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import com.google.cloud.Timestamp;
+import java.io.Serializable;
+import org.apache.avro.reflect.AvroEncode;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** Model for the partition metadata database table used in the Connector. */
-public class PartitionMetadata {
+@DefaultCoder(AvroCoder.class)
+public class PartitionMetadata implements Serializable {
+
+  private static final long serialVersionUID = 995720273301116075L;
 
   public enum State {
     // The partition has been discovered and is waiting to be started
@@ -39,10 +47,12 @@ public class PartitionMetadata {
   // Unique partition token of the parent that generated this partition.
   private String parentToken;
   // Start timestamp, used to query the partition.
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
   // Whether the start timestamp is inclusive or exclusive.
   private boolean inclusiveStart;
   // The end timestamp, used to query the partition
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp endTimestamp;
   // Whether the end timestamp is inclusive or exclusive.
   private boolean inclusiveEnd;
@@ -52,9 +62,16 @@ public class PartitionMetadata {
   // The current state of the partition in the Connector.
   private State state;
   // When the row was inserted.
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp createdAt;
   // When the row was updated.
+  @AvroEncode(using = TimestampEncoding.class)
   private Timestamp updatedAt;
+
+  /**
+   * Default constructor for serialization only.
+   */
+  private PartitionMetadata() {}
 
   PartitionMetadata(
       String partitionToken,

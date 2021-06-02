@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import org.apache.beam.sdk.io.gcp.spanner.cdc.usermodel.DataChangesRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 

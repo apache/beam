@@ -15,22 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc.usermodel;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import java.io.Serializable;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 
-public class PartitionId implements Serializable {
+@DefaultCoder(AvroCoder.class)
+public class RecordSequence implements Serializable, Comparable<RecordSequence> {
 
-  private static final long serialVersionUID = 9087342795255952870L;
+  private static final long serialVersionUID = -854139231254129678L;
 
-  private long value;
+  private Long value;
 
-  public static PartitionId of(long value) {
-    return new PartitionId(value);
+  public static RecordSequence of(Long value) {
+    return new RecordSequence(value);
   }
 
-  public PartitionId(long value) {
+  /**
+   * Default constructor for serialization only.
+   */
+  private RecordSequence() {}
+
+  public RecordSequence(Long value) {
     this.value = value;
   }
 
@@ -38,7 +46,7 @@ public class PartitionId implements Serializable {
     return value;
   }
 
-  public void setValue(long value) {
+  public void setValue(Long value) {
     this.value = value;
   }
 
@@ -50,12 +58,17 @@ public class PartitionId implements Serializable {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    PartitionId that = (PartitionId) o;
-    return value == that.value;
+    RecordSequence that = (RecordSequence) o;
+    return Objects.equals(value, that.value);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(value);
+  }
+
+  @Override
+  public int compareTo(RecordSequence other) {
+    return Long.compare(this.value, other.value);
   }
 }
