@@ -17,4 +17,4 @@
  */
 
 /** Kafka to Pubsub template. */
-package org.apache.beam.examples.complete.twitterstreamgenerator;
+package org.apache.beam.examples.twitterstreamgenerator;
