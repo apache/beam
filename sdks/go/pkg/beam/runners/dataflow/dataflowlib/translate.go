@@ -32,7 +32,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pubsub_v1 "github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio/v1"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
@@ -245,40 +244,6 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		prop.ParallelInput = x.pcollections[in]
 		prop.SerializedFn = encodeSerializedFn(x.extractWindowingStrategy(out))
 		return []*df.Step{x.newStep(id, windowIntoKind, prop)}, nil
-
-	case pubsub_v1.PubSubPayloadURN:
-		// Translate to native handling of PubSub I/O.
-
-		var msg pubsub_v1.PubSubPayload
-		if err := proto.Unmarshal(t.Spec.Payload, &msg); err != nil {
-			return nil, errors.Wrap(err, "bad pubsub payload")
-		}
-
-		prop.Format = "pubsub"
-		prop.PubSubTopic = msg.GetTopic()
-		prop.PubSubSubscription = msg.GetSubscription()
-		prop.PubSubIDLabel = msg.GetIdAttribute()
-		prop.PubSubTimestampLabel = msg.GetTimestampAttribute()
-		prop.PubSubWithAttributes = msg.GetWithAttributes()
-
-		if prop.PubSubSubscription != "" {
-			prop.PubSubTopic = ""
-		}
-
-		switch msg.Op {
-		case pubsub_v1.PubSubPayload_READ:
-			return []*df.Step{x.newStep(id, readKind, prop)}, nil
-
-		case pubsub_v1.PubSubPayload_WRITE:
-			in := stringx.SingleValue(t.Inputs)
-
-			prop.ParallelInput = x.pcollections[in]
-			prop.Encoding = x.wrapCoder(x.comp.Pcollections[in], coder.NewBytes())
-			return []*df.Step{x.newStep(id, writeKind, prop)}, nil
-
-		default:
-			return nil, errors.Errorf("bad pubsub op: %v", msg.Op)
-		}
 
 	default:
 		if len(t.Subtransforms) > 0 {

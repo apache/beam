@@ -96,7 +96,6 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.testcontainers_postgresql
   testCompile library.java.netty_all
-  testRuntimeOnly library.java.log4j_core
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 

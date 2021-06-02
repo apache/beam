@@ -47,7 +47,7 @@ var (
 	TypexImport    = "github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	ReflectxImport = "github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	RuntimeImport  = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	SchemaImport   = "github.com/apache/beam/sdks/go/pkg/beam/core/graphx/schema"
+	SchemaImport   = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 )
 
 func validateBeamImports() {

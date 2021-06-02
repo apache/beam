@@ -19,11 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
-from builtins import object
 
 from hamcrest import assert_that
 from hamcrest import contains_string

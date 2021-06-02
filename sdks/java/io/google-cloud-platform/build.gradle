@@ -121,7 +121,7 @@ dependencies {
   compile library.java.protobuf_java
   compile library.java.protobuf_java_util
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile library.java.vendored_guava_26_0_jre
 
   compile "org.threeten:threetenbp:1.4.4"

@@ -2846,7 +2846,6 @@ public class BigQueryIO {
         StorageApiLoads<DestinationT, T> storageApiLoads =
             new StorageApiLoads<DestinationT, T>(
                 destinationCoder,
-                elementCoder,
                 storageApiDynamicDestinations,
                 getCreateDisposition(),
                 getKmsKey(),

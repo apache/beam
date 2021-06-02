@@ -49,7 +49,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 * [Model export and on-worker serving using BQML and TFX_BSL](/documentation/patterns/bqml/#bigquery-ml-integration)
 
 **Cross-language patterns** - Patterns for creating cross-language pipelines
-* [](/documentation/patterns/cross-language/#cross-language-transforms)
+* [Cross-language patterns](/documentation/patterns/cross-language/#cross-language-transforms)
 
 ## Contributing a pattern
 

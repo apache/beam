@@ -65,16 +65,10 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import copy
 import logging
 import typing
-from builtins import next
-from builtins import zip
-
-from future.utils import with_metaclass
 
 __all__ = [
     'Any',
@@ -1038,8 +1032,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint)
-                             ):  # type: ignore[misc]
+class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.

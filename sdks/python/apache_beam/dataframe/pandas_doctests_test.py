@@ -82,7 +82,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.asof': ['*'],
             'pandas.core.generic.NDFrame.at_time': ['*'],
             'pandas.core.generic.NDFrame.between_time': ['*'],
-            'pandas.core.generic.NDFrame.describe': ['*'],
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
@@ -218,7 +217,14 @@ class DoctestTest(unittest.TestCase):
                 "df.melt(id_vars=[('A', 'D')], value_vars=[('B', 'E')])",
                 "df.melt(id_vars=['A'], value_vars=['B'],\n" +
                 "        var_name='myVarname', value_name='myValname')"
-            ]
+            ],
+            # Most keep= options are order-sensitive
+            'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
+            'pandas.core.frame.DataFrame.duplicated': [
+                'df.duplicated()',
+                "df.duplicated(keep='last')",
+                "df.duplicated(subset=['brand'])",
+            ],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
@@ -233,13 +239,6 @@ class DoctestTest(unittest.TestCase):
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
 
-            # We can implement this as a zipping operator, but it won't have the
-            # same capability. The doctest includes an example that branches on
-            # a deferred result.
-            'pandas.core.frame.DataFrame.combine': ['*'],
-
-            # Can be implemented as a zipping operator
-            'pandas.core.frame.DataFrame.combine_first': ['*'],
 
             # Difficult to parallelize but should be possible?
             'pandas.core.frame.DataFrame.dot': [
@@ -277,8 +276,6 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 'df.cov(min_periods=12)',
             ],
-            'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
-            'pandas.core.frame.DataFrame.duplicated': ['*'],
             'pandas.core.frame.DataFrame.idxmax': ['*'],
             'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.rename': [
@@ -415,6 +412,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
+            'pandas.core.series.Series.drop_duplicates': [
+                's.drop_duplicates()',
+                "s.drop_duplicates(keep='last')",
+            ],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -435,14 +436,11 @@ class DoctestTest(unittest.TestCase):
             # Throws NotImplementedError when modifying df
             'pandas.core.series.Series.transform': ['df'],
             'pandas.core.series.Series.autocorr': ['*'],
-            'pandas.core.series.Series.combine': ['*'],
-            'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
-            'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
@@ -595,7 +593,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
         },
         not_implemented_ok={
-            'pandas.core.groupby.groupby.GroupBy.describe': ['*'],
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
@@ -658,12 +655,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.filter': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': [
+                "df.groupby('id').filter(lambda g: (g.nunique() > 1).any())",
+            ],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.filter': ['*'],
-            'pandas.core.groupby.generic.SeriesGroupBy.describe': ['*'],
         },
         skip={
             'pandas.core.groupby.generic.SeriesGroupBy.cov': [

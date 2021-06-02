@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import http.server
 import json
 import logging
@@ -29,7 +27,6 @@ import re
 import sys
 import threading
 import traceback
-from builtins import object
 
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
@@ -123,6 +120,11 @@ def create_harness(environment, dry_run=False):
 
   try:
     _load_main_session(semi_persistent_directory)
+  except CorruptMainSessionException:
+    exception_details = traceback.format_exc()
+    _LOGGER.error(
+        'Could not load main session: %s', exception_details, exc_info=True)
+    raise
   except Exception:  # pylint: disable=broad-except
     exception_details = traceback.format_exc()
     _LOGGER.error(
@@ -154,12 +156,26 @@ def create_harness(environment, dry_run=False):
       profiler_factory=profiler.Profile.factory_from_options(
           sdk_pipeline_options.view_as(ProfilingOptions)),
       enable_heap_dump=enable_heap_dump)
-  return fn_log_handler, sdk_harness
+  return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
-  fn_log_handler, sdk_harness = create_harness(os.environ)
+  fn_log_handler, sdk_harness, sdk_pipeline_options = create_harness(os.environ)
+  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+  if 'enable_google_cloud_profiler' in experiments:
+    try:
+      import googlecloudprofiler
+      job_id = os.environ["JOB_ID"]
+      job_name = os.environ["JOB_NAME"]
+      if job_id and job_name:
+        googlecloudprofiler.start(
+            service=job_name, service_version=job_id, verbose=1)
+      else:
+        raise RuntimeError('Unable to find the job id or job name from envvar.')
+    except Exception as e:  # pylint: disable=broad-except
+      _LOGGER.warning(
+          'Unable to start google cloud profiler due to error: %s' % e)
   try:
     _LOGGER.info('Python sdk harness starting.')
     _start_status_server()
@@ -245,12 +261,29 @@ def _get_data_buffer_time_limit_ms(experiments):
   return 0
 
 
+class CorruptMainSessionException(Exception):
+  """
+  Used to crash this worker if a main session file was provided but
+  is not valid.
+  """
+  pass
+
+
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
   if semi_persistent_directory:
     session_file = os.path.join(
         semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
     if os.path.isfile(session_file):
+      # If the expected session file is present but empty, it's likely that
+      # the user code run by this worker will likely crash at runtime.
+      # This can happen if the worker fails to download the main session.
+      # Raise a fatal error and crash this worker, forcing a restart.
+      if os.path.getsize(session_file) == 0:
+        raise CorruptMainSessionException(
+            'Session file found, but empty: %s. Functions defined in __main__ '
+            '(interactive session) will almost certainly fail.' %
+            (session_file, ))
       pickler.load_session(session_file)
     else:
       _LOGGER.warning(

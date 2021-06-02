@@ -19,9 +19,6 @@
 """An integration test that labels entities appearing in a video and checks
 if some expected entities were properly recognized."""
 
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import unittest
 
 import hamcrest as hc

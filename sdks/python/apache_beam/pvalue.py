@@ -26,12 +26,8 @@ produced when the pipeline gets executed.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import itertools
-from builtins import hex
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -41,8 +37,6 @@ from typing import Optional
 from typing import Sequence
 from typing import TypeVar
 from typing import Union
-
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -333,7 +327,7 @@ class TaggedOutput(object):
   """
   def __init__(self, tag, value):
     # type: (str, Any) -> None
-    if not isinstance(tag, (str, unicode)):
+    if not isinstance(tag, str):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' %
           (tag, ))

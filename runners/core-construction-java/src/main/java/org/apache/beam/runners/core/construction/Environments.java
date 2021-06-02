@@ -47,8 +47,8 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -90,20 +90,23 @@ public class Environments {
           .build();
 
   public enum JavaVersion {
-    v8("java8", "1.8"),
-    v11("java11", "11");
+    java8("java", "1.8"),
+    java11("java11", "11"),
+    java17("java17", "17");
 
-    private final String name;
+    // Legacy name, as used in container image
+    private final String legacyName;
+
+    // Specification version (e.g. System java.specification.version)
     private final String specification;
 
-    JavaVersion(final String name, final String specification) {
-      this.name = name;
+    JavaVersion(final String legacyName, final String specification) {
+      this.legacyName = legacyName;
       this.specification = specification;
     }
 
-    @Override
-    public String toString() {
-      return this.name;
+    public String legacyName() {
+      return this.legacyName;
     }
 
     public String specification() {

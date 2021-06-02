@@ -82,7 +82,7 @@ dependencies {
   compile project(":runners:java-fn-execution")
   compile project(":sdks:java:fn-execution")
   compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile google_api_services_dataflow
   compile library.java.avro
   compile library.java.google_api_client

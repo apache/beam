@@ -754,8 +754,11 @@ message PubSubWritePayload {
 // Payload for GroupIntoBatches composite transform.
 message GroupIntoBatchesPayload {
 
-  // (Required) Max size of a batch.
+  // Max size of a batch.
   int64 batch_size = 1;
+
+  // Max byte size of a batch in element.
+  int64 batch_size_bytes = 3;
 
   // (Optional) Max duration a batch is allowed to be cached in states.
   int64 max_buffering_duration_millis = 2;

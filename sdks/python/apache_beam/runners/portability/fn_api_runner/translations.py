@@ -1076,10 +1076,6 @@ def pack_combiners(stages, context, can_pack=None):
       can_pack)
 
 
-def pack_all_combiners(stages, context):
-  yield from pack_combiners(stages, context, lambda name: True)
-
-
 def lift_combiners(stages, context):
   # type: (List[Stage], TransformContext) -> Iterator[Stage]
 

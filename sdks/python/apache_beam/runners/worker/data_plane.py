@@ -20,10 +20,6 @@
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import abc
 import collections
 import logging
@@ -31,11 +27,11 @@ import queue
 import sys
 import threading
 import time
-from builtins import object
-from builtins import range
+from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
+from typing import Collection
 from typing import DefaultDict
 from typing import Dict
 from typing import Iterable
@@ -49,8 +45,6 @@ from typing import Type
 from typing import Union
 
 import grpc
-from future.utils import raise_
-from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -59,20 +53,15 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 if TYPE_CHECKING:
-  # TODO(BEAM-9372): move this out of the TYPE_CHECKING scope when we drop
-  #  support for python < 3.5.3
-  from types import TracebackType
-  ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-  OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
-  # TODO: move this out of the TYPE_CHECKING scope when we drop support for
-  #  python < 3.6
-  from typing import Collection  # pylint: disable=ungrouped-imports
   import apache_beam.coders.slow_stream
   OutputStream = apache_beam.coders.slow_stream.OutputStream
-  DataOrTimers = \
-    Union[beam_fn_api_pb2.Elements.Data, beam_fn_api_pb2.Elements.Timers]
+  DataOrTimers = Union[beam_fn_api_pb2.Elements.Data,
+                       beam_fn_api_pb2.Elements.Timers]
 else:
   OutputStream = type(coder_impl.create_OutputStream())
+
+ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
+OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -226,7 +215,7 @@ class PeriodicThread(threading.Thread):
     self._finished.set()
 
 
-class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class DataChannel(metaclass=abc.ABCMeta):
   """Represents a channel for reading and writing data over the data plane.
 
   Read data and timer from this channel with the input_elements method::
@@ -424,7 +413,7 @@ class _GrpcDataChannel(DataChannel):
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
-    self._exc_info = None  # type: Optional[OptExcInfo]
+    self._exc_info = (None, None, None)  # type: OptExcInfo
 
   def close(self):
     # type: () -> None
@@ -473,9 +462,9 @@ class _GrpcDataChannel(DataChannel):
             raise RuntimeError('Channel closed prematurely.')
           if abort_callback():
             return
-          if self._exc_info:
-            t, v, tb = self._exc_info
-            raise_(t, v, tb)
+          t, v, tb = self._exc_info
+          if t:
+            raise t(v).with_traceback(tb)
         else:
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
@@ -641,13 +630,20 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
       yield elements
 
 
-class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class DataChannelFactory(metaclass=abc.ABCMeta):
   """An abstract factory for creating ``DataChannel``."""
   @abc.abstractmethod
   def create_data_channel(self, remote_grpc_port):
     # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
 
     """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def create_data_channel_from_url(self, url):
+    # type: (str) -> Optional[GrpcClientDataChannel]
+
+    """Returns a ``DataChannel`` from the given url."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod

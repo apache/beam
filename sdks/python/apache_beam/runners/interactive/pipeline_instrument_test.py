@@ -40,6 +40,9 @@ from apache_beam.testing.test_stream import TestStream
 
 
 class PipelineInstrumentTest(unittest.TestCase):
+  def setUp(self):
+    ie.new_env()
+
   def cache_key_of(self, name, pcoll):
     return repr(
         instr.CacheKey(
@@ -186,7 +189,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Add some extra PTransform afterwards to make sure that only the unbounded
     # sources remain.
-    c = (a, b) | beam.CoGroupByKey()
+    c = (a, b) | beam.Flatten()
     _ = c | beam.Map(lambda x: x)
 
     ib.watch(locals())

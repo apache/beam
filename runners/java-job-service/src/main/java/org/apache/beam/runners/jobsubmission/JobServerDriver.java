@@ -90,7 +90,11 @@ public abstract class JobServerDriver implements Runnable {
         usage = "The Java expansion service port. 0 to use a dynamic port. (Default: 8097)")
     private int expansionPort = 8097;
 
-    @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
+    @Option(
+        name = "--artifacts-dir",
+        usage =
+            "The location to store staged artifact files. "
+                + "If artifact staging is needed, this directory must be accessible by the execution engine's workers.")
     private String artifactStagingPath =
         Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
 

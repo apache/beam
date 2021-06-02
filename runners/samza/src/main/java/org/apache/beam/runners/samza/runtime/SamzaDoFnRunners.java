@@ -175,6 +175,7 @@ public class SamzaDoFnRunners {
       BagState<WindowedValue<InT>> bundledEventsBag,
       DoFnRunners.OutputManager outputManager,
       StageBundleFactory stageBundleFactory,
+      StateRequestHandler stateRequestHandler,
       TupleTag<FnOutT> mainOutputTag,
       Map<String, TupleTag<?>> idToTupleTagMap,
       Context context,
@@ -183,7 +184,12 @@ public class SamzaDoFnRunners {
         (SamzaExecutionContext) context.getApplicationContainerContext();
     final DoFnRunner<InT, FnOutT> sdkHarnessDoFnRunner =
         new SdkHarnessDoFnRunner<>(
-            outputManager, stageBundleFactory, mainOutputTag, idToTupleTagMap, bundledEventsBag);
+            outputManager,
+            stageBundleFactory,
+            mainOutputTag,
+            idToTupleTagMap,
+            bundledEventsBag,
+            stateRequestHandler);
     return DoFnRunnerWithMetrics.wrap(
         sdkHarnessDoFnRunner, executionContext.getMetricsContainer(), transformFullName);
   }
@@ -197,18 +203,21 @@ public class SamzaDoFnRunners {
     private final BagState<WindowedValue<InT>> bundledEventsBag;
     private RemoteBundle remoteBundle;
     private FnDataReceiver<WindowedValue<?>> inputReceiver;
+    private StateRequestHandler stateRequestHandler;
 
     private SdkHarnessDoFnRunner(
         DoFnRunners.OutputManager outputManager,
         StageBundleFactory stageBundleFactory,
         TupleTag<FnOutT> mainOutputTag,
         Map<String, TupleTag<?>> idToTupleTagMap,
-        BagState<WindowedValue<InT>> bundledEventsBag) {
+        BagState<WindowedValue<InT>> bundledEventsBag,
+        StateRequestHandler stateRequestHandler) {
       this.outputManager = outputManager;
       this.stageBundleFactory = stageBundleFactory;
       this.mainOutputTag = mainOutputTag;
       this.idToTupleTagMap = idToTupleTagMap;
       this.bundledEventsBag = bundledEventsBag;
+      this.stateRequestHandler = stateRequestHandler;
     }
 
     @Override
@@ -227,9 +236,7 @@ public class SamzaDoFnRunners {
 
         remoteBundle =
             stageBundleFactory.getBundle(
-                receiverFactory,
-                StateRequestHandler.unsupported(),
-                BundleProgressHandler.ignored());
+                receiverFactory, stateRequestHandler, BundleProgressHandler.ignored());
 
         // TODO: side input support needs to implement to handle this properly
         inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());

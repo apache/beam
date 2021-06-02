@@ -35,7 +35,7 @@ dependencies {
   compile project(":runners:java-fn-execution")
   compile project(":runners:java-job-service")
   compile project(path: ":sdks:java:harness", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile "org.hamcrest:hamcrest:2.1"
@@ -191,6 +191,13 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
 
       // https://issues.apache.org/jira/browse/BEAM-10452
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
+
+      // https://issues.apache.org/jira/browse/BEAM-12275
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSideInputAnnotationWithMultipleSideInputs'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMapAsEntrySetSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedMultimapAsEntrySetSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedMapAsEntrySetSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMultimapAsEntrySetSideInput'
 
       // https://issues.apache.org/jira/browse/BEAM-10995
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation'

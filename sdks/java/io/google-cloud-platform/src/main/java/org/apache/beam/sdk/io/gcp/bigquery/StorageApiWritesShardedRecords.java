@@ -26,7 +26,6 @@ import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
 import com.google.cloud.bigquery.storage.v1beta2.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
@@ -91,7 +90,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("FutureReturnValueIgnored")
 public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<ShardedKey<DestinationT>, Iterable<ElementT>>>, PCollection<Void>> {
+        PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>>, PCollection<Void>> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWritesShardedRecords.class);
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
@@ -104,7 +103,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
-          .expireAfterAccess(15, TimeUnit.MINUTES)
+          .expireAfterAccess(5, TimeUnit.MINUTES)
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
                 @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
@@ -152,7 +151,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
   @Override
   public PCollection<Void> expand(
-      PCollection<KV<ShardedKey<DestinationT>, Iterable<ElementT>>> input) {
+      PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>> input) {
     String operationName = input.getName() + "/" + getName();
     // Append records to the Storage API streams.
     PCollection<KV<String, Operation>> written =
@@ -194,11 +193,11 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
    * parameter controls how many rows are batched into a single ProtoRows object before we move on
    * to the next one.
    */
-  static class SplittingIterable<T extends Message> implements Iterable<ProtoRows> {
-    private final Iterable<T> underlying;
+  static class SplittingIterable implements Iterable<ProtoRows> {
+    private final Iterable<byte[]> underlying;
     private final long splitSize;
 
-    public SplittingIterable(Iterable<T> underlying, long splitSize) {
+    public SplittingIterable(Iterable<byte[]> underlying, long splitSize) {
       this.underlying = underlying;
       this.splitSize = splitSize;
     }
@@ -206,7 +205,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     @Override
     public Iterator<ProtoRows> iterator() {
       return new Iterator<ProtoRows>() {
-        final Iterator<T> underlyingIterator = underlying.iterator();
+        final Iterator<byte[]> underlyingIterator = underlying.iterator();
 
         @Override
         public boolean hasNext() {
@@ -222,7 +221,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
           ProtoRows.Builder inserts = ProtoRows.newBuilder();
           long bytesSize = 0;
           while (underlyingIterator.hasNext()) {
-            ByteString byteString = underlyingIterator.next().toByteString();
+            ByteString byteString = ByteString.copyFrom(underlyingIterator.next());
             inserts.addSerializedRows(byteString);
             bytesSize += byteString.size();
             if (bytesSize > splitSize) {
@@ -236,7 +235,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
   }
 
   class WriteRecordsDoFn
-      extends DoFn<KV<ShardedKey<DestinationT>, Iterable<ElementT>>, KV<String, Operation>> {
+      extends DoFn<KV<ShardedKey<DestinationT>, Iterable<byte[]>>, KV<String, Operation>> {
     private final Counter recordsAppended =
         Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
     private final Counter streamsCreated =
@@ -254,9 +253,9 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     private final Distribution appendSplitDistribution =
         Metrics.distribution(WriteRecordsDoFn.class, "appendSplitDistribution");
 
-    private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
-
     private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+
+    private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
 
     // Stores the current stream for this key.
     @StateId("streamName")
@@ -301,7 +300,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     public void process(
         ProcessContext c,
         final PipelineOptions pipelineOptions,
-        @Element KV<ShardedKey<DestinationT>, Iterable<ElementT>> element,
+        @Element KV<ShardedKey<DestinationT>, Iterable<byte[]>> element,
         final @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         final @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
         final OutputReceiver<KV<String, Operation>> o)
@@ -336,12 +335,9 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
       // Each ProtoRows object contains at most 1MB of rows.
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
-      // already proto or
-      // already schema.
+      // already proto or already schema.
       final long oneMb = 1024 * 1024;
-      Iterable<ProtoRows> messages =
-          new SplittingIterable<>(
-              Iterables.transform(element.getValue(), e -> messageConverter.toMessage(e)), oneMb);
+      Iterable<ProtoRows> messages = new SplittingIterable(element.getValue(), oneMb);
 
       class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
         final ShardedKey<DestinationT> key;
@@ -412,7 +408,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       Instant now = Instant.now();
       List<AppendRowsContext> contexts = Lists.newArrayList();
       RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
-          new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 1000);
+          new RetryManager<>(Duration.standardSeconds(1), Duration.standardSeconds(10), 1000);
       int numSplits = 0;
       for (ProtoRows protoRows : messages) {
         ++numSplits;

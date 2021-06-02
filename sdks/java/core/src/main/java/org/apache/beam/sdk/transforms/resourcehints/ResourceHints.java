@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardResourceHints;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ProtocolMessageEnum;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ProtocolMessageEnum;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -85,10 +85,7 @@ public class ResourceHints {
   public static ResourceHints fromOptions(PipelineOptions options) {
     ResourceHintsOptions resourceHintsOptions = options.as(ResourceHintsOptions.class);
     ResourceHints result = create();
-    @Nullable List<String> hints = resourceHintsOptions.getResourceHints();
-    if (hints == null) {
-      return result;
-    }
+    List<String> hints = resourceHintsOptions.getResourceHints();
     Splitter splitter = Splitter.on('=').limit(2);
     for (String hint : hints) {
       List<String> parts = splitter.splitToList(hint);

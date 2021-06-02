@@ -19,16 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import contextlib
 import logging
 import threading
 import time
 import unittest
-from builtins import range
 from collections import namedtuple
 
 import grpc
@@ -47,7 +42,7 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.sdk_worker import BundleProcessorCache
-from apache_beam.runners.worker.sdk_worker import CachingStateHandler
+from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
 from apache_beam.runners.worker.sdk_worker import SdkWorker
 from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.counters import CounterName
@@ -362,7 +357,7 @@ class CachingStateHandlerTest(unittest.TestCase):
 
     underlying_state = FakeUnderlyingState()
     state_cache = statecache.StateCache(100)
-    caching_state_hander = sdk_worker.CachingStateHandler(
+    caching_state_hander = GlobalCachingStateHandler(
         state_cache, underlying_state)
 
     state1 = beam_fn_api_pb2.StateKey(
@@ -498,8 +493,7 @@ class CachingStateHandlerTest(unittest.TestCase):
 
     underlying_state_handler = self.UnderlyingStateHandler()
     state_cache = statecache.StateCache(100)
-    handler = sdk_worker.CachingStateHandler(
-        state_cache, underlying_state_handler)
+    handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
 
     def get():
       return handler.blocking_get(state, coder.get_impl())
@@ -529,8 +523,7 @@ class CachingStateHandlerTest(unittest.TestCase):
   def test_continuation_token(self):
     underlying_state_handler = self.UnderlyingStateHandler()
     state_cache = statecache.StateCache(100)
-    handler = sdk_worker.CachingStateHandler(
-        state_cache, underlying_state_handler)
+    handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
 
     coder = VarIntCoder()
 
@@ -558,10 +551,12 @@ class CachingStateHandlerTest(unittest.TestCase):
     underlying_state_handler.set_continuations(True)
     underlying_state_handler.set_values([45, 46, 47], coder)
     with handler.process_instruction_id('bundle', [cache_token]):
-      self.assertEqual(get_type(), CachingStateHandler.ContinuationIterable)
+      self.assertEqual(
+          get_type(), GlobalCachingStateHandler.ContinuationIterable)
       self.assertEqual(get(), [45, 46, 47])
       append(48, 49)
-      self.assertEqual(get_type(), CachingStateHandler.ContinuationIterable)
+      self.assertEqual(
+          get_type(), GlobalCachingStateHandler.ContinuationIterable)
       self.assertEqual(get(), [45, 46, 47, 48, 49])
       clear()
       self.assertEqual(get_type(), list)

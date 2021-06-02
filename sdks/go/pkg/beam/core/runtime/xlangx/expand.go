@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package xlangx contains various low-level utilities needed for adding
+// cross-language transforms to the pipeline.
 package xlangx
 
 import (

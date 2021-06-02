@@ -23,10 +23,8 @@ import typing
 import unittest
 
 import numpy as np
-# patches unittest.testcase to be python3 compatible
 import pandas as pd
 from parameterized import parameterized
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.coders import RowCoder
@@ -36,12 +34,14 @@ from apache_beam.dataframe import transforms
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 
 Simple = typing.NamedTuple(
-    'Simple', [('name', unicode), ('id', int), ('height', float)])
+    'Simple', [('name', str), ('id', int), ('height', float)])
 coders_registry.register_coder(Simple, RowCoder)
 Animal = typing.NamedTuple(
-    'Animal', [('animal', unicode), ('max_speed', typing.Optional[float])])
+    'Animal', [('animal', str), ('max_speed', typing.Optional[float])])
 coders_registry.register_coder(Animal, RowCoder)
 
 
@@ -65,41 +65,59 @@ def matches_df(expected):
 # dtype. For example:
 #   pd.Series([b'abc'], dtype=bytes).dtype != 'S'
 #   pd.Series([b'abc'], dtype=bytes).astype(bytes).dtype == 'S'
+# (test data, pandas_type, column_name, beam_type)
 COLUMNS = [
-    ([375, 24, 0, 10, 16], np.int32, 'i32'),
-    ([375, 24, 0, 10, 16], np.int64, 'i64'),
-    ([375, 24, None, 10, 16], pd.Int32Dtype(), 'i32_nullable'),
-    ([375, 24, None, 10, 16], pd.Int64Dtype(), 'i64_nullable'),
-    ([375., 24., None, 10., 16.], np.float64, 'f64'),
-    ([375., 24., None, 10., 16.], np.float32, 'f32'),
-    ([True, False, True, True, False], bool, 'bool'),
-    (['Falcon', 'Ostrich', None, 3.14, 0], object, 'any'),
-    ([True, False, True, None, False], pd.BooleanDtype(), 'bool_nullable'),
+    ([375, 24, 0, 10, 16], np.int32, 'i32', np.int32),
+    ([375, 24, 0, 10, 16], np.int64, 'i64', np.int64),
+    ([375, 24, None, 10, 16],
+     pd.Int32Dtype(),
+     'i32_nullable',
+     typing.Optional[np.int32]),
+    ([375, 24, None, 10, 16],
+     pd.Int64Dtype(),
+     'i64_nullable',
+     typing.Optional[np.int64]),
+    ([375., 24., None, 10., 16.],
+     np.float64,
+     'f64',
+     typing.Optional[np.float64]),
+    ([375., 24., None, 10., 16.],
+     np.float32,
+     'f32',
+     typing.Optional[np.float32]),
+    ([True, False, True, True, False], bool, 'bool', bool),
+    (['Falcon', 'Ostrich', None, 3.14, 0], object, 'any', typing.Any),
+    ([True, False, True, None, False],
+     pd.BooleanDtype(),
+     'bool_nullable',
+     typing.Optional[bool]),
     (['Falcon', 'Ostrich', None, 'Aardvark', 'Elephant'],
      pd.StringDtype(),
-     'strdtype'),
-]  # type: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str]]
+     'strdtype',
+     typing.Optional[str]),
+]  # type: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str, typing.Any]]
 
-NICE_TYPES_DF = pd.DataFrame(columns=[name for _, _, name in COLUMNS])
-for arr, dtype, name in COLUMNS:
+NICE_TYPES_DF = pd.DataFrame(columns=[name for _, _, name, _ in COLUMNS])
+for arr, dtype, name, _ in COLUMNS:
   NICE_TYPES_DF[name] = pd.Series(arr, dtype=dtype, name=name).astype(dtype)
 
 NICE_TYPES_PROXY = NICE_TYPES_DF[:0]
 
-SERIES_TESTS = [(pd.Series(arr, dtype=dtype, name=name), arr) for arr,
-                dtype,
-                name in COLUMNS]
+SERIES_TESTS = [(pd.Series(arr, dtype=dtype, name=name), arr, beam_type)
+                for (arr, dtype, name, beam_type) in COLUMNS]
 
 _TEST_ARRAYS = [
-    arr for arr, _, _ in COLUMNS
+    arr for (arr, _, _, _) in COLUMNS
 ]  # type: typing.List[typing.List[typing.Any]]
 DF_RESULT = list(zip(*_TEST_ARRAYS))
-INDEX_DF_TESTS = [
-    (NICE_TYPES_DF.set_index([name for _, _, name in COLUMNS[:i]]), DF_RESULT)
-    for i in range(1, len(COLUMNS) + 1)
-]
+BEAM_SCHEMA = typing.NamedTuple(  # type: ignore
+    'BEAM_SCHEMA', [(name, beam_type) for _, _, name, beam_type in COLUMNS])
+INDEX_DF_TESTS = [(
+    NICE_TYPES_DF.set_index([name for _, _, name, _ in COLUMNS[:i]]),
+    DF_RESULT,
+    BEAM_SCHEMA) for i in range(1, len(COLUMNS) + 1)]
 
-NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT)]
+NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT, BEAM_SCHEMA)]
 
 PD_VERSION = tuple(int(n) for n in pd.__version__.split('.'))
 
@@ -107,7 +125,7 @@ PD_VERSION = tuple(int(n) for n in pd.__version__.split('.'))
 class SchemasTest(unittest.TestCase):
   def test_simple_df(self):
     expected = pd.DataFrame({
-        'name': list(unicode(i) for i in range(5)),
+        'name': list(str(i) for i in range(5)),
         'id': list(range(5)),
         'height': list(float(i) for i in range(5))
     },
@@ -116,15 +134,14 @@ class SchemasTest(unittest.TestCase):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create([
-              Simple(name=unicode(i), id=i, height=float(i)) for i in range(5)
-          ])
+          | beam.Create(
+              [Simple(name=str(i), id=i, height=float(i)) for i in range(5)])
           | schemas.BatchRowsAsDataFrame(min_batch_size=10, max_batch_size=10))
       assert_that(res, matches_df(expected))
 
   def test_simple_df_with_beam_row(self):
     expected = pd.DataFrame({
-        'name': list(unicode(i) for i in range(5)),
+        'name': list(str(i) for i in range(5)),
         'id': list(range(5)),
         'height': list(float(i) for i in range(5))
     },
@@ -203,8 +220,18 @@ class SchemasTest(unittest.TestCase):
                 proxy=schemas.generate_proxy(Animal)))
         assert_that(res, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
+  def assert_typehints_equal(self, left, right):
+    left = typehints.normalize(left)
+    right = typehints.normalize(right)
+
+    if match_is_named_tuple(left):
+      self.assertTrue(match_is_named_tuple(right))
+      self.assertEqual(left.__annotations__, right.__annotations__)
+    else:
+      self.assertEqual(left, right)
+
   @parameterized.expand(SERIES_TESTS + NOINDEX_DF_TESTS)
-  def test_unbatch_no_index(self, df_or_series, rows):
+  def test_unbatch_no_index(self, df_or_series, rows, beam_type):
     proxy = df_or_series[:0]
 
     with TestPipeline() as p:
@@ -212,10 +239,15 @@ class SchemasTest(unittest.TestCase):
           p | beam.Create([df_or_series[::2], df_or_series[1::2]])
           | schemas.UnbatchPandas(proxy))
 
+      # Verify that the unbatched PCollection has the expected typehint
+      # TODO(BEAM-8538): typehints should support NamedTuple so we can use
+      # typehints.is_consistent_with here instead
+      self.assert_typehints_equal(res.element_type, beam_type)
+
       assert_that(res, equal_to(rows))
 
   @parameterized.expand(SERIES_TESTS + INDEX_DF_TESTS)
-  def test_unbatch_with_index(self, df_or_series, rows):
+  def test_unbatch_with_index(self, df_or_series, rows, _):
     proxy = df_or_series[:0]
 
     with TestPipeline() as p:

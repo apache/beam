@@ -18,27 +18,29 @@
 package org.apache.beam.runners.dataflow;
 
 import java.nio.ByteBuffer;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.GroupIntoBatches.BatchingParams;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 @SuppressWarnings({
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
@@ -57,7 +59,7 @@ public class GroupIntoBatchesOverride {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatches<>(transform.getTransform().getBatchingParams().getBatchSize()));
+          new BatchGroupIntoBatches<>(transform.getTransform().getBatchingParams()));
     }
 
     @Override
@@ -70,15 +72,20 @@ public class GroupIntoBatchesOverride {
   /** Specialized implementation of {@link GroupIntoBatches} for bounded Dataflow pipelines. */
   static class BatchGroupIntoBatches<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+    private final BatchingParams<V> batchingParams;
 
-    private final long batchSize;
-
-    private BatchGroupIntoBatches(long batchSize) {
-      this.batchSize = batchSize;
+    private BatchGroupIntoBatches(BatchingParams<V> batchingParams) {
+      this.batchingParams = batchingParams;
     }
 
     @Override
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+      KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
+      final Coder<V> valueCoder = (Coder<V>) inputCoder.getCoderArguments().get(1);
+      final SerializableFunction<V, Long> weigher = batchingParams.getWeigher(valueCoder);
+      long maxBatchSizeElements = batchingParams.getBatchSize();
+      long maxBatchSizeBytes = batchingParams.getBatchSizeBytes();
+
       return input
           .apply("GroupAll", GroupByKey.create())
           .apply(
@@ -87,14 +94,25 @@ public class GroupIntoBatchesOverride {
                   new DoFn<KV<K, Iterable<V>>, KV<K, Iterable<V>>>() {
                     @ProcessElement
                     public void process(ProcessContext c) {
-                      // Iterators.partition lazily creates the partitions as they are accessed
-                      // allowing it to partition very large iterators.
-                      Iterator<List<V>> iterator =
-                          Iterators.partition(c.element().getValue().iterator(), (int) batchSize);
-
-                      // Note that GroupIntoBatches only outputs when the batch is non-empty.
-                      while (iterator.hasNext()) {
-                        c.output(KV.of(c.element().getKey(), iterator.next()));
+                      List<V> currentBatch = Lists.newArrayList();
+                      long batchSizeBytes = 0;
+                      for (V element : c.element().getValue()) {
+                        currentBatch.add(element);
+                        if (weigher != null) {
+                          batchSizeBytes += weigher.apply(element);
+                        }
+                        if (currentBatch.size() == maxBatchSizeElements
+                            || (maxBatchSizeBytes != Long.MAX_VALUE
+                                && batchSizeBytes >= maxBatchSizeBytes)) {
+                          c.output(KV.of(c.element().getKey(), currentBatch));
+                          // Call clear() since that allows us to reuse the array memory for
+                          // subsequent batches.
+                          currentBatch.clear();
+                          batchSizeBytes = 0;
+                        }
+                      }
+                      if (!currentBatch.isEmpty()) {
+                        c.output(KV.of(c.element().getKey(), currentBatch));
                       }
                     }
                   }));
@@ -117,8 +135,7 @@ public class GroupIntoBatchesOverride {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatchesWithShardedKey<>(
-              transform.getTransform().getBatchingParams().getBatchSize()));
+          new BatchGroupIntoBatchesWithShardedKey<>(transform.getTransform().getBatchingParams()));
     }
 
     @Override
@@ -136,15 +153,15 @@ public class GroupIntoBatchesOverride {
   static class BatchGroupIntoBatchesWithShardedKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<ShardedKey<K>, Iterable<V>>>> {
 
-    private final long batchSize;
+    private final BatchingParams<V> batchingParams;
 
-    private BatchGroupIntoBatchesWithShardedKey(long batchSize) {
-      this.batchSize = batchSize;
+    private BatchGroupIntoBatchesWithShardedKey(BatchingParams<V> batchingParams) {
+      this.batchingParams = batchingParams;
     }
 
     @Override
     public PCollection<KV<ShardedKey<K>, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
-      return shardKeys(input).apply(new BatchGroupIntoBatches<>(batchSize));
+      return shardKeys(input).apply(new BatchGroupIntoBatches<>(batchingParams));
     }
   }
 

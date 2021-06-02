@@ -28,7 +28,7 @@ import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServic
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ProvisionServiceImplBase provision service} that returns a static response to all calls.

@@ -181,6 +181,10 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_custom_merging_window(self):
     raise unittest.SkipTest("BEAM-11004")
 
+  def test_pack_combiners(self):
+    raise unittest.SkipTest(
+        "BEAM-12305: pack_combiners does not work in Flink yet")
+
   # Inherits all other tests from PortableRunnerTest.
 
 

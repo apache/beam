@@ -133,21 +133,21 @@ class BeamCalcRelType extends CalcRelSplitter.RelType {
   private boolean supportsType(RelDataType type) {
     switch (type.getSqlTypeName()) {
       case BIGINT:
+      case BINARY:
       case BOOLEAN:
+      case CHAR:
+      case DATE:
       case DECIMAL:
       case DOUBLE:
+      case NULL:
       case TIMESTAMP:
       case VARBINARY:
       case VARCHAR:
-      case CHAR:
-      case BINARY:
-      case NULL:
         return true;
       case ARRAY:
         return supportsType(type.getComponentType());
       case ROW:
         return type.getFieldList().stream().allMatch((field) -> supportsType(field.getType()));
-      case DATE: // BEAM-11990
       case TIME: // BEAM-12086
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE: // BEAM-12087
       default:

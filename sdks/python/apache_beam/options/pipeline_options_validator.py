@@ -21,13 +21,8 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import re
-from builtins import object
-
-from past.builtins import unicode
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -220,8 +215,7 @@ class PipelineOptionsValidator(object):
             'Transform name mapping option is only useful when '
             '--update and --streaming is specified')
       for _, (key, value) in enumerate(view.transform_name_mapping.items()):
-        if not isinstance(key, (str, unicode)) \
-            or not isinstance(value, (str, unicode)):
+        if not isinstance(key, str) or not isinstance(value, str):
           errors.extend(
               self._validate_error(
                   self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))

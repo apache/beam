@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
-from builtins import list
-from builtins import object
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -536,6 +532,15 @@ class TypeOptions(PipelineOptions):
         'operations such as GropuByKey.  This is unsafe, as runners may group '
         'keys based on their encoded bytes, but is available for backwards '
         'compatibility. See BEAM-11719.')
+    parser.add_argument(
+        '--allow_unsafe_triggers',
+        default=False,
+        action='store_true',
+        help='Allow the use of unsafe triggers. Unsafe triggers have the '
+        'potential to cause data loss due to finishing and/or never having '
+        'their condition met. Some operations, such as GroupByKey, disallow '
+        'this. This exists for cases where such loss is acceptable and for '
+        'backwards compatibility. See BEAM-9487.')
 
   def validate(self, unused_validator):
     errors = []
@@ -1269,7 +1274,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.8', '1.9', '1.10', '1.11', '1.12']
+  PUBLISHED_FLINK_VERSIONS = ['1.10', '1.11', '1.12', '1.13']
 
   @classmethod
   def _add_argparse_args(cls, parser):

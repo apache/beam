@@ -305,6 +305,7 @@ public class TestPubsubSignal implements TestRule {
 
     MessageReceiver receiver =
         (com.google.pubsub.v1.PubsubMessage message, AckReplyConsumer replyConsumer) -> {
+          LOG.info("Received message: {}", message.getData().toStringUtf8());
           // Ignore empty messages
           if (message.getData().isEmpty()) {
             replyConsumer.ack();
@@ -439,9 +440,11 @@ public class TestPubsubSignal implements TestRule {
       // check if all elements seen so far satisfy the success predicate
       try {
         if (successPredicate.apply(eventsSoFar)) {
+          LOG.info("Predicate has been satisfied. Sending SUCCESS message.");
           context.output("SUCCESS");
         }
       } catch (Throwable e) {
+        LOG.error("Error while applying predicate.", e);
         context.output("FAILURE: " + e.getMessage());
       }
     }

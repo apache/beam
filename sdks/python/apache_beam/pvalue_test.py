@@ -19,12 +19,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
-
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import PValue

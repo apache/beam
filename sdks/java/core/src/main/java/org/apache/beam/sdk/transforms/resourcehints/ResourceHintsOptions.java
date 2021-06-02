@@ -19,19 +19,27 @@ package org.apache.beam.sdk.transforms.resourcehints;
 
 import com.google.auto.service.AutoService;
 import java.util.List;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options that are used to control configuration of the remote environment. */
 public interface ResourceHintsOptions extends PipelineOptions {
+  class EmptyListDefault implements DefaultValueFactory<List> {
+    @Override
+    public List create(PipelineOptions options) {
+      return ImmutableList.of();
+    }
+  }
+
   @Description("Resource hints used for all transform execution environments.")
-  @Nullable
+  @Default.InstanceFactory(EmptyListDefault.class)
   List<String> getResourceHints();
 
-  void setResourceHints(@Nullable List<String> value);
+  void setResourceHints(List<String> value);
 
   /** Register the {@link ResourceHintsOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
