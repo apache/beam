@@ -41,6 +41,7 @@ func toID(id int, fruitIter func(**fruit) bool, _ func(*string) bool) int {
 // CoGBK fail since the decoder post-cogbk is missing a Length Prefix coder that was
 // applied to the GBK input, but not the CoGBK output.
 // Root is likely in that there's no Beam standard CoGBK format for inject and expand.
+// JIRA: BEAM-12438
 func LPErrorPipeline(s beam.Scope) beam.PCollection {
 	// ["Apple", "Banana", "Cherry"]
 	fruits := beam.CreateList(s, []*fruit{{"Apple"}, {"Banana"}, {"Cherry"}})
