@@ -1231,7 +1231,7 @@ class _RoundRobinKeyFn(core.DoFn):
 
   def process(self, element, count):
     if self.counter is None:
-      self.counter = int(random.random() * count)
+      self.counter = random.randrange(0, count)
     self.counter = (1 + self.counter) % count
     yield self.counter, element
 
