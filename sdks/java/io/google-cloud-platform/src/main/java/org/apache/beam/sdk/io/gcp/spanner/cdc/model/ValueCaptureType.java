@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc.usermodel;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
-public enum ModType {
-  INSERT,
-  UPDATE,
-  INSERT_OR_UPDATE,
-  DELETE
+public enum ValueCaptureType {
+  OLD_AND_NEW_VALUES,
+  NEW_VALUES
 }

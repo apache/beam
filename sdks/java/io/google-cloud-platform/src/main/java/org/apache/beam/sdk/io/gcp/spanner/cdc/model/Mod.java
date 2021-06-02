@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc.usermodel;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -36,7 +36,10 @@ public class Mod implements Serializable {
     return new OldAndNewBuilder();
   }
 
-  public Mod() {}
+  /**
+   * Default constructor for serialization only.
+   */
+  private Mod() {}
 
   public Mod(Map<String, String> oldValues, Map<String, String> newValues) {
     this.oldValues = oldValues;

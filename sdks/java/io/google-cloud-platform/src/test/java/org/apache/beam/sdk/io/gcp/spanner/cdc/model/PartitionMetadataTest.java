@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.Timestamp;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.PartitionMetadata.State;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -29,8 +30,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PartitionMetadataTest {
 
-  public static final Timestamp A_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(1618361869, 0);
-  public static final String A_PARTITION_TOKEN = "partitionToken123";
+  private static final Timestamp A_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(1618361869, 0);
+  private static final String A_PARTITION_TOKEN = "partitionToken123";
 
   @Test
   public void testBuilderDefaultsToInclusiveStartAndExclusiveEnd() {

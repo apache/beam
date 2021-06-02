@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc.usermodel;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -29,7 +29,10 @@ public class TypeCode implements Serializable {
 
   private String code;
 
-  public TypeCode() {}
+  /**
+   * Default constructor for serialization only.
+   */
+  private TypeCode() {}
 
   public TypeCode(String code) {
     this.code = code;

@@ -15,54 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc.usermodel;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 
 @DefaultCoder(AvroCoder.class)
-public class ColumnType implements Serializable {
+public class TransactionId implements Serializable {
 
-  private static final long serialVersionUID = 6861617019875340414L;
+  private static final long serialVersionUID = -7633269626139178715L;
 
-  private String name;
-  private TypeCode type;
-  private boolean isPrimaryKey;
+  private Long value;
 
-  public ColumnType() {}
-
-  @SchemaCreate
-  public ColumnType(String name, TypeCode type, boolean isPrimaryKey) {
-    this.name = name;
-    this.type = type;
-    this.isPrimaryKey = isPrimaryKey;
+  public static TransactionId of(Long value) {
+    return new TransactionId(value);
   }
 
-  public String getName() {
-    return name;
+  /**
+   * Default constructor for serialization only.
+   */
+  private TransactionId() {}
+
+  public TransactionId(Long value) {
+    this.value = value;
   }
 
-  public void setName(String name) {
-    this.name = name;
+  public long getValue() {
+    return value;
   }
 
-  public TypeCode getType() {
-    return type;
-  }
-
-  public void setType(TypeCode type) {
-    this.type = type;
-  }
-
-  public boolean isPrimaryKey() {
-    return isPrimaryKey;
-  }
-
-  public void setPrimaryKey(boolean primaryKey) {
-    isPrimaryKey = primaryKey;
+  public void setValue(Long value) {
+    this.value = value;
   }
 
   @Override
@@ -73,14 +58,12 @@ public class ColumnType implements Serializable {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ColumnType that = (ColumnType) o;
-    return isPrimaryKey == that.isPrimaryKey
-        && Objects.equals(name, that.name)
-        && Objects.equals(type, that.type);
+    TransactionId that = (TransactionId) o;
+    return Objects.equals(value, that.value);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, type, isPrimaryKey);
+    return Objects.hash(value);
   }
 }
