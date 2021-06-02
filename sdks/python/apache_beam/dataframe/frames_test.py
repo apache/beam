@@ -1122,6 +1122,8 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
     self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
     self._run_test(
+        lambda df: df.bar.groupby(lambda x: x % 3).apply(describe), df)
+    self._run_test(
         lambda df: df.set_index(['str', 'group', 'bool']).groupby(
             level='group').apply(median_sum_fn),
         df)
