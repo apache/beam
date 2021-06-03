@@ -27,12 +27,12 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -70,19 +70,24 @@ abstract class BatchSpannerRead
               .withTimestampBound(getTimestampBound());
       txView = begin.apply(createTx);
     }
-    return input.apply(
-        "Generate and Read Partitions",
-        ParDo.of(new ReadOperationsFn(getSpannerConfig(), txView)).withSideInputs(txView));
+    return input
+        .apply(
+            "Generate Partitions",
+            ParDo.of(new GeneratePartitionsFn(getSpannerConfig(), txView)).withSideInputs(txView))
+        .apply(
+            "Read from Partitions",
+            ParDo.of(new ReadFromPartitionFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
-  @UnboundedPerElement
-  private static class ReadOperationsFn extends DoFn<ReadOperation, Struct> {
+  @VisibleForTesting
+  static class GeneratePartitionsFn extends DoFn<ReadOperation, List<Partition>> {
 
     private final SpannerConfig config;
     private final PCollectionView<? extends Transaction> txView;
     private transient SpannerAccessor spannerAccessor;
 
-    public ReadOperationsFn(SpannerConfig config, PCollectionView<? extends Transaction> txView) {
+    public GeneratePartitionsFn(
+        SpannerConfig config, PCollectionView<? extends Transaction> txView) {
       this.config = config;
       this.txView = txView;
     }
@@ -98,29 +103,11 @@ abstract class BatchSpannerRead
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker)
-        throws Exception {
+    public void processElement(ProcessContext c) throws Exception {
       Transaction tx = c.sideInput(txView);
       BatchReadOnlyTransaction context =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
-      List<Partition> partitions = execute(c.element(), context);
-      BatchReadOnlyTransaction batchTx =
-          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
-      for (int i = (int) tracker.currentRestriction().getFrom(); i < partitions.size(); i++) {
-        if (tracker.tryClaim(Long.valueOf(i))) {
-          try (ResultSet resultSet = batchTx.execute(partitions.get(i))) {
-            while (resultSet.next()) {
-              Struct s = resultSet.getCurrentRowAsStruct();
-              c.output(s);
-            }
-          }
-        }
-      }
-    }
-
-    @GetInitialRestriction
-    public OffsetRange getInitialRange() {
-      return new OffsetRange(0L, Long.MAX_VALUE);
+      c.output(execute(c.element(), context));
     }
 
     private List<Partition> execute(ReadOperation op, BatchReadOnlyTransaction tx) {
@@ -140,6 +127,56 @@ abstract class BatchSpannerRead
       // Read from table was selected.
       return tx.partitionRead(
           op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
+    }
+  }
+
+  private static class ReadFromPartitionFn extends DoFn<List<Partition>, Struct> {
+
+    private final SpannerConfig config;
+    private final PCollectionView<? extends Transaction> txView;
+
+    private transient SpannerAccessor spannerAccessor;
+
+    public ReadFromPartitionFn(
+        SpannerConfig config, PCollectionView<? extends Transaction> txView) {
+      this.config = config;
+      this.txView = txView;
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      spannerAccessor = SpannerAccessor.getOrCreate(config);
+    }
+
+    @Teardown
+    public void teardown() throws Exception {
+      spannerAccessor.close();
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker)
+        throws Exception {
+      Transaction tx = c.sideInput(txView);
+
+      BatchReadOnlyTransaction batchTx =
+          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
+
+      List<Partition> partitions = c.element();
+      for (int i = (int) tracker.currentRestriction().getFrom(); i < partitions.size(); i++) {
+        if (tracker.tryClaim(Long.valueOf(i))) {
+          try (ResultSet resultSet = batchTx.execute(partitions.get(i))) {
+            while (resultSet.next()) {
+              Struct s = resultSet.getCurrentRowAsStruct();
+              c.output(s);
+            }
+          }
+        }
+      }
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRange(@Element List<Partition> partitions) {
+      return new OffsetRange(0L, partitions.size());
     }
   }
 }
