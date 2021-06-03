@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.get
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.createConnectionConfig;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.createIndex;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.deleteIndex;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.elasticsearchIOTestContainerFactory;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.setDefaultTemplate;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
@@ -36,7 +37,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
-import org.testcontainers.utility.DockerImageName;
 
 /*
 Cannot use @RunWith(JUnit4.class) with ESIntegTestCase
@@ -56,11 +56,7 @@ public class ElasticsearchIOTest implements Serializable {
   @BeforeClass
   public static void beforeClass() throws IOException {
     // Create the elasticsearch container.
-    container =
-        new ElasticsearchContainer(
-                DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch-oss")
-                    .withTag(IMAGE_TAG))
-            .withEnv("xpack.security.enabled", "false");
+    container = elasticsearchIOTestContainerFactory(IMAGE_TAG);
 
     // Start the container. This step might take some time...
     container.start();
