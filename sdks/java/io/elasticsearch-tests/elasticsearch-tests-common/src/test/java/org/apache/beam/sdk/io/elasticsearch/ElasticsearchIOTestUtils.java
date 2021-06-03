@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +43,7 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /** Test utilities to use with {@link ElasticsearchIO}. */
 class ElasticsearchIOTestUtils {
@@ -437,5 +439,17 @@ class ElasticsearchIOTestUtils {
     return ConnectionConfiguration.create(hostStrings, getEsIndex(), ES_TYPE)
         .withSocketTimeout(120000)
         .withConnectTimeout(5000);
+  }
+
+  static ElasticsearchContainer elasticsearchIOTestContainerFactory(String imageTag) {
+    ElasticsearchContainer container =
+        new ElasticsearchContainer(
+                DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch")
+                    .withTag(imageTag))
+            .withEnv("xpack.security.enabled", "false");
+
+    container.withStartupTimeout(Duration.ofMinutes(3));
+
+    return container;
   }
 }
