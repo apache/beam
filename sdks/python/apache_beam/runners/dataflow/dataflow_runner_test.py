@@ -469,7 +469,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     with self.assertRaisesRegex(ValueError, 'num_workers'):
       with Pipeline(remote_runner, pipeline_options) as p:
-        p | ptransform.Create([0])
+        p | ptransform.Create([0])  # pylint: disable=expression-not-assigned
 
   def test_num_workers_can_equal_max_num_workers(self):
     remote_runner = DataflowRunner()
@@ -478,7 +478,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pipeline_options = PipelineOptions(self.default_properties)
 
     with Pipeline(remote_runner, pipeline_options) as p:
-      p | ptransform.Create([0])
+      p | ptransform.Create([0])  # pylint: disable=expression-not-assigned
 
   def test_streaming_engine_flag_adds_windmill_experiments(self):
     remote_runner = DataflowRunner()
