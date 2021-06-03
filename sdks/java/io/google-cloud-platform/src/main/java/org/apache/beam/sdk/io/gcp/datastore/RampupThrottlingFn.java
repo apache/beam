@@ -69,7 +69,7 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
     this.firstInstant = Instant.now();
   }
 
-  // 500 / numWorkers * 1.5^max(0, (x-5)/5)
+  // 500 / numWorkers * 1.5^max(0, (x-5)/5), or "+50% every 5 minutes"
   private int calcMaxOpsBudget(Instant first, Instant instant) {
     double rampUpIntervalMinutes = (double) RAMP_UP_INTERVAL.getStandardMinutes();
     Duration durationSinceFirst = new Duration(first, instant);
