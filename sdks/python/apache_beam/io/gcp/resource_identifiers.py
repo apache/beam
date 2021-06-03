@@ -35,5 +35,5 @@ def BigQueryTable(project_id, dataset_id, table_id):
       project_id, dataset_id, table_id)
 
 
-def GoogleCloudStorage(bucket_id):
+def GoogleCloudStorageBucket(bucket_id):
   return '//storage.googleapis.com/buckets/%s' % bucket_id

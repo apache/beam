@@ -774,7 +774,7 @@ class TestGCSIO(unittest.TestCase):
     random_file = self._insert_random_file(self.client, file_name, file_size)
     self.gcs.open(file_name, 'r')
 
-    resource = resource_identifiers.GoogleCloudStorage(random_file.bucket)
+    resource = resource_identifiers.GoogleCloudStorageBucket(random_file.bucket)
     labels = {
         monitoring_infos.SERVICE_LABEL: 'Storage',
         monitoring_infos.METHOD_LABEL: 'Objects.get',
@@ -797,7 +797,7 @@ class TestGCSIO(unittest.TestCase):
     random_file = self._insert_random_file(self.client, file_name, file_size)
     f = self.gcs.open(file_name, 'w')
 
-    resource = resource_identifiers.GoogleCloudStorage(random_file.bucket)
+    resource = resource_identifiers.GoogleCloudStorageBucket(random_file.bucket)
     labels = {
         monitoring_infos.SERVICE_LABEL: 'Storage',
         monitoring_infos.METHOD_LABEL: 'Objects.insert',

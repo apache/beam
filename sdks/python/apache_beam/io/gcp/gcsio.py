@@ -583,7 +583,7 @@ class GcsDownloader(Downloader):
     project_number = self._get_project_number(self._bucket)
 
     # Create a request count metric
-    resource = resource_identifiers.GoogleCloudStorage(self._bucket)
+    resource = resource_identifiers.GoogleCloudStorageBucket(self._bucket)
     labels = {
         monitoring_infos.SERVICE_LABEL: 'Storage',
         monitoring_infos.METHOD_LABEL: 'Objects.get',
@@ -689,7 +689,7 @@ class GcsUploader(Uploader):
     project_number = self._get_project_number(self._bucket)
 
     # Create a request count metric
-    resource = resource_identifiers.GoogleCloudStorage(self._bucket)
+    resource = resource_identifiers.GoogleCloudStorageBucket(self._bucket)
     labels = {
         monitoring_infos.SERVICE_LABEL: 'Storage',
         monitoring_infos.METHOD_LABEL: 'Objects.insert',
