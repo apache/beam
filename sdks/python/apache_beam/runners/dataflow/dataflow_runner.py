@@ -511,6 +511,17 @@ class DataflowRunner(PipelineRunner):
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
 
+    # Sanity check to prevent pipeline from getting permanently stuck in
+    # PENDING state.
+    num_workers = worker_options.num_workers
+    max_num_workers = worker_options.max_num_workers
+    if (num_workers is not None and
+        max_num_workers is not None and
+        num_workers > max_num_workers):
+      raise ValueError(
+        'num_workers cannot exceed max_number_workers. '
+        f'num_workers={num_workers}. max_num_workers={max_num_workers}.')
+
     if (apiclient._use_unified_worker(options) and
         pipeline.contains_external_transforms):
       # All Dataflow multi-language pipelines (supported by Runner v2 only) use
