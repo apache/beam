@@ -148,6 +148,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
@@ -382,7 +383,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Adding the Java version to the SDK name for user's and support convenience.
     String agentJavaVer =
-        (Environments.getJavaVersion() == Environments.JavaVersion.v8)
+        (Environments.getJavaVersion() == Environments.JavaVersion.java8)
             ? "(JRE 8 environment)"
             : "(JDK 11 environment)";
 
@@ -2181,7 +2182,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return getDefaultContainerImageUrl(options);
     } else if (containerImage.contains("IMAGE")) {
       // Replace placeholder with default image name
-      // TODO(emilymye): See if we can remove this placeholder
       return containerImage.replace("IMAGE", getDefaultContainerImageNameForJob(options));
     } else {
       return containerImage;
@@ -2195,25 +2195,36 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         "%s/%s:%s",
         dataflowRunnerInfo.getContainerImageBaseRepository(),
         getDefaultContainerImageNameForJob(options),
-        dataflowRunnerInfo.getContainerVersion());
+        getDefaultContainerVersion(options));
   }
 
   /**
-   * Construct the default Dataflow container image name based on pipeline type and Environment Java
-   * version.
+   * Construct the default Dataflow container image name based on pipeline type and Java version.
    */
   static String getDefaultContainerImageNameForJob(DataflowPipelineOptions options) {
     Environments.JavaVersion javaVersion = Environments.getJavaVersion();
-    String legacyJavaVersionId =
-        (javaVersion == Environments.JavaVersion.v8) ? "java" : javaVersion.toString();
-
     if (useUnifiedWorker(options)) {
-      return "java";
+      return String.format("beam_%s_sdk", javaVersion.name());
     } else if (options.isStreaming()) {
-      return String.format("beam-%s-streaming", legacyJavaVersionId);
+      return String.format("beam-%s-streaming", javaVersion.legacyName());
     } else {
-      return String.format("beam-%s-batch", legacyJavaVersionId);
+      return String.format("beam-%s-batch", javaVersion.legacyName());
     }
+  }
+
+  /**
+   * Construct the default Dataflow container image name based on pipeline type and Java version.
+   */
+  static String getDefaultContainerVersion(DataflowPipelineOptions options) {
+    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
+    if (releaseInfo.isDevSdkVersion()) {
+      if (useUnifiedWorker(options)) {
+        return dataflowRunnerInfo.getFnApiDevContainerVersion();
+      }
+      return dataflowRunnerInfo.getLegacyDevContainerVersion();
+    }
+    return releaseInfo.getSdkVersion();
   }
 
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {

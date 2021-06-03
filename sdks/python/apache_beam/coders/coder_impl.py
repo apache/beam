@@ -26,9 +26,6 @@ encode many elements with minimal overhead.
 This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
 
-Py2/3 porting: Native range is used on both python versions instead of
-future.builtins.range to avoid performance regression in Cython compiled code.
-
 For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
@@ -37,8 +34,6 @@ import enum
 import json
 import logging
 import pickle
-from builtins import chr
-from builtins import object
 from io import BytesIO
 from typing import TYPE_CHECKING
 from typing import Any

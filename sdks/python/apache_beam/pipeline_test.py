@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import platform
 import unittest
-from builtins import object
-from builtins import range
 
 import pytest
 

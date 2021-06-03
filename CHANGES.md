@@ -63,6 +63,10 @@
 
 ## New Features / Improvements
 
+* `CREATE FUNCTION` DDL statement added to Calcite SQL syntax. `JAR` and `AGGREGATE` are now reserved keywords. ([BEAM-12339](https://issues.apache.org/jira/browse/BEAM-12339)).
+* Flink 1.13 is now supported by the Flink runner ([BEAM-12277](https://issues.apache.org/jira/browse/BEAM-12277)).
+* DatastoreIO: Write and delete operations now follow automatic gradual ramp-up,
+  in line with best practices (Java/Python) ([BEAM-12260](https://issues.apache.org/jira/browse/BEAM-12260), [BEAM-12272](https://issues.apache.org/jira/browse/BEAM-12272)).
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
@@ -73,6 +77,7 @@
 * Kafka Beam SQL tables now ascribe meaning to the LOCATION field; previously
   it was ignored if provided.
 * `TopCombineFn` disallow `compare` as its argument (Python) ([BEAM-7372](https://issues.apache.org/jira/browse/BEAM-7372)).
+* Drop support for Flink 1.10 ([BEAM-12281](https://issues.apache.org/jira/browse/BEAM-12281)).
 
 ## Deprecations
 
@@ -92,6 +97,8 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Allow splitting apart document serialization and IO for ElasticsearchIO
+* Support Bulk API request size optimization through addition of ElasticsearchIO.Write.withStatefulBatches
 
 ## New Features / Improvements
 
@@ -99,8 +106,8 @@
 * Added capability to declare resource hints in Java and Python SDKs ([BEAM-2085](https://issues.apache.org/jira/browse/BEAM-2085)).
 * Added Spanner IO Performance tests for read and write. (Python) ([BEAM-10029](https://issues.apache.org/jira/browse/BEAM-10029)).
 * Added support for accessing GCP PubSub Message ordering keys, message IDs and message publish timestamp (Python) ([BEAM-7819](https://issues.apache.org/jira/browse/BEAM-7819)).
-* DatastoreIO: Write and delete operations now follow automatic gradual ramp-up,
-  in line with best practices (Java) ([BEAM-12260](https://issues.apache.org/jira/browse/BEAM-12260)).
+* DataFrame API: Added support for collecting DataFrame objects in interactive Beam ([BEAM-11855](https://issues.apache.org/jira/browse/BEAM-11855))
+* DataFrame API: Added [apache_beam.examples.dataframe](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/dataframe) module ([BEAM-12024](https://issues.apache.org/jira/browse/BEAM-12024))
 
 ## Breaking Changes
 

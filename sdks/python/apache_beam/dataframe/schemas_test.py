@@ -23,10 +23,8 @@ import typing
 import unittest
 
 import numpy as np
-# patches unittest.testcase to be python3 compatible
 import pandas as pd
 from parameterized import parameterized
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.coders import RowCoder
@@ -40,10 +38,10 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 
 Simple = typing.NamedTuple(
-    'Simple', [('name', unicode), ('id', int), ('height', float)])
+    'Simple', [('name', str), ('id', int), ('height', float)])
 coders_registry.register_coder(Simple, RowCoder)
 Animal = typing.NamedTuple(
-    'Animal', [('animal', unicode), ('max_speed', typing.Optional[float])])
+    'Animal', [('animal', str), ('max_speed', typing.Optional[float])])
 coders_registry.register_coder(Animal, RowCoder)
 
 
@@ -127,7 +125,7 @@ PD_VERSION = tuple(int(n) for n in pd.__version__.split('.'))
 class SchemasTest(unittest.TestCase):
   def test_simple_df(self):
     expected = pd.DataFrame({
-        'name': list(unicode(i) for i in range(5)),
+        'name': list(str(i) for i in range(5)),
         'id': list(range(5)),
         'height': list(float(i) for i in range(5))
     },
@@ -136,15 +134,14 @@ class SchemasTest(unittest.TestCase):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create([
-              Simple(name=unicode(i), id=i, height=float(i)) for i in range(5)
-          ])
+          | beam.Create(
+              [Simple(name=str(i), id=i, height=float(i)) for i in range(5)])
           | schemas.BatchRowsAsDataFrame(min_batch_size=10, max_batch_size=10))
       assert_that(res, matches_df(expected))
 
   def test_simple_df_with_beam_row(self):
     expected = pd.DataFrame({
-        'name': list(unicode(i) for i in range(5)),
+        'name': list(str(i) for i in range(5)),
         'id': list(range(5)),
         'height': list(float(i) for i in range(5))
     },

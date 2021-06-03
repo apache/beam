@@ -25,6 +25,7 @@ import gzip
 import logging
 import math
 import os
+import sys
 import tempfile
 import time
 import unittest
@@ -600,15 +601,20 @@ class SnippetsTest(unittest.TestCase):
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
     result_path = temp_path + '.result'
-    snippets.model_pipelines(
-        ['--input=%s*' % temp_path, '--output=%s' % result_path])
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.model_pipelines()
     self.assertEqual(
         self.get_output(result_path),
         [str(s) for s in [(u'aa', 1), (u'bb', 2), (u'cc', 3)]])
 
   def test_model_pcollection(self):
     temp_path = self.create_temp_file()
-    snippets.model_pcollection(['--output=%s' % temp_path])
+    snippets.model_pcollection(temp_path)
     self.assertEqual(
         self.get_output(temp_path),
         [
@@ -751,7 +757,13 @@ class SnippetsTest(unittest.TestCase):
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
     result_path = temp_path + '.result'
-    fn(['--input=%s*' % temp_path, '--output=%s' % result_path])
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      fn()
     self.assertEqual(['aa', 'bb', 'cc'], self.get_output(result_path))
 
   def test_pipeline_options_local(self):
@@ -783,7 +795,13 @@ class SnippetsTest(unittest.TestCase):
   def test_examples_wordcount(self, pipeline):
     temp_path = self.create_temp_file('abc def ghi\n abc jkl')
     result_path = self.create_temp_file()
-    pipeline({'read': temp_path, 'write': result_path})
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      pipeline()
     self.assertEqual(
         self.get_output(result_path), ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
 
@@ -850,23 +868,29 @@ class SnippetsTest(unittest.TestCase):
         FakeReadFromPubSub(topic=input_topic, values=input_values))
     beam.io.WriteToPubSub = (
         FakeWriteToPubSub(topic=output_topic, values=output_values))
-    snippets.examples_wordcount_streaming([
+    test_argv = [
+        'unused_argv[0]',
         '--input_topic',
         'projects/fake-beam-test-project/topic/intopic',
         '--output_topic',
         'projects/fake-beam-test-project/topic/outtopic'
-    ])
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.examples_wordcount_streaming()
 
     # Test with custom subscription.
     input_sub = 'projects/fake-beam-test-project/subscriptions/insub'
     beam.io.ReadFromPubSub = FakeReadFromPubSub(
         subscription=input_sub, values=input_values)
-    snippets.examples_wordcount_streaming([
+    test_argv = [
+        'unused_argv[0]',
         '--input_subscription',
         'projects/fake-beam-test-project/subscriptions/insub',
         '--output_topic',
         'projects/fake-beam-test-project/topic/outtopic'
-    ])
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.examples_wordcount_streaming()
 
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
@@ -1057,8 +1081,8 @@ class SnippetsTest(unittest.TestCase):
       assert_that(counts, equal_to([('a', 4), ('b', 2), ('a', 1)]))
 
   def test_model_setting_trigger(self):
-    pipeline_options = PipelineOptions()
-    pipeline_options.view_as(StandardOptions).streaming = True
+    pipeline_options = PipelineOptions(
+        flags=['--streaming', '--allow_unsafe_triggers'])
 
     with TestPipeline(options=pipeline_options) as p:
       test_stream = (
@@ -1112,8 +1136,8 @@ class SnippetsTest(unittest.TestCase):
       assert_that(counts, equal_to([('a', 3), ('b', 2), ('a', 2), ('c', 2)]))
 
   def test_model_other_composite_triggers(self):
-    pipeline_options = PipelineOptions()
-    pipeline_options.view_as(StandardOptions).streaming = True
+    pipeline_options = PipelineOptions(
+        flags=['--streaming', '--allow_unsafe_triggers'])
 
     with TestPipeline(options=pipeline_options) as p:
       test_stream = (

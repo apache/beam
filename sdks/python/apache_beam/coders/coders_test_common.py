@@ -18,14 +18,11 @@
 """Tests common to all coder implementations."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import enum
 import logging
 import math
 import unittest
-from builtins import range
 from typing import Any
 from typing import List
 from typing import NamedTuple

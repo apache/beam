@@ -19,17 +19,10 @@ package org.apache.beam.runners.samza.util;
 
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
-import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Utilities for pipeline translation. */
 @SuppressWarnings({
@@ -48,35 +41,6 @@ public final class SamzaPipelineTranslatorUtils {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  public static WindowingStrategy<?, BoundedWindow> getPortableWindowStrategy(
-      PipelineNode.PTransformNode transform, QueryablePipeline pipeline) {
-    String inputId = Iterables.getOnlyElement(transform.getTransform().getInputsMap().values());
-    RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forComponents(pipeline.getComponents());
-
-    RunnerApi.WindowingStrategy windowingStrategyProto =
-        pipeline
-            .getComponents()
-            .getWindowingStrategiesOrThrow(
-                pipeline.getComponents().getPcollectionsOrThrow(inputId).getWindowingStrategyId());
-
-    WindowingStrategy<?, ?> windowingStrategy;
-    try {
-      windowingStrategy =
-          WindowingStrategyTranslation.fromProto(windowingStrategyProto, rehydratedComponents);
-    } catch (InvalidProtocolBufferException e) {
-      throw new IllegalStateException(
-          String.format(
-              "Unable to hydrate GroupByKey windowing strategy %s.", windowingStrategyProto),
-          e);
-    }
-
-    @SuppressWarnings("unchecked")
-    WindowingStrategy<?, BoundedWindow> ret =
-        (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
-    return ret;
   }
 
   /**

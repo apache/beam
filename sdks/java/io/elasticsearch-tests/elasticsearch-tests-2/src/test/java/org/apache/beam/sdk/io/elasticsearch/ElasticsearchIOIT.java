@@ -104,6 +104,15 @@ public class ElasticsearchIOIT {
   }
 
   @Test
+  public void testWriteVolumeStateful() throws Exception {
+    // cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
+        new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonWrite.setPipeline(pipeline);
+    elasticsearchIOTestCommonWrite.testWriteStateful();
+  }
+
+  @Test
   public void testSizesVolume() throws Exception {
     elasticsearchIOTestCommon.testSizes();
   }
@@ -121,6 +130,23 @@ public class ElasticsearchIOIT {
         new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
+  }
+
+  @Test
+  public void testWriteWithAllowableErrors() throws Exception {
+    elasticsearchIOTestCommon.testWriteWithAllowedErrors();
+  }
+
+  @Test
+  public void testWriteWithRouting() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithRouting();
+  }
+
+  @Test
+  public void testWriteWithDocVersion() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithDocVersion();
   }
 
   /**

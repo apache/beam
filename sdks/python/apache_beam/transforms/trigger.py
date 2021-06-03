@@ -28,7 +28,11 @@ import logging
 import numbers
 from abc import ABCMeta
 from abc import abstractmethod
+from enum import Flag
+from enum import auto
+from functools import reduce
 from itertools import zip_longest
+from operator import or_
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import observable
@@ -156,6 +160,13 @@ class _WatermarkHoldStateTag(_StateTag):
         prefix + self.tag, self.timestamp_combiner_impl)
 
 
+class DataLossReason(Flag):
+  """Enum defining potential reasons that a trigger may cause data loss."""
+  NO_POTENTIAL_LOSS = 0
+  MAY_FINISH = auto()
+  CONDITION_NOT_GUARANTEED = auto()
+
+
 # pylint: disable=unused-argument
 # TODO(robertwb): Provisional API, Java likely to change as well.
 class TriggerFn(metaclass=ABCMeta):
@@ -237,6 +248,43 @@ class TriggerFn(metaclass=ABCMeta):
     """Clear any state and timers used by this TriggerFn."""
     pass
 
+  @abstractmethod
+  def may_lose_data(self, windowing):
+    # type: (core.Windowing) -> DataLossReason
+
+    """Returns whether or not this trigger could cause data loss.
+
+    A trigger can cause data loss in the following scenarios:
+
+        * The trigger has a chance to finish. For instance, AfterWatermark()
+          without a late trigger would cause all late data to be lost. This
+          scenario is only accounted for if the windowing strategy allows
+          late data. Otherwise, the trigger is not responsible for the data
+          loss.
+        * The trigger condition may not be met. For instance,
+          Repeatedly(AfterCount(N)) may not fire due to N not being met. This
+          is only accounted for if the condition itself led to data loss.
+          Repeatedly(AfterCount(1)) is safe, since it would only not fire if
+          there is no data to lose, but Repeatedly(AfterCount(2)) can cause
+          data loss if there is only one record.
+
+    Note that this only returns the potential for loss. It does not mean that
+    there will be data loss. It also only accounts for loss related to the
+    trigger, not other potential causes.
+
+    Args:
+      windowing: The Windowing that this trigger belongs to. It does not need
+        to be the top-level trigger.
+
+    Returns:
+      The DataLossReason. If there is no potential loss,
+        DataLossReason.NO_POTENTIAL_LOSS is returned. Otherwise, all the
+        potential reasons are returned as a single value. For instance, if
+        data loss can result from finishing or not having the condition met,
+        the result will be DataLossReason.MAY_FINISH|CONDITION_NOT_GUARANTEED.
+    """
+    pass
+
 
 # pylint: enable=unused-argument
 
@@ -290,6 +338,9 @@ class DefaultTrigger(TriggerFn):
   def reset(self, window, context):
     context.clear_timer(str(window), TimeDomain.WATERMARK)
 
+  def may_lose_data(self, unused_windowing):
+    return DataLossReason.NO_POTENTIAL_LOSS
+
   def __eq__(self, other):
     return type(self) == type(other)
 
@@ -337,6 +388,9 @@ class AfterProcessingTime(TriggerFn):
 
   def reset(self, window, context):
     pass
+
+  def may_lose_data(self, unused_windowing):
+    return DataLossReason.MAY_FINISH
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -389,6 +443,9 @@ class Always(TriggerFn):
   def on_fire(self, watermark, window, context):
     return False
 
+  def may_lose_data(self, unused_windowing):
+    return DataLossReason.NO_POTENTIAL_LOSS
+
   @staticmethod
   def from_runner_api(proto, context):
     return Always()
@@ -433,6 +490,14 @@ class _Never(TriggerFn):
   def on_fire(self, watermark, window, context):
     return True
 
+  def may_lose_data(self, unused_windowing):
+    """No potential data loss.
+
+    Though Never doesn't explicitly trigger, it still collects data on
+    windowing closing, so any data loss is due to windowing closing.
+    """
+    return DataLossReason.NO_POTENTIAL_LOSS
+
   @staticmethod
   def from_runner_api(proto, context):
     return _Never()
@@ -454,6 +519,7 @@ class AfterWatermark(TriggerFn):
   LATE_TAG = _CombiningValueStateTag('is_late', any)
 
   def __init__(self, early=None, late=None):
+    # TODO(zhoufek): Maybe don't wrap early/late if they are already Repeatedly
     self.early = Repeatedly(early) if early else None
     self.late = Repeatedly(late) if late else None
 
@@ -524,6 +590,20 @@ class AfterWatermark(TriggerFn):
     if self.late:
       self.late.reset(window, NestedContext(context, 'late'))
 
+  def may_lose_data(self, windowing):
+    """May cause data loss if the windowing allows lateness and either:
+
+      * The late trigger is not set
+      * The late trigger may cause data loss.
+
+    The second case is equivalent to Repeatedly(late).may_lose_data(windowing)
+    """
+    if windowing.allowed_lateness == 0:
+      return DataLossReason.NO_POTENTIAL_LOSS
+    if self.late is None:
+      return DataLossReason.MAY_FINISH
+    return self.late.may_lose_data(windowing)
+
   def __eq__(self, other):
     return (
         type(self) == type(other) and self.early == other.early and
@@ -593,6 +673,12 @@ class AfterCount(TriggerFn):
   def reset(self, window, context):
     context.clear_state(self.COUNT_TAG)
 
+  def may_lose_data(self, unused_windowing):
+    reason = DataLossReason.MAY_FINISH
+    if self.count > 1:
+      reason |= DataLossReason.CONDITION_NOT_GUARANTEED
+    return reason
+
   @staticmethod
   def from_runner_api(proto, unused_context):
     return AfterCount(proto.element_count.element_count)
@@ -636,6 +722,17 @@ class Repeatedly(TriggerFn):
 
   def reset(self, window, context):
     self.underlying.reset(window, context)
+
+  def may_lose_data(self, windowing):
+    """Repeatedly may only lose data if the underlying trigger may not have
+    its condition met.
+
+    For underlying triggers that may finish, Repeatedly overrides that
+    behavior.
+    """
+    return (
+        self.underlying.may_lose_data(windowing)
+        & DataLossReason.CONDITION_NOT_GUARANTEED)
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -742,6 +839,15 @@ class AfterAny(_ParallelTriggerFn):
   """
   combine_op = any
 
+  def may_lose_data(self, windowing):
+    reason = DataLossReason.NO_POTENTIAL_LOSS
+    for trigger in self.triggers:
+      t_reason = trigger.may_lose_data(windowing)
+      if t_reason == DataLossReason.NO_POTENTIAL_LOSS:
+        return t_reason
+      reason |= t_reason
+    return reason
+
 
 class AfterAll(_ParallelTriggerFn):
   """Fires when all subtriggers have fired.
@@ -749,6 +855,9 @@ class AfterAll(_ParallelTriggerFn):
   Also finishes when all subtriggers have finished.
   """
   combine_op = all
+
+  def may_lose_data(self, windowing):
+    return reduce(or_, (t.may_lose_data(windowing) for t in self.triggers))
 
 
 class AfterEach(TriggerFn):
@@ -804,6 +913,9 @@ class AfterEach(TriggerFn):
     context.clear_state(self.INDEX_TAG)
     for ix, trigger in enumerate(self.triggers):
       trigger.reset(window, self._sub_context(context, ix))
+
+  def may_lose_data(self, windowing):
+    return reduce(or_, (t.may_lose_data(windowing) for t in self.triggers))
 
   @staticmethod
   def _sub_context(context, index):

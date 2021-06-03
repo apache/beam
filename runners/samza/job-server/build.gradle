@@ -70,8 +70,6 @@ createPortableValidatesRunnerTask(
         environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
         testCategories: {
             includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-            // TODO: BEAM-12347
-            excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
             // TODO: BEAM-12348
             excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
             // TODO: BEAM-12349
@@ -102,6 +100,7 @@ createPortableValidatesRunnerTask(
             excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
         },
         testFilter: {
+            excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty"
         }

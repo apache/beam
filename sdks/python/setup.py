@@ -17,9 +17,6 @@
 
 """Apache Beam SDK for Python setup file."""
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import sys
 import warnings
@@ -150,7 +147,7 @@ REQUIRED_PACKAGES = [
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
-    'pyarrow>=0.15.1,<4.0.0',
+    'pyarrow>=0.15.1,<5.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
@@ -200,6 +197,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
+    # GCP Package required by Google Cloud Profiler.
+    'google-cloud-profiler>=3.0.4,<4'
 ]
 
 INTERACTIVE_BEAM = [
