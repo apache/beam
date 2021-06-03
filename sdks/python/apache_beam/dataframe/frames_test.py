@@ -893,6 +893,74 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.cat.as_unordered(), s)
     self._run_test(lambda s: s.cat.codes, s)
 
+  @parameterized.expand(frames.ELEMENTWISE_DATETIME_PROPERTIES)
+  def test_dt_property(self, prop_name):
+    # Generate a series with a lot of unique timestamps
+    s = pd.Series(
+        pd.date_range('1/1/2000', periods=100, freq='m') +
+        pd.timedelta_range(start='0 days', end='70 days', periods=100))
+    self._run_test(lambda s: getattr(s.dt, prop_name), s)
+
+  @parameterized.expand([
+      ('month_name', {}),
+      ('day_name', {}),
+      ('normalize', {}),
+      (
+          'strftime',
+          {
+              'date_format': '%B %d, %Y, %r'
+          },
+      ),
+      ('tz_convert', {
+          'tz': 'Europe/Berlin'
+      }),
+  ])
+  def test_dt_method(self, op, kwargs):
+    # Generate a series with a lot of unique timestamps
+    s = pd.Series(
+        pd.date_range(
+            '1/1/2000', periods=100, freq='m', tz='America/Los_Angeles') +
+        pd.timedelta_range(start='0 days', end='70 days', periods=100))
+
+    self._run_test(lambda s: getattr(s.dt, op)(**kwargs), s)
+
+  def test_dt_tz_localize_ambiguous_series(self):
+    # This replicates a dt.tz_localize doctest:
+    #   s.tz_localize('CET', ambiguous=np.array([True, True, False]))
+    # But using a DeferredSeries instead of a np array
+
+    s = pd.to_datetime(
+        pd.Series([
+            '2018-10-28 01:20:00', '2018-10-28 02:36:00', '2018-10-28 03:46:00'
+        ]))
+    ambiguous = pd.Series([True, True, False], index=s.index)
+
+    self._run_test(
+        lambda s,
+        ambiguous: s.dt.tz_localize('CET', ambiguous=ambiguous),
+        s,
+        ambiguous)
+
+  def test_dt_tz_localize_nonexistent(self):
+    # This replicates dt.tz_localize doctests that exercise `nonexistent`.
+    # However they specify ambiguous='NaT' because the default,
+    # ambiguous='infer', is not supported.
+    s = pd.to_datetime(
+        pd.Series(['2015-03-29 02:30:00', '2015-03-29 03:30:00']))
+
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent='shift_forward'),
+        s)
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent='shift_backward'),
+        s)
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
+        s)
+
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
@@ -1830,6 +1898,9 @@ class ConstructionTimeTest(unittest.TestCase):
       'int_col': [1, 2] * 3,
       'flt_col': [1.1, 2.2] * 3,
       'cat_col': pd.Series(list('aabbca'), dtype="category"),
+      'datetime_col': pd.Series(
+          pd.date_range(
+              '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
   })
   DEFERRED_DF = frame_base.DeferredFrame.wrap(
       expressions.PlaceholderExpression(DF.iloc[:0]))
@@ -1881,6 +1952,9 @@ class ConstructionTimeTest(unittest.TestCase):
     # doesn't exist
     self._run_test(lambda df: df.get('FOO'))
 
+  def test_datetime_tz(self):
+    self._run_test(lambda df: df.datetime_col.dt.tz)
+
 
 class DocstringTest(unittest.TestCase):
   @parameterized.expand([
@@ -1893,6 +1967,9 @@ class DocstringTest(unittest.TestCase):
           pd.core.arrays.categorical.CategoricalAccessor),
       (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
       (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+      (
+          frames._DeferredDatetimeMethods,
+          pd.core.indexes.accessors.DatetimeProperties),
   ])
   def test_docs_defined(self, beam_type, pd_type):
     beam_attrs = set(dir(beam_type))
