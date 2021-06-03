@@ -397,9 +397,52 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         grouping_indexes=grouping_indexes)
 
   abs = frame_base._elementwise_method('abs', base=pd.core.generic.NDFrame)
-  # TODO: Disallow astype('category')
-  astype = frame_base._elementwise_method(
-      'astype', base=pd.core.generic.NDFrame)
+
+  @frame_base.with_docs_from(pd.core.generic.NDFrame)
+  @frame_base.args_to_kwargs(pd.core.generic.NDFrame)
+  @frame_base.populate_defaults(pd.core.generic.NDFrame)
+  def astype(self, dtype, copy, errors):
+    """astype is not parallelizable when ``errors="ignore"`` is specified.
+
+    ``copy=False`` is not supported because it relies on memory-sharing
+    semantics.
+
+    ``dtype="category`` is not supported because the type of the output column
+    depends on the data. Please use ``pd.CategoricalDtype`` with explicit
+    categories instead.
+    """
+    requires = partitionings.Arbitrary()
+
+    if errors == "ignore":
+      # We need all data in order to ignore errors and propagate the original
+      # data.
+      requires = partitionings.Singleton(
+          reason=(
+              f"astype(errors={errors!r}) is currently not parallelizable, "
+              "because all data must be collected on one node to determine if "
+              "the original data should be propagated instead."))
+
+    if not copy:
+      raise frame_base.WontImplementError(
+          f"astype(copy={copy!r}) is not supported because it relies on "
+          "memory-sharing semantics that are not compatible with the Beam "
+          "model.")
+
+    if dtype == 'category':
+      raise frame_base.WontImplementError(
+          "astype(dtype='category') is not supported because the type of the "
+          "output column depends on the data. Please use pd.CategoricalDtype "
+          "with explicit categories instead.",
+          reason="non-deferred-columns")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'astype',
+            lambda df: df.astype(dtype=dtype, copy=copy, errors=errors),
+            [self._expr],
+            requires_partition_by=requires,
+            preserves_partition_by=partitionings.Arbitrary()))
+
   copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
 
   @frame_base.with_docs_from(pd.DataFrame)
