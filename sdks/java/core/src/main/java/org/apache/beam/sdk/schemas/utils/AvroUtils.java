@@ -29,6 +29,7 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.sql.JDBCType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -911,7 +912,7 @@ public class AvroUtils {
           case "VARCHAR":
           case "LONGNVARCHAR":
           case "LONGVARCHAR":
-            baseType = org.apache.avro.Schema.create(Type.STRING);
+            baseType = makeJdbcLogicalStringAvroType(fieldType.getLogicalType());
             break;
 
           case "DATE":
@@ -1306,5 +1307,18 @@ public class AvroUtils {
   private static void checkTypeName(Schema.TypeName got, Schema.TypeName expected, String label) {
     checkArgument(
         got.equals(expected), "Can't convert '%s' to %s, expected: %s", label, got, expected);
+  }
+
+  /** Helper factory to build JDBC Logical types for AVRO Schema. */
+  private static org.apache.avro.Schema makeJdbcLogicalStringAvroType(
+      Schema.LogicalType<?, ?> logicalType) {
+    JDBCType jdbcType = JDBCType.valueOf(logicalType.getIdentifier());
+    Integer size = logicalType.getArgument();
+
+    String schemaJson =
+        String.format(
+            "{\"type\": \"string\", \"logicalType\": \"%s\", \"maxLength\": %s}",
+            jdbcType.name(), size);
+    return new org.apache.avro.Schema.Parser().parse(schemaJson);
   }
 }

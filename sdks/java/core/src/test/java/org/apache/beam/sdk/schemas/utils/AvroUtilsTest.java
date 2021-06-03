@@ -564,30 +564,39 @@ public class AvroUtilsTest {
             + " \"type\": \"record\", "
             + " \"fields\": [{ "
             + "   \"name\": \"my_varchar_field\", "
-            + "   \"type\": \"string\" "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"VARCHAR\", \"maxLength\": 10}"
             + "  }, "
             + "  { "
             + "   \"name\": \"my_longvarchar_field\", "
-            + "   \"type\": \"string\" "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"LONGVARCHAR\", \"maxLength\": 50}"
             + "  }, "
             + "  { "
             + "   \"name\": \"my_nvarchar_field\", "
-            + "   \"type\": \"string\" "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"NVARCHAR\", \"maxLength\": 10}"
             + "  }, "
             + "  { "
             + "   \"name\": \"my_longnvarchar_field\", "
-            + "   \"type\": \"string\" "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"LONGNVARCHAR\", \"maxLength\": 50}"
             + "  } "
             + " ] "
             + "}";
 
     Schema beamSchema =
         Schema.builder()
-            .addField(Field.of("my_varchar_field", FieldType.logicalType(JdbcType.VARCHAR)))
-            .addField(Field.of("my_longvarchar_field", FieldType.logicalType(JdbcType.LONGVARCHAR)))
-            .addField(Field.of("my_nvarchar_field", FieldType.logicalType(JdbcType.NVARCHAR)))
             .addField(
-                Field.of("my_longnvarchar_field", FieldType.logicalType(JdbcType.LONGNVARCHAR)))
+                Field.of(
+                    "my_varchar_field", FieldType.logicalType(JdbcType.StringType.varchar(10))))
+            .addField(
+                Field.of(
+                    "my_longvarchar_field",
+                    FieldType.logicalType(JdbcType.StringType.longvarchar(50))))
+            .addField(
+                Field.of(
+                    "my_nvarchar_field", FieldType.logicalType(JdbcType.StringType.nvarchar(10))))
+            .addField(
+                Field.of(
+                    "my_longnvarchar_field",
+                    FieldType.logicalType(JdbcType.StringType.longnvarchar(50))))
             .build();
 
     assertEquals(
@@ -599,11 +608,20 @@ public class AvroUtilsTest {
   public void testJdbcLogicalVarCharRowDataToGenericRecord() {
     Schema beamSchema =
         Schema.builder()
-            .addField(Field.of("my_varchar_field", FieldType.logicalType(JdbcType.VARCHAR)))
-            .addField(Field.of("my_longvarchar_field", FieldType.logicalType(JdbcType.LONGVARCHAR)))
-            .addField(Field.of("my_nvarchar_field", FieldType.logicalType(JdbcType.NVARCHAR)))
             .addField(
-                Field.of("my_longnvarchar_field", FieldType.logicalType(JdbcType.LONGNVARCHAR)))
+                Field.of(
+                    "my_varchar_field", FieldType.logicalType(JdbcType.StringType.varchar(10))))
+            .addField(
+                Field.of(
+                    "my_longvarchar_field",
+                    FieldType.logicalType(JdbcType.StringType.longvarchar(50))))
+            .addField(
+                Field.of(
+                    "my_nvarchar_field", FieldType.logicalType(JdbcType.StringType.nvarchar(10))))
+            .addField(
+                Field.of(
+                    "my_longnvarchar_field",
+                    FieldType.logicalType(JdbcType.StringType.longnvarchar(50))))
             .build();
 
     Row rowData =
@@ -779,30 +797,48 @@ public class AvroUtilsTest {
         AvroUtils.getFromRowFunction(GenericRecord.class));
   }
 
-  /** Helper class that simulates a JDBC Logical types. */
+  /** Helper class that simulate JDBC Logical types. */
   private static class JdbcType<T> implements Schema.LogicalType<T, T> {
 
-    private static final JdbcType<String> VARCHAR =
-        new JdbcType<>(JDBCType.VARCHAR, FieldType.INT32, FieldType.STRING);
-    private static final JdbcType<String> NVARCHAR =
-        new JdbcType<>(JDBCType.NVARCHAR, FieldType.INT32, FieldType.STRING);
-    private static final JdbcType<String> LONGVARCHAR =
-        new JdbcType<>(JDBCType.LONGVARCHAR, FieldType.INT32, FieldType.STRING);
-    private static final JdbcType<String> LONGNVARCHAR =
-        new JdbcType<>(JDBCType.LONGNVARCHAR, FieldType.INT32, FieldType.STRING);
     private static final JdbcType<Instant> DATE =
-        new JdbcType<>(JDBCType.DATE, FieldType.STRING, FieldType.DATETIME);
+        new JdbcType<>(JDBCType.DATE, FieldType.STRING, FieldType.DATETIME, "");
     private static final JdbcType<Instant> TIME =
-        new JdbcType<>(JDBCType.TIME, FieldType.STRING, FieldType.DATETIME);
+        new JdbcType<>(JDBCType.TIME, FieldType.STRING, FieldType.DATETIME, "");
 
     private final String identifier;
     private final FieldType argumentType;
     private final FieldType baseType;
+    private final Object argument;
 
-    private JdbcType(JDBCType jdbcType, FieldType argumentType, FieldType baseType) {
+    private static class StringType extends JdbcType<String> {
+
+      private static StringType varchar(int size) {
+        return new StringType(JDBCType.VARCHAR, size);
+      }
+
+      private static StringType longvarchar(int size) {
+        return new StringType(JDBCType.LONGVARCHAR, size);
+      }
+
+      private static StringType nvarchar(int size) {
+        return new StringType(JDBCType.NVARCHAR, size);
+      }
+
+      private static StringType longnvarchar(int size) {
+        return new StringType(JDBCType.LONGNVARCHAR, size);
+      }
+
+      private StringType(JDBCType type, int size) {
+        super(type, FieldType.INT32, FieldType.STRING, size);
+      }
+    }
+
+    private JdbcType(
+        JDBCType jdbcType, FieldType argumentType, FieldType baseType, Object argument) {
       this.identifier = jdbcType.getName();
       this.argumentType = argumentType;
       this.baseType = baseType;
+      this.argument = argument;
     }
 
     @Override
@@ -818,6 +854,12 @@ public class AvroUtilsTest {
     @Override
     public FieldType getBaseType() {
       return baseType;
+    }
+
+    @Override
+    @SuppressWarnings("TypeParameterUnusedInFormals")
+    public <T1> @Nullable T1 getArgument() {
+      return (T1) argument;
     }
 
     @Override
