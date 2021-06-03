@@ -31,6 +31,10 @@ from apache_beam.runners.portability import spark_uber_jar_job_server
 # https://spark.apache.org/docs/latest/submitting-applications.html#master-urls
 LOCAL_MASTER_PATTERN = r'^local(\[.+\])?$'
 
+# Since Java job servers are heavyweight external processes, cache them.
+# This applies only to SparkJarJobServer, not SparkUberJarJobServer.
+JOB_SERVER_CACHE = {}
+
 
 class SparkRunner(portable_runner.PortableRunner):
   def run_pipeline(self, pipeline, options):
@@ -49,7 +53,15 @@ class SparkRunner(portable_runner.PortableRunner):
         raise ValueError('Option spark_rest_url must be set.')
       return spark_uber_jar_job_server.SparkUberJarJobServer(
           spark_options.spark_rest_url, options)
-    return job_server.StopOnExitJobServer(SparkJarJobServer(options))
+    # Use Java job server by default.
+    # Only SparkRunnerOptions and JobServerOptions affect job server
+    # configuration, so concat those as the cache key.
+    job_server_options = options.view_as(pipeline_options.JobServerOptions)
+    options_str = str(spark_options) + str(job_server_options)
+    if not options_str in JOB_SERVER_CACHE:
+      JOB_SERVER_CACHE[options_str] = job_server.StopOnExitJobServer(
+          SparkJarJobServer(options))
+    return JOB_SERVER_CACHE[options_str]
 
   def create_job_service_handle(self, job_service, options):
     return portable_runner.JobServiceHandle(
