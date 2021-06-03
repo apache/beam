@@ -675,7 +675,6 @@ class DoctestTest(unittest.TestCase):
                 "df.groupby('id').filter(lambda g: (g.nunique() > 1).any())",
             ],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.filter': ['*'],
