@@ -85,7 +85,6 @@ import com.amazonaws.services.kinesis.model.StartStreamEncryptionRequest;
 import com.amazonaws.services.kinesis.model.StartStreamEncryptionResult;
 import com.amazonaws.services.kinesis.model.StopStreamEncryptionRequest;
 import com.amazonaws.services.kinesis.model.StopStreamEncryptionResult;
-import com.amazonaws.services.kinesis.model.StreamDescription;
 import com.amazonaws.services.kinesis.model.UpdateShardCountRequest;
 import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
@@ -94,9 +93,9 @@ import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -163,31 +162,31 @@ class AmazonKinesisMock implements AmazonKinesis {
     private final List<List<TestData>> shardedData;
     private final int numberOfRecordsPerGet;
 
-    private int rateLimitDescribeStream = 0;
+    private boolean expectedListShardsLimitExceededException;
 
     public Provider(List<List<TestData>> shardedData, int numberOfRecordsPerGet) {
       this.shardedData = shardedData;
       this.numberOfRecordsPerGet = numberOfRecordsPerGet;
     }
 
-    /**
-     * Simulate an initially rate limited DescribeStream.
-     *
-     * @param rateLimitDescribeStream The number of rate limited requests before success
-     */
-    public Provider withRateLimitedDescribeStream(int rateLimitDescribeStream) {
-      this.rateLimitDescribeStream = rateLimitDescribeStream;
+    /** Simulate limit exceeded exception for ListShards. */
+    public Provider withExpectedListShardsLimitExceededException() {
+      expectedListShardsLimitExceededException = true;
       return this;
     }
 
     @Override
     public AmazonKinesis getKinesisClient() {
-      return new AmazonKinesisMock(
+      AmazonKinesisMock client =
+          new AmazonKinesisMock(
               shardedData.stream()
                   .map(testDatas -> transform(testDatas, TestData::convertToRecord))
                   .collect(Collectors.toList()),
-              numberOfRecordsPerGet)
-          .withRateLimitedDescribeStream(rateLimitDescribeStream);
+              numberOfRecordsPerGet);
+      if (expectedListShardsLimitExceededException) {
+        client = client.withExpectedListShardsLimitExceededException();
+      }
+      return client;
     }
 
     @Override
@@ -204,15 +203,15 @@ class AmazonKinesisMock implements AmazonKinesis {
   private final List<List<Record>> shardedData;
   private final int numberOfRecordsPerGet;
 
-  private int rateLimitDescribeStream = 0;
+  private boolean expectedListShardsLimitExceededException;
 
   public AmazonKinesisMock(List<List<Record>> shardedData, int numberOfRecordsPerGet) {
     this.shardedData = shardedData;
     this.numberOfRecordsPerGet = numberOfRecordsPerGet;
   }
 
-  public AmazonKinesisMock withRateLimitedDescribeStream(int rateLimitDescribeStream) {
-    this.rateLimitDescribeStream = rateLimitDescribeStream;
+  public AmazonKinesisMock withExpectedListShardsLimitExceededException() {
+    this.expectedListShardsLimitExceededException = true;
     return this;
   }
 
@@ -249,30 +248,7 @@ class AmazonKinesisMock implements AmazonKinesis {
 
   @Override
   public DescribeStreamResult describeStream(String streamName, String exclusiveStartShardId) {
-    if (rateLimitDescribeStream-- > 0) {
-      throw new LimitExceededException("DescribeStream rate limit exceeded");
-    }
-    int nextShardId = 0;
-    if (exclusiveStartShardId != null) {
-      nextShardId = parseInt(exclusiveStartShardId) + 1;
-    }
-    boolean hasMoreShards = nextShardId + 1 < shardedData.size();
-
-    List<Shard> shards = new ArrayList<>();
-    if (nextShardId < shardedData.size()) {
-      shards.add(new Shard().withShardId(Integer.toString(nextShardId)));
-    }
-
-    HttpResponse response = new HttpResponse(null, null);
-    response.setStatusCode(200);
-    DescribeStreamResult result = new DescribeStreamResult();
-    result.setSdkHttpMetadata(SdkHttpMetadata.from(response));
-    result.withStreamDescription(
-        new StreamDescription()
-            .withHasMoreShards(hasMoreShards)
-            .withShards(shards)
-            .withStreamName(streamName));
-    return result;
+    throw new RuntimeException("Not implemented");
   }
 
   @Override
@@ -383,7 +359,23 @@ class AmazonKinesisMock implements AmazonKinesis {
 
   @Override
   public ListShardsResult listShards(ListShardsRequest listShardsRequest) {
-    throw new RuntimeException("Not implemented");
+    if (expectedListShardsLimitExceededException) {
+      throw new LimitExceededException("ListShards rate limit exceeded");
+    }
+
+    ListShardsResult result = new ListShardsResult();
+
+    List<Shard> shards =
+        IntStream.range(0, shardedData.size())
+            .boxed()
+            .map(i -> new Shard().withShardId(Integer.toString(i)))
+            .collect(Collectors.toList());
+    result.setShards(shards);
+
+    HttpResponse response = new HttpResponse(null, null);
+    response.setStatusCode(200);
+    result.setSdkHttpMetadata(SdkHttpMetadata.from(response));
+    return result;
   }
 
   @Override

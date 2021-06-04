@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.kinesis;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
-import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import java.io.Serializable;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -46,7 +45,7 @@ class StartingPoint implements Serializable {
 
   public StartingPoint(Instant timestamp) {
     this.timestamp = checkNotNull(timestamp, "timestamp");
-    this.position = null;
+    this.position = InitialPositionInStream.AT_TIMESTAMP;
   }
 
   public InitialPositionInStream getPosition() {
@@ -54,11 +53,11 @@ class StartingPoint implements Serializable {
   }
 
   public String getPositionName() {
-    return position != null ? position.name() : ShardIteratorType.AT_TIMESTAMP.name();
+    return position.name();
   }
 
   public Instant getTimestamp() {
-    return timestamp != null ? timestamp : null;
+    return timestamp;
   }
 
   @Override
