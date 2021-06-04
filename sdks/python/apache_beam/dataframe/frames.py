@@ -899,6 +899,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   transform = frame_base._elementwise_method('transform', base=pd.DataFrame)
 
+  tz_convert = frame_base._proxy_method(
+      'tz_convert',
+      base=pd.DataFrame,
+      requires_partition_by=partitionings.Arbitrary(),
+      # Manipulates index, partitioning is not preserved
+      preserves_partition_by=partitionings.Singleton())
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
