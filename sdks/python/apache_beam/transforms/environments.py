@@ -496,6 +496,7 @@ class ExternalEnvironment(Environment):
   def __init__(
       self,
       url,  # type: str
+      deadline,  # type: int
       params=None,  # type: Optional[Mapping[str, str]]
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
@@ -503,19 +504,21 @@ class ExternalEnvironment(Environment):
   ):
     super().__init__(capabilities, artifacts, resource_hints)
     self.url = url
+    self.deadline = deadline
     self.params = params
 
   def __eq__(self, other):
     return (
         super().__eq__(other) and self.url == other.url and
-        self.params == other.params)
+        self.params == other.params and self.deadline == other.deadline)
 
   def __hash__(self):
     # type: () -> int
     return hash((
         super().__hash__(),
         self.url,
-        frozenset(self.params.items()) if self.params is not None else None))
+        self.deadline,
+        frozenset(self.params.items()) if self.params is not None else None),)
 
   def __repr__(self):
     # type: () -> str
@@ -527,7 +530,7 @@ class ExternalEnvironment(Environment):
         common_urns.environments.EXTERNAL.urn,
         beam_runner_api_pb2.ExternalPayload(
             endpoint=endpoints_pb2.ApiServiceDescriptor(url=self.url),
-            params=self.params))
+            params=self.params, deadline=self.deadline))
 
   @staticmethod
   def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.ExternalPayload
@@ -539,6 +542,7 @@ class ExternalEnvironment(Environment):
     # type: (...) -> ExternalEnvironment
     return ExternalEnvironment(
         payload.endpoint.url,
+        payload.deadline,
         params=payload.params or None,
         capabilities=capabilities,
         artifacts=artifacts,
@@ -552,16 +556,22 @@ class ExternalEnvironment(Environment):
       url = config.get('url')
       if not url:
         raise ValueError('External environment endpoint must be set.')
+      deadline = config.get('external_service_deadline')
+      if not deadline:
+          deadline = 60
       params = config.get('params')
     elif options.environment_config:
       url = options.environment_config
+      deadline = 60
       params = None
     else:
       url = options.lookup_environment_option('external_service_address')
+      deadline = options.lookup_environment_option('external_service_deadline', default=60)
       params = None
 
     return cls(
         url,
+        deadline,
         params=params,
         capabilities=python_sdk_capabilities(),
         artifacts=python_sdk_dependencies(options),
