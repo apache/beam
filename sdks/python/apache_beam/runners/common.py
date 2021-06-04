@@ -640,7 +640,23 @@ class PerWindowInvoker(DoFnInvoker):
 
     # Fill the OtherPlaceholders for context, key, window or timestamp
     remaining_args_iter = iter(input_args[args_to_pick:])
+    previous_arg_is_not_dofn_param = False
+    previous_arg_name = None
     for a, d in zip(arg_names[-len(default_arg_values):], default_arg_values):
+      if type(
+          d) in core.DoFn.DoFnProcessParams or d in core.DoFn.DoFnProcessParams:
+        if previous_arg_is_not_dofn_param:
+          # Non-DoFnParam declared before DoFnParam will cause undesired
+          # placeholder replacement shift.
+          raise ValueError(
+              "Wrong arg order in DoFn process method: DoFnProcessParams "
+              "should be declared before non-DoFnProcessParams. Previously "
+              "declared non-DoFnProcessParam: (%s) is before current "
+              "DoFnProcessParam (%s)" % (previous_arg_name, a))
+      else:
+        previous_arg_is_not_dofn_param = True
+        previous_arg_name = a
+
       if core.DoFn.ElementParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
       elif core.DoFn.KeyParam == d:

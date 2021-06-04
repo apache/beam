@@ -531,6 +531,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   WindowParam = _DoFnParam('WindowParam')
   PaneInfoParam = _DoFnParam('PaneInfoParam')
   WatermarkEstimatorParam = _WatermarkEstimatorParam
+  RestrictionParam = _RestrictionDoFnParam
   BundleFinalizerParam = _BundleFinalizerParam
   KeyParam = _DoFnParam('KeyParam')
 
@@ -548,14 +549,14 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       TimestampParam,
       WindowParam,
       WatermarkEstimatorParam,
+      RestrictionParam,
       PaneInfoParam,
       BundleFinalizerParam,
       KeyParam,
       StateParam,
       TimerParam,
+      DynamicTimerTagParam,
   ]
-
-  RestrictionParam = _RestrictionDoFnParam
 
   @staticmethod
   def from_callable(fn):

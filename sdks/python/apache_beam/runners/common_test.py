@@ -135,6 +135,42 @@ class DoFnProcessTest(unittest.TestCase):
       test_stream = (TestStream().advance_watermark_to(10).add_elements([1, 2]))
       (p | test_stream | beam.ParDo(DoFnProcessWithKeyparam()))
 
+  def test_dofn_process_wrong_arg_order_throw_exception(self):
+    with self.assertRaisesRegex(ValueError, "Wrong arg order .*"):
+      with TestPipeline() as pipeline:
+        pcol = pipeline | 'start' >> beam.Create([1, 2])
+
+        class MyDoFn(beam.DoFn):
+          def process(
+              self,
+              element,
+              option='a',
+              w=beam.DoFn.WindowParam,
+              t=beam.DoFn.TimestampParam,
+              **kwargs):
+            yield (element, w.start, w.end, t.seconds)
+
+        _ = pcol | 'add window' >> beam.ParDo(MyDoFn())
+
+  def test_dofn_process_right_arg_order(self):
+    with TestPipeline() as pipeline:
+      pcol = pipeline | 'start' >> beam.Create([1, 2])
+
+      class MyDoFn(beam.DoFn):
+        def process(
+            self,
+            element,
+            w=beam.DoFn.WindowParam,
+            t=beam.DoFn.TimestampParam,
+            option_1='a',
+            option_2='a',
+            **kwargs):
+          assert option_1 == option_2 == 'b'
+          yield (element, w.start, w.end, t.seconds)
+
+      _ = pcol | 'add window' >> beam.ParDo(
+          MyDoFn(), option_1='b', option_2='b')
+
 
 class TestOffsetRestrictionProvider(RestrictionProvider):
   def restriction_size(self, element, restriction):
