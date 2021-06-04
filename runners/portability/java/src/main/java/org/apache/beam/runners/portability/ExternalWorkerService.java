@@ -18,16 +18,22 @@
 package org.apache.beam.runners.portability;
 
 import java.util.Collections;
+import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnExternalWorkerPoolImplBase;
+import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +44,7 @@ import org.slf4j.LoggerFactory;
 public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase implements FnService {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExternalWorkerService.class);
+  private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
 
   private final PipelineOptions options;
   private final ServerFactory serverFactory = ServerFactory.createDefault();
@@ -90,10 +97,44 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
   public void close() {}
 
   public GrpcFnServer<ExternalWorkerService> start() throws Exception {
-    GrpcFnServer<ExternalWorkerService> server =
-        GrpcFnServer.allocatePortAndCreateFor(this, serverFactory);
+    final String externalServiceAddress =
+        Environments.getExternalServiceAddress(options.as(PortablePipelineOptions.class));
+    GrpcFnServer<ExternalWorkerService> server;
+    if (externalServiceAddress.isEmpty()) {
+      server = GrpcFnServer.allocatePortAndCreateFor(this, serverFactory);
+    } else {
+      server =
+          GrpcFnServer.create(
+              this,
+              Endpoints.ApiServiceDescriptor.newBuilder().setUrl(externalServiceAddress).build(),
+              serverFactory);
+    }
     LOG.debug(
         "Listening for worker start requests at {}.", server.getApiServiceDescriptor().getUrl());
     return server;
+  }
+
+  public static void main(String[] args) throws Exception {
+    main(System::getenv);
+  }
+
+  public static void main(Function<String, String> environmentVarGetter) throws Exception {
+    System.out.format("Starting external worker service%n");
+    System.out.format("Pipeline options %s%n", environmentVarGetter.apply(PIPELINE_OPTIONS));
+    PipelineOptions options =
+        PipelineOptionsTranslation.fromJson(environmentVarGetter.apply(PIPELINE_OPTIONS));
+
+    try (GrpcFnServer<ExternalWorkerService> server = new ExternalWorkerService(options).start()) {
+      System.out.format(
+          "External worker service started at address: %s",
+          server.getApiServiceDescriptor().getUrl());
+      while (true) {
+        Sleeper.DEFAULT.sleep(60 * 60 * 24 * 1000);
+      }
+    } catch (Exception e) {
+      System.out.println("Error running worker service:\n" + e);
+    } finally {
+      System.out.println("External worker service stopped.");
+    }
   }
 }
