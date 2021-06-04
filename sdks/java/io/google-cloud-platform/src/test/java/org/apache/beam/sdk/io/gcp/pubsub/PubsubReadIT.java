@@ -17,12 +17,25 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import com.google.cloud.pubsublite.SubscriptionPath;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
+import java.util.Collections;
 import java.util.Set;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteIO;
+import org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.transforms.FlatMapElements;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
@@ -41,59 +54,39 @@ public class PubsubReadIT {
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
-  @Test
-  public void testReadPublicData() throws Exception {
-    // The pipeline will never terminate on its own
-    pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
 
-    PCollection<String> messages =
-        pipeline.apply(
-            PubsubIO.readStrings()
-                .fromTopic("projects/pubsub-public-data/topics/taxirides-realtime"));
-
-    messages.apply(
-        "waitForAnyMessage", signal.signalSuccessWhen(messages.getCoder(), anyMessages -> true));
-
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
-    pipeline.apply(signal.signalStart());
-    PipelineResult job = pipeline.run();
-    start.get();
-
-    signal.waitForSuccess(Duration.standardMinutes(5));
-    // A runner may not support cancel
-    try {
-      job.cancel();
-    } catch (UnsupportedOperationException exc) {
-      // noop
-    }
-  }
 
   @Test
   public void testReadPubsubMessageId() throws Exception {
     // The pipeline will never terminate on its own
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
 
-    PCollection<PubsubMessage> messages =
-        pipeline.apply(
-            PubsubIO.readMessagesWithAttributesAndMessageId()
-                .fromTopic("projects/pubsub-public-data/topics/taxirides-realtime"));
+    SubscriberOptions subscriberOpitons =
+        SubscriberOptions.newBuilder()
+            .setSubscriptionPath(SubscriptionPath.parse("projects/927334603519/locations/us-central1-a/subscriptions/boyuanz-pubsublite-sub-test"))
+            .build();
 
-    messages.apply(
-        "isMessageIdNonNull",
-        signal.signalSuccessWhen(messages.getCoder(), new NonEmptyMessageIdCheck()));
+    pipeline
+        .apply("Create elements", PubsubLiteIO.read(subscriberOpitons))
+        .apply("Convert messages", MapElements.into(TypeDescriptors.strings()).via(
+            (SequencedMessage sequencedMessage) -> {
+              String data = sequencedMessage.getMessage().getData().toStringUtf8();
+              LOG.info("Received: " + data);
+              return data;
+            }
+        ))
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(5L))))
+        .apply(WithKeys.of("bobcat"))
+        .apply(GroupByKey.create())
+        .apply(FlatMapElements.into(TypeDescriptors.nulls()).via(
+            (KV<String, Iterable<String>> pair) -> {
+              LOG.info("Key: " + pair.getKey());
+              pair.getValue().forEach(message -> LOG.info("Flattened elements: " + message));
+              return Collections.EMPTY_LIST;
+            }
+        ));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
-    pipeline.apply(signal.signalStart());
-    PipelineResult job = pipeline.run();
-    start.get();
-
-    signal.waitForSuccess(Duration.standardMinutes(5));
-    // A runner may not support cancel
-    try {
-      job.cancel();
-    } catch (UnsupportedOperationException exc) {
-      // noop
-    }
+    pipeline.run().waitUntilFinish();
   }
 
   private static class NonEmptyMessageIdCheck
