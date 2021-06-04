@@ -670,14 +670,9 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.filter': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': [
-                "df.groupby('id').filter(lambda g: (g.nunique() > 1).any())",
-            ],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
-            'pandas.core.groupby.generic.SeriesGroupBy.filter': ['*'],
         },
         skip={
             'pandas.core.groupby.generic.SeriesGroupBy.cov': [
