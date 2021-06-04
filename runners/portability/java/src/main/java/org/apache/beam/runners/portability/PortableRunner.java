@@ -138,6 +138,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
               + "Defaulting to files from the classpath: {}",
           classpathResources.size());
       filesToStageBuilder.addAll(classpathResources);
+    } else {
+      filesToStageBuilder.addAll(stagingFiles);
     }
 
     // TODO(heejong): remove jar_packages experimental flag when cross-language dependency
