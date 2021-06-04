@@ -1638,7 +1638,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def align(self, other, join, axis, copy, level, method, **kwargs):
-    """Aligning per-level is not yet supported. Only the default,
+    """Aligning per level is not yet supported. Only the default,
     ``level=None``, is allowed.
 
     Filling NaN values via ``method`` is not supported, because it is
@@ -1647,7 +1647,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     default, ``method=None``, is allowed.
 
     ``copy=False`` is not supported because its behavior (whether or not it is
-    an inplace oepration) depends on the data."""
+    an inplace operation) depends on the data."""
     if not copy:
       raise frame_base.WontImplementError(
           "align(copy=False) is not supported because it might be an inplace "
