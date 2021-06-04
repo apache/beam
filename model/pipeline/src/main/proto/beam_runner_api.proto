@@ -1510,6 +1510,7 @@ message ProcessPayload {
 message ExternalPayload {
   ApiServiceDescriptor endpoint = 1;
   map<string, string> params = 2;  // Arbitrary extra parameters to pass
+  int64 deadline = 3; // The number of seconds to wait for a response from external service
 }
 
 // These URNs are used to indicate capabilities of environments that cannot

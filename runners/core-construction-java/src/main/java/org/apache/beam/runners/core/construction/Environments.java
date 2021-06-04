@@ -57,6 +57,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,13 +80,18 @@ public class Environments {
 
   private static final String dockerContainerImageOption = "docker_container_image";
   private static final String externalServiceAddressOption = "external_service_address";
+  private static final String externalServiceDeadlineOption = "external_service_deadline";
   private static final String processCommandOption = "process_command";
   private static final String processVariablesOption = "process_variables";
+
+  private static final int DEFAULT_EXTERNAL_SERVICE_DEADLINE = 60;
 
   private static final Map<String, Set<String>> allowedEnvironmentOptions =
       ImmutableMap.<String, Set<String>>builder()
           .put(ENVIRONMENT_DOCKER, ImmutableSet.of(dockerContainerImageOption))
-          .put(ENVIRONMENT_EXTERNAL, ImmutableSet.of(externalServiceAddressOption))
+          .put(
+              ENVIRONMENT_EXTERNAL,
+              ImmutableSet.of(externalServiceAddressOption, externalServiceDeadlineOption))
           .put(ENVIRONMENT_PROCESS, ImmutableSet.of(processCommandOption, processVariablesOption))
           .build();
 
@@ -154,7 +160,7 @@ public class Environments {
           break;
         case ENVIRONMENT_EXTERNAL:
         case ENVIRONMENT_LOOPBACK:
-          defaultEnvironment = createExternalEnvironment(getExternalServiceAddress(options));
+          defaultEnvironment = createExternalEnvironment(options);
           break;
         case ENVIRONMENT_PROCESS:
           defaultEnvironment = createProcessEnvironment(options);
@@ -182,7 +188,15 @@ public class Environments {
         .build();
   }
 
-  private static Environment createExternalEnvironment(String externalServiceAddress) {
+  private static Environment createExternalEnvironment(PortablePipelineOptions options) {
+    final String externalServiceAddress = getExternalServiceAddress(options);
+    final int deadline =
+        Optional.ofNullable(
+                Ints.tryParse(
+                    PortablePipelineOptions.getEnvironmentOption(
+                        options, externalServiceDeadlineOption)))
+            .orElse(DEFAULT_EXTERNAL_SERVICE_DEADLINE);
+
     if (externalServiceAddress.isEmpty()) {
       throw new IllegalArgumentException(
           String.format(
@@ -195,6 +209,7 @@ public class Environments {
             ExternalPayload.newBuilder()
                 .setEndpoint(
                     ApiServiceDescriptor.newBuilder().setUrl(externalServiceAddress).build())
+                .setDeadline(deadline)
                 .build()
                 .toByteString())
         .build();

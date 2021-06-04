@@ -109,10 +109,13 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             .build();
 
     LOG.debug("Requesting worker ID {}", workerId);
+    final long deadline = externalPayload.getDeadline();
     final ManagedChannel managedChannel =
         ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint());
     BeamFnApi.StartWorkerResponse startWorkerResponse =
         BeamFnExternalWorkerPoolGrpc.newBlockingStub(managedChannel)
+            .withDeadlineAfter(deadline, TimeUnit.SECONDS)
+            .withWaitForReady()
             .startWorker(startWorkerRequest);
     if (!startWorkerResponse.getError().isEmpty()) {
       throw new RuntimeException(startWorkerResponse.getError());
@@ -156,6 +159,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
           LOG.debug("Closing worker ID {}", workerId);
           BeamFnApi.StopWorkerResponse stopWorkerResponse =
               BeamFnExternalWorkerPoolGrpc.newBlockingStub(managedChannel)
+                  .withDeadlineAfter(deadline, TimeUnit.SECONDS)
                   .stopWorker(stopWorkerRequest);
           if (!stopWorkerResponse.getError().isEmpty()) {
             throw new RuntimeException(stopWorkerResponse.getError());
