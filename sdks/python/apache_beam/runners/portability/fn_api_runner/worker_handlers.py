@@ -631,8 +631,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
             artifact_endpoint=control_descriptor,
             provision_endpoint=control_descriptor,
             logging_endpoint=self.logging_api_service_descriptor(),
-            params=self._external_payload.params),
-        timeout=self._external_payload.deadline)
+            params=self._external_payload.params))
     if response.error:
       raise RuntimeError("Error starting worker: %s" % response.error)
 
