@@ -461,25 +461,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'min_cpu_platform=Intel Haswell',
         remote_runner.job.options.view_as(DebugOptions).experiments)
 
-  def test_num_workers_cannot_exceed_max_num_workers(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append('--num_workers=43')
-    self.default_properties.append('--max_num_workers=42')
-    pipeline_options = PipelineOptions(self.default_properties)
-
-    with self.assertRaisesRegex(ValueError, 'num_workers'):
-      with Pipeline(remote_runner, pipeline_options) as p:
-        p | ptransform.Create([0])  # pylint: disable=expression-not-assigned
-
-  def test_num_workers_can_equal_max_num_workers(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append('--num_workers=42')
-    self.default_properties.append('--max_num_workers=42')
-    pipeline_options = PipelineOptions(self.default_properties)
-
-    with Pipeline(remote_runner, pipeline_options) as p:
-      p | ptransform.Create([0])  # pylint: disable=expression-not-assigned
-
   def test_streaming_engine_flag_adds_windmill_experiments(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--streaming')
