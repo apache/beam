@@ -260,9 +260,10 @@ class PipelineOptionsValidator(object):
     max_num_workers = view.max_num_workers
     if (num_workers is not None and max_num_workers is not None and
         num_workers > max_num_workers):
-      errors.extend(self._validate_error(
-          self.ERR_WORKER_NUM_TOO_HIGH, num_workers, max_num_workers))
-    
+      errors.extend(
+          self._validate_error(
+              self.ERR_WORKER_NUM_TOO_HIGH, num_workers, max_num_workers))
+
     return errors
 
   def validate_worker_region_zone(self, view):
