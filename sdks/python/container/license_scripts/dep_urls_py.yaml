@@ -93,8 +93,6 @@ pip_dependencies:
       license: "https://raw.githubusercontent.com/nose-devs/nose/master/lgpl.txt"
   numpy:
     license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
-  oauth2client:
-    license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
   pandas:
     license: "https://raw.githubusercontent.com/pandas-dev/pandas/master/LICENSE"
   pathlib2:
