@@ -114,6 +114,16 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
     return server;
   }
 
+  /**
+   * Worker pool entry point.
+   *
+   * <p>The worker pool exposes an RPC service that is used with EXTERNAL environment to start and
+   * stop the SDK workers.
+   *
+   * <p>The worker pool uses threads for parallelism;
+   *
+   * <p>This entry point is used by the Java SDK container in worker pool mode.
+   */
   public static void main(String[] args) throws Exception {
     main(System::getenv);
   }
@@ -129,6 +139,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
           "External worker service started at address: %s",
           server.getApiServiceDescriptor().getUrl());
       while (true) {
+        // Wait indefinitely to keep ExternalWorkerService running
         Sleeper.DEFAULT.sleep(60 * 60 * 24 * 1000);
       }
     } catch (Exception e) {
