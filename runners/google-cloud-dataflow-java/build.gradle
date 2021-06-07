@@ -503,11 +503,8 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
           "--workerHarnessContainerImage=",
   ])
 
-  include '**/*IT.class'
-  exclude '**/BigQueryIOReadIT.class'
-  exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/PubsubReadIT.class'
-  exclude '**/FhirIOReadIT.class'
+  include '**/*PubsubReadIT.class'
+
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)

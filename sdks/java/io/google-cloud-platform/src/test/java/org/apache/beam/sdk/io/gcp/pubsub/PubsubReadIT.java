@@ -63,7 +63,7 @@ public class PubsubReadIT {
 
     SubscriberOptions subscriberOpitons =
         SubscriberOptions.newBuilder()
-            .setSubscriptionPath(SubscriptionPath.parse("projects/927334603519/locations/us-central1-a/subscriptions/boyuanz-pubsublite-sub-test"))
+            .setSubscriptionPath(SubscriptionPath.parse("projects/927334603519/locations/us-central1-a/subscriptions/sub2"))
             .build();
 
     pipeline
