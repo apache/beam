@@ -27,7 +27,9 @@ import java.util.Iterator;
 import javax.annotation.Nullable;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 
 class BigQueryStorageArrowReader implements BigQueryStorageReader {
@@ -70,11 +72,12 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
   }
 
   @Override
-  public Object readSingleRecord() throws IOException {
+  public GenericRecord readSingleRecord() throws IOException {
     if (recordBatchIterable == null) {
       throw new IOException("Not Initialized");
     }
-    return recordBatchIterable.next();
+    Row row = recordBatchIterable.next();
+    return AvroUtils.toGenericRecord(row, null);
   }
 
   @Override

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import java.io.IOException;
+import org.apache.avro.generic.GenericRecord;
 
 interface BigQueryStorageReader extends AutoCloseable {
 
@@ -26,7 +27,8 @@ interface BigQueryStorageReader extends AutoCloseable {
 
   long getRowCount();
 
-  Object readSingleRecord() throws IOException;
+  // TODO(BEAM-XXX): BigQueryStorageReader should produce Rows, rather than GenericRecords
+  GenericRecord readSingleRecord() throws IOException;
 
   boolean readyForNextReadResponse() throws IOException;
 

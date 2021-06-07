@@ -60,7 +60,7 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
   }
 
   @Override
-  public Object readSingleRecord() throws IOException {
+  public GenericRecord readSingleRecord() throws IOException {
     record = datumReader.read(record, decoder);
     return record;
   }

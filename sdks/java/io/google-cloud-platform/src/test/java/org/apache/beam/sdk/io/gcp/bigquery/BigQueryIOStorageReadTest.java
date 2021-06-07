@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static java.util.Arrays.asList;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -39,29 +40,28 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1.AvroRows;
-import com.google.cloud.bigquery.storage.v1.AvroSchema;
-import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
-import com.google.cloud.bigquery.storage.v1.DataFormat;
-import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
-import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
-import com.google.cloud.bigquery.storage.v1.ReadSession;
-import com.google.cloud.bigquery.storage.v1.ReadStream;
-import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
-import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
-import com.google.cloud.bigquery.storage.v1.StreamStats;
+import com.google.cloud.bigquery.storage.v1.*;
 import com.google.cloud.bigquery.storage.v1.StreamStats.Progress;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.*;
+import org.apache.arrow.vector.ipc.WriteChannel;
+import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.util.Text;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -92,6 +92,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -111,6 +112,7 @@ public class BigQueryIOStorageReadTest {
   private transient PipelineOptions options;
   private final transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
+  private BufferAllocator allocator;
 
   @Rule
   public final transient TestRule folderThenPipeline =
@@ -145,6 +147,12 @@ public class BigQueryIOStorageReadTest {
   @Before
   public void setUp() throws Exception {
     FakeDatasetService.setUp();
+    allocator = new RootAllocator(Long.MAX_VALUE);
+  }
+
+  @After
+  public void teardown() {
+    allocator.close();
   }
 
   @Test
@@ -581,6 +589,36 @@ public class BigQueryIOStorageReadTest {
     return genericRecord;
   }
 
+  private org.apache.arrow.vector.ipc.message.ArrowRecordBatch createArrowRecordBatch(
+      List<String> name, List<Long> number, org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
+    VectorSchemaRoot expectedSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator);
+    expectedSchemaRoot.setRowCount(2);
+    for (FieldVector vector : expectedSchemaRoot.getFieldVectors()) {
+      vector.allocateNew();
+    }
+    VarCharVector strVector = (VarCharVector) expectedSchemaRoot.getFieldVectors().get(0);
+    BigIntVector bigIntVector = (BigIntVector) expectedSchemaRoot.getFieldVectors().get(1);
+    for (int i = 0; i < name.size(); i++) {
+      bigIntVector.set(i, number.get(i));
+      strVector.set(i, new Text(name.get(i)));
+    }
+
+    VectorUnloader unLoader = new VectorUnloader(expectedSchemaRoot);
+    return unLoader.getRecordBatch();
+  }
+
+  private static ByteString serializeArrowSchema(
+      org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
+    ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
+    try {
+      MessageSerializer.serialize(
+          new WriteChannel(Channels.newChannel(byteOutputStream)), arrowSchema);
+    } catch (IOException ex) {
+      throw new RuntimeException("Failed to serialize arrow schema.", ex);
+    }
+    return ByteString.copyFrom(byteOutputStream.toByteArray());
+  }
+
   private static final EncoderFactory ENCODER_FACTORY = EncoderFactory.get();
 
   private static ReadRowsResponse createResponse(
@@ -604,6 +642,29 @@ public class BigQueryIOStorageReadTest {
                 .setSerializedBinaryRows(ByteString.copyFrom(outputStream.toByteArray()))
                 .setRowCount(genericRecords.size()))
         .setRowCount(genericRecords.size())
+        .setStats(
+            StreamStats.newBuilder()
+                .setProgress(
+                    Progress.newBuilder()
+                        .setAtResponseStart(progressAtResponseStart)
+                        .setAtResponseEnd(progressAtResponseEnd)))
+        .build();
+  }
+
+  private ReadRowsResponse createResponseArrow(
+      org.apache.arrow.vector.ipc.message.ArrowRecordBatch records,
+      double progressAtResponseStart,
+      double progressAtResponseEnd) {
+    ByteBuffer byteBuffer = WriteChannel.serialize(records);
+    ArrowRecordBatch serializedRecord =
+        ArrowRecordBatch.newBuilder()
+            .setRowCount(records.getLength())
+            .setSerializedRecordBatch(ByteString.copyFrom(byteBuffer))
+            .build();
+
+    return ReadRowsResponse.newBuilder()
+        .setArrowRecordBatch(serializedRecord)
+        .setRowCount(records.getLength())
         .setStats(
             StreamStats.newBuilder()
                 .setProgress(
@@ -1354,6 +1415,76 @@ public class BigQueryIOStorageReadTest {
     p.run();
   }
 
+  @Test
+  public void testReadFromBigQueryIOArrow() throws Exception {
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+    Table table = new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA);
+    fakeDatasetService.createTable(table);
+
+    org.apache.arrow.vector.types.pojo.Schema arrowSchema =
+        new org.apache.arrow.vector.types.pojo.Schema(
+            asList(
+                field("name", new ArrowType.Utf8()),
+                field("float64", new ArrowType.Int(64, true))));
+
+    CreateReadSessionRequest expectedCreateReadSessionRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/project-id")
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setDataFormat(DataFormat.ARROW))
+            .setMaxStreamCount(10)
+            .build();
+
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSessionName")
+            .setArrowSchema(
+                ArrowSchema.newBuilder().setSerializedSchema(serializeArrowSchema(arrowSchema)))
+            .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .build();
+
+    ReadRowsRequest expectedReadRowsRequest =
+        ReadRowsRequest.newBuilder().setReadStream("streamName").build();
+
+    List<String> names = Arrays.asList("A", "B", "C", "D");
+    List<Long> values = Arrays.asList(1L, 2L, 3L, 4L);
+    List<ReadRowsResponse> readRowsResponses =
+        Lists.newArrayList(
+            createResponseArrow(
+                createArrowRecordBatch(names.subList(0, 2), values.subList(0, 2), arrowSchema),
+                0.0,
+                0.50),
+            createResponseArrow(
+                createArrowRecordBatch(names.subList(2, 4), values.subList(2, 4), arrowSchema),
+                0.5,
+                0.75));
+
+    StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
+    when(fakeStorageClient.createReadSession(expectedCreateReadSessionRequest))
+        .thenReturn(readSession);
+    when(fakeStorageClient.readRows(expectedReadRowsRequest))
+        .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
+
+    PCollection<KV<String, Long>> output =
+        p.apply(
+            BigQueryIO.read(new ParseKeyValue())
+                .from("foo.com:project:dataset.table")
+                .withMethod(Method.DIRECT_READ)
+                .withTestServices(
+                    new FakeBigQueryServices()
+                        .withDatasetService(fakeDatasetService)
+                        .withStorageClient(fakeStorageClient)));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(KV.of("A", 1L), KV.of("B", 2L), KV.of("C", 3L), KV.of("D", 4L)));
+
+    p.run();
+  }
+
   private static org.apache.arrow.vector.types.pojo.Field field(
       String name,
       boolean nullable,
@@ -1362,7 +1493,7 @@ public class BigQueryIOStorageReadTest {
     return new org.apache.arrow.vector.types.pojo.Field(
         name,
         new org.apache.arrow.vector.types.pojo.FieldType(nullable, type, null, null),
-        Arrays.asList(children));
+        asList(children));
   }
 
   static org.apache.arrow.vector.types.pojo.Field field(
