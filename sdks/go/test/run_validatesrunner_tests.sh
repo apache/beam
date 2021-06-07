@@ -310,11 +310,11 @@ if [[ "$JENKINS" == true ]]; then
   cd ./src
 
   echo ">>> RUNNING $RUNNER VALIDATESRUNNER TESTS"
-  GOPATH=$TEMP_GOPATH go test -v github.com/apache/beam/sdks/go/test/integration/... $ARGS \
+  GOPATH=$TEMP_GOPATH go test -v github.com/apache/beam/sdks/go/test/integration/... github.com/apache/beam/sdks/go/test/regression $ARGS \
       || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 else
   echo ">>> RUNNING $RUNNER VALIDATESRUNNER TESTS"
-  go test -v ./sdks/go/test/integration/... $ARGS \
+  go test -v ./sdks/go/test/integration/... ./sdks/go/test/regression  $ARGS \
       || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 fi
 
