@@ -255,6 +255,8 @@ class PipelineOptionsValidator(object):
   def validate_num_workers(self, view):
     """Validates that Dataflow worker number is valid."""
     errors = self.validate_optional_argument_positive(view, 'num_workers')
+    errors.extend(
+        self.validate_optional_argument_positive(view, 'max_num_workers'))
 
     num_workers = view.num_workers
     max_num_workers = view.max_num_workers
