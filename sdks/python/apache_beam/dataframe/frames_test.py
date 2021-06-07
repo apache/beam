@@ -1462,7 +1462,7 @@ class ConstructionTimeTest(unittest.TestCase):
 
 class DocstringTest(unittest.TestCase):
   @parameterized.expand([
-      #(frames.DeferredDataFrame, pd.DataFrame),
+      (frames.DeferredDataFrame, pd.DataFrame),
       (frames.DeferredSeries, pd.Series),
       #(frames._DeferredIndex, pd.Index),
       (frames._DeferredStringMethods, pd.core.strings.StringMethods),
