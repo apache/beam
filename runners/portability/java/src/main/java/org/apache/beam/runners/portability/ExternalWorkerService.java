@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase implements FnService {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExternalWorkerService.class);
-  private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
+  private static final String PIPELINE_OPTIONS_ENV_VAR = "PIPELINE_OPTIONS";
 
   private final PipelineOptions options;
   private final ServerFactory serverFactory = ServerFactory.createDefault();
@@ -122,30 +122,34 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
    *
    * <p>The worker pool uses threads for parallelism;
    *
-   * <p>This entry point is used by the Java SDK container in worker pool mode.
+   * <p>This entry point is used by the Java SDK container in worker pool mode and expects the
+   * following environment variables:
+   *
+   * <ul>
+   *   <li>PIPELINE_OPTIONS: A serialized form of {@link PipelineOptions}. It needs to be known
+   *       up-front and matches the running job. See {@link PipelineOptions} for further details.
+   * </ul>
    */
   public static void main(String[] args) throws Exception {
     main(System::getenv);
   }
 
   public static void main(Function<String, String> environmentVarGetter) throws Exception {
-    System.out.format("Starting external worker service%n");
-    System.out.format("Pipeline options %s%n", environmentVarGetter.apply(PIPELINE_OPTIONS));
+    LOG.info("Starting external worker service");
+    LOG.info("Pipeline options {}", environmentVarGetter.apply(PIPELINE_OPTIONS_ENV_VAR));
     PipelineOptions options =
-        PipelineOptionsTranslation.fromJson(environmentVarGetter.apply(PIPELINE_OPTIONS));
+        PipelineOptionsTranslation.fromJson(environmentVarGetter.apply(PIPELINE_OPTIONS_ENV_VAR));
 
     try (GrpcFnServer<ExternalWorkerService> server = new ExternalWorkerService(options).start()) {
-      System.out.format(
-          "External worker service started at address: %s",
+      LOG.info(
+          "External worker service started at address: {}",
           server.getApiServiceDescriptor().getUrl());
-      while (true) {
-        // Wait indefinitely to keep ExternalWorkerService running
-        Sleeper.DEFAULT.sleep(60 * 60 * 24 * 1000);
-      }
+      // Wait 100 years to keep ExternalWorkerService running
+      Sleeper.DEFAULT.sleep(100L * 12 * 24 * 60 * 60 * 1000);
     } catch (Exception e) {
-      System.out.println("Error running worker service:\n" + e);
+      LOG.error("Error running worker service:" + e);
     } finally {
-      System.out.println("External worker service stopped.");
+      LOG.info("External worker service stopped.");
     }
   }
 }
