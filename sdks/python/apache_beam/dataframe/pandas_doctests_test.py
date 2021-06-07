@@ -446,7 +446,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
-            'pandas.core.series.Series.quantile': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
             'pandas.core.series.Series.repeat': ['*'],
             'pandas.core.series.Series.replace': ['*'],
@@ -596,7 +595,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
-            'pandas.core.groupby.groupby.GroupBy.quantile': ['*'],
             'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
             # pipe tests are in a different location in pandas 1.1.x
             'pandas.core.groupby.groupby._GroupBy.pipe': ['*'],

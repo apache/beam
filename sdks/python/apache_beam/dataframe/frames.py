@@ -894,6 +894,35 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   __matmul__ = dot
 
   @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def nunique(self, **kwargs):
+    return self.drop_duplicates(keep="any").size
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def quantile(self, q, **kwargs):
+    """quantile is not parallelizable. See
+    [BEAM-12167](https://issues.apache.org/jira/browse/BEAM-12167) tracking the
+    possible addition of an approximate, parallelizable implementation of
+    quantile."""
+    # TODO(BEAM-12167): Provide an option for approximate distributed
+    # quantiles
+    requires = partitionings.Singleton(
+        reason=(
+            "Computing quantiles across index cannot currently be "
+            "parallelized. See BEAM-12167 tracking the possible addition of an "
+            "approximate, parallelizable implementation of quantile."))
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'quantile',
+            lambda df: df.quantile(q=q, **kwargs), [self._expr],
+            requires_partition_by=requires,
+            preserves_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.Series)
   def std(self, *args, **kwargs):
     # Compute variance (deferred scalar) with same args, then sqrt it
     return self.var(*args, **kwargs).apply(lambda var: math.sqrt(var))
@@ -1148,8 +1177,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             "single node.")
 
       # We have specialized distributed implementations for these
-      if base_func in ('quantile', 'std', 'var', 'nunique'):
-        result = getattr(self, base_func)(*args, axis=axis, **kwargs)
+      if base_func in ('quantile', 'std', 'var', 'nunique', 'corr', 'cov'):
+        result = getattr(self, base_func)(*args, **kwargs)
         if isinstance(func, list):
           with expressions.allow_non_parallel_operations(True):
             return frame_base.DeferredFrame.wrap(
@@ -1773,6 +1802,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def aggregate(self, func, axis, *args, **kwargs):
+    # We have specialized implementations for these.
+    if func in ('quantile',):
+      return getattr(self, func)(*args, axis=axis, **kwargs)
+
+    # Maps to a property, args are ignored
+    if func in ('size',):
+      return getattr(self, func)
+
+    # We also have specialized distributed implementations for these. They only
+    # support axis=0 (implicitly) though. axis=1 should fall through
+    if func in ('corr', 'cov') and axis in (0, 'index'):
+      return getattr(self, func)(*args, **kwargs)
 
     if axis is None:
       # Aggregate across all elements by first aggregating across columns,
@@ -2369,26 +2410,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Singleton(),
               requires_partition_by=partitionings.Singleton()))
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  def nunique(self, **kwargs):
-    if kwargs.get('axis', None) in (1, 'columns'):
-      requires_partition_by = partitionings.Arbitrary()
-      preserves_partition_by = partitionings.Index()
-    else:
-      # TODO(BEAM-9547): This could be implemented in a distributed fashion,
-      # perhaps by deferring to a distributed drop_duplicates
-      requires_partition_by = partitionings.Singleton(reason=(
-         "nunique(axis='index') is not currently parallelizable."
-      ))
-      preserves_partition_by = partitionings.Singleton()
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'nunique',
-            lambda df: df.nunique(**kwargs),
-            [self._expr],
-            preserves_partition_by=preserves_partition_by,
-            requires_partition_by=requires_partition_by))
-
   plot = frame_base.wont_implement_method(pd.DataFrame, 'plot',
                                                       reason="plotting-tools")
 
@@ -2403,9 +2424,17 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Arbitrary())
     return result
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def quantile(self, q, axis, **kwargs):
+    """``quantile(axis="index")`` is not parallelizable. See
+    [BEAM-12167](https://issues.apache.org/jira/browse/BEAM-12167) tracking the
+    possible addition of an approximate, parallelizable implementation of
+    quantile.
+
+    When using quantile with ``axis="columns"`` only a single ``q`` value can be
+    specified."""
     if axis in (1, 'columns'):
       if isinstance(q, list):
         raise frame_base.WontImplementError(
@@ -2603,6 +2632,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   sum = _agg_method(pd.DataFrame, 'sum')
   mean = _agg_method(pd.DataFrame, 'mean')
   median = _agg_method(pd.DataFrame, 'median')
+  nunique = _agg_method(pd.DataFrame, 'nunique')
   std = _agg_method(pd.DataFrame, 'std')
   var = _agg_method(pd.DataFrame, 'var')
 
