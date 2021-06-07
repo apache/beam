@@ -458,6 +458,32 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
 
+  def length(self):
+    """Alternative to ``len(df)`` which returns a deferred result that can be
+    used in arithmetic with :class:`DeferredSeries` or
+    :class:`DeferredDataFrame` instances."""
+    lengths = expressions.ComputedExpression(
+        'get_lengths',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df: pd.Series(len(df)),
+        [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'sum_lengths',
+              lambda lengths: lengths.sum(), [lengths],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  def __len__(self):
+    raise frame_base.WontImplementError(
+        "len(df) is not currently supported because it produces a non-deferred "
+        "result. Consider using df.length() instead.",
+        reason="non-deferred-result")
+
   @property
   def empty(self):
     empties = expressions.ComputedExpression(
@@ -524,7 +550,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     """``sort_values`` is not implemented.
 
     It is not implemented for ``axis=index`` because it imposes an ordering on
-    the dataset, and we cannot guarantee it will be maintained (see
+    the dataset, and it likely will not be maintained (see
     https://s.apache.org/dataframe-order-sensitive-operations).
 
     It is not implemented for ``axis=columns`` because it makes the order of
@@ -535,8 +561,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       # support
       raise frame_base.WontImplementError(
           "sort_values(axis=index) is not supported because it imposes an "
-          "ordering on the dataset which we cannot guarantee will be "
-          "preserved.",
+          "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
     else:
       # axis=columns will reorder the columns based on the data
@@ -2726,6 +2751,26 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             lambda df: df.melt(ignore_index=False, **kwargs), [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  def value_counts(self, subset=None, sort=False, normalize=False,
+                   ascending=False):
+    """``sort`` is ``False`` by default, and ``sort=True`` is not supported
+    because it imposes an ordering on the dataset which likely will not be
+    preserved."""
+
+    if sort:
+      raise frame_base.WontImplementMethod(
+          "value_counts(sort=True) is not supported because it imposes an "
+          "ordering on the dataset which likely will not be preserved.",
+          reason="order-sensitive")
+    columns = subset or list(self.columns)
+    result = self.groupby(columns).size()
+
+    if normalize:
+      return result/self.dropna().length()
+    else:
+      return result
 
 
 for io_func in dir(io):
