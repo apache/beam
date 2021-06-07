@@ -564,19 +564,23 @@ public class AvroUtilsTest {
             + " \"type\": \"record\", "
             + " \"fields\": [{ "
             + "   \"name\": \"my_varchar_field\", "
-            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"VARCHAR\", \"maxLength\": 10}"
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"varchar\", \"maxLength\": 10}"
             + "  }, "
             + "  { "
             + "   \"name\": \"my_longvarchar_field\", "
-            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"LONGVARCHAR\", \"maxLength\": 50}"
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"varchar\", \"maxLength\": 50}"
             + "  }, "
             + "  { "
             + "   \"name\": \"my_nvarchar_field\", "
-            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"NVARCHAR\", \"maxLength\": 10}"
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"varchar\", \"maxLength\": 10}"
             + "  }, "
             + "  { "
             + "   \"name\": \"my_longnvarchar_field\", "
-            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"LONGNVARCHAR\", \"maxLength\": 50}"
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"varchar\", \"maxLength\": 50}"
+            + "  }, "
+            + "  { "
+            + "   \"name\": \"fixed_length_char_field\", "
+            + "   \"type\": {\"type\": \"string\", \"logicalType\": \"char\", \"maxLength\": 25}"
             + "  } "
             + " ] "
             + "}";
@@ -597,6 +601,10 @@ public class AvroUtilsTest {
                 Field.of(
                     "my_longnvarchar_field",
                     FieldType.logicalType(JdbcType.StringType.longnvarchar(50))))
+            .addField(
+                Field.of(
+                    "fixed_length_char_field",
+                    FieldType.logicalType(JdbcType.StringType.fixedLengthChar(25))))
             .build();
 
     assertEquals(
@@ -811,6 +819,10 @@ public class AvroUtilsTest {
     private final Object argument;
 
     private static class StringType extends JdbcType<String> {
+
+      private static StringType fixedLengthChar(int size) {
+        return new StringType(JDBCType.CHAR, size);
+      }
 
       private static StringType varchar(int size) {
         return new StringType(JDBCType.VARCHAR, size);

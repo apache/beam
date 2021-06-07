@@ -234,15 +234,22 @@ public class SchemaUtilTest {
             + "  \"name\": \"longvarchar_col\","
             + "  \"type\": {"
             + "   \"type\": \"string\","
-            + "   \"logicalType\": \"LONGVARCHAR\","
+            + "   \"logicalType\": \"varchar\","
             + "   \"maxLength\": 50"
             + "  }"
             + " }, {"
             + "  \"name\": \"varchar_col\","
             + "  \"type\": {"
             + "   \"type\": \"string\","
-            + "   \"logicalType\": \"VARCHAR\","
+            + "   \"logicalType\": \"varchar\","
             + "   \"maxLength\": 15"
+            + "  }"
+            + " }, {"
+            + "  \"name\": \"fixedlength_char_col\","
+            + "  \"type\": {"
+            + "   \"type\": \"string\","
+            + "   \"logicalType\": \"char\","
+            + "   \"maxLength\": 25"
             + "  }"
             + " }, {"
             + "  \"name\": \"date_col\","
@@ -264,6 +271,7 @@ public class SchemaUtilTest {
             .addField(
                 "longvarchar_col", LogicalTypes.variableLengthString(JDBCType.LONGVARCHAR, 50))
             .addField("varchar_col", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 15))
+            .addField("fixedlength_char_col", LogicalTypes.fixedLengthString(JDBCType.CHAR, 25))
             .addField("date_col", LogicalTypes.JDBC_DATE_TYPE)
             .addField("time_col", LogicalTypes.JDBC_TIME_TYPE)
             .build();

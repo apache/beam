@@ -29,7 +29,6 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.sql.JDBCType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -908,11 +907,20 @@ public class AvroUtils {
                         .collect(Collectors.toList()));
             break;
 
+          case "CHAR":
+          case "NCHAR":
+            baseType =
+                makeJdbcLogicalStringAvroType(
+                    /*fixedLength=*/ true, (int) fieldType.getLogicalType().getArgument());
+            break;
+
           case "NVARCHAR":
           case "VARCHAR":
           case "LONGNVARCHAR":
           case "LONGVARCHAR":
-            baseType = makeJdbcLogicalStringAvroType(fieldType.getLogicalType());
+            baseType =
+                makeJdbcLogicalStringAvroType(
+                    /*fixedLength=*/ false, (int) fieldType.getLogicalType().getArgument());
             break;
 
           case "DATE":
@@ -1311,14 +1319,12 @@ public class AvroUtils {
 
   /** Helper factory to build JDBC Logical types for AVRO Schema. */
   private static org.apache.avro.Schema makeJdbcLogicalStringAvroType(
-      Schema.LogicalType<?, ?> logicalType) {
-    JDBCType jdbcType = JDBCType.valueOf(logicalType.getIdentifier());
-    Integer size = logicalType.getArgument();
-
+      boolean fixedLength, int size) {
+    String hiveLogicalType = fixedLength ? "char" : "varchar";
     String schemaJson =
         String.format(
             "{\"type\": \"string\", \"logicalType\": \"%s\", \"maxLength\": %s}",
-            jdbcType.name(), size);
+            hiveLogicalType, size);
     return new org.apache.avro.Schema.Parser().parse(schemaJson);
   }
 }
