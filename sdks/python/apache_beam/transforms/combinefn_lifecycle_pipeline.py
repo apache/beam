@@ -102,6 +102,8 @@ def run_combine(pipeline, input_elements=5, lift_combiners=True):
   # Enable runtime type checking in order to cover TypeCheckCombineFn by
   # the test.
   pipeline.get_pipeline_options().view_as(TypeOptions).runtime_type_check = True
+  pipeline.get_pipeline_options().view_as(
+      TypeOptions).allow_unsafe_triggers = True
 
   with pipeline as p:
     pcoll = p | 'Start' >> beam.Create(range(input_elements))

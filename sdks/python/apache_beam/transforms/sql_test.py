@@ -57,8 +57,8 @@ class SqlTransformTest(unittest.TestCase):
   job server. The easiest way to accomplish this is to run the
   `validatesCrossLanguageRunnerPythonUsingSql` gradle target for a particular
   job server, which will start the runner and job server for you. For example,
-  `:runners:flink:1.10:job-server:validatesCrossLanguageRunnerPythonUsingSql` to
-  test on Flink 1.10.
+  `:runners:flink:1.13:job-server:validatesCrossLanguageRunnerPythonUsingSql` to
+  test on Flink 1.13.
 
   Alternatively, you may be able to iterate faster if you run the tests directly
   using a runner like `FlinkRunner`, which can start a local Flink cluster and

@@ -103,7 +103,9 @@ def parse_gcs_path(gcs_path, object_optional=False):
   """Return the bucket and object names of the given gs:// path."""
   match = re.match('^gs://([^/]+)/(.*)$', gcs_path)
   if match is None or (match.group(2) == '' and not object_optional):
-    raise ValueError('GCS path must be in the form gs://<bucket>/<object>.')
+    raise ValueError(
+        'GCS path must be in the form gs://<bucket>/<object>. '
+        f'Encountered {gcs_path!r}')
   return match.group(1), match.group(2)
 
 
