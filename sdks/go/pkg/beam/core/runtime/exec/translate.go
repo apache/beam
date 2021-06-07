@@ -472,7 +472,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			if !coder.IsKV(c) {
 				return nil, errors.Errorf("unexpected inject coder: %v", c)
 			}
-			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(c.Components[1]), Out: out[0]}
+			valCoder := c.Components[1]
+			// JIRA BEAM-12438 - an extra LP coder can get added here, but isn't added
+			// on decode. Strip them until we get a better fix.
+			if valCoder.Kind == coder.LP {
+				// strip unexpected length prefix coder.
+				valCoder = valCoder.Components[0]
+			}
+			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
 
 		case graphx.URNExpand:
 			var pid string

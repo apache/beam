@@ -18,6 +18,8 @@ package regression
 import (
 	"testing"
 
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/test/integration"
 
@@ -26,32 +28,13 @@ import (
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
 )
 
-func TestDirectParDo(t *testing.T) {
+func TestLPErrorPipeline(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, DirectParDo())
-}
 
-func TestEmitParDo(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, EmitParDo())
-}
+	pipeline, s := beam.NewPipelineWithRoot()
+	want := beam.CreateList(s, []int{0})
+	got := LPErrorPipeline(s)
+	passert.Equals(s, got, want)
 
-func TestMultiEmitParDo(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, MultiEmitParDo())
-}
-
-func TestMixedOutputParDo(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, MixedOutputParDo())
-}
-
-func TestDirectParDoAfterGBK(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, DirectParDoAfterGBK())
-}
-
-func TestEmitParDoAfterGBK(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, EmitParDoAfterGBK())
+	ptest.RunAndValidate(t, pipeline)
 }
