@@ -26,7 +26,9 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
@@ -55,6 +57,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitions;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ReadPartitionChangeStream;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -1377,16 +1380,38 @@ public class SpannerIO {
           getInclusiveStartAt() != null,
           "SpannerIO.readChangeStream() requires the start time to be set.");
 
+      // Start time must be before end time
+      if (getExclusiveEndAt() != null && getInclusiveStartAt().toSqlTimestamp()
+          .after(getExclusiveEndAt().toSqlTimestamp())) {
+        throw new IllegalArgumentException("Start time cannot be after end time.");
+      }
+
       SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(getSpannerConfig());
-      DatabaseAdminClient dbAdminClient = spannerAccessor.getDatabaseAdminClient();
+      DatabaseAdminClient databaseAdminClient = spannerAccessor.getDatabaseAdminClient();
+      DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
+      Database changeStreamsDb = databaseAdminClient.getDatabase(getSpannerConfig().getInstanceId().get(),
+          getSpannerConfig().getDatabaseId().get());
+
+      // Start time must be within data retention period
+      // TODO: spanner dependency version is too old, need to be updated to see data retention period
+
+      // Start time must be after change stream creation time
+      checkArgument(!getInclusiveStartAt().toSqlTimestamp()
+              .before(changeStreamsDb.getCreateTime().toSqlTimestamp()),
+          "Start time must not be before the change stream creation time.");
 
       PipelineInitializer pipelineInitializer = new PipelineInitializer();
+      PartitionMetadataDao partitionMetadataDao = new PartitionMetadataDao(databaseClient);
+      DatabaseId databaseId = DatabaseId.of(
+          getSpannerConfig().getProjectId().get(),
+          getSpannerConfig().getInstanceId().get(),
+          getSpannerConfig().getDatabaseId().get());
       pipelineInitializer.initialize(
-          dbAdminClient,
-          DatabaseId.of(
-              getSpannerConfig().getProjectId().get(),
-              getSpannerConfig().getInstanceId().get(),
-              getSpannerConfig().getDatabaseId().get()));
+          databaseAdminClient,
+          partitionMetadataDao,
+          databaseId,
+          getInclusiveStartAt(),
+          getExclusiveEndAt());
 
       return input
           .apply("Execute query", Create.of(1))

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -54,24 +55,10 @@ public class ModelEncodingTest {
   }
 
   @Test
-  public void testPartitionIdCanBeEncoded() throws IOException {
-    final PartitionId partitionId = new PartitionId(1L);
-
-    assertEquals(partitionId, encodeAndDecode(partitionId));
-  }
-
-  @Test
   public void testRecordSequenceCanBeEncoded() throws IOException {
     final RecordSequence recordSequence = new RecordSequence(2L);
 
     assertEquals(recordSequence, encodeAndDecode(recordSequence));
-  }
-
-  @Test
-  public void testTransactionIdCanBeEncoded() throws IOException {
-    final TransactionId transactionId = new TransactionId(3L);
-
-    assertEquals(transactionId, encodeAndDecode(transactionId));
   }
 
   @Test
@@ -96,11 +83,11 @@ public class ModelEncodingTest {
   @Test
   public void testDataChangesRecordCanBeEncoded() throws IOException {
     final DataChangesRecord dataChangesRecord = new DataChangesRecord(
-        PartitionId.of(1L),
+        "1",
         Timestamp.now(),
-        TransactionId.of(2L),
+        "2",
         true,
-        RecordSequence.of(3L),
+        "3",
         "TableName",
         Arrays.asList(
             new ColumnType("column1", new TypeCode("typeCode1"), true),
@@ -123,7 +110,7 @@ public class ModelEncodingTest {
   public void testPartitionMetadataCanBeEncoded() throws IOException {
     final PartitionMetadata partitionMetadata = new PartitionMetadata(
         "partitionToken",
-        "parentToken",
+        ImmutableList.of("parentToken"),
         Timestamp.now(),
         true,
         Timestamp.now(),

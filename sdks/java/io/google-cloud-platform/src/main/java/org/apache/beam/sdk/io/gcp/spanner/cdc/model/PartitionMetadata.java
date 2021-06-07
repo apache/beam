@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import com.google.cloud.Timestamp;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.avro.reflect.AvroEncode;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -26,7 +27,9 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
-/** Model for the partition metadata database table used in the Connector. */
+/**
+ * Model for the partition metadata database table used in the Connector.
+ */
 @DefaultCoder(AvroCoder.class)
 public class PartitionMetadata implements Serializable {
 
@@ -44,8 +47,8 @@ public class PartitionMetadata implements Serializable {
   // Unique partition token, obtained from the Child Partition record from the Change Streams API
   // call.
   private String partitionToken;
-  // Unique partition token of the parent that generated this partition.
-  private String parentToken;
+  // Unique partition token of the parents that generated this partition.
+  private List<String> parentTokens;
   // Start timestamp, used to query the partition.
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
@@ -75,7 +78,7 @@ public class PartitionMetadata implements Serializable {
 
   PartitionMetadata(
       String partitionToken,
-      String parentToken,
+      List<String> parentTokens,
       Timestamp startTimestamp,
       boolean inclusiveStart,
       Timestamp endTimestamp,
@@ -85,7 +88,7 @@ public class PartitionMetadata implements Serializable {
       Timestamp createdAt,
       Timestamp updatedAt) {
     this.partitionToken = partitionToken;
-    this.parentToken = parentToken;
+    this.parentTokens = parentTokens;
     this.startTimestamp = startTimestamp;
     this.inclusiveStart = inclusiveStart;
     this.endTimestamp = endTimestamp;
@@ -104,12 +107,12 @@ public class PartitionMetadata implements Serializable {
     this.partitionToken = partitionToken;
   }
 
-  public String getParentToken() {
-    return parentToken;
+  public List<String> getParentTokens() {
+    return parentTokens;
   }
 
-  public void setParentToken(String parentToken) {
-    this.parentToken = parentToken;
+  public void setParentTokens(List<String> parentTokens) {
+    this.parentTokens = parentTokens;
   }
 
   public Timestamp getStartTimestamp() {
@@ -189,7 +192,7 @@ public class PartitionMetadata implements Serializable {
         && isInclusiveEnd() == partitionMetadata.isInclusiveEnd()
         && getHeartbeatSeconds() == partitionMetadata.getHeartbeatSeconds()
         && Objects.equal(getPartitionToken(), partitionMetadata.getPartitionToken())
-        && Objects.equal(getParentToken(), partitionMetadata.getParentToken())
+        && Objects.equal(getParentTokens(), partitionMetadata.getParentTokens())
         && Objects.equal(getStartTimestamp(), partitionMetadata.getStartTimestamp())
         && Objects.equal(getEndTimestamp(), partitionMetadata.getEndTimestamp())
         && getState() == partitionMetadata.getState()
@@ -201,7 +204,7 @@ public class PartitionMetadata implements Serializable {
   public int hashCode() {
     return Objects.hashCode(
         getPartitionToken(),
-        getParentToken(),
+        getParentTokens(),
         getStartTimestamp(),
         isInclusiveStart(),
         getEndTimestamp(),
@@ -219,7 +222,7 @@ public class PartitionMetadata implements Serializable {
   public static class Builder {
 
     private String partitionToken;
-    private String parentToken;
+    private List<String> parentTokens;
     private Timestamp startTimestamp;
     private Boolean inclusiveStart;
     private Timestamp endTimestamp;
@@ -234,8 +237,8 @@ public class PartitionMetadata implements Serializable {
       return this;
     }
 
-    public Builder setParentToken(String parentToken) {
-      this.parentToken = parentToken;
+    public Builder setParentTokens(List<String> parentTokens) {
+      this.parentTokens = parentTokens;
       return this;
     }
 
@@ -281,7 +284,7 @@ public class PartitionMetadata implements Serializable {
 
     public PartitionMetadata build() {
       Preconditions.checkState(partitionToken != null, "partitionToken");
-      Preconditions.checkState(parentToken != null, "parentToken");
+      Preconditions.checkState(parentTokens != null, "parentTokens");
       Preconditions.checkState(startTimestamp != null, "startTimestamp");
       Preconditions.checkState(heartbeatSeconds != null, "heartbeatSeconds");
       Preconditions.checkState(state != null, "state");
@@ -293,7 +296,7 @@ public class PartitionMetadata implements Serializable {
       }
       return new PartitionMetadata(
           partitionToken,
-          parentToken,
+          parentTokens,
           startTimestamp,
           inclusiveStart,
           endTimestamp,
