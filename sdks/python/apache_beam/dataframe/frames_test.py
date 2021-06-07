@@ -501,6 +501,18 @@ class DeferredFrameTest(_AbstractFrameTest):
         df2,
         nonparallel=True)
 
+  def test_value_counts_with_nans(self):
+    # similar to doctests that verify value_counts, but include nan values to
+    # make sure we handle them correctly.
+    df = pd.DataFrame({
+        'num_legs': [2, 4, 4, 6, np.nan, np.nan],
+        'num_wings': [2, 0, 0, 0, np.nan, 2]
+    },
+                      index=['falcon', 'dog', 'cat', 'ant', 'car', 'plane'])
+
+    self._run_test(lambda df: df.value_counts(), df)
+    self._run_test(lambda df: df.value_counts(normalize=True), df)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
     self._run_test(lambda s: s[...], s)
@@ -1419,7 +1431,7 @@ class ConstructionTimeTest(unittest.TestCase):
 
   @parameterized.expand(DF.columns)
   def test_series_name(self, col_name):
-    self._run_test(lambda df: df[col_name])
+    self._run_test(lambda df: df[col_name].name)
 
   @parameterized.expand(DF.columns)
   def test_series_dtype(self, col_name):
