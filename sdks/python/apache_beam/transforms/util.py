@@ -754,7 +754,7 @@ def WithKeys(pcoll, k, *args, **kwargs):
   """
   if callable(k):
     if fn_takes_side_inputs(k):
-      return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
+      return pcoll | Map(lambda v: (k(v, *args, **kwargs), v), *args, **kwargs)
     return pcoll | Map(lambda v: (k(v), v))
   return pcoll | Map(lambda v: (k, v))
 
