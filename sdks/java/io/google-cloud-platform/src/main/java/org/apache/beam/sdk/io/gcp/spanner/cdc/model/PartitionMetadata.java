@@ -215,6 +215,22 @@ public class PartitionMetadata implements Serializable {
         getUpdatedAt());
   }
 
+  @Override
+  public String toString() {
+    return "PartitionMetadata{" +
+        "partitionToken='" + partitionToken + '\'' +
+        ", parentTokens=" + parentTokens +
+        ", startTimestamp=" + startTimestamp +
+        ", inclusiveStart=" + inclusiveStart +
+        ", endTimestamp=" + endTimestamp +
+        ", inclusiveEnd=" + inclusiveEnd +
+        ", heartbeatSeconds=" + heartbeatSeconds +
+        ", state=" + state +
+        ", createdAt=" + createdAt +
+        ", updatedAt=" + updatedAt +
+        '}';
+  }
+
   public static PartitionMetadata.Builder newBuilder() {
     return new PartitionMetadata.Builder();
   }

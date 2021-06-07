@@ -55,13 +55,6 @@ public class ModelEncodingTest {
   }
 
   @Test
-  public void testRecordSequenceCanBeEncoded() throws IOException {
-    final RecordSequence recordSequence = new RecordSequence(2L);
-
-    assertEquals(recordSequence, encodeAndDecode(recordSequence));
-  }
-
-  @Test
   public void testTypeCodeCanBeEncoded() throws IOException {
     final TypeCode typeCode = new TypeCode("typeCode");
 

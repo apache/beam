@@ -62,4 +62,11 @@ public class TypeCode implements Serializable {
   public int hashCode() {
     return Objects.hash(code);
   }
+
+  @Override
+  public String toString() {
+    return "TypeCode{" +
+        "code='" + code + '\'' +
+        '}';
+  }
 }

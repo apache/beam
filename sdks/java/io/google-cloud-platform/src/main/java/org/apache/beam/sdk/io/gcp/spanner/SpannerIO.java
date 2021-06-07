@@ -57,7 +57,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitions;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ReadPartitionChangeStream;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;

@@ -86,4 +86,13 @@ public class ColumnType implements Serializable {
   public int hashCode() {
     return Objects.hash(name, type, isPrimaryKey);
   }
+
+  @Override
+  public String toString() {
+    return "ColumnType{" +
+        "name='" + name + '\'' +
+        ", type=" + type +
+        ", isPrimaryKey=" + isPrimaryKey +
+        '}';
+  }
 }

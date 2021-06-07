@@ -1,9 +1,10 @@
-package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
+package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Mutation;
 import com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 
 public class PartitionMetadataDao {
 

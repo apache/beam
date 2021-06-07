@@ -98,4 +98,12 @@ public class Mod implements Serializable {
   public int hashCode() {
     return Objects.hash(newValues, oldValues);
   }
+
+  @Override
+  public String toString() {
+    return "Mod{" +
+        "oldValues=" + oldValues +
+        ", newValues=" + newValues +
+        '}';
+  }
 }

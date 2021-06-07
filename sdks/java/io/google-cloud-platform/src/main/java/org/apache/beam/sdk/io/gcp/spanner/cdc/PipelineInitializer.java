@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_CREATED_AT;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_END_TIMESTAMP;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_HEARTBEAT_SECONDS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_INCLUSIVE_END;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_INCLUSIVE_START;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_PARENT_TOKEN;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_PARTITION_TOKEN;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_START_TIMESTAMP;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_STATE;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao.COLUMN_UPDATED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_CREATED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_END_TIMESTAMP;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_HEARTBEAT_SECONDS;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_INCLUSIVE_END;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_INCLUSIVE_START;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_PARENT_TOKEN;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_PARTITION_TOKEN;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_START_TIMESTAMP;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_STATE;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_UPDATED_AT;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.Timestamp;
@@ -42,7 +42,7 @@ import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 
 public class PipelineInitializer {
 
