@@ -144,7 +144,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
       LOG.info(
           "External worker service started at address: {}",
           server.getApiServiceDescriptor().getUrl());
-        // Wait to keep ExternalWorkerService running
+      // Wait to keep ExternalWorkerService running
       Sleeper.DEFAULT.sleep(Long.MAX_VALUE);
     } catch (Exception e) {
       LOG.error("Error running worker service:" + e);
