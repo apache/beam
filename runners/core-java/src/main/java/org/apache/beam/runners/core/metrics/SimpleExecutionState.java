@@ -17,10 +17,15 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
@@ -40,6 +45,7 @@ public class SimpleExecutionState extends ExecutionState {
   private long totalMillis = 0;
   private HashMap<String, String> labelsMetadata;
   private String urn;
+  private String shortId;
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleExecutionState.class);
 
@@ -79,6 +85,31 @@ public class SimpleExecutionState extends ExecutionState {
 
   public String getUrn() {
     return this.urn;
+  }
+
+  public String getTotalMillisShortId(ShortIdMap shortIds) {
+    if (shortId == null) {
+      shortId = shortIds.getOrCreateShortId(getTotalMillisMonitoringMetadata());
+    }
+    return shortId;
+  }
+
+  public ByteString getTotalMillisPayload() {
+    return encodeInt64Counter(getTotalMillis());
+  }
+
+  public ByteString mergeTotalMillisPayload(ByteString other) {
+    return encodeInt64Counter(getTotalMillis() + decodeInt64Counter(other));
+  }
+
+  private MonitoringInfo getTotalMillisMonitoringMetadata() {
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(getUrn());
+    for (Map.Entry<String, String> entry : getLabels().entrySet()) {
+      builder.setLabel(entry.getKey(), entry.getValue());
+    }
+    builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE);
+    return builder.build();
   }
 
   public Map<String, String> getLabels() {

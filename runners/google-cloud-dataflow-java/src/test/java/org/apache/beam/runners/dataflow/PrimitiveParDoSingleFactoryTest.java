@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValues;
@@ -74,6 +75,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
                 PValues.expandInput(input),
                 PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
+                ResourceHints.create(),
                 pipeline);
 
     PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacement =
@@ -111,6 +113,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
                 PValues.expandInput(input),
                 PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
+                ResourceHints.create(),
                 pipeline);
 
     PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
@@ -133,6 +136,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
                 PValues.expandInput(input),
                 PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
+                ResourceHints.create(),
                 pipeline);
 
     PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =

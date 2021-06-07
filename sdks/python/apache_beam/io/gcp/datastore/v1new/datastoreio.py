@@ -23,12 +23,8 @@ different enough to require extensive changes to this and associated modules.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import time
-from builtins import round
 
 from apache_beam import typehints
 from apache_beam.io.gcp.datastore.v1new import helper

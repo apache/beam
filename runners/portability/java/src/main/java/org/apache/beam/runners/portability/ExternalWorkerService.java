@@ -17,15 +17,18 @@
  */
 package org.apache.beam.runners.portability;
 
+import java.util.Collections;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnExternalWorkerPoolImplBase;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,8 +61,10 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
                 FnHarness.main(
                     request.getWorkerId(),
                     options,
+                    Collections.emptySet(),
                     request.getLoggingEndpoint(),
-                    request.getControlEndpoint());
+                    request.getControlEndpoint(),
+                    null);
                 LOG.info("Successfully started worker {}.", request.getWorkerId());
               } catch (Exception exn) {
                 LOG.error(String.format("Failed to start worker %s.", request.getWorkerId()), exn);
@@ -70,6 +75,14 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
     th.start();
 
     responseObserver.onNext(StartWorkerResponse.newBuilder().build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void stopWorker(
+      StopWorkerRequest request, StreamObserver<StopWorkerResponse> responseObserver) {
+    // Thread based workers terminate automatically
+    responseObserver.onNext(StopWorkerResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
 

@@ -73,7 +73,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
                 // do not go through the portability translation layers
                 StatefulParDo<?, ?, ?> statefulParDo =
                     (StatefulParDo<?, ?, ?>) appliedStatefulParDo.getTransform();
-                return DoFnLifecycleManager.of(statefulParDo.getDoFn());
+                return DoFnLifecycleManager.of(statefulParDo.getDoFn(), options);
               }
             },
             options);

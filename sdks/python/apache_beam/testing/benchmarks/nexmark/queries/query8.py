@@ -27,8 +27,6 @@ To make things a bit more dynamic and easier to test we'll use a much
 shorter window.
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import ResultNames

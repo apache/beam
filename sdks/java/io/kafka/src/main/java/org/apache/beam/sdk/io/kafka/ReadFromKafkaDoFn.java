@@ -205,7 +205,7 @@ class ReadFromKafkaDoFn<K, V>
                 ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
                 return offsetConsumer.position(topicPartition);
               },
-              5,
+              1,
               TimeUnit.SECONDS);
     }
 

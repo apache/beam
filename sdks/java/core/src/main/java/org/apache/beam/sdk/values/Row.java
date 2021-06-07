@@ -48,7 +48,6 @@ import org.apache.beam.sdk.values.RowUtils.FieldOverride;
 import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
@@ -579,7 +578,60 @@ public abstract class Row implements Serializable {
 
   @Override
   public String toString() {
-    return "Row:" + Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
+    return toString(true);
+  }
+
+  /** Convert Row to String. */
+  public String toString(boolean includeFieldNames) {
+    StringBuilder builder = new StringBuilder();
+    builder.append("Row: ");
+    builder.append(System.lineSeparator());
+    for (int i = 0; i < getSchema().getFieldCount(); ++i) {
+      Schema.Field field = getSchema().getField(i);
+      if (includeFieldNames) {
+        builder.append(field.getName() + ":");
+      }
+      builder.append(toString(field.getType(), getValue(i), includeFieldNames));
+      builder.append(System.lineSeparator());
+    }
+    return builder.toString();
+  }
+
+  private String toString(Schema.FieldType fieldType, Object value, boolean includeFieldNames) {
+    StringBuilder builder = new StringBuilder();
+    switch (fieldType.getTypeName()) {
+      case ARRAY:
+      case ITERABLE:
+        builder.append("[");
+        for (Object element : (Iterable<?>) value) {
+          builder.append(
+              toString(fieldType.getCollectionElementType(), element, includeFieldNames));
+          builder.append(", ");
+        }
+        builder.append("]");
+        break;
+      case MAP:
+        builder.append("{");
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+          builder.append("(");
+          builder.append(toString(fieldType.getMapKeyType(), entry.getKey(), includeFieldNames));
+          builder.append(", ");
+          builder.append(
+              toString(fieldType.getMapValueType(), entry.getValue(), includeFieldNames));
+          builder.append("), ");
+        }
+        builder.append("}");
+        break;
+      case BYTES:
+        builder.append(Arrays.toString((byte[]) value));
+        break;
+      case ROW:
+        builder.append(((Row) value).toString(includeFieldNames));
+        break;
+      default:
+        builder.append(value);
+    }
+    return builder.toString();
   }
 
   /**
@@ -795,23 +847,19 @@ public abstract class Row implements Serializable {
                 + " fields.");
       }
 
-      FieldOverrides fieldOverrides = new FieldOverrides(schema);
-      fieldOverrides.setOverrides(this.values);
-
-      Row row;
-      if (!fieldOverrides.isEmpty()) {
-        row =
-            (Row)
-                new RowFieldMatcher()
-                    .match(
-                        new CapturingRowCases(schema, fieldOverrides),
-                        FieldType.row(schema),
-                        new RowPosition(FieldAccessDescriptor.create()),
-                        null);
-      } else {
-        row = new RowWithStorage(schema, Collections.emptyList());
+      if (!values.isEmpty()) {
+        FieldOverrides fieldOverrides = new FieldOverrides(schema, this.values);
+        if (!fieldOverrides.isEmpty()) {
+          return (Row)
+              new RowFieldMatcher()
+                  .match(
+                      new CapturingRowCases(schema, fieldOverrides),
+                      FieldType.row(schema),
+                      new RowPosition(FieldAccessDescriptor.create()),
+                      null);
+        }
       }
-      return row;
+      return new RowWithStorage(schema, Collections.emptyList());
     }
   }
 

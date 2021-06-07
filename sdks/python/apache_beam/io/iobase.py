@@ -31,21 +31,16 @@ the sink.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import math
 import random
 import uuid
-from builtins import object
-from builtins import range
 from collections import namedtuple
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -64,9 +59,6 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
-
-if TYPE_CHECKING:
-  from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
     'BoundedSource',
@@ -869,6 +861,9 @@ class Writer(object):
 
 class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
+  # Import runners here to prevent circular imports
+  from apache_beam.runners.pipeline_context import PipelineContext
+
   def __init__(self, source):
     # type: (SourceBase) -> None
 
@@ -928,8 +923,10 @@ class Read(ptransform.PTransform):
         'source_dd': self.source
     }
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, Any]
+  def to_runner_api_parameter(
+      self,
+      context: PipelineContext,
+  ) -> Tuple[str, Any]:
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.source, (BoundedSource, dataflow_io.NativeSource)):
       from apache_beam.io.gcp.pubsub import _PubSubSource
@@ -951,17 +948,19 @@ class Read(ptransform.PTransform):
               beam_runner_api_pb2.IsBounded.UNBOUNDED))
     elif isinstance(self.source, ptransform.PTransform):
       return self.source.to_runner_api_parameter(context)
+    raise NotImplementedError(
+        "to_runner_api_parameter not "
+        "implemented for type")
 
   @staticmethod
-  @ptransform.PTransform.register_urn(
-      common_urns.deprecated_primitives.READ.urn,
-      beam_runner_api_pb2.ReadPayload)
-  @ptransform.PTransform.register_urn(
-      common_urns.composites.PUBSUB_READ.urn,
-      beam_runner_api_pb2.PubSubReadPayload)
-  def from_runner_api_parameter(transform, payload, context):
-    # type: (Any, Any, PipelineContext) -> Read
+  def from_runner_api_parameter(
+      transform: beam_runner_api_pb2.PTransform,
+      payload: Union[beam_runner_api_pb2.ReadPayload,
+                     beam_runner_api_pb2.PubSubReadPayload],
+      context: PipelineContext,
+  ) -> "Read":
     if transform.spec.urn == common_urns.composites.PUBSUB_READ.urn:
+      assert isinstance(payload, beam_runner_api_pb2.PubSubReadPayload)
       # Importing locally to prevent circular dependencies.
       from apache_beam.io.gcp.pubsub import _PubSubSource
       source = _PubSubSource(
@@ -972,7 +971,41 @@ class Read(ptransform.PTransform):
           timestamp_attribute=payload.timestamp_attribute or None)
       return Read(source)
     else:
+      assert isinstance(payload, beam_runner_api_pb2.ReadPayload)
       return Read(SourceBase.from_runner_api(payload.source, context))
+
+  @staticmethod
+  def _from_runner_api_parameter_read(
+      transform: beam_runner_api_pb2.PTransform,
+      payload: beam_runner_api_pb2.ReadPayload,
+      context: PipelineContext,
+  ) -> "Read":
+    """Method for type proxying when calling register_urn due to limitations
+     in type exprs in Python"""
+    return Read.from_runner_api_parameter(transform, payload, context)
+
+  @staticmethod
+  def _from_runner_api_parameter_pubsub_read(
+      transform: beam_runner_api_pb2.PTransform,
+      payload: beam_runner_api_pb2.PubSubReadPayload,
+      context: PipelineContext,
+  ) -> "Read":
+    """Method for type proxying when calling register_urn due to limitations
+     in type exprs in Python"""
+    return Read.from_runner_api_parameter(transform, payload, context)
+
+
+ptransform.PTransform.register_urn(
+    common_urns.deprecated_primitives.READ.urn,
+    beam_runner_api_pb2.ReadPayload,
+    Read._from_runner_api_parameter_read,
+)
+
+ptransform.PTransform.register_urn(
+    common_urns.composites.PUBSUB_READ.urn,
+    beam_runner_api_pb2.PubSubReadPayload,
+    Read._from_runner_api_parameter_pubsub_read,
+)
 
 
 class Write(ptransform.PTransform):
@@ -1002,6 +1035,9 @@ class Write(ptransform.PTransform):
   should not be updated by users. These sinks are processed using a Dataflow
   native write transform.
   """
+  # Import runners here to prevent circular imports
+  from apache_beam.runners.pipeline_context import PipelineContext
+
   def __init__(self, sink):
     """Initializes a Write transform.
 
@@ -1030,8 +1066,10 @@ class Write(ptransform.PTransform):
           'A sink must inherit iobase.Sink, iobase.NativeSink, '
           'or be a PTransform. Received : %r' % self.sink)
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, Any]
+  def to_runner_api_parameter(
+      self,
+      context: PipelineContext,
+  ) -> Tuple[str, Any]:
     # Importing locally to prevent circular dependencies.
     from apache_beam.io.gcp.pubsub import _PubSubSink
     if isinstance(self.sink, _PubSubSink):
@@ -1047,17 +1085,25 @@ class Write(ptransform.PTransform):
   @ptransform.PTransform.register_urn(
       common_urns.composites.PUBSUB_WRITE.urn,
       beam_runner_api_pb2.PubSubWritePayload)
-  def from_runner_api_parameter(ptransform, payload, unused_context):
-    # type: (Any, Any, PipelineContext) -> Write
+  def from_runner_api_parameter(
+      ptransform: Any,
+      payload: beam_runner_api_pb2.PubSubWritePayload,
+      unused_context: PipelineContext,
+  ) -> "Write":
     if ptransform.spec.urn != common_urns.composites.PUBSUB_WRITE.urn:
       raise ValueError(
           'Write transform cannot be constructed for the given proto %r',
           ptransform)
 
+    if not payload.topic:
+      raise NotImplementedError(
+          "from_runner_api_parameter does not "
+          "handle empty or None topic")
+
     # Importing locally to prevent circular dependencies.
     from apache_beam.io.gcp.pubsub import _PubSubSink
     sink = _PubSubSink(
-        topic=payload.topic or None,
+        topic=payload.topic,
         id_label=payload.id_attribute or None,
         timestamp_attribute=payload.timestamp_attribute or None)
     return Write(sink)
@@ -1079,7 +1125,7 @@ class WriteImpl(ptransform.PTransform):
       if min_shards == 1:
         keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
       else:
-        keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(min_shards))
+        keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
       write_result_coll = (
           keyed_pcoll
           | core.WindowInto(window.GlobalWindows())
@@ -1180,17 +1226,13 @@ def _finalize_write(
 
 
 class _RoundRobinKeyFn(core.DoFn):
-  def __init__(self, count):
-    # type: (int) -> None
-    self.count = count
-
   def start_bundle(self):
-    self.counter = random.randint(0, self.count - 1)
+    self.counter = None
 
-  def process(self, element):
-    self.counter += 1
-    if self.counter >= self.count:
-      self.counter -= self.count
+  def process(self, element, count):
+    if self.counter is None:
+      self.counter = random.randrange(0, count)
+    self.counter = (1 + self.counter) % count
     yield self.counter, element
 
 
@@ -1453,33 +1495,39 @@ class _SDFBoundedSourceRestriction(object):
     return self._source_bundle.source
 
   def try_split(self, fraction_of_remainder):
-    consumed_fraction = self.range_tracker().fraction_consumed()
-    fraction = (
-        consumed_fraction + (1 - consumed_fraction) * fraction_of_remainder)
-    position = self.range_tracker().position_at_fraction(fraction)
-    # Need to stash current stop_pos before splitting since
-    # range_tracker.split will update its stop_pos if splits
-    # successfully.
-    stop_pos = self._source_bundle.stop_position
-    split_result = self.range_tracker().try_split(position)
-    if split_result:
-      split_pos, split_fraction = split_result
-      primary_weight = self._source_bundle.weight * split_fraction
-      residual_weight = self._source_bundle.weight - primary_weight
-      # Update self to primary weight and end position.
-      self._source_bundle = SourceBundle(
-          primary_weight,
-          self._source_bundle.source,
-          self._source_bundle.start_position,
-          split_pos)
-      return (
-          self,
-          _SDFBoundedSourceRestriction(
-              SourceBundle(
-                  residual_weight,
-                  self._source_bundle.source,
-                  split_pos,
-                  stop_pos)))
+    try:
+      consumed_fraction = self.range_tracker().fraction_consumed()
+      fraction = (
+          consumed_fraction + (1 - consumed_fraction) * fraction_of_remainder)
+      position = self.range_tracker().position_at_fraction(fraction)
+      # Need to stash current stop_pos before splitting since
+      # range_tracker.split will update its stop_pos if splits
+      # successfully.
+      stop_pos = self._source_bundle.stop_position
+      split_result = self.range_tracker().try_split(position)
+      if split_result:
+        split_pos, split_fraction = split_result
+        primary_weight = self._source_bundle.weight * split_fraction
+        residual_weight = self._source_bundle.weight - primary_weight
+        # Update self to primary weight and end position.
+        self._source_bundle = SourceBundle(
+            primary_weight,
+            self._source_bundle.source,
+            self._source_bundle.start_position,
+            split_pos)
+        return (
+            self,
+            _SDFBoundedSourceRestriction(
+                SourceBundle(
+                    residual_weight,
+                    self._source_bundle.source,
+                    split_pos,
+                    stop_pos)))
+    except Exception:
+      # For any exceptions from underlying trySplit calls, the wrapper will
+      # think that the source refuses to split at this point. In this case,
+      # no split happens at the wrapper level.
+      return None
 
 
 class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):

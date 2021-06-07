@@ -20,21 +20,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import collections
 import contextlib
 import random
 import re
-import sys
 import threading
 import time
 import uuid
-from builtins import filter
-from builtins import object
-from builtins import range
-from builtins import zip
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterable
@@ -42,9 +34,6 @@ from typing import List
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
-
-from future.utils import itervalues
-from past.builtins import long
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -59,6 +48,7 @@ from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
+from apache_beam.transforms.core import MapTuple
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.ptransform import PTransform
@@ -163,7 +153,7 @@ class CoGroupByKey(PTransform):
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
-      return pvalueish, tuple(itervalues(pvalueish))
+      return pvalueish, tuple(pvalueish.values())
     except AttributeError:
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
@@ -216,22 +206,33 @@ class CoGroupByKey(PTransform):
             | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
 
 
-def Keys(label='Keys'):  # pylint: disable=invalid-name
+@ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(K)
+def Keys(pcoll, label='Keys'):  # pylint: disable=invalid-name
   """Produces a PCollection of first elements of 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v: k_v[0])
-
-
-def Values(label='Values'):  # pylint: disable=invalid-name
-  """Produces a PCollection of second elements of 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v1: k_v1[1])
-
-
-def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
-  """Produces a PCollection reversing 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v2: (k_v2[1], k_v2[0]))
+  return pcoll | label >> MapTuple(lambda k, _: k)
 
 
 @ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(V)
+def Values(pcoll, label='Values'):  # pylint: disable=invalid-name
+  """Produces a PCollection of second elements of 2-tuples in a PCollection."""
+  return pcoll | label >> MapTuple(lambda _, v: v)
+
+
+@ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[V, K])
+def KvSwap(pcoll, label='KvSwap'):  # pylint: disable=invalid-name
+  """Produces a PCollection reversing 2-tuples in a PCollection."""
+  return pcoll | label >> MapTuple(lambda k, v: (v, k))
+
+
+@ptransform_fn
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
 def Distinct(pcoll):  # pylint: disable=invalid-name
   """Produces a PCollection containing distinct elements of a PCollection."""
   return (
@@ -243,6 +244,8 @@ def Distinct(pcoll):  # pylint: disable=invalid-name
 
 @deprecated(since='2.12', current='Distinct')
 @ptransform_fn
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
 def RemoveDuplicates(pcoll):
   """Produces a PCollection containing distinct elements of a PCollection."""
   return pcoll | 'RemoveDuplicates' >> Distinct()
@@ -708,17 +711,13 @@ class Reshuffle(PTransform):
   """
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    if sys.version_info >= (3, ):
-      KeyedT = Tuple[int, T]
-    else:
-      KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
-            32), t)).with_input_types(T).with_output_types(KeyedT)
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
+        with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >>
-        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
+        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
+            Tuple[int, T]).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]

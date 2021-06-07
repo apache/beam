@@ -71,9 +71,20 @@ public final class MonitoringInfoConstants {
     public static final String NAME = "NAME";
     public static final String SERVICE = "SERVICE";
     public static final String METHOD = "METHOD";
+    public static final String RESOURCE = "RESOURCE";
     public static final String STATUS = "STATUS";
+    public static final String BIGQUERY_PROJECT_ID = "BIGQUERY_PROJECT_ID";
+    public static final String BIGQUERY_DATASET = "BIGQUERY_DATASET";
+    public static final String BIGQUERY_TABLE = "BIGQUERY_TABLE";
+    public static final String BIGQUERY_VIEW = "BIGQUERY_VIEW";
+    public static final String BIGQUERY_QUERY_NAME = "BIGQUERY_QUERY_NAME";
 
     static {
+      // Note: One benefit of defining these strings above, instead of pulling them in from
+      // the proto files, is to ensure that this code will crash if the strings in the proto
+      // file are changed, without modifying this file.
+      // Though, one should not change those strings either, as Runner Harnesss running old versions
+      // would not be able to understand the new label names./
       checkArgument(PTRANSFORM.equals(extractLabel(MonitoringInfoLabels.TRANSFORM)));
       checkArgument(PCOLLECTION.equals(extractLabel(MonitoringInfoLabels.PCOLLECTION)));
       checkArgument(
@@ -84,7 +95,15 @@ public final class MonitoringInfoConstants {
       checkArgument(NAME.equals(extractLabel(MonitoringInfoLabels.NAME)));
       checkArgument(SERVICE.equals(extractLabel(MonitoringInfoLabels.SERVICE)));
       checkArgument(METHOD.equals(extractLabel(MonitoringInfoLabels.METHOD)));
+      checkArgument(RESOURCE.equals(extractLabel(MonitoringInfoLabels.RESOURCE)));
       checkArgument(STATUS.equals(extractLabel(MonitoringInfoLabels.STATUS)));
+      checkArgument(
+          BIGQUERY_PROJECT_ID.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_PROJECT_ID)));
+      checkArgument(BIGQUERY_DATASET.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_DATASET)));
+      checkArgument(BIGQUERY_TABLE.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_TABLE)));
+      checkArgument(BIGQUERY_VIEW.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_VIEW)));
+      checkArgument(
+          BIGQUERY_QUERY_NAME.equals(extractLabel(MonitoringInfoLabels.BIGQUERY_QUERY_NAME)));
     }
   }
 

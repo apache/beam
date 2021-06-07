@@ -103,7 +103,7 @@ public class LatencyRecordingHttpRequestInitializerTest {
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest).execute();
-    verify(mockLowLevelResponse).getStatusCode();
+    verify(mockLowLevelResponse, atLeastOnce()).getStatusCode();
   }
 
   @Test
@@ -124,6 +124,6 @@ public class LatencyRecordingHttpRequestInitializerTest {
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).setWriteTimeout(anyInt());
     verify(mockLowLevelRequest).execute();
-    verify(mockLowLevelResponse).getStatusCode();
+    verify(mockLowLevelResponse, atLeastOnce()).getStatusCode();
   }
 }

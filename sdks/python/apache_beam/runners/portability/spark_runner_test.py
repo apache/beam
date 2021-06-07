@@ -16,9 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import argparse
 import logging
 import shlex
@@ -87,7 +84,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     self.set_spark_job_server_jar(
         known_args.spark_job_server_jar or
         job_server.JavaJarJobServer.path_to_beam_jar(
-            ':runners:spark:job-server:shadowJar'))
+            ':runners:spark:2:job-server:shadowJar'))
     self.environment_type = known_args.environment_type
     self.environment_options = known_args.environment_options
 
@@ -183,6 +180,10 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_custom_merging_window(self):
     raise unittest.SkipTest("BEAM-11004")
+
+  def test_pack_combiners(self):
+    raise unittest.SkipTest(
+        "BEAM-12305: pack_combiners does not work in Flink yet")
 
   # Inherits all other tests from PortableRunnerTest.
 

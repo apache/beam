@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
-from builtins import list
-from builtins import object
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -445,6 +441,18 @@ class StandardOptions(PipelineOptions):
         action='store_true',
         help='Whether to enable streaming mode.')
 
+    parser.add_argument(
+        '--resource_hint',
+        '--resource_hints',
+        dest='resource_hints',
+        action='append',
+        default=[],
+        help=(
+            'Resource hint to set in the pipeline execution environment.'
+            'Hints specified via this option override hints specified '
+            'at transform level. Interpretation of hints is defined by '
+            'Beam runners.'))
+
 
 class CrossLanguageOptions(PipelineOptions):
   @classmethod
@@ -524,6 +532,15 @@ class TypeOptions(PipelineOptions):
         'operations such as GropuByKey.  This is unsafe, as runners may group '
         'keys based on their encoded bytes, but is available for backwards '
         'compatibility. See BEAM-11719.')
+    parser.add_argument(
+        '--allow_unsafe_triggers',
+        default=False,
+        action='store_true',
+        help='Allow the use of unsafe triggers. Unsafe triggers have the '
+        'potential to cause data loss due to finishing and/or never having '
+        'their condition met. Some operations, such as GroupByKey, disallow '
+        'this. This exists for cases where such loss is acceptable and for '
+        'backwards compatibility. See BEAM-9487.')
 
   def validate(self, unused_validator):
     errors = []
@@ -673,10 +690,31 @@ class GoogleCloudOptions(PipelineOptions):
         help='Set a Google Cloud KMS key name to be used in '
         'Dataflow state operations (GBK, Streaming).')
     parser.add_argument(
+        '--create_from_snapshot',
+        default=None,
+        help='The snapshot from which the job should be created.')
+    parser.add_argument(
         '--flexrs_goal',
         default=None,
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
+    parser.add_argument(
+        '--dataflow_service_option',
+        '--dataflow_service_options',
+        dest='dataflow_service_options',
+        action='append',
+        default=None,
+        help=(
+            'Options to configure the Dataflow service. These '
+            'options decouple service side feature availbility '
+            'from the Apache Beam release cycle.'))
+    parser.add_argument(
+        '--enable_hot_key_logging',
+        default=False,
+        action='store_true',
+        help='When true, will enable the direct logging of any detected hot '
+        'keys into Cloud Logging. Warning: this will log the literal key as an '
+        'unobfuscated string.')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -842,9 +880,20 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'Docker registry location of container image to use for the '
-            'worker harness. Default is the container for the version of the '
-            'SDK. Note: currently, only approved Google Cloud Dataflow '
-            'container images may be used here.'))
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. Note: This flag is deprecated and only supports '
+            'approved Google Cloud Dataflow container images. To provide a '
+            'custom container image, use sdk_container_image instead.'))
+    parser.add_argument(
+        '--sdk_container_image',
+        default=None,
+        help=(
+            'Docker registry location of container image to use for the '
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. If set for a non-portable pipeline, only official '
+            'Google Cloud Dataflow container images may be used here.'))
     parser.add_argument(
         '--sdk_harness_container_image_overrides',
         action='append',
@@ -882,6 +931,8 @@ class WorkerOptions(PipelineOptions):
 
   def validate(self, validator):
     errors = []
+    errors.extend(validator.validate_sdk_container_image_options(self))
+
     if validator.is_service_runner():
       errors.extend(
           validator.validate_optional_argument_positive(self, 'num_workers'))
@@ -1223,7 +1274,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.8', '1.9', '1.10', '1.11', '1.12']
+  PUBLISHED_FLINK_VERSIONS = ['1.10', '1.11', '1.12', '1.13']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -1275,7 +1326,8 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--spark_rest_url',
         help='URL for the Spark REST endpoint. '
-        'Only required when using spark_submit_uber_jar.')
+        'Only required when using spark_submit_uber_jar. '
+        'For example, http://hostname:6066')
 
 
 class TestOptions(PipelineOptions):

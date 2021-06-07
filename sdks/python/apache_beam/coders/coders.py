@@ -21,10 +21,8 @@ Only those coders listed in __all__ are part of the public API of this module.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
-from builtins import object
+import pickle
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -39,8 +37,6 @@ from typing import TypeVar
 from typing import overload
 
 import google.protobuf.wrappers_pb2
-from future.moves import pickle
-from past.builtins import unicode
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
@@ -82,6 +78,7 @@ __all__ = [
     'FastPrimitivesCoder',
     'FloatCoder',
     'IterableCoder',
+    'ListCoder',
     'MapCoder',
     'NullableCoder',
     'PickleCoder',
@@ -293,10 +290,6 @@ class Coder(object):
 
   # pylint: enable=protected-access
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash(type(self))
 
@@ -419,7 +412,7 @@ class StrUtf8Coder(Coder):
     return True
 
   def to_type_hint(self):
-    return unicode
+    return str
 
 
 Coder.register_structured_urn(common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
@@ -754,7 +747,7 @@ class PickleCoder(_PickleCoderBase):
         lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
-    return DeterministicFastPrimitivesCoder(self, step_label)
+    return FastPrimitivesCoder(self, requires_deterministic=step_label)
 
   def to_type_hint(self):
     return Any
@@ -773,8 +766,9 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     self._step_label = step_label
 
   def _create_impl(self):
-    return coder_impl.DeterministicFastPrimitivesCoderImpl(
-        self._underlying_coder.get_impl(), self._step_label)
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(),
+        requires_deterministic_step_label=self._step_label)
 
   def is_deterministic(self):
     # type: () -> bool
@@ -937,7 +931,7 @@ class ProtoCoder(FastCoder):
 
   @staticmethod
   def from_type_hint(typehint, unused_registry):
-    if issubclass(typehint, google.protobuf.message.Message):
+    if issubclass(typehint, proto_utils.message_types):
       return ProtoCoder(typehint)
     else:
       raise ValueError((
@@ -1132,7 +1126,7 @@ class TupleSequenceCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
-class IterableCoder(FastCoder):
+class ListLikeCoder(FastCoder):
   """Coder of iterables of homogeneous objects."""
   def __init__(self, elem_coder):
     # type: (Coder) -> None
@@ -1149,7 +1143,7 @@ class IterableCoder(FastCoder):
     if self.is_deterministic():
       return self
     else:
-      return IterableCoder(
+      return type(self)(
           self._elem_coder.as_deterministic_coder(step_label, error_message))
 
   def as_cloud_object(self, coders_context=None):
@@ -1164,20 +1158,17 @@ class IterableCoder(FastCoder):
   def value_coder(self):
     return self._elem_coder
 
-  def to_type_hint(self):
-    return typehints.Iterable[self._elem_coder.to_type_hint()]
-
-  @staticmethod
-  def from_type_hint(typehint, registry):
-    # type: (Any, CoderRegistry) -> IterableCoder
-    return IterableCoder(registry.get_coder(typehint.inner_type))
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    # type: (Any, CoderRegistry) -> ListLikeCoder
+    return cls(registry.get_coder(typehint.inner_type))
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
     return (self._elem_coder, )
 
   def __repr__(self):
-    return 'IterableCoder[%r]' % self._elem_coder
+    return '%s[%r]' % (self.__class__.__name__, self._elem_coder)
 
   def __eq__(self, other):
     return (
@@ -1187,7 +1178,19 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
+class IterableCoder(ListLikeCoder):
+  """Coder of iterables of homogeneous objects."""
+  def to_type_hint(self):
+    return typehints.Iterable[self._elem_coder.to_type_hint()]
+
+
 Coder.register_structured_urn(common_urns.coders.ITERABLE.urn, IterableCoder)
+
+
+class ListCoder(ListLikeCoder):
+  """Coder of Python lists."""
+  def to_type_hint(self):
+    return typehints.List[self._elem_coder.to_type_hint()]
 
 
 class GlobalWindowCoder(SingletonCoder):
@@ -1496,6 +1499,9 @@ class ShardedKeyCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self)) + hash(self._key_coder)
+
+  def __repr__(self):
+    return 'ShardedKeyCoder[%s]' % self._key_coder
 
 
 Coder.register_structured_urn(

@@ -27,12 +27,7 @@ Run as
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import logging
-from builtins import range
 from collections import defaultdict
 from time import time
 from typing import Iterable

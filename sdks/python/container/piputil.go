@@ -49,14 +49,14 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// as possible PyPI downloads. In the first round the --find-links
 			// option will make sure that only things staged in the worker will be
 			// used without following their dependencies.
-			args := []string{"install", "-r", filepath.Join(dir, name), "--no-index", "--no-deps", "--find-links", dir}
+			args := []string{"install", "-r", filepath.Join(dir, name), "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
 			if err := execx.Execute(pip, args...); err != nil {
 				return err
 			}
 			// The second install round opens up the search for packages on PyPI and
 			// also installs dependencies. The key is that if all the packages have
 			// been installed in the first round then this command will be a no-op.
-			args = []string{"install", "-r", filepath.Join(dir, name), "--find-links", dir}
+			args = []string{"install", "-r", filepath.Join(dir, name), "--disable-pip-version-check", "--find-links", dir}
 			return execx.Execute(pip, args...)
 		}
 	}
@@ -84,22 +84,22 @@ func pipInstallPackage(files []string, dir, name string, force, optional bool, e
 				// avoiding reinstallation of dependencies.  Note now that if any needed
 				// dependencies were not installed, they will still be missing.
 				//
-				// Next, we run "pip install" on the package without any flags.  Since the
+				// Next, we run "pip install" on the package without these flags.  Since the
 				// installed version will match the package specified, the package itself
 				// will not be reinstalled, but its dependencies will now be resolved and
 				// installed if necessary.  This achieves our goal outlined above.
-				args := []string{"install", "--upgrade", "--force-reinstall", "--no-deps",
+				args := []string{"install", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
 					filepath.Join(dir, packageSpec)}
 				err := execx.Execute(pip, args...)
 				if err != nil {
 					return err
 				}
-				args = []string{"install", filepath.Join(dir, packageSpec)}
+				args = []string{"install", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
 				return execx.Execute(pip, args...)
 			}
 
 			// Case when we do not perform a forced reinstall.
-			args := []string{"install", filepath.Join(dir, packageSpec)}
+			args := []string{"install", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
 			return execx.Execute(pip, args...)
 		}
 	}

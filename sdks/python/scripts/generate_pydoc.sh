@@ -53,34 +53,40 @@ current_minor_version=`echo ${python_version} | sed -E "s/Python 3.([0-9])\..*/\
 
 # Exclude internal, test, and Cython paths/patterns from the documentation.
 excluded_patterns=(
-    apache_beam/coders/stream.*
-    apache_beam/coders/coder_impl.*
-    apache_beam/examples/
-    apache_beam/internal/clients/
-    apache_beam/io/gcp/internal/
-    apache_beam/io/gcp/tests/
-    apache_beam/metrics/execution.*
-    apache_beam/runners/common.*
-    apache_beam/runners/api/
-    apache_beam/runners/test/
-    apache_beam/runners/dataflow/internal/
-    apache_beam/runners/portability/
-    apache_beam/runners/worker/
-    apache_beam/testing/benchmarks/chicago_taxi/
-    apache_beam/tools/map_fn_microbenchmark.*
-    apache_beam/transforms/cy_combiners.*
-    apache_beam/transforms/cy_dataflow_distribution_counter.*
-    apache_beam/transforms/py_dataflow_distribution_counter.*
-    apache_beam/utils/counters.*
-    apache_beam/utils/windowed_value.*
-    *_pb2.py
-    *_test.py
-    *_test_common.py
-    *_py3[`echo $(($current_minor_version+1))`-9]*.py
+    'apache_beam/coders/coder_impl.*'
+    'apache_beam/coders/stream.*'
+    'apache_beam/examples/'
+    'apache_beam/io/gcp/tests/'
+    'apache_beam/metrics/execution.*'
+    'apache_beam/runners/api/'
+    'apache_beam/runners/common.*'
+    'apache_beam/runners/portability/'
+    'apache_beam/runners/test/'
+    'apache_beam/runners/worker/'
+    'apache_beam/testing/'
+    'apache_beam/testing/benchmarks/chicago_taxi/'
+    'apache_beam/tools/'
+    'apache_beam/tools/map_fn_microbenchmark.*'
+    'apache_beam/transforms/cy_combiners.*'
+    'apache_beam/transforms/cy_dataflow_distribution_counter.*'
+    'apache_beam/transforms/py_dataflow_distribution_counter.*'
+    'apache_beam/utils/counters.*'
+    'apache_beam/utils/windowed_value.*'
+    'apache_beam/version.py'
+    '**/internal/*'
+    '*_it.py'
+    '*_pb2.py'
+    '*_py3[0-9]*.py'
+    '*_test.py'
+    '*_test_common.py'
+    '*_test_py3.py'
 )
 
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
     "${excluded_patterns[@]}"
+
+# Include inherited memebers for the DataFrame API
+echo "    :inherited-members:" >> target/docs/source/apache_beam.dataframe.frames.rst
 
 # Create the configuration and index files
 #=== conf.py ===#
@@ -116,6 +122,9 @@ autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 
+# Allow a special section for documenting DataFrame API
+napoleon_custom_sections = ['Differences from pandas']
+
 doctest_global_setup = '''
 import apache_beam as beam
 '''
@@ -124,6 +133,8 @@ intersphinx_mapping = {
   'python': ('https://docs.python.org/{}'.format(sys.version_info.major), None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
   'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
+  'numpy': ('http://docs.scipy.org/doc/numpy', None),
+  'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
@@ -149,10 +160,13 @@ ignore_identifiers = [
   # Ignore private classes
   'apache_beam.coders.coders._PickleCoderBase',
   'apache_beam.coders.coders.FastCoder',
+  'apache_beam.coders.coders.ListLikeCoder',
   'apache_beam.io._AvroSource',
   'apache_beam.io.gcp.bigquery.RowAsDictJsonCoder',
   'apache_beam.io.gcp.datastore.v1new.datastoreio._Mutate',
   'apache_beam.io.gcp.datastore.v1new.datastoreio.DatastoreMutateFn',
+  'apache_beam.io.gcp.internal.clients.bigquery.'
+      'bigquery_v2_messages.TableFieldSchema',
   'apache_beam.io.gcp.internal.clients.bigquery.'
       'bigquery_v2_messages.TableSchema',
   'apache_beam.io.iobase.SourceBase',
@@ -244,7 +258,7 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-build.warnings.log || exit 1
-! grep -q "WARNING:" target/docs/sphinx-build.warnings.log || exit 1
+(! grep -v 'apache_beam.dataframe' target/docs/sphinx-build.warnings.log | grep -q "WARNING:") || exit 1
 
 # Run tests for code samples, these can be:
 # - Code blocks using '.. testsetup::', '.. testcode::' and '.. testoutput::'
@@ -255,7 +269,7 @@ python -msphinx -M doctest target/docs/source \
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-doctest.warnings.log || exit 1
-! grep -q "WARNING:" target/docs/sphinx-doctest.warnings.log || exit 1
+(! grep -v 'apache_beam.dataframe' target/docs/sphinx-doctest.warnings.log | grep -q "WARNING:") || exit 1
 
 # Message is useful only when this script is run locally.  In a remote
 # test environment, this path will be removed when the test completes.

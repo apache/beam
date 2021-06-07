@@ -41,8 +41,10 @@ import (
 // and then eventually removed.
 //
 // Only users who rely on default JSON marshalling behaviour should set
-// this explicitly.
-var EnableSchemas bool = false
+// this explicitly, and file an issue on the BEAM JIRA so the issue may
+// be resolved.
+// https://issues.apache.org/jira/projects/BEAM/issues/
+var EnableSchemas bool = true
 
 type jsonCoder interface {
 	json.Marshaler

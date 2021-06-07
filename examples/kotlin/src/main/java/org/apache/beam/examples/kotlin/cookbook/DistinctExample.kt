@@ -69,7 +69,7 @@ object DistinctExample {
         /** Returns gs://${TEMP_LOCATION}/"deduped.txt".  */
         class OutputFactory : DefaultValueFactory<String> {
             override fun create(options: PipelineOptions): String {
-                options.tempLocation?.let {
+                options.tempLocation.let {
                     return GcsPath.fromUri(it).resolve("deduped.txt").toString()
                 } ?: run {
                     throw IllegalArgumentException("Must specify --output or --tempLocation")

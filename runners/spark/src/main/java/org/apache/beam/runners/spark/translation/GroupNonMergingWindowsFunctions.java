@@ -250,13 +250,7 @@ public class GroupNonMergingWindowsFunctions {
       @SuppressWarnings("unchecked")
       final W window = (W) Iterables.getOnlyElement(windowedValue.getWindows());
       final Instant timestamp =
-          windowingStrategy
-              .getTimestampCombiner()
-              .assign(
-                  window,
-                  windowingStrategy
-                      .getWindowFn()
-                      .getOutputTime(windowedValue.getTimestamp(), window));
+          windowingStrategy.getTimestampCombiner().assign(window, windowedValue.getTimestamp());
       // BEAM-7341: Elements produced by GbK are always ON_TIME and ONLY_FIRING
       return WindowedValue.of(
           KV.of(key, value), timestamp, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);

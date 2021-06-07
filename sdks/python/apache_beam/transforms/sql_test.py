@@ -19,14 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import typing
 import unittest
 
 from nose.plugins.attrib import attr
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -37,14 +34,14 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.sql import SqlTransform
 
 SimpleRow = typing.NamedTuple(
-    "SimpleRow", [("id", int), ("str", unicode), ("flt", float)])
+    "SimpleRow", [("id", int), ("str", str), ("flt", float)])
 coders.registry.register_coder(SimpleRow, coders.RowCoder)
 
-Enrich = typing.NamedTuple("Enrich", [("id", int), ("metadata", unicode)])
+Enrich = typing.NamedTuple("Enrich", [("id", int), ("metadata", str)])
 coders.registry.register_coder(Enrich, coders.RowCoder)
 
 Shopper = typing.NamedTuple(
-    "Shopper", [("shopper", unicode), ("cart", typing.Mapping[unicode, int])])
+    "Shopper", [("shopper", str), ("cart", typing.Mapping[str, int])])
 coders.registry.register_coder(Shopper, coders.RowCoder)
 
 
@@ -60,8 +57,8 @@ class SqlTransformTest(unittest.TestCase):
   job server. The easiest way to accomplish this is to run the
   `validatesCrossLanguageRunnerPythonUsingSql` gradle target for a particular
   job server, which will start the runner and job server for you. For example,
-  `:runners:flink:1.10:job-server:validatesCrossLanguageRunnerPythonUsingSql` to
-  test on Flink 1.10.
+  `:runners:flink:1.13:job-server:validatesCrossLanguageRunnerPythonUsingSql` to
+  test on Flink 1.13.
 
   Alternatively, you may be able to iterate faster if you run the tests directly
   using a runner like `FlinkRunner`, which can start a local Flink cluster and
@@ -149,7 +146,7 @@ class SqlTransformTest(unittest.TestCase):
       out = (
           p
           | beam.Create([1, 2, 10])
-          | beam.Map(lambda x: beam.Row(a=x, b=unicode(x)))
+          | beam.Map(lambda x: beam.Row(a=x, b=str(x)))
           | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 

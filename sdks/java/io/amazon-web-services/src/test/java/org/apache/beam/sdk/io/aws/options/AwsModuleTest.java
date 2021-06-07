@@ -39,6 +39,8 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Field;
 import java.util.List;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -238,5 +240,23 @@ public class AwsModuleTest {
     assertEquals(100, clientConfigurationDeserialized.getConnectionTimeout());
     assertEquals(1000, clientConfigurationDeserialized.getConnectionMaxIdleMillis());
     assertEquals(300, clientConfigurationDeserialized.getSocketTimeout());
+  }
+
+  @Test
+  public void testAwsHttpClientConfigurationSerializationDeserializationProto() throws Exception {
+    AwsOptions awsOptions =
+        PipelineOptionsTranslation.fromProto(
+                PipelineOptionsTranslation.toProto(
+                    PipelineOptionsFactory.fromArgs(
+                            "--clientConfiguration={ \"connectionTimeout\": 100, \"connectionMaxIdleTime\": 1000, \"socketTimeout\": 300, \"proxyPort\": -1, \"requestTimeout\": 1500 }")
+                        .create()))
+            .as(AwsOptions.class);
+    ClientConfiguration clientConfigurationDeserialized = awsOptions.getClientConfiguration();
+
+    assertEquals(100, clientConfigurationDeserialized.getConnectionTimeout());
+    assertEquals(1000, clientConfigurationDeserialized.getConnectionMaxIdleMillis());
+    assertEquals(300, clientConfigurationDeserialized.getSocketTimeout());
+    assertEquals(-1, clientConfigurationDeserialized.getProxyPort());
+    assertEquals(1500, clientConfigurationDeserialized.getRequestTimeout());
   }
 }

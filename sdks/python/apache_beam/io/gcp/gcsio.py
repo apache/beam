@@ -23,18 +23,14 @@ https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import errno
 import io
 import logging
 import multiprocessing
 import re
-import sys
 import threading
 import time
 import traceback
-from builtins import object
 from itertools import islice
 
 from apache_beam.internal.http_client import get_new_http
@@ -107,7 +103,9 @@ def parse_gcs_path(gcs_path, object_optional=False):
   """Return the bucket and object names of the given gs:// path."""
   match = re.match('^gs://([^/]+)/(.*)$', gcs_path)
   if match is None or (match.group(2) == '' and not object_optional):
-    raise ValueError('GCS path must be in the form gs://<bucket>/<object>.')
+    raise ValueError(
+        'GCS path must be in the form gs://<bucket>/<object>. '
+        f'Encountered {gcs_path!r}')
   return match.group(1), match.group(2)
 
 
@@ -154,7 +152,7 @@ class GcsIO(object):
           credentials=auth.get_service_credentials(),
           get_credentials=False,
           http=get_new_http(),
-          response_encoding=None if sys.version_info[0] < 3 else 'utf8')
+          response_encoding='utf8')
     self.client = storage_client
     self._rewrite_cb = None
 

@@ -31,6 +31,21 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
+func init() {
+	flag.Var(&SdkHarnessContainerImageOverrides,
+		"sdk_harness_container_image_override",
+		"Overrides for SDK harness container images. Could be for the "+
+			"local SDK or for a remote SDK that pipeline has to support due "+
+			"to a cross-language transform. Each entry consists of two values "+
+			"separated by a comma where first value gives a regex to "+
+			"identify the container image to override and the second value "+
+			"gives the replacement container image. Multiple entries can be "+
+			"specified by using this flag multiple times. A container will "+
+			"have no more than 1 override applied to it. If multiple "+
+			"overrides match a container image it is arbitrary which "+
+			"will be applied.")
+}
+
 var (
 	// Endpoint is the job service endpoint.
 	Endpoint = flag.String("endpoint", "", "Job service endpoint (required).")
@@ -51,6 +66,10 @@ var (
 			"\"arch\": \"<ARCHITECTURE>\", \"command\": \"<process to execute>\", "+
 			"\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }. "+
 			"All fields in the json are optional except command.")
+
+	// SdkHarnessContainerImageOverrides contains patterns for overriding
+	// container image names in a pipeline.
+	SdkHarnessContainerImageOverrides stringSlice
 
 	// WorkerBinary is the location of the compiled worker binary. If not
 	// specified, the binary is produced via go build.
@@ -126,6 +145,18 @@ func GetEnvironmentConfig(ctx context.Context) string {
 		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
 	return *EnvironmentConfig
+}
+
+// GetSdkImageOverrides gets the specified overrides as a map where each key is
+// a regular expression pattern to match, and each value is the string to
+// replace matching containers with.
+func GetSdkImageOverrides() map[string]string {
+	ret := make(map[string]string)
+	for _, pattern := range SdkHarnessContainerImageOverrides {
+		splits := strings.SplitN(pattern, ",", 2)
+		ret[splits[0]] = splits[1]
+	}
+	return ret
 }
 
 // GetExperiments returns the experiments.

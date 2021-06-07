@@ -62,6 +62,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOption
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -89,10 +91,12 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.compress.utils.Sets;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Rule;
@@ -308,7 +312,64 @@ public class WriteFilesTest {
             }
             return null;
           }
-        });
+        },
+        false);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWithRunnerDeterminedShardingUnbounded() throws IOException {
+    runShardedWrite(
+        Arrays.asList("one", "two", "three", "four", "five", "six"),
+        Window.into(FixedWindows.of(Duration.standardSeconds(10))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding(),
+        null,
+        true);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testWithRunnerDeterminedShardingTestStream() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            // Initialize watermark for timer to be triggered correctly.
+            .advanceWatermarkTo(startInstant)
+            // Add 10 elements in the first window.
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            // Add 10 more elements in the first window.
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            // Add the remaining relements in the second window.
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkToInfinity();
+
+    // Flag to validate that the pipeline options are passed to the Sink
+    WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
+    options.setTestFlag("test_value");
+    Pipeline p = TestPipeline.create(options);
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding();
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    p.run();
+
+    checkFileContents(
+        getBaseOutputFilename(), elements, Optional.absent(), !write.getWindowedWrites(), null);
   }
 
   /** Test a WriteFiles transform with an empty PCollection. */
@@ -450,15 +511,16 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testUnboundedWritesNeedSharding() {
+  public void testUnboundedWritesWithMergingWindowNeedSharding() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "When applying WriteFiles to an unbounded PCollection, "
+        "When applying WriteFiles to an unbounded PCollection with merging windows, "
             + "must specify number of output shards explicitly");
 
     SimpleSink<Void> sink = makeSimpleSink();
     p.apply(Create.of("foo"))
         .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(Window.into(Sessions.withGapDuration(Duration.millis(100))))
         .apply(WriteFiles.to(sink).withWindowedWrites());
     p.run();
   }
@@ -703,9 +765,9 @@ public class WriteFilesTest {
   }
 
   /**
-   * Same as {@link #runShardedWrite(List, PTransform, String, WriteFiles, BiFunction)} but without
-   * shard content check. This means content will be checked only globally, that shards together
-   * contains written input and not content per shard
+   * Same as {@link #runShardedWrite(List, PTransform, String, WriteFiles, BiFunction, boolean)} but
+   * without shard content check. This means content will be checked only globally, that shards
+   * together contains written input and not content per shard
    */
   private void runShardedWrite(
       List<String> inputs,
@@ -713,7 +775,7 @@ public class WriteFilesTest {
       String baseName,
       WriteFiles<String, ?, String> write)
       throws IOException {
-    runShardedWrite(inputs, transform, baseName, write, null);
+    runShardedWrite(inputs, transform, baseName, write, null, false);
   }
 
   /**
@@ -727,7 +789,8 @@ public class WriteFilesTest {
       PTransform<PCollection<String>, PCollection<String>> transform,
       String baseName,
       WriteFiles<String, ?, String> write,
-      BiFunction<Integer, List<String>, Void> shardContentChecker)
+      BiFunction<Integer, List<String>, Void> shardContentChecker,
+      boolean isUnbounded)
       throws IOException {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
@@ -740,6 +803,7 @@ public class WriteFilesTest {
       timestamps.add(i + 1);
     }
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
+        .setIsBoundedInternal(isUnbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
         .apply(transform)
         .apply(write)
         .getPerDestinationOutputFilenames()

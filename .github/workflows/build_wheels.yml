@@ -29,7 +29,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/python/**', 'model/**', 'release/**']
-
+  workflow_dispatch:
 
 env:
   GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
@@ -59,6 +59,9 @@ jobs:
   build_source:
     runs-on: ubuntu-latest
     name: Build python source distribution
+    outputs:
+      is_rc: ${{ steps.is_rc.outputs.is_rc }}
+      rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -71,6 +74,24 @@ jobs:
         run: python -m pip install -r build-requirements.txt
       - name: Install wheels
         run: python -m pip install wheel
+      - name: Get tag
+        id: get_tag
+        run: |
+          echo ::set-output name=TAG::${GITHUB_REF#refs/*/}
+      - name: Check whether an -RC tag was applied to the commit.
+        id: is_rc
+        run: |
+          echo ${{ steps.get_tag.outputs.TAG }} > temp
+          OUTPUT=$( if  grep -e '-RC.' -q temp; then echo 1; else echo 0; fi)
+          echo "::set-output name=is_rc::$OUTPUT"
+      - name: Get RELEASE_VERSION and RC_NUM
+        if: steps.is_rc.outputs.is_rc == 1
+        id: get_rc_version
+        run: |
+          RC_NUM=$(sed -n "s/^.*-RC\([0-9]*\)/\1/p" temp)
+          RELEASE_VERSION=$(sed -n "s/^v\(.*\)-RC[0-9]/\1/p" temp)
+          echo "::set-output name=RC_NUM::$RC_NUM"
+          echo "::set-output name=RELEASE_VERSION::$RELEASE_VERSION"
       - name: Build source
         working-directory: ./sdks/python
         run: python setup.py sdist --formats=zip
@@ -95,6 +116,50 @@ jobs:
         with:
           name: source_zip
           path: sdks/python/dist
+      - name: Clear dist
+        if: steps.is_rc.outputs.is_rc == 1
+        working-directory: ./sdks/python
+        run: |
+          rm -r ./dist
+          rm -rd apache-beam-source
+      - name: Rewrite SDK version to include RC number
+        if: steps.is_rc.outputs.is_rc == 1
+        working-directory: ./sdks/python
+        run: |
+          RELEASE_VERSION=${{ steps.get_rc_version.outputs.RELEASE_VERSION }}
+          RC_NUM=${{ steps.get_rc_version.outputs.RC_NUM }}
+          sed -i -e "s/${RELEASE_VERSION}/${RELEASE_VERSION}rc${RC_NUM}/g" apache_beam/version.py
+      - name: Build RC source
+        if: steps.is_rc.outputs.is_rc == 1
+        working-directory: ./sdks/python
+        run: python setup.py sdist --formats=zip
+      - name: Add RC checksums
+        if: steps.is_rc.outputs.is_rc == 1
+        working-directory: ./sdks/python/dist
+        run: |
+          file=$(ls | grep .zip | head -n 1)
+          sha512sum $file > ${file}.sha512
+      - name: Unzip RC source
+        if: steps.is_rc.outputs.is_rc == 1
+        working-directory: ./sdks/python
+        run: unzip dist/$(ls dist | grep .zip | head -n 1)
+      - name: Rename RC source directory
+        if: steps.is_rc.outputs.is_rc == 1
+        working-directory: ./sdks/python
+        run: mv $(ls | grep apache-beam) apache-beam-source-rc
+      - name: Upload RC source as artifact
+        if: steps.is_rc.outputs.is_rc == 1
+        uses: actions/upload-artifact@v2
+        with:
+          name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
+          path: sdks/python/apache-beam-source-rc
+      - name: Upload compressed RC sources as artifacts
+        if: steps.is_rc.outputs.is_rc == 1
+        uses: actions/upload-artifact@v2
+        with:
+          name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
+          path: sdks/python/dist
+
 
   prepare_gcs:
     name: Prepare GCS
@@ -150,6 +215,12 @@ jobs:
       with:
         name: source
         path: apache-beam-source
+    - name: Download Python SDK RC source distribution from artifacts
+      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      uses: actions/download-artifact@v2
+      with:
+        name: source_rc${{ needs.build_source.outputs.rc_num }}
+        path: apache-beam-source-rc
     - name: Install Python
       uses: actions/setup-python@v2
       with:
@@ -178,6 +249,28 @@ jobs:
       with:
         name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
+    - name: Build RC wheels
+      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      working-directory: apache-beam-source-rc
+      env:
+        CIBW_BUILD: ${{ matrix.os_python.python }}
+        CIBW_BEFORE_BUILD: pip install cython
+      run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
+      shell: bash
+    - name: Add RC checksums
+      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      working-directory: apache-beam-source-rc/wheelhouse/
+      run: |
+        for file in *.whl; do
+          sha512sum $file > ${file}.sha512
+        done
+      shell: bash
+    - name: Upload RC wheels as artifacts
+      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.os_python.os }}
+        path: apache-beam-source-rc/wheelhouse/
 
   upload_wheels_to_gcs:
     name: Upload wheels to GCS bucket

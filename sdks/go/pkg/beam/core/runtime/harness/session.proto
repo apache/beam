@@ -22,7 +22,9 @@
 
 syntax = "proto3";
 
-package session;
+package org.apache.beam.sdks.go.pkg.beam.core.runtime.harness.session;
+
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session;session";
 
 import "beam_fn_api.proto";
 

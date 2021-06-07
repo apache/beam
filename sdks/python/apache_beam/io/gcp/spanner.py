@@ -80,14 +80,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from enum import Enum
 from enum import auto
 from typing import NamedTuple
 from typing import Optional
-
-from past.builtins import unicode
 
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -129,19 +125,19 @@ class TimestampBoundMode(Enum):
 
 
 class ReadFromSpannerSchema(NamedTuple):
-  instance_id: unicode
-  database_id: unicode
+  instance_id: str
+  database_id: str
   schema: bytes
-  sql: Optional[unicode]
-  table: Optional[unicode]
-  project_id: Optional[unicode]
-  host: Optional[unicode]
-  emulator_host: Optional[unicode]
+  sql: Optional[str]
+  table: Optional[str]
+  project_id: Optional[str]
+  host: Optional[str]
+  emulator_host: Optional[str]
   batching: Optional[bool]
-  timestamp_bound_mode: Optional[unicode]
-  read_timestamp: Optional[unicode]
+  timestamp_bound_mode: Optional[str]
+  read_timestamp: Optional[str]
   staleness: Optional[int]
-  time_unit: Optional[unicode]
+  time_unit: Optional[str]
 
 
 class ReadFromSpanner(ExternalTransform):
@@ -274,16 +270,16 @@ class ReadFromSpanner(ExternalTransform):
 
 
 class WriteToSpannerSchema(NamedTuple):
-  project_id: unicode
-  instance_id: unicode
-  database_id: unicode
-  table: unicode
+  project_id: str
+  instance_id: str
+  database_id: str
+  table: str
   max_batch_size_bytes: Optional[int]
   max_number_mutations: Optional[int]
   max_number_rows: Optional[int]
   grouping_factor: Optional[int]
-  host: Optional[unicode]
-  emulator_host: Optional[unicode]
+  host: Optional[str]
+  emulator_host: Optional[str]
   commit_deadline: Optional[int]
   max_cumulative_backoff: Optional[int]
 

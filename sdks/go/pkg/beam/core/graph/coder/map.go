@@ -16,8 +16,10 @@
 package coder
 
 import (
+	"bytes"
 	"io"
 	"reflect"
+	"sort"
 )
 
 // TODO(lostluck): 2020.08.04 export these for use for others?
@@ -58,11 +60,9 @@ func containerNilDecoder(decodeToElem func(reflect.Value, io.Reader) error) func
 		if !hasValue {
 			return nil
 		}
-		rv := reflect.New(ret.Type().Elem())
-		if err := decodeToElem(rv.Elem(), r); err != nil {
+		if err := decodeToElem(ret, r); err != nil {
 			return err
 		}
-		ret.Set(rv)
 		return nil
 	}
 }
@@ -74,12 +74,26 @@ func mapEncoder(rt reflect.Type, encodeKey, encodeValue func(reflect.Value, io.W
 		if err := EncodeInt32((int32)(size), w); err != nil {
 			return err
 		}
-		iter := rv.MapRange()
-		for iter.Next() {
-			if err := encodeKey(iter.Key(), w); err != nil {
+		keys := rv.MapKeys()
+		type pair struct {
+			v reflect.Value
+			s string
+		}
+		sorted := make([]pair, 0, rv.Len())
+
+		for _, key := range keys {
+			var buf bytes.Buffer
+			if err := encodeKey(key, &buf); err != nil {
 				return err
 			}
-			if err := encodeValue(iter.Value(), w); err != nil {
+			sorted = append(sorted, pair{v: key, s: buf.String()})
+		}
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i].s < sorted[j].s })
+		for _, kp := range sorted {
+			if _, err := io.WriteString(w, kp.s); err != nil {
+				return err
+			}
+			if err := encodeValue(rv.MapIndex(kp.v), w); err != nil {
 				return err
 			}
 		}
@@ -97,6 +111,6 @@ func containerNilEncoder(encodeElem func(reflect.Value, io.Writer) error) func(r
 		if err := EncodeBool(true, w); err != nil {
 			return err
 		}
-		return encodeElem(rv.Elem(), w)
+		return encodeElem(rv, w)
 	}
 }

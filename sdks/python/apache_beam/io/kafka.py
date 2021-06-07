@@ -80,11 +80,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import typing
-
-from past.builtins import unicode
 
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -92,9 +88,9 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
-    [('consumer_config', typing.Mapping[unicode, unicode]),
-     ('topics', typing.List[unicode]), ('key_deserializer', unicode),
-     ('value_deserializer', unicode), ('start_read_time', typing.Optional[int]),
+    [('consumer_config', typing.Mapping[str, str]),
+     ('topics', typing.List[str]), ('key_deserializer', str),
+     ('value_deserializer', str), ('start_read_time', typing.Optional[int]),
      ('max_num_records', typing.Optional[int]),
      ('max_read_time', typing.Optional[int]),
      ('commit_offset_in_finalize', bool), ('timestamp_policy', str)])
@@ -186,10 +182,10 @@ class ReadFromKafka(ExternalTransform):
 WriteToKafkaSchema = typing.NamedTuple(
     'WriteToKafkaSchema',
     [
-        ('producer_config', typing.Mapping[unicode, unicode]),
-        ('topic', unicode),
-        ('key_serializer', unicode),
-        ('value_serializer', unicode),
+        ('producer_config', typing.Mapping[str, str]),
+        ('topic', str),
+        ('key_serializer', str),
+        ('value_serializer', str),
     ])
 
 

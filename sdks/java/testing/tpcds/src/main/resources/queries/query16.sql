@@ -15,23 +15,23 @@
 -- limitations under the License.
 
 select
-   count(distinct cs_order_number) as "order count"
-  ,sum(cs_ext_ship_cost) as "total shipping cost"
-  ,sum(cs_net_profit) as "total net profit"
+   count(distinct cs_order_number) as `order count`
+  ,sum(cs_ext_ship_cost) as `total shipping cost`
+  ,sum(cs_net_profit) as `total net profit`
 from
    catalog_sales cs1
   ,date_dim
   ,customer_address
   ,call_center
 where
-    d_date between '1999-2-01' and 
-           (cast('1999-2-01' as date) + 60 days)
+    d_date between '2001-4-01' and
+           (cast('2001-4-01' as date) + interval '60' day)
 and cs1.cs_ship_date_sk = d_date_sk
 and cs1.cs_ship_addr_sk = ca_address_sk
-and ca_state = 'IL'
+and ca_state = 'NY'
 and cs1.cs_call_center_sk = cc_call_center_sk
-and cc_county in ('Williamson County','Williamson County','Williamson County','Williamson County',
-                  'Williamson County'
+and cc_county in ('Ziebach County','Levy County','Huron County','Franklin Parish',
+                  'Daviess County'
 )
 and exists (select *
             from catalog_sales cs2

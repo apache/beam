@@ -17,43 +17,17 @@
  */
 package org.apache.beam.sdk.tpcds;
 
-
-/**
- * To execute this main() method, run the following example command from the command line.
- *
- * ./gradlew :sdks:java:testing:tpcds:run -Ptpcds.args="--dataSize=1G \
- *         --queries=3,26,55 \
- *         --tpcParallel=2 \
- *         --project=apache-beam-testing \
- *         --stagingLocation=gs://beamsql_tpcds_1/staging \
- *         --tempLocation=gs://beamsql_tpcds_2/temp \
- *         --runner=DataflowRunner \
- *         --region=us-west1 \
- *         --maxNumWorkers=10"
- *
- *
- * To run query using ZetaSQL planner (currently query96 can be run using ZetaSQL), set the plannerName as below. If not specified, the default planner is Calcite.
- *
- * ./gradlew :sdks:java:testing:tpcds:run -Ptpcds.args="--dataSize=1G \
- *         --queries=96 \
- *         --tpcParallel=2 \
- *         --plannerName=org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner \
- *         --project=apache-beam-testing \
- *         --stagingLocation=gs://beamsql_tpcds_1/staging \
- *         --tempLocation=gs://beamsql_tpcds_2/temp \
- *         --runner=DataflowRunner \
- *         --region=us-west1 \
- *         --maxNumWorkers=10"
- */
+/** Main driver program to run TPC-DS benchmark. */
 public class BeamTpcds {
-    /**
-     * The main method can choose to run either SqlTransformRunner.runUsingSqlTransform() or BeamSqlEnvRunner.runUsingBeamSqlEnv()
-     * Currently the former has better performance so it is chosen.
-     *
-     * @param args Command line arguments
-     * @throws Exception
-     */
-    public static void main(String[] args) throws Exception {
-        SqlTransformRunner.runUsingSqlTransform(args);
-    }
+  /**
+   * The main method can choose to run either SqlTransformRunner.runUsingSqlTransform() or
+   * BeamSqlEnvRunner.runUsingBeamSqlEnv() Currently the former has better performance so it is
+   * chosen.
+   *
+   * @param args Command line arguments
+   * @throws Exception
+   */
+  public static void main(String[] args) throws Exception {
+    SqlTransformRunner.runUsingSqlTransform(args);
+  }
 }

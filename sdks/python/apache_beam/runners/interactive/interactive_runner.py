@@ -22,10 +22,6 @@ This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import logging
 
 import apache_beam as beam
@@ -190,7 +186,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
     if not self._skip_display:
       a_pipeline_graph = pipeline_graph.PipelineGraph(
-          pipeline_instrument.original_pipeline,
+          pipeline_instrument.original_pipeline_proto,
           render_option=self._render_option)
       a_pipeline_graph.display_graph()
 

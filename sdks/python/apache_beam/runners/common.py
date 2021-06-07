@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 # cython: profile=True
+# cython: language_level=3
 
 """Worker operations executor.
 
@@ -22,16 +23,9 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
-
-from __future__ import absolute_import
-from __future__ import division
-
+import sys
 import threading
 import traceback
-from builtins import next
-from builtins import object
-from builtins import round
-from builtins import zip
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -40,9 +34,6 @@ from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Tuple
-
-from future.utils import raise_with_traceback
-from past.builtins import unicode
 
 from apache_beam.coders import TupleCoder
 from apache_beam.internal import util
@@ -92,10 +83,6 @@ class NameContext(object):
   def __eq__(self, other):
     return self.step_name == other.step_name
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __repr__(self):
     return 'NameContext(%s)' % self.__dict__
 
@@ -134,10 +121,6 @@ class DataflowNameContext(NameContext):
         self.step_name == other.step_name and
         self.user_name == other.user_name and
         self.system_name == other.system_name)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash((self.step_name, self.user_name, self.system_name))
@@ -1319,7 +1302,8 @@ class DoFnRunner:
           traceback.format_exception_only(type(exn), exn)[-1].strip() +
           step_annotation)
       new_exn._tagged_with_step = True
-    raise_with_traceback(new_exn)
+    _, _, tb = sys.exc_info()
+    raise new_exn.with_traceback(tb)
 
 
 class OutputProcessor(object):
@@ -1378,7 +1362,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, (str, unicode)):
+        if not isinstance(tag, str):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, WindowedValue):
@@ -1428,7 +1412,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, (str, unicode)):
+        if not isinstance(tag, str):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
 

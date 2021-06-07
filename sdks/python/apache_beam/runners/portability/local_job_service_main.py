@@ -28,9 +28,6 @@ passing in a lockfile to ensure that only one copy of the service is running
 at a time.  Pass --help to see them all.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import argparse
 import logging
 import os

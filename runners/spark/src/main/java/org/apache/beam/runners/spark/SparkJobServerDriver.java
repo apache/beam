@@ -62,7 +62,7 @@ public class SparkJobServerDriver extends JobServerDriver {
     System.err.println();
   }
 
-  private static SparkJobServerDriver fromParams(String[] args) {
+  public static SparkJobServerDriver fromParams(String[] args) {
     SparkServerConfiguration configuration = new SparkServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
@@ -76,7 +76,7 @@ public class SparkJobServerDriver extends JobServerDriver {
     return fromConfig(configuration);
   }
 
-  private static SparkJobServerDriver fromConfig(SparkServerConfiguration configuration) {
+  public static SparkJobServerDriver fromConfig(SparkServerConfiguration configuration) {
     return create(
         configuration,
         createJobServerFactory(configuration),

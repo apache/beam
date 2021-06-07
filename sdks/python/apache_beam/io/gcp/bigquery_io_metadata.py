@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import re
 
 from apache_beam.io.gcp import gce_metadata_util

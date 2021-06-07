@@ -31,6 +31,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -130,15 +131,21 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 	experiments := jobopts.GetExperiments()
 	// Always use runner v2, unless set already.
-	var v2set bool
+	var v2set, portaSubmission bool
 	for _, e := range experiments {
 		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
 			v2set = true
-			break
+		}
+		if strings.Contains(e, "use_portable_job_submission") {
+			portaSubmission = true
 		}
 	}
+	// Enable by default unified worker, and portable job submission.
 	if !v2set {
 		experiments = append(experiments, "use_unified_worker")
+	}
+	if !portaSubmission {
+		experiments = append(experiments, "use_portable_job_submission")
 	}
 	// TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
 	experiments = append(experiments, "shuffle_mode=appliance")
@@ -170,32 +177,42 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		WorkerRegion:        *workerRegion,
 		WorkerZone:          *workerZone,
 		TeardownPolicy:      *teardownPolicy,
+		ContainerImage:      getContainerImage(ctx),
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
 	}
 
 	// (1) Build and submit
-
-	edges, _, err := p.Build()
-	if err != nil {
-		return nil, err
-	}
-	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
-	if err != nil {
-		return nil, errors.WithContext(err, "generating model pipeline")
-	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
-	if err != nil {
-		return nil, errors.WithContext(err, "generating model pipeline")
-	}
-
 	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
 	id := fmt.Sprintf("go-%v-%v", atomic.AddInt32(&unique, 1), time.Now().UnixNano())
 
 	modelURL := gcsx.Join(*stagingLocation, id, "model")
 	workerURL := gcsx.Join(*stagingLocation, id, "worker")
 	jarURL := gcsx.Join(*stagingLocation, id, "dataflow-worker.jar")
+	xlangURL := gcsx.Join(*stagingLocation, id, "xlang")
+
+	edges, _, err := p.Build()
+	if err != nil {
+		return nil, err
+	}
+	artifactURLs, err := dataflowlib.ResolveXLangArtifacts(ctx, edges, opts.Project, xlangURL)
+	if err != nil {
+		return nil, errors.WithContext(err, "resolving cross-language artifacts")
+	}
+	opts.ArtifactURLs = artifactURLs
+	environment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
+	if err != nil {
+		return nil, errors.WithContext(err, "creating environment for model pipeline")
+	}
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	if err != nil {
+		return nil, errors.WithContext(err, "generating model pipeline")
+	}
+	err = pipelinex.ApplySdkImageOverrides(model, jobopts.GetSdkImageOverrides())
+	if err != nil {
+		return nil, errors.WithContext(err, "applying container image overrides")
+	}
 
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")

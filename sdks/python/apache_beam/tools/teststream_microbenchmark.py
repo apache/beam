@@ -39,15 +39,10 @@ Run as
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import argparse
 import itertools
 import logging
 import random
-from builtins import range
 
 import apache_beam as beam
 import apache_beam.typehints.typehints as typehints

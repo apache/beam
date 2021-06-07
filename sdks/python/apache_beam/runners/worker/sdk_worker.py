@@ -20,10 +20,6 @@
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import abc
 import collections
 import contextlib
@@ -34,8 +30,8 @@ import sys
 import threading
 import time
 import traceback
-from builtins import object
 from concurrent import futures
+from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -54,8 +50,6 @@ from typing import TypeVar
 from typing import Union
 
 import grpc
-from future.utils import raise_
-from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.metrics import monitoring_infos
@@ -76,13 +70,11 @@ from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
-  # TODO(BEAM-9372): move this out of the TYPE_CHECKING scope when we drop
-  #  support for python < 3.5.3
-  from types import TracebackType
-  ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-  OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
+
+ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
+OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
 
 T = TypeVar('T')
 _KT = TypeVar('_KT')
@@ -117,11 +109,11 @@ class ShortIdCache(object):
   def __init__(self):
     # type: () -> None
     self._lock = threading.Lock()
-    self._lastShortId = 0
-    self._infoKeyToShortId = {}  # type: Dict[FrozenSet, str]
-    self._shortIdToInfo = {}  # type: Dict[str, metrics_pb2.MonitoringInfo]
+    self._last_short_id = 0
+    self._info_key_to_short_id = {}  # type: Dict[FrozenSet, str]
+    self._short_id_to_info = {}  # type: Dict[str, metrics_pb2.MonitoringInfo]
 
-  def getShortId(self, monitoring_info):
+  def get_short_id(self, monitoring_info):
     # type: (metrics_pb2.MonitoringInfo) -> str
 
     """ Returns the assigned shortId for a given MonitoringInfo, assigns one if
@@ -130,29 +122,32 @@ class ShortIdCache(object):
     key = monitoring_infos.to_key(monitoring_info)
     with self._lock:
       try:
-        return self._infoKeyToShortId[key]
+        return self._info_key_to_short_id[key]
       except KeyError:
-        self._lastShortId += 1
+        self._last_short_id += 1
 
         # Convert to a hex string (and drop the '0x') for some compression
-        shortId = hex(self._lastShortId)[2:]
+        shortId = hex(self._last_short_id)[2:]
 
         payload_cleared = metrics_pb2.MonitoringInfo()
         payload_cleared.CopyFrom(monitoring_info)
         payload_cleared.ClearField('payload')
 
-        self._infoKeyToShortId[key] = shortId
-        self._shortIdToInfo[shortId] = payload_cleared
+        self._info_key_to_short_id[key] = shortId
+        self._short_id_to_info[shortId] = payload_cleared
         return shortId
 
-  def getInfos(self, short_ids):
+  def get_infos(self, short_ids):
     #type: (Iterable[str]) -> Dict[str, metrics_pb2.MonitoringInfo]
 
     """ Gets the base MonitoringInfo (with payload cleared) for each short ID.
 
     Throws KeyError if an unassigned short ID is encountered.
     """
-    return {short_id: self._shortIdToInfo[short_id] for short_id in short_ids}
+    return {
+        short_id: self._short_id_to_info[short_id]
+        for short_id in short_ids
+    }
 
 
 SHORT_ID_CACHE = ShortIdCache()
@@ -339,7 +334,7 @@ class SdkHarness(object):
             harness_monitoring_infos=(
                 beam_fn_api_pb2.HarnessMonitoringInfosResponse(
                     monitoring_data={
-                        SHORT_ID_CACHE.getShortId(info): info.payload
+                        SHORT_ID_CACHE.get_short_id(info): info.payload
                         for info in process_wide_monitoring_infos
                     }))),
         request)
@@ -350,7 +345,7 @@ class SdkHarness(object):
         lambda: beam_fn_api_pb2.InstructionResponse(
             instruction_id=request.instruction_id,
             monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataResponse(
-                monitoring_info=SHORT_ID_CACHE.getInfos(
+                monitoring_info=SHORT_ID_CACHE.get_infos(
                     request.monitoring_infos.monitoring_info_id))),
         request)
 
@@ -650,7 +645,7 @@ class SdkWorker(object):
                   residual_roots=delayed_applications,
                   monitoring_infos=monitoring_infos,
                   monitoring_data={
-                      SHORT_ID_CACHE.getShortId(info): info.payload
+                      SHORT_ID_CACHE.get_short_id(info): info.payload
                       for info in monitoring_infos
                   },
                   requires_finalization=requests_finalization))
@@ -755,7 +750,7 @@ class SdkWorker(object):
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
             monitoring_infos=monitoring_infos,
             monitoring_data={
-                SHORT_ID_CACHE.getShortId(info): info.payload
+                SHORT_ID_CACHE.get_short_id(info): info.payload
                 for info in monitoring_infos
             }))
 
@@ -799,7 +794,7 @@ class SdkWorker(object):
       yield
 
 
-class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class StateHandler(metaclass=abc.ABCMeta):
   """An abstract object representing a ``StateHandler``."""
   @abc.abstractmethod
   def get_raw(
@@ -824,8 +819,19 @@ class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     # type: (beam_fn_api_pb2.StateKey) -> _Future
     raise NotImplementedError(type(self))
 
+  @abc.abstractmethod
+  @contextlib.contextmanager
+  def process_instruction_id(self, bundle_id):
+    # type: (str) -> Iterator[None]
+    raise NotImplementedError(type(self))
 
-class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+  @abc.abstractmethod
+  def done(self):
+    # type: () -> None
+    raise NotImplementedError(type(self))
+
+
+class StateHandlerFactory(metaclass=abc.ABCMeta):
   """An abstract factory for creating ``DataChannel``."""
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):
@@ -880,7 +886,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(
               grpc_channel, WorkerIdInterceptor())
-          self._state_handler_cache[url] = CachingStateHandler(
+          self._state_handler_cache[url] = GlobalCachingStateHandler(
               self._state_cache,
               GrpcStateHandler(
                   beam_fn_api_pb2_grpc.BeamFnStateStub(grpc_channel)))
@@ -895,22 +901,67 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._state_cache.evict_all()
 
 
-class ThrowingStateHandler(StateHandler):
-  """A state handler that errors on any requests."""
-  def get_raw(
+class CachingStateHandler(metaclass=abc.ABCMeta):
+  @abc.abstractmethod
+  @contextlib.contextmanager
+  def process_instruction_id(self, bundle_id, cache_tokens):
+    # type: (str, Iterable[beam_fn_api_pb2.ProcessBundleRequest.CacheToken]) -> Iterator[None]
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def blocking_get(
       self,
       state_key,  # type: beam_fn_api_pb2.StateKey
-      continuation_token=None  # type: Optional[bytes]
+      coder,  # type: coder_impl.CoderImpl
   ):
-    # type: (...) -> Tuple[bytes, Optional[bytes]]
+    # type: (...) -> Iterable[Any]
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def extend(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder,  # type: coder_impl.CoderImpl
+      elements,  # type: Iterable[Any]
+  ):
+    # type: (...) -> _Future
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def clear(self, state_key):
+    # type: (beam_fn_api_pb2.StateKey) -> _Future
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def done(self):
+    # type: () -> None
+    raise NotImplementedError(type(self))
+
+
+class ThrowingStateHandler(CachingStateHandler):
+  """A caching state handler that errors on any requests."""
+  @contextlib.contextmanager
+  def process_instruction_id(self, bundle_id, cache_tokens):
+    # type: (str, Iterable[beam_fn_api_pb2.ProcessBundleRequest.CacheToken]) -> Iterator[None]
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor '
+        'for bundle id %s.' % bundle_id)
+
+  def blocking_get(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder,  # type: coder_impl.CoderImpl
+  ):
+    # type: (...) -> Iterable[Any]
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'state ApiServiceDescriptor for state key %s.' % state_key)
 
-  def append_raw(
+  def extend(
       self,
       state_key,  # type: beam_fn_api_pb2.StateKey
-      data  # type: bytes
+      coder,  # type: coder_impl.CoderImpl
+      elements,  # type: Iterable[Any]
   ):
     # type: (...) -> _Future
     raise RuntimeError(
@@ -922,6 +973,11 @@ class ThrowingStateHandler(StateHandler):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'state ApiServiceDescriptor for state key %s.' % state_key)
+
+  def done(self):
+    # type: () -> None
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor.')
 
 
 class GrpcStateHandler(StateHandler):
@@ -1035,7 +1091,8 @@ class GrpcStateHandler(StateHandler):
     while not req_future.wait(timeout=1):
       if self._exc_info:
         t, v, tb = self._exc_info
-        raise_(t, v, tb)
+        if t and v and tb:
+          raise t(v).with_traceback(tb)
       elif self._done:
         raise RuntimeError()
     response = req_future.get()
@@ -1056,7 +1113,7 @@ class GrpcStateHandler(StateHandler):
     return str(request_id)
 
 
-class CachingStateHandler(object):
+class GlobalCachingStateHandler(CachingStateHandler):
   """ A State handler which retrieves and caches state.
    If caching is activated, caches across bundles using a supplied cache token.
    If activated but no cache token is supplied, caching is done at the bundle

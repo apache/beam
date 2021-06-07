@@ -19,16 +19,10 @@
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import codecs
 import logging
 import math
 import threading
-from builtins import zip
-
-from past.builtins import long
 
 from apache_beam.io import iobase
 
@@ -59,9 +53,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise ValueError('Start offset must not be \'None\'')
     if end is None:
       raise ValueError('End offset must not be \'None\'')
-    assert isinstance(start, (int, long))
+    assert isinstance(start, int)
     if end != self.OFFSET_INFINITY:
-      assert isinstance(end, (int, long))
+      assert isinstance(end, int)
 
     assert start <= end
 
@@ -142,7 +136,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       self._last_record_start = record_start
 
   def try_split(self, split_offset):
-    assert isinstance(split_offset, (int, long))
+    assert isinstance(split_offset, int)
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
         _LOGGER.debug(

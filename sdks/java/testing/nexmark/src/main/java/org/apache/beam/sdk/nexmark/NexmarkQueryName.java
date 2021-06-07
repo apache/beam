@@ -43,6 +43,7 @@ public enum NexmarkQueryName {
   LOG_TO_SHARDED_FILES(10), // Query "10"
   USER_SESSIONS(11), // Query "11"
   PROCESSING_TIME_WINDOWS(12), // Query "12"
+  PORTABILITY_BATCH(15), // Query "13"
 
   // Other non-numbered queries
   BOUNDED_SIDE_INPUT_JOIN(13),

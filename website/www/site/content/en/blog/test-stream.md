@@ -126,7 +126,7 @@ watermark and provide the result PCollection as input to the CalculateTeamScores
 PTransform:
 
 {{< highlight java >}}
-TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
+TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
     .addElements(new GameActionInfo("sky", "blue", 12, new Instant(0L)),
                  new GameActionInfo("navy", "blue", 3, new Instant(0L)),
                  new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
@@ -160,7 +160,7 @@ the system to be on time, as it arrives before the watermark passes the end of
 the window
 
 {{< highlight java >}}
-TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
+TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
     .addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
                  new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
     // Move the watermark up to "near" the end of the window
@@ -190,7 +190,7 @@ demonstrate the triggering behavior that causes the system to emit an on-time
 pane, and then after the late data arrives, a pane that refines the result.
 
 {{< highlight java >}}
-TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
+TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
     .addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
                  new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
     // Move the watermark up to "near" the end of the window
@@ -224,7 +224,7 @@ configured allowed lateness, we can demonstrate that the late element is dropped
 by the system.
 
 {{< highlight java >}}
-TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
+TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
     .addElements(new GameActionInfo("sky", "blue", 3, Duration.ZERO),
                  new GameActionInfo("navy", "blue", 3, Duration.standardMinutes(3)))
     // Move the watermark up to "near" the end of the window
@@ -260,7 +260,7 @@ to an input PCollection, occasionally advancing the processing time clock, and
 apply `CalculateUserScores`
 
 {{< highlight java >}}
-TestStream.create(AvroCoder.of(GameActionInfo.class))
+TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
     .addElements(new GameActionInfo("scarlet", "red", 3, new Instant(0L)),
                  new GameActionInfo("scarlet", "red", 2, new Instant(0L).plus(Duration.standardMinutes(1))))
     .advanceProcessingTime(Duration.standardMinutes(12))
@@ -270,7 +270,7 @@ TestStream.create(AvroCoder.of(GameActionInfo.class))
     .advanceWatermarkToInfinity();
 
 PCollection<KV<String, Integer>> userScores =
-    p.apply(infos).apply(new CalculateUserScores(ALLOWED_LATENESS));
+    p.apply(createEvents).apply(new CalculateUserScores(ALLOWED_LATENESS));
 {{< /highlight >}}
 
 <img class="center-block" src="/images/blog/test-stream/elements-processing-speculative.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">

@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableStrictDependencies: true, automaticModuleName: 'org.apache.beam.sdk.io.xml')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.xml')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: XML"
 ext.summary = "IO to read and write XML files."

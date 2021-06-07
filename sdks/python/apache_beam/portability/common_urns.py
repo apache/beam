@@ -19,15 +19,15 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from apache_beam.portability.api.beam_runner_api_pb2_urns import BeamConstants
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardArtifacts
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardCoders
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardDisplayData
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardEnvironments
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardProtocols
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardPTransforms
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardRequirements
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardResourceHints
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardSideInputTypes
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfo
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoSpecs
@@ -51,6 +51,7 @@ constants = BeamConstants.Constants
 environments = StandardEnvironments.Environments
 artifact_types = StandardArtifacts.Types
 artifact_roles = StandardArtifacts.Roles
+resource_hints = StandardResourceHints.Enum
 
 global_windows = GlobalWindowsPayload.Enum.PROPERTIES
 fixed_windows = FixedWindowsPayload.Enum.PROPERTIES
@@ -63,3 +64,5 @@ monitoring_info_labels = MonitoringInfo.MonitoringInfoLabels
 
 protocols = StandardProtocols.Enum
 requirements = StandardRequirements.Enum
+
+displayData = StandardDisplayData.DisplayData

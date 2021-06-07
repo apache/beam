@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -39,7 +40,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Implemen
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public final class UdafImpl<InputT, AccumT, OutputT>
+public class UdafImpl<InputT, AccumT, OutputT>
     implements AggregateFunction, ImplementableAggFunction, Serializable {
   private CombineFn<InputT, AccumT, OutputT> combineFn;
 
@@ -69,23 +70,7 @@ public final class UdafImpl<InputT, AccumT, OutputT>
 
           @Override
           public RelDataType getType(RelDataTypeFactory typeFactory) {
-            ParameterizedType parameterizedType = findCombineFnSuperClass();
-            return CalciteUtils.sqlTypeWithAutoCast(
-                typeFactory, parameterizedType.getActualTypeArguments()[0]);
-          }
-
-          private ParameterizedType findCombineFnSuperClass() {
-            Class clazz = combineFn.getClass();
-            while (!clazz.getSuperclass().equals(CombineFn.class)) {
-              clazz = clazz.getSuperclass();
-            }
-
-            if (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
-              throw new IllegalStateException(
-                  "Subclass of " + CombineFn.class + " must be parameterized to be used as a UDAF");
-            } else {
-              return (ParameterizedType) clazz.getGenericSuperclass();
-            }
+            return CalciteUtils.sqlTypeWithAutoCast(typeFactory, getInputType());
           }
 
           @Override
@@ -105,6 +90,29 @@ public final class UdafImpl<InputT, AccumT, OutputT>
 
   @Override
   public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
-    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, combineFn.getOutputType().getType());
+    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, getOutputType());
+  }
+
+  protected Type getInputType() {
+    ParameterizedType parameterizedType = findCombineFnSuperClass();
+    return parameterizedType.getActualTypeArguments()[0];
+  }
+
+  protected Type getOutputType() {
+    return combineFn.getOutputType().getType();
+  }
+
+  private ParameterizedType findCombineFnSuperClass() {
+    Class clazz = combineFn.getClass();
+    while (!clazz.getSuperclass().equals(CombineFn.class)) {
+      clazz = clazz.getSuperclass();
+    }
+
+    if (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
+      throw new IllegalStateException(
+          "Subclass of " + CombineFn.class + " must be parameterized to be used as a UDAF");
+    } else {
+      return (ParameterizedType) clazz.getGenericSuperclass();
+    }
   }
 }

@@ -32,6 +32,7 @@ ext.summary = "Library to work with Debezium data."
 
 dependencies {
     compile library.java.vendored_guava_26_0_jre
+    compile library.java.vendored_grpc_1_36_0
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile library.java.slf4j_api
     compile library.java.joda_time
@@ -50,6 +51,7 @@ dependencies {
     // Kafka connect dependencies
     compile "org.apache.kafka:connect-api:2.5.0"
     compile "org.apache.kafka:connect-json:2.5.0"
+    permitUnusedDeclared "org.apache.kafka:connect-json:2.5.0" // BEAM-11761
 
     // Debezium dependencies
     compile group: 'io.debezium', name: 'debezium-core', version: '1.3.1.Final'

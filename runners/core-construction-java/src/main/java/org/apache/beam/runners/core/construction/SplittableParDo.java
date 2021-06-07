@@ -506,9 +506,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     }
 
     @Setup
-    public void setup() {
-      invoker = DoFnInvokers.invokerFor(fn);
-      invoker.invokeSetup();
+    public void setup(PipelineOptions options) {
+      invoker = DoFnInvokers.tryInvokeSetupFor(fn, options);
     }
 
     @ProcessElement
@@ -571,9 +570,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     }
 
     @Setup
-    public void setup() {
-      invoker = DoFnInvokers.invokerFor(splittableFn);
-      invoker.invokeSetup();
+    public void setup(PipelineOptions options) {
+      invoker = DoFnInvokers.tryInvokeSetupFor(splittableFn, options);
     }
 
     @ProcessElement
@@ -654,7 +652,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
    * <p>TODO(BEAM-10670): Remove the primitive Read and make the splittable DoFn the only option.
    */
   public static void convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(Pipeline pipeline) {
-    if (ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")
+        || ExperimentalOptions.hasExperiment(
+            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
         || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
       convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     }

@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -62,17 +64,23 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
   private final Map<String, Object> kafkaConsumerConfig;
   private final Instant startReadTime;
 
+  private static final String COUNTER_NAMESPACE = "watch_kafka_topic_partition";
+
+  private final List<String> topics;
+
   WatchKafkaTopicPartitionDoFn(
       Duration checkDuration,
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
       SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
       Map<String, Object> kafkaConsumerConfig,
-      Instant startReadTime) {
+      Instant startReadTime,
+      List<String> topics) {
     this.checkDuration = checkDuration == null ? DEFAULT_CHECK_DURATION : checkDuration;
     this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
     this.checkStopReadingFn = checkStopReadingFn;
     this.kafkaConsumerConfig = kafkaConsumerConfig;
     this.startReadTime = startReadTime;
+    this.topics = topics;
   }
 
   @TimerId(TIMER_ID)
@@ -87,10 +95,19 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
     Set<TopicPartition> current = new HashSet<>();
     try (Consumer<byte[], byte[]> kafkaConsumer =
         kafkaConsumerFactoryFn.apply(kafkaConsumerConfig)) {
-      for (Map.Entry<String, List<PartitionInfo>> topicInfo :
-          kafkaConsumer.listTopics().entrySet()) {
-        for (PartitionInfo partition : topicInfo.getValue()) {
-          current.add(new TopicPartition(topicInfo.getKey(), partition.partition()));
+      if (topics != null && !topics.isEmpty()) {
+        for (String topic : topics) {
+          for (PartitionInfo partition : kafkaConsumer.partitionsFor(topic)) {
+            current.add(new TopicPartition(topic, partition.partition()));
+          }
+        }
+
+      } else {
+        for (Map.Entry<String, List<PartitionInfo>> topicInfo :
+            kafkaConsumer.listTopics().entrySet()) {
+          for (PartitionInfo partition : topicInfo.getValue()) {
+            current.add(new TopicPartition(topicInfo.getKey(), partition.partition()));
+          }
         }
       }
     }
@@ -107,13 +124,16 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
     current.forEach(
         topicPartition -> {
           if (checkStopReadingFn == null || !checkStopReadingFn.apply(topicPartition)) {
+            Counter foundedTopicPartition =
+                Metrics.counter(COUNTER_NAMESPACE, topicPartition.toString());
+            foundedTopicPartition.inc();
             existingTopicPartitions.add(topicPartition);
             outputReceiver.output(
                 KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
           }
         });
 
-    timer.set(Instant.now().plus(checkDuration.getMillis()));
+    timer.offset(checkDuration).setRelative();
   }
 
   @OnTimer(TIMER_ID)
@@ -130,13 +150,16 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
             });
     existingTopicPartitions.clear();
 
-    Set<TopicPartition> currentAll = getAllTopicPartitions();
+    Set<TopicPartition> currentAll = this.getAllTopicPartitions();
 
     // Emit new added TopicPartitions.
     Set<TopicPartition> newAdded = Sets.difference(currentAll, readingTopicPartitions);
     newAdded.forEach(
         topicPartition -> {
           if (checkStopReadingFn == null || !checkStopReadingFn.apply(topicPartition)) {
+            Counter foundedTopicPartition =
+                Metrics.counter(COUNTER_NAMESPACE, topicPartition.toString());
+            foundedTopicPartition.inc();
             outputReceiver.output(
                 KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
           }

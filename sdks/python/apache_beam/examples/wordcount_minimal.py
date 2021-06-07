@@ -46,13 +46,9 @@ pipeline. You can see the results in your output bucket in the GCS browser.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -111,8 +107,8 @@ def run(argv=None, save_main_session=True):
     counts = (
         lines
         | 'Split' >> (
-            beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x)).
-            with_output_types(unicode))
+            beam.FlatMap(
+                lambda x: re.findall(r'[A-Za-z\']+', x)).with_output_types(str))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 

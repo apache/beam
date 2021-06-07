@@ -142,10 +142,11 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.Output;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString.Output;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -1720,6 +1721,308 @@ public class StreamingDataflowWorkerTest {
         splitIntToLong(getCounter(counters, "WindmillStateBytesWritten").getInteger()));
     // No input messages
     assertEquals(0L, splitIntToLong(getCounter(counters, "WindmillShuffleBytesRead").getInteger()));
+  }
+
+  static class PassthroughDoFn
+      extends DoFn<KV<String, Iterable<String>>, KV<String, Iterable<String>>> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element());
+    }
+  }
+
+  @Test
+  // Runs a merging windows test verifying stored state, holds and timers with caching due to
+  // the first processing having is_new_key set.
+  public void testMergeWindowsCaching() throws Exception {
+    Coder<KV<String, String>> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+    Coder<WindowedValue<KV<String, String>>> windowedKvCoder =
+        FullWindowedValueCoder.of(kvCoder, IntervalWindow.getCoder());
+    KvCoder<String, List<String>> groupedCoder =
+        KvCoder.of(StringUtf8Coder.of(), ListCoder.of(StringUtf8Coder.of()));
+    Coder<WindowedValue<KV<String, List<String>>>> windowedGroupedCoder =
+        FullWindowedValueCoder.of(groupedCoder, IntervalWindow.getCoder());
+
+    CloudObject spec = CloudObject.forClassName("MergeWindowsDoFn");
+    SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+    addString(
+        spec,
+        PropertyNames.SERIALIZED_FN,
+        StringUtils.byteArrayToJsonString(
+            WindowingStrategyTranslation.toMessageProto(
+                    WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)))
+                        .withTimestampCombiner(TimestampCombiner.EARLIEST),
+                    sdkComponents)
+                .toByteArray()));
+    addObject(
+        spec,
+        WorkerPropertyNames.INPUT_CODER,
+        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
+
+    ParallelInstruction mergeWindowsInstruction =
+        new ParallelInstruction()
+            .setSystemName("MergeWindows-System")
+            .setName("MergeWindowsStep")
+            .setOriginalName("MergeWindowsOriginal")
+            .setParDo(
+                new ParDoInstruction()
+                    .setInput(new InstructionInput().setProducerInstructionIndex(0).setOutputNum(0))
+                    .setNumOutputs(1)
+                    .setUserFn(spec))
+            .setOutputs(
+                Arrays.asList(
+                    new InstructionOutput()
+                        .setOriginalName(DEFAULT_OUTPUT_ORIGINAL_NAME)
+                        .setSystemName(DEFAULT_OUTPUT_SYSTEM_NAME)
+                        .setName("output")
+                        .setCodec(
+                            CloudObjects.asCloudObject(
+                                windowedGroupedCoder, /*sdkComponents=*/ null))));
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeWindowingSourceInstruction(kvCoder),
+            mergeWindowsInstruction,
+            // Use multiple stages in the maptask to test caching with multiple stages.
+            makeDoFnInstruction(new PassthroughDoFn(), 1, groupedCoder),
+            makeSinkInstruction(groupedCoder, 2));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+
+    StreamingDataflowWorker worker =
+        makeWorker(instructions, createTestingPipelineOptions(server), false /* publishCounters */);
+    Map<String, String> nameMap = new HashMap<>();
+    nameMap.put("MergeWindowsStep", "MergeWindows");
+    worker.addStateNameMappings(nameMap);
+    worker.start();
+
+    server.addWorkToOffer(
+        buildInput(
+            "work {"
+                + "  computation_id: \""
+                + DEFAULT_COMPUTATION_ID
+                + "\""
+                + "  input_data_watermark: 0"
+                + "  work {"
+                + "    key: \""
+                + DEFAULT_KEY_STRING
+                + "\""
+                + "    sharding_key: "
+                + DEFAULT_SHARDING_KEY
+                + "    cache_token: 1"
+                + "    work_token: 1"
+                + "    is_new_key: 1"
+                + "    message_bundles {"
+                + "      source_computation_id: \""
+                + DEFAULT_SOURCE_COMPUTATION_ID
+                + "\""
+                + "      messages {"
+                + "        timestamp: 0"
+                + "        data: \""
+                + dataStringForIndex(0)
+                + "\""
+                + "      }"
+                + "    }"
+                + "  }"
+                + "}",
+            intervalWindowBytes(WINDOW_AT_ZERO)));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    Iterable<CounterUpdate> counters = worker.buildCounters();
+
+    // These tags and data are opaque strings and this is a change detector test.
+    // The "/u" indicates the user's namespace, versus "/s" for system namespace
+    String window = "/gAAAAAAAA-joBw/";
+    String timerTagPrefix = "/s" + window + "+0";
+    ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
+    ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upane");
+    String watermarkDataHoldTag = window + "+uhold";
+    String watermarkExtraHoldTag = window + "+uextra";
+    String stateFamily = "MergeWindows";
+    ByteString bufferData = ByteString.copyFromUtf8("data0");
+    // Encoded form for Iterable<String>: -1, true, 'data0', false
+    ByteString outputData =
+        ByteString.copyFrom(
+            new byte[] {
+              (byte) 0xff,
+              (byte) 0xff,
+              (byte) 0xff,
+              (byte) 0xff,
+              0x01,
+              0x05,
+              0x64,
+              0x61,
+              0x74,
+              0x61,
+              0x30,
+              0x00
+            });
+
+    // These values are not essential to the change detector test
+    long timerTimestamp = 999000L;
+
+    WorkItemCommitRequest actualOutput = result.get(1L);
+
+    // Set timer
+    verifyTimers(actualOutput, buildWatermarkTimer(timerTagPrefix, 999));
+
+    assertThat(
+        actualOutput.getBagUpdatesList(),
+        Matchers.contains(
+            Matchers.equalTo(
+                Windmill.TagBag.newBuilder()
+                    .setTag(bufferTag)
+                    .setStateFamily(stateFamily)
+                    .addValues(bufferData)
+                    .build())));
+
+    verifyHolds(actualOutput, buildHold(watermarkDataHoldTag, 0, false));
+
+    // No state reads
+    assertEquals(0L, splitIntToLong(getCounter(counters, "WindmillStateBytesRead").getInteger()));
+    // Timer + buffer + watermark hold
+    assertEquals(
+        Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
+            .clearCounterUpdates()
+            .clearOutputMessages()
+            .build()
+            .getSerializedSize(),
+        splitIntToLong(getCounter(counters, "WindmillStateBytesWritten").getInteger()));
+    // Input messages
+    assertEquals(
+        VarInt.getLength(0L)
+            + dataStringForIndex(0).length()
+            + addPaneTag(PaneInfo.NO_FIRING, intervalWindowBytes(WINDOW_AT_ZERO)).size()
+            + 5L // proto overhead
+        ,
+        splitIntToLong(getCounter(counters, "WindmillShuffleBytesRead").getInteger()));
+
+    Windmill.GetWorkResponse.Builder getWorkResponse = Windmill.GetWorkResponse.newBuilder();
+    getWorkResponse
+        .addWorkBuilder()
+        .setComputationId(DEFAULT_COMPUTATION_ID)
+        .setInputDataWatermark(timerTimestamp + 1000)
+        .addWorkBuilder()
+        .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
+        .setShardingKey(DEFAULT_SHARDING_KEY)
+        .setWorkToken(2)
+        .setCacheToken(1)
+        .getTimersBuilder()
+        .addTimers(buildWatermarkTimer(timerTagPrefix, timerTimestamp));
+    server.addWorkToOffer(getWorkResponse.build());
+
+    long expectedBytesRead = 0L;
+
+    Windmill.GetDataResponse.Builder dataResponse = Windmill.GetDataResponse.newBuilder();
+    Windmill.KeyedGetDataResponse.Builder dataBuilder =
+        dataResponse
+            .addDataBuilder()
+            .setComputationId(DEFAULT_COMPUTATION_ID)
+            .addDataBuilder()
+            .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
+            .setShardingKey(DEFAULT_SHARDING_KEY);
+    // These reads are skipped due to being cached from accesses in the first work item processing.
+    // dataBuilder
+    //     .addBagsBuilder()
+    //     .setTag(bufferTag)
+    //     .setStateFamily(stateFamily)
+    //     .addValues(bufferData);
+    // dataBuilder
+    //     .addWatermarkHoldsBuilder()
+    //     .setTag(ByteString.copyFromUtf8(watermarkDataHoldTag))
+    //     .setStateFamily(stateFamily)
+    //     .addTimestamps(0);
+    dataBuilder
+        .addWatermarkHoldsBuilder()
+        .setTag(ByteString.copyFromUtf8(watermarkExtraHoldTag))
+        .setStateFamily(stateFamily)
+        .addTimestamps(0);
+    dataBuilder
+        .addValuesBuilder()
+        .setTag(paneInfoTag)
+        .setStateFamily(stateFamily)
+        .getValueBuilder()
+        .setTimestamp(0)
+        .setData(ByteString.EMPTY);
+    server.addDataToOffer(dataResponse.build());
+
+    expectedBytesRead += dataBuilder.build().getSerializedSize();
+
+    result = server.waitForAndGetCommits(1);
+    counters = worker.buildCounters();
+    actualOutput = result.get(2L);
+
+    assertEquals(1, actualOutput.getOutputMessagesCount());
+    assertEquals(
+        DEFAULT_DESTINATION_STREAM_ID, actualOutput.getOutputMessages(0).getDestinationStreamId());
+    assertEquals(
+        DEFAULT_KEY_STRING,
+        actualOutput.getOutputMessages(0).getBundles(0).getKey().toStringUtf8());
+    assertEquals(0, actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getTimestamp());
+    assertEquals(
+        outputData, actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getData());
+
+    ByteString metadata =
+        actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getMetadata();
+    InputStream inStream = metadata.newInput();
+    assertEquals(
+        PaneInfo.createPane(true, true, Timing.ON_TIME), PaneInfoCoder.INSTANCE.decode(inStream));
+    assertEquals(
+        Arrays.asList(WINDOW_AT_ZERO),
+        DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER));
+
+    // Data was deleted
+    assertThat(
+        "" + actualOutput.getValueUpdatesList(),
+        actualOutput.getValueUpdatesList(),
+        Matchers.contains(
+            Matchers.equalTo(
+                Windmill.TagValue.newBuilder()
+                    .setTag(paneInfoTag)
+                    .setStateFamily(stateFamily)
+                    .setValue(
+                        Windmill.Value.newBuilder()
+                            .setTimestamp(Long.MAX_VALUE)
+                            .setData(ByteString.EMPTY))
+                    .build())));
+
+    assertThat(
+        "" + actualOutput.getBagUpdatesList(),
+        actualOutput.getBagUpdatesList(),
+        Matchers.contains(
+            Matchers.equalTo(
+                Windmill.TagBag.newBuilder()
+                    .setTag(bufferTag)
+                    .setStateFamily(stateFamily)
+                    .setDeleteAll(true)
+                    .build())));
+
+    verifyHolds(
+        actualOutput,
+        buildHold(watermarkDataHoldTag, -1, true),
+        buildHold(watermarkExtraHoldTag, -1, true));
+
+    // State reads for windowing
+    assertEquals(
+        expectedBytesRead,
+        splitIntToLong(getCounter(counters, "WindmillStateBytesRead").getInteger()));
+    // State updates to clear state
+    assertEquals(
+        Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
+            .clearCounterUpdates()
+            .clearOutputMessages()
+            .build()
+            .getSerializedSize(),
+        splitIntToLong(getCounter(counters, "WindmillStateBytesWritten").getInteger()));
+    // No input messages
+    assertEquals(0L, splitIntToLong(getCounter(counters, "WindmillShuffleBytesRead").getInteger()));
+
+    CacheStats stats = worker.stateCache.getCacheStats();
+    LOG.info("cache stats {}", stats);
+    assertEquals(1, stats.hitCount());
+    assertEquals(4, stats.missCount());
   }
 
   static class Action {

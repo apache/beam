@@ -74,11 +74,11 @@ sure it is the same as ours.
 
 Apache Beam generally follows the rules of
 [semantic versioning](https://semver.org/) with exceptions. Version numbers use
-the form `major.minor.incremental` and are incremented as follows:
+the form `major.minor.patch` and are incremented as follows:
 
 * major version for incompatible API changes
 * minor version for new functionality added in a backward-compatible manner, infrequent incompatible API changes
-* incremental version for forward-compatible bug fixes
+* patch version for forward-compatible bug fixes
 
 Please note that APIs marked [`@Experimental`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/annotations/Experimental.html)
 may change at any point and are not guaranteed to remain compatible across versions.
@@ -87,6 +87,14 @@ Additionally, any API may change before the first stable release, i.e., between
 versions denoted `0.x.y`.
 
 ## Releases
+
+### 2.29.0 (2021-04-27)
+Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.29.0/apache-beam-2.29.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.29.0/apache-beam-2.29.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.29.0/apache-beam-2.29.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349629)
+[Blog post](/blog/beam-2.29.0).
 
 ### 2.28.0 (2021-02-22)
 Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.28.0/apache-beam-2.28.0-source-release.zip).

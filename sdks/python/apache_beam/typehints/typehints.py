@@ -65,18 +65,10 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import copy
 import logging
-import sys
-import types
 import typing
-from builtins import next
-from builtins import zip
-
-from future.utils import with_metaclass
 
 __all__ = [
     'Any',
@@ -181,10 +173,6 @@ class TypeConstraint(object):
         t.visit(visitor, visitor_arg)
       else:
         visitor(t, visitor_arg)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
 
 def match_type_variables(type_constraint, concrete_type):
@@ -349,9 +337,6 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   """
   # Must either be a TypeConstraint instance or a basic Python type.
   possible_classes = [type, TypeConstraint]
-  if sys.version_info[0] == 2:
-    # Access from __dict__ to avoid py27-lint3 compatibility checker complaint.
-    possible_classes.append(types.__dict__["ClassType"])
   is_not_type_constraint = (
       not isinstance(type_param, tuple(possible_classes)) and
       type_param is not None and
@@ -1047,8 +1032,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint)
-                             ):  # type: ignore[misc]
+class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.

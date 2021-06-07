@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValues;
@@ -85,6 +86,7 @@ public class TestStreamTranslationTest {
             PValues.expandInput(PBegin.in(p)),
             PValues.expandOutput(output),
             testStream,
+            ResourceHints.create(),
             p);
 
     SdkComponents components = SdkComponents.create();

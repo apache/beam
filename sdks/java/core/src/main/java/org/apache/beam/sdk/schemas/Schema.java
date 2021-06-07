@@ -42,6 +42,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -95,6 +96,7 @@ public class Schema implements Serializable {
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
   private Map<String, Integer> encodingPositions = Maps.newHashMap();
+  private boolean encodingPositionsOverridden = false;
 
   private final List<Field> fields;
   // Cache the hashCode, so it doesn't have to be recomputed. Schema objects are immutable, so this
@@ -286,9 +288,15 @@ public class Schema implements Serializable {
     return encodingPositions;
   }
 
+  /** Returns whether encoding positions have been explicitly overridden. */
+  public boolean isEncodingPositionsOverridden() {
+    return encodingPositionsOverridden;
+  }
+
   /** Sets the encoding positions for this schema. */
   public void setEncodingPositions(Map<String, Integer> encodingPositions) {
     this.encodingPositions = encodingPositions;
+    this.encodingPositionsOverridden = true;
   }
 
   /** Get this schema's UUID. */
@@ -391,8 +399,13 @@ public class Schema implements Serializable {
       builder.append(field);
       builder.append(System.lineSeparator());
     }
+    builder.append("Encoding positions:");
+    builder.append(System.lineSeparator());
+    builder.append(encodingPositions);
+    builder.append(System.lineSeparator());
     builder.append("Options:");
     builder.append(options);
+    builder.append("UUID: " + uuid);
     return builder.toString();
   }
 
@@ -948,6 +961,40 @@ public class Schema implements Serializable {
             getRowSchema(),
             getMetadata()
           });
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder builder = new StringBuilder();
+      switch (getTypeName()) {
+        case ROW:
+          builder.append("ROW<");
+          ImmutableList.Builder<String> fieldEntries = ImmutableList.builder();
+          for (Field field : getRowSchema().getFields()) {
+            fieldEntries.add(field.getName() + " " + field.getType().toString());
+          }
+          builder.append(String.join(", ", fieldEntries.build()));
+          builder.append(">");
+          break;
+        case ARRAY:
+          builder.append("ARRAY<");
+          builder.append(getCollectionElementType().toString());
+          builder.append(">");
+          break;
+        case MAP:
+          builder.append("MAP<");
+          builder.append(getMapKeyType().toString());
+          builder.append(", ");
+          builder.append(getMapValueType().toString());
+          builder.append(">");
+          break;
+        default:
+          builder.append(getTypeName().toString());
+      }
+      if (!getNullable()) {
+        builder.append(" NOT NULL");
+      }
+      return builder.toString();
     }
   }
 

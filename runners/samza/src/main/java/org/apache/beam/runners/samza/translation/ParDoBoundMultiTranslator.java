@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,7 +31,9 @@ import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.RunnerPCollectionView;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
@@ -41,18 +45,27 @@ import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
 import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.functions.FlatMapFunction;
@@ -162,6 +175,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             input.isBounded(),
             false,
             null,
+            null,
             Collections.emptyMap(),
             doFnSchemaInformation,
             sideInputMapping);
@@ -222,14 +236,38 @@ class ParDoBoundMultiTranslator<InT, OutT>
     String inputId = stagePayload.getInput();
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStreamById(inputId);
 
-    // TODO: support side input
-    if (!stagePayload.getSideInputsList().isEmpty()) {
-      throw new UnsupportedOperationException(
-          "Side inputs in portable pipelines are not supported in samza");
-    }
+    // Analyze side inputs
+    final List<MessageStream<OpMessage<Iterable<?>>>> sideInputStreams = new ArrayList<>();
+    final Map<SideInputId, PCollectionView<?>> sideInputMapping = new HashMap<>();
+    final Map<String, PCollectionView<?>> idToViewMapping = new HashMap<>();
+    final RunnerApi.Components components = stagePayload.getComponents();
+    for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
+      final String sideInputCollectionId =
+          components
+              .getTransformsOrThrow(sideInputId.getTransformId())
+              .getInputsOrThrow(sideInputId.getLocalName());
+      final WindowingStrategy<?, BoundedWindow> windowingStrategy =
+          ctx.getPortableWindowStrategy(sideInputCollectionId, components);
+      final WindowedValue.WindowedValueCoder<?> coder =
+          (WindowedValue.WindowedValueCoder) instantiateCoder(sideInputCollectionId, components);
 
-    // set side inputs to empty until it's supported
-    final List<MessageStream<OpMessage<InT>>> sideInputStreams = Collections.emptyList();
+      // Create a runner-side view
+      final PCollectionView<?> view = createPCollectionView(sideInputId, coder, windowingStrategy);
+
+      // Use GBK to aggregate the side inputs and then broadcast it out
+      final MessageStream<OpMessage<Iterable<?>>> broadcastSideInput =
+          groupAndBroadcastSideInput(
+              sideInputId,
+              sideInputCollectionId,
+              components.getPcollectionsOrThrow(sideInputCollectionId),
+              (WindowingStrategy) windowingStrategy,
+              coder,
+              ctx);
+
+      sideInputStreams.add(broadcastSideInput);
+      sideInputMapping.put(sideInputId, view);
+      idToViewMapping.put(getSideInputUniqueId(sideInputId), view);
+    }
 
     final Map<TupleTag<?>, Integer> tagToIndexMap = new HashMap<>();
     final Map<Integer, String> indexToIdMap = new HashMap<>();
@@ -260,7 +298,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
     // Note: transform.getTransform() is an ExecutableStage, not ParDo, so we need to extract
     // these info from its components.
     final DoFnSchemaInformation doFnSchemaInformation = null;
-    final Map<String, PCollectionView<?>> sideInputMapping = Collections.emptyMap();
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
@@ -273,16 +310,17 @@ class ParDoBoundMultiTranslator<InT, OutT>
             windowedInputCoder.getValueCoder(), // input coder not in use
             windowedInputCoder,
             Collections.emptyMap(), // output coders not in use
-            Collections.emptyList(), // sideInputs not in use until side input support
+            new ArrayList<>(sideInputMapping.values()),
             new ArrayList<>(idToTupleTagMap.values()), // used by java runner only
-            SamzaPipelineTranslatorUtils.getPortableWindowStrategy(transform, pipeline),
-            Collections.emptyMap(), // idToViewMap not in use until side input support
+            ctx.getPortableWindowStrategy(inputId, stagePayload.getComponents()),
+            idToViewMapping,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             ctx.getTransformFullName(),
             ctx.getTransformId(),
             isBounded,
             true,
             stagePayload,
+            ctx.getJobInfo(),
             idToTupleTagMap,
             doFnSchemaInformation,
             sideInputMapping);
@@ -364,6 +402,80 @@ class ParDoBoundMultiTranslator<InT, OutT>
       PipelineNode.PTransformNode transform, SamzaPipelineOptions options) {
     // TODO: Add beamStore configs when portable use case supports stateful ParDo.
     return Collections.emptyMap();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static final ViewFn<Iterable<WindowedValue<?>>, ?> VIEW_FN =
+      (ViewFn)
+          new PCollectionViews.MultimapViewFn<>(
+              (PCollectionViews.TypeDescriptorSupplier<Iterable<WindowedValue<Void>>>)
+                  () -> TypeDescriptors.iterables(new TypeDescriptor<WindowedValue<Void>>() {}),
+              (PCollectionViews.TypeDescriptorSupplier<Void>) TypeDescriptors::voids);
+
+  // This method follows the same way in Flink to create a runner-side Java
+  // PCollectionView to represent a portable side input.
+  private static PCollectionView<?> createPCollectionView(
+      SideInputId sideInputId,
+      WindowedValue.WindowedValueCoder<?> coder,
+      WindowingStrategy<?, BoundedWindow> windowingStrategy) {
+
+    return new RunnerPCollectionView<>(
+        null,
+        new TupleTag<>(sideInputId.getLocalName()),
+        VIEW_FN,
+        // TODO: support custom mapping fn
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy,
+        coder.getValueCoder());
+  }
+
+  // Group the side input globally with a null key and then broadcast it
+  // to all tasks.
+  private static <SideInputT>
+      MessageStream<OpMessage<Iterable<SideInputT>>> groupAndBroadcastSideInput(
+          SideInputId sideInputId,
+          String sideInputCollectionId,
+          RunnerApi.PCollection sideInputPCollection,
+          WindowingStrategy<SideInputT, BoundedWindow> windowingStrategy,
+          WindowedValue.WindowedValueCoder<SideInputT> coder,
+          PortableTranslationContext ctx) {
+    final MessageStream<OpMessage<SideInputT>> sideInput =
+        ctx.getMessageStreamById(sideInputCollectionId);
+    final MessageStream<OpMessage<KV<Void, SideInputT>>> keyedSideInput =
+        sideInput.map(
+            opMessage -> {
+              WindowedValue<SideInputT> wv = opMessage.getElement();
+              return OpMessage.ofElement(wv.withValue(KV.of(null, wv.getValue())));
+            });
+    final WindowedValue.WindowedValueCoder<KV<Void, SideInputT>> kvCoder =
+        coder.withValueCoder(KvCoder.of(VoidCoder.of(), coder.getValueCoder()));
+    final MessageStream<OpMessage<KV<Void, Iterable<SideInputT>>>> groupedSideInput =
+        GroupByKeyTranslator.doTranslatePortable(
+            sideInputPCollection,
+            keyedSideInput,
+            windowingStrategy,
+            kvCoder,
+            new TupleTag<>("main output"),
+            ctx);
+    final MessageStream<OpMessage<Iterable<SideInputT>>> nonkeyGroupedSideInput =
+        groupedSideInput.map(
+            opMessage -> {
+              WindowedValue<KV<Void, Iterable<SideInputT>>> wv = opMessage.getElement();
+              return OpMessage.ofElement(wv.withValue(wv.getValue().getValue()));
+            });
+    final MessageStream<OpMessage<Iterable<SideInputT>>> broadcastSideInput =
+        SamzaPublishViewTranslator.doTranslate(
+            nonkeyGroupedSideInput,
+            coder.withValueCoder(IterableCoder.of(coder.getValueCoder())),
+            ctx.getTransformId(),
+            getSideInputUniqueId(sideInputId),
+            ctx.getSamzaPipelineOptions());
+
+    return broadcastSideInput;
+  }
+
+  private static String getSideInputUniqueId(SideInputId sideInputId) {
+    return sideInputId.getTransformId() + "-" + sideInputId.getLocalName();
   }
 
   static class SideInputWatermarkFn<InT>

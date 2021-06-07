@@ -26,6 +26,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,7 +47,8 @@ public class GroupIntoBatchesTranslationTest {
     return ImmutableList.of(
         GroupIntoBatches.ofSize(5),
         GroupIntoBatches.ofSize(5).withMaxBufferingDuration(Duration.ZERO),
-        GroupIntoBatches.ofSize(5).withMaxBufferingDuration(Duration.standardSeconds(10)));
+        GroupIntoBatches.ofSize(5).withMaxBufferingDuration(Duration.standardSeconds(10)),
+        GroupIntoBatches.ofByteSize(10).withMaxBufferingDuration(Duration.standardSeconds(10)));
   }
 
   @Parameter(0)
@@ -62,7 +64,12 @@ public class GroupIntoBatchesTranslationTest {
 
     AppliedPTransform<?, ?, GroupIntoBatches<String, Integer>> appliedTransform =
         AppliedPTransform.of(
-            "foo", PValues.expandInput(input), PValues.expandOutput(output), groupIntoBatches, p);
+            "foo",
+            PValues.expandInput(input),
+            PValues.expandOutput(output),
+            groupIntoBatches,
+            ResourceHints.create(),
+            p);
 
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
@@ -83,7 +90,12 @@ public class GroupIntoBatchesTranslationTest {
 
     AppliedPTransform<?, ?, GroupIntoBatches<String, Integer>.WithShardedKey> appliedTransform =
         AppliedPTransform.of(
-            "bar", PValues.expandInput(input), PValues.expandOutput(output), transform, p);
+            "bar",
+            PValues.expandInput(input),
+            PValues.expandOutput(output),
+            transform,
+            ResourceHints.create(),
+            p);
 
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
@@ -97,8 +109,9 @@ public class GroupIntoBatchesTranslationTest {
   }
 
   private void verifyPayload(
-      GroupIntoBatches.BatchingParams params, RunnerApi.GroupIntoBatchesPayload payload) {
+      GroupIntoBatches.BatchingParams<?> params, RunnerApi.GroupIntoBatchesPayload payload) {
     assertThat(payload.getBatchSize(), equalTo(params.getBatchSize()));
+    assertThat(payload.getBatchSizeBytes(), equalTo(params.getBatchSizeBytes()));
     assertThat(
         payload.getMaxBufferingDurationMillis(),
         equalTo(params.getMaxBufferingDuration().getStandardSeconds() * 1000));

@@ -42,8 +42,6 @@ be overridden with --input.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
@@ -96,8 +94,8 @@ class TopPerMonth(beam.PTransform):
             FixedWindows(size=THIRTY_DAYS_IN_SECONDS))
         | 'Top' >> combiners.core.CombineGlobally(
             combiners.TopCombineFn(
-                10,
-                lambda first, second: first[1] < second[1])).without_defaults())
+                n=10, key=lambda sessions_count: sessions_count[1])).
+        without_defaults())
 
 
 class SessionsToStringsDoFn(beam.DoFn):

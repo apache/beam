@@ -28,12 +28,7 @@ For an example implementation of :class:`FileBasedSource` see
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from typing import Callable
-
-from past.builtins import long
-from past.builtins import unicode
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
@@ -106,13 +101,13 @@ class FileBasedSource(iobase.BoundedSource):
         result.
     """
 
-    if not isinstance(file_pattern, ((str, unicode), ValueProvider)):
+    if not isinstance(file_pattern, (str, ValueProvider)):
       raise TypeError(
           '%s: file_pattern must be of type string'
           ' or ValueProvider; got %r instead' %
           (self.__class__.__name__, file_pattern))
 
-    if isinstance(file_pattern, (str, unicode)):
+    if isinstance(file_pattern, str):
       file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
 
@@ -251,11 +246,11 @@ class _SingleFileSource(iobase.BoundedSource):
       stop_offset,
       min_bundle_size=0,
       splittable=True):
-    if not isinstance(start_offset, (int, long)):
+    if not isinstance(start_offset, int):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if not isinstance(stop_offset, (int, long)):
+      if not isinstance(stop_offset, int):
         raise TypeError(
             'stop_offset must be a number. Received: %r' % stop_offset)
       if start_offset >= stop_offset:

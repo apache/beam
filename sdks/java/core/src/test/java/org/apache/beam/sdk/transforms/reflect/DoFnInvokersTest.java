@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -102,6 +103,7 @@ public class DoFnInvokersTest {
   @Mock private IntervalWindow mockWindow;
   // @Mock private PaneInfo mockPaneInfo;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
+  @Mock private PipelineOptions mockOptions;
 
   @Before
   public void setUp() {
@@ -116,6 +118,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any())).thenReturn(mockOutputReceiver);
     when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
         .thenReturn(mockMultiOutputReceiver);
+    when(mockArgumentProvider.pipelineOptions()).thenReturn(mockOptions);
     when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(Matchers.<DoFn>any()))
@@ -357,6 +360,7 @@ public class DoFnInvokersTest {
 
   @Test
   public void testDoFnWithStartBundleSetupTeardown() throws Exception {
+    when(mockArgumentProvider.pipelineOptions()).thenReturn(mockOptions);
     when(mockArgumentProvider.startBundleContext(any(DoFn.class)))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(any(DoFn.class)))
@@ -372,19 +376,20 @@ public class DoFnInvokersTest {
       public void finishBundle(FinishBundleContext c) {}
 
       @Setup
-      public void before() {}
+      public void before(PipelineOptions options) {}
 
       @Teardown
       public void after() {}
     }
 
     MockFn fn = mock(MockFn.class);
+
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeSetup();
+    invoker.invokeSetup(mockArgumentProvider);
     invoker.invokeStartBundle(mockArgumentProvider);
     invoker.invokeFinishBundle(mockArgumentProvider);
     invoker.invokeTeardown();
-    verify(fn).before();
+    verify(fn).before(mockOptions);
     verify(fn).startBundle(mockStartBundleContext);
     verify(fn).finishBundle(mockFinishBundleContext);
     verify(fn).after();

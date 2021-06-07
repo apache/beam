@@ -84,10 +84,7 @@ public class FlinkNonMergingReduceFunction<K, InputT>
     final WindowedValue<KV<K, InputT>> first = iterator.peek();
     final BoundedWindow window = Iterables.getOnlyElement(first.getWindows());
     @SuppressWarnings("unchecked")
-    final Instant outputTimestamp =
-        ((WindowingStrategy) windowingStrategy)
-            .getWindowFn()
-            .getOutputTime(first.getTimestamp(), window);
+    final Instant outputTimestamp = first.getTimestamp();
     final Instant combinedTimestamp =
         windowingStrategy.getTimestampCombiner().assign(window, outputTimestamp);
     final Iterable<InputT> values;

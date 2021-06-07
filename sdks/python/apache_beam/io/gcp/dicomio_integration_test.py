@@ -25,11 +25,8 @@ in order to check if the connectors are functioning correctly.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import random
 import string
-import sys
 import unittest
 
 from nose.plugins.attrib import attr
@@ -217,10 +214,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     self.assertEqual(status_code, 200)
 
     # List comparison based on different version of python
-    if sys.version_info.major == 3:
-      self.assertCountEqual(result, self.expected_output_all_metadata)
-    else:
-      self.assertItemsEqual(result, self.expected_output_all_metadata)
+    self.assertCountEqual(result, self.expected_output_all_metadata)
 
 
 if __name__ == '__main__':

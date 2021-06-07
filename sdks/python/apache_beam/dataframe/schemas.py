@@ -57,8 +57,6 @@ types may be given special consideration.
 #TODO: Mapping for date/time types
 #https://pandas.pydata.org/docs/user_guide/timeseries.html#overview
 
-from __future__ import absolute_import
-
 from typing import Any
 from typing import NamedTuple
 from typing import Optional
@@ -283,7 +281,8 @@ def _unbatch_transform(proxy, include_indexes):
     ctor = element_type_from_dataframe(proxy, include_indexes=include_indexes)
 
     return beam.ParDo(
-        _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor))
+        _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor)
+    ).with_output_types(ctor)
   elif isinstance(proxy, pd.Series):
     # Raise a TypeError if proxy has an unknown type
     output_type = _dtype_to_fieldtype(proxy.dtype)

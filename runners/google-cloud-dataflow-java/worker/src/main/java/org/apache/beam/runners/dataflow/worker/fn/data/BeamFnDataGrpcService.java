@@ -41,8 +41,8 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,6 +118,12 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     @Override
     public void awaitCompletion() throws Exception {
       future.get().awaitCompletion();
+    }
+
+    @Override
+    @SuppressWarnings("FutureReturnValueIgnored")
+    public void runWhenComplete(Runnable completeRunnable) {
+      future.whenComplete((result, throwable) -> completeRunnable.run());
     }
 
     @Override

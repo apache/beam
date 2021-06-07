@@ -31,6 +31,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -41,7 +42,10 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.util.FutureUtils;
@@ -84,6 +88,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private final WindowingStrategy windowingStrategy;
   private final OutputManagerFactory<OutT> outputManagerFactory;
   // NOTE: we use HashMap here to guarantee Serializability
+  // Mapping from view id to a view
   private final HashMap<String, PCollectionView<?>> idToViewMap;
   private final String transformFullName;
   private final String transformId;
@@ -97,6 +102,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // portable api related
   private final boolean isPortable;
   private final RunnerApi.ExecutableStagePayload stagePayload;
+  private final JobInfo jobInfo;
   private final HashMap<String, TupleTag<?>> idToTupleTagMap;
 
   private transient SamzaTimerInternalsFactory<?> timerInternalsFactory;
@@ -104,6 +110,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient PushbackSideInputDoFnRunner<InT, FnOutT> pushbackFnRunner;
   private transient SideInputHandler sideInputHandler;
   private transient DoFnInvoker<InT, FnOutT> doFnInvoker;
+  // Mapping from side input id to a view
   private transient SamzaPipelineOptions samzaPipelineOptions;
 
   // This is derivable from pushbackValues which is persisted to a store.
@@ -118,10 +125,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient BundleManager<OutT> bundleManager;
   private transient Instant sideInputWatermark;
   private transient List<WindowedValue<InT>> pushbackValues;
+  private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private DoFnSchemaInformation doFnSchemaInformation;
   private transient boolean bundleDisabled;
-  private Map<String, PCollectionView<?>> sideInputMapping;
+  private Map<?, PCollectionView<?>> sideInputMapping;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -140,9 +148,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       PCollection.IsBounded isBounded,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
+      JobInfo jobInfo,
       Map<String, TupleTag<?>> idToTupleTagMap,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, PCollectionView<?>> sideInputMapping) {
+      Map<?, PCollectionView<?>> sideInputMapping) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;
@@ -159,6 +168,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.isBounded = isBounded;
     this.isPortable = isPortable;
     this.stagePayload = stagePayload;
+    this.jobInfo = jobInfo;
     this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
     this.bundleCheckTimerId = "_samza_bundle_check_" + transformId;
     this.bundleStateId = "_samza_bundle_" + transformId;
@@ -217,13 +227,20 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               .stateInternalsForKey(null)
               .state(StateNamespaces.global(), StateTags.bag(bundleStateId, windowedValueCoder));
       final ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-      stageBundleFactory = samzaExecutionContext.getJobBundleFactory().forStage(executableStage);
+      stageContext = SamzaExecutableStageContextFactory.getInstance().get(jobInfo);
+      stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
+      final StateRequestHandler stateRequestHandler =
+          SamzaStateRequestHandlers.of(
+              executableStage,
+              (Map<SideInputId, PCollectionView<?>>) sideInputMapping,
+              sideInputHandler);
       this.fnRunner =
           SamzaDoFnRunners.createPortable(
               samzaPipelineOptions,
               bundledEventsBagState,
               outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
+              stateRequestHandler,
               mainOutputTag,
               idToTupleTagMap,
               context,
@@ -246,7 +263,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               sideOutputTags,
               outputCoders,
               doFnSchemaInformation,
-              sideInputMapping);
+              (Map<String, PCollectionView<?>>) sideInputMapping);
     }
 
     this.pushbackFnRunner =
@@ -257,12 +274,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         ServiceLoader.load(SamzaDoFnInvokerRegistrar.class).iterator();
     if (!invokerReg.hasNext()) {
       // use the default invoker here
-      doFnInvoker = DoFnInvokers.invokerFor(doFn);
+      doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, samzaPipelineOptions);
     } else {
-      doFnInvoker = Iterators.getOnlyElement(invokerReg).invokerFor(doFn, context);
+      doFnInvoker =
+          Iterators.getOnlyElement(invokerReg).invokerSetupFor(doFn, samzaPipelineOptions, context);
     }
-
-    doFnInvoker.invokeSetup();
   }
 
   /*package private*/ FutureCollector<OutT> createFutureCollector() {
@@ -390,7 +406,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void close() {
     doFnInvoker.invokeTeardown();
-    try (AutoCloseable closer = stageBundleFactory) {
+    try (AutoCloseable factory = stageBundleFactory;
+        AutoCloseable context = stageContext) {
       // do nothing
     } catch (Exception e) {
       LOG.error("Failed to close stage bundle factory", e);

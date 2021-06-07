@@ -18,8 +18,6 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import json
@@ -32,8 +30,6 @@ import time
 import unittest
 import uuid
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 import pytz
@@ -1326,7 +1322,8 @@ class PubSubBigQueryIT(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*matchers),
         wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
-        streaming=True)
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     def add_schema_info(element):
       yield {'number': element}

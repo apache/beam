@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import random
-import sys
 import time
 import unittest
 
@@ -44,6 +41,7 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
@@ -461,7 +459,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobs')
 
-  @unittest.skipIf(sys.version_info[0] == 2, 'Mock pickling problems in Py 2')
   @mock.patch('time.sleep')
   def test_wait_for_job_completion(self, sleep_mock):
     job_references = [bigquery_api.JobReference(), bigquery_api.JobReference()]
@@ -497,7 +494,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     sleep_mock.assert_called_once()
 
-  @unittest.skipIf(sys.version_info[0] == 2, 'Mock pickling problems in Py 2')
   @mock.patch('time.sleep')
   def test_one_job_failed_after_waiting(self, sleep_mock):
     job_references = [bigquery_api.JobReference(), bigquery_api.JobReference()]
@@ -653,8 +649,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         with_auto_sharding=with_auto_sharding)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    test_options.view_as(StandardOptions).streaming = is_streaming
     with TestPipeline(runner='BundleBasedDirectRunner',
-                      options=StandardOptions(streaming=is_streaming)) as p:
+                      options=test_options) as p:
       if is_streaming:
         _SIZE = len(_ELEMENTS)
         fisrt_batch = [
@@ -842,7 +840,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(state_matcher, bq_matcher), streaming=True)
+        on_success_matcher=all_of(state_matcher, bq_matcher),
+        streaming=True,
+        allow_unsafe_triggers=True)
     with beam.Pipeline(argv=args) as p:
       stream_source = (
           TestStream().advance_watermark_to(0).advance_processing_time(

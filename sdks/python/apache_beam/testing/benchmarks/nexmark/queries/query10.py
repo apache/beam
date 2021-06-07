@@ -22,8 +22,6 @@ Every window_size_sec, save all events from the last period into
 2*max_workers log files.
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger

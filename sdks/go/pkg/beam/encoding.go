@@ -17,29 +17,40 @@ package beam
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"reflect"
+	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 var (
 	encodedTypeType    = reflect.TypeOf((*EncodedType)(nil)).Elem()
 	encodedFuncType    = reflect.TypeOf((*EncodedFunc)(nil)).Elem()
 	encodedCoderType   = reflect.TypeOf((*EncodedCoder)(nil)).Elem()
-	encodedStorageType = reflect.TypeOf((*struct{ Data string })(nil)).Elem()
+	encodedStorageType = reflect.TypeOf((*struct{ EncodedBeamData string })(nil)).Elem()
+	timeType           = reflect.TypeOf((*time.Time)(nil)).Elem()
 )
 
 func init() {
+	RegisterType(encodedTypeType)
+	RegisterType(encodedFuncType)
+	RegisterType(encodedCoderType)
+	RegisterType(timeType)
 	schema.RegisterLogicalType(schema.ToLogicalType("beam.EncodedType", encodedTypeType, encodedStorageType))
 	schema.RegisterLogicalType(schema.ToLogicalType("beam.EncodedFunc", encodedFuncType, encodedStorageType))
 	schema.RegisterLogicalType(schema.ToLogicalType("beam.EncodedCoder", encodedCoderType, encodedStorageType))
 	coder.RegisterSchemaProviders(encodedTypeType, encodedTypeEnc, encodedTypeDec)
 	coder.RegisterSchemaProviders(encodedFuncType, encodedFuncEnc, encodedFuncDec)
 	coder.RegisterSchemaProviders(encodedCoderType, encodedCoderEnc, encodedCoderDec)
+
+	schema.RegisterLogicalType(schema.ToLogicalType("time.Time", timeType, encodedStorageType))
+	coder.RegisterSchemaProviders(timeType, timeEnc, timeDec)
 }
 
 // EncodedType is a serialization wrapper around a type for convenience.
@@ -249,4 +260,41 @@ func encodedCoderDec(reflect.Type) (func(io.Reader) (interface{}, error), error)
 			return EncodedCoder{Coder: Coder{coder: c}}, nil
 		},
 		nil
+}
+
+func timeEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
+	return func(iface interface{}, w io.Writer) error {
+		if err := coder.WriteSimpleRowHeader(1, w); err != nil {
+			return errors.Wrap(err, "encoding time.Time schema override")
+		}
+		t := iface.(time.Time)
+		// We use the text marshalling rather than the binary marshalling
+		// since it has more precision. Apparently some info isn't included
+		// in the binary marshal.
+		data, err := t.MarshalText()
+		if err != nil {
+			return fmt.Errorf("marshalling time: %v", err)
+		}
+		if err := coder.EncodeBytes(data, w); err != nil {
+			return err
+		}
+		return nil
+	}, nil
+}
+
+func timeDec(reflect.Type) (func(io.Reader) (interface{}, error), error) {
+	return func(r io.Reader) (interface{}, error) {
+		if err := coder.ReadSimpleRowHeader(1, r); err != nil {
+			return nil, errors.Wrap(err, "decoding time.Time schema override")
+		}
+		data, err := coder.DecodeBytes(r)
+		if err != nil {
+			return nil, errors.Wrap(err, "retrieving time data: %v")
+		}
+		t := time.Time{}
+		if err := t.UnmarshalText(data); err != nil {
+			return nil, errors.Wrap(err, "decoding time: %v")
+		}
+		return t, nil
+	}, nil
 }

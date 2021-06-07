@@ -20,8 +20,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import time
 from functools import reduce

@@ -25,17 +25,12 @@ This API is currently under development and is subject to change.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import re
-from builtins import object
 from typing import Any
 from typing import List
 from typing import NamedTuple
 from typing import Optional
-
-from future.utils import iteritems
-from past.builtins import unicode
+from typing import Tuple
 
 from apache_beam import coders
 from apache_beam.io.iobase import Read
@@ -74,13 +69,29 @@ class PubsubMessage(object):
     attributes: (dict) Key-value map of str to str, containing both user-defined
       and service generated attributes (such as id_label and
       timestamp_attribute). May be None.
+    message_id: (str) ID of the message, assigned by the pubsub service when the
+      message is published. Guaranteed to be unique within the topic. Will be
+      reset to None if the message is being written to pubsub.
+    publish_time: (datetime) Time at which the message was published. Will be
+      reset to None if the Message is being written to pubsub.
+    ordering_key: (str) If non-empty, identifies related messages for which
+      publish order is respected by the PubSub subscription.
   """
-  def __init__(self, data, attributes):
+  def __init__(
+      self,
+      data,
+      attributes,
+      message_id=None,
+      publish_time=None,
+      ordering_key=""):
     if data is None and not attributes:
       raise ValueError(
           'Either data (%r) or attributes (%r) must be set.', data, attributes)
     self.data = data
     self.attributes = attributes
+    self.message_id = message_id
+    self.publish_time = publish_time
+    self.ordering_key = ordering_key
 
   def __hash__(self):
     return hash((self.data, frozenset(self.attributes.items())))
@@ -88,10 +99,6 @@ class PubsubMessage(object):
   def __eq__(self, other):
     return isinstance(other, PubsubMessage) and (
         self.data == other.data and self.attributes == other.attributes)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __repr__(self):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
@@ -113,13 +120,21 @@ class PubsubMessage(object):
     msg.ParseFromString(proto_msg)
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
-    return PubsubMessage(msg.data, attributes)
+    return PubsubMessage(
+        msg.data,
+        attributes,
+        msg.message_id,
+        msg.publish_time.ToDatetime(),
+        msg.ordering_key)
 
-  def _to_proto_str(self):
+  def _to_proto_str(self, for_publish=False):
     """Get serialized form of ``PubsubMessage``.
 
     Args:
       proto_msg: str containing a serialized protobuf.
+      for_publish: bool, if True strip out message fields which cannot be
+        published (currently message_id and publish_time) per
+        https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage
 
     Returns:
       A str containing a serialized protobuf of type
@@ -128,8 +143,13 @@ class PubsubMessage(object):
     """
     msg = pubsub.types.pubsub_pb2.PubsubMessage()
     msg.data = self.data
-    for key, value in iteritems(self.attributes):
+    for key, value in self.attributes.items():
       msg.attributes[key] = value
+    if self.message_id and not for_publish:
+      msg.message_id = self.message_id
+    if self.publish_time and not for_publish:
+      msg.publish_time = msg.publish_time.FromDatetime(self.publish_time)
+    msg.ordering_key = self.ordering_key
     return msg.SerializeToString()
 
   @staticmethod
@@ -142,7 +162,14 @@ class PubsubMessage(object):
     """
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
-    return PubsubMessage(msg.data, attributes)
+    pubsubmessage = PubsubMessage(msg.data, attributes)
+    if msg.message_id:
+      pubsubmessage.message_id = msg.message_id
+    if msg.publish_time:
+      pubsubmessage.publish_time = msg.publish_time
+    if msg.ordering_key:
+      pubsubmessage.ordering_key = msg.ordering_key
+    return pubsubmessage
 
 
 class ReadFromPubSub(PTransform):
@@ -234,7 +261,7 @@ class _ReadStringsFromPubSub(PTransform):
         | ReadFromPubSub(
             self.topic, self.subscription, self.id_label, with_attributes=False)
         | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
-    p.element_type = unicode
+    p.element_type = str
     return p
 
 
@@ -303,7 +330,7 @@ class WriteToPubSub(PTransform):
       raise TypeError(
           'Unexpected element. Type: %s (expected: PubsubMessage), '
           'value: %r' % (type(element), element))
-    return element._to_proto_str()
+    return element._to_proto_str(for_publish=True)
 
   @staticmethod
   def bytes_to_proto_str(element):
@@ -341,7 +368,7 @@ SUBSCRIPTION_REGEXP = 'projects/([^/]+)/subscriptions/(.+)'
 TOPIC_REGEXP = 'projects/([^/]+)/topics/(.+)'
 
 
-def parse_topic(full_topic):
+def parse_topic(full_topic: str) -> Tuple[str, str]:
   match = re.match(TOPIC_REGEXP, full_topic)
   if not match:
     raise ValueError(
@@ -436,9 +463,9 @@ class _PubSubSink(dataflow_io.NativeSink):
   """
   def __init__(
       self,
-      topic,  # type: str
-      id_label,  # type: Optional[str]
-      timestamp_attribute  # type: Optional[str]
+      topic: str,
+      id_label: Optional[str],
+      timestamp_attribute: Optional[str],
   ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic

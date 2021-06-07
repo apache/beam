@@ -27,8 +27,8 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
+import com.google.api.core.ApiFuture;
 import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.ServerStream;
@@ -63,8 +63,24 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
+import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsRequest;
+import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.BigQueryWriteClient;
+import com.google.cloud.bigquery.storage.v1beta2.BigQueryWriteSettings;
+import com.google.cloud.bigquery.storage.v1beta2.CreateWriteStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1beta2.FlushRowsRequest;
+import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
+import com.google.cloud.bigquery.storage.v1beta2.ProtoSchema;
+import com.google.cloud.bigquery.storage.v1beta2.StreamWriterV2;
+import com.google.cloud.bigquery.storage.v1beta2.WriteStream;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Int64Value;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -85,6 +101,7 @@ import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.CustomHttpErrors;
@@ -100,6 +117,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -439,6 +457,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
+    @Nullable private final BigQueryWriteClient newWriteClient;
     private final PipelineOptions options;
     private final long maxRowsPerBatch;
     private final long maxRowBatchSize;
@@ -467,10 +486,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     protected static final String CANONICAL_STATUS_UNKNOWN = "unknown";
 
     @VisibleForTesting
-    DatasetServiceImpl(Bigquery client, PipelineOptions options) {
+    DatasetServiceImpl(
+        Bigquery client, @Nullable BigQueryWriteClient newWriteClient, PipelineOptions options) {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
+      this.newWriteClient = newWriteClient;
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
@@ -478,10 +499,15 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    DatasetServiceImpl(Bigquery client, PipelineOptions options, long maxRowsPerBatch) {
+    DatasetServiceImpl(
+        Bigquery client,
+        BigQueryWriteClient newWriteClient,
+        PipelineOptions options,
+        long maxRowsPerBatch) {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
+      this.newWriteClient = newWriteClient;
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
@@ -491,6 +517,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     private DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = newBigQueryClient(bqOptions).build();
+      this.newWriteClient = newBigQueryWriteClient(bqOptions);
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
@@ -605,7 +632,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                       table.getTableReference().getProjectId(),
                       table.getTableReference().getDatasetId(),
                       table.getTableReference().getTableId(),
-                      TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
+                      TimeUnit.MILLISECONDS.toMinutes(RETRY_CREATE_TABLE_DURATION_MILLIS));
                   retry = true;
                 }
                 continue;
@@ -1055,6 +1082,97 @@ class BigQueryServicesImpl implements BigQueryServices {
           createDefaultBackoff(),
           ALWAYS_RETRY);
     }
+
+    @Override
+    public WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
+        throws IOException {
+      return newWriteClient.createWriteStream(
+          CreateWriteStreamRequest.newBuilder()
+              .setParent(tableUrn)
+              .setWriteStream(WriteStream.newBuilder().setType(type).build())
+              .build());
+    }
+
+    @Override
+    public StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor)
+        throws Exception {
+      ProtoSchema protoSchema =
+          ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
+      StreamWriterV2 streamWriter =
+          StreamWriterV2.newBuilder(streamName).setWriterSchema(protoSchema).build();
+      return new StreamAppendClient() {
+        private int pins = 0;
+        private boolean closed = false;
+
+        @Override
+        public void close() throws Exception {
+          boolean closeWriter;
+          synchronized (this) {
+            Preconditions.checkState(!closed);
+            closed = true;
+            closeWriter = (pins == 0);
+          }
+          if (closeWriter) {
+            streamWriter.close();
+          }
+        }
+
+        @Override
+        public void pin() {
+          synchronized (this) {
+            Preconditions.checkState(!closed);
+            ++pins;
+          }
+        }
+
+        @Override
+        public void unpin() throws Exception {
+          boolean closeWriter;
+          synchronized (this) {
+            Preconditions.checkState(pins > 0);
+            --pins;
+            closeWriter = (pins == 0) && closed;
+          }
+          if (closeWriter) {
+            streamWriter.close();
+          }
+        }
+
+        @Override
+        public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
+            throws Exception {
+          return streamWriter.append(rows, offset);
+        }
+      };
+    }
+
+    @Override
+    public ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)
+        throws IOException, InterruptedException {
+      Int64Value offset = Int64Value.newBuilder().setValue(flushOffset).build();
+      FlushRowsRequest request =
+          FlushRowsRequest.newBuilder().setWriteStream(streamName).setOffset(offset).build();
+      return newWriteClient.flushRowsCallable().futureCall(request);
+    }
+
+    @Override
+    public ApiFuture<FinalizeWriteStreamResponse> finalizeWriteStream(String streamName) {
+      return newWriteClient
+          .finalizeWriteStreamCallable()
+          .futureCall(FinalizeWriteStreamRequest.newBuilder().setName(streamName).build());
+    }
+
+    @Override
+    public ApiFuture<BatchCommitWriteStreamsResponse> commitWriteStreams(
+        String tableUrn, Iterable<String> writeStreamNames) {
+      return newWriteClient
+          .batchCommitWriteStreamsCallable()
+          .futureCall(
+              BatchCommitWriteStreamsRequest.newBuilder()
+                  .setParent(tableUrn)
+                  .addAllWriteStreams(writeStreamNames)
+                  .build());
+    }
   }
 
   static final SerializableFunction<IOException, Boolean> DONT_RETRY_NOT_FOUND =
@@ -1124,6 +1242,17 @@ class BigQueryServicesImpl implements BigQueryServices {
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
+  private static BigQueryWriteClient newBigQueryWriteClient(BigQueryOptions options) {
+    try {
+      return BigQueryWriteClient.create(
+          BigQueryWriteSettings.newBuilder()
+              .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
+              .build());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   public static CustomHttpErrors createBigQueryClientCustomErrors() {
     CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
     // 403 errors, to list tables, matching this URL:
@@ -1166,7 +1295,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final BigQueryReadClient client;
 
     private StorageClientImpl(BigQueryOptions options) throws IOException {
-      BigQueryReadSettings.Builder builder =
+      BigQueryReadSettings.Builder settingsBuilder =
           BigQueryReadSettings.newBuilder()
               .setCredentialsProvider(FixedCredentialsProvider.create(options.getGcpCredential()))
               .setTransportChannelProvider(
@@ -1175,18 +1304,31 @@ class BigQueryServicesImpl implements BigQueryServices {
                       .build());
 
       UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =
-          builder.getStubSettingsBuilder().createReadSessionSettings();
+          settingsBuilder.getStubSettingsBuilder().createReadSessionSettings();
 
-      RetrySettings.Builder retrySettings =
+      createReadSessionSettings.setRetrySettings(
           createReadSessionSettings
               .getRetrySettings()
               .toBuilder()
               .setInitialRpcTimeout(org.threeten.bp.Duration.ofHours(2))
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofHours(2))
-              .setTotalTimeout(org.threeten.bp.Duration.ofHours(2));
+              .setTotalTimeout(org.threeten.bp.Duration.ofHours(2))
+              .build());
 
-      createReadSessionSettings.setRetrySettings(retrySettings.build());
-      this.client = BigQueryReadClient.create(builder.build());
+      UnaryCallSettings.Builder<SplitReadStreamRequest, SplitReadStreamResponse>
+          splitReadStreamSettings =
+              settingsBuilder.getStubSettingsBuilder().splitReadStreamSettings();
+
+      splitReadStreamSettings.setRetrySettings(
+          splitReadStreamSettings
+              .getRetrySettings()
+              .toBuilder()
+              .setInitialRpcTimeout(org.threeten.bp.Duration.ofSeconds(30))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofSeconds(30))
+              .setTotalTimeout(org.threeten.bp.Duration.ofSeconds(30))
+              .build());
+
+      this.client = BigQueryReadClient.create(settingsBuilder.build());
     }
 
     @Override

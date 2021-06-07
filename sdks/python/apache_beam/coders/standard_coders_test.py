@@ -19,16 +19,12 @@
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import json
 import logging
 import math
 import os.path
 import sys
 import unittest
-from builtins import map
 from copy import deepcopy
 from typing import Dict
 from typing import Tuple

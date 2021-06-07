@@ -17,11 +17,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import typing
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io.gcp import pubsub
@@ -32,11 +28,11 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 ReadFromPubsubSchema = typing.NamedTuple(
     'ReadFromPubsubSchema',
     [
-        ('topic', typing.Optional[unicode]),
-        ('subscription', typing.Optional[unicode]),
-        ('id_label', typing.Optional[unicode]),
+        ('topic', typing.Optional[str]),
+        ('subscription', typing.Optional[str]),
+        ('id_label', typing.Optional[str]),
         ('with_attributes', bool),
-        ('timestamp_attribute', typing.Optional[unicode]),
+        ('timestamp_attribute', typing.Optional[str]),
     ])
 
 
@@ -116,11 +112,11 @@ class ReadFromPubSub(beam.PTransform):
 WriteToPubsubSchema = typing.NamedTuple(
     'WriteToPubsubSchema',
     [
-        ('topic', unicode),
-        ('id_label', typing.Optional[unicode]),
+        ('topic', str),
+        ('id_label', typing.Optional[str]),
         # this is not implemented yet on the Java side:
         # ('with_attributes', bool),
-        ('timestamp_attribute', typing.Optional[unicode]),
+        ('timestamp_attribute', typing.Optional[str]),
     ])
 
 

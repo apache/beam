@@ -36,6 +36,10 @@
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Python Row objects are now sensitive to field order. So `Row(x=3, y=4)` is no
+  longer considered equal to `Row(y=4, x=3)` (BEAM-11929).
+* Kafka Beam SQL tables now ascribe meaning to the LOCATION field; previously
+  it was ignored if provided.
 
 ## Deprecations
 
@@ -46,7 +50,7 @@
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
 
-# [2.29.0] - Unreleased
+# [2.31.0] - Unreleased
 
 ## Highlights
 
@@ -59,15 +63,20 @@
 
 ## New Features / Improvements
 
+* `CREATE FUNCTION` DDL statement added to Calcite SQL syntax. `JAR` and `AGGREGATE` are now reserved keywords. ([BEAM-12339](https://issues.apache.org/jira/browse/BEAM-12339)).
+* Flink 1.13 is now supported by the Flink runner ([BEAM-12277](https://issues.apache.org/jira/browse/BEAM-12277)).
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
 
-* Deterministic coding enforced for GroupByKey and Stateful DoFns.  Previously non-deterministic coding was allowed, resulting in keys not properly being grouped in some cases. ([BEAM-11719](https://issues.apache.org/jira/browse/BEAM-11719))
-  To restore the old behavior, one can register `FakeDeterministicFastPrimitivesCoder` with
-  `beam.coders.registry.register_fallback_coder(beam.coders.coders.FakeDeterministicFastPrimitivesCoder())`
-  or use the `allow_non_deterministic_key_coders` pipeline option.
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Python Row objects are now sensitive to field order. So `Row(x=3, y=4)` is no
+  longer considered equal to `Row(y=4, x=3)` (BEAM-11929).
+* Kafka Beam SQL tables now ascribe meaning to the LOCATION field; previously
+  it was ignored if provided.
+* `TopCombineFn` disallow `compare` as its argument (Python) ([BEAM-7372](https://issues.apache.org/jira/browse/BEAM-7372)).
+* Drop support for Flink 1.10 ([BEAM-12281](https://issues.apache.org/jira/browse/BEAM-12281)).
+* ListShards (with DescribeStreamSummary) is used instead of DescribeStream to list shards in Kinesis streams. Due to this change, as mentioned in [AWS documentation](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_ListShards.html), for fine-grained IAM policies it is required to update them to allow calls to ListShards and DescribeStreamSummary APIs. For more information, see [Controlling Access to Amazon Kinesis Data Streams](https://docs.aws.amazon.com/streams/latest/dev/controlling-access.html) ([BEAM-12225](https://issues.apache.org/jira/browse/BEAM-12225)).
 
 ## Deprecations
 
@@ -77,6 +86,75 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
+# [2.30.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Allow splitting apart document serialization and IO for ElasticsearchIO
+* Support Bulk API request size optimization through addition of ElasticsearchIO.Write.withStatefulBatches
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Added capability to declare resource hints in Java and Python SDKs ([BEAM-2085](https://issues.apache.org/jira/browse/BEAM-2085)).
+* Added Spanner IO Performance tests for read and write. (Python) ([BEAM-10029](https://issues.apache.org/jira/browse/BEAM-10029)).
+* Added support for accessing GCP PubSub Message ordering keys, message IDs and message publish timestamp (Python) ([BEAM-7819](https://issues.apache.org/jira/browse/BEAM-7819)).
+* DataFrame API: Added support for collecting DataFrame objects in interactive Beam ([BEAM-11855](https://issues.apache.org/jira/browse/BEAM-11855))
+* DataFrame API: Added [apache_beam.examples.dataframe](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/dataframe) module ([BEAM-12024](https://issues.apache.org/jira/browse/BEAM-12024))
+
+## Breaking Changes
+
+* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Drop support for Flink 1.8 and 1.9 ([BEAM-11948](https://issues.apache.org/jira/browse/BEAM-11948)).
+* MongoDbIO: Read.withFilter() and Read.withProjection() are removed since they are deprecated since
+  Beam 2.12.0 ([BEAM-12217](https://issues.apache.org/jira/browse/BEAM-12217)).
+* RedisIO.readAll() was removed since it was deprecated since Beam 2.13.0. Please use
+  RedisIO.readKeyPatterns() for the equivalent functionality.
+  ([BEAM-12214](https://issues.apache.org/jira/browse/BEAM-12214)).
+* MqttIO.create() with clientId constructor removed because it was deprecated since Beam
+  2.13.0 ([BEAM-12216](https://issues.apache.org/jira/browse/BEAM-12216)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Known Issues
+
+* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+# [2.29.0] - 2021-04-29
+
+## Highlights
+
+* Spark Classic and Portable runners officially support Spark 3 ([BEAM-7093](https://issues.apache.org/jira/browse/BEAM-7093)).
+* Official Java 11 support for most runners (Dataflow, Flink, Spark) ([BEAM-2530](https://issues.apache.org/jira/browse/BEAM-2530)).
+* DataFrame API now supports GroupBy.apply ([BEAM-11628](https://issues.apache.org/jira/browse/BEAM-11628)).
+
+## I/Os
+
+* Added support for S3 filesystem on AWS SDK V2 (Java) ([BEAM-7637](https://issues.apache.org/jira/browse/BEAM-7637))
+
+## New Features / Improvements
+
+* DataFrame API now supports pandas 1.2.x ([BEAM-11531](https://issues.apache.org/jira/browse/BEAM-11531)).
+* Multiple DataFrame API bugfixes ([BEAM-12071](https://issues.apache/jira/browse/BEAM-12071), [BEAM-11929](https://issues.apache/jira/browse/BEAM-11929))
+
+## Breaking Changes
+
+* Deterministic coding enforced for GroupByKey and Stateful DoFns.  Previously non-deterministic coding was allowed, resulting in keys not properly being grouped in some cases. ([BEAM-11719](https://issues.apache.org/jira/browse/BEAM-11719))
+  To restore the old behavior, one can register `FakeDeterministicFastPrimitivesCoder` with
+  `beam.coders.registry.register_fallback_coder(beam.coders.coders.FakeDeterministicFastPrimitivesCoder())`
+  or use the `allow_non_deterministic_key_coders` pipeline option.
+
+## Deprecations
+
+* Support for Flink 1.8 and 1.9 will be removed in the next release (2.30.0) ([BEAM-11948](https://issues.apache.org/jira/browse/BEAM-11948)).
 
 # [2.28.0] - 2021-02-22
 

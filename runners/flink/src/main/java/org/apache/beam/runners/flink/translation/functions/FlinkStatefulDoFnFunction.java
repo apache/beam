@@ -236,9 +236,10 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     // Note that the SerializablePipelineOptions already initialize FileSystems in the readObject()
     // deserialization method. However, this is a hack, and we want to properly initialize the
     // options where they are needed.
-    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
+    PipelineOptions options = serializedOptions.get();
+    FileSystems.setDefaultPipelineOptions(options);
     metricContainer = new FlinkMetricContainer(getRuntimeContext());
-    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(dofn);
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(dofn, options);
   }
 
   @Override

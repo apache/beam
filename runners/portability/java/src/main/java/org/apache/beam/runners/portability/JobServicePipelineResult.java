@@ -33,7 +33,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingStub;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -47,14 +47,19 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(JobServicePipelineResult.class);
 
   private final ByteString jobId;
+  private final int jobServerTimeout;
   private final CloseableResource<JobServiceBlockingStub> jobService;
   private @Nullable State terminalState;
   private final @Nullable Runnable cleanup;
   private org.apache.beam.model.jobmanagement.v1.JobApi.MetricResults jobMetrics;
 
   JobServicePipelineResult(
-      ByteString jobId, CloseableResource<JobServiceBlockingStub> jobService, Runnable cleanup) {
+      ByteString jobId,
+      int jobServerTimeout,
+      CloseableResource<JobServiceBlockingStub> jobService,
+      Runnable cleanup) {
     this.jobId = jobId;
+    this.jobServerTimeout = jobServerTimeout;
     this.jobService = jobService;
     this.terminalState = null;
     this.cleanup = cleanup;
@@ -65,7 +70,8 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
     if (terminalState != null) {
       return terminalState;
     }
-    JobServiceBlockingStub stub = jobService.get();
+    JobServiceBlockingStub stub =
+        jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
     JobStateEvent response =
         stub.getState(GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build());
     return getJavaState(response.getState());
@@ -135,7 +141,8 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   }
 
   private void waitForTerminalState() {
-    JobServiceBlockingStub stub = jobService.get();
+    JobServiceBlockingStub stub =
+        jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
     GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build();
     JobStateEvent response = stub.getState(request);
     State lastState = getJavaState(response.getState());
@@ -157,7 +164,10 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
       JobMessagesRequest messageStreamRequest =
           JobMessagesRequest.newBuilder().setJobIdBytes(jobId).build();
       Iterator<JobMessagesResponse> messageStreamIterator =
-          jobService.get().getMessageStream(messageStreamRequest);
+          jobService
+              .get()
+              .withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS)
+              .getMessageStream(messageStreamRequest);
       while (messageStreamIterator.hasNext()) {
         JobMessage messageResponse = messageStreamIterator.next().getMessageResponse();
         if (messageResponse.getImportance() == JobMessage.MessageImportance.JOB_MESSAGE_ERROR) {

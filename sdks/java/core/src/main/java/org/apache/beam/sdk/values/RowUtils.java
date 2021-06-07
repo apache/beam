@@ -236,6 +236,11 @@ class RowUtils {
       this.rootSchema = rootSchema;
     }
 
+    FieldOverrides(Schema rootSchema, List<Object> overrides) {
+      this.topNode = new FieldAccessNode(rootSchema, overrides);
+      this.rootSchema = rootSchema;
+    }
+
     boolean isEmpty() {
       return topNode.isEmpty();
     }
@@ -267,6 +272,14 @@ class RowUtils {
 
       FieldAccessNode(Schema schema) {
         fieldOverrides = Lists.newArrayListWithExpectedSize(schema.getFieldCount());
+        nestedAccess = Lists.newArrayList();
+      }
+
+      FieldAccessNode(Schema schema, List<Object> overrides) {
+        fieldOverrides = Lists.newArrayListWithExpectedSize(schema.getFieldCount());
+        for (Object value : overrides) {
+          fieldOverrides.add(new FieldOverride(value));
+        }
         nestedAccess = Lists.newArrayList();
       }
 

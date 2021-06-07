@@ -44,6 +44,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -70,6 +71,10 @@ public class BigQueryAvroUtilsTest {
           new TableFieldSchema().setName("quantity").setType("INTEGER") /* default to NULLABLE */,
           new TableFieldSchema().setName("birthday").setType("TIMESTAMP").setMode("NULLABLE"),
           new TableFieldSchema().setName("birthdayMoney").setType("NUMERIC").setMode("NULLABLE"),
+          new TableFieldSchema()
+              .setName("lotteryWinnings")
+              .setType("BIGNUMERIC")
+              .setMode("NULLABLE"),
           new TableFieldSchema().setName("flighted").setType("BOOLEAN").setMode("NULLABLE"),
           new TableFieldSchema().setName("sound").setType("BYTES").setMode("NULLABLE"),
           new TableFieldSchema().setName("anniversaryDate").setType("DATE").setMode("NULLABLE"),
@@ -90,37 +95,52 @@ public class BigQueryAvroUtilsTest {
               .setFields(subFields),
           new TableFieldSchema().setName("geoPositions").setType("GEOGRAPHY").setMode("NULLABLE"));
 
+  private Pair<LogicalType, byte[]> convertToByteBuffer(BigDecimal bigDecimal, Schema schema) {
+    LogicalType bigDecimalLogicalType =
+        LogicalTypes.decimal(bigDecimal.precision(), bigDecimal.scale());
+    // DecimalConversion.toBytes returns a ByteBuffer, which can be mutated by callees if passed
+    // to other methods. We wrap the byte array as a ByteBuffer before adding it to the
+    // GenericRecords.
+    byte[] bigDecimalBytes =
+        new Conversions.DecimalConversion()
+            .toBytes(bigDecimal, schema, bigDecimalLogicalType)
+            .array();
+    return Pair.of(bigDecimalLogicalType, bigDecimalBytes);
+  }
+
   @Test
   public void testConvertGenericRecordToTableRow() throws Exception {
     TableSchema tableSchema = new TableSchema();
     tableSchema.setFields(fields);
 
-    // BigQuery encodes NUMERIC values to Avro using the BYTES type with the DECIMAL logical
-    // type. AvroCoder can't apply logical types to Schemas directly, so we need to get the
+    // BigQuery encodes NUMERIC and BIGNUMERIC values to Avro using the BYTES type with the DECIMAL
+    // logical type. AvroCoder can't apply logical types to Schemas directly, so we need to get the
     // Schema for the Bird class defined below, then replace the field used to test NUMERIC with
     // a field that has the appropriate Schema.
-    BigDecimal birthdayMoney = new BigDecimal("123456789.123456789");
-    Schema birthdayMoneySchema = Schema.create(Type.BYTES);
-    LogicalType birthdayMoneyLogicalType =
-        LogicalTypes.decimal(birthdayMoney.precision(), birthdayMoney.scale());
-    // DecimalConversion.toBytes returns a ByteBuffer, which can be mutated by callees if passed
-    // to other methods. We wrap the byte array as a ByteBuffer when adding it to the
-    // GenericRecords below.
-    byte[] birthdayMoneyBytes =
-        new Conversions.DecimalConversion()
-            .toBytes(birthdayMoney, birthdayMoneySchema, birthdayMoneyLogicalType)
-            .array();
+    Schema numericSchema = Schema.create(Type.BYTES);
+    BigDecimal numeric = new BigDecimal("123456789.123456789");
+    Pair<LogicalType, byte[]> numericPair = convertToByteBuffer(numeric, numericSchema);
+    Schema bigNumericSchema = Schema.create(Type.BYTES);
+    BigDecimal bigNumeric =
+        new BigDecimal(
+            "578960446186580977117854925043439539266.34992332820282019728792003956564819967");
+    Pair<LogicalType, byte[]> bigNumericPair = convertToByteBuffer(bigNumeric, bigNumericSchema);
 
-    // In order to update the Schema for birthdayMoney, we need to recreate all of the Fields.
+    // In order to update the Schema for NUMERIC and BIGNUMERIC values, we need to recreate all of
+    // the Fields.
     List<Schema.Field> avroFields = new ArrayList<>();
     for (Schema.Field field : AvroCoder.of(Bird.class).getSchema().getFields()) {
       Schema schema = field.schema();
       if ("birthdayMoney".equals(field.name())) {
-        // birthdayMoney is a nullable field with type BYTES/DECIMAL.
+        // birthdayMoney is nullable field with type BYTES/DECIMAL.
         schema =
             Schema.createUnion(
-                Schema.create(Type.NULL),
-                birthdayMoneyLogicalType.addToSchema(birthdayMoneySchema));
+                Schema.create(Type.NULL), numericPair.getLeft().addToSchema(numericSchema));
+      } else if ("lotteryWinnings".equals(field.name())) {
+        // lotteryWinnings is nullable field with type BYTES/DECIMAL.
+        schema =
+            Schema.createUnion(
+                Schema.create(Type.NULL), bigNumericPair.getLeft().addToSchema(bigNumericSchema));
       }
       // After a Field is added to a Schema, it is assigned a position, so we can't simply reuse
       // the existing Field.
@@ -148,7 +168,8 @@ public class BigQueryAvroUtilsTest {
       record.put("number", 5L);
       record.put("quality", 5.0);
       record.put("birthday", 5L);
-      record.put("birthdayMoney", ByteBuffer.wrap(birthdayMoneyBytes));
+      record.put("birthdayMoney", ByteBuffer.wrap(numericPair.getRight()));
+      record.put("lotteryWinnings", ByteBuffer.wrap(bigNumericPair.getRight()));
       record.put("flighted", Boolean.TRUE);
       record.put("sound", soundByteBuffer);
       record.put("anniversaryDate", new Utf8("2000-01-01"));
@@ -160,7 +181,8 @@ public class BigQueryAvroUtilsTest {
           new TableRow()
               .set("number", "5")
               .set("birthday", "1970-01-01 00:00:00.000005 UTC")
-              .set("birthdayMoney", birthdayMoney.toString())
+              .set("birthdayMoney", numeric.toString())
+              .set("lotteryWinnings", bigNumeric.toString())
               .set("quality", 5.0)
               .set("associates", new ArrayList<TableRow>())
               .set("flighted", Boolean.TRUE)
@@ -181,13 +203,15 @@ public class BigQueryAvroUtilsTest {
       GenericRecord record = new GenericData.Record(avroSchema);
       record.put("number", 5L);
       record.put("associates", Lists.newArrayList(nestedRecord));
-      record.put("birthdayMoney", ByteBuffer.wrap(birthdayMoneyBytes));
+      record.put("birthdayMoney", ByteBuffer.wrap(numericPair.getRight()));
+      record.put("lotteryWinnings", ByteBuffer.wrap(bigNumericPair.getRight()));
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row =
           new TableRow()
               .set("associates", Lists.newArrayList(new TableRow().set("species", "other")))
               .set("number", "5")
-              .set("birthdayMoney", birthdayMoney.toString());
+              .set("birthdayMoney", numeric.toString())
+              .set("lotteryWinnings", bigNumeric.toString());
       assertEquals(row, convertedRow);
       TableRow clonedRow = convertedRow.clone();
       assertEquals(convertedRow, clonedRow);
@@ -216,6 +240,9 @@ public class BigQueryAvroUtilsTest {
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.LONG))));
     assertThat(
         avroSchema.getField("birthdayMoney").schema(),
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BYTES))));
+    assertThat(
+        avroSchema.getField("lotteryWinnings").schema(),
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BYTES))));
     assertThat(
         avroSchema.getField("flighted").schema(),
@@ -314,6 +341,7 @@ public class BigQueryAvroUtilsTest {
     @Nullable Long quantity;
     @Nullable Long birthday; // Exercises TIMESTAMP.
     @Nullable ByteBuffer birthdayMoney; // Exercises NUMERIC.
+    @Nullable ByteBuffer lotteryWinnings; // Exercises BIGNUMERIC.
     @Nullable String geoPositions; // Exercises GEOGRAPHY.
     @Nullable Boolean flighted;
     @Nullable ByteBuffer sound;

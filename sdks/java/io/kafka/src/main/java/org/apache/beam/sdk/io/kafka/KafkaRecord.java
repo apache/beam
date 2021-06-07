@@ -38,7 +38,7 @@ public class KafkaRecord<K, V> {
   private final String topic;
   private final int partition;
   private final long offset;
-  private final Headers headers;
+  private final @Nullable Headers headers;
   private final KV<K, V> kv;
   private final long timestamp;
   private final KafkaTimestampType timestampType;
@@ -84,7 +84,7 @@ public class KafkaRecord<K, V> {
     return offset;
   }
 
-  public Headers getHeaders() {
+  public @Nullable Headers getHeaders() {
     if (!ConsumerSpEL.hasHeaders()) {
       throw new RuntimeException(
           "The version kafka-clients does not support record headers, "

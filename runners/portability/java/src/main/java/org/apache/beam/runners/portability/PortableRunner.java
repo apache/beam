@@ -22,6 +22,7 @@ import static org.apache.beam.runners.core.construction.resources.PipelineResour
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
@@ -48,8 +49,8 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -174,7 +175,12 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     try (CloseableResource<JobServiceBlockingStub> wrappedJobService =
         CloseableResource.of(jobService, unused -> jobServiceChannel.shutdown())) {
 
-      PrepareJobResponse prepareJobResponse = jobService.prepare(prepareJobRequest);
+      final int jobServerTimeout = options.as(PortablePipelineOptions.class).getJobServerTimeout();
+      PrepareJobResponse prepareJobResponse =
+          jobService
+              .withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS)
+              .withWaitForReady()
+              .prepare(prepareJobRequest);
       LOG.info("PrepareJobResponse: {}", prepareJobResponse);
 
       ApiServiceDescriptor artifactStagingEndpoint =
@@ -201,12 +207,16 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
               .setPreparationId(prepareJobResponse.getPreparationId())
               .build();
 
+      // Run the job and wait for a result, we don't set a timeout here because
+      // it may take a long time for a job to complete and streaming
+      // jobs never return a response.
       RunJobResponse runJobResponse = jobService.run(runJobRequest);
 
       LOG.info("RunJobResponse: {}", runJobResponse);
       ByteString jobId = runJobResponse.getJobIdBytes();
 
-      return new JobServicePipelineResult(jobId, wrappedJobService.transfer(), cleanup);
+      return new JobServicePipelineResult(
+          jobId, jobServerTimeout, wrappedJobService.transfer(), cleanup);
     } catch (CloseException e) {
       throw new RuntimeException(e);
     }

@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """This module has all statistic related transforms.
 
 This ApproximateUnique class will be deprecated [1]. PLease look into using
@@ -28,16 +30,12 @@ ns/zetasketch/HllCount.html
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import hashlib
 import heapq
 import itertools
 import logging
 import math
 import typing
-from builtins import round
 from typing import Any
 from typing import Callable
 from typing import List
@@ -143,8 +141,7 @@ class ApproximateUnique(object):
 
     Calculate sample size from estimation error
     """
-    #math.ceil in python2.7 returns a float, while it returns an int in python3.
-    return int(math.ceil(4.0 / math.pow(est_err, 2.0)))
+    return math.ceil(4.0 / math.pow(est_err, 2.0))
 
   @typehints.with_input_types(T)
   @typehints.with_output_types(int)

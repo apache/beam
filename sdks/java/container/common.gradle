@@ -73,7 +73,7 @@ task copyGolangLicenses(type: Copy) {
 
 task skipPullLicenses(type: Exec) {
     executable "sh"
-    args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+    args "-c", "mkdir -p build/target/go-licenses build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
 }
 
 docker {
@@ -104,3 +104,4 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
 }
 dockerPrepare.dependsOn copySdkHarnessLauncher
 dockerPrepare.dependsOn copyDockerfileDependencies
+dockerPrepare.dependsOn ":sdks:java:container:downloadCloudProfilerAgent"

@@ -79,11 +79,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import typing
-
-from past.builtins import unicode
 
 from apache_beam.coders import RowCoder
 from apache_beam.transforms.external import BeamJarExpansionService
@@ -104,20 +100,20 @@ def default_io_expansion_service():
 
 JdbcConfigSchema = typing.NamedTuple(
     'JdbcConfigSchema',
-    [('location', unicode), ('config', bytes)],
+    [('location', str), ('config', bytes)],
 )
 
 Config = typing.NamedTuple(
     'Config',
     [
-        ('driver_class_name', unicode),
-        ('jdbc_url', unicode),
-        ('username', unicode),
-        ('password', unicode),
-        ('connection_properties', typing.Optional[unicode]),
-        ('connection_init_sqls', typing.Optional[typing.List[unicode]]),
-        ('write_statement', typing.Optional[unicode]),
-        ('read_query', typing.Optional[unicode]),
+        ('driver_class_name', str),
+        ('jdbc_url', str),
+        ('username', str),
+        ('password', str),
+        ('connection_properties', typing.Optional[str]),
+        ('connection_init_sqls', typing.Optional[typing.List[str]]),
+        ('write_statement', typing.Optional[str]),
+        ('read_query', typing.Optional[str]),
         ('fetch_size', typing.Optional[int]),
         ('output_parallelization', typing.Optional[bool]),
     ],

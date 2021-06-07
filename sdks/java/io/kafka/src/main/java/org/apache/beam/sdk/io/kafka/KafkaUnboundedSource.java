@@ -66,7 +66,12 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     if (partitions.isEmpty()) {
       try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
         for (String topic : spec.getTopics()) {
-          for (PartitionInfo p : consumer.partitionsFor(topic)) {
+          List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
+          checkState(
+              partitionInfoList != null,
+              "Could not find any partitions info. Please check Kafka configuration and make sure "
+                  + "that provided topics exist.");
+          for (PartitionInfo p : partitionInfoList) {
             partitions.add(new TopicPartition(p.topic(), p.partition()));
           }
         }

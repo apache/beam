@@ -72,4 +72,7 @@
   <Match>
     <Package name="org.apache.beam.sdk.io.clickhouse.impl.parser"/>
   </Match>
+  <Match>
+    <Package name="org.apache.beam.sdk.io.gcp.bigquery.protos"/>
+  </Match>
 </FindBugsFilter>

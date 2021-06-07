@@ -30,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.StandardWindowFns.FixedWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.GlobalWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SessionWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SlidingWindowsPayload;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -42,10 +43,10 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.Timestamps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 
@@ -287,7 +288,7 @@ public class WindowingStrategyTranslation implements Serializable {
     FunctionSpec windowFnSpec = toProto(windowFn, components);
     String environmentId =
         Strings.isNullOrEmpty(windowingStrategy.getEnvironmentId())
-            ? components.getOnlyEnvironmentId()
+            ? components.getEnvironmentIdFor(ResourceHints.create())
             : windowingStrategy.getEnvironmentId();
 
     RunnerApi.WindowingStrategy.Builder windowingStrategyProto =

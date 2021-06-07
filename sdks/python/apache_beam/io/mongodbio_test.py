@@ -16,13 +16,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import datetime
 import logging
 import random
-import sys
 import unittest
 from unittest import TestCase
 
@@ -430,31 +426,8 @@ class MongoSourceTest(unittest.TestCase):
 
   def test_display_data(self):
     data = self.mongo_source.display_data()
-    self.assertTrue('uri' in data)
     self.assertTrue('database' in data)
     self.assertTrue('collection' in data)
-
-  def test_display_data_mask_password(self):
-    # Uri without password
-    data = self.mongo_source.display_data()
-    self.assertTrue('uri' in data)
-    self.assertTrue(data['uri'] == 'mongodb://test')
-    # Password is masked in the uri if present
-    mongo_source = _BoundedMongoSource(
-        'mongodb+srv://user:password@test.mongodb.net/testdb',
-        'testdb',
-        'testcoll',
-        extra_client_params={
-            'user': 'user', 'password': 'password'
-        })
-    data = mongo_source.display_data()
-    self.assertTrue('uri' in data)
-    self.assertTrue(
-        data['uri'] == 'mongodb+srv://user:******@test.mongodb.net/testdb')
-    # Password is masked in the client spec if present
-    self.assertTrue('mongo_client_spec' in data)
-    self.assertTrue(
-        data['mongo_client_spec'] == '{"user": "user", "password": "******"}')
 
 
 @parameterized_class(('bucket_auto', ), [(False, ), (True, )])
@@ -512,25 +485,6 @@ class WriteMongoFnTest(unittest.TestCase):
   def test_display_data(self):
     data = _WriteMongoFn(batch_size=10).display_data()
     self.assertEqual(10, data['batch_size'])
-
-  def test_display_data_mask_password(self):
-    # Uri without password
-    data = _WriteMongoFn(uri='mongodb://test').display_data()
-    self.assertTrue('uri' in data)
-    self.assertTrue(data['uri'] == 'mongodb://test')
-    # Password is masked in the uri if present
-    data = _WriteMongoFn(
-        uri='mongodb+srv://user:password@test.mongodb.net/testdb',
-        extra_params={
-            'user': 'user', 'password': 'password'
-        }).display_data()
-    self.assertTrue('uri' in data)
-    self.assertTrue(
-        data['uri'] == 'mongodb+srv://user:******@test.mongodb.net/testdb')
-    # Password is masked in the client spec if present
-    self.assertTrue('mongo_client_params' in data)
-    self.assertTrue(
-        data['mongo_client_params'] == '{"user": "user", "password": "******"}')
 
 
 class MongoSinkTest(unittest.TestCase):
@@ -591,10 +545,7 @@ class ObjectIdHelperTest(TestCase):
     # random tests
     for _ in range(100):
       id = objectid.ObjectId()
-      if sys.version_info[0] < 3:
-        number = int(id.binary.encode('hex'), 16)
-      else:  # PY3
-        number = int(id.binary.hex(), 16)
+      number = int(id.binary.hex(), 16)
       self.assertEqual(id, _ObjectIdHelper.int_to_id(number))
       self.assertEqual(number, _ObjectIdHelper.id_to_int(id))
 

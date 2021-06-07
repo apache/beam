@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.environment;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -100,8 +101,10 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
                 FnHarness.main(
                     workerId,
                     options,
+                    Collections.emptySet(), // Runner capabilities.
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
+                    null,
                     InProcessManagedChannelFactory.create(),
                     OutboundObserverFactory.clientDirect());
               } catch (NoClassDefFoundError e) {

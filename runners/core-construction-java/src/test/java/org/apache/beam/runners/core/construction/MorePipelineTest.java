@@ -25,14 +25,18 @@ import static org.hamcrest.Matchers.not;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -99,13 +103,22 @@ public class MorePipelineTest {
 
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
-      PCollection<KV<Void, T>> materializationInput =
-          input.apply(new View.VoidKeyToMultimapMaterialization<>());
       Coder<T> inputCoder = input.getCoder();
+      PCollection<KV<Long, PCollectionViews.ValueOrMetadata<T, OffsetRange>>> materializationInput =
+          input
+              .apply("IndexElements", ParDo.of(new View.ToListViewDoFn<>()))
+              .setCoder(
+                  KvCoder.of(
+                      BigEndianLongCoder.of(),
+                      PCollectionViews.ValueOrMetadataCoder.create(
+                          inputCoder, OffsetRange.Coder.of())));
       PCollectionView<List<T>> view =
-          PCollectionViews.listViewUsingVoidKey(
+          PCollectionViews.listView(
               materializationInput,
-              (TupleTag<Materializations.MultimapView<Void, T>>) originalView.getTagInternal(),
+              (TupleTag<
+                      Materializations.MultimapView<
+                          Long, PCollectionViews.ValueOrMetadata<T, OffsetRange>>>)
+                  originalView.getTagInternal(),
               (PCollectionViews.TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
       materializationInput.apply(View.CreatePCollectionView.of(view));

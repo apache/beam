@@ -21,7 +21,6 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
 )
 provideIntegrationTestingDependencies()
@@ -39,7 +38,7 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def elastic_search_version = "7.9.2"
+def elastic_search_version = "7.12.0"
 
 configurations.create("sparkRunner")
 configurations.sparkRunner {
@@ -69,6 +68,7 @@ dependencies {
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile project(":sdks:java:io:jdbc")
   testCompile project(path: ":examples:java", configuration: "testRuntime")
+  testCompile project(path: ":examples:java:twitter", configuration: "testRuntime")
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile library.java.testcontainers_elasticsearch
   testCompile "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
@@ -104,7 +104,8 @@ dependencies {
   delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime"))
 
   sparkRunner project(path: ":examples:java", configuration: "testRuntime")
-  sparkRunner project(":runners:spark")
+  sparkRunner project(path: ":examples:java:twitter", configuration: "testRuntime")
+  sparkRunner project(":runners:spark:2")
   sparkRunner project(":sdks:java:io:hadoop-file-system")
   sparkRunner library.java.spark_streaming
   sparkRunner library.java.spark_core

@@ -24,7 +24,7 @@ job('beam_PostRelease_NightlySnapshot') {
   description('Runs post release verification of the nightly snapshot.')
 
   // Set common parameters. Timeout is longer, to avoid [BEAM-5774].
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 200, true, 'ubuntu')
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 200)
 
   parameters {
     stringParam('snapshot_version',

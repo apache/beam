@@ -67,10 +67,6 @@ python hourly_team_score.py \
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import argparse
 import csv
 import logging

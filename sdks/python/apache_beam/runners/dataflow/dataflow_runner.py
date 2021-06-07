@@ -22,24 +22,19 @@ to the Dataflow Service for remote execution by a worker.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import base64
 import logging
 import os
-import subprocess
-import sys
 import threading
 import time
 import traceback
-import urllib
-from builtins import hex
 from collections import defaultdict
+from subprocess import DEVNULL
 from typing import TYPE_CHECKING
 from typing import List
-
-from future.utils import iteritems
+from urllib.parse import quote
+from urllib.parse import quote_from_bytes
+from urllib.parse import unquote_to_bytes
 
 import apache_beam as beam
 from apache_beam import coders
@@ -77,13 +72,6 @@ from apache_beam.utils.plugin import BeamPlugin
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import PTransformOverride
-
-if sys.version_info[0] > 2:
-  unquote_to_bytes = urllib.parse.unquote_to_bytes
-  quote = urllib.parse.quote
-else:
-  unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
-  quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 
 __all__ = ['DataflowRunner']
 
@@ -314,7 +302,7 @@ class DataflowRunner(PipelineRunner):
                     is_bounded=side_input.pvalue.is_bounded)
                 parent = transform_node.parent or pipeline._root_transform()
                 map_to_void_key = beam.pipeline.AppliedPTransform(
-                    pipeline,
+                    parent,
                     beam.Map(lambda x: (b'', x)),
                     transform_node.full_label + '/MapToVoidKey%s' % ix,
                     (side_input.pvalue, ))
@@ -388,25 +376,6 @@ class DataflowRunner(PipelineRunner):
 
     return CombineFnVisitor()
 
-  def _check_for_unsupported_fnapi_features(self, pipeline_proto):
-    components = pipeline_proto.components
-    for windowing_strategy in components.windowing_strategies.values():
-      if (windowing_strategy.merge_status ==
-          beam_runner_api_pb2.MergeStatus.NEEDS_MERGE and
-          windowing_strategy.window_fn.urn not in (
-              common_urns.session_windows.urn, )):
-        raise RuntimeError(
-            'Unsupported merging windowing strategy: %s' %
-            windowing_strategy.window_fn.urn)
-      elif components.coders[
-          windowing_strategy.window_coder_id].spec.urn not in (
-              common_urns.coders.GLOBAL_WINDOW.urn,
-              common_urns.coders.INTERVAL_WINDOW.urn):
-        raise RuntimeError(
-            'Unsupported window coder %s for window fn %s' % (
-                components.coders[windowing_strategy.window_coder_id].spec.urn,
-                windowing_strategy.window_fn.urn))
-
   def _adjust_pipeline_for_dataflow_v2(self, pipeline):
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -476,13 +445,14 @@ class DataflowRunner(PipelineRunner):
       # instead of using the inferred default container image.
       self._default_environment = (
           environments.DockerEnvironment.from_options(options))
-      options.view_as(WorkerOptions).worker_harness_container_image = (
+      options.view_as(WorkerOptions).sdk_container_image = (
           self._default_environment.container_image)
     else:
       self._default_environment = (
           environments.DockerEnvironment.from_container_image(
               apiclient.get_container_image_from_options(options),
-              artifacts=environments.python_sdk_dependencies(options)))
+              artifacts=environments.python_sdk_dependencies(options),
+              resource_hints=environments.resource_hints_from_options(options)))
 
     # This has to be performed before pipeline proto is constructed to make sure
     # that the changes are reflected in the portable job submission path.
@@ -498,14 +468,10 @@ class DataflowRunner(PipelineRunner):
       pre_optimize = options.view_as(DebugOptions).lookup_experiment(
           'pre_optimize', 'default').lower()
       from apache_beam.runners.portability.fn_api_runner import translations
-      if pre_optimize == 'none' or pre_optimize == 'default':
+      if pre_optimize == 'none':
         phases = []
-      elif pre_optimize == 'all':
-        phases = [
-            # TODO(BEAM-11694): Enable translations.pack_combiners
-            # translations.pack_combiners,
-            translations.sort_stages
-        ]
+      elif pre_optimize == 'default' or pre_optimize == 'all':
+        phases = [translations.pack_combiners, translations.sort_stages]
       else:
         phases = []
         for phase_name in pre_optimize.split(','):
@@ -525,9 +491,7 @@ class DataflowRunner(PipelineRunner):
             known_runner_urns=frozenset(),
             partial=True)
 
-    if use_fnapi:
-      self._check_for_unsupported_fnapi_features(self.proto_pipeline)
-    else:
+    if not use_fnapi:
       # Performing configured PTransform overrides which should not be reflected
       # in the proto representation of the graph.
       pipeline.replace_all(DataflowRunner._NON_PORTABLE_PTRANSFORM_OVERRIDES)
@@ -587,8 +551,7 @@ class DataflowRunner(PipelineRunner):
     # is set. Note that use_avro is only interpreted by the Dataflow runner
     # at job submission and is not interpreted by Dataflow service or workers,
     # which by default use avro library unless use_fastavro experiment is set.
-    if sys.version_info[0] > 2 and (
-        not debug_options.lookup_experiment('use_avro')):
+    if not debug_options.lookup_experiment('use_avro'):
       debug_options.add_experiment('use_fastavro')
 
     self.job = apiclient.Job(options, self.proto_pipeline)
@@ -739,6 +702,14 @@ class DataflowRunner(PipelineRunner):
             item.get_dict()
             for item in DisplayData.create_from(transform_node.transform).items
         ])
+
+    if transform_node.resource_hints:
+      step.add_property(
+          PropertyNames.RESOURCE_HINTS,
+          {
+              hint: quote_from_bytes(value)
+              for (hint, value) in transform_node.resource_hints.items()
+          })
 
     return step
 
@@ -984,14 +955,14 @@ class DataflowRunner(PipelineRunner):
     if (label_renames and
         transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
       # Patch PTransform proto.
-      for old, new in iteritems(label_renames):
+      for old, new in label_renames.items():
         transform_proto.inputs[new] = transform_proto.inputs[old]
         del transform_proto.inputs[old]
 
       # Patch ParDo proto.
       proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
       proto = proto_utils.parse_Bytes(transform_proto.spec.payload, proto_type)
-      for old, new in iteritems(label_renames):
+      for old, new in label_renames.items():
         proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
         del proto.side_inputs[old]
       transform_proto.spec.payload = proto.SerializeToString()
@@ -1485,11 +1456,6 @@ class DataflowRunner(PipelineRunner):
       return environment_region
     try:
       cmd = ['gcloud', 'config', 'get-value', 'compute/region']
-      # Use subprocess.DEVNULL in Python 3.3+.
-      if hasattr(subprocess, 'DEVNULL'):
-        DEVNULL = subprocess.DEVNULL
-      else:
-        DEVNULL = open(os.devnull, 'ab')
       raw_output = processes.check_output(cmd, stderr=DEVNULL)
       formatted_output = raw_output.decode('utf-8').strip()
       if formatted_output:

@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -60,6 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -286,5 +289,54 @@ public class PipelineTranslationTest {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
     assertThat(
         pipelineProto.getRequirementsList(), hasItem(ParDoTranslation.REQUIRES_STABLE_INPUT_URN));
+  }
+
+  private RunnerApi.PTransform getLeafTransform(RunnerApi.Pipeline pipelineProto, String prefix) {
+    for (RunnerApi.PTransform transform :
+        pipelineProto.getComponents().getTransformsMap().values()) {
+      if (transform.getUniqueName().startsWith(prefix) && transform.getSubtransformsCount() == 0) {
+        return transform;
+      }
+    }
+    throw new java.lang.IllegalArgumentException(prefix);
+  }
+
+  private static class IdentityDoFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    public void processElement(@Element T input, OutputReceiver<T> out) {
+      out.output(input);
+    }
+  }
+
+  @Test
+  public void testResourceHints() {
+    Pipeline pipeline = Pipeline.create();
+    PCollection<byte[]> root = pipeline.apply(Impulse.create());
+    ParDo.SingleOutput<byte[], byte[]> transform = ParDo.of(new IdentityDoFn<byte[]>());
+    root.apply("Big", transform.setResourceHints(ResourceHints.create().withMinRam("640KB")));
+    root.apply("Small", transform.setResourceHints(ResourceHints.create().withMinRam(1)));
+    root.apply(
+        "AnotherBig", transform.setResourceHints(ResourceHints.create().withMinRam("640KB")));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Big").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.hasEntry(
+            "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("640000")));
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Small").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.hasEntry(
+            "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("1")));
+    // Ensure we re-use environments.
+    assertThat(
+        getLeafTransform(pipelineProto, "Big").getEnvironmentId(),
+        equalTo(getLeafTransform(pipelineProto, "AnotherBig").getEnvironmentId()));
   }
 }

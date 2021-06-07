@@ -154,7 +154,7 @@ public class MetricResultsMatchers {
     return distributionMinMax(namespace, name, step, committedMin, committedMax, true);
   }
 
-  public static Matcher<MetricResult<DistributionResult>> distributionMinMax(
+  public static <T> Matcher<MetricResult<T>> distributionMinMax(
       final String namespace,
       final String name,
       final String step,
@@ -162,14 +162,13 @@ public class MetricResultsMatchers {
       final Long max,
       final boolean isCommitted) {
     final String metricState = isCommitted ? "committed" : "attempted";
-    return new MatchNameAndKey<DistributionResult>(namespace, name, step) {
+    return new MatchNameAndKey<T>(namespace, name, step) {
       @Override
-      protected boolean matchesSafely(MetricResult<DistributionResult> item) {
-        final DistributionResult metricValue =
-            isCommitted ? item.getCommitted() : item.getAttempted();
+      protected boolean matchesSafely(MetricResult<T> item) {
+        final T metricValue = isCommitted ? item.getCommitted() : item.getAttempted();
         return super.matchesSafely(item)
-            && Objects.equals(min, metricValue.getMin())
-            && Objects.equals(max, metricValue.getMax());
+            && Objects.equals(min, ((DistributionResult) metricValue).getMin())
+            && Objects.equals(max, ((DistributionResult) metricValue).getMax());
       }
 
       @Override
@@ -184,25 +183,23 @@ public class MetricResultsMatchers {
       }
 
       @Override
-      protected void describeMismatchSafely(
-          MetricResult<DistributionResult> item, Description mismatchDescription) {
-        final DistributionResult metricValue =
-            isCommitted ? item.getCommitted() : item.getAttempted();
+      protected void describeMismatchSafely(MetricResult<T> item, Description mismatchDescription) {
+        final T metricValue = isCommitted ? item.getCommitted() : item.getAttempted();
         super.describeMismatchSafely(item, mismatchDescription);
-        if (!Objects.equals(min, metricValue.getMin())) {
+        if (!Objects.equals(min, ((DistributionResult) metricValue).getMin())) {
           mismatchDescription
               .appendText(String.format("%sMin: ", metricState))
               .appendValue(min)
               .appendText(" != ")
-              .appendValue(metricValue.getMin());
+              .appendValue(((DistributionResult) metricValue).getMin());
         }
 
-        if (!Objects.equals(max, metricValue.getMax())) {
+        if (!Objects.equals(max, ((DistributionResult) metricValue).getMax())) {
           mismatchDescription
               .appendText(String.format("%sMax: ", metricState))
               .appendValue(max)
               .appendText(" != ")
-              .appendValue(metricValue.getMax());
+              .appendValue(((DistributionResult) metricValue).getMax());
         }
 
         mismatchDescription.appendText("}");

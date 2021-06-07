@@ -23,20 +23,32 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.fail;
 
+import com.google.zetasql.SqlException;
+import java.lang.reflect.Method;
+import java.time.LocalDate;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -50,7 +62,6 @@ import org.junit.runners.JUnit4;
  * beam.sql.udf.test.empty_jar_path</code> must be set.
  */
 @RunWith(JUnit4.class)
-@Ignore("TODO(BEAM-11747) Re-enable when BeamJavaUdfCalcRule can be re-enabled.")
 public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -98,6 +109,24 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testUnaryJavaUdf() {
+    String sql =
+        String.format(
+            "CREATE FUNCTION increment(i INT64) RETURNS INT64 LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT increment(1);",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(2L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testJavaUdfColumnReference() {
     String sql =
         String.format(
@@ -127,7 +156,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
         String.format(
             "CREATE FUNCTION increment(i INT64) RETURNS INT64 LANGUAGE java "
                 + "OPTIONS (path='%s'); "
-                + "SELECT increment(increment(0));",
+                + "SELECT increment(increment(1));",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -135,7 +164,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
 
     Schema singleField = Schema.builder().addInt64Field("field1").build();
 
-    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(2L).build());
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(3L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -172,6 +201,50 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     Schema singleField = Schema.builder().addBooleanField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(true).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  public static class IncrementFn implements BeamSqlUdf {
+    public Long eval(Long i) {
+      return i + 1;
+    }
+  }
+
+  @Test
+  public void testSqlTransformRegisterUdf() {
+    String sql = "SELECT increment(0);";
+    PCollection<Row> stream =
+        pipeline.apply(
+            SqlTransform.query(sql)
+                .withQueryPlannerClass(ZetaSQLQueryPlanner.class)
+                .registerUdf("increment", IncrementFn.class));
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  /** This tests a subset of the code path used by {@link #testSqlTransformRegisterUdf()}. */
+  @Test
+  public void testUdfFromCatalog() throws NoSuchMethodException {
+    // Add IncrementFn to Calcite schema.
+    JdbcConnection jdbcConnection =
+        JdbcDriver.connect(
+            new ReadOnlyTableProvider("empty_table_provider", ImmutableMap.of()),
+            PipelineOptionsFactory.create());
+    Method method = IncrementFn.class.getMethod("eval", Long.class);
+    jdbcConnection.getCurrentSchemaPlus().add("increment", ScalarFunctionImpl.create(method));
+    this.config =
+        Frameworks.newConfigBuilder(config)
+            .defaultSchema(jdbcConnection.getCurrentSchemaPlus())
+            .build();
+
+    String sql = "SELECT increment(0);";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -223,21 +296,52 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testBinaryJavaUdf() {
+  public void testJavaUdfWithNoReturnTypeIsRejected() {
+    String sql =
+        String.format(
+            "CREATE FUNCTION helloWorld() LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT helloWorld();",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(SqlException.class);
+    thrown.expectMessage("Non-SQL functions must specify a return type");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testProjectUdfAndBuiltin() {
     String sql =
         String.format(
             "CREATE FUNCTION matches(str STRING, regStr STRING) RETURNS BOOLEAN LANGUAGE java OPTIONS (path='%s'); "
                 + "SELECT matches(\"a\", \"a\"), 'apple'='beta'",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(CannotPlanException.class);
-    thrown.expectMessage(
-        "There are not enough rules to produce a node with desired properties: convention=BEAM_LOGICAL.");
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addBooleanField("field1").addBooleanField("field2").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true, false).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
-  // TODO(BEAM-11747) Add tests that mix UDFs and builtin functions that rely on the ZetaSQL C++
-  // implementation.
+  @Test
+  public void testProjectNestedUdfAndBuiltin() {
+    String sql =
+        String.format(
+            "CREATE FUNCTION increment(i INT64) RETURNS INT64 LANGUAGE java OPTIONS (path='%s'); "
+                + "SELECT increment(increment(0) + 1);",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(3L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
 
   @Test
   public void testJavaUdfEmptyPath() {
@@ -280,5 +384,74 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 "message",
                 containsString("Option 'path' has type TYPE_INT64 (expected TYPE_STRING)."))));
     zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUdaf() {
+    String sql =
+        String.format(
+            "CREATE AGGREGATE FUNCTION my_sum(f INT64) RETURNS INT64 LANGUAGE java OPTIONS (path='%s'); "
+                + "SELECT my_sum(f_int_1) from aggregate_test_table",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(28L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUdafNotFoundFailsToParse() {
+    String sql =
+        String.format(
+            "CREATE AGGREGATE FUNCTION nonexistent(f INT64) RETURNS INT64 LANGUAGE java OPTIONS (path='%s'); "
+                + "SELECT nonexistent(f_int_1) from aggregate_test_table",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to define function 'nonexistent'");
+    thrown.expectCause(
+        allOf(
+            isA(IllegalArgumentException.class),
+            hasProperty(
+                "message",
+                containsString("No implementation of aggregate function nonexistent found"))));
+
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testRegisterUdaf() {
+    String sql = "SELECT my_sum(k) FROM UNNEST([1, 2, 3]) k;";
+    PCollection<Row> stream =
+        pipeline.apply(
+            SqlTransform.query(sql)
+                .withQueryPlannerClass(ZetaSQLQueryPlanner.class)
+                .registerUdaf("my_sum", Sum.ofLongs()));
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(6L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testDateUdf() {
+    String sql =
+        String.format(
+            "CREATE FUNCTION dateIncrementAll(d DATE) RETURNS DATE LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT dateIncrementAll('2020-04-04');",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema singleField = Schema.builder().addLogicalTypeField("field1", SqlTypes.DATE).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(singleField).addValues(LocalDate.of(2021, 5, 5)).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 }

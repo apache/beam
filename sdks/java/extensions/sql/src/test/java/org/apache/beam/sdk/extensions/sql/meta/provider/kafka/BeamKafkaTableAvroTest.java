@@ -93,7 +93,8 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
                     .name("kafka")
                     .type("kafka")
                     .schema(TEST_SCHEMA)
-                    .properties(JSON.parseObject("{ \"topics\": [], \"format\": \"avro\" }"))
+                    .location("localhost/mytopic")
+                    .properties(JSON.parseObject("{ \"format\": \"avro\" }"))
                     .build()));
   }
 }

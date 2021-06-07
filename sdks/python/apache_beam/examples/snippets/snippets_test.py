@@ -19,23 +19,17 @@
 """Tests for all code snippets used in public docs."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import gc
 import glob
 import gzip
 import logging
 import math
 import os
+import sys
 import tempfile
 import time
 import unittest
 import uuid
-from builtins import map
-from builtins import object
-from builtins import range
-from builtins import zip
 
 import mock
 import parameterized
@@ -355,6 +349,79 @@ class TypeHintsTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       words_with_lens | beam.Map(lambda x: x).with_input_types(Tuple[int, int])
 
+  def test_bad_types_annotations(self):
+    p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+
+    numbers = p | beam.Create(['1', '2', '3'])
+
+    # Consider the following code.
+    # pylint: disable=expression-not-assigned
+    # pylint: disable=unused-variable
+    class FilterEvensDoFn(beam.DoFn):
+      def process(self, element):
+        if element % 2 == 0:
+          yield element
+
+    evens = numbers | 'Untyped Filter' >> beam.ParDo(FilterEvensDoFn())
+
+    # Now suppose numbers was defined as [snippet above].
+    # When running this pipeline, you'd get a runtime error,
+    # possibly on a remote machine, possibly very late.
+
+    with self.assertRaises(TypeError):
+      p.run()
+
+    # To catch this early, we can annotate process() with the expected types.
+    # Beam will then use these as type hints and perform type checking before
+    # the pipeline starts.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_do_fn_annotations]
+      from typing import Iterable
+
+      class FilterEvensDoFn(beam.DoFn):
+        def process(self, element: int) -> Iterable[int]:
+          if element % 2 == 0:
+            yield element
+
+      evens = numbers | 'filter_evens' >> beam.ParDo(FilterEvensDoFn())
+      # [END type_hints_do_fn_annotations]
+
+    # Another example, using a list output type. Notice that the output
+    # annotation has an additional Optional for the else clause.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_do_fn_annotations_optional]
+      from typing import List, Optional
+
+      class FilterEvensDoubleDoFn(beam.DoFn):
+        def process(self, element: int) -> Optional[List[int]]:
+          if element % 2 == 0:
+            return [element, element]
+          return None
+
+      evens = numbers | 'double_evens' >> beam.ParDo(FilterEvensDoubleDoFn())
+      # [END type_hints_do_fn_annotations_optional]
+
+    # Example using an annotated function.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_map_annotations]
+      def my_fn(element: int) -> str:
+        return 'id_' + str(element)
+
+      ids = numbers | 'to_id' >> beam.Map(my_fn)
+      # [END type_hints_map_annotations]
+
+    # Example using an annotated PTransform.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_ptransforms]
+      from apache_beam.pvalue import PCollection
+
+      class IntToStr(beam.PTransform):
+        def expand(self, pcoll: PCollection[int]) -> PCollection[str]:
+          return pcoll | beam.Map(lambda elem: str(elem))
+
+      ids = numbers | 'convert to str' >> IntToStr()
+      # [END type_hints_ptransforms]
+
   def test_runtime_checks_off(self):
     # We do not run the following pipeline, as it has incorrect type
     # information, and may fail with obscure errors, depending on the runner
@@ -534,15 +601,20 @@ class SnippetsTest(unittest.TestCase):
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
     result_path = temp_path + '.result'
-    snippets.model_pipelines(
-        ['--input=%s*' % temp_path, '--output=%s' % result_path])
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.model_pipelines()
     self.assertEqual(
         self.get_output(result_path),
         [str(s) for s in [(u'aa', 1), (u'bb', 2), (u'cc', 3)]])
 
   def test_model_pcollection(self):
     temp_path = self.create_temp_file()
-    snippets.model_pcollection(['--output=%s' % temp_path])
+    snippets.model_pcollection(temp_path)
     self.assertEqual(
         self.get_output(temp_path),
         [
@@ -685,7 +757,13 @@ class SnippetsTest(unittest.TestCase):
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
     result_path = temp_path + '.result'
-    fn(['--input=%s*' % temp_path, '--output=%s' % result_path])
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      fn()
     self.assertEqual(['aa', 'bb', 'cc'], self.get_output(result_path))
 
   def test_pipeline_options_local(self):
@@ -717,7 +795,13 @@ class SnippetsTest(unittest.TestCase):
   def test_examples_wordcount(self, pipeline):
     temp_path = self.create_temp_file('abc def ghi\n abc jkl')
     result_path = self.create_temp_file()
-    pipeline({'read': temp_path, 'write': result_path})
+    test_argv = [
+        "unused_argv[0]",
+        f"--input-file={temp_path}*",
+        f"--output-path={result_path}",
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      pipeline()
     self.assertEqual(
         self.get_output(result_path), ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
 
@@ -784,23 +868,29 @@ class SnippetsTest(unittest.TestCase):
         FakeReadFromPubSub(topic=input_topic, values=input_values))
     beam.io.WriteToPubSub = (
         FakeWriteToPubSub(topic=output_topic, values=output_values))
-    snippets.examples_wordcount_streaming([
+    test_argv = [
+        'unused_argv[0]',
         '--input_topic',
         'projects/fake-beam-test-project/topic/intopic',
         '--output_topic',
         'projects/fake-beam-test-project/topic/outtopic'
-    ])
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.examples_wordcount_streaming()
 
     # Test with custom subscription.
     input_sub = 'projects/fake-beam-test-project/subscriptions/insub'
     beam.io.ReadFromPubSub = FakeReadFromPubSub(
         subscription=input_sub, values=input_values)
-    snippets.examples_wordcount_streaming([
+    test_argv = [
+        'unused_argv[0]',
         '--input_subscription',
         'projects/fake-beam-test-project/subscriptions/insub',
         '--output_topic',
         'projects/fake-beam-test-project/topic/outtopic'
-    ])
+    ]
+    with mock.patch.object(sys, 'argv', test_argv):
+      snippets.examples_wordcount_streaming()
 
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
@@ -991,8 +1081,8 @@ class SnippetsTest(unittest.TestCase):
       assert_that(counts, equal_to([('a', 4), ('b', 2), ('a', 1)]))
 
   def test_model_setting_trigger(self):
-    pipeline_options = PipelineOptions()
-    pipeline_options.view_as(StandardOptions).streaming = True
+    pipeline_options = PipelineOptions(
+        flags=['--streaming', '--allow_unsafe_triggers'])
 
     with TestPipeline(options=pipeline_options) as p:
       test_stream = (
@@ -1046,8 +1136,8 @@ class SnippetsTest(unittest.TestCase):
       assert_that(counts, equal_to([('a', 3), ('b', 2), ('a', 2), ('c', 2)]))
 
   def test_model_other_composite_triggers(self):
-    pipeline_options = PipelineOptions()
-    pipeline_options.view_as(StandardOptions).streaming = True
+    pipeline_options = PipelineOptions(
+        flags=['--streaming', '--allow_unsafe_triggers'])
 
     with TestPipeline(options=pipeline_options) as p:
       test_stream = (
@@ -1240,11 +1330,11 @@ class CombineTest(unittest.TestCase):
           beam.Map(lambda x: beam.window.TimestampedValue(('k', x), x)))
       # [START setting_global_window]
       from apache_beam import window
-      session_windowed_items = (
+      global_windowed_items = (
           items | 'window' >> beam.WindowInto(window.GlobalWindows()))
       # [END setting_global_window]
       summed = (
-          session_windowed_items
+          global_windowed_items
           | 'group' >> beam.GroupByKey()
           | 'combine' >> beam.CombineValues(sum))
       unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])

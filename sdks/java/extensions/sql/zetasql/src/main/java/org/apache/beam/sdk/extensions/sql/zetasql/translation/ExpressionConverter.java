@@ -22,6 +22,7 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BOOL;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BYTES;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCatalog.PRE_DEFINED_WINDOW_FUNCTIONS;
@@ -41,6 +42,7 @@ import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
+import com.google.zetasql.io.grpc.Status;
 import com.google.zetasql.resolvedast.ResolvedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateScan;
@@ -56,7 +58,6 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,11 +67,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
-import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
-import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -382,7 +382,7 @@ public class ExpressionConverter {
     if (functionCall.getFunction().getName().equals(FIXED_WINDOW)
         || functionCall.getFunction().getName().equals(SLIDING_WINDOW)
         || functionCall.getFunction().getName().equals(SESSION_WINDOW)) {
-      throw new SqlConversionException(
+      throw new ZetaSqlException(
           functionCall.getFunction().getName() + " shouldn't appear in SELECT exprlist.");
     }
 
@@ -673,7 +673,6 @@ public class ExpressionConverter {
           userFunctionDefinitions
               .javaScalarFunctions()
               .get(functionCall.getFunction().getNamePath());
-      Method method = ScalarFnReflector.getApplyMethod(javaScalarFunction.scalarFn());
       ArrayList<RexNode> innerFunctionArguments = new ArrayList<>();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
         ResolvedExpr argExpr = functionCall.getArgumentList().get(i);
@@ -685,7 +684,7 @@ public class ExpressionConverter {
           .makeCall(
               SqlOperators.createUdfOperator(
                   functionCall.getFunction().getName(),
-                  method,
+                  javaScalarFunction.method(),
                   USER_DEFINED_JAVA_SCALAR_FUNCTIONS,
                   javaScalarFunction.jarPath()),
               innerFunctionArguments);
@@ -721,7 +720,7 @@ public class ExpressionConverter {
 
   private RexNode convertIntervalToRexIntervalLiteral(ResolvedLiteral resolvedLiteral) {
     if (resolvedLiteral.getType().getKind() != TYPE_STRING) {
-      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
+      throw new ZetaSqlException(INTERVAL_FORMAT_MSG);
     }
 
     String valStr = resolvedLiteral.getValue().getStringValue();
@@ -729,18 +728,22 @@ public class ExpressionConverter {
         Arrays.stream(valStr.split(" ")).filter(s -> !s.isEmpty()).collect(Collectors.toList());
 
     if (stringList.size() != 3) {
-      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
+      throw new ZetaSqlException(INTERVAL_FORMAT_MSG);
     }
 
     if (!Ascii.toUpperCase(stringList.get(0)).equals("INTERVAL")) {
-      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
+      throw new ZetaSqlException(INTERVAL_FORMAT_MSG);
     }
 
     long intervalValue;
     try {
       intervalValue = Long.parseLong(stringList.get(1));
     } catch (NumberFormatException e) {
-      throw new SqlConversionException(INTERVAL_FORMAT_MSG, e);
+      throw new ZetaSqlException(
+          Status.UNIMPLEMENTED
+              .withDescription(INTERVAL_FORMAT_MSG)
+              .withCause(e)
+              .asRuntimeException());
     }
 
     String intervalDatepart = Ascii.toUpperCase(stringList.get(2));
@@ -773,7 +776,7 @@ public class ExpressionConverter {
       case INTERVAL_SECOND:
         return new BigDecimal(value * ONE_SECOND_IN_MILLIS);
       default:
-        throw new SqlConversionException(qualifier.typeName().toString());
+        throw new ZetaSqlException(qualifier.typeName().toString());
     }
   }
 
@@ -799,7 +802,7 @@ public class ExpressionConverter {
       case "MILLISECOND":
         return new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO);
       default:
-        throw new SqlConversionException(
+        throw new ZetaSqlException(
             String.format(
                 "Received an undefined INTERVAL unit: %s. Please specify unit from the following"
                     + " list: %s.",
@@ -821,7 +824,7 @@ public class ExpressionConverter {
   private RexNode convertResolvedCast(ResolvedCast resolvedCast, RexNode input) {
     TypeKind fromType = resolvedCast.getExpr().getType().getKind();
     TypeKind toType = resolvedCast.getType().getKind();
-    isCastingSupported(fromType, toType);
+    isCastingSupported(fromType, toType, input);
 
     // nullability of the output type should match that of the input node's type
     RelDataType outputType =
@@ -835,11 +838,47 @@ public class ExpressionConverter {
     }
   }
 
-  private static void isCastingSupported(TypeKind fromType, TypeKind toType) {
+  private static void isCastingSupported(TypeKind fromType, TypeKind toType, RexNode input) {
     if (UNSUPPORTED_CASTING.containsKey(toType)
         && UNSUPPORTED_CASTING.get(toType).contains(fromType)) {
       throw new UnsupportedOperationException(
           "Does not support CAST(" + fromType + " AS " + toType + ")");
+    }
+    if (fromType.equals(TYPE_DOUBLE)
+        && toType.equals(TYPE_NUMERIC)
+        && input instanceof RexLiteral) {
+      BigDecimal value = (BigDecimal) ((RexLiteral) input).getValue();
+      if (value.compareTo(ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MAX_VALUE) > 0) {
+        throw new ZetaSqlException(
+            Status.OUT_OF_RANGE
+                .withDescription(
+                    String.format(
+                        "Casting %s as %s would cause overflow of literal %s.",
+                        fromType, toType, value))
+                .asRuntimeException());
+      }
+      if (value.compareTo(ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MIN_VALUE) < 0) {
+        throw new ZetaSqlException(
+            Status.OUT_OF_RANGE
+                .withDescription(
+                    String.format(
+                        "Casting %s as %s would cause underflow of literal %s.",
+                        fromType, toType, value))
+                .asRuntimeException());
+      }
+      if (value.scale() > ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE) {
+        throw new ZetaSqlException(
+            Status.OUT_OF_RANGE
+                .withDescription(
+                    String.format(
+                        "Cannot cast %s as %s: scale %d exceeds %d for literal %s.",
+                        fromType,
+                        toType,
+                        value.scale(),
+                        ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_SCALE,
+                        value))
+                .asRuntimeException());
+      }
     }
   }
 

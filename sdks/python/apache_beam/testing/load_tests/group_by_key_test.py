@@ -69,8 +69,6 @@ or:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 
 import apache_beam as beam

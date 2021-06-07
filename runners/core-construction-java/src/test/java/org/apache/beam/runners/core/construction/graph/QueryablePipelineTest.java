@@ -317,13 +317,13 @@ public class QueryablePipelineTest {
     String impulseOutputName =
         getOnlyElement(
             PipelineNode.pTransform(
-                    "BoundedRead/Impulse", components.getTransformsOrThrow("BoundedRead/Impulse"))
+                    "BoundedRead-Impulse", components.getTransformsOrThrow("BoundedRead-Impulse"))
                 .getTransform()
                 .getOutputsMap()
                 .values());
     PTransformNode impulseProducer =
         PipelineNode.pTransform(
-            "BoundedRead/Impulse", components.getTransformsOrThrow("BoundedRead/Impulse"));
+            "BoundedRead-Impulse", components.getTransformsOrThrow("BoundedRead-Impulse"));
     PCollectionNode impulseOutput =
         PipelineNode.pCollection(
             impulseOutputName, components.getPcollectionsOrThrow(impulseOutputName));
@@ -355,7 +355,7 @@ public class QueryablePipelineTest {
 
     PTransformNode environmentalTransform =
         PipelineNode.pTransform(
-            "ParDo/ParMultiDo(Test)", components.getTransformsOrThrow("ParDo/ParMultiDo(Test)"));
+            "ParDo-ParMultiDo-Test-", components.getTransformsOrThrow("ParDo-ParMultiDo-Test-"));
     PTransformNode nonEnvironmentalTransform =
         PipelineNode.pTransform("groupByKey", components.getTransformsOrThrow("groupByKey"));
 

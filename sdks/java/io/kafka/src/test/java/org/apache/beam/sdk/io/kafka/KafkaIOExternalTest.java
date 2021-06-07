@@ -46,14 +46,15 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.hamcrest.Matchers;
+import org.hamcrest.text.MatchesPattern;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -120,19 +121,28 @@ public class KafkaIOExternalTest {
     RunnerApi.PTransform transform = result.getTransform();
     assertThat(
         transform.getSubtransformsList(),
-        Matchers.contains(
-            "test_namespacetest/KafkaIO.Read", "test_namespacetest/Remove Kafka Metadata"));
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*KafkaIO-Read.*")));
+    assertThat(
+        transform.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*Remove-Kafka-Metadata.*")));
     assertThat(transform.getInputsCount(), Matchers.is(0));
     assertThat(transform.getOutputsCount(), Matchers.is(1));
 
-    RunnerApi.PTransform kafkaComposite =
-        result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
     RunnerApi.PTransform kafkaReadComposite =
-        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(0));
-    RunnerApi.PTransform kafkaSdfComposite =
-        result.getComponents().getTransformsOrThrow(kafkaReadComposite.getSubtransforms(2));
+        result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
+    RunnerApi.PTransform kafkaComposite =
+        result.getComponents().getTransformsOrThrow(kafkaReadComposite.getSubtransforms(0));
+    assertThat(
+        kafkaComposite.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*Impulse.*")));
+    assertThat(
+        kafkaComposite.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*GenerateKafkaSourceDescriptor.*")));
+    assertThat(
+        kafkaComposite.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*ReadSourceDescriptors.*")));
     RunnerApi.PTransform kafkaSdfParDo =
-        result.getComponents().getTransformsOrThrow(kafkaSdfComposite.getSubtransforms(0));
+        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(2));
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(kafkaSdfParDo.getSpec().getPayload());
     assertNotNull(parDoPayload.getRestrictionCoderId());
@@ -195,8 +205,10 @@ public class KafkaIOExternalTest {
     RunnerApi.PTransform transform = result.getTransform();
     assertThat(
         transform.getSubtransformsList(),
-        Matchers.contains(
-            "test_namespacetest/Kafka ProducerRecord", "test_namespacetest/KafkaIO.WriteRecords"));
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*Kafka-ProducerRecord.*")));
+    assertThat(
+        transform.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*KafkaIO-WriteRecords.*")));
     assertThat(transform.getInputsCount(), Matchers.is(1));
     assertThat(transform.getOutputsCount(), Matchers.is(0));
 

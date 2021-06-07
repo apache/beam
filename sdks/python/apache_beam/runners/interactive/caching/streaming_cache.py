@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import shutil
@@ -26,6 +24,10 @@ import tempfile
 import time
 import traceback
 from collections import OrderedDict
+# We don't have an explicit pathlib dependency because this code only works with
+# the interactive target installed which has an indirect dependency on pathlib
+# through ipython>=5.9.0.
+from pathlib import Path
 
 from google.protobuf.message import DecodeError
 
@@ -35,17 +37,10 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileR
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.cache_manager import CacheManager
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.testing.test_stream import OutputFormat
 from apache_beam.testing.test_stream import ReverseTestStream
 from apache_beam.utils import timestamp
-
-# We don't have an explicit pathlib dependency because this code only works with
-# the interactive target installed which has an indirect dependency on pathlib
-# and pathlib2 through ipython>=5.9.0.
-try:
-  from pathlib import Path
-except ImportError:
-  from pathlib2 import Path  # python 2 backport
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -160,8 +155,6 @@ class StreamingCacheSource:
     self._labels = labels
     self._path = os.path.join(self._cache_dir, *self._labels)
     self._is_cache_complete = is_cache_complete
-
-    from apache_beam.runners.interactive.pipeline_instrument import CacheKey
     self._pipeline_id = CacheKey.from_str(labels[-1]).pipeline_id
 
   def _wait_until_file_exists(self, timeout_secs=30):
@@ -172,7 +165,6 @@ class StreamingCacheSource:
     while not os.path.exists(self._path):
       time.sleep(1)
       if time.time() - start > timeout_secs:
-        from apache_beam.runners.interactive.pipeline_instrument import CacheKey
         pcollection_var = CacheKey.from_str(self._labels[-1]).var
         raise RuntimeError(
             'Timed out waiting for cache file for PCollection `{}` to be '
@@ -387,8 +379,17 @@ class StreamingCache(CacheManager):
         self._saved_pcoders[os.path.join(*labels)])
 
   def cleanup(self):
+
     if os.path.exists(self._cache_dir):
-      shutil.rmtree(self._cache_dir)
+
+      def on_fail_to_cleanup(function, path, excinfo):
+        _LOGGER.warning(
+            'Failed to clean up temporary files: %s. You may'
+            'manually delete them if necessary. Error was: %s',
+            path,
+            excinfo)
+
+      shutil.rmtree(self._cache_dir, onerror=on_fail_to_cleanup)
     self._saved_pcoders = {}
     self._capture_sinks = {}
     self._capture_keys = set()

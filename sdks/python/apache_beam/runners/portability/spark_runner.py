@@ -19,12 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import re
-import sys
 import urllib
 
 from apache_beam.options import pipeline_options
@@ -49,10 +45,6 @@ class SparkRunner(portable_runner.PortableRunner):
   def default_job_server(self, options):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
     if spark_options.spark_submit_uber_jar:
-      if sys.version_info < (3, 6):
-        raise ValueError(
-            'spark_submit_uber_jar requires Python 3.6+, current version %s' %
-            sys.version)
       if not spark_options.spark_rest_url:
         raise ValueError('Option spark_rest_url must be set.')
       return spark_uber_jar_job_server.SparkUberJarJobServer(
@@ -83,11 +75,13 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
               'Unable to parse jar URL "%s". If using a full URL, make sure '
               'the scheme is specified. If using a local file path, make sure '
               'the file exists; you may have to first build the job server '
-              'using `./gradlew runners:spark:job-server:shadowJar`.' %
+              'using `./gradlew runners:spark:2:job-server:shadowJar`.' %
               self._jar)
       return self._jar
     else:
-      return self.path_to_beam_jar(':runners:spark:job-server:shadowJar')
+      return self.path_to_beam_jar(
+          ':runners:spark:2:job-server:shadowJar',
+          artifact_id='beam-runners-spark-job-server')
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):

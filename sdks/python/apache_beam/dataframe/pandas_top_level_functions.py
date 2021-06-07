@@ -107,6 +107,16 @@ class DeferredPandasModule(object):
       objs = [objs[k] for k in keys]
     else:
       objs = list(objs)
+
+    if keys is None:
+      preserves_partitioning = partitionings.Arbitrary()
+    else:
+      # Index 0 will be a new index for keys, only partitioning by the original
+      # indexes (1 to N) will be preserved.
+      nlevels = min(o._expr.proxy().index.nlevels for o in objs)
+      preserves_partitioning = partitionings.Index(
+          [i for i in range(1, nlevels + 1)])
+
     deferred_none = expressions.ConstantExpression(None)
     exprs = [deferred_none if o is None else o._expr for o in objs]
 
@@ -115,7 +125,7 @@ class DeferredPandasModule(object):
     elif verify_integrity:
       required_partitioning = partitionings.Index()
     else:
-      required_partitioning = partitionings.Nothing()
+      required_partitioning = partitionings.Arbitrary()
 
     return frame_base.DeferredBase.wrap(
         expressions.ComputedExpression(
@@ -131,7 +141,7 @@ class DeferredPandasModule(object):
                 verify_integrity=verify_integrity),  # yapf break
             exprs,
             requires_partition_by=required_partitioning,
-            preserves_partition_by=partitionings.Index()))
+            preserves_partition_by=preserves_partitioning))
 
   date_range = _defer_to_pandas('date_range')
   describe_option = _defer_to_pandas('describe_option')
@@ -144,7 +154,8 @@ class DeferredPandasModule(object):
   melt = _call_on_first_arg('melt')
   merge = _call_on_first_arg('merge')
   melt = _call_on_first_arg('melt')
-  merge_ordered = frame_base.wont_implement_method('order-sensitive')
+  merge_ordered = frame_base.wont_implement_method(
+      pd, 'merge_ordered', reason='order-sensitive')
   notna = _call_on_first_arg('notna')
   notnull = _call_on_first_arg('notnull')
   option_context = _defer_to_pandas('option_context')
@@ -152,16 +163,24 @@ class DeferredPandasModule(object):
   pivot = _call_on_first_arg('pivot')
   pivot_table = _call_on_first_arg('pivot_table')
   show_versions = _defer_to_pandas('show_versions')
-  test = frame_base.wont_implement_method('test')
+  test = frame_base.wont_implement_method(
+      pd,
+      'test',
+      explanation="because it is an internal pandas testing utility")
   timedelta_range = _defer_to_pandas('timedelta_range')
-  to_pickle = frame_base.wont_implement_method('order-sensitive')
+  to_pickle = frame_base.wont_implement_method(
+      pd, 'to_pickle', reason='order-sensitive')
   to_datetime = _defer_to_pandas_maybe_elementwise('to_datetime')
   notna = _call_on_first_arg('notna')
 
   def __getattr__(self, name):
     if name.startswith('read_'):
-      return frame_base.wont_implement_method(
-          'Use p | apache_beam.dataframe.io.%s' % name)
+
+      def func(*args, **kwargs):
+        raise frame_base.WontImplementError(
+            'Use p | apache_beam.dataframe.io.%s' % name)
+
+      return func
     res = getattr(pd, name)
     if _is_top_level_function(res):
       return frame_base.not_implemented_method(name)

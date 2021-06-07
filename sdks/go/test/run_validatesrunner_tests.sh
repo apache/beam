@@ -181,7 +181,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
 
   if [[ -z "$EXPANSION_ADDR" && -n "$EXPANSION_SERVICE_JAR" ]]; then
-    EXPANSION_PORT=$(python -c "$SOCKET_SCRIPT")
+    EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No expansion address specified; starting a new expansion server on $EXPANSION_ADDR"
     java -jar $EXPANSION_SERVICE_JAR $EXPANSION_PORT &
@@ -189,7 +189,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   fi
 elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
-    JOB_PORT=$(python -c "$SOCKET_SCRIPT")
+    JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
     echo "No endpoint specified; starting a new $RUNNER job server on $ENDPOINT"
     if [[ "$RUNNER" == "flink" ]]; then
@@ -208,7 +208,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" 
           --artifact-port 0 &
       ARGS="-p 1" # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
-      python \
+      python3 \
           -m apache_beam.runners.portability.local_job_service_main \
           --port $JOB_PORT &
     else
@@ -219,7 +219,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" 
   fi
 
   if [[ -z "$EXPANSION_ADDR" && -n "$EXPANSION_SERVICE_JAR" ]]; then
-    EXPANSION_PORT=$(python -c "$SOCKET_SCRIPT")
+    EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No expansion address specified; starting a new expansion server on $EXPANSION_ADDR"
     java -jar $EXPANSION_SERVICE_JAR $EXPANSION_PORT &
@@ -259,7 +259,21 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   docker images | grep $TAG
 
   # Push the container
-  gcloud docker -- push $CONTAINER
+  gcloud docker -- push $CONTAINER:$TAG
+
+  if [[ -n "$EXPANSION_ADDR" ]]; then
+    # Build the java container for cross-language
+    JAVA_TAG=$(date +%Y%m%d-%H%M%S)
+    JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
+    echo "Using container $JAVA_CONTAINER for cross-language java transforms"
+    ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG
+
+    # Verify it exists
+    docker images | grep $JAVA_TAG
+
+    # Push the container
+    gcloud docker -- push $JAVA_CONTAINER:$JAVA_TAG
+  fi
 else
   TAG=dev
   ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
@@ -276,8 +290,13 @@ ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test"
 ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test"
 ARGS="$ARGS --dataflow_worker_jar=$DATAFLOW_WORKER_JAR"
 ARGS="$ARGS --endpoint=$ENDPOINT"
+OVERRIDE=--sdk_harness_container_image_override=".*java.*,$JAVA_CONTAINER:$JAVA_TAG"
+ARGS="$ARGS $OVERRIDE"
 if [[ -n "$EXPANSION_ADDR" ]]; then
   ARGS="$ARGS --expansion_addr=$EXPANSION_ADDR"
+  if [[ "$RUNNER" == "dataflow" ]]; then
+    ARGS="$ARGS --experiments=use_portable_job_submission"
+  fi
 fi
 
 # Running "go test" requires some additional setup on Jenkins.
@@ -303,6 +322,12 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+
+  if [[ -n "$EXPANSION_ADDR" ]]; then
+    # Delete the java cross-language container locally and remotely
+    docker rmi $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to remove container"
+    gcloud --quiet container images delete $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to delete container"
+  fi
 
   # Clean up tempdir
   rm -rf $TMPDIR

@@ -143,6 +143,34 @@ public class DynamoDBIOTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
+  @Test
+  public void testReaderWithLimit() {
+    List<Map<String, AttributeValue>> expected =
+        DynamoDBIOTestHelper.generateTestData(tableName, numOfItems);
+
+    // Maximum number of records in scan result
+    final int limit = 5;
+
+    PCollection<Map<String, AttributeValue>> actual =
+        pipeline
+            .apply(
+                DynamoDBIO.<List<Map<String, AttributeValue>>>read()
+                    .withDynamoDbClientProvider(
+                        DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient()))
+                    .withScanRequestFn(
+                        (SerializableFunction<Void, ScanRequest>)
+                            input ->
+                                ScanRequest.builder()
+                                    .tableName(tableName)
+                                    .totalSegments(1)
+                                    .limit(limit)
+                                    .build())
+                    .items())
+            .apply(ParDo.of(new IterateListDoFn()));
+    PAssert.that(actual).containsInAnyOrder(expected);
+    pipeline.run().waitUntilFinish();
+  }
+
   // Test cases for Reader's arguments.
   @Test
   public void testMissingScanRequestFn() {
@@ -390,5 +418,18 @@ public class DynamoDBIOTest implements Serializable {
           // assert no duplicate keys in each bundle
           assertEquals(new HashSet<>(requestKeys).size(), requestKeys.size());
         });
+  }
+
+  private static class IterateListDoFn
+      extends DoFn<List<Map<String, AttributeValue>>, Map<String, AttributeValue>> {
+
+    @ProcessElement
+    public void processElement(
+        @Element List<Map<String, AttributeValue>> items,
+        OutputReceiver<Map<String, AttributeValue>> out) {
+      for (Map<String, AttributeValue> item : items) {
+        out.output(item);
+      }
+    }
   }
 }

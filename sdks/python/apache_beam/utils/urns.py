@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
 # import abc
 import inspect
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable

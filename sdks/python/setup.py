@@ -17,9 +17,6 @@
 
 """Apache Beam SDK for Python setup file."""
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import sys
 import warnings
@@ -131,6 +128,10 @@ REQUIRED_PACKAGES = [
     # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
     'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
     'crcmod>=1.7,<2.0',
+    # dataclasses backport for python_version<3.7. No version bound because this
+    # is Python standard since Python 3.7 and each Python version is compatible
+    # with a specific dataclasses version.
+    'dataclasses;python_version<"3.7"',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
     # version of dill. It is best to use the same version of dill on client and
@@ -141,13 +142,12 @@ REQUIRED_PACKAGES = [
     'future>=0.18.2,<1.0.0',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<0.18.0',
-    'mock>=1.0.1,<3.0.0',
+    'httplib2>=0.8,<0.20.0',
     'numpy>=1.14.3,<1.21.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
-    'pyarrow>=0.15.1,<4.0.0',
+    'pyarrow>=0.15.1,<5.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
@@ -163,6 +163,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
+    'mock>=1.0.1,<3.0.0',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=1.0,<1.3.0',
@@ -186,7 +187,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-datastore>=1.7.1,<2',
     'google-cloud-pubsub>=0.39.0,<2',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<2',
+    'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<2',
     'google-cloud-spanner>=1.13.0,<2',
@@ -196,13 +197,17 @@ GCP_REQUIREMENTS = [
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
+    # GCP Package required by Google Cloud Profiler.
+    'google-cloud-profiler>=3.0.4,<4'
 ]
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'ipython>=5.8.0,<8',
     'ipykernel>=5.2.0,<6',
-    'jupyter-client>=6.1.11,<7',
+    # Skip version 6.1.13 due to
+    # https://github.com/jupyter/jupyter_client/issues/637
+    'jupyter-client>=6.1.11,<6.1.13',
     'timeloop>=1.0.2,<2',
 ]
 
@@ -268,6 +273,7 @@ setuptools.setup(
         '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
         'testing/data/*.yaml', 'portability/api/*.yaml']},
     ext_modules=cythonize([
+        # Make sure to use language_level=3 cython directive in files below.
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
         'apache_beam/metrics/cells.py',

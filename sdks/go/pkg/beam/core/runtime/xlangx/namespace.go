@@ -67,11 +67,6 @@ func addWindowingStrategyID(c *pipepb.Components, idMap map[string]string, wid s
 		windowingStrategy.WindowCoderId = addCoderID(c, idMap, windowingStrategy.WindowCoderId, newID)
 	}
 
-	// Updating EnvironmentId of WindowingStrategy
-	if windowingStrategy.EnvironmentId != "" {
-		windowingStrategy.EnvironmentId = addEnvironmentID(c, idMap, windowingStrategy.EnvironmentId, newID)
-	}
-
 	idMap[wid] = newID(wid)
 
 	// Updating WindowingStrategies map
@@ -81,25 +76,6 @@ func addWindowingStrategyID(c *pipepb.Components, idMap map[string]string, wid s
 	return idMap[wid]
 }
 
-func addEnvironmentID(c *pipepb.Components, idMap map[string]string, eid string, newID func(string) string) string {
-	if _, exists := idMap[eid]; exists {
-		return idMap[eid]
-	}
-
-	environment, exists := c.Environments[eid]
-	if !exists {
-		panic(errors.Errorf("attempted to add namespace to missing windowing strategy id: %v not in %v", eid, c.Environments))
-	}
-
-	idMap[eid] = newID(eid)
-
-	// Updating Environments map
-	c.Environments[idMap[eid]] = environment
-	delete(c.Environments, eid)
-
-	return idMap[eid]
-}
-
 func addNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) {
 	newID := func(id string) string {
 		return fmt.Sprintf("%v@%v", id, namespace)
@@ -107,10 +83,11 @@ func addNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) 
 
 	idMap := make(map[string]string)
 
-	// Update Environment ID of PTransform
-	if t.EnvironmentId != "" {
-		t.EnvironmentId = addEnvironmentID(c, idMap, t.EnvironmentId, newID)
-	}
+	// Note: Currently environments are not namespaced. This works under the
+	// assumption that the unexpanded transform is using the default Go SDK
+	// environment. If multiple Go SDK environments become possible, then
+	// namespacing of non-default environments should happen here.
+
 	for _, pcolsMap := range []map[string]string{t.Inputs, t.Outputs} {
 		for _, pid := range pcolsMap {
 			if pcol, exists := c.Pcollections[pid]; exists {

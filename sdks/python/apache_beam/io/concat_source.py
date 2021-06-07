@@ -21,12 +21,8 @@ Concat Source, which reads the union of several other sources.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import bisect
 import threading
-from builtins import range
 
 from apache_beam.io import iobase
 

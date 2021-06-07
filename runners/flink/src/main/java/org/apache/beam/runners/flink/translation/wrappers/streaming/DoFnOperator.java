@@ -465,10 +465,10 @@ public class DoFnOperator<InputT, OutputT>
     // So must wait StateInternals and TimerInternals ready.
     // This will be called after initializeState()
     this.doFn = getDoFn();
-    doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    doFnInvoker.invokeSetup();
 
     FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, options);
+
     StepContext stepContext = new FlinkStepContext();
     doFnRunner =
         DoFnRunners.simpleRunner(

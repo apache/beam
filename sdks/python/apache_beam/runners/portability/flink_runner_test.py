@@ -16,9 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import argparse
 import logging
 import shlex
@@ -31,7 +28,6 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 import pytest
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import Impulse
@@ -61,7 +57,7 @@ from apache_beam.transforms.sql import SqlTransform
 
 _LOGGER = logging.getLogger(__name__)
 
-Row = typing.NamedTuple("Row", [("col1", int), ("col2", unicode)])
+Row = typing.NamedTuple("Row", [("col1", int), ("col2", str)])
 beam.coders.registry.register_coder(Row, beam.coders.RowCoder)
 
 
@@ -341,46 +337,47 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     if options.view_as(StandardOptions).streaming:
       lines_expected.update([
           # Gauges for the last finished bundle
-          'stateful.beam.metric:statecache:capacity: 123',
-          'stateful.beam.metric:statecache:size: 10',
-          'stateful.beam.metric:statecache:get: 20',
-          'stateful.beam.metric:statecache:miss: 0',
-          'stateful.beam.metric:statecache:hit: 20',
-          'stateful.beam.metric:statecache:put: 0',
-          'stateful.beam.metric:statecache:evict: 0',
+          'stateful.beam_metric:statecache:capacity: 123',
+          'stateful.beam_metric:statecache:size: 10',
+          'stateful.beam_metric:statecache:get: 20',
+          'stateful.beam_metric:statecache:miss: 0',
+          'stateful.beam_metric:statecache:hit: 20',
+          'stateful.beam_metric:statecache:put: 0',
+          'stateful.beam_metric:statecache:evict: 0',
           # Counters
-          'stateful.beam.metric:statecache:get_total: 220',
-          'stateful.beam.metric:statecache:miss_total: 10',
-          'stateful.beam.metric:statecache:hit_total: 210',
-          'stateful.beam.metric:statecache:put_total: 10',
-          'stateful.beam.metric:statecache:evict_total: 0',
+          'stateful.beam_metric:statecache:get_total: 220',
+          'stateful.beam_metric:statecache:miss_total: 10',
+          'stateful.beam_metric:statecache:hit_total: 210',
+          'stateful.beam_metric:statecache:put_total: 10',
+          'stateful.beam_metric:statecache:evict_total: 0',
       ])
     else:
       # Batch has a different processing model. All values for
       # a key are processed at once.
       lines_expected.update([
           # Gauges
-          'stateful).beam.metric:statecache:capacity: 123',
+          'stateful).beam_metric:statecache:capacity: 123',
           # For the first key, the cache token will not be set yet.
           # It's lazily initialized after first access in StateRequestHandlers
-          'stateful).beam.metric:statecache:size: 10',
+          'stateful).beam_metric:statecache:size: 10',
           # We have 11 here because there are 110 / 10 elements per key
-          'stateful).beam.metric:statecache:get: 12',
-          'stateful).beam.metric:statecache:miss: 1',
-          'stateful).beam.metric:statecache:hit: 11',
+          'stateful).beam_metric:statecache:get: 12',
+          'stateful).beam_metric:statecache:miss: 1',
+          'stateful).beam_metric:statecache:hit: 11',
           # State is flushed back once per key
-          'stateful).beam.metric:statecache:put: 1',
-          'stateful).beam.metric:statecache:evict: 0',
+          'stateful).beam_metric:statecache:put: 1',
+          'stateful).beam_metric:statecache:evict: 0',
           # Counters
-          'stateful).beam.metric:statecache:get_total: 120',
-          'stateful).beam.metric:statecache:miss_total: 10',
-          'stateful).beam.metric:statecache:hit_total: 110',
-          'stateful).beam.metric:statecache:put_total: 10',
-          'stateful).beam.metric:statecache:evict_total: 0',
+          'stateful).beam_metric:statecache:get_total: 120',
+          'stateful).beam_metric:statecache:miss_total: 10',
+          'stateful).beam_metric:statecache:hit_total: 110',
+          'stateful).beam_metric:statecache:put_total: 10',
+          'stateful).beam_metric:statecache:evict_total: 0',
       ])
     lines_actual = set()
     with open(self.test_metrics_path, 'r') as f:
       for line in f:
+        print(line, end='')
         for metric_str in lines_expected:
           metric_name = metric_str.split()[0]
           if metric_str in line:
@@ -400,6 +397,10 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_custom_merging_window(self):
     raise unittest.SkipTest("BEAM-11004")
+
+  def test_pack_combiners(self):
+    raise unittest.SkipTest(
+        "BEAM-12305: pack_combiners does not work in Flink yet")
 
   # Inherits all other tests.
 
@@ -425,11 +426,6 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
 
   def test_sql(self):
     raise unittest.SkipTest("BEAM-7252")
-
-  def test_pack_combiners_disabled_by_default(self):
-    raise unittest.SkipTest(
-        "Base test has expectations on counter names that fail because "
-        "stage fusion modifies counter names")
 
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):

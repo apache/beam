@@ -40,11 +40,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
+import org.hamcrest.text.MatchesPattern;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -93,8 +94,11 @@ public class PubsubIOExternalTest {
     RunnerApi.PTransform transform = result.getTransform();
     assertThat(
         transform.getSubtransformsList(),
-        Matchers.contains(
-            "test_namespacetest/PubsubUnboundedSource", "test_namespacetest/MapElements"));
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*PubsubUnboundedSource.*")));
+    assertThat(
+        transform.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*MapElements.*")));
+
     assertThat(transform.getInputsCount(), Matchers.is(0));
     assertThat(transform.getOutputsCount(), Matchers.is(1));
   }
@@ -150,8 +154,10 @@ public class PubsubIOExternalTest {
     RunnerApi.PTransform transform = result.getTransform();
     assertThat(
         transform.getSubtransformsList(),
-        Matchers.contains(
-            "test_namespacetest/MapElements", "test_namespacetest/PubsubUnboundedSink"));
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*MapElements.*")));
+    assertThat(
+        transform.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*PubsubUnboundedSink.*")));
     assertThat(transform.getInputsCount(), Matchers.is(1));
     assertThat(transform.getOutputsCount(), Matchers.is(0));
 
@@ -159,13 +165,17 @@ public class PubsubIOExternalTest {
     RunnerApi.PTransform writeComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(1));
 
-    // test_namespacetest/PubsubUnboundedSink/PubsubUnboundedSink.Writer
+    // test_namespacetest/PubsubUnboundedSink/PubsubSink
     RunnerApi.PTransform writeComposite2 =
-        result.getComponents().getTransformsOrThrow(writeComposite.getSubtransforms(3));
+        result.getComponents().getTransformsOrThrow(writeComposite.getSubtransforms(1));
 
-    // test_namespacetest/PubsubUnboundedSink/PubsubUnboundedSink.Writer/ParMultiDo(Writer)
+    // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer
+    RunnerApi.PTransform writeComposite3 =
+        result.getComponents().getTransformsOrThrow(writeComposite2.getSubtransforms(3));
+
+    // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer/ParMultiDo(Writer)
     RunnerApi.PTransform writeParDo =
-        result.getComponents().getTransformsOrThrow(writeComposite2.getSubtransforms(0));
+        result.getComponents().getTransformsOrThrow(writeComposite3.getSubtransforms(0));
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());

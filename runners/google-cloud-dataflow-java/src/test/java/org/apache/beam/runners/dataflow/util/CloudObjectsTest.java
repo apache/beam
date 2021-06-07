@@ -47,6 +47,7 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -178,7 +179,8 @@ public class CloudObjectsTest {
                       new RowIdentity()))
               .add(
                   SchemaCoder.of(
-                      TEST_SCHEMA, TypeDescriptors.rows(), new RowIdentity(), new RowIdentity()));
+                      TEST_SCHEMA, TypeDescriptors.rows(), new RowIdentity(), new RowIdentity()))
+              .add(RowCoder.of(TEST_SCHEMA));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());

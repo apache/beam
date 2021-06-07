@@ -19,10 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-from future.utils import iteritems
-
 from apache_beam.io.aws import s3io
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -132,8 +128,8 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, size in iteritems(
-          s3io.S3IO(options=self._options).list_prefix(dir_or_prefix)):
+      for path, size in \
+        s3io.S3IO(options=self._options).list_prefix(dir_or_prefix).items():
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})

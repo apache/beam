@@ -51,7 +51,6 @@ type LogicalTypeProvider = func(reflect.Type) (reflect.Type, error)
 
 // Registry retains mappings from go types to Schemas and LogicalTypes.
 type Registry struct {
-	lastShortID     int64
 	typeToSchema    map[reflect.Type]*pipepb.Schema
 	idToType        map[string]reflect.Type
 	syntheticToUser map[reflect.Type]reflect.Type
@@ -92,6 +91,9 @@ func (r *Registry) RegisterLogicalType(lt LogicalType) {
 	_, err := r.reflectTypeToFieldType(st)
 	if err != nil {
 		panic(fmt.Sprintf("LogicalType[%v] has an invalid StorageType %v: %v", lt.ID(), st, err))
+	}
+	if len(lt.ID()) == 0 {
+		panic(fmt.Sprintf("invalid logical type, bad id: %v -> %v", lt.GoType(), lt.StorageType()))
 	}
 	// TODO add duplication checks.
 	r.logicalTypeIdentifiers[lt.GoType()] = lt.ID()

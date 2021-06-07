@@ -19,9 +19,6 @@
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
@@ -39,6 +36,8 @@ class ExpansionServiceServicer(
   def __init__(self, options=None):
     self._options = options or beam_pipeline.PipelineOptions(
         environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
+    self._default_environment = (
+        portable_runner.PortableRunner._create_environment(self._options))
 
   def Expand(self, request, context=None):
     try:
@@ -54,8 +53,7 @@ class ExpansionServiceServicer(
 
       context = pipeline_context.PipelineContext(
           request.components,
-          default_environment=portable_runner.PortableRunner.
-          _create_environment(self._options),
+          default_environment=self._default_environment,
           namespace=request.namespace)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)

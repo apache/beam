@@ -17,76 +17,74 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import static org.junit.Assert.assertEquals;
+
+import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-
 public class TpcdsParametersReaderTest {
-    private TpcdsOptions tpcdsOptions;
-    private TpcdsOptions tpcdsOptionsError;
+  private TpcdsOptions tpcdsOptions;
+  private TpcdsOptions tpcdsOptionsError;
 
-    @Before
-    public void initializeTpcdsOptions() {
-        tpcdsOptions = PipelineOptionsFactory.as(TpcdsOptions.class);
-        tpcdsOptionsError = PipelineOptionsFactory.as(TpcdsOptions.class);
+  @Before
+  public void initializeTpcdsOptions() {
+    tpcdsOptions = PipelineOptionsFactory.as(TpcdsOptions.class);
+    tpcdsOptionsError = PipelineOptionsFactory.as(TpcdsOptions.class);
 
-        tpcdsOptions.setDataSize("1G");
-        tpcdsOptions.setQueries("1,2,3");
-        tpcdsOptions.setTpcParallel(2);
+    tpcdsOptions.setDataSize("1G");
+    tpcdsOptions.setQueries("1,2,3,14a");
+    tpcdsOptions.setTpcParallel(2);
 
-        tpcdsOptionsError.setDataSize("5G");
-        tpcdsOptionsError.setQueries("0,100");
-        tpcdsOptionsError.setTpcParallel(0);
-    }
+    tpcdsOptionsError.setDataSize("5G");
+    tpcdsOptionsError.setQueries("0,1b,100");
+    tpcdsOptionsError.setTpcParallel(0);
+  }
 
-    @Test
-    public void testGetAndCheckDataSize() throws Exception {
-        String dataSize = TpcdsParametersReader.getAndCheckDataSize(tpcdsOptions);
-        String expected = "1G";
-        assertEquals(expected, dataSize);
-    }
+  @Test
+  public void testGetAndCheckDataSize() throws Exception {
+    String dataSize = TpcdsParametersReader.getAndCheckDataSize(tpcdsOptions);
+    String expected = "1G";
+    assertEquals(expected, dataSize);
+  }
 
-    @Test( expected = Exception.class)
-    public void testGetAndCheckDataSizeException() throws Exception {
-        TpcdsParametersReader.getAndCheckDataSize(tpcdsOptionsError);
-    }
+  @Test(expected = Exception.class)
+  public void testGetAndCheckDataSizeException() throws Exception {
+    TpcdsParametersReader.getAndCheckDataSize(tpcdsOptionsError);
+  }
 
-    @Test
-    public void testGetAndCheckQueries() throws Exception {
-        TpcdsOptions tpcdsOptionsAll = PipelineOptionsFactory.as(TpcdsOptions.class);
-        tpcdsOptionsAll.setQueries("all");
-        String[] queryNameArray = TpcdsParametersReader.getAndCheckQueryNameArray(tpcdsOptionsAll);
-        String[] expected = new String[99];
-        for (int i = 0; i < 99; i++) {
-            expected[i] = "query" + (i + 1);
-        }
-        Assert.assertArrayEquals(expected, queryNameArray);
-    }
+  @Test
+  public void testGetAndCheckAllQueries() throws Exception {
+    TpcdsOptions tpcdsOptionsAll = PipelineOptionsFactory.as(TpcdsOptions.class);
+    tpcdsOptionsAll.setQueries("all");
+    String[] queryNames = TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptionsAll);
+    List<String> expected = TpcdsParametersReader.ALL_QUERY_NAMES;
+    Assert.assertArrayEquals(expected.toArray(new String[0]), queryNames);
+  }
 
-    @Test
-    public void testGetAndCheckAllQueries() throws Exception {
-        String[] queryNameArray = TpcdsParametersReader.getAndCheckQueryNameArray(tpcdsOptions);
-        String[] expected = {"query1", "query2", "query3"};
-        Assert.assertArrayEquals(expected, queryNameArray);
-    }
+  @Test
+  public void testGetAndCheckSpecifiedQueries() throws Exception {
+    String[] queryNames = TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptions);
+    String[] expected = {"query1", "query2", "query3", "query14a"};
+    Assert.assertArrayEquals(expected, queryNames);
+  }
 
-    @Test( expected = Exception.class)
-    public void testGetAndCheckQueriesException() throws Exception {
-        TpcdsParametersReader.getAndCheckQueryNameArray(tpcdsOptionsError);
-    }
+  @Test(expected = Exception.class)
+  public void testGetAndCheckQueriesException() throws Exception {
+    TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptionsError);
+  }
 
-    @Test
-    public void testGetAndCheckTpcParallel() throws Exception {
-        int nThreads = TpcdsParametersReader.getAndCheckTpcParallel(tpcdsOptions);
-        int expected = 2;
-        assertEquals(expected, nThreads);
-    }
+  @Test
+  public void testGetAndCheckTpcParallel() throws Exception {
+    int nThreads = TpcdsParametersReader.getAndCheckTpcParallel(tpcdsOptions);
+    int expected = 2;
+    assertEquals(expected, nThreads);
+  }
 
-    @Test( expected = Exception.class)
-    public void ttestGetAndCheckTpcParallelException() throws Exception {
-        TpcdsParametersReader.getAndCheckTpcParallel(tpcdsOptionsError);
-    }
+  @Test(expected = Exception.class)
+  public void ttestGetAndCheckTpcParallelException() throws Exception {
+    TpcdsParametersReader.getAndCheckTpcParallel(tpcdsOptionsError);
+  }
 }

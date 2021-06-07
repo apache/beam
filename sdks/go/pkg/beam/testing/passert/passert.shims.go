@@ -27,6 +27,7 @@ import (
 	// Library imports
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -34,13 +35,21 @@ import (
 func init() {
 	runtime.RegisterFunction(failIfBadEntries)
 	runtime.RegisterType(reflect.TypeOf((*diffFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*diffFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*elmCountCombineFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*elmCountCombineFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*errFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*errFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*failFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*failFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*failGBKFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*failGBKFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*failKVFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*failKVFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*hashFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*hashFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*sumFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*sumFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*diffFn)(nil)).Elem(), wrapMakerDiffFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*elmCountCombineFn)(nil)).Elem(), wrapMakerElmCountCombineFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*errFn)(nil)).Elem(), wrapMakerErrFn)

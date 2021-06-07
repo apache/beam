@@ -24,6 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -686,6 +687,31 @@ public class KafkaIOTest {
 
     PAssert.thatSingleton(input.apply(Count.globally())).isEqualTo(numElements / 10L);
 
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithWrongTopic() {
+    // Expect an exception when provided Kafka topic doesn't exist.
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(instanceOf(IllegalStateException.class));
+    thrown.expectMessage(
+        "Could not find any partitions info. Please check Kafka configuration and make sure that "
+            + "provided topics exist.");
+
+    int numElements = 1000;
+    KafkaIO.Read<Integer, Long> reader =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("none")
+            .withTopic("wrong_topic") // read from topic that doesn't exist
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of("my_topic"), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withMaxNumRecords(numElements)
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class);
+
+    p.apply(reader.withoutMetadata()).apply(Values.create());
     p.run();
   }
 

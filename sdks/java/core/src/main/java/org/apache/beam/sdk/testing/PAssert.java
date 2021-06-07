@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -512,7 +513,77 @@ public class PAssert {
         PAssertionSite.capture(reason));
   }
 
+  /**
+   * Constructs an {@link PCollectionListContentsAssert} for the provided {@link PCollectionList}.
+   */
+  public static <T> PCollectionListContentsAssert<T> thatList(PCollectionList<T> actual) {
+    return new PCollectionListContentsAssert<>(actual);
+  }
+
+  /**
+   * Constructs an {@link IterableAssert} for the elements of the flattened {@link PCollectionList}.
+   */
+  public static <T> IterableAssert<T> thatFlattened(PCollectionList<T> actual) {
+    PCollection<T> flatten = actual.apply(Flatten.pCollections());
+    return that(flatten.getName(), flatten);
+  }
+
+  /**
+   * Constructs an {@link IterableAssert} for the elements of the flattened {@link PCollectionList}
+   * with the specified reason.
+   */
+  public static <T> IterableAssert<T> thatFlattened(String reason, PCollectionList<T> actual) {
+    return new PCollectionContentsAssert<>(
+        actual.apply(Flatten.pCollections()), PAssertionSite.capture(reason));
+  }
+
   ////////////////////////////////////////////////////////////
+
+  /**
+   * An assert about the contents of each {@link PCollection} in the given {@link PCollectionList}.
+   */
+  protected static class PCollectionListContentsAssert<T> {
+    private final PCollectionList<T> pCollectionList;
+
+    public PCollectionListContentsAssert(PCollectionList<T> actual) {
+      this.pCollectionList = actual;
+    }
+
+    /**
+     * Applies one {@link SerializableFunction} to check the elements of each {@link PCollection} in
+     * the {@link PCollectionList}.
+     *
+     * <p>Returns this {@code PCollectionListContentsAssert}.
+     */
+    public PCollectionListContentsAssert<T> satisfies(
+        SerializableFunction<Iterable<T>, Void> checkerFn) {
+      for (int i = 0; i < pCollectionList.size(); i++) {
+        PAssert.that(pCollectionList.get(i)).satisfies(checkerFn);
+      }
+      return this;
+    }
+
+    /**
+     * Takes list of {@link SerializableFunction}s of the same size as {@link #pCollectionList}, and
+     * applies each matcher to the {@code PCollection} with the identical index in the {@link
+     * #pCollectionList}.
+     *
+     * <p>Returns this {@code PCollectionListContentsAssert}.
+     */
+    public PCollectionListContentsAssert<T> satisfies(
+        List<SerializableFunction<Iterable<T>, Void>> checkerFnList) {
+      if (checkerFnList == null) {
+        throw new IllegalArgumentException("List of SerializableFunction must not be null");
+      } else if (checkerFnList.size() != pCollectionList.size()) {
+        throw new IllegalArgumentException(
+            "List of SerializableFunction must be the same size as the PCollectionList");
+      }
+      for (int i = 0; i < pCollectionList.size(); i++) {
+        PAssert.that(pCollectionList.get(i)).satisfies(checkerFnList.get(i));
+      }
+      return this;
+    }
+  }
 
   /**
    * An {@link IterableAssert} about the contents of a {@link PCollection}. This does not require

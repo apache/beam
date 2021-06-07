@@ -44,12 +44,9 @@ Avro file.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import io
 import os
 import zlib
-from builtins import object
 from functools import partial
 
 import avro

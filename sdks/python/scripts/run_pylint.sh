@@ -88,7 +88,6 @@ ISORT_EXCLUDED=(
   "iobase_test.py"
   "fast_coders_test.py"
   "slow_coders_test.py"
-  "vcfio.py"
   "tfdv_analyze_and_validate.py"
   "preprocess.py"
   "model.py"

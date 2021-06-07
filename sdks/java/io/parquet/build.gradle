@@ -20,7 +20,6 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.io.parquet',
 )
 
@@ -36,7 +35,7 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def parquet_version = "1.11.1"
+def parquet_version = "1.12.0"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre

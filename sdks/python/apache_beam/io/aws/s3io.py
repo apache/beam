@@ -20,15 +20,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import errno
 import io
 import logging
 import re
 import time
 import traceback
-from builtins import object
 
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.io.filesystemio import Downloader

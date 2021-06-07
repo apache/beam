@@ -174,7 +174,7 @@ public class BigQueryUtilTest {
     onTableList(dataList);
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
+        new BigQueryServicesImpl.DatasetServiceImpl(mockClient, null, options);
 
     services.getTable(
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table"));
@@ -194,7 +194,7 @@ public class BigQueryUtilTest {
     onInsertAll(errorsIndices);
 
     TableReference ref = BigQueryHelpers.parseTableSpec("project:dataset.table");
-    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
+    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, null, options, 5);
 
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     List<String> ids = new ArrayList<>();

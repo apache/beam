@@ -33,7 +33,8 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**', 'examples/kotlin/**', 'release/**']
+    paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
+            'examples/kotlin/**', 'release/**', 'buildSrc/**']
 
 
 jobs:
@@ -159,6 +160,15 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
+      - name: Set Java Version
+        uses: actions/setup-java@v1
+        with:
+          java-version: 8
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # gradle-command-action plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml
       - name: Run WordCount
         uses: ./.github/actions/gradle-command-action
         with:

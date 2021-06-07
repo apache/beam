@@ -29,6 +29,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -59,6 +61,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -141,7 +144,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   // ================================================================================
 
   /** Convert elements to messages and shard them. */
-  private static class ShardFn extends DoFn<PubsubMessage, KV<Integer, OutgoingMessage>> {
+  private static class ShardFn extends DoFn<byte[], KV<Integer, OutgoingMessage>> {
     private final Counter elementCounter = Metrics.counter(ShardFn.class, "elements");
     private final int numShards;
     private final RecordIdMethod recordIdMethod;
@@ -154,8 +157,9 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.inc();
-      PubsubMessage message = c.element();
-      byte[] elementBytes = message.getPayload();
+      com.google.pubsub.v1.PubsubMessage message =
+          com.google.pubsub.v1.PubsubMessage.parseFrom(c.element());
+      byte[] elementBytes = message.getData().toByteArray();
 
       long timestampMsSinceEpoch = c.timestamp().getMillis();
       @Nullable String recordId = null;
@@ -409,29 +413,51 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
 
   @Override
   public PDone expand(PCollection<PubsubMessage> input) {
-    input
+    return input
         .apply(
-            "PubsubUnboundedSink.Window",
-            Window.<PubsubMessage>into(new GlobalWindows())
-                .triggering(
-                    Repeatedly.forever(
-                        AfterFirst.of(
-                            AfterPane.elementCountAtLeast(publishBatchSize),
-                            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(maxLatency))))
-                .discardingFiredPanes())
-        .apply("PubsubUnboundedSink.Shard", ParDo.of(new ShardFn(numShards, recordIdMethod)))
-        .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
-        .apply(GroupByKey.create())
-        .apply(
-            "PubsubUnboundedSink.Writer",
-            ParDo.of(
-                new WriterFn(
-                    pubsubFactory,
-                    topic,
-                    timestampAttribute,
-                    idAttribute,
-                    publishBatchSize,
-                    publishBatchBytes)));
-    return PDone.in(input.getPipeline());
+            "Output Serialized PubsubMessage Proto",
+            MapElements.into(new TypeDescriptor<byte[]>() {})
+                .via(new PubsubMessages.ParsePayloadAsPubsubMessageProto()))
+        .setCoder(ByteArrayCoder.of())
+        .apply(new PubsubSink(this));
+  }
+
+  static class PubsubSink extends PTransform<PCollection<byte[]>, PDone> {
+    public final PubsubUnboundedSink outer;
+
+    PubsubSink(PubsubUnboundedSink outer) {
+      this.outer = outer;
+    }
+
+    @Override
+    public PDone expand(PCollection<byte[]> input) {
+      input
+          .apply(
+              "PubsubUnboundedSink.Window",
+              Window.<byte[]>into(new GlobalWindows())
+                  .triggering(
+                      Repeatedly.forever(
+                          AfterFirst.of(
+                              AfterPane.elementCountAtLeast(outer.publishBatchSize),
+                              AfterProcessingTime.pastFirstElementInPane()
+                                  .plusDelayOf(outer.maxLatency))))
+                  .discardingFiredPanes())
+          .apply(
+              "PubsubUnboundedSink.Shard",
+              ParDo.of(new ShardFn(outer.numShards, outer.recordIdMethod)))
+          .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
+          .apply(GroupByKey.create())
+          .apply(
+              "PubsubUnboundedSink.Writer",
+              ParDo.of(
+                  new WriterFn(
+                      outer.pubsubFactory,
+                      outer.topic,
+                      outer.timestampAttribute,
+                      outer.idAttribute,
+                      outer.publishBatchSize,
+                      outer.publishBatchBytes)));
+      return PDone.in(input.getPipeline());
+    }
   }
 }

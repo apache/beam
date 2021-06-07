@@ -74,13 +74,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from typing import List
 from typing import NamedTuple
 from typing import Optional
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.transforms.external import BeamJarExpansionService
@@ -103,21 +99,21 @@ def default_io_expansion_service():
 ReadFromSnowflakeSchema = NamedTuple(
     'ReadFromSnowflakeSchema',
     [
-        ('server_name', unicode),
-        ('schema', unicode),
-        ('database', unicode),
-        ('staging_bucket_name', unicode),
-        ('storage_integration_name', unicode),
-        ('username', Optional[unicode]),
-        ('password', Optional[unicode]),
-        ('private_key_path', Optional[unicode]),
-        ('raw_private_key', Optional[unicode]),
-        ('private_key_passphrase', Optional[unicode]),
-        ('o_auth_token', Optional[unicode]),
-        ('table', Optional[unicode]),
-        ('query', Optional[unicode]),
-        ('role', Optional[unicode]),
-        ('warehouse', Optional[unicode]),
+        ('server_name', str),
+        ('schema', str),
+        ('database', str),
+        ('staging_bucket_name', str),
+        ('storage_integration_name', str),
+        ('username', Optional[str]),
+        ('password', Optional[str]),
+        ('private_key_path', Optional[str]),
+        ('raw_private_key', Optional[str]),
+        ('private_key_passphrase', Optional[str]),
+        ('o_auth_token', Optional[str]),
+        ('table', Optional[str]),
+        ('query', Optional[str]),
+        ('role', Optional[str]),
+        ('warehouse', Optional[str]),
     ])
 
 
@@ -240,24 +236,24 @@ class ReadFromSnowflake(beam.PTransform):
 WriteToSnowflakeSchema = NamedTuple(
     'WriteToSnowflakeSchema',
     [
-        ('server_name', unicode),
-        ('schema', unicode),
-        ('database', unicode),
-        ('staging_bucket_name', unicode),
-        ('storage_integration_name', unicode),
-        ('create_disposition', unicode),
-        ('write_disposition', unicode),
-        ('table_schema', unicode),
-        ('username', Optional[unicode]),
-        ('password', Optional[unicode]),
-        ('private_key_path', Optional[unicode]),
-        ('raw_private_key', Optional[unicode]),
-        ('private_key_passphrase', Optional[unicode]),
-        ('o_auth_token', Optional[unicode]),
-        ('table', Optional[unicode]),
-        ('query', Optional[unicode]),
-        ('role', Optional[unicode]),
-        ('warehouse', Optional[unicode]),
+        ('server_name', str),
+        ('schema', str),
+        ('database', str),
+        ('staging_bucket_name', str),
+        ('storage_integration_name', str),
+        ('create_disposition', str),
+        ('write_disposition', str),
+        ('table_schema', str),
+        ('username', Optional[str]),
+        ('password', Optional[str]),
+        ('private_key_path', Optional[str]),
+        ('raw_private_key', Optional[str]),
+        ('private_key_passphrase', Optional[str]),
+        ('o_auth_token', Optional[str]),
+        ('table', Optional[str]),
+        ('query', Optional[str]),
+        ('role', Optional[str]),
+        ('warehouse', Optional[str]),
     ],
 )
 

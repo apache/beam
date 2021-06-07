@@ -43,8 +43,6 @@ example usage:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from hamcrest import equal_to
 from hamcrest.core import string_description
 from hamcrest.core.base_matcher import BaseMatcher

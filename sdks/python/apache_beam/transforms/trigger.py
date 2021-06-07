@@ -22,19 +22,17 @@ Triggers control when in processing time windows get emitted.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import copy
 import logging
 import numbers
 from abc import ABCMeta
 from abc import abstractmethod
-from builtins import object
-
-from future.moves.itertools import zip_longest
-from future.utils import iteritems
-from future.utils import with_metaclass
+from enum import Flag
+from enum import auto
+from functools import reduce
+from itertools import zip_longest
+from operator import or_
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import observable
@@ -79,7 +77,7 @@ class AccumulationMode(object):
   # RETRACTING = 3
 
 
-class _StateTag(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class _StateTag(metaclass=ABCMeta):
   """An identifier used to store and retrieve typed, combinable state.
 
   The given tag must be unique for this step."""
@@ -162,9 +160,16 @@ class _WatermarkHoldStateTag(_StateTag):
         prefix + self.tag, self.timestamp_combiner_impl)
 
 
+class DataLossReason(Flag):
+  """Enum defining potential reasons that a trigger may cause data loss."""
+  NO_POTENTIAL_LOSS = 0
+  MAY_FINISH = auto()
+  CONDITION_NOT_GUARANTEED = auto()
+
+
 # pylint: disable=unused-argument
 # TODO(robertwb): Provisional API, Java likely to change as well.
-class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class TriggerFn(metaclass=ABCMeta):
   """A TriggerFn determines when window (panes) are emitted.
 
   See https://beam.apache.org/documentation/programming-guide/#triggers
@@ -243,6 +248,43 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
     """Clear any state and timers used by this TriggerFn."""
     pass
 
+  @abstractmethod
+  def may_lose_data(self, windowing):
+    # type: (core.Windowing) -> DataLossReason
+
+    """Returns whether or not this trigger could cause data loss.
+
+    A trigger can cause data loss in the following scenarios:
+
+        * The trigger has a chance to finish. For instance, AfterWatermark()
+          without a late trigger would cause all late data to be lost. This
+          scenario is only accounted for if the windowing strategy allows
+          late data. Otherwise, the trigger is not responsible for the data
+          loss.
+        * The trigger condition may not be met. For instance,
+          Repeatedly(AfterCount(N)) may not fire due to N not being met. This
+          is only accounted for if the condition itself led to data loss.
+          Repeatedly(AfterCount(1)) is safe, since it would only not fire if
+          there is no data to lose, but Repeatedly(AfterCount(2)) can cause
+          data loss if there is only one record.
+
+    Note that this only returns the potential for loss. It does not mean that
+    there will be data loss. It also only accounts for loss related to the
+    trigger, not other potential causes.
+
+    Args:
+      windowing: The Windowing that this trigger belongs to. It does not need
+        to be the top-level trigger.
+
+    Returns:
+      The DataLossReason. If there is no potential loss,
+        DataLossReason.NO_POTENTIAL_LOSS is returned. Otherwise, all the
+        potential reasons are returned as a single value. For instance, if
+        data loss can result from finishing or not having the condition met,
+        the result will be DataLossReason.MAY_FINISH|CONDITION_NOT_GUARANTEED.
+    """
+    pass
+
 
 # pylint: enable=unused-argument
 
@@ -267,10 +309,6 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   def to_runner_api(self, unused_context):
     pass
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
 
 class DefaultTrigger(TriggerFn):
   """Semantically Repeatedly(AfterWatermark()), but more optimized."""
@@ -281,26 +319,27 @@ class DefaultTrigger(TriggerFn):
     return 'DefaultTrigger()'
 
   def on_element(self, element, window, context):
-    context.set_timer('', TimeDomain.WATERMARK, window.end)
+    context.set_timer(str(window), TimeDomain.WATERMARK, window.end)
 
   def on_merge(self, to_be_merged, merge_result, context):
-    # Note: Timer clearing solely an optimization.
     for window in to_be_merged:
-      if window.end != merge_result.end:
-        context.clear_timer('', TimeDomain.WATERMARK)
+      context.clear_timer(str(window), TimeDomain.WATERMARK)
 
   def should_fire(self, time_domain, watermark, window, context):
     if watermark >= window.end:
       # Explicitly clear the timer so that late elements are not emitted again
       # when the timer is fired.
-      context.clear_timer('', TimeDomain.WATERMARK)
+      context.clear_timer(str(window), TimeDomain.WATERMARK)
     return watermark >= window.end
 
   def on_fire(self, watermark, window, context):
     return False
 
   def reset(self, window, context):
-    context.clear_timer('', TimeDomain.WATERMARK)
+    context.clear_timer(str(window), TimeDomain.WATERMARK)
+
+  def may_lose_data(self, unused_windowing):
+    return DataLossReason.NO_POTENTIAL_LOSS
 
   def __eq__(self, other):
     return type(self) == type(other)
@@ -349,6 +388,9 @@ class AfterProcessingTime(TriggerFn):
 
   def reset(self, window, context):
     pass
+
+  def may_lose_data(self, unused_windowing):
+    return DataLossReason.MAY_FINISH
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -401,6 +443,9 @@ class Always(TriggerFn):
   def on_fire(self, watermark, window, context):
     return False
 
+  def may_lose_data(self, unused_windowing):
+    return DataLossReason.NO_POTENTIAL_LOSS
+
   @staticmethod
   def from_runner_api(proto, context):
     return Always()
@@ -445,6 +490,14 @@ class _Never(TriggerFn):
   def on_fire(self, watermark, window, context):
     return True
 
+  def may_lose_data(self, unused_windowing):
+    """No potential data loss.
+
+    Though Never doesn't explicitly trigger, it still collects data on
+    windowing closing, so any data loss is due to windowing closing.
+    """
+    return DataLossReason.NO_POTENTIAL_LOSS
+
   @staticmethod
   def from_runner_api(proto, context):
     return _Never()
@@ -466,6 +519,7 @@ class AfterWatermark(TriggerFn):
   LATE_TAG = _CombiningValueStateTag('is_late', any)
 
   def __init__(self, early=None, late=None):
+    # TODO(zhoufek): Maybe don't wrap early/late if they are already Repeatedly
     self.early = Repeatedly(early) if early else None
     self.late = Repeatedly(late) if late else None
 
@@ -536,6 +590,20 @@ class AfterWatermark(TriggerFn):
     if self.late:
       self.late.reset(window, NestedContext(context, 'late'))
 
+  def may_lose_data(self, windowing):
+    """May cause data loss if the windowing allows lateness and either:
+
+      * The late trigger is not set
+      * The late trigger may cause data loss.
+
+    The second case is equivalent to Repeatedly(late).may_lose_data(windowing)
+    """
+    if windowing.allowed_lateness == 0:
+      return DataLossReason.NO_POTENTIAL_LOSS
+    if self.late is None:
+      return DataLossReason.MAY_FINISH
+    return self.late.may_lose_data(windowing)
+
   def __eq__(self, other):
     return (
         type(self) == type(other) and self.early == other.early and
@@ -605,6 +673,12 @@ class AfterCount(TriggerFn):
   def reset(self, window, context):
     context.clear_state(self.COUNT_TAG)
 
+  def may_lose_data(self, unused_windowing):
+    reason = DataLossReason.MAY_FINISH
+    if self.count > 1:
+      reason |= DataLossReason.CONDITION_NOT_GUARANTEED
+    return reason
+
   @staticmethod
   def from_runner_api(proto, unused_context):
     return AfterCount(proto.element_count.element_count)
@@ -649,6 +723,17 @@ class Repeatedly(TriggerFn):
   def reset(self, window, context):
     self.underlying.reset(window, context)
 
+  def may_lose_data(self, windowing):
+    """Repeatedly may only lose data if the underlying trigger may not have
+    its condition met.
+
+    For underlying triggers that may finish, Repeatedly overrides that
+    behavior.
+    """
+    return (
+        self.underlying.may_lose_data(windowing)
+        & DataLossReason.CONDITION_NOT_GUARANTEED)
+
   @staticmethod
   def from_runner_api(proto, context):
     return Repeatedly(
@@ -663,7 +748,7 @@ class Repeatedly(TriggerFn):
     return self.underlying.has_ontime_pane()
 
 
-class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):  # type: ignore[misc]
+class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
   def __init__(self, *triggers):
     self.triggers = triggers
 
@@ -754,6 +839,15 @@ class AfterAny(_ParallelTriggerFn):
   """
   combine_op = any
 
+  def may_lose_data(self, windowing):
+    reason = DataLossReason.NO_POTENTIAL_LOSS
+    for trigger in self.triggers:
+      t_reason = trigger.may_lose_data(windowing)
+      if t_reason == DataLossReason.NO_POTENTIAL_LOSS:
+        return t_reason
+      reason |= t_reason
+    return reason
+
 
 class AfterAll(_ParallelTriggerFn):
   """Fires when all subtriggers have fired.
@@ -761,6 +855,9 @@ class AfterAll(_ParallelTriggerFn):
   Also finishes when all subtriggers have finished.
   """
   combine_op = all
+
+  def may_lose_data(self, windowing):
+    return reduce(or_, (t.may_lose_data(windowing) for t in self.triggers))
 
 
 class AfterEach(TriggerFn):
@@ -816,6 +913,9 @@ class AfterEach(TriggerFn):
     context.clear_state(self.INDEX_TAG)
     for ix, trigger in enumerate(self.triggers):
       trigger.reset(window, self._sub_context(context, ix))
+
+  def may_lose_data(self, windowing):
+    return reduce(or_, (t.may_lose_data(windowing) for t in self.triggers))
 
   @staticmethod
   def _sub_context(context, index):
@@ -909,7 +1009,7 @@ class NestedContext(object):
 
 
 # pylint: disable=unused-argument
-class SimpleState(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class SimpleState(metaclass=ABCMeta):
   """Basic state storage interface used for triggering.
 
   Only timers must hold the watermark (by their timestamp).
@@ -1099,7 +1199,7 @@ def create_trigger_driver(
   return driver
 
 
-class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class TriggerDriver(metaclass=ABCMeta):
   """Breaks a series of bundle and timer firings into window (pane)s."""
   @abstractmethod
   def process_elements(
@@ -1122,6 +1222,7 @@ class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
     pass
 
   def process_entire_key(self, key, windowed_values):
+    # This state holds per-key, multi-window state.
     state = InMemoryUnmergedState()
     for wvalue in self.process_elements(state,
                                         windowed_values,
@@ -1166,10 +1267,6 @@ class _UnwindowedValues(observable.ObservableMixin):
 
   def __hash__(self):
     return hash(tuple(self))
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
 
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
@@ -1538,7 +1635,7 @@ class InMemoryUnmergedState(UnmergedState):
 
   def get_earliest_hold(self):
     earliest_hold = MAX_TIMESTAMP
-    for unused_window, tagged_states in iteritems(self.state):
+    for unused_window, tagged_states in self.state.items():
       # TODO(BEAM-2519): currently, this assumes that the watermark hold tag is
       # named "watermark".  This is currently only true because the only place
       # watermark holds are set is in the GeneralTriggerDriver, where we use

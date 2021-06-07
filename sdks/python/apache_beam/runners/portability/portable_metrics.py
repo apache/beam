@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 
 from apache_beam.metrics import monitoring_infos

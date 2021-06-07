@@ -19,29 +19,20 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import operator
 import pickle
 import random
 import re
-import sys
 import typing
 import unittest
-from builtins import map
-from builtins import range
-from builtins import zip
 from functools import reduce
+from typing import Iterable
 from typing import Optional
 from unittest.mock import patch
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 import apache_beam.pvalue as pvalue
@@ -50,11 +41,16 @@ import apache_beam.typehints as typehints
 from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import is_empty
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
@@ -73,12 +69,6 @@ from apache_beam.utils.windowed_value import WindowedValue
 class PTransformTest(unittest.TestCase):
   # Enable nose tests running in parallel
   _multiprocess_can_split_ = True
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   def assertStartswith(self, msg, prefix):
     self.assertTrue(
@@ -192,7 +182,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
       assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_impulse(self):
     with TestPipeline() as pipeline:
       result = pipeline | beam.Impulse() | beam.Map(lambda _: 0)
@@ -200,7 +190,8 @@ class PTransformTest(unittest.TestCase):
 
   # TODO(BEAM-3544): Disable this test in streaming temporarily.
   # Remove sickbay-streaming tag after it's resolved.
-  @attr('ValidatesRunner', 'sickbay-streaming')
+  @pytest.mark.no_sickbay_streaming
+  @pytest.mark.it_validatesrunner
   def test_read_metrics(self):
     from apache_beam.io.utils import CountingSource
 
@@ -226,7 +217,7 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual(outputs_counter.committed, 100)
     self.assertEqual(outputs_counter.attempted, 100)
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_par_do_with_multiple_outputs_and_using_yield(self):
     class SomeDoFn(beam.DoFn):
       """A custom DoFn using yield."""
@@ -245,7 +236,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_par_do_with_multiple_outputs_and_using_return(self):
     def some_fn(v):
       if v % 2 == 0:
@@ -260,7 +251,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_undeclared_outputs(self):
     with TestPipeline() as pipeline:
       nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
@@ -274,7 +265,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_multiple_empty_outputs(self):
     with TestPipeline() as pipeline:
       nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
@@ -485,6 +476,41 @@ class PTransformTest(unittest.TestCase):
       result = pcoll | 'Group' >> beam.GroupByKey() | _SortLists
       assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
 
+  def test_group_by_key_unbounded_global_default_trigger(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'GroupByKey cannot be applied to an unbounded PCollection with ' +
+        'global windowing and a default trigger'):
+      with TestPipeline() as pipeline:
+        pipeline | TestStream() | beam.GroupByKey()
+
+  def test_group_by_key_unsafe_trigger(self):
+    with self.assertRaisesRegex(ValueError, 'Unsafe trigger'):
+      with TestPipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.Create([(None, None)])
+            | WindowInto(
+                window.GlobalWindows(),
+                trigger=trigger.AfterCount(5),
+                accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+            | beam.GroupByKey())
+
+  def test_group_by_key_allow_unsafe_triggers(self):
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    with TestPipeline(options=test_options) as pipeline:
+      pcoll = (
+          pipeline
+          | beam.Create([(1, 1), (1, 2), (1, 3), (1, 4)])
+          | WindowInto(
+              window.GlobalWindows(),
+              trigger=trigger.AfterCount(5),
+              accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+          | beam.GroupByKey())
+      # We need five, but it only has four - Displays how this option is
+      # dangerous.
+      assert_that(pcoll, is_empty())
+
   def test_group_by_key_reiteration(self):
     class MyDoFn(beam.DoFn):
       def process(self, gbk_result):
@@ -651,7 +677,7 @@ class PTransformTest(unittest.TestCase):
       grouped = flattened | 'D' >> beam.GroupByKey() | _SortLists
       assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_flatten_pcollections(self):
     with TestPipeline() as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -666,7 +692,7 @@ class PTransformTest(unittest.TestCase):
       result = () | 'Empty' >> beam.Flatten(pipeline=pipeline)
       assert_that(result, equal_to([]))
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_flatten_one_single_pcollection(self):
     with TestPipeline() as pipeline:
       input = [0, 1, 2, 3]
@@ -675,7 +701,8 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to(input))
 
   # TODO(BEAM-9002): Does not work in streaming mode on Dataflow.
-  @attr('ValidatesRunner', 'sickbay-streaming')
+  @pytest.mark.no_sickbay_streaming
+  @pytest.mark.it_validatesrunner
   def test_flatten_same_pcollections(self):
     with TestPipeline() as pipeline:
       pc = pipeline | beam.Create(['a', 'b'])
@@ -688,7 +715,7 @@ class PTransformTest(unittest.TestCase):
       result = [pcoll for pcoll in (pcoll_1, pcoll_2)] | beam.Flatten()
       assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_flatten_a_flattened_pcollection(self):
     with TestPipeline() as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -710,7 +737,7 @@ class PTransformTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       set([1, 2, 3]) | beam.Flatten()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_flatten_multiple_pcollections_having_multiple_consumers(self):
     with TestPipeline() as pipeline:
       input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
@@ -900,6 +927,17 @@ class PTransformTest(unittest.TestCase):
     res1, res2 = [1, 2, 4, 8] | Duplicate()
     self.assertEqual(sorted(res1), [1, 2, 4, 8])
     self.assertEqual(sorted(res2), [1, 2, 4, 8])
+
+  def test_resource_hint_application_is_additive(self):
+    t = beam.Map(lambda x: x + 1).with_resource_hints(
+        accelerator='gpu').with_resource_hints(min_ram=1).with_resource_hints(
+            accelerator='tpu')
+    self.assertEqual(
+        t.get_resource_hints(),
+        {
+            common_urns.resource_hints.ACCELERATOR.urn: b'tpu',
+            common_urns.resource_hints.MIN_RAM_BYTES.urn: b'1'
+        })
 
 
 class TestGroupBy(unittest.TestCase):
@@ -2023,16 +2061,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'C' >> beam.Create(['test']).with_output_types(str)
           | 'Mean' >> combine.Mean.Globally())
 
-    if sys.version_info[0] >= 3:
-      expected_msg = \
-        "Type hint violation for 'CombinePerKey': " \
-        "requires Tuple[TypeVariable[K], Union[float, int]] " \
-        "but got Tuple[None, str] for element"
-    else:
-      expected_msg = \
-        "Type hint violation for 'CombinePerKey': " \
-        "requires Tuple[TypeVariable[K], Union[float, int, long]] " \
-        "but got Tuple[None, str] for element"
+    expected_msg = \
+      "Type hint violation for 'CombinePerKey': " \
+      "requires Tuple[TypeVariable[K], Union[float, int]] " \
+      "but got Tuple[None, str] for element"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
@@ -2095,16 +2127,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'EvenMean' >> combine.Mean.PerKey())
       self.p.run()
 
-    if sys.version_info[0] >= 3:
-      expected_msg = \
-        "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
-        "requires Tuple[TypeVariable[K], Union[float, int]] " \
-        "but got Tuple[str, str] for element"
-    else:
-      expected_msg = \
-        "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
-        "requires Tuple[TypeVariable[K], Union[float, int, long]] " \
-        "but got Tuple[str, str] for element"
+    expected_msg = \
+      "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
+      "requires Tuple[TypeVariable[K], Union[float, int]] " \
+      "but got Tuple[str, str] for element"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
@@ -2139,22 +2165,13 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'OddMean' >> combine.Mean.PerKey())
       self.p.run()
 
-    if sys.version_info[0] >= 3:
-      expected_msg = \
-        "Runtime type violation detected within " \
-        "OddMean/CombinePerKey(MeanCombineFn): " \
-        "Type-hint for argument: 'element' violated: " \
-        "Union[float, int] type-constraint violated. " \
-        "Expected an instance of one of: ('float', 'int'), " \
-        "received str instead"
-    else:
-      expected_msg = \
-        "Runtime type violation detected within " \
-        "OddMean/CombinePerKey(MeanCombineFn): " \
-        "Type-hint for argument: 'element' violated: " \
-        "Union[float, int, long] type-constraint violated. " \
-        "Expected an instance of one of: ('float', 'int', 'long'), " \
-        "received str instead"
+    expected_msg = \
+      "Runtime type violation detected within " \
+      "OddMean/CombinePerKey(MeanCombineFn): " \
+      "Type-hint for argument: 'element' violated: " \
+      "Union[float, int] type-constraint violated. " \
+      "Expected an instance of one of: ('float', 'int'), " \
+      "received str instead"
 
     self.assertStartswith(e.exception.args[0], expected_msg)
 
@@ -2592,6 +2609,8 @@ def _sort_lists(result):
     return tuple(_sort_lists(e) for e in result)
   elif isinstance(result, dict):
     return {k: _sort_lists(v) for k, v in result.items()}
+  elif isinstance(result, Iterable) and not isinstance(result, str):
+    return sorted(result)
   else:
     return result
 

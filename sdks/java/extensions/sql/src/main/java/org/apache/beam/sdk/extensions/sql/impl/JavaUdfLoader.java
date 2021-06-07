@@ -35,6 +35,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import org.apache.beam.sdk.extensions.sql.udf.AggregateFn;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.udf.UdfProvider;
 import org.apache.beam.sdk.io.FileSystems;
@@ -87,6 +88,33 @@ public class JavaUdfLoader {
       throw new RuntimeException(
           String.format(
               "Failed to load user-defined scalar function %s from %s", functionFullName, jarPath),
+          e);
+    }
+  }
+
+  /** Load a user-defined aggregate function from the specified jar. */
+  public AggregateFn loadAggregateFunction(List<String> functionPath, String jarPath) {
+    String functionFullName = String.join(".", functionPath);
+    try {
+      FunctionDefinitions functionDefinitions = loadJar(jarPath);
+      if (!functionDefinitions.aggregateFunctions().containsKey(functionPath)) {
+        throw new IllegalArgumentException(
+            String.format(
+                "No implementation of aggregate function %s found in %s.%n"
+                    + " 1. Create a class implementing %s and annotate it with @AutoService(%s.class).%n"
+                    + " 2. Add function %s to the class's userDefinedAggregateFunctions implementation.",
+                functionFullName,
+                jarPath,
+                UdfProvider.class.getSimpleName(),
+                UdfProvider.class.getSimpleName(),
+                functionFullName));
+      }
+      return functionDefinitions.aggregateFunctions().get(functionPath);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format(
+              "Failed to load user-defined aggregate function %s from %s",
+              functionFullName, jarPath),
           e);
     }
   }
@@ -167,6 +195,7 @@ public class JavaUdfLoader {
 
     ClassLoader classLoader = createClassLoader(jarPath);
     Map<List<String>, ScalarFn> scalarFunctions = new HashMap<>();
+    Map<List<String>, AggregateFn> aggregateFunctions = new HashMap<>();
     Iterator<UdfProvider> providers = getUdfProviders(classLoader);
     int providersCount = 0;
     while (providers.hasNext()) {
@@ -184,6 +213,19 @@ public class JavaUdfLoader {
                           functionName, jarPath));
                 }
                 scalarFunctions.put(functionPath, implementation);
+              });
+      provider
+          .userDefinedAggregateFunctions()
+          .forEach(
+              (functionName, implementation) -> {
+                List<String> functionPath = ImmutableList.copyOf(functionName.split("\\."));
+                if (aggregateFunctions.containsKey(functionPath)) {
+                  throw new IllegalArgumentException(
+                      String.format(
+                          "Found multiple definitions of aggregate function %s in %s.",
+                          functionName, jarPath));
+                }
+                aggregateFunctions.put(functionPath, implementation);
               });
     }
     if (providersCount == 0) {
@@ -204,6 +246,7 @@ public class JavaUdfLoader {
     FunctionDefinitions userFunctionDefinitions =
         FunctionDefinitions.newBuilder()
             .setScalarFunctions(ImmutableMap.copyOf(scalarFunctions))
+            .setAggregateFunctions(ImmutableMap.copyOf(aggregateFunctions))
             .build();
 
     functionCache.put(jarPath, userFunctionDefinitions);
@@ -216,16 +259,21 @@ public class JavaUdfLoader {
   abstract static class FunctionDefinitions {
     abstract ImmutableMap<List<String>, ScalarFn> scalarFunctions();
 
+    abstract ImmutableMap<List<String>, AggregateFn> aggregateFunctions();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setScalarFunctions(ImmutableMap<List<String>, ScalarFn> value);
+
+      abstract Builder setAggregateFunctions(ImmutableMap<List<String>, AggregateFn> value);
 
       abstract FunctionDefinitions build();
     }
 
     static Builder newBuilder() {
       return new AutoValue_JavaUdfLoader_FunctionDefinitions.Builder()
-          .setScalarFunctions(ImmutableMap.of());
+          .setScalarFunctions(ImmutableMap.of())
+          .setAggregateFunctions(ImmutableMap.of());
     }
   }
 }

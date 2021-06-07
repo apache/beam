@@ -47,8 +47,6 @@ TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import glob
 import hashlib
 import logging
@@ -59,9 +57,9 @@ import tempfile
 from typing import List
 from typing import Optional
 from typing import Tuple
+from urllib.parse import urlparse
 
 import pkg_resources
-from future.moves.urllib.parse import urlparse
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -720,9 +718,7 @@ class Stager(object):
               sdk_local_file, sdk_sources_staged_name)
       ]
       try:
-        abi_suffix = (
-            'mu' if sys.version_info[0] < 3 else
-            ('m' if sys.version_info < (3, 8) else ''))
+        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
         # Stage binary distribution of the SDK, for now on a best-effort basis.
         sdk_local_file = Stager._download_pypi_sdk_package(
             temp_dir,

@@ -100,25 +100,25 @@ func TestAddNamespace(t *testing.T) {
 						UniqueName:    "t0",
 						Inputs:        map[string]string{"t0i0": "p0"},
 						Outputs:       map[string]string{"t0o0": "p1", "t0o1": "p2"},
-						EnvironmentId: "e0@daASxQwenJ",
+						EnvironmentId: "e0",
 					},
 					"t1": {
 						UniqueName:    "t1",
 						Inputs:        map[string]string{"t1i0": "p1"},
 						Outputs:       map[string]string{"t1o0": "p3"},
-						EnvironmentId: "e1@daASxQwenJ",
+						EnvironmentId: "e1",
 					},
 					"t2": {
 						UniqueName:    "t2",
 						Inputs:        map[string]string{"t2i0": "p2"},
 						Outputs:       map[string]string{"t2o0": "p4"},
-						EnvironmentId: "e0@daASxQwenJ",
+						EnvironmentId: "e0",
 					},
 					"t3": {
 						UniqueName:    "t3",
 						Inputs:        map[string]string{"t3i0": "p3", "t3i1": "p4"},
 						Outputs:       map[string]string{"t3o0": "p5"},
-						EnvironmentId: "e1@daASxQwenJ",
+						EnvironmentId: "e1",
 					},
 				},
 				Pcollections: map[string]*pipepb.PCollection{
@@ -131,7 +131,7 @@ func TestAddNamespace(t *testing.T) {
 				},
 				WindowingStrategies: map[string]*pipepb.WindowingStrategy{
 					"w0":            {WindowCoderId: "c3", EnvironmentId: "e0"},
-					"w1@daASxQwenJ": {WindowCoderId: "c4@daASxQwenJ", EnvironmentId: "e1@daASxQwenJ"},
+					"w1@daASxQwenJ": {WindowCoderId: "c4@daASxQwenJ", EnvironmentId: "e1"},
 				},
 				Coders: map[string]*pipepb.Coder{
 					"c0@daASxQwenJ": {Spec: &pipepb.FunctionSpec{Urn: "c0"}},
@@ -141,8 +141,8 @@ func TestAddNamespace(t *testing.T) {
 					"c4@daASxQwenJ": {Spec: &pipepb.FunctionSpec{Urn: "c4"}},
 				},
 				Environments: map[string]*pipepb.Environment{
-					"e0@daASxQwenJ": {Urn: "e0"},
-					"e1@daASxQwenJ": {Urn: "e1"},
+					"e0": {Urn: "e0"},
+					"e1": {Urn: "e1"},
 				},
 			},
 		},
@@ -213,7 +213,7 @@ func TestAddNamespace(t *testing.T) {
 						UniqueName:    "t1",
 						Inputs:        map[string]string{"t1i0": "p1"},
 						Outputs:       map[string]string{"t1o0": "p3"},
-						EnvironmentId: "e1@daASxQwenJ",
+						EnvironmentId: "e1",
 					},
 					"t2": {
 						UniqueName:    "t2",
@@ -225,7 +225,7 @@ func TestAddNamespace(t *testing.T) {
 						UniqueName:    "t3",
 						Inputs:        map[string]string{"t3i0": "p3", "t3i1": "p4"},
 						Outputs:       map[string]string{"t3o0": "p5"},
-						EnvironmentId: "e1@daASxQwenJ",
+						EnvironmentId: "e1",
 					},
 				},
 				Pcollections: map[string]*pipepb.PCollection{
@@ -238,7 +238,7 @@ func TestAddNamespace(t *testing.T) {
 				},
 				WindowingStrategies: map[string]*pipepb.WindowingStrategy{
 					"w0":            {WindowCoderId: "c3", EnvironmentId: "e0"},
-					"w1@daASxQwenJ": {WindowCoderId: "c4@daASxQwenJ", EnvironmentId: "e1@daASxQwenJ"},
+					"w1@daASxQwenJ": {WindowCoderId: "c4@daASxQwenJ", EnvironmentId: "e1"},
 				},
 				Coders: map[string]*pipepb.Coder{
 					"c0":            {Spec: &pipepb.FunctionSpec{Urn: "c0"}},
@@ -248,8 +248,8 @@ func TestAddNamespace(t *testing.T) {
 					"c4@daASxQwenJ": {Spec: &pipepb.FunctionSpec{Urn: "c4"}},
 				},
 				Environments: map[string]*pipepb.Environment{
-					"e0":            {Urn: "e0"},
-					"e1@daASxQwenJ": {Urn: "e1"},
+					"e0": {Urn: "e0"},
+					"e1": {Urn: "e1"},
 				},
 			},
 		},
@@ -314,25 +314,25 @@ func TestAddNamespace(t *testing.T) {
 						UniqueName:    "t0",
 						Inputs:        map[string]string{"t0i0": "p0"},
 						Outputs:       map[string]string{"t0o0": "p1", "t0o1": "p2"},
-						EnvironmentId: "e0@daASxQwenJ",
+						EnvironmentId: "e0",
 					},
 					"t1": {
 						UniqueName:    "t1",
 						Inputs:        map[string]string{"t1i0": "p1"},
 						Outputs:       map[string]string{"t1o0": "p3"},
-						EnvironmentId: "e1@daASxQwenJ",
+						EnvironmentId: "e1",
 					},
 					"t2": {
 						UniqueName:    "t2",
 						Inputs:        map[string]string{"t2i0": "p2"},
 						Outputs:       map[string]string{"t2o0": "p4"},
-						EnvironmentId: "e0@daASxQwenJ",
+						EnvironmentId: "e0",
 					},
 					"t3": {
 						UniqueName:    "t3",
 						Inputs:        map[string]string{"t3i0": "p3", "t3i1": "p4"},
 						Outputs:       map[string]string{"t3o0": "p5"},
-						EnvironmentId: "e1@daASxQwenJ",
+						EnvironmentId: "e1",
 					},
 				},
 				Pcollections: map[string]*pipepb.PCollection{
@@ -344,8 +344,8 @@ func TestAddNamespace(t *testing.T) {
 					"p5": {CoderId: "c2@daASxQwenJ", WindowingStrategyId: "w1@daASxQwenJ"},
 				},
 				WindowingStrategies: map[string]*pipepb.WindowingStrategy{
-					"w0@daASxQwenJ": {WindowCoderId: "c3@daASxQwenJ", EnvironmentId: "e0@daASxQwenJ"},
-					"w1@daASxQwenJ": {WindowCoderId: "c4@daASxQwenJ", EnvironmentId: "e1@daASxQwenJ"},
+					"w0@daASxQwenJ": {WindowCoderId: "c3@daASxQwenJ", EnvironmentId: "e0"},
+					"w1@daASxQwenJ": {WindowCoderId: "c4@daASxQwenJ", EnvironmentId: "e1"},
 				},
 				Coders: map[string]*pipepb.Coder{
 					"c0":            {Spec: &pipepb.FunctionSpec{Urn: "c0"}},
@@ -355,8 +355,8 @@ func TestAddNamespace(t *testing.T) {
 					"c4@daASxQwenJ": {Spec: &pipepb.FunctionSpec{Urn: "c4"}},
 				},
 				Environments: map[string]*pipepb.Environment{
-					"e0@daASxQwenJ": {Urn: "e0"},
-					"e1@daASxQwenJ": {Urn: "e1"},
+					"e0": {Urn: "e0"},
+					"e1": {Urn: "e1"},
 				},
 			},
 		},
@@ -406,13 +406,13 @@ func TestAddNamespace(t *testing.T) {
 						UniqueName:    "t0",
 						Inputs:        map[string]string{"t0i0": "p0"},
 						Outputs:       map[string]string{"t0o0": "p1"},
-						EnvironmentId: "e0@daASxQwenJ",
+						EnvironmentId: "e0",
 					},
 					"t1": {
 						UniqueName:    "t1",
 						Inputs:        map[string]string{"t1i0": "p1"},
 						Outputs:       map[string]string{"t1o0": "p2"},
-						EnvironmentId: "e1@daASxQwenJ",
+						EnvironmentId: "e1",
 					},
 				},
 				Pcollections: map[string]*pipepb.PCollection{
@@ -421,8 +421,8 @@ func TestAddNamespace(t *testing.T) {
 					"p2": {CoderId: "c0@daASxQwenJ", WindowingStrategyId: "w1@daASxQwenJ"},
 				},
 				WindowingStrategies: map[string]*pipepb.WindowingStrategy{
-					"w0@daASxQwenJ": {WindowCoderId: "c3@daASxQwenJ", EnvironmentId: "e0@daASxQwenJ"},
-					"w1@daASxQwenJ": {WindowCoderId: "c4@daASxQwenJ", EnvironmentId: "e1@daASxQwenJ"},
+					"w0@daASxQwenJ": {WindowCoderId: "c3@daASxQwenJ", EnvironmentId: "e0"},
+					"w1@daASxQwenJ": {WindowCoderId: "c4@daASxQwenJ", EnvironmentId: "e1"},
 				},
 				Coders: map[string]*pipepb.Coder{
 					"c0@daASxQwenJ": {Spec: &pipepb.FunctionSpec{Urn: "c0"}, ComponentCoderIds: []string{"c2@daASxQwenJ"}},
@@ -432,8 +432,8 @@ func TestAddNamespace(t *testing.T) {
 					"c4@daASxQwenJ": {Spec: &pipepb.FunctionSpec{Urn: "c4"}},
 				},
 				Environments: map[string]*pipepb.Environment{
-					"e0@daASxQwenJ": {Urn: "e0"},
-					"e1@daASxQwenJ": {Urn: "e1"},
+					"e0": {Urn: "e0"},
+					"e1": {Urn: "e1"},
 				},
 			},
 		},
