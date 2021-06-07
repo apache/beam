@@ -51,7 +51,6 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import MapTuple
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
-from apache_beam.transforms.core import _fn_takes_side_inputs
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.timeutil import TimeDomain
@@ -64,6 +63,7 @@ from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
@@ -731,6 +731,19 @@ class Reshuffle(PTransform):
     return Reshuffle()
 
 
+def fn_takes_side_inputs(fn):
+  try:
+    signature = get_signature(fn)
+  except TypeError:
+    # We can't tell; maybe it does.
+    return True
+
+  return (
+      len(signature.parameters) > 1 or any(
+          p.kind == p.VAR_POSITIONAL or p.kind == p.VAR_KEYWORD
+          for p in signature.parameters.values()))
+
+
 @ptransform_fn
 def WithKeys(pcoll, k, *args, **kwargs):
   """PTransform that takes a PCollection, and either a constant key or a
@@ -740,7 +753,7 @@ def WithKeys(pcoll, k, *args, **kwargs):
   keyword arguments, which should be passed to WithKeys directly.
   """
   if callable(k):
-    if _fn_takes_side_inputs(k):
+    if fn_takes_side_inputs(k):
       return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
     return pcoll | Map(lambda v: (k(v), v))
   return pcoll | Map(lambda v: (k, v))

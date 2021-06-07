@@ -46,6 +46,7 @@ from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.userstate import StateSpec
 from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.util import fn_takes_side_inputs
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
@@ -696,19 +697,6 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return self.process
 
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_DOFN)
-
-
-def _fn_takes_side_inputs(fn):
-  try:
-    signature = get_signature(fn)
-  except TypeError:
-    # We can't tell; maybe it does.
-    return True
-
-  return (
-      len(signature.parameters) > 1 or any(
-          p.kind == p.VAR_POSITIONAL or p.kind == p.VAR_KEYWORD
-          for p in signature.parameters.values()))
 
 
 class CallableWrapperDoFn(DoFn):
@@ -1564,7 +1552,7 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
     raise TypeError(
         'Map can be used only with callable objects. '
         'Received %r instead.' % (fn))
-  if _fn_takes_side_inputs(fn):
+  if fn_takes_side_inputs(fn):
     wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
   else:
     wrapper = lambda x: [fn(x)]
