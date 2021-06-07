@@ -110,7 +110,7 @@ class PipelineOptionsValidator(object):
       'Option environment_config is incompatible with option(s) %s.')
   ERR_MISSING_REQUIRED_ENVIRONMENT_OPTION = (
       'Option %s is required for environment type %s.')
-  ERR_WORKER_NUM_TOO_HIGH = (
+  ERR_NUM_WORKERS_TOO_HIGH = (
       'num_workers (%s) cannot exceed max_num_workers (%s)')
 
   # GCS path specific patterns.
@@ -252,7 +252,7 @@ class PipelineOptionsValidator(object):
 
     return errors
 
-  def validate_worker_num(self, view):
+  def validate_num_workers(self, view):
     """Validates that Dataflow worker number is valid."""
     errors = self.validate_optional_argument_positive(view, 'num_workers')
 
@@ -262,7 +262,7 @@ class PipelineOptionsValidator(object):
         num_workers > max_num_workers):
       errors.extend(
           self._validate_error(
-              self.ERR_WORKER_NUM_TOO_HIGH, num_workers, max_num_workers))
+              self.ERR_NUM_WORKERS_TOO_HIGH, num_workers, max_num_workers))
 
     return errors
 

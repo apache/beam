@@ -372,7 +372,7 @@ class SetupTest(unittest.TestCase):
     errors = validator.validate()
     self.assertFalse(errors)
 
-  def test_worker_num_is_positive(self):
+  def test_num_workers_is_positive(self):
     runner = MockRunners.DataflowRunner()
     options = PipelineOptions([
         '--num_workers=-1',
@@ -386,7 +386,7 @@ class SetupTest(unittest.TestCase):
     self.assertIn('num_workers', errors[0])
     self.assertIn('-1', errors[0])
 
-  def test_worker_num_cannot_exceed_max_worker_num(self):
+  def test_num_workers_cannot_exceed_max_num_workers(self):
     runner = MockRunners.DataflowRunner()
     options = PipelineOptions([
         '--num_workers=43',
@@ -403,7 +403,7 @@ class SetupTest(unittest.TestCase):
     self.assertIn('max_num_workers', errors[0])
     self.assertIn('42', errors[0])
 
-  def test_worker_num_can_equal_max_worker_num(self):
+  def test_num_workers_can_equal_max_num_workers(self):
     runner = MockRunners.DataflowRunner()
     options = PipelineOptions([
         '--num_workers=42',
