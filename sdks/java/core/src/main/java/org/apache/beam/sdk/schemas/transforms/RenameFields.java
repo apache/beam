@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -132,7 +133,8 @@ public class RenameFields {
   }
 
   // Apply the user-specified renames to the input schema.
-  private static void renameSchema(
+  @VisibleForTesting
+  static void renameSchema(
       Schema inputSchema,
       Collection<RenamePair> renames,
       Map<UUID, Schema> renamedSchemasMap,
@@ -231,11 +233,14 @@ public class RenameFields {
     }
   }
 
-  // TODO(reuvenlax): For better performance, we should reuse functionality in SelectByteBuddyHelpers to generate
-  // byte code to do the rename. This would allow us to skip walking over the schema on each row. For now we added
+  // TODO(reuvenlax): For better performance, we should reuse functionality in
+  // SelectByteBuddyHelpers to generate
+  // byte code to do the rename. This would allow us to skip walking over the schema on each row.
+  // For now we added
   // the optimization to skip schema walking if there are no nested renames (as determined by the
   // nestedFieldRenamedMap).
-  public static Row renameRow(
+  @VisibleForTesting
+  static Row renameRow(
       Row row,
       Schema schema,
       @Nullable BitSet nestedRenames,
@@ -262,7 +267,7 @@ public class RenameFields {
     }
   }
 
-  public static Object renameFieldValue(
+  private static Object renameFieldValue(
       Object value,
       FieldType fieldType,
       Map<UUID, Schema> renamedSubSchemas,
