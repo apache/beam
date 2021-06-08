@@ -66,7 +66,7 @@ public class PubsubReadIT {
     SubscriberOptions subscriberOpitons =
         SubscriberOptions.newBuilder()
             .setSubscriptionPath(SubscriptionPath.parse("projects/927334603519/locations/us-central1-a/subscriptions/sub2"))
-            .setPartitions(ImmutableSet.of(Partition.of(0))).build();
+            .build();
 
     pipeline
         .apply("Create elements", PubsubLiteIO.read(subscriberOpitons))
