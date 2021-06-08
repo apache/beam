@@ -31,14 +31,17 @@ import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Duration;
@@ -129,7 +132,7 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
                       .map(
                           partition ->
                               SubscriptionPartition.of(options.subscriptionPath(), partition))
-                      .collect(Collectors.toList())));
+                      .collect(Collectors.toList())).withCoder(new SubscriptionPartitionCoder()));
     }
 
     return subscriptionPartitions.apply(

@@ -25,6 +25,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTrans
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDo.ProcessKeyedElements;
+import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -58,6 +59,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility transforms and overrides for running (typically unbounded) splittable DoFn's with
@@ -68,6 +71,7 @@ import org.joda.time.Instant;
  * for {@link GBKIntoKeyedWorkItems} and {@link ProcessElements}.
  */
 public class SplittableParDoViaKeyedWorkItems {
+  private static final Logger LOG = LoggerFactory.getLogger(SplittableParDoViaKeyedWorkItems.class);
   /**
    * Runner-specific primitive {@link GroupByKey GroupByKey-like} {@link PTransform} that produces
    * {@link KeyedWorkItem KeyedWorkItems} so that downstream transforms can access state and timers.
@@ -538,6 +542,9 @@ public class SplittableParDoViaKeyedWorkItems {
       @Nullable Instant futureOutputWatermark = result.getFutureOutputWatermark();
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.getKey().getTimestamp();
+        LOG.info("[BOYUANZ LOG] futureOutputWatermark us null, use {}", futureOutputWatermark);
+      } else {
+        LOG.info("[BOYUANZ LOG] futureOutputWatermark = {}", futureOutputWatermark);
       }
       Instant wakeupTime =
           timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());

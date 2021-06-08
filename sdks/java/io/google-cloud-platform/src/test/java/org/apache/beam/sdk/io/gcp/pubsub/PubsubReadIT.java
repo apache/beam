@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.Collections;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,7 +66,7 @@ public class PubsubReadIT {
     SubscriberOptions subscriberOpitons =
         SubscriberOptions.newBuilder()
             .setSubscriptionPath(SubscriptionPath.parse("projects/927334603519/locations/us-central1-a/subscriptions/sub2"))
-            .build();
+            .setPartitions(ImmutableSet.of(Partition.of(0))).build();
 
     pipeline
         .apply("Create elements", PubsubLiteIO.read(subscriberOpitons))
