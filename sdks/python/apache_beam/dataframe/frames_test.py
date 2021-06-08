@@ -632,7 +632,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]), df)
 
     df2 = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
-    self._run_test(lambda df, df2: df.corrwith(df2, axis=1), df, df2)
+    self._run_test(
+        lambda df, df2: df.corrwith(df2, axis=1), df, df2, check_proxy=False)
 
   def test_corrwith_bad_axis(self):
     df = pd.DataFrame({'a': range(3), 'b': range(3, 6), 'c': range(6, 9)})
@@ -1043,7 +1044,14 @@ class AggregationTest(_AbstractFrameTest):
 
     nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median')
 
-    self._run_test(lambda s: s.agg(agg_method), s, nonparallel=nonparallel)
+    # TODO(BEAM-12379): max and min produce the wrong proxy
+    check_proxy = agg_method not in ('max', 'min')
+
+    self._run_test(
+        lambda s: s.agg(agg_method),
+        s,
+        nonparallel=nonparallel,
+        check_proxy=check_proxy)
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_dataframe_agg(self, agg_method):
@@ -1051,7 +1059,14 @@ class AggregationTest(_AbstractFrameTest):
 
     nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median')
 
-    self._run_test(lambda df: df.agg(agg_method), df, nonparallel=nonparallel)
+    # TODO(BEAM-12379): max and min produce the wrong proxy
+    check_proxy = agg_method not in ('max', 'min')
+
+    self._run_test(
+        lambda df: df.agg(agg_method),
+        df,
+        nonparallel=nonparallel,
+        check_proxy=check_proxy)
 
   def test_series_agg_modes(self):
     s = pd.Series(list(range(16)))
@@ -1166,12 +1181,14 @@ class AggregationTest(_AbstractFrameTest):
     # Note other aggregation functions can fail on this input with
     # numeric_only={False,None}. These are the only ones that actually work for
     # the string inputs.
-    self._run_test(lambda df: df.max(numeric_only=numeric_only),
-                   GROUPBY_DF,
-                   check_proxy=False)
-    self._run_test(lambda df: df.min(numeric_only=numeric_only),
-                   GROUPBY_DF,
-                   check_proxy=False)
+    self._run_test(
+        lambda df: df.max(numeric_only=numeric_only),
+        GROUPBY_DF,
+        check_proxy=False)
+    self._run_test(
+        lambda df: df.min(numeric_only=numeric_only),
+        GROUPBY_DF,
+        check_proxy=False)
 
   @unittest.skip(
       "pandas implementation doesn't respect numeric_only= with "
