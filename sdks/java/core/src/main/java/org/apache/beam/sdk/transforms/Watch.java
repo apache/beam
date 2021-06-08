@@ -840,7 +840,8 @@ public class Watch {
   }
 
   @UnboundedPerElement
-  private static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
+  @VisibleForTesting
+  protected static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
       extends DoFn<InputT, KV<InputT, List<TimestampedValue<OutputT>>>> {
     private final Watch.Growth<InputT, OutputT, KeyT> spec;
     private final Coder<OutputT> outputCoder;
@@ -848,7 +849,7 @@ public class Watch {
     private final Coder<KeyT> outputKeyCoder;
     private final Funnel<OutputT> coderFunnel;
 
-    private WatchGrowthFn(
+    WatchGrowthFn(
         Growth<InputT, OutputT, KeyT> spec,
         Coder<OutputT> outputCoder,
         SerializableFunction<OutputT, KeyT> outputKeyFn,
@@ -899,7 +900,6 @@ public class Watch {
                 priorPoll.getOutputs().size());
             c.output(KV.of(c.element(), priorPoll.getOutputs()));
           }
-          watermarkEstimator.setWatermark(priorPoll.getWatermark());
         }
         return stop();
       }
@@ -911,7 +911,8 @@ public class Watch {
 
       PollingGrowthState<TerminationStateT> pollingRestriction =
           (PollingGrowthState<TerminationStateT>) currentRestriction;
-      // Produce a poll result that only contains never seen before results.
+      // Produce a poll result that only contains never seen before results in timestamp
+      // sorted order.
       Growth.PollResult<OutputT> newResults =
           computeNeverSeenBeforeResults(pollingRestriction, res);
 
@@ -941,8 +942,13 @@ public class Watch {
         c.output(KV.of(c.element(), newResults.getOutputs()));
       }
 
+      Instant computedWatermark = null;
       if (newResults.getWatermark() != null) {
-        watermarkEstimator.setWatermark(newResults.getWatermark());
+        computedWatermark = newResults.getWatermark();
+      } else if (!newResults.getOutputs().isEmpty()) {
+        // computeNeverSeenBeforeResults returns the elements in timestamp sorted order so
+        // we can get the timestamp from the first element.
+        computedWatermark = newResults.getOutputs().get(0).getTimestamp();
       }
 
       Instant currentTime = Instant.now();
@@ -955,9 +961,13 @@ public class Watch {
         return stop();
       }
 
-      if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(newResults.getWatermark())) {
+      if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(computedWatermark)) {
         LOG.info("{} - will stop polling, reached max timestamp.", c.element());
         return stop();
+      }
+
+      if (computedWatermark != null) {
+        watermarkEstimator.setWatermark(computedWatermark);
       }
 
       LOG.info(
