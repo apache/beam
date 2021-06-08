@@ -162,6 +162,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
                   options.as(BigQueryOptions.class).setProject("project-id");
+                  options.as(BigQueryOptions.class).setBigQueryProject("project-id");
                   options
                       .as(BigQueryOptions.class)
                       .setTempLocation(testFolder.getRoot().getAbsolutePath());

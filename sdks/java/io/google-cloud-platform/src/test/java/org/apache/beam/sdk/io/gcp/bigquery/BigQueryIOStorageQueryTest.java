@@ -119,6 +119,7 @@ public class BigQueryIOStorageQueryTest {
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
                   options.setProject("project-id");
+                  options.setBigQueryProject("project-id");
                   options.setTempLocation(testFolder.getRoot().getAbsolutePath());
                   p = TestPipeline.fromOptions(options);
                   p.apply(base, description).evaluate();

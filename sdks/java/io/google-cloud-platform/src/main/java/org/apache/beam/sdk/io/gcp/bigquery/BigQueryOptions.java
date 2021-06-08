@@ -78,4 +78,9 @@ public interface BigQueryOptions
   Integer getBqStreamingApiLoggingFrequencySec();
 
   void setBqStreamingApiLoggingFrequencySec(Integer value);
+
+  @Description("If specified, it will override the default (GcpOptions#getProject()) project id.")
+  String getBigQueryProject();
+
+  void setBigQueryProject(String value);
 }
