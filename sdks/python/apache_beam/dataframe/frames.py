@@ -127,6 +127,17 @@ def _agg_method(base, func):
   return frame_base.with_docs_from(base)(wrapper)
 
 
+# Docstring to use for head and tail (commonly used to peek at datasets)
+_PEEK_METHOD_EXPLANATION = (
+    "because it is `order-sensitive "
+    "<https://s.apache.org/dataframe-order-sensitive-operations>`_.\n\n"
+    "If you want to peek at a large dataset consider using interactive Beam's "
+    ":func:`ib.collect "
+    "<apache_beam.runners.interactive.interactive_beam.collect>` "
+    "with ``n`` specified. If you want to find the "
+    "N largest elements, consider using :meth:`DeferredDataFrame.nlargest`.")
+
+
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   __array__ = frame_base.wont_implement_method(
@@ -250,7 +261,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     Aggregations grouping by a categorical column with ``observed=False`` set
     are not currently parallelizable
-    (`BEAM-11190<https://issues.apache.org/jira/browse/BEAM-11190>_`).
+    (`BEAM-11190 <https://issues.apache.org/jira/browse/BEAM-11190>`_).
     """
     if not as_index:
       raise NotImplementedError('groupby(as_index=False)')
@@ -1293,8 +1304,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'diff', reason='order-sensitive')
   first = frame_base.wont_implement_method(
       pd.Series, 'first', reason='order-sensitive')
-  head = frame_base.wont_implement_method(
-      pd.Series, 'head', reason='order-sensitive')
   interpolate = frame_base.wont_implement_method(
       pd.Series, 'interpolate', reason='order-sensitive')
   last = frame_base.wont_implement_method(
@@ -1303,8 +1312,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'searchsorted', reason='order-sensitive')
   shift = frame_base.wont_implement_method(
       pd.Series, 'shift', reason='order-sensitive')
+
+  head = frame_base.wont_implement_method(
+      pd.Series, 'head', explanation=_PEEK_METHOD_EXPLANATION)
   tail = frame_base.wont_implement_method(
-      pd.Series, 'tail', reason='order-sensitive')
+      pd.Series, 'tail', explanation=_PEEK_METHOD_EXPLANATION)
 
   filter = frame_base._elementwise_method('filter', base=pd.Series)
 
@@ -1503,7 +1515,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       'view',
       explanation=(
           "because it relies on memory-sharing semantics that are "
-          "not compatible with the Beam model"))
+          "not compatible with the Beam model."))
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
@@ -2149,14 +2161,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                                           reason='order-sensitive')
   first = frame_base.wont_implement_method(pd.DataFrame, 'first',
                                            reason='order-sensitive')
-  head = frame_base.wont_implement_method(pd.DataFrame, 'head',
-                                          reason='order-sensitive')
   interpolate = frame_base.wont_implement_method(pd.DataFrame, 'interpolate',
                                                  reason='order-sensitive')
   last = frame_base.wont_implement_method(pd.DataFrame, 'last',
                                           reason='order-sensitive')
+
+  head = frame_base.wont_implement_method(pd.DataFrame, 'head',
+      explanation=_PEEK_METHOD_EXPLANATION)
   tail = frame_base.wont_implement_method(pd.DataFrame, 'tail',
-                                          reason='order-sensitive')
+      explanation=_PEEK_METHOD_EXPLANATION)
 
   def dot(self, other):
     # We want to broadcast the right hand side to all partitions of the left.
@@ -2939,14 +2952,15 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   boxplot = frame_base.wont_implement_method(DataFrameGroupBy, 'boxplot',
                                              reason="plotting-tools")
 
+  head = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'head', explanation=_PEEK_METHOD_EXPLANATION)
+  tail = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'tail', explanation=_PEEK_METHOD_EXPLANATION)
+
   first = frame_base.wont_implement_method(
       DataFrameGroupBy, 'first', reason='order-sensitive')
   last = frame_base.wont_implement_method(
       DataFrameGroupBy, 'last', reason='order-sensitive')
-  head = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'head', reason='order-sensitive')
-  tail = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'tail', reason='order-sensitive')
   nth = frame_base.wont_implement_method(
       DataFrameGroupBy, 'nth', reason='order-sensitive')
   cumcount = frame_base.wont_implement_method(
@@ -3120,7 +3134,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
       DataFrameGroupBy, 'first', reason="order-sensitive")
   get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
   head = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'head', reason="order-sensitive")
+      DataFrameGroupBy, 'head', explanation=_PEEK_METHOD_EXPLANATION)
   hist = frame_base.wont_implement_method(
       DataFrameGroupBy, 'hist', reason="plotting-tools")
   idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
@@ -3143,7 +3157,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   std = frame_base._elementwise_method('std', base=DataFrameGroupBy)
   sum = frame_base._elementwise_method('sum', base=DataFrameGroupBy)
   tail = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'tail', reason="order-sensitive")
+      DataFrameGroupBy, 'tail', explanation=_PEEK_METHOD_EXPLANATION)
   take = frame_base.wont_implement_method(
       DataFrameGroupBy, 'take', reason='deprecated')
   tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
