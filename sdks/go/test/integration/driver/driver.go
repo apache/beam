@@ -69,6 +69,13 @@ func main() {
 		// {"flatten:dup", primitives.FlattenDup()},
 		{"reshuffle:reshuffle", primitives.Reshuffle()},
 		{"reshuffle:reshufflekv", primitives.ReshuffleKV()},
+		{"window:sums", func() *beam.Pipeline {
+			p, s := beam.NewPipelineWithRoot()
+			primitives.WindowSums_GBK(s)
+			primitives.WindowSums_Lifted(s)
+			return p
+		}(),
+		},
 	}
 
 	re := regexp.MustCompile(*filter)
