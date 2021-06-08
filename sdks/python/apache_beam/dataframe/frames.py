@@ -2135,13 +2135,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           expressions.ConstantExpression(other))
 
     if isinstance(other, DeferredSeries):
-      proxy = self._expr.proxy().corrwith(other._expr.proxy(), method=method)
+      proxy = self._expr.proxy().corrwith(other._expr.proxy(), axis=axis,
+                                          drop=drop, method=method)
       self, other = self.align(other, axis=0, join='inner')
       col_names = proxy.index
       other_cols = [other] * len(col_names)
     elif isinstance(other, DeferredDataFrame):
       proxy = self._expr.proxy().corrwith(
-          other._expr.proxy(), method=method, drop=drop)
+          other._expr.proxy(), axis=axis, method=method, drop=drop)
       self, other = self.align(other, axis=0, join='inner')
       col_names = list(
           set(self.columns)
@@ -2150,7 +2151,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       other_cols = [other[col_name] for col_name in col_names]
     else:
       # Raise the right error.
-      self._expr.proxy().corrwith(other._expr.proxy())
+      self._expr.proxy().corrwith(other._expr.proxy(), axis=axis, drop=drop,
+                                  method=method)
+
       # Just in case something else becomes valid.
       raise NotImplementedError('corrwith(%s)' % type(other._expr.proxy))
 
