@@ -70,11 +70,13 @@ def populate_not_implemented(pd_type):
           setattr(
               deferred_type,
               attr,
-              property(frame_base.not_implemented_method(attr,
-                                                         base_type=pd_type)))
+              property(
+                  frame_base.not_implemented_method(attr, base_type=pd_type)))
         elif callable(pd_value):
-          setattr(deferred_type, attr, frame_base.not_implemented_method(
-              attr, base_type=pd_type))
+          setattr(
+              deferred_type,
+              attr,
+              frame_base.not_implemented_method(attr, base_type=pd_type))
     return deferred_type
 
   return wrapper
@@ -723,8 +725,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   rolling = frame_base.wont_implement_method(
       pd.DataFrame, 'rolling', reason='event-time-semantics')
 
-  sparse = property(frame_base.not_implemented_method('sparse', 'BEAM-12425',
-                                                      base_type=pd.DataFrame))
+  sparse = property(
+      frame_base.not_implemented_method(
+          'sparse', 'BEAM-12425', base_type=pd.DataFrame))
 
 
 @populate_not_implemented(pd.Series)
