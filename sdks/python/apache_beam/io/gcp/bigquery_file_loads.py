@@ -37,6 +37,7 @@ import uuid
 
 import apache_beam as beam
 from apache_beam import pvalue
+from apache_beam.metrics import Metrics
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
@@ -287,6 +288,9 @@ class WriteGroupedRecordsToFile(beam.DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
+
+  BATCH_SIZE = Metrics.distribution('WriteGroupedRecordsToFile', 'batch_size')
+
   def __init__(
       self, schema, max_file_size=_DEFAULT_MAX_FILE_SIZE, file_format=None):
     self.schema = schema
@@ -299,7 +303,9 @@ class WriteGroupedRecordsToFile(beam.DoFn):
 
     file_path, writer = None, None
 
+    rows_in_batch = 0
     for row in rows:
+      rows_in_batch += 1
       if writer is None:
         (file_path, writer) = _make_new_file_writer(
             file_prefix,
@@ -315,6 +321,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
         writer.close()
         yield (destination, (file_path, file_size))
         file_path, writer = None, None
+    self.BATCH_SIZE.update(rows_in_batch)
     if writer is not None:
       writer.close()
       yield (destination, (file_path, file_size))
@@ -729,6 +736,7 @@ class WaitForBQJobs(beam.DoFn):
       # max_retries to 0.
       self.bq_wrapper.wait_for_bq_job(ref, sleep_duration_sec=10, max_retries=0)
 
+    _LOGGER.info("Jobs finished: {}", dest_ids_list)
     return dest_ids_list  # Pass the list of destination-jobs downstream
 
 
@@ -1163,7 +1171,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # When using dynamic destinations, elements with both single as well as
     # multiple partitions are loaded into BigQuery using temporary tables to
     # ensure atomicity.
-    if self.dynamic_destinations:
+    # For streaming pipelines (i.e. triggering_frequency is not None), we
+    # issue loads directly to the destination table. This is because the dynamic
+    # destinations path relies on single-fire impulses to verify load and copy
+    # jobs running. This does not work for streaming pipelines.
+    # To ensure atomicity in streaming load jobs, we separate the stage between
+    # firing and verifying a job.
+    if self.dynamic_destinations and not self.triggering_frequency:
       all_partitions = ((
           multiple_partitions_per_destination_pc,
           single_partition_per_destination_pc)
