@@ -37,10 +37,10 @@ import uuid
 
 import apache_beam as beam
 from apache_beam import pvalue
-from apache_beam.metrics import Metrics
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.metrics import Metrics
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
@@ -736,7 +736,7 @@ class WaitForBQJobs(beam.DoFn):
       # max_retries to 0.
       self.bq_wrapper.wait_for_bq_job(ref, sleep_duration_sec=10, max_retries=0)
 
-    _LOGGER.info("Jobs finished: {}", dest_ids_list)
+    _LOGGER.info("Jobs finished: %s", dest_ids_list)
     return dest_ids_list  # Pass the list of destination-jobs downstream
 
 
