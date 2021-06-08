@@ -129,12 +129,13 @@ def _agg_method(base, func):
 
 # Docstring to use for head and tail (commonly used to peek at datasets)
 _PEEK_METHOD_EXPLANATION = (
-    "because it is `order-sensitive <https://s.apache.org/dataframe-order-sensitive-operations>`_.\n\n"
-    "If you'd like to use it to peek at a large dataset, interactive Beam's "
-    ":func:`ib.collect <apache_beam.runners.interactive.interactive_beam.collect>` "
-    "with ``n`` specified may be a useful alternative.\n\n"
-    "Also consider using :meth:`DeferredDataFrame.nlargest` if you're "
-    "interested in finding the top-N elements in a dataset.")
+    "because it is `order-sensitive "
+    "<https://s.apache.org/dataframe-order-sensitive-operations>`_.\n\n"
+    "If you want to peek at a large dataset consider using interactive Beam's "
+    ":func:`ib.collect "
+    "<apache_beam.runners.interactive.interactive_beam.collect>` "
+    "with ``n`` specified. If you want to find the "
+    "N largest elements, consider using :meth:`DeferredDataFrame.nlargest`.")
 
 
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
