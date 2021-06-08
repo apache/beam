@@ -351,7 +351,7 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 
 func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *FullValue, w typex.Window) error {
 	// In lifted combines, the window is always observed, so it's included in the hash key.
-	key, err := n.keyHash.Hash(value.Elm)
+	key, err := n.keyHash.Hash(value.Elm, w)
 	if err != nil {
 		return n.fail(err)
 	}
