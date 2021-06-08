@@ -435,6 +435,34 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     """
     return _DeferredILoc(self)
 
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def reset_index(self, level=None, **kwargs):
+    """Dropping the entire index (e.g. with ``reset_index(level=None)``) is
+    not parallelizable. It is also only guaranteed that the newly generated
+    index values will be unique. The Beam DataFrame API makes no guarantee
+    that the same index values as the equivalent pandas operation will be
+    generated, because that implementation is order-sensitive."""
+    if level is not None and not isinstance(level, (tuple, list)):
+      level = [level]
+    if level is None or len(level) == self._expr.proxy().index.nlevels:
+      # TODO(BEAM-12182): Could do distributed re-index with offsets.
+      requires_partition_by = partitionings.Singleton(
+          reason=(
+              f"reset_index(level={level!r}) drops the entire index and "
+              "creates a new one, so it cannot currently be parallelized "
+              "(BEAM-12182)."))
+    else:
+      requires_partition_by = partitionings.Arbitrary()
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'reset_index',
+            lambda df: df.reset_index(level=level, **kwargs), [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=requires_partition_by))
+
   abs = frame_base._elementwise_method('abs', base=pd.core.generic.NDFrame)
 
   @frame_base.with_docs_from(pd.core.generic.NDFrame)
@@ -2823,34 +2851,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=requires_partition_by))
 
   rename_axis = frame_base._elementwise_method('rename_axis', base=pd.DataFrame)
-
-  @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  @frame_base.maybe_inplace
-  def reset_index(self, level=None, **kwargs):
-    """Dropping the entire index (e.g. with ``reset_index(level=None)``) is
-    not parallelizable. It is also only guaranteed that the newly generated
-    index values will be unique. The Beam DataFrame API makes no guarantee
-    that the same index values as the equivalent pandas operation will be
-    generated, because that implementation is order-sensitive."""
-    if level is not None and not isinstance(level, (tuple, list)):
-      level = [level]
-    if level is None or len(level) == self._expr.proxy().index.nlevels:
-      # TODO(BEAM-12182): Could do distributed re-index with offsets.
-      requires_partition_by = partitionings.Singleton(reason=(
-          "reset_index(level={level!r}) drops the entire index and creates a "
-          "new one, so it cannot currently be parallelized (BEAM-12182)."
-      ))
-    else:
-      requires_partition_by = partitionings.Arbitrary()
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'reset_index',
-            lambda df: df.reset_index(level=level, **kwargs),
-            [self._expr],
-            preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=requires_partition_by))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
