@@ -389,7 +389,7 @@ class FnApiRunner(runner.PipelineRunner):
               runner_execution_context.watermark_manager.get_stage_node(
                   bundle_context_manager.stage.name
               ).input_watermark() == timestamp.MAX_TIMESTAMP), (
-              'wrong watermark for %s. Expected %s, but got %s.' % (
+              'wrong input watermark for %s. Expected %s, but got %s.' % (
               runner_execution_context.watermark_manager.get_stage_node(
                   bundle_context_manager.stage.name),
               timestamp.MAX_TIMESTAMP,
