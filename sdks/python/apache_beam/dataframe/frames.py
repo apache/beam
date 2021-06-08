@@ -3215,6 +3215,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._grouping_indexes,
         projection=name)
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def agg(self, fn, *args, **kwargs):
     if _is_associative(fn):
       return _liftable_agg(fn)(self, *args, **kwargs)
@@ -3236,6 +3237,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   def ndim(self):
     return self._expr.proxy().ndim
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def apply(self, fn, *args, **kwargs):
     project = _maybe_project_func(self._projection)
     grouping_indexes = self._grouping_indexes
@@ -3440,6 +3442,7 @@ def _liftable_agg(meth, postagg_meth=None):
   else:
     post_agg_name, _ = frame_base.name_and_func(postagg_meth)
 
+  @frame_base.with_docs_from(DataFrameGroupBy, name=agg_name)
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
 
@@ -3491,6 +3494,7 @@ def _liftable_agg(meth, postagg_meth=None):
 def _unliftable_agg(meth):
   agg_name, _ = frame_base.name_and_func(meth)
 
+  @frame_base.with_docs_from(DataFrameGroupBy, name=agg_name)
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
 
@@ -3596,19 +3600,23 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
   var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def groups(self):
     return self._expr.proxy().groups
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def indices(self):
     return self._expr.proxy().indices
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def ndim(self):
     return self._expr.proxy().ndim
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def ngroups(self):
     return self._expr.proxy().ngroups
 

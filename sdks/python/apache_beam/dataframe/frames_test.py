@@ -1841,8 +1841,8 @@ class DocstringTest(unittest.TestCase):
       (
           frames._DeferredCategoricalMethods,
           pd.core.arrays.categorical.CategoricalAccessor),
-      #(frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
-      #(frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+      (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
+      (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
   ])
   def test_docs_defined(self, beam_type, pd_type):
     beam_attrs = set(dir(beam_type))
