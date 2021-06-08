@@ -34,11 +34,8 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link PipelineJsonRenderer}. */
-@RunWith(JUnit4.class)
 public class PipelineJsonRendererTest {
 
   static {
