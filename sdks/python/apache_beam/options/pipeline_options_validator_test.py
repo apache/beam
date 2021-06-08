@@ -21,13 +21,11 @@
 
 import logging
 import unittest
-from unittest import runner
 
 from hamcrest import assert_that
 from hamcrest import contains_string
 from hamcrest import only_contains
 from hamcrest.core.base_matcher import BaseMatcher
-from apache_beam import options
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
