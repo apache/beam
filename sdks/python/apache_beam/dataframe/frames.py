@@ -951,8 +951,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def quantile(self, q, **kwargs):
     """quantile is not parallelizable. See
-    [BEAM-12167](https://issues.apache.org/jira/browse/BEAM-12167) tracking the
-    possible addition of an approximate, parallelizable implementation of
+    `BEAM-12167 <https://issues.apache.org/jira/browse/BEAM-12167>`_ tracking
+    the possible addition of an approximate, parallelizable implementation of
     quantile."""
     # TODO(BEAM-12167): Provide an option for approximate distributed
     # quantiles
@@ -2511,8 +2511,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def quantile(self, q, axis, **kwargs):
     """``quantile(axis="index")`` is not parallelizable. See
-    [BEAM-12167](https://issues.apache.org/jira/browse/BEAM-12167) tracking the
-    possible addition of an approximate, parallelizable implementation of
+    `BEAM-12167 <https://issues.apache.org/jira/browse/BEAM-12167>`_ tracking
+    the possible addition of an approximate, parallelizable implementation of
     quantile.
 
     When using quantile with ``axis="columns"`` only a single ``q`` value can be
