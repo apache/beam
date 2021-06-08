@@ -22,6 +22,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.client.util.Clock;
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
@@ -42,6 +45,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
+import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -481,6 +486,54 @@ public class PubsubIO {
     // the protobuf wire format, as the wire format is not part of a coder's API.
     ProtoCoder<T> coder = ProtoCoder.of(messageClass);
     return Read.newBuilder(parsePayloadUsingCoder(coder)).setCoder(coder).build();
+  }
+
+  /**
+   * Returns a {@link PTransform} that continuously reads binary encoded protobuf messages for the
+   * type specified by {@code fullMessageName}.
+   *
+   * <p>This is primarily here for cases where the message type cannot be known at compile time. If
+   * it can be known, prefer {@link PubsubIO#readProtos(Class)}, as {@link DynamicMessage} tends to
+   * perform worse than concrete types.
+   *
+   * <p>Beam will infer a schema for the {@link DynamicMessage} schema. Note that some proto schema
+   * features are not supported by all sinks.
+   *
+   * @param domain The {@link ProtoDomain} that contains the target message and its dependencies.
+   * @param fullMessageName The full name of the message for lookup in {@code domain}.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public static Read<DynamicMessage> readProtoDynamicMessages(
+      ProtoDomain domain, String fullMessageName) {
+    SerializableFunction<PubsubMessage, DynamicMessage> parser =
+        message -> {
+          try {
+            return DynamicMessage.parseFrom(
+                domain.getDescriptor(fullMessageName), message.getPayload());
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException("Could not parse Pub/Sub message", e);
+          }
+        };
+
+    ProtoDynamicMessageSchema<DynamicMessage> schema =
+        ProtoDynamicMessageSchema.forDescriptor(domain, domain.getDescriptor(fullMessageName));
+    return Read.newBuilder(parser)
+        .setCoder(
+            SchemaCoder.of(
+                schema.getSchema(),
+                TypeDescriptor.of(DynamicMessage.class),
+                schema.getToRowFunction(),
+                schema.getFromRowFunction()))
+        .build();
+  }
+
+  /**
+   * Similar to {@link PubsubIO#readProtoDynamicMessages(ProtoDomain, String)} but for when the
+   * {@link Descriptor} is already known.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public static Read<DynamicMessage> readProtoDynamicMessages(Descriptor descriptor) {
+    return readProtoDynamicMessages(ProtoDomain.buildFrom(descriptor), descriptor.getFullName());
   }
 
   /**
