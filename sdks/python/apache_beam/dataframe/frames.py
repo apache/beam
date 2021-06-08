@@ -944,8 +944,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def keys(self):
     return self.index
 
-  # Series.T == transpose, which is a no-op
+  # Series.T == transpose. Both are a no-op
   T = frame_base._elementwise_method('T', base=pd.Series)
+  transpose = frame_base._elementwise_method('transpose', base=pd.Series)
+  shape = property(
+      frame_base.wont_implement_method(
+          pd.Series, 'shape', reason="non-deferred-result"))
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
