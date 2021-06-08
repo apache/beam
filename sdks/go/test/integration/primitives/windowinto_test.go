@@ -20,15 +20,18 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/go/test/integration"
 )
 
 func TestWindowSums_Lifted(t *testing.T) {
+	integration.CheckFilters(t)
 	p, s := beam.NewPipelineWithRoot()
 	WindowSums_Lifted(s)
 	ptest.RunAndValidate(t, p)
 }
 
 func TestWindowSums_GBK(t *testing.T) {
+	integration.CheckFilters(t)
 	p, s := beam.NewPipelineWithRoot()
 	WindowSums_GBK(s)
 	ptest.RunAndValidate(t, p)
