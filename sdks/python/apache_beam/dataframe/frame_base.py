@@ -18,9 +18,9 @@ import functools
 import re
 from inspect import cleandoc
 from inspect import getfullargspec
-from inspect import unwrap
-from inspect import ismodule
 from inspect import isclass
+from inspect import ismodule
+from inspect import unwrap
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -396,8 +396,8 @@ def not_implemented_method(op, jira='BEAM-9547', base_type=None):
 
   wrapper.__name__ = op
   wrapper.__doc__ = (
-      f":meth:`{_prettify_pandas_type(base_type)}.{op}` is not implemented yet in the "
-      "Beam DataFrame API.\n\n"
+      f":meth:`{_prettify_pandas_type(base_type)}.{op}` is not implemented yet "
+      "in the Beam DataFrame API.\n\n"
       f"If support for {op!r} is important to you, please let the Beam "
       "community know by `writing to user@beam.apache.org "
       "<https://beam.apache.org/community/contact-us/>`_ or commenting on "
