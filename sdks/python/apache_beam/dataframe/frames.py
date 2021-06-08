@@ -704,6 +704,14 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
+  resample = frame_base.wont_implement_method(
+      pd.DataFrame, 'resample', reason='event-time-semantics')
+
+  rolling = frame_base.wont_implement_method(
+      pd.DataFrame, 'rolling', reason='event-time-semantics')
+
+  sparse = property(frame_base.not_implemented_method('sparse', 'BEAM-12425'))
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -2736,6 +2744,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   values = property(frame_base.wont_implement_method(
       pd.DataFrame, 'values', reason="non-deferred-result"))
 
+  style = property(frame_base.wont_implement_method(
+      pd.DataFrame, 'style', reason="non-deferred-result"))
+
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def melt(self, ignore_index, **kwargs):
@@ -2958,6 +2969,13 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       DataFrameGroupBy, '__len__', reason="non-deferred-result")
   groups = property(frame_base.wont_implement_method(
       DataFrameGroupBy, 'groups', reason="non-deferred-result"))
+  indices = property(frame_base.wont_implement_method(
+      DataFrameGroupBy, 'indices', reason="non-deferred-result"))
+
+  resample = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'resample', reason='event-time-semantics')
+  rolling = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'rolling', reason='event-time-semantics')
 
 def _maybe_project_func(projection: Optional[List[str]]):
   """ Returns identity func if projection is empty or None, else returns
