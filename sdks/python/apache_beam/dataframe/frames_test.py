@@ -602,6 +602,14 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.corrwith(df.a), df)
     self._run_test(lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]), df)
 
+    df2 = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df, df2: df.corrwith(df2, axis=1), df, df2)
+
+  def test_corrwith_bad_axis(self):
+    df = pd.DataFrame({'a': range(3), 'b': range(3, 6), 'c': range(6, 9)})
+    self._run_error_test(lambda df: df.corrwith(df.a, axis=2), df)
+    self._run_error_test(lambda df: df.corrwith(df, axis=5), df)
+
   @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
   def test_applymap_na_action(self):
     # Replicates a doctest for na_action which is incompatible with
@@ -764,6 +772,18 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.drop_duplicates(subset=['brand'], keep=False), df)
     self._run_test(
         lambda df: df.drop_duplicates(subset=['brand', 'style'], keep=False),
+        df)
+
+  def test_replace(self):
+    # verify a replace() doctest case that doesn't quite work in Beam as it uses
+    # the default method='pad'
+    df = pd.DataFrame({'A': ['bat', 'foo', 'bait'], 'B': ['abc', 'bar', 'xyz']})
+
+    self._run_test(
+        lambda df: df.replace(
+            regex={
+                r'^ba.$': 'new', 'foo': 'xyz'
+            }, method=None),
         df)
 
 
@@ -1447,7 +1467,7 @@ class ConstructionTimeTest(unittest.TestCase):
 
 class DocstringTest(unittest.TestCase):
   @parameterized.expand([
-      #(frames.DeferredDataFrame, pd.DataFrame),
+      (frames.DeferredDataFrame, pd.DataFrame),
       (frames.DeferredSeries, pd.Series),
       #(frames._DeferredIndex, pd.Index),
       (frames._DeferredStringMethods, pd.core.strings.StringMethods),
