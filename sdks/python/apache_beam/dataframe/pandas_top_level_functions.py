@@ -166,7 +166,7 @@ class DeferredPandasModule(object):
   test = frame_base.wont_implement_method(
       pd,
       'test',
-      explanation="because it is an internal pandas testing utility")
+      explanation="because it is an internal pandas testing utility.")
   timedelta_range = _defer_to_pandas('timedelta_range')
   to_pickle = frame_base.wont_implement_method(
       pd, 'to_pickle', reason='order-sensitive')
