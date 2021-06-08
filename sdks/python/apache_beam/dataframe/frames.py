@@ -3238,17 +3238,25 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     return self._expr.proxy().ndim
 
   @frame_base.with_docs_from(DataFrameGroupBy)
-  def apply(self, fn, *args, **kwargs):
+  def apply(self, func, *args, **kwargs):
+    """Note that ``func`` will be called once during pipeline construction time
+    with an empty pandas object, so take care if ``func`` has a side effect.
+
+    When called with an empty pandas object, ``func`` is expected to return an
+    object of the same type as what will be returned when the pipeline is
+    processing actual data. If the result is a pandas object it should have the
+    same type and name (for a Series) or column types and names (for
+    a DataFrame) as the actual results."""
     project = _maybe_project_func(self._projection)
     grouping_indexes = self._grouping_indexes
     grouping_columns = self._grouping_columns
 
-    # Unfortunately pandas does not execute fn to determine the right proxy.
-    # We run user fn on a proxy here to detect the return type and generate the
-    # proxy.
+    # Unfortunately pandas does not execute func to determine the right proxy.
+    # We run user func on a proxy here to detect the return type and generate
+    # the proxy.
     fn_input = project(self._ungrouped_with_index.proxy().reset_index(
         grouping_columns, drop=True))
-    result = fn(fn_input)
+    result = func(fn_input)
     if isinstance(result, pd.core.generic.NDFrame):
       if result.index is fn_input.index:
         proxy = result
@@ -3280,7 +3288,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                       by=grouping_columns or None)
 
       gb = project(gb)
-      return gb.apply(fn, *args, **kwargs)
+      return gb.apply(func, *args, **kwargs)
 
     return DeferredDataFrame(
         expressions.ComputedExpression(
