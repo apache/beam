@@ -934,8 +934,7 @@ class WorkerOptions(PipelineOptions):
     errors.extend(validator.validate_sdk_container_image_options(self))
 
     if validator.is_service_runner():
-      errors.extend(
-          validator.validate_optional_argument_positive(self, 'num_workers'))
+      errors.extend(validator.validate_num_workers(self))
       errors.extend(validator.validate_worker_region_zone(self))
     return errors
 
