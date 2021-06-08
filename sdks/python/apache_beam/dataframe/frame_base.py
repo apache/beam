@@ -367,16 +367,24 @@ def wont_implement_method(base_type, name, reason=None, explanation=None):
   return wrapper
 
 
-def not_implemented_method(op, jira='BEAM-9547'):
-  """Generate a stub method for `op` that simply raises a NotImplementedError.
+def not_implemented_method(op, jira='BEAM-9547', base_type=None):
+  """Generate a stub method for ``op`` that simply raises a NotImplementedError.
 
   For internal use only. No backwards compatibility guarantees."""
+  assert base_type is not None, "base_type must be specified"
+
   def wrapper(*args, **kwargs):
-    raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
+    raise NotImplementedError(
+        f"{op!r} is not implemented yet.\n\n"
+        f"If support for {op!r} is important to you, please let the Beam "
+        "community know by writing to user@beam.apache.org "
+        "(see https://beam.apache.org/community/contact-us/) or commenting on "
+        f"https://issues.apache.org/jira/{jira}.")
 
   wrapper.__name__ = op
   wrapper.__doc__ = (
-      f"{op!r} is not implemented yet.\n\n"
+      f":class:`pandas.{base_type.__name__}.{op} is not implemented yet in the "
+      "Beam DataFrame API.\n\n"
       f"If support for {op!r} is important to you, please let the Beam "
       "community know by `writing to user@beam.apache.org "
       "<https://beam.apache.org/community/contact-us/>`_ or commenting on "
