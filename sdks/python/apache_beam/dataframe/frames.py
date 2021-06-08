@@ -2023,6 +2023,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       pd.DataFrame, 'info', reason="non-deferred-result")
 
 
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
