@@ -183,7 +183,7 @@ class DeferredPandasModule(object):
       return func
     res = getattr(pd, name)
     if _is_top_level_function(res):
-      return frame_base.not_implemented_method(name)
+      return frame_base.not_implemented_method(name, base_type=pd)
     else:
       return res
 
