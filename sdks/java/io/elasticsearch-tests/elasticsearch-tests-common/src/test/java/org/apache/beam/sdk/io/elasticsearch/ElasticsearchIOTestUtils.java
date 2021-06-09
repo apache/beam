@@ -114,7 +114,7 @@ class ElasticsearchIOTestUtils {
                 + "\"order\": 0,"
                 + "\"index_patterns\": [\"*\"],"
                 + "\"template\": \"*\","
-                + "\"settings\": { \"index.number_of_shards\": 1, \"index.number_of_replicas\": 0}}",
+                + "\"settings\": {\"index.number_of_shards\": 1, \"index.number_of_replicas\": 0}}",
             ContentType.APPLICATION_JSON);
 
     request.setEntity(body);
@@ -441,7 +441,7 @@ class ElasticsearchIOTestUtils {
         .withConnectTimeout(5000);
   }
 
-  static ElasticsearchContainer elasticsearchIOTestContainerFactory(String imageTag) {
+  static ElasticsearchContainer createTestContainer(String imageTag) {
     ElasticsearchContainer container =
         new ElasticsearchContainer(
                 DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch")
