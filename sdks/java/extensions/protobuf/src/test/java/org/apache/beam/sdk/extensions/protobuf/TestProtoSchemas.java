@@ -384,8 +384,8 @@ class TestProtoSchemas {
   static final OneOfType ONE_OF_TYPE = OneOfType.create(ONEOF_FIELDS, ONE_OF_ENUM_MAP);
   static final Schema ONEOF_SCHEMA =
       Schema.builder()
-          .addField("special_oneof", FieldType.logicalType(ONE_OF_TYPE))
           .addField(withFieldNumber("place1", FieldType.STRING, 1))
+          .addField("special_oneof", FieldType.logicalType(ONE_OF_TYPE))
           .addField(withFieldNumber("place2", FieldType.INT32, 6))
           .setOptions(withTypeName("proto3_schema_messages.OneOf"))
           .build();
@@ -393,19 +393,19 @@ class TestProtoSchemas {
   // Sample row instances for each OneOf case.
   static final Row ONEOF_ROW_INT32 =
       Row.withSchema(ONEOF_SCHEMA)
-          .addValues(ONE_OF_TYPE.createValue("oneof_int32", 1), "foo", 0)
+          .addValues("foo", ONE_OF_TYPE.createValue("oneof_int32", 1), 0)
           .build();
   static final Row ONEOF_ROW_BOOL =
       Row.withSchema(ONEOF_SCHEMA)
-          .addValues(ONE_OF_TYPE.createValue("oneof_bool", true), "foo", 0)
+          .addValues("foo", ONE_OF_TYPE.createValue("oneof_bool", true), 0)
           .build();
   static final Row ONEOF_ROW_STRING =
       Row.withSchema(ONEOF_SCHEMA)
-          .addValues(ONE_OF_TYPE.createValue("oneof_string", "foo"), "foo", 0)
+          .addValues("foo", ONE_OF_TYPE.createValue("oneof_string", "foo"), 0)
           .build();
   static final Row ONEOF_ROW_PRIMITIVE =
       Row.withSchema(ONEOF_SCHEMA)
-          .addValues(ONE_OF_TYPE.createValue("oneof_primitive", PRIMITIVE_ROW), "foo", 0)
+          .addValues("foo", ONE_OF_TYPE.createValue("oneof_primitive", PRIMITIVE_ROW), 0)
           .build();
 
   // Sample proto instances for each oneof case.

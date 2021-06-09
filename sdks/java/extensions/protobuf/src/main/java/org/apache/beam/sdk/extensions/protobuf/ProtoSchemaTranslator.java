@@ -157,6 +157,7 @@ class ProtoSchemaTranslator {
 
   static Schema getSchema(Descriptors.Descriptor descriptor) {
     Set<Integer> oneOfFields = Sets.newHashSet();
+    Map<Integer, Field> oneOfFieldLocationMap = Maps.newHashMap();
     List<Field> fields = Lists.newArrayListWithCapacity(descriptor.getFields().size());
     for (OneofDescriptor oneofDescriptor : descriptor.getOneofs()) {
       List<Field> subFields = Lists.newArrayListWithCapacity(oneofDescriptor.getFieldCount());
@@ -172,17 +173,24 @@ class ProtoSchemaTranslator {
             enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
       }
       FieldType oneOfType = FieldType.logicalType(OneOfType.create(subFields, enumIds));
-      fields.add(Field.of(oneofDescriptor.getName(), oneOfType));
+      oneOfFieldLocationMap.put(
+          oneofDescriptor.getFields().get(0).getNumber(),
+          Field.of(oneofDescriptor.getName(), oneOfType));
     }
 
     for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
-      if (!oneOfFields.contains(fieldDescriptor.getNumber())) {
+      int fieldDescriptorNumber = fieldDescriptor.getNumber();
+      if (!oneOfFields.contains(fieldDescriptorNumber)) {
         // Store proto field number in metadata.
         FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
         fields.add(
-            withFieldNumber(
-                    Field.of(fieldDescriptor.getName(), fieldType), fieldDescriptor.getNumber())
+            withFieldNumber(Field.of(fieldDescriptor.getName(), fieldType), fieldDescriptorNumber)
                 .withOptions(getFieldOptions(fieldDescriptor)));
+      } else if (oneOfFieldLocationMap.containsKey(fieldDescriptorNumber)) {
+        Field oneOfField = oneOfFieldLocationMap.get(fieldDescriptorNumber);
+        if (oneOfField != null) {
+          fields.add(oneOfField);
+        }
       }
     }
     return Schema.builder()
