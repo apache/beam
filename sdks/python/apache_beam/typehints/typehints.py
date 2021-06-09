@@ -365,6 +365,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
         (error_msg_prefix, type_param, type_param.__class__.__name__))
 
 
+# TODO(BEAM-12469): Remove this function and use plain repr() instead.
 def _unified_repr(o):
   """Given an object return a qualified name for the object.
 
@@ -378,7 +379,10 @@ def _unified_repr(o):
   Returns:
     A qualified name for the passed Python object fit for string formatting.
   """
-  return repr(o) if isinstance(o, (TypeConstraint, type(None))) else o.__name__
+  if isinstance(o, (TypeConstraint, type(None))) or not hasattr(o, '__name__'):
+    return repr(o)
+  else:
+    return o.__name__
 
 
 def check_constraint(type_constraint, object_instance):
