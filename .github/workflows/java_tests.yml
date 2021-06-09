@@ -117,12 +117,11 @@ jobs:
           path: runners/core-java/build/reports/tests/test
       - name: "Java Unit Tests Status Report"
         if: always()
-        run: echo $runersstatus
+        working-directory: ./.test-infra/metrics/sync/github
+        run: python sync_github_actions.py $name $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          corestatus: ${{ steps.java_core_test.outcome }}
-          harnessstatus: ${{ steps.java_harness_test.outcome }}
-          runersstatus: ${{ steps.java_runners_test.outcome }}
+          name: java_unit_tests-${{matrix.os}}
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
@@ -152,10 +151,11 @@ jobs:
           path: examples/java/build/reports/tests/integrationTest
       - name: "Java Word Count Direct Runner Status Report"
         if: always()
-        run: echo $directrunnerstatus
+        working-directory: ./.test-infra/metrics/sync/github
+        run: python sync_github_actions.py $name $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          directrunnerstatus: ${{ steps.run_java_wordcount_direct_runner.outcome }}
+          name: java_word_count_direct_runner-${{matrix.os}}
 
   java_wordcount_dataflow:
     name: 'Java Wordcount Dataflow'
@@ -201,7 +201,8 @@ jobs:
           path: examples/java/build/reports/tests/integrationTest
       - name: "Java Word Count Dataflow Status Report"
         if: always()
-        run: echo $directrunnerstatus
+        working-directory: ./.test-infra/metrics/sync/github
+        run: python sync_github_actions.py $name $jobstatus
         env:
           jobstatus: ${{ job.status }}
-          directrunnerstatus: ${{ steps.run_java_wordcount_dataflow.outcome }}
+          name: java_word_count_dataflow-${{matrix.os}}
