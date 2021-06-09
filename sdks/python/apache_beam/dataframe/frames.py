@@ -2267,16 +2267,21 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     tmp_weight_column_name = "___Beam_DataFrame_weights___"
 
     if weights is None:
-      self_with_randomized_weights = frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
+      self_with_randomized_weights = frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
           'randomized_weights',
-          lambda df: df.assign(**{tmp_weight_column_name: np.random.rand(len(df))}),
+          lambda df: df.assign(**{tmp_weight_column_name:
+                                  np.random.rand(len(df))}),
           [self._expr],
           requires_partition_by=partitionings.Index(),
           preserves_partition_by=partitionings.Arbitrary()))
     else:
-      self_with_randomized_weights = frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
+      self_with_randomized_weights = frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
           'randomized_weights',
-          lambda df, weights: df.assign(**{tmp_weight_column_name: weights * np.random.rand(*weights.shape)}),
+          lambda df, weights: df.assign(**{tmp_weight_column_name:
+                                           weights * np.random.rand(
+                                               *weights.shape)}),
           [self._expr, weights._expr],
           requires_partition_by=partitionings.Index(),
           preserves_partition_by=partitionings.Arbitrary()))
