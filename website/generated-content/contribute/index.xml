@@ -1130,6 +1130,7 @@ The complete staging area is available for your review, which includes:
 * Validation sheet with a tab for 1.2.3 release to help with validation [9].
 * Docker images published to Docker Hub [10].
 The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
+For guidelines on how to try the release in your projects, check out our blog post at https://beam.apache.org/blog/validate-beam-release/.
 Thanks,
 Release Manager
 [1] https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=...

@@ -1,4 +1,87 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.29.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>How to validate a Beam Release</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Performing new releases is a core responsibility of any software project.
+It is even more important in the culture of Apache projects. Releases are
+the main flow of new code / features among the community of a project.&lt;/p>
+&lt;p>Beam is no exception: We aspire to keep a release cadence of about 6 weeks,
+and try to work with the community to release useful new features, and to
+keep Beam useful.&lt;/p>
+&lt;h3 id="configure-a-java-build-to-validate-a-beam-release-candidate">Configure a Java build to validate a Beam release candidate&lt;/h3>
+&lt;p>First of all, it would be useful to have a single property in your &lt;code>pom.xml&lt;/code>
+where you keep the global Beam version that you&amp;rsquo;re using. Something like this
+in your &lt;code>pom.xml&lt;/code>:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">26&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>Second, you can add a new profile to your &lt;code>pom.xml&lt;/code> file. In this new profile,
+add a new repository with the staging repository for the new Beam release. For
+Beam 2.27.0, this was &lt;code>https://repository.apache.org/content/repositories/orgapachebeam-1149/&lt;/code>.&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">validaterelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newrelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">repo&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>Once you have a &lt;code>beam.version&lt;/code> property in your &lt;code>pom.xml&lt;/code>, and a new profile
+with the new release, you can run your &lt;code>mvn&lt;/code> command activating the new profile,
+and the new Beam version:&lt;/p>
+&lt;pre>&lt;code>mvn test -Pvalidaterelease \
+-Dbeam.version=2.27.0 \
+-Dbeam.release.repo=https://repository.apache.org/content/repositories/orgapachebeam-XXXX/
+&lt;/code>&lt;/pre>&lt;p>This should build your project against the new release, and run basic tests.
+It will allow you to run basic validations against the new Beam release.
+If you find any issues, then you can share them &lt;em>before&lt;/em> the release is
+finalized, so your concerns can be addressed by the community.&lt;/p>
+&lt;h3 id="configuring-a-python-build-to-validate-a-beam-release-candidate">Configuring a Python build to validate a Beam release candidate&lt;/h3>
+&lt;p>For Python SDK releases, you can install SDK from Pypi, by enabling the
+installation of pre-release artifacts.&lt;/p>
+&lt;p>First, make sure that your &lt;code>requirements.txt&lt;/code> or &lt;code>setup.py&lt;/code> files allow
+for Beam versions above the current one. Something like this should install
+the latest available version:&lt;/p>
+&lt;pre>&lt;code>apache-beam&amp;lt;=3.0.0
+&lt;/code>&lt;/pre>&lt;p>With that, you can ask &lt;code>pip&lt;/code> to install pre-release versions of Beam in your
+environment:&lt;/p>
+&lt;pre>&lt;code>pip install --pre apache-beam
+&lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your environment will be the latest release
+candidate, and you can go ahead and run your tests to verify that everything
+works well.&lt;/p></description><link>/blog/validate-beam-release/</link><pubDate>Tue, 08 Jun 2021 00:00:01 -0800</pubDate><guid>/blog/validate-beam-release/</guid><category>blog</category></item><item><title>Apache Beam 2.29.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -688,202 +771,4 @@ Robert Bradshaw, Robert Burke, Robin Qiu, Rui Wang, Saavan Nanavati, sabhyankar,
 Scott Lukas, Siddhartha Thota, Simone Primarosa, Sławomir Andrian,
 Steve Niemitz, Tobiasz Kędzierski, Tomo Suzuki, Tyson Hamilton, Udi Meiri,
 Valentyn Tymofieiev, viktorjonsson, Xinyu Liu, Yichi Zhang, Yixing Zhang, yoshiki.obata,
-Yueyang Qiu, zijiesong&lt;/p></description><link>/blog/beam-2.24.0/</link><pubDate>Fri, 18 Sep 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.24.0/</guid><category>blog</category></item><item><title>Pattern Matching with Beam SQL</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h2 id="introduction">Introduction&lt;/h2>
-&lt;p>SQL is becoming increasingly powerful and useful in the field of data analysis. MATCH_RECOGNIZE,
-a new SQL component introduced in 2016, brings extra analytical functionality. This project,
-as part of Google Summer of Code, aims to support basic MATCH_RECOGNIZE functionality. A basic MATCH_RECOGNIZE
-query would be something like this:
-&lt;div class='language-sql snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="k">SELECT&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">cid&lt;/span>
-&lt;span class="k">FROM&lt;/span> &lt;span class="n">MyTable&lt;/span>
-&lt;span class="n">MATCH_RECOGNIZE&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">PARTITION&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">userid&lt;/span>
-&lt;span class="k">ORDER&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">proctime&lt;/span>
-&lt;span class="n">MEASURES&lt;/span>
-&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="k">C&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">cid&lt;/span>
-&lt;span class="n">PATTERN&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="k">C&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">DEFINE&lt;/span>
-&lt;span class="n">A&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">B&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;b&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="k">C&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;c&amp;#39;&lt;/span>
-&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">T&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/p>
-&lt;p>The above query finds out ordered sets of events that have names &amp;lsquo;a&amp;rsquo;, &amp;lsquo;b&amp;rsquo; and &amp;lsquo;c&amp;rsquo;. Apart from this basic usage of
-MATCH_RECOGNIZE, I supported a few of other crucial features such as quantifiers and row pattern navigation. I will spell out
-the details in later sections.&lt;/p>
-&lt;h2 id="approach--discussion">Approach &amp;amp; Discussion&lt;/h2>
-&lt;p>The implementation is strongly based on BEAM core transforms. Specifically, one MATCH_RECOGNIZE execution composes the
-following series of transforms:&lt;/p>
-&lt;ol>
-&lt;li>A &lt;code>ParDo&lt;/code> transform and then a &lt;code>GroupByKey&lt;/code> transform that build up the partitions (PARTITION BY).&lt;/li>
-&lt;li>A &lt;code>ParDo&lt;/code> transform that sorts within each partition (ORDER BY).&lt;/li>
-&lt;li>A &lt;code>ParDo&lt;/code> transform that applies pattern-match in each sorted partition.&lt;/li>
-&lt;/ol>
-&lt;p>A pattern-match operation was first done with the java regex library. That is, I first transform rows within a partition into
-a string and then apply regex pattern-match routines. If a row satisfies a condition, then I output the corresponding pattern variable.
-This is ok under the assumption that the pattern definitions are mutually exclusive. That is, a pattern definition like &lt;code>A AS A.price &amp;gt; 0, B AS b.price &amp;lt; 0&lt;/code> is allowed while
-a pattern definition like &lt;code>A AS A.price &amp;gt; 0, B AS B.proctime &amp;gt; 0&lt;/code> might results in an incomplete match. For the latter case,
-an event can satisfy the conditions A and B at the same time. Mutually exclusive conditions gives deterministic pattern-match:
-each event can only belong to at most one pattern class.&lt;/p>
-&lt;p>As specified in the SQL 2016 document, MATCH_RECOGNIZE defines a richer set of expression than regular expression. Specifically,
-it introduces &lt;em>Row Pattern Navigation Operations&lt;/em> such as &lt;code>PREV&lt;/code> and &lt;code>NEXT&lt;/code>. This is perhaps one of the most intriguing feature of
-MATCH_RECOGNIZE. A regex library would no longer suffice the need since the pattern definition could be back-referencing (&lt;code>PREV&lt;/code>) or
-forward-referencing (&lt;code>NEXT&lt;/code>). So for the second version of implementation, we chose to use an NFA regex engine. An NFA brings more flexibility
-in terms of non-determinism (see Chapter 6 of SQL 2016 Part 5 for a more thorough discussion). My proposed NFA is based on a paper of UMASS.&lt;/p>
-&lt;p>This is a working project. Many of the components are still not supported. I will list some unimplemented work in the section
-of future work.&lt;/p>
-&lt;h2 id="usages">Usages&lt;/h2>
-&lt;p>For now, the components I supported are:&lt;/p>
-&lt;ul>
-&lt;li>PARTITION BY&lt;/li>
-&lt;li>ORDER BY&lt;/li>
-&lt;li>MEASURES
-&lt;ol>
-&lt;li>LAST&lt;/li>
-&lt;li>FIRST&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;li>ONE ROW PER MATCH/ALL ROWS PER MATCH&lt;/li>
-&lt;li>DEFINE
-&lt;ol>
-&lt;li>Left side of the condition
-&lt;ol>
-&lt;li>LAST&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;li>Right side of the condition
-&lt;ol>
-&lt;li>PREV&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;li>Quantifier
-&lt;ol>
-&lt;li>Kleene plus&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;/ul>
-&lt;p>The pattern definition evaluation is hard coded. To be more specific, it expects the column reference of the incoming row
-to be on the left side of a comparator. Additionally, PREV function can only appear on the right side of the comparator.&lt;/p>
-&lt;p>With these limited tools, we could already write some slightly more complicated queries. Imagine we have the following
-table:&lt;/p>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th align="center">transTime&lt;/th>
-&lt;th align="center">price&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td align="center">1&lt;/td>
-&lt;td align="center">3&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td align="center">2&lt;/td>
-&lt;td align="center">2&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td align="center">3&lt;/td>
-&lt;td align="center">1&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td align="center">4&lt;/td>
-&lt;td align="center">5&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td align="center">5&lt;/td>
-&lt;td align="center">6&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;p>This table reflects the price changes of a product with respect to the transaction time. We could write the following
-query:&lt;/p>
-&lt;div class='language-sql snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="k">SELECT&lt;/span> &lt;span class="o">*&lt;/span>
-&lt;span class="k">FROM&lt;/span> &lt;span class="n">MyTable&lt;/span>
-&lt;span class="n">MATCH_RECOGNIZE&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="k">ORDER&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">transTime&lt;/span>
-&lt;span class="n">MEASURES&lt;/span>
-&lt;span class="k">LAST&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">beforePrice&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="k">FIRST&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">afterPrice&lt;/span>
-&lt;span class="n">PATTERN&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="o">+&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">DEFINE&lt;/span>
-&lt;span class="n">A&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">price&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="n">B&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">price&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">T&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>This will find the local minimum price and the price after it. For the example dataset, the first 3 rows will be
-mapped to A and the rest of the rows will be mapped to B. Thus, we will have (1, 5) as the result.&lt;/p>
-&lt;blockquote>
-&lt;p>Very important: For my NFA implementation, it slightly breaks the rule in the SQL standard. Since the buffered NFA
-only stores an event to the buffer if the event is a match to some pattern class, There would be no way to get the
-previous event back if the previous row is discarded. So the first row would always be a match (different from the standard)
-if PREV is used.&lt;/p>
-&lt;/blockquote>
-&lt;h2 id="progress">Progress&lt;/h2>
-&lt;ol>
-&lt;li>PRs
-&lt;ol>
-&lt;li>&lt;a href="https://github.com/apache/beam/pull/12232">Support MATCH_RECOGNIZE using regex library&lt;/a> (merged)&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/pull/12532">Support MATCH_RECOGNIZE using NFA&lt;/a> (pending)&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;li>Commits
-&lt;ol>
-&lt;li>partition by: &lt;a href="https://github.com/apache/beam/pull/12232/commits/064ada7257970bcb1d35530be1b88cb3830f242b">commit 064ada7&lt;/a>&lt;/li>
-&lt;li>order by: &lt;a href="https://github.com/apache/beam/pull/12232/commits/9cd1a82bec7b2f7c44aacfbd72f5f775bb58b650">commit 9cd1a82&lt;/a>&lt;/li>
-&lt;li>regex pattern match: &lt;a href="https://github.com/apache/beam/pull/12232/commits/8d6ffcc213e30999fc495c119b68da4f62fad258">commit 8d6ffcc&lt;/a>&lt;/li>
-&lt;li>support quantifiers: &lt;a href="https://github.com/apache/beam/pull/12232/commits/f529b876a2c2e43d012c71b3a83ebd55eb16f4ff">commit f529b87&lt;/a>&lt;/li>
-&lt;li>measures: &lt;a href="https://github.com/apache/beam/pull/12232/commits/87935746647611aa139d664ebed10c8e638bb024">commit 8793574&lt;/a>&lt;/li>
-&lt;li>added NFA implementation: &lt;a href="https://github.com/apache/beam/pull/12532/commits/fc731f2b0699d11853e7b76da86456427d434a2a">commit fc731f2&lt;/a>&lt;/li>
-&lt;li>implemented functions PREV and LAST: &lt;a href="https://github.com/apache/beam/pull/12532/commits/fc731f2b0699d11853e7b76da86456427d434a2a">commit 35323da&lt;/a>&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;/ol>
-&lt;h2 id="future-work">Future Work&lt;/h2>
-&lt;ul>
-&lt;li>Support FINAL/RUNNING keywords.&lt;/li>
-&lt;li>Support more quantifiers.&lt;/li>
-&lt;li>Add optimization to the NFA.&lt;/li>
-&lt;li>A better way to realize MATCH_RECOGNIZE might be having a Complex Event Processing library at BEAM core (rather than using BEAM transforms).&lt;/li>
-&lt;/ul>
-&lt;!-- Related Documents:
-- proposal
-- design doc
-- SQL 2016 standard
-- UMASS NFA^b paper
--->
-&lt;h2 id="references">References&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="https://drive.google.com/file/d/1ZuFZV4dCFVPZW_-RiqbU0w-vShaZh_jX/view?usp=sharing">Project Proposal&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://s.apache.org/beam-sql-pattern-recognization">Design Documentation&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://www.iso.org/standard/65143.html">SQL 2016 documentation Part 5&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://dl.acm.org/doi/10.1145/1376616.1376634">UMASS paper on NFA with shared buffer&lt;/a>&lt;/li>
-&lt;/ul></description><link>/blog/pattern-match-beam-sql/</link><pubDate>Thu, 27 Aug 2020 00:00:01 +0800</pubDate><guid>/blog/pattern-match-beam-sql/</guid><category>blog</category></item></channel></rss>
+Yueyang Qiu, zijiesong&lt;/p></description><link>/blog/beam-2.24.0/</link><pubDate>Fri, 18 Sep 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.24.0/</guid><category>blog</category></item></channel></rss>

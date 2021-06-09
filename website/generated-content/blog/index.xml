@@ -1,4 +1,87 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Thu, 29 Apr 2021 09:00:00 -0700</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.29.0</title><link>/blog/beam-2.29.0/</link><pubDate>Thu, 29 Apr 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.29.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Tue, 08 Jun 2021 00:00:01 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: How to validate a Beam Release</title><link>/blog/validate-beam-release/</link><pubDate>Tue, 08 Jun 2021 00:00:01 -0800</pubDate><guid>/blog/validate-beam-release/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Performing new releases is a core responsibility of any software project.
+It is even more important in the culture of Apache projects. Releases are
+the main flow of new code / features among the community of a project.&lt;/p>
+&lt;p>Beam is no exception: We aspire to keep a release cadence of about 6 weeks,
+and try to work with the community to release useful new features, and to
+keep Beam useful.&lt;/p>
+&lt;h3 id="configure-a-java-build-to-validate-a-beam-release-candidate">Configure a Java build to validate a Beam release candidate&lt;/h3>
+&lt;p>First of all, it would be useful to have a single property in your &lt;code>pom.xml&lt;/code>
+where you keep the global Beam version that you&amp;rsquo;re using. Something like this
+in your &lt;code>pom.xml&lt;/code>:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">26&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>Second, you can add a new profile to your &lt;code>pom.xml&lt;/code> file. In this new profile,
+add a new repository with the staging repository for the new Beam release. For
+Beam 2.27.0, this was &lt;code>https://repository.apache.org/content/repositories/orgapachebeam-1149/&lt;/code>.&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">validaterelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newrelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">repo&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>Once you have a &lt;code>beam.version&lt;/code> property in your &lt;code>pom.xml&lt;/code>, and a new profile
+with the new release, you can run your &lt;code>mvn&lt;/code> command activating the new profile,
+and the new Beam version:&lt;/p>
+&lt;pre>&lt;code>mvn test -Pvalidaterelease \
+-Dbeam.version=2.27.0 \
+-Dbeam.release.repo=https://repository.apache.org/content/repositories/orgapachebeam-XXXX/
+&lt;/code>&lt;/pre>&lt;p>This should build your project against the new release, and run basic tests.
+It will allow you to run basic validations against the new Beam release.
+If you find any issues, then you can share them &lt;em>before&lt;/em> the release is
+finalized, so your concerns can be addressed by the community.&lt;/p>
+&lt;h3 id="configuring-a-python-build-to-validate-a-beam-release-candidate">Configuring a Python build to validate a Beam release candidate&lt;/h3>
+&lt;p>For Python SDK releases, you can install SDK from Pypi, by enabling the
+installation of pre-release artifacts.&lt;/p>
+&lt;p>First, make sure that your &lt;code>requirements.txt&lt;/code> or &lt;code>setup.py&lt;/code> files allow
+for Beam versions above the current one. Something like this should install
+the latest available version:&lt;/p>
+&lt;pre>&lt;code>apache-beam&amp;lt;=3.0.0
+&lt;/code>&lt;/pre>&lt;p>With that, you can ask &lt;code>pip&lt;/code> to install pre-release versions of Beam in your
+environment:&lt;/p>
+&lt;pre>&lt;code>pip install --pre apache-beam
+&lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your environment will be the latest release
+candidate, and you can go ahead and run your tests to verify that everything
+works well.&lt;/p></description></item><item><title>Blog: Apache Beam 2.29.0</title><link>/blog/beam-2.29.0/</link><pubDate>Thu, 29 Apr 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.29.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4970,106 +5053,4 @@ bugs, and suggest or implement improvements.&lt;/p>
 users) and &lt;a href="mailto:dev@beam.apache.org">dev@beam.apache.org&lt;/a> (mailing list for
 Beam developers)!&lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>Blog: Apache Beam publishes the first stable release</title><link>/blog/beam-first-stable-release/</link><pubDate>Wed, 17 May 2017 00:00:01 -0800</pubDate><guid>/blog/beam-first-stable-release/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>The Apache Beam community is pleased to &lt;a href="https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces12">announce the availability of version 2.0.0&lt;/a>. This is the first stable release of Apache Beam, signifying a statement from the community that it intends to maintain API stability with all releases for the foreseeable future, and making Beam suitable for enterprise deployment.&lt;/p>
-&lt;p>This first stable release is the third important milestone for the Apache Beam community. Beam joined the Apache Incubator in February 2016 and graduated as a top-level project of The Apache Software Foundation in December. Through these fifteen months of concentrated effort, a slightly chaotic codebase, merged from multiple organizations, has been developed into a generalized framework for data processing that is truly engine- and environment-independent. Apache Beam has evolved and improved through three incubating and three post-incubation releases, culminating in the stable release announced today as version 2.0.0.&lt;/p>
-&lt;p>In the five months since graduation, Apache Beam has seen a significant growth, both in terms of adoption and community contribution. Apache Beam is &lt;a href="https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces12">in use&lt;/a> at Google Cloud, PayPal, and Talend, among others.&lt;/p>
-&lt;p>Apache Beam, version 2.0.0 improves user experience across the project, focusing on seamless portability across execution environments, including engines, operating systems, on-premise clusters, cloud providers, and data storage systems. Other highlights include:&lt;/p>
-&lt;ul>
-&lt;li>API stability and future compatibility within this major version.&lt;/li>
-&lt;li>Stateful data processing paradigms that unlock efficient, data-dependent computations.&lt;/li>
-&lt;li>Support for user-extensible file systems, with built-in support for Hadoop Distributed File System, among others.&lt;/li>
-&lt;li>A metrics subsystem for deeper insight into pipeline execution.&lt;/li>
-&lt;/ul>
-&lt;p>Many contributors made this release possible, by participating in different roles: contributing code, writing documentation, testing release candidates, supporting users, or helping in some other way. The following is a partial list of contributors – 76 individuals contributed code to the project since the previous release, assembled from source history:&lt;/p>
-&lt;ul>
-&lt;li>Ahmet Altay&lt;/li>
-&lt;li>Eric Anderson&lt;/li>
-&lt;li>Raghu Angadi&lt;/li>
-&lt;li>Sourabh Bajaj&lt;/li>
-&lt;li>Péter Gergő Barna&lt;/li>
-&lt;li>Chen Bin&lt;/li>
-&lt;li>Davor Bonaci&lt;/li>
-&lt;li>Robert Bradshaw&lt;/li>
-&lt;li>Ben Chambers&lt;/li>
-&lt;li>Etienne Chauchot&lt;/li>
-&lt;li>Chang Chen&lt;/li>
-&lt;li>Charles Chen&lt;/li>
-&lt;li>Craig Citro&lt;/li>
-&lt;li>Lukasz Cwik&lt;/li>
-&lt;li>Márton Elek&lt;/li>
-&lt;li>Pablo Estrada&lt;/li>
-&lt;li>Josh Forman-Gornall&lt;/li>
-&lt;li>Maria García Herrero&lt;/li>
-&lt;li>Jins George&lt;/li>
-&lt;li>Damien Gouyette&lt;/li>
-&lt;li>Thomas Groh&lt;/li>
-&lt;li>Dan Halperin&lt;/li>
-&lt;li>Pei He&lt;/li>
-&lt;li>Hadar Hod&lt;/li>
-&lt;li>Chamikara Jayalath&lt;/li>
-&lt;li>Rekha Joshi&lt;/li>
-&lt;li>Uwe Jugel&lt;/li>
-&lt;li>Sung Junyoung&lt;/li>
-&lt;li>Holden Karau&lt;/li>
-&lt;li>Vikas Kedigehalli&lt;/li>
-&lt;li>Eugene Kirpichov&lt;/li>
-&lt;li>Tibor Kiss&lt;/li>
-&lt;li>Kenneth Knowles&lt;/li>
-&lt;li>Vassil Kolarov&lt;/li>
-&lt;li>Chinmay Kolhatkar&lt;/li>
-&lt;li>Aljoscha Krettek&lt;/li>
-&lt;li>Dipti Kulkarni&lt;/li>
-&lt;li>Radhika Kulkarni&lt;/li>
-&lt;li>Jason Kuster&lt;/li>
-&lt;li>Reuven Lax&lt;/li>
-&lt;li>Stas Levin&lt;/li>
-&lt;li>Julien Lhermitte&lt;/li>
-&lt;li>Jingsong Li&lt;/li>
-&lt;li>Neville Li&lt;/li>
-&lt;li>Mark Liu&lt;/li>
-&lt;li>Michael Luckey&lt;/li>
-&lt;li>Andrew Martin&lt;/li>
-&lt;li>Ismaël Mejía&lt;/li>
-&lt;li>Devon Meunier&lt;/li>
-&lt;li>Neda Mirian&lt;/li>
-&lt;li>Anil Muppalla&lt;/li>
-&lt;li>Gergely Novak&lt;/li>
-&lt;li>Jean-Baptiste Onofré&lt;/li>
-&lt;li>Melissa Pashniak&lt;/li>
-&lt;li>peay&lt;/li>
-&lt;li>David Rieber&lt;/li>
-&lt;li>Rahul Sabbineni&lt;/li>
-&lt;li>Kobi Salant&lt;/li>
-&lt;li>Amit Sela&lt;/li>
-&lt;li>Mark Shalda&lt;/li>
-&lt;li>Stephen Sisk&lt;/li>
-&lt;li>Yuya Tajima&lt;/li>
-&lt;li>Wesley Tanaka&lt;/li>
-&lt;li>JiJun Tang&lt;/li>
-&lt;li>Valentyn Tymofieiev&lt;/li>
-&lt;li>David Volquartz&lt;/li>
-&lt;li>Huafeng Wang&lt;/li>
-&lt;li>Thomas Weise&lt;/li>
-&lt;li>Rafal Wojdyla&lt;/li>
-&lt;li>Yangping Wu&lt;/li>
-&lt;li>wyp&lt;/li>
-&lt;li>James Xu&lt;/li>
-&lt;li>Mingmin Xu&lt;/li>
-&lt;li>Ted Yu&lt;/li>
-&lt;li>Borisa Zivkovic&lt;/li>
-&lt;li>Aviem Zur&lt;/li>
-&lt;/ul>
-&lt;p>Apache Beam, version 2.0.0, is making its debut at Apache: Big Data, taking place this week in Miami, FL, with four sessions featuring Apache Beam. Apache Beam will also be highlighted at numerous face-to-face meetups and conferences, including the Future of Data San Jose meetup, Strata Data Conference London, Berlin Buzzwords, and DataWorks Summit San Jose.&lt;/p>
-&lt;p>We’d like to invite everyone to try out Apache Beam today and consider joining our vibrant community. We welcome feedback, contribution and participation through our mailing lists, issue tracker, pull requests, and events.&lt;/p></description></item></channel></rss>
+&lt;/ul></description></item></channel></rss>
