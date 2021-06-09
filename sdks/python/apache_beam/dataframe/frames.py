@@ -1985,13 +1985,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
       if not isinstance(func, dict):
         col_names = list(projected._expr.proxy().columns)
-        func = {col: func for col in col_names}
+        func_by_col = {col: func for col in col_names}
       else:
+        func_by_col = func
         col_names = list(func.keys())
       aggregated_cols = []
-      has_lists = any(isinstance(f, list) for f in func.values())
+      has_lists = any(isinstance(f, list) for f in func_by_col.values())
       for col in col_names:
-        funcs = func[col]
+        funcs = func_by_col[col]
         if has_lists and not isinstance(funcs, list):
           # If any of the columns do multiple aggregations, they all must use
           # "list" style output
@@ -2007,8 +2008,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                   lambda *cols: pd.Series(
                       {col: value for col, value in zip(col_names, cols)}),
                 [col._expr for col in aggregated_cols],
-                requires_partition_by=partitionings.Singleton(),
-                proxy=projected._expr.proxy().agg(func, *args, **kwargs)))
+                requires_partition_by=partitionings.Singleton()))
         elif isinstance(proxy, pd.DataFrame):
           return frame_base.DeferredFrame.wrap(
               expressions.ComputedExpression(
@@ -2021,7 +2021,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           raise AssertionError("Unexpected proxy type for "
                                f"DataFrame.aggregate!: proxy={proxy!r}, "
                                f"type(proxy)={type(proxy)!r}")
-
 
   agg = aggregate
 
@@ -3468,6 +3467,14 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       pd.core.strings.StringMethods, 'get_dummies',
       reason='non-deferred-columns')
 
+  split = frame_base.wont_implement_method(
+      pd.core.strings.StringMethods, 'split',
+      reason='non-deferred-columns')
+
+  rsplit = frame_base.wont_implement_method(
+      pd.core.strings.StringMethods, 'rsplit',
+      reason='non-deferred-columns')
+
 
 ELEMENTWISE_STRING_METHODS = [
             'capitalize',
@@ -3498,11 +3505,9 @@ ELEMENTWISE_STRING_METHODS = [
             'partition',
             'replace',
             'rpartition',
-            'rsplit',
             'rstrip',
             'slice',
             'slice_replace',
-            'split',
             'startswith',
             'strip',
             'swapcase',
