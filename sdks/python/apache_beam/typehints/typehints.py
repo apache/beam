@@ -318,6 +318,19 @@ class CompositeTypeHint(object):
     raise NotImplementedError
 
 
+def is_typing_generic(type_param):
+  """Determines if an object is a subscripted typing.Generic type, such as
+  PCollection[int].
+
+  Such objects are considered valid type parameters.
+
+  Always returns false for Python versions below 3.7.
+  """
+  if hasattr(typing, '_GenericAlias'):
+    return isinstance(type_param, typing._GenericAlias)
+  return False
+
+
 def validate_composite_type_param(type_param, error_msg_prefix):
   """Determines if an object is a valid type parameter to a
   :class:`CompositeTypeHint`.
@@ -338,6 +351,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   # Must either be a TypeConstraint instance or a basic Python type.
   possible_classes = [type, TypeConstraint]
   is_not_type_constraint = (
+      not is_typing_generic(type_param) and
       not isinstance(type_param, tuple(possible_classes)) and
       type_param is not None and
       getattr(type_param, '__module__', None) != 'typing')
