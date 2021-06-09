@@ -1026,6 +1026,7 @@ public class JdbcIOTest implements Serializable {
       assertRowCount(secondTableName, EXPECTED_ROW_COUNT);
     } finally {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, firstTableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, secondTableName);
     }
   }
 }

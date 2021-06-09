@@ -1236,7 +1236,7 @@ public class JdbcIO {
     }
 
     public WriteRows(WriteVoid<Row> writeVoid) {
-      this.inner = writeVoid;
+      inner = writeVoid;
     }
 
     /** See {@link WriteVoid#withStatement(String)}. */
@@ -1290,12 +1290,13 @@ public class JdbcIO {
      *
      * <pre>{@code
      * PCollection<Void> firstWriteRowsResults = data.apply(JdbcIO.writeRows()
-     *     .withDataSourceConfiguration(CONF_DB_1).withResults());
+     *     .withDataSourceConfiguration(dataSourceConfiguration1).withResults());
      * data.apply(Wait.on(firstWriteRowsResults))
-     *     .apply(JdbcIO.writeRows().withDataSourceConfiguration(CONF_DB_2));
+     *     .apply(JdbcIO.writeRows().withDataSourceConfiguration(dataSourceConfiguration1));
      * }</pre>
      *
-     * @return
+     * @return transform which can be used in {@link Wait#on(PCollection[])} to
+     * wait until all data is written.
      */
     public WriteVoid<Row> withResults() {
       if (!hasStatementAndSetter()) {
