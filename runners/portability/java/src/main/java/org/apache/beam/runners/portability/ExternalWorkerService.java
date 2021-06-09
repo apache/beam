@@ -135,7 +135,8 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
     LOG.info("Starting external worker service");
     final String optionsEnv =
         checkArgumentNotNull(
-            System.getenv(PIPELINE_OPTIONS_ENV_VAR), "No pipeline options provided.");
+            System.getenv(PIPELINE_OPTIONS_ENV_VAR),
+            "No pipeline options provided in environment variables " + PIPELINE_OPTIONS_ENV_VAR);
     LOG.info("Pipeline options {}", optionsEnv);
     PipelineOptions options = PipelineOptionsTranslation.fromJson(optionsEnv);
 
