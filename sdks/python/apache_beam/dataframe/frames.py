@@ -2255,7 +2255,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     # axis='index'
     if frac is not None or random_state is not None or replace:
-      raise NotImplemntedError(
+      raise NotImplementedError(
           f"When axis={axis!r}, only n and/or weights may be specified. "
           "frac, random_state, and replace=True are not yet supported "
           f"(got frac={frac!r}, random_state={random_state!r}, "
