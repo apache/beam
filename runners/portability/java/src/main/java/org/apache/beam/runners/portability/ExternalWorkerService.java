@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.portability;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.Collections;
-import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerResponse;
@@ -130,15 +131,13 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
    *       up-front and matches the running job. See {@link PipelineOptions} for further details.
    * </ul>
    */
-  public static void main(String[] args) throws Exception {
-    main(System::getenv);
-  }
-
-  public static void main(Function<String, String> environmentVarGetter) throws Exception {
+  public static void main(String[] args) {
     LOG.info("Starting external worker service");
-    LOG.info("Pipeline options {}", environmentVarGetter.apply(PIPELINE_OPTIONS_ENV_VAR));
-    PipelineOptions options =
-        PipelineOptionsTranslation.fromJson(environmentVarGetter.apply(PIPELINE_OPTIONS_ENV_VAR));
+    final String optionsEnv =
+        checkArgumentNotNull(
+            System.getenv(PIPELINE_OPTIONS_ENV_VAR), "No pipeline options provided.");
+    LOG.info("Pipeline options {}", optionsEnv);
+    PipelineOptions options = PipelineOptionsTranslation.fromJson(optionsEnv);
 
     try (GrpcFnServer<ExternalWorkerService> server = new ExternalWorkerService(options).start()) {
       LOG.info(
