@@ -134,7 +134,7 @@ _PEEK_METHOD_EXPLANATION = (
     "If you want to peek at a large dataset consider using interactive Beam's "
     ":func:`ib.collect "
     "<apache_beam.runners.interactive.interactive_beam.collect>` "
-    "with ``n`` specified. If you want to find the "
+    "with ``n`` specified, or :meth:`sample`. If you want to find the "
     "N largest elements, consider using :meth:`DeferredDataFrame.nlargest`.")
 
 
