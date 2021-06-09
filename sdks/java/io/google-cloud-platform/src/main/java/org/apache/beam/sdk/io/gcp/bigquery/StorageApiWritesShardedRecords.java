@@ -98,7 +98,6 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
   private final String kmsKey;
   private final BigQueryServices bqServices;
   private final Coder<DestinationT> destinationCoder;
-  @Nullable private DatasetService datasetServiceInternal = null;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
@@ -111,14 +110,6 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                 runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
               })
           .build();
-
-  private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
-    if (datasetServiceInternal == null) {
-      datasetServiceInternal =
-          bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
-    }
-    return datasetServiceInternal;
-  }
 
   // Run a closure asynchronously, ignoring failures.
   private interface ThrowingRunnable {
@@ -257,6 +248,8 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
 
+    private @Nullable DatasetService datasetServiceInternal = null;
+
     // Stores the current stream for this key.
     @StateId("streamName")
     private final StateSpec<ValueState<String>> streamNameSpec = StateSpecs.value();
@@ -293,6 +286,26 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
         streamsCreated.inc();
       }
       return stream;
+    }
+
+    private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+      if (datasetServiceInternal == null) {
+        datasetServiceInternal =
+            bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return datasetServiceInternal;
+    }
+
+    @Teardown
+    public void onTeardown() {
+      try {
+        if (datasetServiceInternal != null) {
+          datasetServiceInternal.close();
+          datasetServiceInternal = null;
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @SuppressWarnings({"nullness"})
