@@ -113,9 +113,9 @@ message LogicalType {
 message Option {
   // REQUIRED. Identifier for the option.
   string name = 1;
-  // OPTIONAL. Type specifer for the structure of value.
-  // If not present, assumes no additional configuration is needed
-  // for this option and value is ignored.
+  // REQUIRED. Type specifer for the structure of value.
+  // Conventionally, options that don't require additional configuration should
+  // use a boolean type, with the value set to true.
   FieldType type = 2;
   FieldValue value = 3;
 }

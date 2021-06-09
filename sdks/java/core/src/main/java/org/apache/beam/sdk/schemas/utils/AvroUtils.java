@@ -906,6 +906,26 @@ public class AvroUtils {
                         .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
                         .collect(Collectors.toList()));
             break;
+          case "CHAR":
+          case "NCHAR":
+            baseType =
+                buildHiveLogicalTypeSchema("char", (int) fieldType.getLogicalType().getArgument());
+            break;
+          case "NVARCHAR":
+          case "VARCHAR":
+          case "LONGNVARCHAR":
+          case "LONGVARCHAR":
+            baseType =
+                buildHiveLogicalTypeSchema(
+                    "varchar", (int) fieldType.getLogicalType().getArgument());
+            break;
+          case "DATE":
+            baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
+            break;
+          case "TIME":
+            baseType =
+                LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
+            break;
           default:
             throw new RuntimeException(
                 "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -1017,6 +1037,15 @@ public class AvroUtils {
                   typeWithNullability.type.getTypes().get(oneOfValue.getCaseType().getValue()),
                   oneOfValue.getValue());
             }
+          case "NVARCHAR":
+          case "VARCHAR":
+          case "LONGNVARCHAR":
+          case "LONGVARCHAR":
+            return new Utf8((String) value);
+          case "DATE":
+            return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
+          case "TIME":
+            return (int) ((Instant) value).getMillis();
           default:
             throw new RuntimeException(
                 "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -1276,5 +1305,19 @@ public class AvroUtils {
   private static void checkTypeName(Schema.TypeName got, Schema.TypeName expected, String label) {
     checkArgument(
         got.equals(expected), "Can't convert '%s' to %s, expected: %s", label, got, expected);
+  }
+
+  /**
+   * Helper factory to build Avro Logical types schemas for SQL *CHAR types. This method <a
+   * href="https://github.com/apache/hive/blob/5d268834a5f5278ea76399f8af0d0ab043ae0b45/serde/src/java/org/apache/hadoop/hive/serde2/avro/TypeInfoToSchema.java#L110-L121">represents
+   * the logical as Hive does</a>.
+   */
+  private static org.apache.avro.Schema buildHiveLogicalTypeSchema(
+      String hiveLogicalType, int size) {
+    String schemaJson =
+        String.format(
+            "{\"type\": \"string\", \"logicalType\": \"%s\", \"maxLength\": %s}",
+            hiveLogicalType, size);
+    return new org.apache.avro.Schema.Parser().parse(schemaJson);
   }
 }

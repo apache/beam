@@ -353,18 +353,16 @@ def wont_implement_method(base_type, name, reason=None, explanation=None):
 
   def wrapper(*args, **kwargs):
     raise WontImplementError(
-        f"'{name}' is not supported {reason_data['explanation']}.",
+        f"'{name}' is not supported {reason_data['explanation']}",
         reason=reason)
 
   wrapper.__name__ = name
-  wrapper.__doc__ = f"""pandas.{base_type.__name__}.{name} is not supported in
-                    the Beam DataFrame API {reason_data['explanation']}."""
+  wrapper.__doc__ = (
+      f":meth:`pandas.{base_type.__name__}.{name}` is not supported in the "
+      f"Beam DataFrame API {reason_data['explanation']}")
 
   if 'url' in reason_data:
-    wrapper.__doc__ += """
-
-                    For more information see {reason_data['url']}.
-                    """
+    wrapper.__doc__ += f"\n\n For more information see {reason_data['url']}."
 
   return wrapper
 
@@ -572,30 +570,36 @@ def populate_defaults(base_type):
 
 _WONT_IMPLEMENT_REASONS = {
     'order-sensitive': {
-        'explanation': "because it is sensitive to the order of the data",
+        'explanation': "because it is sensitive to the order of the data.",
         'url': 'https://s.apache.org/dataframe-order-sensitive-operations',
     },
     'non-deferred-columns': {
         'explanation': (
             "because the columns in the output DataFrame depend "
-            "on the data"),
+            "on the data."),
         'url': 'https://s.apache.org/dataframe-non-deferred-columns',
     },
     'non-deferred-result': {
         'explanation': (
             "because it produces an output type that is not "
-            "deferred"),
+            "deferred."),
         'url': 'https://s.apache.org/dataframe-non-deferred-result',
     },
     'plotting-tools': {
-        'explanation': "because it is a plotting tool",
+        'explanation': "because it is a plotting tool.",
         'url': 'https://s.apache.org/dataframe-plotting-tools',
     },
+    'event-time-semantics': {
+        'explanation': (
+            "because implementing it would require integrating with Beam "
+            "event-time semantics"),
+        'url': 'https://s.apache.org/dataframe-event-time-semantics',
+    },
     'deprecated': {
-        'explanation': "because it is deprecated in pandas",
+        'explanation': "because it is deprecated in pandas.",
     },
     'experimental': {
-        'explanation': "because it is experimental in pandas",
+        'explanation': "because it is experimental in pandas.",
     },
 }
 

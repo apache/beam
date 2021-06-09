@@ -64,6 +64,10 @@ class DoctestTest(unittest.TestCase):
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
                 "s.replace('a', None)",
+                # Implicitly uses method='pad', but output doesn't rely on that
+                # behavior. Verified indepently in
+                # frames_test.py::DeferredFrameTest::test_replace
+                "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
             ],
             'pandas.core.generic.NDFrame.fillna': [
                 "df.fillna(method='ffill')",
@@ -77,6 +81,8 @@ class DoctestTest(unittest.TestCase):
                 'df.where(m, -df) == np.where(m, df, -df)'
             ],
             'pandas.core.generic.NDFrame.interpolate': ['*'],
+            'pandas.core.generic.NDFrame.resample': ['*'],
+            'pandas.core.generic.NDFrame.rolling': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -90,8 +96,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.reindex': ['*'],
             'pandas.core.generic.NDFrame.reindex_like': ['*'],
             'pandas.core.generic.NDFrame.replace': ['*'],
-            'pandas.core.generic.NDFrame.resample': ['*'],
-            'pandas.core.generic.NDFrame.rolling': ['*'],
             'pandas.core.generic.NDFrame.sample': ['*'],
             'pandas.core.generic.NDFrame.set_flags': ['*'],
             'pandas.core.generic.NDFrame.squeeze': ['*'],
@@ -183,6 +187,10 @@ class DoctestTest(unittest.TestCase):
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
                 "s.replace('a', None)",
+                # Implicitly uses method='pad', but output doesn't rely on that
+                # behavior. Verified indepently in
+                # frames_test.py::DeferredFrameTest::test_replace
+                "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
             ],
             'pandas.core.frame.DataFrame.to_records': ['*'],
             'pandas.core.frame.DataFrame.to_dict': ['*'],
@@ -291,7 +299,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
-            'pandas.core.frame.DataFrame.value_counts': ['*'],
 
             'pandas.core.frame.DataFrame.to_records': [
                 'df.index = df.index.rename("I")',
@@ -408,6 +415,15 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.append': [
                 's1.append(s2, ignore_index=True)',
             ],
+            'pandas.core.series.Series.replace': [
+                "s.replace([1, 2], method='bfill')",
+                # Relies on method='pad'
+                "s.replace('a', None)",
+                # Implicitly uses method='pad', but output doesn't rely on that
+                # behavior. Verified indepently in
+                # frames_test.py::DeferredFrameTest::test_replace
+                "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
+            ],
             'pandas.core.series.Series.sort_index': ['*'],
             'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
@@ -415,6 +431,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.drop_duplicates': [
                 's.drop_duplicates()',
                 "s.drop_duplicates(keep='last')",
+            ],
+            'pandas.core.series.Series.repeat': [
+                's.repeat([1, 2, 3])'
             ],
         },
         not_implemented_ok={
@@ -446,10 +465,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
-            'pandas.core.series.Series.quantile': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
-            'pandas.core.series.Series.repeat': ['*'],
-            'pandas.core.series.Series.replace': ['*'],
+            # Raises right exception, but testing framework has matching issues.
+            'pandas.core.series.Series.replace': [
+                "df.replace({'a string': 'new value', True: False})  # raises"
+            ],
             'pandas.core.series.Series.reset_index': ['*'],
             'pandas.core.series.Series.searchsorted': [
                 # This doctest seems to be incorrectly parsed.
@@ -591,12 +611,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': ['*'],
             'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
         },
         not_implemented_ok={
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
-            'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
-            'pandas.core.groupby.groupby.GroupBy.quantile': ['*'],
             'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
             # pipe tests are in a different location in pandas 1.1.x
             'pandas.core.groupby.groupby._GroupBy.pipe': ['*'],
@@ -716,7 +735,6 @@ class DoctestTest(unittest.TestCase):
             'to_numeric': ['*'],
             'to_timedelta': ['*'],
             'unique': ['*'],
-            'value_counts': ['*'],
             'wide_to_long': ['*'],
         },
         wont_implement_ok={
