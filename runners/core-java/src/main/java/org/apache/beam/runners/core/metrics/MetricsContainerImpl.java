@@ -402,7 +402,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   public void update(Iterable<MonitoringInfo> monitoringInfos) {
     for (MonitoringInfo monitoringInfo : monitoringInfos) {
       if (monitoringInfo.getPayload().isEmpty()) {
-        return;
+        continue;
       }
 
       switch (monitoringInfo.getType()) {

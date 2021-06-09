@@ -72,7 +72,7 @@ public class FlinkMetricContainer {
     this.flinkCounterCache = new HashMap<>();
     this.flinkDistributionGaugeCache = new HashMap<>();
     this.flinkGaugeCache = new HashMap<>();
-    this.metricsContainers = new MetricsContainerStepMap();
+    this.metricsContainers = new FlinkMetricsContainerStepMap();
   }
 
   public MetricsContainerImpl getMetricsContainer(String stepName) {

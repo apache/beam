@@ -28,7 +28,7 @@ import org.apache.flink.api.common.accumulators.SimpleAccumulator;
  */
 public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerStepMap> {
 
-  private MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
+  private MetricsContainerStepMap metricsContainers = new FlinkMetricsContainerStepMap();
 
   @Override
   public void add(MetricsContainerStepMap value) {
@@ -42,7 +42,7 @@ public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerSte
 
   @Override
   public void resetLocal() {
-    this.metricsContainers = new MetricsContainerStepMap();
+    this.metricsContainers = new FlinkMetricsContainerStepMap();
   }
 
   @Override
