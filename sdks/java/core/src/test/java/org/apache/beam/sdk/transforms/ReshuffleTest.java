@@ -26,6 +26,7 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -280,10 +282,14 @@ public class ReshuffleTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class})
   public void testAssignShardFn() {
+    List<KV<String, Integer>> inputKvs = Lists.newArrayList();
+    for (int i = 0; i < 10; i++) {
+      inputKvs.addAll(ARBITRARY_KVS);
+    }
 
     PCollection<KV<String, Integer>> input =
         pipeline.apply(
-            Create.of(ARBITRARY_KVS).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+            Create.of(inputKvs).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PCollection<Integer> output =
         input
