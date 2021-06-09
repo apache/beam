@@ -24,9 +24,7 @@ import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
-import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
-import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
@@ -74,19 +72,11 @@ class SubscriptionPartitionProcessorImpl extends Listener
     this.subscriber.startAsync();
     this.subscriber.awaitRunning();
     try {
-      this.subscriber
-          .seek(
-              SeekRequest.newBuilder()
-                  .setCursor(Cursor.newBuilder().setOffset(tracker.currentRestriction().getFrom()))
-                  .build())
-          .get();
       this.subscriber.allowFlow(
           FlowControlRequest.newBuilder()
               .setAllowedBytes(flowControlSettings.bytesOutstanding())
               .setAllowedMessages(flowControlSettings.messagesOutstanding())
               .build());
-    } catch (ExecutionException e) {
-      throw ExtractStatus.toCanonical(e.getCause());
     } catch (Throwable t) {
       throw ExtractStatus.toCanonical(t);
     }

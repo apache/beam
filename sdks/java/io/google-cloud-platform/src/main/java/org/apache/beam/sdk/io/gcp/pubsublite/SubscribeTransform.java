@@ -23,6 +23,7 @@ import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.che
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.AdminClient;
 import com.google.cloud.pubsublite.AdminClientSettings;
+import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.wire.Committer;
@@ -32,7 +33,6 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -54,10 +54,11 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     checkArgument(subscriptionPartition.subscription().equals(options.subscriptionPath()));
   }
 
-  private Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> consumer) {
+  private Subscriber newSubscriber(
+      Partition partition, Offset initialOffset, Consumer<List<SequencedMessage>> consumer) {
     try {
       return options
-          .getSubscriberFactory(partition)
+          .getSubscriberFactory(partition, initialOffset)
           .newSubscriber(
               messages ->
                   consumer.accept(
@@ -78,7 +79,11 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     return new SubscriptionPartitionProcessorImpl(
         tracker,
         receiver,
-        consumer -> newSubscriber(subscriptionPartition.partition(), consumer),
+        consumer ->
+            newSubscriber(
+                subscriptionPartition.partition(),
+                Offset.of(tracker.currentRestriction().getFrom()),
+                consumer),
         options.flowControlSettings());
   }
 
@@ -118,19 +123,8 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
     PCollection<SubscriptionPartition> subscriptionPartitions;
-    if (options.partitions().isEmpty()) {
-      subscriptionPartitions =
-          input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
-    } else {
-      subscriptionPartitions =
-          input.apply(
-              Create.of(
-                  options.partitions().stream()
-                      .map(
-                          partition ->
-                              SubscriptionPartition.of(options.subscriptionPath(), partition))
-                      .collect(Collectors.toList())));
-    }
+    subscriptionPartitions =
+        input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
 
     return subscriptionPartitions.apply(
         ParDo.of(
