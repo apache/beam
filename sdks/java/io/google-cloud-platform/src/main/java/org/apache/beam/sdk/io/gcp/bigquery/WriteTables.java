@@ -109,8 +109,8 @@ class WriteTables<DestinationT>
   private final @Nullable String kmsKey;
   private final String sourceFormat;
   private final boolean useAvroLogicalTypes;
-  @Nullable private DatasetService datasetService;
-  @Nullable private JobService jobService;
+  private @Nullable DatasetService datasetService;
+  private @Nullable JobService jobService;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {

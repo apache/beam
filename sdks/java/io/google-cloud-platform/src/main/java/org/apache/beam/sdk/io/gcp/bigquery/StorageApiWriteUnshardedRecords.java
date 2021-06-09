@@ -237,7 +237,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
-    @Nullable private DatasetService datasetService;
+    private @Nullable DatasetService datasetService;
 
     WriteRecordsDoFn(String operationName) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
