@@ -132,6 +132,8 @@ jobs:
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
           path: sdks/python/pytest**.xml
+      - name: "Install psycopg2"
+        run: pip install psycopg2
       - name: "Python Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
@@ -171,6 +173,8 @@ jobs:
         working-directory: ./sdks/python
         shell: bash
         run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
+      - name: "Install psycopg2"
+        run: pip install psycopg2
       - name: "Python Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
@@ -231,6 +235,8 @@ jobs:
             --region ${{ secrets.GCP_REGION }} \
             --temp_location gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/python_wordcount_dataflow/ \
             --sdk_location ../../apache-beam-source/apache-beam-source.tar.gz
+      - name: "Install psycopg2"
+        run: pip install psycopg2
       - name: "Python Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github

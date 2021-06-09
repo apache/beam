@@ -115,6 +115,8 @@ jobs:
         with:
           name: java_unit_tests-runners-core-java-test
           path: runners/core-java/build/reports/tests/test
+      - name: "Install psycopg2"
+        run: pip install psycopg2
       - name: "Java Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
@@ -149,6 +151,8 @@ jobs:
         with:
           name: java_wordcount_direct_runner
           path: examples/java/build/reports/tests/integrationTest
+      - name: "Install psycopg2"
+        run: pip install psycopg2
       - name: "Java Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
@@ -199,6 +203,8 @@ jobs:
         with:
           name: java_wordcount_dataflow
           path: examples/java/build/reports/tests/integrationTest
+      - name: "Install psycopg2"
+        run: pip install psycopg2
       - name: "Java Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
