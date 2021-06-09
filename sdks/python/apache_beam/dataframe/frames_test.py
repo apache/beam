@@ -822,6 +822,18 @@ class DeferredFrameTest(_AbstractFrameTest):
             }, method=None),
         df)
 
+  def test_sample_columns(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    self._run_test(lambda df: df.sample(axis=1, n=2, random_state=1), df)
+    self._run_error_test(lambda df: df.sample(axis=1, n=10, random_state=2), df)
+    self._run_test(
+        lambda df: df.sample(axis=1, n=10, random_state=3, replace=True), df)
+
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
@@ -1470,6 +1482,128 @@ class BeamSpecificTest(unittest.TestCase):
     # keep='any' should produce the same result as keep='first',
     # but not necessarily with the same index
     self.assert_frame_data_equivalent(result, df.population.nlargest(3))
+
+  def test_sample(self):
+    df = pd.DataFrame({
+        'population': [
+            59000000,
+            65000000,
+            434000,
+            434000,
+            434000,
+            337000,
+            337000,
+            11300,
+            11300
+        ],
+        'GDP': [1937894, 2583560, 12011, 4520, 12128, 17036, 182, 38, 311],
+        'alpha-2': ["IT", "FR", "MT", "MV", "BN", "IS", "NR", "TV", "AI"]
+    },
+                      index=[
+                          "Italy",
+                          "France",
+                          "Malta",
+                          "Maldives",
+                          "Brunei",
+                          "Iceland",
+                          "Nauru",
+                          "Tuvalu",
+                          "Anguilla"
+                      ])
+
+    result = self._run_test(lambda df: df.sample(n=3), df)
+
+    self.assertEqual(len(result), 3)
+
+    series_result = self._run_test(lambda df: df.GDP.sample(n=3), df)
+    self.assertEqual(len(series_result), 3)
+    self.assertEqual(series_result.name, "GDP")
+
+  def test_sample_with_weights(self):
+    df = pd.DataFrame({
+        'population': [
+            59000000,
+            65000000,
+            434000,
+            434000,
+            434000,
+            337000,
+            337000,
+            11300,
+            11300
+        ],
+        'GDP': [1937894, 2583560, 12011, 4520, 12128, 17036, 182, 38, 311],
+        'alpha-2': ["IT", "FR", "MT", "MV", "BN", "IS", "NR", "TV", "AI"]
+    },
+                      index=[
+                          "Italy",
+                          "France",
+                          "Malta",
+                          "Maldives",
+                          "Brunei",
+                          "Iceland",
+                          "Nauru",
+                          "Tuvalu",
+                          "Anguilla"
+                      ])
+
+    weights = pd.Series([0, 0, 0, 0, 0, 0, 0, 1, 1], index=df.index)
+
+    result = self._run_test(
+        lambda df, weights: df.sample(n=2, weights=weights), df, weights)
+
+    self.assertEqual(len(result), 2)
+    self.assertEqual(set(result.index), set(["Tuvalu", "Anguilla"]))
+
+    series_result = self._run_test(
+        lambda df, weights: df.GDP.sample(n=2, weights=weights), df, weights)
+    self.assertEqual(len(series_result), 2)
+    self.assertEqual(series_result.name, "GDP")
+    self.assertEqual(set(series_result.index), set(["Tuvalu", "Anguilla"]))
+
+  def test_sample_with_missing_weights(self):
+    df = pd.DataFrame({
+        'population': [
+            59000000,
+            65000000,
+            434000,
+            434000,
+            434000,
+            337000,
+            337000,
+            11300,
+            11300
+        ],
+        'GDP': [1937894, 2583560, 12011, 4520, 12128, 17036, 182, 38, 311],
+        'alpha-2': ["IT", "FR", "MT", "MV", "BN", "IS", "NR", "TV", "AI"]
+    },
+                      index=[
+                          "Italy",
+                          "France",
+                          "Malta",
+                          "Maldives",
+                          "Brunei",
+                          "Iceland",
+                          "Nauru",
+                          "Tuvalu",
+                          "Anguilla"
+                      ])
+
+    # Missing weights are treated as 0
+    weights = pd.Series([.1, .0001], index=["Nauru", "Iceland"])
+
+    result = self._run_test(
+        lambda df, weights: df.sample(n=2, weights=weights), df, weights)
+
+    self.assertEqual(len(result), 2)
+    self.assertEqual(set(result.index), set(["Nauru", "Iceland"]))
+
+    series_result = self._run_test(
+        lambda df, weights: df.GDP.sample(n=2, weights=weights), df, weights)
+
+    self.assertEqual(len(series_result), 2)
+    self.assertEqual(series_result.name, "GDP")
+    self.assertEqual(set(series_result.index), set(["Nauru", "Iceland"]))
 
 
 class AllowNonParallelTest(unittest.TestCase):
