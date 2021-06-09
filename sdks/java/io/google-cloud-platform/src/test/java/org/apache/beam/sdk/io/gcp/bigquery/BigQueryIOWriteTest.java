@@ -181,6 +181,7 @@ public class BigQueryIOWriteTest implements Serializable {
                   options = TestPipeline.testingPipelineOptions();
                   BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
                   bqOptions.setProject("project-id");
+                  bqOptions.setBigQueryProject("project-id");
                   bqOptions.setTempLocation(testFolder.getRoot().getAbsolutePath());
                   if (useStorageApi) {
                     bqOptions.setUseStorageWriteApi(true);

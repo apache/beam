@@ -127,7 +127,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
     CreateReadSessionRequest createReadSessionRequest =
         CreateReadSessionRequest.newBuilder()
-            .setParent(BigQueryHelpers.toProjectResourceName(bqOptions.getProject()))
+            .setParent(
+                BigQueryHelpers.toProjectResourceName(
+                    bqOptions.getBigQueryProject() == null
+                        ? bqOptions.getProject()
+                        : bqOptions.getBigQueryProject()))
             .setReadSession(readSessionBuilder)
             .setMaxStreamCount(streamCount)
             .build();

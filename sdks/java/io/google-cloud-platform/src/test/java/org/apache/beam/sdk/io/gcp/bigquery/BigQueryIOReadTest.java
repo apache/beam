@@ -104,6 +104,7 @@ public class BigQueryIOReadTest implements Serializable {
                 @Override
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
+                  options.as(BigQueryOptions.class).setBigQueryProject("project-id");
                   options.as(BigQueryOptions.class).setProject("project-id");
                   options
                       .as(BigQueryOptions.class)
