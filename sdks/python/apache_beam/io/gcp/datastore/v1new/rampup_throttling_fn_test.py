@@ -22,7 +22,8 @@ from mock import patch
 
 from apache_beam.io.gcp.datastore.v1new.rampup_throttling_fn import RampupThrottlingFn
 
-DATE_ZERO = datetime.datetime(year=1970, month=1, day=1)
+DATE_ZERO = datetime.datetime(
+    year=1970, month=1, day=1, tzinfo=datetime.timezone.utc)
 
 
 class _RampupDelayException(Exception):
