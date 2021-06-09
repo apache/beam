@@ -21,8 +21,8 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionCon
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.createConnectionConfig;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.createIndex;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.createTestContainer;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.deleteIndex;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.elasticsearchIOTestContainerFactory;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.setDefaultTemplate;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
@@ -56,7 +56,7 @@ public class ElasticsearchIOTest implements Serializable {
   @BeforeClass
   public static void beforeClass() throws IOException {
     // Create the elasticsearch container.
-    container = elasticsearchIOTestContainerFactory(IMAGE_TAG);
+    container = createTestContainer(IMAGE_TAG);
 
     // Start the container. This step might take some time...
     container.start();
