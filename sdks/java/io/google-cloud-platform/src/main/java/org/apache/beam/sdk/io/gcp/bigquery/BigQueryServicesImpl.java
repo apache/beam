@@ -1179,6 +1179,8 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public void close() throws Exception {
+      this.newWriteClient.shutdownNow();
+      this.newWriteClient.awaitTermination(60, TimeUnit.SECONDS);
       this.newWriteClient.close();
     }
   }
