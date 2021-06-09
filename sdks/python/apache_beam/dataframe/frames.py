@@ -1213,7 +1213,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def sample(self, **kwargs):
     """Only ``n`` and/or ``weights`` may be specified.  ``frac``,
     ``random_state``, and ``replace=True`` are not yet supported.
-    See `BEAM-XXX <https://issues.apache.org/jira/BEAM-XXX>`_."""
+    See `BEAM-XXX <https://issues.apache.org/jira/BEAM-XXX>`_.
+
+    Note that pandas will raise an error if ``n`` is larger than the length
+    of the dataset, while the Beam DataFrame API will simply return the full
+    dataset in that case."""
 
     # Re-use the DataFrame based sample, extract the series back out
     df = self._wrap_in_df()
@@ -2233,6 +2237,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     """When ``axis='index'``, only ``n`` and/or ``weights`` may be specified.
     ``frac``, ``random_state``, and ``replace=True`` are not yet supported.
     See `BEAM-XXX <https://issues.apache.org/jira/BEAM-XXX>`_.
+
+    Note that pandas will raise an error if ``n`` is larger than the length
+    of the dataset, while the Beam DataFrame API will simply return the full
+    dataset in that case.
 
     sample is fully supported for axis='columns'."""
     if axis in (1, 'columns'):
