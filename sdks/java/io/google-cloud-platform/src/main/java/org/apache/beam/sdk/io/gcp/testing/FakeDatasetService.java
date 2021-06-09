@@ -80,6 +80,9 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   static Map<String, Stream> writeStreams;
 
+  @Override
+  public void close() throws Exception {}
+
   static class Stream {
     final List<TableRow> stream;
     final TableContainer tableContainer;

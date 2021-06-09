@@ -442,6 +442,9 @@ class BigQueryServicesImpl implements BigQueryServices {
               jobRef, MAX_RPC_RETRIES),
           lastException);
     }
+
+    @Override
+    public void close() throws Exception {}
   }
 
   @VisibleForTesting
@@ -1172,6 +1175,13 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .setParent(tableUrn)
                   .addAllWriteStreams(writeStreamNames)
                   .build());
+    }
+
+    @Override
+    public void close() throws Exception {
+      this.newWriteClient.shutdownNow();
+      this.newWriteClient.awaitTermination(60, TimeUnit.SECONDS);
+      this.newWriteClient.close();
     }
   }
 
