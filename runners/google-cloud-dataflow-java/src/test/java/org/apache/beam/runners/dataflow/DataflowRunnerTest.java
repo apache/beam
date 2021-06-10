@@ -147,6 +147,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -1602,6 +1603,22 @@ public class DataflowRunnerTest implements Serializable {
     thrown.expectMessage("Cannot create output file at");
     thrown.expect(RuntimeException.class);
     p.run();
+  }
+
+  // TEMPORARY TEST TO DEMONSTRATE
+  @Test
+  public void testGetReleaseContainerImageForJob() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    // batch legacy, java8
+    System.setProperty("java.specification.version", Environments.JavaVersion.java8.specification());
+    options.setExperiments(null);
+    options.setStreaming(false);
+    String legacyImage = getContainerImageForJob(options);
+    assertThat(legacyImage, equalTo("gcr.io/cloud-dataflow/v1beta3/beam-java-batch:2.31.0"));
+
+    options.setExperiments(ImmutableList.of("use_runner_v2"));
+    String fnapiImage = getContainerImageForJob(options);
+    assertThat(fnapiImage, equalTo(String.format("gcr.io/cloud-dataflow/v1beta3/beam_java8_sdk:2.31.0")));
   }
 
   @Test
