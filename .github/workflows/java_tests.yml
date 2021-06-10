@@ -111,7 +111,8 @@ jobs:
           path: runners/core-java/build/reports/tests/test
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - uses: harmon758/postgresql-action@v1
+      - name: "Install postgresql image"
+        uses: harmon758/postgresql-action@v1
         with:
           postgresql version: '10'
           postgresql db: ${{ secrets.DB_NAME }}
@@ -158,7 +159,8 @@ jobs:
           path: examples/java/build/reports/tests/integrationTest
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - uses: harmon758/postgresql-action@v1
+      - name: "Install postgresql image"
+        uses: harmon758/postgresql-action@v1
         with:
           postgresql version: '10'
           postgresql db: ${{ secrets.DB_NAME }}
@@ -221,7 +223,8 @@ jobs:
           path: examples/java/build/reports/tests/integrationTest
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - uses: harmon758/postgresql-action@v1
+      - name: "Install postgresql image"
+        uses: harmon758/postgresql-action@v1
         with:
           postgresql version: '10'
           postgresql db: ${{ secrets.DB_NAME }}

@@ -134,7 +134,8 @@ jobs:
           path: sdks/python/pytest**.xml
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - uses: harmon758/postgresql-action@v1
+      - name: "Install postgresql image"
+        uses: harmon758/postgresql-action@v1
         with:
           postgresql version: '10'
           postgresql db: ${{ secrets.DB_NAME }}
@@ -186,7 +187,8 @@ jobs:
         run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - uses: harmon758/postgresql-action@v1
+      - name: "Install postgresql image"
+        uses: harmon758/postgresql-action@v1
         with:
           postgresql version: '10'
           postgresql db: ${{ secrets.DB_NAME }}
@@ -259,7 +261,8 @@ jobs:
             --sdk_location ../../apache-beam-source/apache-beam-source.tar.gz
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - uses: harmon758/postgresql-action@v1
+      - name: "Install postgresql image"
+        uses: harmon758/postgresql-action@v1
         with:
           postgresql version: '10'
           postgresql db: ${{ secrets.DB_NAME }}
