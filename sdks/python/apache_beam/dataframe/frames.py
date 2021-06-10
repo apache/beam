@@ -258,6 +258,36 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   pad = _fillna_alias('pad')
 
   @frame_base.with_docs_from(pd.DataFrame)
+  def first(self, offset):
+    per_partition = expressions.ComputedExpression(
+        'first-per-partition',
+        lambda df: df.sort_index().first(offset=offset), [self._expr],
+        preserves_partition_by=partitionings.Arbitrary(),
+        requires_partition_by=partitionings.Arbitrary())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'first',
+              lambda df: df.sort_index().first(offset=offset), [per_partition],
+              preserves_partition_by=partitionings.Arbitrary(),
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  def last(self, offset):
+    per_partition = expressions.ComputedExpression(
+        'last-per-partition',
+        lambda df: df.sort_index().last(offset=offset), [self._expr],
+        preserves_partition_by=partitionings.Arbitrary(),
+        requires_partition_by=partitionings.Arbitrary())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'last',
+              lambda df: df.sort_index().last(offset=offset), [per_partition],
+              preserves_partition_by=partitionings.Arbitrary(),
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def groupby(self, by, level, axis, as_index, group_keys, **kwargs):
@@ -1420,12 +1450,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'cumsum', reason='order-sensitive')
   diff = frame_base.wont_implement_method(
       pd.Series, 'diff', reason='order-sensitive')
-  first = frame_base.wont_implement_method(
-      pd.Series, 'first', reason='order-sensitive')
   interpolate = frame_base.wont_implement_method(
       pd.Series, 'interpolate', reason='order-sensitive')
-  last = frame_base.wont_implement_method(
-      pd.Series, 'last', reason='order-sensitive')
   searchsorted = frame_base.wont_implement_method(
       pd.Series, 'searchsorted', reason='order-sensitive')
   shift = frame_base.wont_implement_method(
@@ -2286,12 +2312,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   # diff that relies on the index
   diff = frame_base.wont_implement_method(pd.DataFrame, 'diff',
                                           reason='order-sensitive')
-  first = frame_base.wont_implement_method(pd.DataFrame, 'first',
-                                           reason='order-sensitive')
   interpolate = frame_base.wont_implement_method(pd.DataFrame, 'interpolate',
                                                  reason='order-sensitive')
-  last = frame_base.wont_implement_method(pd.DataFrame, 'last',
-                                          reason='order-sensitive')
 
   head = frame_base.wont_implement_method(pd.DataFrame, 'head',
       explanation=_PEEK_METHOD_EXPLANATION)
@@ -3232,10 +3254,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   tail = frame_base.wont_implement_method(
       DataFrameGroupBy, 'tail', explanation=_PEEK_METHOD_EXPLANATION)
 
-  first = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'first', reason='order-sensitive')
-  last = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'last', reason='order-sensitive')
+  first = frame_base.not_implemented_method('first')
+  last = frame_base.not_implemented_method('last')
   nth = frame_base.wont_implement_method(
       DataFrameGroupBy, 'nth', reason='order-sensitive')
   cumcount = frame_base.wont_implement_method(
@@ -3406,8 +3426,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
   fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
   filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
-  first = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'first', reason="order-sensitive")
+  first = frame_base._elementwise_method('first', base=DataFrameGroupBy)
   get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
   head = frame_base.wont_implement_method(
       DataFrameGroupBy, 'head', explanation=_PEEK_METHOD_EXPLANATION)
@@ -3415,8 +3434,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
       DataFrameGroupBy, 'hist', reason="plotting-tools")
   idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
   idxmin = frame_base._elementwise_method('idxmin', base=DataFrameGroupBy)
-  last = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'last', reason="order-sensitive")
+  last = frame_base._elementwise_method('last', base=DataFrameGroupBy)
   mad = frame_base._elementwise_method('mad', base=DataFrameGroupBy)
   max = frame_base._elementwise_method('max', base=DataFrameGroupBy)
   mean = frame_base._elementwise_method('mean', base=DataFrameGroupBy)
