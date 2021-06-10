@@ -81,6 +81,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  keras-nightly:
+    license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   mmh3:
     license: "https://raw.githubusercontent.com/hajimes/mmh3/master/LICENSE"
   mock:
