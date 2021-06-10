@@ -370,6 +370,14 @@ public class AvroUtils {
   }
 
   /**
+   * Convert from a Beam Row to an AVRO GenericRecord. The Avro Schema is inferred from the Beam
+   * schema on the row.
+   */
+  public static GenericRecord toGenericRecord(Row row) {
+    return toGenericRecord(row, null);
+  }
+
+  /**
    * Convert from a Beam Row to an AVRO GenericRecord. If a Schema is not provided, one is inferred
    * from the Beam schema on the row.
    */

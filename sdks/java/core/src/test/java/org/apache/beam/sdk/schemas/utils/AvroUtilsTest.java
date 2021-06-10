@@ -722,6 +722,13 @@ public class AvroUtilsTest {
   }
 
   @Test
+  public void testBeamRowToGenericRecordInferSchema() {
+    GenericRecord genericRecord = AvroUtils.toGenericRecord(getBeamRow());
+    assertEquals(getAvroSchema(), genericRecord.getSchema());
+    assertEquals(getGenericRecord(), genericRecord);
+  }
+
+  @Test
   public void testRowToGenericRecordFunction() {
     SerializableUtils.ensureSerializable(AvroUtils.getRowToGenericRecordFunction(NULL_SCHEMA));
     SerializableUtils.ensureSerializable(AvroUtils.getRowToGenericRecordFunction(null));
