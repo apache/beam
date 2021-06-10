@@ -43,7 +43,7 @@ func makeElementHasher(c *coder.Coder, wc *coder.WindowCoder) elementHasher {
 		return &bytesHasher{hash: hasher, we: we}
 
 	case coder.VarInt:
-		return &numberHasher{hash: hasher, we: we, cache: make([]byte, 8, 8)}
+		return newNumberHasher(hasher, we)
 
 	case coder.String:
 		return &stringHasher{hash: hasher, we: we}
@@ -62,7 +62,7 @@ func makeElementHasher(c *coder.Coder, wc *coder.WindowCoder) elementHasher {
 		case reflectx.Int, reflectx.Int8, reflectx.Int16, reflectx.Int32, reflectx.Int64,
 			reflectx.Uint, reflectx.Uint8, reflectx.Uint16, reflectx.Uint32, reflectx.Uint64,
 			reflectx.Float32, reflectx.Float64:
-			return &numberHasher{hash: hasher, we: we, cache: make([]byte, 8, 8)}
+			return newNumberHasher(hasher, we)
 		}
 		// TODO(lostluck): 2019.02.07 - consider supporting encoders that
 		// take in a io.Writer instead.
@@ -117,6 +117,15 @@ type numberHasher struct {
 	hash  hash.Hash64
 	we    WindowEncoder
 	cache []byte
+}
+
+func newNumberHasher(hash hash.Hash64, we WindowEncoder) *numberHasher {
+	return &numberHasher{
+		hash: hash,
+		we:   we,
+		// Pre allocate slice to avoid re-allocations.
+		cache: make([]byte, 8, 8),
+	}
 }
 
 func (h *numberHasher) Hash(element interface{}, w typex.Window) (uint64, error) {
