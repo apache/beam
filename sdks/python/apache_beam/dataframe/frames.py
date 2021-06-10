@@ -1656,6 +1656,24 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def cat(self):
     return _DeferredCategoricalMethods(self._expr)
 
+  @frame_base.with_docs_from(pd.Series)
+  def mode(self, *args, **kwargs):
+    """mode is not currently parallelizable. An approximate,
+    parallelizable implementation of mode may be added in the future
+    (`BEAM-12181 <https://issues.apache.org/jira/BEAM-12181>`_)."""
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'mode',
+            lambda df: df.mode(*args, **kwargs),
+            [self._expr],
+            #TODO(BEAM-12181): Can we add an approximate implementation?
+            requires_partition_by=partitionings.Singleton(
+                reason=(
+                    "mode cannot currently be parallelized. See "
+                    "BEAM-12181 tracking the possble addition of "
+                    "an approximate, parallelizable implementation of mode.")),
+            preserves_partition_by=partitionings.Singleton()))
+
   apply = frame_base._elementwise_method('apply', base=pd.Series)
   map = frame_base._elementwise_method('map', base=pd.Series)
   # TODO(BEAM-11636): Implement transform using type inference to determine the

@@ -1370,6 +1370,25 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.std(numeric_only=True), GROUPBY_DF)
     self._run_test(lambda df: df.var(numeric_only=True), GROUPBY_DF)
 
+  def test_dataframe_mode(self):
+    self._run_test(
+        lambda df: df.mode(), GROUPBY_DF, nonparallel=True, check_proxy=False)
+    self._run_test(
+        lambda df: df.mode(numeric_only=True),
+        GROUPBY_DF,
+        nonparallel=True,
+        check_proxy=False)
+    self._run_test(
+        lambda df: df.mode(dropna=True, numeric_only=True),
+        GROUPBY_DF,
+        nonparallel=True,
+        check_proxy=False)
+
+  def test_series_mode(self):
+    self._run_test(lambda df: df.foo.mode(), GROUPBY_DF, nonparallel=True)
+    self._run_test(
+        lambda df: df.baz.mode(dropna=True), GROUPBY_DF, nonparallel=True)
+
 
 class BeamSpecificTest(unittest.TestCase):
   """Tests for functionality that's specific to the Beam DataFrame API.
