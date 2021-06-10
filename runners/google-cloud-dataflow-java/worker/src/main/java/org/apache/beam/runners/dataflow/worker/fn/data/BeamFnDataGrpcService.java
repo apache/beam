@@ -28,7 +28,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
-import org.apache.beam.runners.fnexecution.HeaderAccessor;
+import org.apache.beam.sdk.fn.HeaderAccessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;

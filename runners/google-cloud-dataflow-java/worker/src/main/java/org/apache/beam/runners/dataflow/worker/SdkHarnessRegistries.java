@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.sdk.fn.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;

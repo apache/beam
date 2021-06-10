@@ -37,7 +37,7 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.sdk.fn.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.runners.portability.CloseableResource.CloseException;

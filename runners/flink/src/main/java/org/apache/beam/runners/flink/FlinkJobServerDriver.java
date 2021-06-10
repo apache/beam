@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.sdk.fn.ServerFactory;
 import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystems;

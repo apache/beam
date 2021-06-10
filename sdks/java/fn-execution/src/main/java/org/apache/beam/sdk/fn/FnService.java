@@ -15,10 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution;
+package org.apache.beam.sdk.fn;
 
-/** Interface to access headers in the client request. */
-public interface HeaderAccessor {
-  /** This method should be called from the request method. */
-  String getSdkWorkerId();
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.BindableService;
+
+/** An interface sharing common behavior with services used during execution of user Fns. */
+public interface FnService extends AutoCloseable, BindableService {
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>There should be no more calls to any service method by the time a call to {@link #close()}
+   * begins. Specifically, this means that a {@link
+   * org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server} that this service is bound to should have
+   * completed a call to the {@link org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server#shutdown()}
+   * method, and all future incoming calls will be rejected.
+   */
+  @Override
+  void close() throws Exception;
 }

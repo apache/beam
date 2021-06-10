@@ -40,7 +40,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.harness.test.TestStreams;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.sdk.fn.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;

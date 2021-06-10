@@ -26,7 +26,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
-import org.apache.beam.runners.fnexecution.HeaderAccessor;
+import org.apache.beam.sdk.fn.HeaderAccessor;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusException;

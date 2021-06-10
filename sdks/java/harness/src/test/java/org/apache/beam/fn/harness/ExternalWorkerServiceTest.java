@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.portability;
+package org.apache.beam.fn.harness;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
