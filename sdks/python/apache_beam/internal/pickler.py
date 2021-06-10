@@ -44,6 +44,8 @@ from typing import Tuple
 
 import dill
 
+settings = {'use_dill_byref': False}
+
 
 class _NoOpContextManager(object):
   def __enter__(self):
@@ -109,6 +111,7 @@ def _nested_type_wrapper(fun):
   For nested class object only it will save the containing class object so
   the nested structure is recreated during unpickle.
   """
+
   def wrapper(pickler, obj):
     # When the nested class is defined in the __main__ module we do not have to
     # do anything special because the pickler itself will save the constituent
@@ -160,6 +163,7 @@ if 'save_module' in dir(dill.dill):
   # Always pickle non-main modules by name.
   old_save_module = dill.dill.save_module
 
+
   @dill.dill.register(dill.dill.ModuleType)
   def save_module(pickler, obj):
     if dill.dill.is_dill(pickler) and obj is pickler._main:
@@ -167,15 +171,17 @@ if 'save_module' in dir(dill.dill):
     else:
       dill.dill.log.info('M2: %s' % obj)
       # pylint: disable=protected-access
-      pickler.save_reduce(dill.dill._import_module, (obj.__name__, ), obj=obj)
+      pickler.save_reduce(dill.dill._import_module, (obj.__name__,), obj=obj)
       # pylint: enable=protected-access
       dill.dill.log.info('# M2')
+
 
   # Pickle module dictionaries (commonly found in lambda's globals)
   # by referencing their module.
   old_save_module_dict = dill.dill.save_module_dict
   known_module_dicts = {
   }  # type: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]]
+
 
   @dill.dill.register(dict)
   def new_save_module_dict(pickler, obj):
@@ -213,7 +219,9 @@ if 'save_module' in dir(dill.dill):
     else:
       return old_save_module_dict(pickler, obj)
 
+
   dill.dill.save_module_dict = new_save_module_dict
+
 
   def _nest_dill_logging():
     """Prefix all dill logging with its depth in the callstack.
@@ -230,7 +238,6 @@ if 'save_module' in dir(dill.dill):
 
     dill.dill.log.info = new_log_info
 
-
 # Turn off verbose logging from the dill pickler.
 logging.getLogger('dill').setLevel(logging.WARN)
 
@@ -241,11 +248,11 @@ def dumps(o, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     try:
-      s = dill.dumps(o, byref=True)
+      s = dill.dumps(o, byref=settings['use_dill_byref'])
     except Exception:  # pylint: disable=broad-except
       if enable_trace:
         dill.dill._trace(True)  # pylint: disable=protected-access
-        s = dill.dumps(o, byref=True)
+        s = dill.dumps(o, byref=settings['use_dill_byref'])
       else:
         raise
     finally:
