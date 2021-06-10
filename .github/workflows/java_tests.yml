@@ -71,6 +71,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
       # :sdks:java:core:test
       - name: Run :sdks:java:core:test
         id: java_core_test
@@ -144,6 +148,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
       - name: Run WordCount Unix
         id: run_java_wordcount_direct_runner
         uses: ./.github/actions/gradle-command-action
@@ -201,6 +209,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@master
         with:
