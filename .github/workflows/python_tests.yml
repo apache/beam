@@ -134,13 +134,24 @@ jobs:
           path: sdks/python/pytest**.xml
       - name: "Install psycopg2"
         run: pip install psycopg2
+      - uses: harmon758/postgresql-action@v1
+        with:
+          postgresql version: '10'
+          postgresql db: ${{ secrets.DB_NAME }}
+          postgresql user: ${{ secrets.DB_USER_NAME }}
+          postgresql password: ${{ secrets.DB_PASSWORD }}
       - name: "Python Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus
+        run: python sync_github_actions.py $name $jobstatus $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
         env:
           name: unit_tests-${{matrix.os}}-${{matrix.params.py_ver}}
           jobstatus: ${{ job.status }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
@@ -175,13 +186,24 @@ jobs:
         run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
       - name: "Install psycopg2"
         run: pip install psycopg2
+      - uses: harmon758/postgresql-action@v1
+        with:
+          postgresql version: '10'
+          postgresql db: ${{ secrets.DB_NAME }}
+          postgresql user: ${{ secrets.DB_USER_NAME }}
+          postgresql password: ${{ secrets.DB_PASSWORD }}
       - name: "Python Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus
+        run: python sync_github_actions.py $name $jobstatus $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
         env:
           name: word_count_direct_runner-${{matrix.os}}-${{matrix.python}}
           jobstatus: ${{ job.status }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
@@ -237,10 +259,21 @@ jobs:
             --sdk_location ../../apache-beam-source/apache-beam-source.tar.gz
       - name: "Install psycopg2"
         run: pip install psycopg2
+      - uses: harmon758/postgresql-action@v1
+        with:
+          postgresql version: '10'
+          postgresql db: ${{ secrets.DB_NAME }}
+          postgresql user: ${{ secrets.DB_USER_NAME }}
+          postgresql password: ${{ secrets.DB_PASSWORD }}
       - name: "Python Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus
+        run: python sync_github_actions.py $name $jobstatus $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
         env:
           name: word_count_dataflow-${{matrix.os}}-${{matrix.python}}
           jobstatus: ${{ job.status }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}

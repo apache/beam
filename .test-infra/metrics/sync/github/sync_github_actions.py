@@ -12,7 +12,6 @@
 This module queries GitHub to collect pre-commit GitHub Actions metrics and put them in
 PostgreSQL.
 '''
-import os
 import sys
 import time
 import psycopg2
@@ -30,12 +29,6 @@ def findDockerNetworkIP():
 
 #DB_HOST = findDockerNetworkIP()
 
-DB_HOST = os.environ['DB_HOST']
-DB_PORT = os.environ['DB_PORT']
-DB_NAME = os.environ['DB_DBNAME']
-DB_USER_NAME = os.environ['DB_DBUSERNAME']
-DB_PASSWORD = os.environ['DB_DBPWD']
-
 GH_PRS_TABLE_NAME = 'gh_actions_metrics'
 
 GH_PRS_CREATE_TABLE_QUERY = f"""
@@ -49,6 +42,13 @@ GH_PRS_CREATE_TABLE_QUERY = f"""
 
 def initDBConnection():
   '''Opens connection to postgresql DB, as configured via global variables.'''
+
+  DB_HOST = sys.argv[3]
+  DB_PORT = sys.argv[4]
+  DB_NAME = sys.argv[5]
+  DB_USER_NAME = sys.argv[6]
+  DB_PASSWORD = sys.argv[7]
+
   conn = None
   while not conn:
     try:
@@ -98,18 +98,13 @@ def fetchNewData():
   Main workhorse method. Fetches data from GitHub and puts it in metrics table.
   '''
 
+  job_name = sys.argv[1]
+  status = sys.argv[2]
+  executed_ts = datetime.datetime.now()
+  row_values = [job_name, status, executed_ts]
   connection = initDBConnection()
   cursor = connection.cursor()
-
-  if len(sys.argv) < 3:
-    print('Please provide the appropriate number of parameters.')
-  else:
-    job_name = sys.argv[1]
-    status = sys.argv[2]
-    executed_ts = datetime.datetime.now()
-    rowValues = [job_name, status, executed_ts]
-    insertIntoTable(cursor, rowValues)
-
+  insertIntoTable(cursor, row_values)
   cursor.close()
   connection.commit()
   connection.close()
@@ -123,14 +118,19 @@ if __name__ == '__main__':
   '''
   print("Started.")
 
-  print("Checking if DB needs to be initialized.")
-  sys.stdout.flush()
-  initDbTablesIfNeeded()
+  if len(sys.argv) < 8:
+    print('Please provide the appropriate number of parameters.')
+    print('Exiting...')
 
-  print("Fetching GitHub Actions metrics.")
-  sys.stdout.flush()
+  else:
+    print("Checking if DB needs to be initialized.")
+    sys.stdout.flush()
+    initDbTablesIfNeeded()
 
-  fetchNewData()
-  print("Fetched metrics.")
+    print("Fetching GitHub Actions metrics.")
+    sys.stdout.flush()
 
-  print('Done.')
+    fetchNewData()
+    print("Fetched metrics.")
+
+    print('Done.')
