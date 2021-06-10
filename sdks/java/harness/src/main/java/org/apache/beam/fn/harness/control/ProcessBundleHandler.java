@@ -654,6 +654,7 @@ public class ProcessBundleHandler {
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
       activeBundleProcessors.remove(bundleProcessor.getInstructionId());
       try {
+        bundleProcessor.setInstructionId(null);
         bundleProcessor.reset();
         cachedBundleProcessors.get(bundleDescriptorId).add(bundleProcessor);
       } catch (Exception e) {
@@ -732,11 +733,11 @@ public class ProcessBundleHandler {
 
     abstract Collection<BeamFnDataReadRunner> getChannelRoots();
 
-    String getInstructionId() {
+    synchronized String getInstructionId() {
       return this.instructionId;
     }
 
-    void setInstructionId(String instructionId) {
+    synchronized void setInstructionId(String instructionId) {
       this.instructionId = instructionId;
     }
 
