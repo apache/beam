@@ -39,7 +39,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.AvroRows;
 import com.google.cloud.bigquery.storage.v1.AvroSchema;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
-import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -369,8 +368,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
             .setMaxStreamCount(requestedStreamCount)
             .build();
 
@@ -463,8 +461,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
             .setMaxStreamCount(1024)
             .build();
 
@@ -623,8 +620,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
             .setMaxStreamCount(10)
             .build();
 

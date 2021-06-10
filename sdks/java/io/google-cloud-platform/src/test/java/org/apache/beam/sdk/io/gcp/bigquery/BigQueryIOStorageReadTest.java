@@ -42,6 +42,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.*;
 import com.google.cloud.bigquery.storage.v1.StreamStats.Progress;
+import com.google.flatbuffers.FlatBufferBuilder;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.Status.Code;
@@ -104,10 +105,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 import org.mockito.ArgumentMatchers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link BigQueryIO#readTableRows() using {@link Method#DIRECT_READ}}. */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageReadTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOStorageReadTest.class);
 
   private transient PipelineOptions options;
   private final transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -394,8 +399,7 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
             .setMaxStreamCount(streamCount)
             .build();
 
@@ -439,7 +443,6 @@ public class BigQueryIOStorageReadTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.AVRO)
                     .setReadOptions(
                         ReadSession.TableReadOptions.newBuilder()
                             .addSelectedFields("name")
@@ -487,8 +490,7 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/project-id/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable("projects/project-id/datasets/dataset/tables/table"))
             .setMaxStreamCount(1024)
             .build();
 
@@ -535,8 +537,7 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
             .setMaxStreamCount(1024)
             .build();
 
@@ -604,6 +605,7 @@ public class BigQueryIOStorageReadTest {
     }
 
     VectorUnloader unLoader = new VectorUnloader(expectedSchemaRoot);
+    expectedSchemaRoot.close();
     return unLoader.getRecordBatch();
   }
 
@@ -655,7 +657,9 @@ public class BigQueryIOStorageReadTest {
       org.apache.arrow.vector.ipc.message.ArrowRecordBatch records,
       double progressAtResponseStart,
       double progressAtResponseEnd) {
-    ByteBuffer byteBuffer = WriteChannel.serialize(records);
+    FlatBufferBuilder builder = new FlatBufferBuilder();
+    builder.finish(records.writeTo(builder));
+    ByteBuffer byteBuffer = builder.dataBuffer();
     ArrowRecordBatch serializedRecord =
         ArrowRecordBatch.newBuilder()
             .setRowCount(records.getLength())
@@ -1296,8 +1300,7 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
             .setMaxStreamCount(10)
             .build();
 
@@ -1359,7 +1362,6 @@ public class BigQueryIOStorageReadTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.AVRO)
                     .setReadOptions(
                         ReadSession.TableReadOptions.newBuilder().addSelectedFields("name")))
             .setMaxStreamCount(10)
@@ -1417,6 +1419,7 @@ public class BigQueryIOStorageReadTest {
 
   @Test
   public void testReadFromBigQueryIOArrow() throws Exception {
+    LOG.info("Entering arrow test");
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
     Table table = new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA);
@@ -1433,8 +1436,7 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.ARROW))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
             .setMaxStreamCount(10)
             .build();
 
@@ -1442,8 +1444,11 @@ public class BigQueryIOStorageReadTest {
         ReadSession.newBuilder()
             .setName("readSessionName")
             .setArrowSchema(
-                ArrowSchema.newBuilder().setSerializedSchema(serializeArrowSchema(arrowSchema)))
+                ArrowSchema.newBuilder()
+                    .setSerializedSchema(serializeArrowSchema(arrowSchema))
+                    .build())
             .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .setDataFormat(DataFormat.ARROW)
             .build();
 
     ReadRowsRequest expectedReadRowsRequest =

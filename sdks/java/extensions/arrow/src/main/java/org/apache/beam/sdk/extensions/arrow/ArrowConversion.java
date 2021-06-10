@@ -253,9 +253,10 @@ public class ArrowConversion {
   }
 
   public static VectorSchemaRoot rowFromSerializedRecordBatch(
-      RootAllocator alloc, ReadChannel readChannel) throws IOException {
-    org.apache.arrow.vector.types.pojo.Schema arrowSchema =
-        MessageSerializer.deserializeSchema(readChannel);
+      RootAllocator alloc,
+      ReadChannel readChannel,
+      org.apache.arrow.vector.types.pojo.Schema arrowSchema)
+      throws IOException {
     VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, alloc);
     VectorLoader vectorLoader = new VectorLoader(vectorRoot);
     vectorRoot.clear();

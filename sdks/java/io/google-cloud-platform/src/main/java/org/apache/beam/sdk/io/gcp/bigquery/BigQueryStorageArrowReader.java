@@ -57,12 +57,15 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
     com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
         readRowsResponse.getArrowRecordBatch();
     rowCount = recordBatch.getRowCount();
-    this.read = new ReadChannel(Channels.newChannel(protoSchema.getSerializedSchema().newInput()));
+    this.read =
+        new ReadChannel(Channels.newChannel(recordBatch.getSerializedRecordBatch().newInput()));
     this.alloc = new RootAllocator(Long.MAX_VALUE);
+    InputStream input = protoSchema.getSerializedSchema().newInput();
     recordBatchIterable =
         ArrowConversion.rowsFromRecordBatch(
                 arrowBeamSchema,
-                ArrowConversion.rowFromSerializedRecordBatch(this.alloc, this.read))
+                ArrowConversion.rowFromSerializedRecordBatch(
+                    this.alloc, this.read, ArrowConversion.arrowSchemaFromInput(input)))
             .iterator();
   }
 
