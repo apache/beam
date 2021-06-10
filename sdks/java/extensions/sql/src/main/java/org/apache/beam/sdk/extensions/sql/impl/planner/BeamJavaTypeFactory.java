@@ -40,6 +40,12 @@ public class BeamJavaTypeFactory extends JavaTypeFactoryImpl {
         return type.isNullable() ? Float.class : float.class;
       }
     }
+    // Map BINARY and VARBINARY to byte[] instead of ByteString so UDFs over these types don't
+    // require vendored Calcite.
+    if (type.getSqlTypeName() == SqlTypeName.BINARY
+        || type.getSqlTypeName() == SqlTypeName.VARBINARY) {
+      return byte[].class;
+    }
     return super.getJavaClass(type);
   }
 }
