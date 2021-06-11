@@ -70,9 +70,13 @@ def populate_not_implemented(pd_type):
           setattr(
               deferred_type,
               attr,
-              property(frame_base.not_implemented_method(attr)))
+              property(
+                  frame_base.not_implemented_method(attr, base_type=pd_type)))
         elif callable(pd_value):
-          setattr(deferred_type, attr, frame_base.not_implemented_method(attr))
+          setattr(
+              deferred_type,
+              attr,
+              frame_base.not_implemented_method(attr, base_type=pd_type))
     return deferred_type
 
   return wrapper
@@ -770,7 +774,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   rolling = frame_base.wont_implement_method(
       pd.DataFrame, 'rolling', reason='event-time-semantics')
 
-  sparse = property(frame_base.not_implemented_method('sparse', 'BEAM-12425'))
+  sparse = property(
+      frame_base.not_implemented_method(
+          'sparse', 'BEAM-12425', base_type=pd.DataFrame))
 
 
 @populate_not_implemented(pd.Series)
@@ -996,8 +1002,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def quantile(self, q, **kwargs):
     """quantile is not parallelizable. See
-    [BEAM-12167](https://issues.apache.org/jira/browse/BEAM-12167) tracking the
-    possible addition of an approximate, parallelizable implementation of
+    `BEAM-12167 <https://issues.apache.org/jira/browse/BEAM-12167>`_ tracking
+    the possible addition of an approximate, parallelizable implementation of
     quantile."""
     # TODO(BEAM-12167): Provide an option for approximate distributed
     # quantiles
@@ -2672,8 +2678,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def quantile(self, q, axis, **kwargs):
     """``quantile(axis="index")`` is not parallelizable. See
-    [BEAM-12167](https://issues.apache.org/jira/browse/BEAM-12167) tracking the
-    possible addition of an approximate, parallelizable implementation of
+    `BEAM-12167 <https://issues.apache.org/jira/browse/BEAM-12167>`_ tracking
+    the possible addition of an approximate, parallelizable implementation of
     quantile.
 
     When using quantile with ``axis="columns"`` only a single ``q`` value can be
@@ -3295,7 +3301,8 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   all = frame_base._elementwise_method('all', base=DataFrameGroupBy)
   boxplot = frame_base.wont_implement_method(
       DataFrameGroupBy, 'boxplot', reason="plotting-tools")
-  describe = frame_base.not_implemented_method('describe')
+  describe = frame_base.not_implemented_method('describe',
+                                               base_type=DataFrameGroupBy)
   diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
   fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
   filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
@@ -3436,7 +3443,8 @@ class _DeferredLoc(object):
                 else partitionings.Arbitrary()),
             preserves_partition_by=partitionings.Arbitrary()))
 
-  __setitem__ = frame_base.not_implemented_method('loc.setitem')
+  __setitem__ = frame_base.not_implemented_method(
+      'loc.setitem', base_type=pd.core.indexing._LocIndexer)
 
 @populate_not_implemented(pd.core.indexing._iLocIndexer)
 class _DeferredILoc(object):
