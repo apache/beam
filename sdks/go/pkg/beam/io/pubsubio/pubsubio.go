@@ -67,7 +67,7 @@ func Read(s beam.Scope, project, topic string, opts *ReadOptions) beam.PCollecti
 	}
 
 	out := beam.External(s, readURN, protox.MustEncode(payload), nil, []beam.FullType{typex.New(reflectx.ByteSlice)}, false)
-	if opts.WithAttributes {
+	if opts != nil && opts.WithAttributes {
 		return beam.ParDo(s, unmarshalMessageFn, out[0])
 	}
 	return out[0]
