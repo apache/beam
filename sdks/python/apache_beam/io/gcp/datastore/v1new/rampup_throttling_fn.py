@@ -40,12 +40,6 @@ class RampupThrottlingFn(DoFn):
   broadly in line with Datastore best practices. See also
   https://cloud.google.com/datastore/docs/best-practices#ramping_up_traffic.
   """
-  def to_runner_api_parameter(self, unused_context):
-    from apache_beam.internal import pickler
-    config = {
-        'num_workers': self._num_workers,
-    }
-    return 'beam:fn:rampup_throttling:v0', pickler.dumps(config)
 
   _BASE_BUDGET = 500
   _RAMP_UP_INTERVAL = datetime.timedelta(minutes=5)
