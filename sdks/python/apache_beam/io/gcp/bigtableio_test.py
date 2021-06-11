@@ -21,41 +21,106 @@
 import datetime
 import string
 import unittest
-from random import random
+import uuid
+from random import choice
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigtableio import WriteToBigTable
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
-  from google.cloud.bigtable import row
+  from google.cloud.bigtable import row, Client, column_family
+  from google.cloud._helpers import _datetime_from_microseconds, UTC
+
 except ImportError:
   row = None
 
 
 class TestWriteBigTable(unittest.TestCase):
-  def WriteBigTable(self):
+  TABLE_PREFIX = "python-test"
+  instance_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  cluster_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  table_id = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  number = 50
+  LOCATION_ID = "us-east1-b"
+
+  def setUp(self):
+    try:
+      from google.cloud.bigtable import enums
+      self.STORAGE_TYPE = enums.StorageType.HDD
+      self.INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
+    except ImportError:
+      self.STORAGE_TYPE = 2
+      self.INSTANCE_TYPE = 2
+
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.test_pipeline.get_option('project')
+    self.client = Client(project=self.project, admin=True)
+
+    self._delete_old_instances()
+
+    self.instance = self.client.instance(
+        self.instance_id, instance_type=self.INSTANCE_TYPE, labels=LABELS)
+
+    if not self.instance.exists():
+      cluster = self.instance.cluster(
+          self.cluster_id,
+          self.LOCATION_ID,
+          default_storage_type=self.STORAGE_TYPE)
+      self.instance.create(clusters=[cluster])
+    self.table = self.instance.table(self.table_id)
+
+    if not self.table.exists():
+      max_versions_rule = column_family.MaxVersionsGCRule(2)
+      column_family_id = 'cf1'
+      column_families = {column_family_id: max_versions_rule}
+      self.table.create(column_families=column_families)
+
+  def _delete_old_instances(self):
+    instances = self.client.list_instances()
+    EXISTING_INSTANCES[:] = instances
+
+    def age_in_hours(micros):
+      return (
+          datetime.datetime.utcnow().replace(tzinfo=UTC) -
+          (_datetime_from_microseconds(micros))).total_seconds() // 3600
+
+    CLEAN_INSTANCE = [
+        i for instance in EXISTING_INSTANCES for i in instance if (
+            LABEL_KEY in i.labels.keys() and
+            (age_in_hours(int(i.labels[LABEL_KEY])) >= 2))
+    ]
+
+    if CLEAN_INSTANCE:
+      for instance in CLEAN_INSTANCE:
+        instance.delete()
+
+  def test_write_bigtable(self):
+
     with TestPipeline() as p:
-      result = (p | beam.Create([self.valid_pubsub_string]) | WriteToBigTable())
-      self.assertEqual(result, True)
+      config_bigtable = {
+          'project_id': self.project,
+          'instance_id': self.instance,
+          'table_id': self.table
+      }
+      result = (
+          p | 'Generate Direct Rows' >> GenerateTestRows(
+              self.number, **config_bigtable) | WriteToBigTable())
+
+      self.assertEqual(len([_ for _ in result]), self.number)
 
 
-EXISTING_INSTANCES = []  # type: List[google.cloud.bigtable.instance.Instance]
+EXISTING_INSTANCES = []
 LABEL_KEY = u'python-bigtable-beam'
 LABELS = {LABEL_KEY: LABEL_KEY}
 
 
 class GenerateTestRows(beam.PTransform):
-  """ A transform test to run write to the Bigtable Table.
-
-  A PTransform that generate a list of `DirectRow` to write it in
-  Bigtable Table.
-
-  """
   def __init__(self, number, project_id=None, instance_id=None, table_id=None):
     beam.PTransform.__init__(self)
     self.number = number
-    self.rand = random.choice(string.ascii_letters + string.digits)
+    self.rand = choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'
     self.beam_options = {
         'project_id': project_id,

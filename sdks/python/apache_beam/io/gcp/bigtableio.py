@@ -49,6 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 
 try:
   from google.cloud.bigtable import Client
+  from google.cloud.bigtable.batcher import MaxMutationsError
 except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
@@ -81,6 +82,14 @@ class _BigTableWriteFn(beam.DoFn):
     self.table = None
     self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
+    self.labels = {
+        monitoring_infos.SERVICE_LABEL: 'BigTable',
+        monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
+        monitoring_infos.RESOURCE_LABEL: self.table.name,
+        monitoring_infos.BIGTABLE_PROJECT_ID: self.beam_options['project_id'],
+        monitoring_infos.INSANCE_ID: self.beam_options['instance_id'],
+        monitoring_infos.TABLE_ID: self.beam_options['table_id']
+    }
 
   def __getstate__(self):
     return self.beam_options
@@ -90,6 +99,10 @@ class _BigTableWriteFn(beam.DoFn):
     self.table = None
     self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
+
+    self.service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=self.labels)
 
   def start_bundle(self):
     if self.table is None:
@@ -108,22 +121,17 @@ class _BigTableWriteFn(beam.DoFn):
     #                     'field1',
     #                     'value1',
     #                     timestamp=datetime.datetime.now())
-    self.batcher.mutate(row)
+    try:
+      self.batcher.mutate(row)
+    except MaxMutationsError:
+      self.service_call_metric.call(MaxMutationsError)
 
   def finish_bundle(self):
-    self.batcher.flush()
-    labels = {
-        monitoring_infos.SERVICE_LABEL: 'BigTable',
-        monitoring_infos.METHOD_LABEL: 'google.bigtable.v2.MutateRows',
-        monitoring_infos.RESOURCE_LABEL: self.table.nam,
-        monitoring_infos.BIGTABLE_PROJECT_ID: self.beam_options['project_id'],
-        monitoring_infos.INSANCE_ID: self.beam_options['instance_id'],
-        monitoring_infos.TABLE_ID: self.beam_options['table_id']
-    }
-    service_call_metric = ServiceCallMetric(
-        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
-        base_labels=labels)
-    service_call_metric.call('ok')
+    try:
+      self.batcher.flush()
+      self.service_call_metric.call('ok')
+    except Exception:
+      self.service_call_metric(Exception)
     self.batcher = None
 
   def display_data(self):
