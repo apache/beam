@@ -366,13 +366,13 @@ def wont_implement_method(base_type, name, reason=None, explanation=None):
 
   def wrapper(*args, **kwargs):
     raise WontImplementError(
-        f"'{name}' is not supported {reason_data['explanation']}",
+        f"'{name}' is not yet supported {reason_data['explanation']}",
         reason=reason)
 
   wrapper.__name__ = name
   wrapper.__doc__ = (
-      f":meth:`{_prettify_pandas_type(base_type)}.{name}` is not supported in "
-      f"the Beam DataFrame API {reason_data['explanation']}")
+      f":meth:`{_prettify_pandas_type(base_type)}.{name}` is not yet supported "
+      f"in the Beam DataFrame API {reason_data['explanation']}")
 
   if 'url' in reason_data:
     wrapper.__doc__ += f"\n\n For more information see {reason_data['url']}."
