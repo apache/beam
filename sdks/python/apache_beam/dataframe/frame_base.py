@@ -18,6 +18,8 @@ import functools
 import re
 from inspect import cleandoc
 from inspect import getfullargspec
+from inspect import isclass
+from inspect import ismodule
 from inspect import unwrap
 from typing import Any
 from typing import Callable
@@ -324,6 +326,17 @@ def _proxy_function(
     return wrapper
 
 
+def _prettify_pandas_type(pandas_type):
+  if pandas_type in (pd.DataFrame, pd.Series):
+    return f'pandas.{pandas_type.__name__}'
+  elif isclass(pandas_type):
+    return f'{pandas_type.__module__}.{pandas_type.__name__}'
+  elif ismodule(pandas_type):
+    return pandas_type.__name__
+  else:
+    raise TypeError(pandas_type)
+
+
 def wont_implement_method(base_type, name, reason=None, explanation=None):
   """Generate a stub method that raises WontImplementError.
 
@@ -353,13 +366,13 @@ def wont_implement_method(base_type, name, reason=None, explanation=None):
 
   def wrapper(*args, **kwargs):
     raise WontImplementError(
-        f"'{name}' is not supported {reason_data['explanation']}",
+        f"'{name}' is not yet supported {reason_data['explanation']}",
         reason=reason)
 
   wrapper.__name__ = name
   wrapper.__doc__ = (
-      f":meth:`pandas.{base_type.__name__}.{name}` is not supported in the "
-      f"Beam DataFrame API {reason_data['explanation']}")
+      f":meth:`{_prettify_pandas_type(base_type)}.{name}` is not yet supported "
+      f"in the Beam DataFrame API {reason_data['explanation']}")
 
   if 'url' in reason_data:
     wrapper.__doc__ += f"\n\n For more information see {reason_data['url']}."
@@ -367,16 +380,24 @@ def wont_implement_method(base_type, name, reason=None, explanation=None):
   return wrapper
 
 
-def not_implemented_method(op, jira='BEAM-9547'):
-  """Generate a stub method for `op` that simply raises a NotImplementedError.
+def not_implemented_method(op, jira='BEAM-9547', base_type=None):
+  """Generate a stub method for ``op`` that simply raises a NotImplementedError.
 
   For internal use only. No backwards compatibility guarantees."""
+  assert base_type is not None, "base_type must be specified"
+
   def wrapper(*args, **kwargs):
-    raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
+    raise NotImplementedError(
+        f"{op!r} is not implemented yet. "
+        f"If support for {op!r} is important to you, please let the Beam "
+        "community know by writing to user@beam.apache.org "
+        "(see https://beam.apache.org/community/contact-us/) or commenting on "
+        f"https://issues.apache.org/jira/{jira}.")
 
   wrapper.__name__ = op
   wrapper.__doc__ = (
-      f"{op!r} is not implemented yet.\n\n"
+      f":meth:`{_prettify_pandas_type(base_type)}.{op}` is not implemented yet "
+      "in the Beam DataFrame API.\n\n"
       f"If support for {op!r} is important to you, please let the Beam "
       "community know by `writing to user@beam.apache.org "
       "<https://beam.apache.org/community/contact-us/>`_ or commenting on "
