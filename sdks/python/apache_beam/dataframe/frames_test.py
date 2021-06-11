@@ -1592,7 +1592,8 @@ class BeamSpecificTest(unittest.TestCase):
                       ])
 
     # Missing weights are treated as 0
-    weights = pd.Series([.1, .0001], index=["Nauru", "Iceland"])
+    weights = pd.Series([.1, .01, np.nan, 0],
+                        index=["Nauru", "Iceland", "Anguilla", "Italy"])
 
     result = self._run_test(
         lambda df, weights: df.sample(n=2, weights=weights), df, weights)
