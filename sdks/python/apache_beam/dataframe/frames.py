@@ -2290,9 +2290,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       self_with_randomized_weights = frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
           'randomized_weights',
-          lambda df, weights: df.assign(**{tmp_weight_column_name:
-                                           weights * np.random.rand(
-                                               *weights.shape)}),
+          lambda df, weights: df.assign(**{
+              tmp_weight_column_name:
+              np.random.rand(*weights.shape) ** (1/weights)}),
           [self._expr, weights._expr],
           requires_partition_by=partitionings.Index(),
           preserves_partition_by=partitionings.Arbitrary()))
