@@ -303,6 +303,7 @@ class BigQueryWrapper(object):
         LinearBucket(0, 20, 3000),
         BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
     self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
+    self.created_temp_dataset = False
 
   @property
   def unique_row_id(self):
@@ -710,6 +711,7 @@ class BigQueryWrapper(object):
       dataset = self.client.datasets.Get(
           bigquery.BigqueryDatasetsGetRequest(
               projectId=project_id, datasetId=dataset_id))
+      self.created_temp_dataset = False
       return dataset
     except HttpError as exn:
       if exn.status_code == 404:
@@ -721,6 +723,7 @@ class BigQueryWrapper(object):
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
+        self.created_temp_dataset = True
         # The response is a bigquery.Dataset instance.
         return response
       else:
@@ -827,6 +830,7 @@ class BigQueryWrapper(object):
         raise
     try:
       self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+      self.created_temp_dataset = False
     except HttpError as exn:
       if exn.status_code == 403:
         _LOGGER.warning(

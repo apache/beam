@@ -187,12 +187,10 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     if element.query is not None:
       self._setup_temporary_dataset(bq, element)
       table_reference = self._execute_query(bq, element)
-      created_temp_dataset = True
     else:
       assert element.table
       table_reference = bigquery_tools.parse_table_reference(
           element.table, project=self._get_project())
-      created_temp_dataset = False
 
     if not table_reference.projectId:
       table_reference.projectId = self._get_project()
@@ -208,7 +206,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
           table_reference.datasetId,
           table_reference.tableId)
 
-    if created_temp_dataset:
+    if bq.created_temp_dataset:
       self._clean_temporary_dataset(bq, element)
 
   def _get_bq_metadata(self):
