@@ -134,7 +134,7 @@ _PEEK_METHOD_EXPLANATION = (
     "If you want to peek at a large dataset consider using interactive Beam's "
     ":func:`ib.collect "
     "<apache_beam.runners.interactive.interactive_beam.collect>` "
-    "with ``n`` specified. If you want to find the "
+    "with ``n`` specified, or :meth:`sample`. If you want to find the "
     "N largest elements, consider using :meth:`DeferredDataFrame.nlargest`.")
 
 
@@ -1209,6 +1209,24 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def sample(self, **kwargs):
+    """Only ``n`` and/or ``weights`` may be specified.  ``frac``,
+    ``random_state``, and ``replace=True`` are not yet supported.
+    See `BEAM-XXX <https://issues.apache.org/jira/BEAM-XXX>`_.
+
+    Note that pandas will raise an error if ``n`` is larger than the length
+    of the dataset, while the Beam DataFrame API will simply return the full
+    dataset in that case."""
+
+    # Re-use the DataFrame based sample, extract the series back out
+    df = self._wrap_in_df()
+
+    return df.sample(**kwargs)[df.columns[0]]
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
   def aggregate(self, func, axis, *args, **kwargs):
     """Some aggregation methods cannot be parallelized, and computing
     them will require collecting all data on a single machine."""
@@ -2211,6 +2229,66 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       explanation=_PEEK_METHOD_EXPLANATION)
   tail = frame_base.wont_implement_method(pd.DataFrame, 'tail',
       explanation=_PEEK_METHOD_EXPLANATION)
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def sample(self, n, frac, replace, weights, random_state, axis):
+    """When ``axis='index'``, only ``n`` and/or ``weights`` may be specified.
+    ``frac``, ``random_state``, and ``replace=True`` are not yet supported.
+    See `BEAM-XXX <https://issues.apache.org/jira/BEAM-XXX>`_.
+
+    Note that pandas will raise an error if ``n`` is larger than the length
+    of the dataset, while the Beam DataFrame API will simply return the full
+    dataset in that case.
+
+    sample is fully supported for axis='columns'."""
+    if axis in (1, 'columns'):
+      # Sampling on axis=columns just means projecting random columns
+      # Eagerly generate proxy to determine the set of columns at construction
+      # time
+      proxy = self._expr.proxy().sample(n=n, frac=frac, replace=replace,
+                                        weights=weights,
+                                        random_state=random_state, axis=axis)
+      # Then do the projection
+      return self[list(proxy.columns)]
+
+    # axis='index'
+    if frac is not None or random_state is not None or replace:
+      raise NotImplementedError(
+          f"When axis={axis!r}, only n and/or weights may be specified. "
+          "frac, random_state, and replace=True are not yet supported "
+          f"(got frac={frac!r}, random_state={random_state!r}, "
+          f"replace={replace!r}). See BEAM-XXX.")
+
+    if isinstance(weights, str):
+      weights = self[weights]
+
+    tmp_weight_column_name = "___Beam_DataFrame_weights___"
+
+    if weights is None:
+      self_with_randomized_weights = frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+          'randomized_weights',
+          lambda df: df.assign(**{tmp_weight_column_name:
+                                  np.random.rand(len(df))}),
+          [self._expr],
+          requires_partition_by=partitionings.Index(),
+          preserves_partition_by=partitionings.Arbitrary()))
+    else:
+      self_with_randomized_weights = frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+          'randomized_weights',
+          lambda df, weights: df.assign(**{tmp_weight_column_name:
+                                           weights * np.random.rand(
+                                               *weights.shape)}),
+          [self._expr, weights._expr],
+          requires_partition_by=partitionings.Index(),
+          preserves_partition_by=partitionings.Arbitrary()))
+
+    return self_with_randomized_weights.nlargest(
+        n=n, columns=tmp_weight_column_name, keep='any').drop(
+            tmp_weight_column_name, axis=1)
 
   @frame_base.with_docs_from(pd.DataFrame)
   def dot(self, other):
