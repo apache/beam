@@ -42,27 +42,15 @@ transforms, there are some special features worth highlighting.
 
 A pipeline in Beam is a graph of PTransforms operating on PCollections. A
 pipeline is constructed by a user in their SDK of choice, and makes its way to
-your runner either via the SDK directly or via the Runner API's (forthcoming)
+your runner either via the SDK directly or via the Runner API's
 RPC interfaces.
 
 ### PTransforms
 
-In Beam, a PTransform can be one of the five primitives or it can be a
-composite transform encapsulating a subgraph. The primitives are:
-
- * [_Read_](#implementing-the-read-primitive) - parallel connectors to external
-   systems
- * [_ParDo_](#implementing-the-pardo-primitive) - per element processing
- * [_GroupByKey_](#implementing-the-groupbykey-and-window-primitive) -
-   aggregating elements per key and window
- * [_Flatten_](#implementing-the-flatten-primitive) - union of PCollections
- * [_Window_](#implementing-the-window-primitive) - set the windowing strategy
-   for a PCollection
-
-When implementing a runner, these are the operations you need to implement.
-Composite transforms may or may not be important to your runner. If you expose
-a UI, maintaining some of the composite structure will make the pipeline easier
-for a user to understand. But the result of processing is not changed.
+A `PTransform` represents a data processing operation, or a step,
+in your pipeline. A `PTransform` can be applied to one or more
+`PCollection` objects as input which performs some processing on the elements of that
+`PCollection` and produces zero or more output `PCollection` objects.
 
 ### PCollections
 
@@ -173,7 +161,7 @@ The UDFs of Beam are:
  * _Coder_ - encodes user data; some coders have standard formats and are not really UDFs
 
 The various types of user-defined functions will be described further alongside
-the primitives that use them.
+the [_PTransforms_](#ptransforms) that use them.
 
 ### Runner
 
