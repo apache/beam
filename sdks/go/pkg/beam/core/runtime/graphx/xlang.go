@@ -29,6 +29,9 @@ func mergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 
 	for _, e := range edges {
 		if e.Op == graph.External {
+			if e.External == nil {
+				continue
+			}
 			exp := e.External.Expanded
 			if exp == nil {
 				continue
@@ -84,7 +87,7 @@ func purgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	// Generating map (oldID -> newID) of outputs to be purged
 	for _, e := range edges {
 		if e.Op == graph.External {
-			if e.External.Expanded == nil {
+			if e.External == nil || e.External.Expanded == nil {
 				continue
 			}
 			for tag, n := range ExternalOutputs(e) {
