@@ -1101,9 +1101,13 @@ class GroupByTest(_AbstractFrameTest):
           "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
           "fails in pandas < 1.2")
     self._run_test(
-        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type), GROUPBY_DF)
+        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type),
+        GROUPBY_DF,
+        check_proxy=False)
     self._run_test(
-        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type), GROUPBY_DF)
+        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type),
+        GROUPBY_DF,
+        check_proxy=False)
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_series_groupby_series(self, agg_type):
