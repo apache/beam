@@ -146,7 +146,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
-      response = stub.getState(request);
+      response = stub.withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS).getState(request);
       lastState = getJavaState(response.getState());
     }
     terminalState = lastState;
