@@ -56,9 +56,9 @@ def initDBConnection():
           f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
           f" port='{DB_PORT}' password='{DB_PASSWORD}'")
     except:
-      print('Failed to connect to DB; retrying in 1 minute')
+      print('Failed to connect to DB; retrying in 1 day')
       sys.stdout.flush()
-      time.sleep(60)
+      time.sleep(86400)
   return conn
 
 def tableExists(cursor, tableName):
