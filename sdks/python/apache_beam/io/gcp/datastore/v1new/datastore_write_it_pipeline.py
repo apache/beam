@@ -116,7 +116,7 @@ def run(argv=None):
       | 'Input' >> beam.Create(list(range(num_entities)))
       | 'To String' >> beam.Map(str)
       | 'To Entity' >> beam.Map(EntityWrapper(kind, ancestor_key).make_entity)
-      | 'Write to Datastore' >> WriteToDatastore(project))
+      | 'Write to Datastore' >> WriteToDatastore(project, hint_num_workers=1))
   p.run()
 
   query = Query(kind=kind, project=project, ancestor=ancestor_key)
@@ -153,7 +153,7 @@ def run(argv=None):
   _ = (
       entities
       | 'To Keys' >> beam.Map(lambda entity: entity.key)
-      | 'delete entities' >> DeleteFromDatastore(project))
+      | 'delete entities' >> DeleteFromDatastore(project, hint_num_workers=1))
 
   p.run()
 
