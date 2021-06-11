@@ -1102,6 +1102,8 @@ class GroupByTest(_AbstractFrameTest):
           "fails in pandas < 1.2")
     self._run_test(
         lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type), GROUPBY_DF)
+    self._run_test(
+        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type), GROUPBY_DF)
 
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_series_groupby_series(self, agg_type):
@@ -1115,6 +1117,9 @@ class GroupByTest(_AbstractFrameTest):
           "expected error.")
     self._run_test(
         lambda df: df[df.foo < 40].bar.groupby(df.group).agg(agg_type),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df[df.foo < 40].bar.groupby(df.foo % 3).agg(agg_type),
         GROUPBY_DF)
 
   def test_groupby_series_apply(self):
