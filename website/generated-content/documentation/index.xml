@@ -3204,25 +3204,13 @@ transforms, there are some special features worth highlighting.&lt;/p>
 &lt;h3 id="pipeline">Pipeline&lt;/h3>
 &lt;p>A pipeline in Beam is a graph of PTransforms operating on PCollections. A
 pipeline is constructed by a user in their SDK of choice, and makes its way to
-your runner either via the SDK directly or via the Runner API&amp;rsquo;s (forthcoming)
+your runner either via the SDK directly or via the Runner API&amp;rsquo;s
 RPC interfaces.&lt;/p>
 &lt;h3 id="ptransforms">PTransforms&lt;/h3>
-&lt;p>In Beam, a PTransform can be one of the five primitives or it can be a
-composite transform encapsulating a subgraph. The primitives are:&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="#implementing-the-read-primitive">&lt;em>Read&lt;/em>&lt;/a> - parallel connectors to external
-systems&lt;/li>
-&lt;li>&lt;a href="#implementing-the-pardo-primitive">&lt;em>ParDo&lt;/em>&lt;/a> - per element processing&lt;/li>
-&lt;li>&lt;a href="#implementing-the-groupbykey-and-window-primitive">&lt;em>GroupByKey&lt;/em>&lt;/a> -
-aggregating elements per key and window&lt;/li>
-&lt;li>&lt;a href="#implementing-the-flatten-primitive">&lt;em>Flatten&lt;/em>&lt;/a> - union of PCollections&lt;/li>
-&lt;li>&lt;a href="#implementing-the-window-primitive">&lt;em>Window&lt;/em>&lt;/a> - set the windowing strategy
-for a PCollection&lt;/li>
-&lt;/ul>
-&lt;p>When implementing a runner, these are the operations you need to implement.
-Composite transforms may or may not be important to your runner. If you expose
-a UI, maintaining some of the composite structure will make the pipeline easier
-for a user to understand. But the result of processing is not changed.&lt;/p>
+&lt;p>A &lt;code>PTransform&lt;/code> represents a data processing operation, or a step,
+in your pipeline. A &lt;code>PTransform&lt;/code> can be applied to one or more
+&lt;code>PCollection&lt;/code> objects as input which performs some processing on the elements of that
+&lt;code>PCollection&lt;/code> and produces zero or more output &lt;code>PCollection&lt;/code> objects.&lt;/p>
 &lt;h3 id="pcollections">PCollections&lt;/h3>
 &lt;p>A PCollection is an unordered bag of elements. Your runner will be responsible
 for storing these elements. There are some major aspects of a PCollection to
@@ -3309,7 +3297,7 @@ state)&lt;/li>
 &lt;li>&lt;em>Coder&lt;/em> - encodes user data; some coders have standard formats and are not really UDFs&lt;/li>
 &lt;/ul>
 &lt;p>The various types of user-defined functions will be described further alongside
-the primitives that use them.&lt;/p>
+the &lt;a href="#ptransforms">&lt;em>PTransforms&lt;/em>&lt;/a> that use them.&lt;/p>
 &lt;h3 id="runner">Runner&lt;/h3>
 &lt;p>The term &amp;ldquo;runner&amp;rdquo; is used for a couple of things. It generally refers to the
 software that takes a Beam pipeline and executes it somehow. Often, this is the
