@@ -1213,7 +1213,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def sample(self, **kwargs):
     """Only ``n`` and/or ``weights`` may be specified.  ``frac``,
     ``random_state``, and ``replace=True`` are not yet supported.
-    See `BEAM-XXX <https://issues.apache.org/jira/BEAM-XXX>`_.
+    See `BEAM-12476 <https://issues.apache.org/jira/BEAM-12476>`_.
 
     Note that pandas will raise an error if ``n`` is larger than the length
     of the dataset, while the Beam DataFrame API will simply return the full
@@ -2236,7 +2236,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def sample(self, n, frac, replace, weights, random_state, axis):
     """When ``axis='index'``, only ``n`` and/or ``weights`` may be specified.
     ``frac``, ``random_state``, and ``replace=True`` are not yet supported.
-    See `BEAM-XXX <https://issues.apache.org/jira/BEAM-XXX>`_.
+    See `BEAM-12476 <https://issues.apache.org/jira/BEAM-12476>`_.
 
     Note that pandas will raise an error if ``n`` is larger than the length
     of the dataset, while the Beam DataFrame API will simply return the full
@@ -2259,7 +2259,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           f"When axis={axis!r}, only n and/or weights may be specified. "
           "frac, random_state, and replace=True are not yet supported "
           f"(got frac={frac!r}, random_state={random_state!r}, "
-          f"replace={replace!r}). See BEAM-XXX.")
+          f"replace={replace!r}). See BEAM-12476.")
 
     if isinstance(weights, str):
       weights = self[weights]
