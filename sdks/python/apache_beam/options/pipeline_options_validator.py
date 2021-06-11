@@ -243,7 +243,7 @@ class PipelineOptionsValidator(object):
     elif view.worker_harness_container_image:
       # Warn about legacy flag and set new flag to value of old flag.
       _LOGGER.warning(
-          'Setting sdk_container_image to value of legacy flag'
+          'Setting sdk_container_image to value of legacy flag '
           'worker_harness_container_image.')
       view.sdk_container_image = view.worker_harness_container_image
     elif view.sdk_container_image:
