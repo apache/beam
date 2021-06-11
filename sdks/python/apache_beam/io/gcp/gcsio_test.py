@@ -33,8 +33,12 @@ import mock
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import MetricName
+
 try:
-  from apache_beam.io.gcp import gcsio
+  from apache_beam.io.gcp import gcsio, resource_identifiers
   from apache_beam.io.gcp.internal.clients import storage
   from apitools.base.py.exceptions import HttpError
 except ImportError:
@@ -42,6 +46,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 DEFAULT_GCP_PROJECT = 'apache-beam-testing'
+DEFAULT_PROJECT_NUMBER = 1
 
 
 class FakeGcsClient(object):
@@ -50,6 +55,7 @@ class FakeGcsClient(object):
 
   def __init__(self):
     self.objects = FakeGcsObjects()
+    self.buckets = FakeGcsBuckets()
     # Referenced in GcsIO.copy_batch() and GcsIO.delete_batch().
     self._http = object()
 
@@ -77,6 +83,17 @@ class FakeFile(object):
         size=len(self.contents),
         crc32c=self.crc32c,
         updated=last_updated_datetime)
+
+
+class FakeGcsBuckets(object):
+  def __init__(self):
+    pass
+
+  def get_bucket(self, bucket):
+    return storage.Bucket(name=bucket, projectNumber=DEFAULT_PROJECT_NUMBER)
+
+  def Get(self, get_request):
+    return self.get_bucket(get_request.bucket)
 
 
 class FakeGcsObjects(object):
@@ -750,6 +767,53 @@ class TestGCSIO(unittest.TestCase):
     message.set_payload(test_msg)
     generator._handle_text(message)
     self.assertEqual(test_msg.encode('ascii'), output_buffer.getvalue())
+
+  def test_downloader_monitoring_info(self):
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    file_size = 5 * 1024 * 1024 + 100
+    random_file = self._insert_random_file(self.client, file_name, file_size)
+    self.gcs.open(file_name, 'r')
+
+    resource = resource_identifiers.GoogleCloudStorageBucket(random_file.bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_PROJECT_NUMBER,
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 2)
+
+  def test_uploader_monitoring_info(self):
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    file_size = 5 * 1024 * 1024 + 100
+    random_file = self._insert_random_file(self.client, file_name, file_size)
+    f = self.gcs.open(file_name, 'w')
+
+    resource = resource_identifiers.GoogleCloudStorageBucket(random_file.bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.insert',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_PROJECT_NUMBER,
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    f.close()
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
 
 
 if __name__ == '__main__':

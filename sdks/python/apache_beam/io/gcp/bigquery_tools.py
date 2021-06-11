@@ -490,7 +490,7 @@ class BigQueryWrapper(object):
         upload = Upload.FromStream(stream, mime_type=UNKNOWN_MIME_TYPE)
       response = self.client.jobs.Insert(request, upload=upload)
       _LOGGER.info(
-          "Stated BigQuery job: %s\n "
+          "Started BigQuery job: %s\n "
           "bq show -j --format=prettyjson --project_id=%s %s",
           response.jobReference,
           response.jobReference.projectId,

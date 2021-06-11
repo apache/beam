@@ -31,6 +31,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.Watch.Growth;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
@@ -55,6 +57,10 @@ import org.apache.beam.sdk.transforms.Watch.GrowthState;
 import org.apache.beam.sdk.transforms.Watch.GrowthTracker;
 import org.apache.beam.sdk.transforms.Watch.NonPollingGrowthState;
 import org.apache.beam.sdk.transforms.Watch.PollingGrowthState;
+import org.apache.beam.sdk.transforms.Watch.WatchGrowthFn;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -539,6 +545,38 @@ public class WatchTest implements Serializable {
   }
 
   @Test
+  public void testPollingGrowthTrackerUsesElementTimestampIfNoWatermarkProvided() throws Exception {
+    Instant now = Instant.now();
+    Watch.Growth<String, String, String> growth =
+        Watch.growthOf(
+                new Watch.Growth.PollFn<String, String>() {
+
+                  @Override
+                  public PollResult<String> apply(String element, Context c) throws Exception {
+                    // We specifically test an unsorted list.
+                    return PollResult.incomplete(
+                        Arrays.asList(
+                            TimestampedValue.of("d", now.plus(standardSeconds(4))),
+                            TimestampedValue.of("c", now.plus(standardSeconds(3))),
+                            TimestampedValue.of("a", now.plus(standardSeconds(1))),
+                            TimestampedValue.of("b", now.plus(standardSeconds(2)))));
+                  }
+                })
+            .withPollInterval(standardSeconds(10));
+    WatchGrowthFn<String, String, String, Integer> growthFn =
+        new WatchGrowthFn(
+            growth, StringUtf8Coder.of(), SerializableFunctions.identity(), StringUtf8Coder.of());
+    GrowthTracker<String, Integer> tracker = newPollingGrowthTracker();
+    DoFn.ProcessContext context = mock(DoFn.ProcessContext.class);
+    ManualWatermarkEstimator<Instant> watermarkEstimator =
+        new WatermarkEstimators.Manual(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    ProcessContinuation processContinuation =
+        growthFn.process(context, tracker, watermarkEstimator);
+    assertEquals(now.plus(standardSeconds(1)), watermarkEstimator.currentWatermark());
+    assertTrue(processContinuation.shouldResume());
+  }
+
+  @Test
   public void testPollingGrowthTrackerCheckpointNonEmpty() {
     Instant now = Instant.now();
     GrowthTracker<String, Integer> tracker = newPollingGrowthTracker();
@@ -609,6 +647,42 @@ public class WatchTest implements Serializable {
         (PollingGrowthState<Integer>) tracker.trySplit(0).getResidual();
 
     assertFalse(newTracker(residual).tryClaim(KV.of(claim, 2)));
+  }
+
+  @Test
+  public void testNonPollingGrowthTrackerIgnoresWatermark() throws Exception {
+    Instant now = Instant.now();
+    PollResult<String> claim =
+        PollResult.incomplete(
+                Arrays.asList(
+                    TimestampedValue.of("d", now.plus(standardSeconds(4))),
+                    TimestampedValue.of("c", now.plus(standardSeconds(3))),
+                    TimestampedValue.of("a", now.plus(standardSeconds(1))),
+                    TimestampedValue.of("b", now.plus(standardSeconds(2)))))
+            .withWatermark(now.plus(standardSeconds(7)));
+
+    Watch.Growth<String, String, String> growth =
+        Watch.growthOf(
+                new Watch.Growth.PollFn<String, String>() {
+
+                  @Override
+                  public PollResult<String> apply(String element, Context c) throws Exception {
+                    fail("Never expected to be invoked for NonPollingGrowthState.");
+                    return null;
+                  }
+                })
+            .withPollInterval(standardSeconds(10));
+    GrowthTracker<String, Integer> tracker = newTracker(NonPollingGrowthState.of(claim));
+    WatchGrowthFn<String, String, String, Integer> growthFn =
+        new WatchGrowthFn(
+            growth, StringUtf8Coder.of(), SerializableFunctions.identity(), StringUtf8Coder.of());
+    DoFn.ProcessContext context = mock(DoFn.ProcessContext.class);
+    ManualWatermarkEstimator<Instant> watermarkEstimator =
+        new WatermarkEstimators.Manual(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    ProcessContinuation processContinuation =
+        growthFn.process(context, tracker, watermarkEstimator);
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, watermarkEstimator.currentWatermark());
+    assertFalse(processContinuation.shouldResume());
   }
 
   @Test

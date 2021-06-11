@@ -34,11 +34,14 @@ import traceback
 from itertools import islice
 
 from apache_beam.internal.http_client import get_new_http
+from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import PipeStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
+from apache_beam.io.gcp import resource_identifiers
+from apache_beam.metrics import monitoring_infos
 from apache_beam.utils import retry
 
 __all__ = ['GcsIO']
@@ -155,6 +158,14 @@ class GcsIO(object):
           response_encoding='utf8')
     self.client = storage_client
     self._rewrite_cb = None
+    self.bucket_to_project_number = {}
+
+  def get_project_number(self, bucket):
+    if bucket not in self.bucket_to_project_number:
+      bucket_metadata = self.get_bucket(bucket_name=bucket)
+      self.bucket_to_project_number[bucket] = bucket_metadata.projectNumber
+
+    return self.bucket_to_project_number[bucket]
 
   def _set_rewrite_response_callback(self, callback):
     """For testing purposes only. No backward compatibility guarantees.
@@ -210,13 +221,20 @@ class GcsIO(object):
     """
     if mode == 'r' or mode == 'rb':
       downloader = GcsDownloader(
-          self.client, filename, buffer_size=read_buffer_size)
+          self.client,
+          filename,
+          buffer_size=read_buffer_size,
+          get_project_number=self.get_project_number)
       return io.BufferedReader(
           DownloaderStream(
               downloader, read_buffer_size=read_buffer_size, mode=mode),
           buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
-      uploader = GcsUploader(self.client, filename, mime_type)
+      uploader = GcsUploader(
+          self.client,
+          filename,
+          mime_type,
+          get_project_number=self.get_project_number)
       return io.BufferedWriter(
           UploaderStream(uploader, mode=mode), buffer_size=128 * 1024)
     else:
@@ -557,11 +575,27 @@ class GcsIO(object):
 
 
 class GcsDownloader(Downloader):
-  def __init__(self, client, path, buffer_size):
+  def __init__(self, client, path, buffer_size, get_project_number):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._buffer_size = buffer_size
+    self._get_project_number = get_project_number
+
+    project_number = self._get_project_number(self._bucket)
+
+    # Create a request count metric
+    resource = resource_identifiers.GoogleCloudStorageBucket(self._bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: project_number
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
 
     # Get object state.
     self._get_request = (
@@ -569,7 +603,9 @@ class GcsDownloader(Downloader):
             bucket=self._bucket, object=self._name))
     try:
       metadata = self._get_object_metadata(self._get_request)
+      service_call_metric.call('ok')
     except HttpError as http_error:
+      service_call_metric.call(http_error)
       if http_error.status_code == 404:
         raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
       else:
@@ -588,7 +624,12 @@ class GcsDownloader(Downloader):
         auto_transfer=False,
         chunksize=self._buffer_size,
         num_retries=20)
-    self._client.objects.Get(self._get_request, download=self._downloader)
+
+    try:
+      self._client.objects.Get(self._get_request, download=self._downloader)
+      service_call_metric.call('ok')
+    except HttpError as e:
+      service_call_metric.call(e)
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -607,11 +648,12 @@ class GcsDownloader(Downloader):
 
 
 class GcsUploader(Uploader):
-  def __init__(self, client, path, mime_type):
+  def __init__(self, client, path, mime_type, get_project_number):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._mime_type = mime_type
+    self._get_project_number = get_project_number
 
     # Set up communication with child thread.
     parent_conn, child_conn = multiprocessing.Pipe()
@@ -645,9 +687,26 @@ class GcsUploader(Uploader):
     #
     # The uploader by default transfers data in chunks of 1024 * 1024 bytes at
     # a time, buffering writes until that size is reached.
+
+    project_number = self._get_project_number(self._bucket)
+
+    # Create a request count metric
+    resource = resource_identifiers.GoogleCloudStorageBucket(self._bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.insert',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: project_number
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
     try:
       self._client.objects.Insert(self._insert_request, upload=self._upload)
+      service_call_metric.call('ok')
     except Exception as e:  # pylint: disable=broad-except
+      service_call_metric.call(e)
       _LOGGER.error(
           'Error in _start_upload while inserting file %s: %s',
           self._path,

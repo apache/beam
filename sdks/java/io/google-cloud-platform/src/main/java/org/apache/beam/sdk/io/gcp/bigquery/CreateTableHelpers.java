@@ -106,11 +106,10 @@ public class CreateTableHelpers {
       String tableSpec,
       String kmsKey,
       BigQueryServices bqServices) {
-    DatasetService datasetService =
-        bqServices.getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class));
     TableReference tableReference = tableDestination.getTableReference().clone();
     tableReference.setTableId(BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
-    try {
+    try (DatasetService datasetService =
+        bqServices.getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class))) {
       if (datasetService.getTable(tableReference) == null) {
         TableSchema tableSchema = schemaSupplier.get();
         checkArgument(
