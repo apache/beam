@@ -930,7 +930,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     return aligned.iloc[:, 0], aligned.iloc[:, 1]
 
   argsort = frame_base.wont_implement_method(
-          pd.Series, 'argsort', reason="order-sensitive")
+      pd.Series, 'argsort', reason="order-sensitive")
 
   array = property(
       frame_base.wont_implement_method(
