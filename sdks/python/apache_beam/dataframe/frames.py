@@ -3410,13 +3410,13 @@ class _DeferredLoc(object):
       args = [self._frame._expr]
       func = lambda df: df.loc[key]
     elif isinstance(key, frame_base.DeferredFrame):
-      args = [self._frame._expr, key._expr]
       func = lambda df, key: df.loc[key]
-      if (isinstance(key, DeferredSeries) and
-          pd.core.dtypes.common.is_integer_dtype(key.dtype) and
-          pd.core.dtypes.common.is_integer_dtype(self._frame.index.dtype)):
-        # Move the Series values into the key. We want to colocate with
-        # self._frame based on values.
+      if pd.core.dtypes.common.is_bool_dtype(key._expr.proxy()):
+        # Boolean indexer, just pass it in as-is
+        args = [self._frame._expr, key._expr]
+      else:
+        # Likely a DeferredSeries of labels, overwrite the key's index with it's
+        # values so we can colocate them with the labels they're selecting
         def data_to_index(s):
           s = s.copy()
           s.index = s
