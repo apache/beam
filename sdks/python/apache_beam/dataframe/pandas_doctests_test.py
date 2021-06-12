@@ -83,6 +83,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.interpolate': ['*'],
             'pandas.core.generic.NDFrame.resample': ['*'],
             'pandas.core.generic.NDFrame.rolling': ['*'],
+            # argsort wont implement
+            'pandas.core.generic.NDFrame.abs': [
+                'df.loc[(df.c - 43).abs().argsort()]',
+            ],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -102,10 +106,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.transform': ['*'],
             'pandas.core.generic.NDFrame.truncate': ['*'],
             'pandas.core.generic.NDFrame.xs': ['*'],
-            # argsort unimplemented
-            'pandas.core.generic.NDFrame.abs': [
-                'df.loc[(df.c - 43).abs().argsort()]',
-            ],
         },
         skip={
             # Internal test
