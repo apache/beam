@@ -418,6 +418,19 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         grouping_columns=grouping_columns,
         grouping_indexes=grouping_indexes)
 
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.DataFrame)
+  def loc(self):
+    return _DeferredLoc(self)
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.DataFrame)
+  def iloc(self):
+    """Position-based indexing with `iloc` is order-sensitive in almost every
+    case. Beam DataFrame users should prefer label-based indexing with `loc`.
+    """
+    return _DeferredILoc(self)
+
   abs = frame_base._elementwise_method('abs', base=pd.core.generic.NDFrame)
   astype = frame_base._elementwise_method(
       'astype', base=pd.core.generic.NDFrame)
@@ -1779,19 +1792,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           [self._expr],
           requires_partition_by=partitionings.Arbitrary(),
           preserves_partition_by=partitionings.Singleton()))
-
-  @property  # type: ignore
-  @frame_base.with_docs_from(pd.DataFrame)
-  def loc(self):
-    return _DeferredLoc(self)
-
-  @property  # type: ignore
-  @frame_base.with_docs_from(pd.DataFrame)
-  def iloc(self):
-    """Position-based indexing with `iloc` is order-sensitive in almost every
-    case. Beam DataFrame users should prefer label-based indexing with `loc`.
-    """
-    return _DeferredILoc(self)
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
