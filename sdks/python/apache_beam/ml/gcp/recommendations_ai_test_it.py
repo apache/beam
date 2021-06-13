@@ -38,6 +38,7 @@ except ImportError:
   recommendationengine = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
+GCP_TEST_PROJECT = 'apache-beam-testing'
 
 def extract_id(response):
   yield response["id"]
@@ -72,7 +73,7 @@ class RecommendationAIIT(unittest.TestCase):
       output = (
           p | 'Create data' >> beam.Create([CATALOG_ITEM])
           | 'Create CatalogItem' >>
-          recommendations_ai.CreateCatalogItem(project=p.get_option('project'))
+          recommendations_ai.CreateCatalogItem(project=GCP_TEST_PROJECT)
           | beam.ParDo(extract_id) | beam.combiners.ToList())
 
       assert_that(output, equal_to([[CATALOG_ITEM["id"]]]))
@@ -83,7 +84,7 @@ class RecommendationAIIT(unittest.TestCase):
     with TestPipeline(is_integration_test=True) as p:
       output = (
           p | 'Create data' >> beam.Create([USER_EVENT]) | 'Create UserEvent' >>
-          recommendations_ai.WriteUserEvent(project=p.get_option('project'))
+          recommendations_ai.WriteUserEvent(project=GCP_TEST_PROJECT)
           | beam.ParDo(extract_event_type) | beam.combiners.ToList())
 
       assert_that(output, equal_to([[USER_EVENT["event_type"]]]))
@@ -95,7 +96,7 @@ class RecommendationAIIT(unittest.TestCase):
       output = (
           p | 'Create data' >> beam.Create([USER_EVENT])
           | 'Predict UserEvent' >> recommendations_ai.PredictUserEvent(
-              project=p.get_option('project'),
+              project=GCP_TEST_PROJECT,
               placement_id="recently_viewed_default")
           | beam.ParDo(extract_prediction))
 
