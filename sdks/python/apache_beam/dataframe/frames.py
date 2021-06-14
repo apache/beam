@@ -3117,6 +3117,9 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     else:
       raise NotImplementedError(f"GroupBy.agg(func={fn!r})")
 
+  @property
+  def ndim(self):
+    return self._expr.proxy().ndim
 
   def apply(self, fn, *args, **kwargs):
     project = _maybe_project_func(self._projection)
@@ -3220,6 +3223,42 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             proxy=proxy,
             requires_partition_by=partitionings.Index(levels),
             preserves_partition_by=partitionings.Index(self._grouping_indexes)))
+
+  def filter(self, func=None, dropna=True):
+    if func is None or not callable(func):
+      raise TypeError("func must be specified and it must be callable")
+
+    def apply_fn(df):
+      if func(df):
+        return df
+      elif not dropna:
+        result = df.copy()
+        result.iloc[:, :] = np.nan
+        return result
+      else:
+        return df.iloc[:0]
+
+    return self.apply(apply_fn).droplevel(self._grouping_columns)
+
+  @property
+  def dtypes(self):
+    grouping_columns = self._grouping_columns
+    return self.apply(lambda df: df.drop(grouping_columns, axis=1).dtypes)
+
+  fillna = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'fillna', explanation=(
+          "df.fillna() should be used instead. Only method=None is supported "
+          "because other methods are order-sensitive. df.groupby(..).fillna() "
+          "without a method is equivalent to df.fillna()."))
+
+  ffill = frame_base.wont_implement_method(DataFrameGroupBy, 'ffill',
+                                           reason="order-sensitive")
+  bfill = frame_base.wont_implement_method(DataFrameGroupBy, 'bfill',
+                                           reason="order-sensitive")
+  pad = frame_base.wont_implement_method(DataFrameGroupBy, 'pad',
+                                         reason="order-sensitive")
+  backfill = frame_base.wont_implement_method(DataFrameGroupBy, 'backfill',
+                                              reason="order-sensitive")
 
   aggregate = agg
 
