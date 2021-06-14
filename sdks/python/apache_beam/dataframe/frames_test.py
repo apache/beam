@@ -587,6 +587,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.loc[:dates[3]], df)
     self._run_test(lambda df: df.loc[df.A > 10], df)
     self._run_test(lambda df: df.loc[lambda df: df.A > 10], df)
+    self._run_test(lambda df: df.C.loc[df.A > 10], df)
+    self._run_test(lambda df, s: df.loc[s.loc[1:3]], df, pd.Series(dates))
 
   def test_append_sort(self):
     # yapf: disable
