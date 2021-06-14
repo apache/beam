@@ -1084,8 +1084,10 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
   def test_groupby_dtypes(self):
-    self._run_test(lambda df: df.groupby('group').dtypes, GROUPBY_DF)
-    self._run_test(lambda df: df.groupby(level=0).dtypes, GROUPBY_DF)
+    self._run_test(
+        lambda df: df.groupby('group').dtypes, GROUPBY_DF, check_proxy=False)
+    self._run_test(
+        lambda df: df.groupby(level=0).dtypes, GROUPBY_DF, check_proxy=False)
 
 
 class AggregationTest(_AbstractFrameTest):
