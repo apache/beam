@@ -323,7 +323,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
         null,
         false,
         false,
-        false);
+        false,
+        null);
   }
 
   @Override
@@ -337,6 +338,32 @@ public class FakeDatasetService implements DatasetService, Serializable {
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds)
+      throws IOException, InterruptedException {
+    return insertAll(
+        ref,
+        rowList,
+        insertIdList,
+        retryPolicy,
+        failedInserts,
+        errorContainer,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        null);
+  }
+
+  @Override
+  public <T> long insertAll(
+      TableReference ref,
+      List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
+      @Nullable List<String> insertIdList,
+      InsertRetryPolicy retryPolicy,
+      List<ValueInSingleWindow<T>> failedInserts,
+      ErrorContainer<T> errorContainer,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues,
+      boolean ignoreInsertIds,
+      List<ValueInSingleWindow<TableRow>> successfulRows)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {
@@ -370,6 +397,14 @@ public class FakeDatasetService implements DatasetService, Serializable {
             dataSize += tableContainer.addRow(row, null);
           } else {
             dataSize += tableContainer.addRow(row, insertIdList.get(i));
+          }
+          if (successfulRows != null) {
+            successfulRows.add(
+                ValueInSingleWindow.of(
+                    row,
+                    rowList.get(i).getTimestamp(),
+                    rowList.get(i).getWindow(),
+                    rowList.get(i).getPane()));
           }
         } else {
           errorContainer.add(

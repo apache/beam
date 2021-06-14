@@ -169,6 +169,19 @@ public interface BigQueryServices extends Serializable {
         boolean ignoreInsertIds)
         throws IOException, InterruptedException;
 
+    <T> long insertAll(
+        TableReference ref,
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
+        @Nullable List<String> insertIdList,
+        InsertRetryPolicy retryPolicy,
+        List<ValueInSingleWindow<T>> failedInserts,
+        ErrorContainer<T> errorContainer,
+        boolean skipInvalidRows,
+        boolean ignoreUnknownValues,
+        boolean ignoreInsertIds,
+        List<ValueInSingleWindow<TableRow>> successfulRows)
+        throws IOException, InterruptedException;
+
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
