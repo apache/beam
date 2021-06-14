@@ -1365,6 +1365,18 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
+  // More needed @SqlOperatorTest(name = CONVERT_TIMEZONE, kind = "DATETIME")
+  public void testConvertTimezone() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr(
+                "CONVERT_TIMEZONE('America/New York', 'UTC', TIMESTAMP '1984-04-19 01:01:58')",
+                parseTimestampWithUTCTimeZone("1984-04-19 01:01:56"));
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
   @SqlOperatorTest(name = "CASE", kind = "CASE")
   @SqlOperatorTest(name = "NULLIF", kind = "NULLIF")
   @SqlOperatorTest(name = "COALESCE", kind = "COALESCE")

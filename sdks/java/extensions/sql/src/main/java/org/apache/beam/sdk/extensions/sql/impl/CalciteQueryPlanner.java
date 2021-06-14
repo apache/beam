@@ -54,7 +54,8 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.Re
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlLibrary;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlLibraryOperatorTableFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
@@ -138,7 +139,12 @@ public class CalciteQueryPlanner implements QueryPlanner {
             connection.getTypeFactory(),
             connection.config());
     final SqlOperatorTable opTab0 =
-        connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
+        connection
+            .config()
+            .fun(
+                SqlOperatorTable.class,
+                SqlLibraryOperatorTableFactory.INSTANCE.getOperatorTable(
+                    SqlLibrary.STANDARD, SqlLibrary.POSTGRESQL));
 
     return Frameworks.newConfigBuilder()
         .parserConfig(parserConfig.build())
