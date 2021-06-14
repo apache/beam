@@ -199,7 +199,7 @@ public class BeamFnDataReadRunner<OutputT> {
                     .build());
           }
         });
-    reset();
+    clearSplitIndices();
   }
 
   public void registerInputLocation() {
@@ -359,6 +359,10 @@ public class BeamFnDataReadRunner<OutputT> {
   public void reset() {
     Preconditions.checkArgumentNotNull(
         processBundleInstructionIdSupplier.get(), "Cannot reset an active bundle processor.");
+    clearSplitIndices();
+  }
+
+  private void clearSplitIndices() {
     synchronized (splittingLock) {
       index = -1;
       stopIndex = Long.MAX_VALUE;
