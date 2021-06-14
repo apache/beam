@@ -834,6 +834,22 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.sample(axis=1, n=10, random_state=3, replace=True), df)
 
+  def test_cat(self):
+    # Replicate the doctests from CategorigcalAccessor
+    # These tests don't translate into pandas_doctests_test.py because it
+    # tries to use astype("category") in Beam, which makes a non-deferred
+    # column type.
+    s = pd.Series(list("abbccc")).astype("category")
+
+    self._run_test(lambda s: s.cat.rename_categories(list("cba")), s)
+    self._run_test(lambda s: s.cat.reorder_categories(list("cba")), s)
+    self._run_test(lambda s: s.cat.add_categories(["d", "e"]), s)
+    self._run_test(lambda s: s.cat.remove_categories(["a", "c"]), s)
+    self._run_test(lambda s: s.cat.set_categories(list("abcde")), s)
+    self._run_test(lambda s: s.cat.as_ordered(), s)
+    self._run_test(lambda s: s.cat.as_unordered(), s)
+    self._run_test(lambda s: s.cat.codes, s)
+
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
@@ -981,6 +997,27 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
             lambda x: x),
+        df)
+
+  def test_groupby_transform(self):
+    df = pd.DataFrame({
+        "Date": [
+            "2015-05-08",
+            "2015-05-07",
+            "2015-05-06",
+            "2015-05-05",
+            "2015-05-08",
+            "2015-05-07",
+            "2015-05-06",
+            "2015-05-05"
+        ],
+        "Data": [5, 8, 6, 1, 50, 100, 60, 120],
+    })
+
+    self._run_test(lambda df: df.groupby('Date')['Data'].transform(np.sum), df)
+    self._run_test(
+        lambda df: df.groupby('Date')['Data'].transform(
+            lambda x: (x - x.mean()) / x.std()),
         df)
 
   def test_groupby_apply_modified_index(self):
@@ -1641,15 +1678,26 @@ class AllowNonParallelTest(unittest.TestCase):
 class ConstructionTimeTest(unittest.TestCase):
   """Tests for operations that can be executed eagerly."""
   DF = pd.DataFrame({
-      'str_col': ['foo', 'bar'],
-      'int_col': [1, 2],
-      'flt_col': [1.1, 2.2],
+      'str_col': ['foo', 'bar'] * 3,
+      'int_col': [1, 2] * 3,
+      'flt_col': [1.1, 2.2] * 3,
+      'cat_col': pd.Series(list('aabbca'), dtype="category"),
   })
   DEFERRED_DF = frame_base.DeferredFrame.wrap(
-      expressions.PlaceholderExpression(DF))
+      expressions.PlaceholderExpression(DF.iloc[:0]))
 
   def _run_test(self, fn):
-    self.assertEqual(fn(self.DEFERRED_DF), fn(self.DF))
+    expected = fn(self.DF)
+    actual = fn(self.DEFERRED_DF)
+
+    if isinstance(expected, pd.Index):
+      pd.testing.assert_index_equal(expected, actual)
+    elif isinstance(expected, pd.Series):
+      pd.testing.assert_series_equal(expected, actual)
+    elif isinstance(expected, pd.DataFrame):
+      pd.testing.assert_frame_equal(expected, actual)
+    else:
+      self.assertEqual(expected, actual)
 
   @parameterized.expand(DF.columns)
   def test_series_name(self, col_name):
@@ -1666,6 +1714,12 @@ class ConstructionTimeTest(unittest.TestCase):
   def test_dataframe_dtypes(self):
     self._run_test(lambda df: list(df.dtypes))
 
+  def test_categories(self):
+    self._run_test(lambda df: df.cat_col.cat.categories)
+
+  def test_categorical_ordered(self):
+    self._run_test(lambda df: df.cat_col.cat.ordered)
+
 
 class DocstringTest(unittest.TestCase):
   @parameterized.expand([
@@ -1673,6 +1727,9 @@ class DocstringTest(unittest.TestCase):
       (frames.DeferredSeries, pd.Series),
       #(frames._DeferredIndex, pd.Index),
       (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (
+          frames._DeferredCategoricalMethods,
+          pd.core.arrays.categorical.CategoricalAccessor),
       #(frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
       #(frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
   ])

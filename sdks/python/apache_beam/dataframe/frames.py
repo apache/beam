@@ -423,8 +423,52 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         grouping_indexes=grouping_indexes)
 
   abs = frame_base._elementwise_method('abs', base=pd.core.generic.NDFrame)
-  astype = frame_base._elementwise_method(
-      'astype', base=pd.core.generic.NDFrame)
+
+  @frame_base.with_docs_from(pd.core.generic.NDFrame)
+  @frame_base.args_to_kwargs(pd.core.generic.NDFrame)
+  @frame_base.populate_defaults(pd.core.generic.NDFrame)
+  def astype(self, dtype, copy, errors):
+    """astype is not parallelizable when ``errors="ignore"`` is specified.
+
+    ``copy=False`` is not supported because it relies on memory-sharing
+    semantics.
+
+    ``dtype="category`` is not supported because the type of the output column
+    depends on the data. Please use ``pd.CategoricalDtype`` with explicit
+    categories instead.
+    """
+    requires = partitionings.Arbitrary()
+
+    if errors == "ignore":
+      # We need all data in order to ignore errors and propagate the original
+      # data.
+      requires = partitionings.Singleton(
+          reason=(
+              f"astype(errors={errors!r}) is currently not parallelizable, "
+              "because all data must be collected on one node to determine if "
+              "the original data should be propagated instead."))
+
+    if not copy:
+      raise frame_base.WontImplementError(
+          f"astype(copy={copy!r}) is not supported because it relies on "
+          "memory-sharing semantics that are not compatible with the Beam "
+          "model.")
+
+    if dtype == 'category':
+      raise frame_base.WontImplementError(
+          "astype(dtype='category') is not supported because the type of the "
+          "output column depends on the data. Please use pd.CategoricalDtype "
+          "with explicit categories instead.",
+          reason="non-deferred-columns")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'astype',
+            lambda df: df.astype(dtype=dtype, copy=copy, errors=errors),
+            [self._expr],
+            requires_partition_by=requires,
+            preserves_partition_by=partitionings.Arbitrary()))
+
   copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
 
   @frame_base.with_docs_from(pd.DataFrame)
@@ -777,6 +821,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   sparse = property(
       frame_base.not_implemented_method(
           'sparse', 'BEAM-12425', base_type=pd.DataFrame))
+
+  transform = frame_base._elementwise_method('transform', base=pd.DataFrame)
 
 
 @populate_not_implemented(pd.Series)
@@ -1556,6 +1602,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   def str(self):
     return _DeferredStringMethods(self._expr)
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
+  def cat(self):
+    return _DeferredCategoricalMethods(self._expr)
 
   apply = frame_base._elementwise_method('apply', base=pd.Series)
   map = frame_base._elementwise_method('map', base=pd.Series)
@@ -3118,6 +3169,55 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                                                       grouping_columns),
             preserves_partition_by=partitionings.Index(grouping_indexes)))
 
+  def transform(self, fn, *args, **kwargs):
+    if not callable(fn):
+      raise NotImplementedError(
+          "String functions are not yet supported in transform.")
+
+    if self._grouping_columns and not self._projection:
+      grouping_columns = self._grouping_columns
+      def fn_wrapper(x, *args, **kwargs):
+        x = x.droplevel(grouping_columns)
+        return fn(x, *args, **kwargs)
+    else:
+      fn_wrapper = fn
+
+    project = _maybe_project_func(self._projection)
+
+    # pandas cannot execute fn to determine the right proxy.
+    # We run user fn on a proxy here to detect the return type and generate the
+    # proxy.
+    result = fn_wrapper(project(self._ungrouped_with_index.proxy()))
+    parent_frame = self._ungrouped.args()[0].proxy()
+    if isinstance(result, pd.core.generic.NDFrame):
+      proxy = result[:0]
+
+    else:
+      # The user fn returns some non-pandas type. The expected result is a
+      # Series where each element is the result of one user fn call.
+      dtype = pd.Series([result]).dtype
+      proxy = pd.Series([], dtype=dtype, name=project(parent_frame).name)
+
+      if not isinstance(self._projection, list):
+        proxy.name = self._projection
+
+    # The final result will have the original indexes
+    proxy.index = parent_frame.index
+
+    levels = self._grouping_indexes + self._grouping_columns
+
+    return DeferredDataFrame(
+        expressions.ComputedExpression(
+            'transform',
+            lambda df: project(df.groupby(level=levels)).transform(
+                fn_wrapper,
+                *args,
+                **kwargs).droplevel(self._grouping_columns),
+            [self._ungrouped_with_index],
+            proxy=proxy,
+            requires_partition_by=partitionings.Index(levels),
+            preserves_partition_by=partitionings.Index(self._grouping_indexes)))
+
   aggregate = agg
 
   hist = frame_base.wont_implement_method(DataFrameGroupBy, 'hist',
@@ -3641,6 +3741,60 @@ for method in ELEMENTWISE_STRING_METHODS:
           frame_base._elementwise_method(make_str_func(method),
                                          name=method,
                                          base=pd.core.strings.StringMethods))
+
+
+def make_cat_func(method):
+  def func(df, *args, **kwargs):
+    return getattr(df.cat, method)(*args, **kwargs)
+
+  return func
+
+
+class _DeferredCategoricalMethods(frame_base.DeferredBase):
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
+  def categories(self):
+    return self._expr.proxy().cat.categories
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
+  def ordered(self):
+    return self._expr.proxy().cat.ordered
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
+  def codes(self):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'codes',
+            lambda s: s.cat.codes,
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary(),
+        )
+    )
+
+  remove_unused_categories = frame_base.wont_implement_method(
+      pd.core.arrays.categorical.CategoricalAccessor,
+      'remove_unused_categories', reason="non-deferred-columns")
+
+ELEMENTWISE_CATEGORICAL_METHODS = [
+    'add_categories',
+    'as_ordered',
+    'as_unordered',
+    'remove_categories',
+    'rename_categories',
+    'reorder_categories',
+    'set_categories',
+]
+
+for method in ELEMENTWISE_CATEGORICAL_METHODS:
+  setattr(_DeferredCategoricalMethods,
+          method,
+          frame_base._elementwise_method(
+              make_cat_func(method), name=method,
+              base=pd.core.arrays.categorical.CategoricalAccessor))
+
 
 for base in ['add',
              'sub',
