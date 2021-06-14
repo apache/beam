@@ -40,18 +40,25 @@ public final class WriteResult implements POutput {
   private final PCollection<TableRow> failedInserts;
   private final TupleTag<BigQueryInsertError> failedInsertsWithErrTag;
   private final PCollection<BigQueryInsertError> failedInsertsWithErr;
+  private final PCollection<TableRow> successfulInserts;
 
   /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
   static WriteResult in(
-      Pipeline pipeline, TupleTag<TableRow> failedInsertsTag, PCollection<TableRow> failedInserts) {
-    return new WriteResult(pipeline, failedInsertsTag, failedInserts, null, null);
+      Pipeline pipeline,
+      TupleTag<TableRow> failedInsertsTag,
+      PCollection<TableRow> failedInserts,
+      PCollection<TableRow> successfulInserts) {
+    return new WriteResult(
+        pipeline, failedInsertsTag, failedInserts, null, null, successfulInserts);
   }
 
   static WriteResult withExtendedErrors(
       Pipeline pipeline,
       TupleTag<BigQueryInsertError> failedInsertsTag,
-      PCollection<BigQueryInsertError> failedInserts) {
-    return new WriteResult(pipeline, null, null, failedInsertsTag, failedInserts);
+      PCollection<BigQueryInsertError> failedInserts,
+      PCollection<TableRow> successfulInserts) {
+    return new WriteResult(
+        pipeline, null, null, failedInsertsTag, failedInserts, successfulInserts);
   }
 
   @Override
@@ -68,12 +75,14 @@ public final class WriteResult implements POutput {
       TupleTag<TableRow> failedInsertsTag,
       PCollection<TableRow> failedInserts,
       TupleTag<BigQueryInsertError> failedInsertsWithErrTag,
-      PCollection<BigQueryInsertError> failedInsertsWithErr) {
+      PCollection<BigQueryInsertError> failedInsertsWithErr,
+      PCollection<TableRow> successfulInserts) {
     this.pipeline = pipeline;
     this.failedInsertsTag = failedInsertsTag;
     this.failedInserts = failedInserts;
     this.failedInsertsWithErrTag = failedInsertsWithErrTag;
     this.failedInsertsWithErr = failedInsertsWithErr;
+    this.successfulInserts = successfulInserts;
   }
 
   /**
@@ -89,6 +98,14 @@ public final class WriteResult implements POutput {
         "Cannot use getFailedInserts as this WriteResult uses extended errors"
             + " information. Use getFailedInsertsWithErr instead");
     return failedInserts;
+  }
+
+  /** Returns a {@link PCollection} containing the {@link TableRow}s that were written to BQ. */
+  public PCollection<TableRow> getSuccessfulInserts() {
+    checkArgument(
+        successfulInserts != null,
+        "Retrieving successful inserts is only supported for streaming inserts.");
+    return successfulInserts;
   }
 
   /**

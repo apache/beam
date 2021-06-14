@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -245,26 +246,36 @@ public class StreamingWriteTables<ElementT>
   public WriteResult expand(PCollection<KV<TableDestination, ElementT>> input) {
     if (extendedErrorInfo) {
       TupleTag<BigQueryInsertError> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
-      PCollection<BigQueryInsertError> failedInserts =
+      PCollectionTuple result =
           writeAndGetErrors(
               input,
               failedInsertsTag,
               BigQueryInsertErrorCoder.of(),
               ErrorContainer.BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER);
-      return WriteResult.withExtendedErrors(input.getPipeline(), failedInsertsTag, failedInserts);
+      PCollection<BigQueryInsertError> failedInserts = result.get(failedInsertsTag);
+      return WriteResult.withExtendedErrors(
+          input.getPipeline(),
+          failedInsertsTag,
+          failedInserts,
+          result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG));
     } else {
       TupleTag<TableRow> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
-      PCollection<TableRow> failedInserts =
+      PCollectionTuple result =
           writeAndGetErrors(
               input,
               failedInsertsTag,
               TableRowJsonCoder.of(),
               ErrorContainer.TABLE_ROW_ERROR_CONTAINER);
-      return WriteResult.in(input.getPipeline(), failedInsertsTag, failedInserts);
+      PCollection<TableRow> failedInserts = result.get(failedInsertsTag);
+      return WriteResult.in(
+          input.getPipeline(),
+          failedInsertsTag,
+          failedInserts,
+          result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG));
     }
   }
 
-  private <T> PCollection<T> writeAndGetErrors(
+  private <T> PCollectionTuple writeAndGetErrors(
       PCollection<KV<TableDestination, ElementT>> input,
       TupleTag<T> failedInsertsTag,
       AtomicCoder<T> coder,
@@ -305,20 +316,22 @@ public class StreamingWriteTables<ElementT>
 
       // Auto-sharding is achieved via GroupIntoBatches.WithShardedKey transform which groups and at
       // the same time batches the TableRows to be inserted to BigQuery.
-      return unshardedTagged.apply(
-          "StreamingWrite",
-          new BatchedStreamingWrite<>(
-                  bigQueryServices,
-                  retryPolicy,
-                  failedInsertsTag,
-                  coder,
-                  errorContainer,
-                  skipInvalidRows,
-                  ignoreUnknownValues,
-                  ignoreInsertIds,
-                  toTableRow,
-                  toFailsafeTableRow)
-              .viaStateful());
+      PCollectionTuple result =
+          unshardedTagged.apply(
+              "StreamingWrite",
+              new BatchedStreamingWrite<>(
+                      bigQueryServices,
+                      retryPolicy,
+                      failedInsertsTag,
+                      coder,
+                      errorContainer,
+                      skipInvalidRows,
+                      ignoreUnknownValues,
+                      ignoreInsertIds,
+                      toTableRow,
+                      toFailsafeTableRow)
+                  .viaStateful());
+      return result;
     } else {
       // We create 50 keys per BigQuery table to generate output on. This is few enough that we
       // get good batching into BigQuery's insert calls, and enough that we can max out the
@@ -334,44 +347,47 @@ public class StreamingWriteTables<ElementT>
                       ShardedKeyCoder.of(StringUtf8Coder.of()),
                       TableRowInfoCoder.of(elementCoder)));
 
-      return shardedTagged
-          .apply(Reshuffle.of())
-          // Put in the global window to ensure that DynamicDestinations side inputs are accessed
-          // correctly.
-          .apply(
-              "GlobalWindow",
-              Window.<KV<ShardedKey<String>, TableRowInfo<ElementT>>>into(new GlobalWindows())
-                  .triggering(DefaultTrigger.of())
-                  .discardingFiredPanes())
-          .apply(
-              "StripShardId",
-              MapElements.via(
-                  new SimpleFunction<
-                      KV<ShardedKey<String>, TableRowInfo<ElementT>>,
-                      KV<String, TableRowInfo<ElementT>>>() {
-                    @Override
-                    public KV<String, TableRowInfo<ElementT>> apply(
-                        KV<ShardedKey<String>, TableRowInfo<ElementT>> input) {
-                      return KV.of(input.getKey().getKey(), input.getValue());
-                    }
-                  }))
-          .setCoder(KvCoder.of(StringUtf8Coder.of(), TableRowInfoCoder.of(elementCoder)))
-          // Also batch the TableRows in a best effort manner via bundle finalization before
-          // inserting to BigQuery.
-          .apply(
-              "StreamingWrite",
-              new BatchedStreamingWrite<>(
-                      bigQueryServices,
-                      retryPolicy,
-                      failedInsertsTag,
-                      coder,
-                      errorContainer,
-                      skipInvalidRows,
-                      ignoreUnknownValues,
-                      ignoreInsertIds,
-                      toTableRow,
-                      toFailsafeTableRow)
-                  .viaDoFnFinalization());
+      PCollectionTuple result =
+          shardedTagged
+              .apply(Reshuffle.of())
+              // Put in the global window to ensure that DynamicDestinations side inputs are
+              // accessed
+              // correctly.
+              .apply(
+                  "GlobalWindow",
+                  Window.<KV<ShardedKey<String>, TableRowInfo<ElementT>>>into(new GlobalWindows())
+                      .triggering(DefaultTrigger.of())
+                      .discardingFiredPanes())
+              .apply(
+                  "StripShardId",
+                  MapElements.via(
+                      new SimpleFunction<
+                          KV<ShardedKey<String>, TableRowInfo<ElementT>>,
+                          KV<String, TableRowInfo<ElementT>>>() {
+                        @Override
+                        public KV<String, TableRowInfo<ElementT>> apply(
+                            KV<ShardedKey<String>, TableRowInfo<ElementT>> input) {
+                          return KV.of(input.getKey().getKey(), input.getValue());
+                        }
+                      }))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), TableRowInfoCoder.of(elementCoder)))
+              // Also batch the TableRows in a best effort manner via bundle finalization before
+              // inserting to BigQuery.
+              .apply(
+                  "StreamingWrite",
+                  new BatchedStreamingWrite<>(
+                          bigQueryServices,
+                          retryPolicy,
+                          failedInsertsTag,
+                          coder,
+                          errorContainer,
+                          skipInvalidRows,
+                          ignoreUnknownValues,
+                          ignoreInsertIds,
+                          toTableRow,
+                          toFailsafeTableRow)
+                      .viaDoFnFinalization());
+      return result;
     }
   }
 }
