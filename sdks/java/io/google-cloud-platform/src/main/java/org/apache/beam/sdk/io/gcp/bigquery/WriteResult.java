@@ -29,6 +29,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The result of a {@link BigQueryIO.Write} transform. */
 @SuppressWarnings({
@@ -47,7 +48,7 @@ public final class WriteResult implements POutput {
       Pipeline pipeline,
       TupleTag<TableRow> failedInsertsTag,
       PCollection<TableRow> failedInserts,
-      PCollection<TableRow> successfulInserts) {
+      @Nullable PCollection<TableRow> successfulInserts) {
     return new WriteResult(
         pipeline, failedInsertsTag, failedInserts, null, null, successfulInserts);
   }
