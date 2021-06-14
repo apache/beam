@@ -494,8 +494,8 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_string_tests(self):
-    PD_VERSION = tuple(int(v) for v in pd.__version__.split('.'))
-    if PD_VERSION < (1, 2, 0):
+    PD_VERSION = tuple(int(v) for v in pd.__version__.split('.')[:2])
+    if PD_VERSION < (1, 2):
       module = pd.core.strings
     else:
       # Definitions were moved to accessor in pandas 1.2.0

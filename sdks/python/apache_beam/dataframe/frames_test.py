@@ -25,7 +25,8 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames
 
-PD_VERSION = tuple(map(int, pd.__version__.split('.')))
+# Get major, minor version
+PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
 
 GROUPBY_DF = pd.DataFrame({
     'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
