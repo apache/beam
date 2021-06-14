@@ -108,6 +108,7 @@ public class BeamFnDataReadRunnerTest {
           .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance())
           .setCoderId(CODER_SPEC_ID)
           .build();
+  private static final String DEFAULT_BUNDLE_ID = "57";
 
   static {
     try {
@@ -178,7 +179,7 @@ public class BeamFnDataReadRunnerTest {
               null /* beamFnTimerClient */,
               pTransformId,
               pTransform,
-              Suppliers.ofInstance(bundleId)::get,
+              Suppliers.ofInstance(DEFAULT_BUNDLE_ID)::get,
               ImmutableMap.of(
                   localOutputId,
                   RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
@@ -363,7 +364,8 @@ public class BeamFnDataReadRunnerTest {
       // The split should happen at 5 since the allowedSplitPoints is empty.
       assertEquals(
           channelSplitResult(5),
-          executeSplit(readRunner, PTRANSFORM_ID, -1L, 0.5, 10, Collections.EMPTY_LIST));
+          executeSplit(
+              readRunner, PTRANSFORM_ID, DEFAULT_BUNDLE_ID, -1L, 0.5, 10, Collections.EMPTY_LIST));
 
       readRunner.registerInputLocation();
       // Ensure that we process the correct number of elements after splitting.
@@ -393,7 +395,8 @@ public class BeamFnDataReadRunnerTest {
       // The split should happen at 5 since the allowedSplitPoints is empty.
       assertEquals(
           channelSplitResult(5),
-          executeSplit(readRunner, PTRANSFORM_ID, -1L, 0.5, 10, Collections.EMPTY_LIST));
+          executeSplit(
+              readRunner, PTRANSFORM_ID, DEFAULT_BUNDLE_ID, -1L, 0.5, 10, Collections.EMPTY_LIST));
 
       // Ensure that we process the correct number of elements after splitting.
       readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
@@ -421,7 +424,8 @@ public class BeamFnDataReadRunnerTest {
       readRunner.registerInputLocation();
       assertEquals(
           channelSplitResult(6),
-          executeSplit(readRunner, PTRANSFORM_ID, 1L, 0.5, 10, Collections.EMPTY_LIST));
+          executeSplit(
+              readRunner, PTRANSFORM_ID, DEFAULT_BUNDLE_ID, 1L, 0.5, 10, Collections.EMPTY_LIST));
 
       // Ensure that we process the correct number of elements after splitting.
       readRunner.forwardElementToConsumer(valueInGlobalWindow("1"));
@@ -438,6 +442,36 @@ public class BeamFnDataReadRunnerTest {
               valueInGlobalWindow("2"),
               valueInGlobalWindow("3"),
               valueInGlobalWindow("4")));
+    }
+
+    @Test
+    public void testSplittingAfterReuse() throws Exception {
+      List<WindowedValue<String>> outputValues = new ArrayList<>();
+      BeamFnDataReadRunner<String> readRunner =
+          createReadRunner(outputValues::add, PTRANSFORM_ID, mockBeamFnDataClient);
+      readRunner.registerInputLocation();
+      // This split should not be executed.
+      assertEquals(
+          BeamFnApi.ProcessBundleSplitResponse.getDefaultInstance(),
+          executeSplit(
+              readRunner, PTRANSFORM_ID, "previousBundleId", 1L, 0.25, 10, Collections.EMPTY_LIST));
+
+      // Ensure that we process the correct number of elements after *not* splitting.
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("1"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("2"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("3"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("4"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("5"));
+      assertThat(
+          outputValues,
+          contains(
+              valueInGlobalWindow("-1"),
+              valueInGlobalWindow("0"),
+              valueInGlobalWindow("1"),
+              valueInGlobalWindow("2"),
+              valueInGlobalWindow("3"),
+              valueInGlobalWindow("4"),
+              valueInGlobalWindow("5")));
     }
   }
 
@@ -494,6 +528,7 @@ public class BeamFnDataReadRunnerTest {
           executeSplit(
               readRunner,
               PTRANSFORM_ID,
+              DEFAULT_BUNDLE_ID,
               index,
               fractionOfRemainder,
               bufferSize,
@@ -558,6 +593,7 @@ public class BeamFnDataReadRunnerTest {
           executeSplit(
               readRunner,
               PTRANSFORM_ID,
+              DEFAULT_BUNDLE_ID,
               index,
               fractionOfRemainder,
               bufferSize,
@@ -620,6 +656,7 @@ public class BeamFnDataReadRunnerTest {
           executeSplit(
               readRunner,
               PTRANSFORM_ID,
+              DEFAULT_BUNDLE_ID,
               index,
               fractionOfRemainder,
               bufferSize,
@@ -685,6 +722,7 @@ public class BeamFnDataReadRunnerTest {
           executeSplit(
               readRunner,
               PTRANSFORM_ID,
+              DEFAULT_BUNDLE_ID,
               index,
               fractionOfRemainder,
               bufferSize,
@@ -716,7 +754,6 @@ public class BeamFnDataReadRunnerTest {
       String pTransformId,
       BeamFnDataClient dataClient)
       throws Exception {
-    String bundleId = "57";
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
@@ -744,7 +781,7 @@ public class BeamFnDataReadRunnerTest {
             null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
-            Suppliers.ofInstance(bundleId)::get,
+            Suppliers.ofInstance(DEFAULT_BUNDLE_ID)::get,
             ImmutableMap.of(
                 localOutputId,
                 RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
@@ -771,6 +808,7 @@ public class BeamFnDataReadRunnerTest {
   private static ProcessBundleSplitResponse executeSplit(
       BeamFnDataReadRunner<String> readRunner,
       String pTransformId,
+      String bundleId,
       long index,
       double fractionOfRemainder,
       long inputElements,
@@ -781,6 +819,7 @@ public class BeamFnDataReadRunnerTest {
     }
     ProcessBundleSplitRequest request =
         ProcessBundleSplitRequest.newBuilder()
+            .setInstructionId(bundleId)
             .putDesiredSplits(
                 pTransformId,
                 DesiredSplit.newBuilder()
