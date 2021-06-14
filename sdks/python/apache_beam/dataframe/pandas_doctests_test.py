@@ -99,7 +99,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.sample': ['*'],
             'pandas.core.generic.NDFrame.set_flags': ['*'],
             'pandas.core.generic.NDFrame.squeeze': ['*'],
-            'pandas.core.generic.NDFrame.transform': ['*'],
             'pandas.core.generic.NDFrame.truncate': ['*'],
             'pandas.core.generic.NDFrame.xs': ['*'],
             # argsort unimplemented
@@ -235,7 +234,12 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         not_implemented_ok={
-            'pandas.core.frame.DataFrame.transform': ['*'],
+            'pandas.core.frame.DataFrame.transform': [
+                # str arg not supported. Tested with np.sum in
+                # frames_test.py::DeferredFrameTest::test_groupby_transform_sum
+                "df.groupby('Date')['Data'].transform('sum')",
+            ],
+            'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
 
@@ -272,7 +276,6 @@ class DoctestTest(unittest.TestCase):
         },
         skip={
             # Throws NotImplementedError when modifying df
-            'pandas.core.frame.DataFrame.transform': ['df'],
             'pandas.core.frame.DataFrame.axes': [
                 # Returns deferred index.
                 'df.axes',
@@ -437,7 +440,11 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         not_implemented_ok={
-            'pandas.core.series.Series.transform': ['*'],
+            'pandas.core.series.Series.transform': [
+                # str arg not supported. Tested with np.sum in
+                # frames_test.py::DeferredFrameTest::test_groupby_transform_sum
+                "df.groupby('Date')['Data'].transform('sum')",
+            ],
             'pandas.core.series.Series.groupby': [
                 'ser.groupby(["a", "b", "a", "b"]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
@@ -453,7 +460,6 @@ class DoctestTest(unittest.TestCase):
                 's1.append(s2, verify_integrity=True)',
             ],
             # Throws NotImplementedError when modifying df
-            'pandas.core.series.Series.transform': ['df'],
             'pandas.core.series.Series.autocorr': ['*'],
             'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
@@ -662,7 +668,6 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         not_implemented_ok={
-            'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.filter': ['*'],
