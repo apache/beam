@@ -115,13 +115,6 @@ jobs:
           path: runners/core-java/build/reports/tests/test
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - name: "Install postgresql image"
-        uses: harmon758/postgresql-action@v1
-        with:
-          postgresql version: '10'
-          postgresql db: ${{ secrets.DB_NAME }}
-          postgresql user: ${{ secrets.DB_USER_NAME }}
-          postgresql password: ${{ secrets.DB_PASSWORD }}
       - name: "Java Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
@@ -167,13 +160,6 @@ jobs:
           path: examples/java/build/reports/tests/integrationTest
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - name: "Install postgresql image"
-        uses: harmon758/postgresql-action@v1
-        with:
-          postgresql version: '10'
-          postgresql db: ${{ secrets.DB_NAME }}
-          postgresql user: ${{ secrets.DB_USER_NAME }}
-          postgresql password: ${{ secrets.DB_PASSWORD }}
       - name: "Java Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
@@ -235,13 +221,6 @@ jobs:
           path: examples/java/build/reports/tests/integrationTest
       - name: "Install psycopg2"
         run: pip install psycopg2
-      - name: "Install postgresql image"
-        uses: harmon758/postgresql-action@v1
-        with:
-          postgresql version: '10'
-          postgresql db: ${{ secrets.DB_NAME }}
-          postgresql user: ${{ secrets.DB_USER_NAME }}
-          postgresql password: ${{ secrets.DB_PASSWORD }}
       - name: "Java Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
