@@ -1085,6 +1085,12 @@ class GroupByTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
+  def test_groupby_dtypes(self):
+    self._run_test(
+        lambda df: df.groupby('group').dtypes, GROUPBY_DF, check_proxy=False)
+    self._run_test(
+        lambda df: df.groupby(level=0).dtypes, GROUPBY_DF, check_proxy=False)
+
 
 class AggregationTest(_AbstractFrameTest):
   """Tests for global aggregation methods on DataFrame/Series."""
@@ -1721,6 +1727,14 @@ class ConstructionTimeTest(unittest.TestCase):
 
   def test_categorical_ordered(self):
     self._run_test(lambda df: df.cat_col.cat.ordered)
+
+  def test_groupby_ndim(self):
+    self._run_test(lambda df: df.groupby('int_col').ndim)
+
+  def test_groupby_project_ndim(self):
+    self._run_test(lambda df: df.groupby('int_col').flt_col.ndim)
+    self._run_test(
+        lambda df: df.groupby('int_col')[['flt_col', 'str_col']].ndim)
 
 
 class DocstringTest(unittest.TestCase):
