@@ -272,9 +272,11 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
-def final JOB_SPECIFIC_SWITCHES = ['-Prunner.version="V2"',
-                                   '-PcompileAndRunTestsWithJava11',
-                                   "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"]
+def final JOB_SPECIFIC_SWITCHES = [
+  '-Prunner.version="V2"',
+  '-PcompileAndRunTestsWithJava11',
+  "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"
+]
 
 def streamingLoadTestJob = { scope, triggeringContext ->
   scope.description('Runs Java 11 GBK load tests on Dataflow runner V2 in streaming mode')

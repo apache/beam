@@ -67,27 +67,27 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         streaming             : isStreaming
       ]
     ],
-        [
-          title          : 'Load test: CoGBK 2GB 100 byte records - multiple keys',
-          test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-          runner         : CommonTestProperties.Runner.DATAFLOW,
-          pipelineOptions: [
-            project               : 'apache-beam-testing',
-            region                : 'us-central1',
-            appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_2",
-            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-            publishToBigQuery     : true,
-            bigQueryDataset       : datasetName,
-            bigQueryTable         : "java11_dataflow_v2_${mode}_CoGBK_2",
-            influxMeasurement     : "java_${mode}_cogbk_2",
-            influxTags            : """
+    [
+      title          : 'Load test: CoGBK 2GB 100 byte records - multiple keys',
+      test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+      runner         : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_2",
+        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+        publishToBigQuery     : true,
+        bigQueryDataset       : datasetName,
+        bigQueryTable         : "java11_dataflow_v2_${mode}_CoGBK_2",
+        influxMeasurement     : "java_${mode}_cogbk_2",
+        influxTags            : """
                                   {
                                     "runnerVersion": "v2",
                                     "jdk": "java11"
                                   }
                                 """.trim().replaceAll("\\s", ""),
-            publishToInfluxDB     : true,
-            sourceOptions         : """
+        publishToInfluxDB     : true,
+        sourceOptions         : """
                   {
                     "numRecords": 20000000,
                     "keySizeBytes": 10,
@@ -95,7 +95,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     "numHotKeys": 5
                   }
                 """.trim().replaceAll("\\s", ""),
-            coSourceOptions       : """
+        coSourceOptions       : """
                           {
                             "numRecords": 2000000,
                             "keySizeBytes": 10,
@@ -103,34 +103,34 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             "numHotKeys": 1000
                           }
                         """.trim().replaceAll("\\s", ""),
-            iterations            : 1,
-            numWorkers            : 5,
-            autoscalingAlgorithm  : "NONE",
-            streaming             : isStreaming
-          ]
-        ],
-        [
+        iterations            : 1,
+        numWorkers            : 5,
+        autoscalingAlgorithm  : "NONE",
+        streaming             : isStreaming
+      ]
+    ],
+    [
 
-          title          : 'Load test: CoGBK 2GB reiteration 10kB value',
-          test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-          runner         : CommonTestProperties.Runner.DATAFLOW,
-          pipelineOptions: [
-            project               : 'apache-beam-testing',
-            region                : 'us-central1',
-            appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_3",
-            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-            publishToBigQuery     : true,
-            bigQueryDataset       : datasetName,
-            bigQueryTable         : "java11_dataflow_v2_${mode}_CoGBK_3",
-            influxMeasurement     : "java_${mode}_cogbk_3",
-            influxTags            : """
+      title          : 'Load test: CoGBK 2GB reiteration 10kB value',
+      test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+      runner         : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_3",
+        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+        publishToBigQuery     : true,
+        bigQueryDataset       : datasetName,
+        bigQueryTable         : "java11_dataflow_v2_${mode}_CoGBK_3",
+        influxMeasurement     : "java_${mode}_cogbk_3",
+        influxTags            : """
                                   {
                                     "runnerVersion": "v2",
                                     "jdk": "java11"
                                   }
                                 """.trim().replaceAll("\\s", ""),
-            publishToInfluxDB     : true,
-            sourceOptions         : """
+        publishToInfluxDB     : true,
+        sourceOptions         : """
                               {
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
@@ -138,7 +138,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                 "numHotKeys": 200000
                               }
                             """.trim().replaceAll("\\s", ""),
-            coSourceOptions       : """
+        coSourceOptions       : """
                               {
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
@@ -146,34 +146,34 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
-            iterations            : 4,
-            numWorkers            : 5,
-            autoscalingAlgorithm  : "NONE",
-            streaming             : isStreaming
-          ]
+        iterations            : 4,
+        numWorkers            : 5,
+        autoscalingAlgorithm  : "NONE",
+        streaming             : isStreaming
+      ]
 
-        ],
-        [
-          title          : 'Load test: CoGBK 2GB reiteration 2MB value',
-          test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-          runner         : CommonTestProperties.Runner.DATAFLOW,
-          pipelineOptions: [
-            project               : 'apache-beam-testing',
-            region                : 'us-central1',
-            appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_4",
-            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-            publishToBigQuery     : true,
-            bigQueryDataset       : datasetName,
-            bigQueryTable         : "java11_dataflow_v2_${mode}_CoGBK_4",
-            influxMeasurement     : "java_${mode}_cogbk_4",
-            influxTags            : """
+    ],
+    [
+      title          : 'Load test: CoGBK 2GB reiteration 2MB value',
+      test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+      runner         : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_4",
+        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+        publishToBigQuery     : true,
+        bigQueryDataset       : datasetName,
+        bigQueryTable         : "java11_dataflow_v2_${mode}_CoGBK_4",
+        influxMeasurement     : "java_${mode}_cogbk_4",
+        influxTags            : """
                                   {
                                     "runnerVersion": "v2",
                                     "jdk": "java11"
                                   }
                                 """.trim().replaceAll("\\s", ""),
-            publishToInfluxDB     : true,
-            sourceOptions         : """
+        publishToInfluxDB     : true,
+        sourceOptions         : """
                               {
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
@@ -181,7 +181,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
-            coSourceOptions       : """
+        coSourceOptions       : """
                               {
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
@@ -189,18 +189,20 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
-            iterations            : 4,
-            numWorkers            : 5,
-            autoscalingAlgorithm  : "NONE",
-            streaming             : isStreaming
-          ]
-        ]
+        iterations            : 4,
+        numWorkers            : 5,
+        autoscalingAlgorithm  : "NONE",
+        streaming             : isStreaming
+      ]
+    ]
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
-def final JOB_SPECIFIC_SWITCHES = ['-Prunner.version="V2"',
-                                   '-PcompileAndRunTestsWithJava11',
-                                   "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"]
+def final JOB_SPECIFIC_SWITCHES = [
+  '-Prunner.version="V2"',
+  '-PcompileAndRunTestsWithJava11',
+  "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"
+]
 
 def streamingLoadTestJob = { scope, triggeringContext ->
   scope.description('Runs Java 11 CoGBK load tests on Dataflow runner V2 in streaming mode')

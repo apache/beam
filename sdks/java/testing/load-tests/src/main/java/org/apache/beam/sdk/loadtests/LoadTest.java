@@ -24,8 +24,8 @@ import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,7 +82,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   private final InfluxDBSettings settings;
 
-  private final Map<String,String> influxTags;
+  private final Map<String, String> influxTags;
 
   LoadTest(String[] args, Class<OptionsT> testOptions, String metricsNamespace) throws IOException {
     this.metricsNamespace = metricsNamespace;
@@ -155,16 +155,12 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     StringBuilder metricBuilder = new StringBuilder(runner);
     if (influxTags != null && !influxTags.isEmpty()) {
       influxTags.entrySet().stream()
-              .forEach(
-                      entry -> {
-                        metricBuilder
-                                .append(entry.getValue())
-                                        .append("_");
-                      }
-              );
+          .forEach(
+              entry -> {
+                metricBuilder.append(entry.getValue()).append("_");
+              });
     }
-    metricBuilder
-            .append(suffix);
+    metricBuilder.append(suffix);
     return metricBuilder.toString();
   }
 
@@ -183,7 +179,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
         NamedTestResult.create(
             testId,
             timestamp.toString(),
-                buildMetric("total_bytes_count"),
+            buildMetric("total_bytes_count"),
             reader.getCounterMetric("totalBytes.count"));
 
     return Arrays.asList(runtime, totalBytes);

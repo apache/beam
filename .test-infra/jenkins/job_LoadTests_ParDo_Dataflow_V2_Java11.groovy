@@ -170,14 +170,16 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
-def final JOB_SPECIFIC_SWITCHES = ['-Prunner.version="V2"',
-                                   '-PcompileAndRunTestsWithJava11',
-                                   "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"]
+def final JOB_SPECIFIC_SWITCHES = [
+  '-Prunner.version="V2"',
+  '-PcompileAndRunTestsWithJava11',
+  "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"
+]
 
 def batchLoadTestJob = { scope, triggeringContext ->
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false, datasetName),
-          "ParDo", "batch", JOB_SPECIFIC_SWITCHES, loadTestsBuilder.JAVA_11_RUNTIME_VERSION)
+      "ParDo", "batch", JOB_SPECIFIC_SWITCHES, loadTestsBuilder.JAVA_11_RUNTIME_VERSION)
 }
 
 def streamingLoadTestJob = {scope, triggeringContext ->
@@ -188,7 +190,7 @@ def streamingLoadTestJob = {scope, triggeringContext ->
   for (testConfiguration in commonLoadTestConfig('streaming', true, datasetName)) {
     testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
     loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA,
-            testConfiguration.pipelineOptions, testConfiguration.test, JOB_SPECIFIC_SWITCHES, loadTestsBuilder.JAVA_11_RUNTIME_VERSION)
+        testConfiguration.pipelineOptions, testConfiguration.test, JOB_SPECIFIC_SWITCHES, loadTestsBuilder.JAVA_11_RUNTIME_VERSION)
   }
 }
 
