@@ -96,8 +96,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>MongoDB sink supports writing of Document (as JSON String) in a MongoDB.
  *
- * <p>To configure a MongoDB sink, you must specify a connection {@code URI}, a {@code Database}
- * name, a {@code Collection} name. For instance:
+ * <p>To configure a MongoDB sink and insert/replace, you must specify a connection {@code URI}, a
+ * {@code Database} name, a {@code Collection} name. For instance:
  *
  * <pre>{@code
  * pipeline
@@ -108,6 +108,28 @@ import org.slf4j.LoggerFactory;
  *     .withCollection("my-collection")
  *     .withNumSplits(30))
  *
+ * }</pre>
+ *
+ * *
+ *
+ * <p>To configure a MongoDB sink and update, you must specify a connection {@code URI}, a {@code
+ * Database} * name, a {@code Collection} name. It matches the key with _id in target collection.
+ * For instance: * *
+ *
+ * <pre>{@code
+ * * pipeline
+ * *   .apply(...)
+ * *   .apply(MongoDbIO.write()
+ * *     .withUri("mongodb://localhost:27017")
+ * *     .withDatabase("my-database")
+ * *     .withCollection("my-collection")
+ * *     .withIsUpdate(true)
+ * *     .withUpdateKey("key-to-match")
+ * *     .withUpdateField("field-to-update")
+ * *     .withUpdateOperator("$set")
+ * *     .withNumSplits(30))
+ * *
+ * *
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
