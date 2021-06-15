@@ -348,10 +348,15 @@ class DeferredFrameTest(_AbstractFrameTest):
         nonparallel=True)
 
   def test_combine_Series(self):
-    with expressions.allow_non_parallel_operations():
-      s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
-      s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
-      self._run_test(lambda s1, s2: s1.combine(s2, max), s1, s2)
+    s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
+    s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
+    self._run_test(
+        lambda s1,
+        s2: s1.combine(s2, max),
+        s1,
+        s2,
+        nonparallel=True,
+        check_proxy=False)
 
   def test_combine_first_dataframe(self):
     df1 = pd.DataFrame({'A': [None, 0], 'B': [None, 4]})
