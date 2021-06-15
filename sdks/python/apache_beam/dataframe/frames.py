@@ -2466,6 +2466,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           f"(got frac={frac!r}, random_state={random_state!r}, "
           f"replace={replace!r}). See BEAM-12476.")
 
+    if n is None:
+      n = 1
+
     if isinstance(weights, str):
       weights = self[weights]
 
@@ -2481,12 +2484,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           requires_partition_by=partitionings.Index(),
           preserves_partition_by=partitionings.Arbitrary()))
     else:
+      # See "Fast Parallel Weighted Random Sampling" by Efraimidis and Spirakis
+      # https://www.cti.gr/images_gr/reports/99-06-02.ps
+      def assign_randomized_weights(df, weights):
+        non_zero_weights = (weights > 0) | pd.Series(dtype=bool, index=df.index)
+        df = df.loc[non_zero_weights]
+        weights = weights.loc[non_zero_weights]
+        random_weights = np.log(np.random.rand(len(weights))) / weights
+        return df.assign(**{tmp_weight_column_name: random_weights})
       self_with_randomized_weights = frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
           'randomized_weights',
-          lambda df, weights: df.assign(**{tmp_weight_column_name:
-                                           weights * np.random.rand(
-                                               *weights.shape)}),
+          assign_randomized_weights,
           [self._expr, weights._expr],
           requires_partition_by=partitionings.Index(),
           preserves_partition_by=partitionings.Arbitrary()))
