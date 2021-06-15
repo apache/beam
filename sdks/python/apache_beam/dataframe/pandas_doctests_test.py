@@ -37,9 +37,7 @@ class DoctestTest(unittest.TestCase):
         use_beam=False,
         report=True,
         wont_implement_ok={
-            'pandas.core.generic.NDFrame.first': ['*'],
             'pandas.core.generic.NDFrame.head': ['*'],
-            'pandas.core.generic.NDFrame.last': ['*'],
             'pandas.core.generic.NDFrame.shift': [
                 'df.shift(periods=3)',
                 'df.shift(periods=3, fill_value=0)',
