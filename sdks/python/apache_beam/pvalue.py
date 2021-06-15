@@ -413,7 +413,16 @@ class _UnpickledSideInput(AsSideInput):
 
   @staticmethod
   def _from_runtime_iterable(it, options):
-    return options['data'].view_fn(it)
+    access_pattern = options['data'].access_pattern
+    if access_pattern == common_urns.side_inputs.ITERABLE.urn:
+      raw_view = it
+    elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
+      raw_view = collections.defaultdict(list)
+      for k, v in it:
+        raw_view[k].append(v)
+    else:
+      raise ValueError('Unknown access_pattern: %s' % access_pattern)
+    return options['data'].view_fn(raw_view)
 
   def _view_options(self):
     return {
