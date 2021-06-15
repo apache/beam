@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.fn;
+package org.apache.beam.sdk.fn.server;
 
 /** Interface to access headers in the client request. */
 public interface HeaderAccessor {

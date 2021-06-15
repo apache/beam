@@ -36,7 +36,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
-import org.apache.beam.sdk.fn.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;

@@ -28,9 +28,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnE
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.sdk.fn.FnService;
-import org.apache.beam.sdk.fn.GrpcFnServer;
-import org.apache.beam.sdk.fn.ServerFactory;
+import org.apache.beam.sdk.fn.server.FnService;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
