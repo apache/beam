@@ -226,6 +226,13 @@ class DeferredFrameTest(_AbstractFrameTest):
     b = pd.Series([100, 200, 300])
     self._run_test(lambda a, b: a - 2 * b, a, b)
 
+  def test_value_counts_dropna_false(self):
+    df = pd.DataFrame({
+        'first_name': ['John', 'Anne', 'John', 'Beth'],
+        'middle_name': ['Smith', pd.NA, pd.NA, 'Louise']
+    })
+    self._run_test(lambda df: df.value_counts(dropna=False), df)
+
   def test_get_column(self):
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
@@ -559,8 +566,13 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
 
+    if PD_VERSION >= (1, 3):
+      # dropna=False is new in pandas 1.3
+      self._run_test(lambda df: df.value_counts(dropna=False), df)
+
     self._run_test(lambda df: df.num_wings.value_counts(), df)
     self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
+    self._run_test(lambda df: df.num_wings.value_counts(dropna=False), df)
 
   def test_value_counts_does_not_support_sort(self):
     df = pd.DataFrame({

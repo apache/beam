@@ -3191,7 +3191,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.DataFrame)
   def value_counts(self, subset=None, sort=False, normalize=False,
-                   ascending=False):
+                   ascending=False, dropna=True):
     """``sort`` is ``False`` by default, and ``sort=True`` is not supported
     because it imposes an ordering on the dataset which likely will not be
     preserved."""
@@ -3202,10 +3202,16 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
     columns = subset or list(self.columns)
-    result = self.groupby(columns).size()
+
+    if dropna:
+      dropped = self.dropna()
+    else:
+      dropped = self
+
+    result = dropped.groupby(columns, dropna=dropna).size()
 
     if normalize:
-      return result/self.dropna().length()
+      return result/dropped.length()
     else:
       return result
 
