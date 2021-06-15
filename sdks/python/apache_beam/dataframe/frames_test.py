@@ -1469,7 +1469,7 @@ class BeamSpecificTest(unittest.TestCase):
     elif isinstance(expected, pd.DataFrame):
       pd.testing.assert_frame_equal(actual, expected)
 
-  def _run_test(self, func, *args, distributed=True):
+  def _evaluate(self, func, *args, distributed=True):
     deferred_args = [
         frame_base.DeferredFrame.wrap(
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
@@ -1487,7 +1487,7 @@ class BeamSpecificTest(unittest.TestCase):
         'rating': [4, 4, 3.5, 15, 5]
     })
 
-    result = self._run_test(lambda df: df.drop_duplicates(keep='any'), df)
+    result = self._evaluate(lambda df: df.drop_duplicates(keep='any'), df)
 
     # Verify that the result is the same as conventional drop_duplicates
     self.assert_frame_data_equivalent(result, df.drop_duplicates())
@@ -1499,7 +1499,7 @@ class BeamSpecificTest(unittest.TestCase):
         'rating': [4, 4, 3.5, 15, 5]
     })
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df: df.drop_duplicates(keep='any', subset=['brand']), df)
 
     self.assertTrue(result.brand.unique)
@@ -1513,7 +1513,7 @@ class BeamSpecificTest(unittest.TestCase):
         'rating': [4, 4, 3.5, 15, 5]
     })
 
-    result = self._run_test(lambda df: df.brand.drop_duplicates(keep='any'), df)
+    result = self._evaluate(lambda df: df.brand.drop_duplicates(keep='any'), df)
 
     self.assert_frame_data_equivalent(result, df.brand.drop_duplicates())
 
@@ -1524,7 +1524,7 @@ class BeamSpecificTest(unittest.TestCase):
         'rating': [4, 4, 3.5, 15, 5]
     })
 
-    result = self._run_test(lambda df: df.duplicated(keep='any'), df)
+    result = self._evaluate(lambda df: df.duplicated(keep='any'), df)
 
     # Verify that the result is the same as conventional duplicated
     self.assert_frame_data_equivalent(result, df.duplicated())
@@ -1557,7 +1557,7 @@ class BeamSpecificTest(unittest.TestCase):
                           "Anguilla"
                       ])
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df: df.population.nsmallest(3, keep='any'), df)
 
     # keep='any' should produce the same result as keep='first',
@@ -1592,7 +1592,7 @@ class BeamSpecificTest(unittest.TestCase):
                           "Anguilla"
                       ])
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df: df.population.nlargest(3, keep='any'), df)
 
     # keep='any' should produce the same result as keep='first',
@@ -1627,11 +1627,11 @@ class BeamSpecificTest(unittest.TestCase):
                           "Anguilla"
                       ])
 
-    result = self._run_test(lambda df: df.sample(n=3), df)
+    result = self._evaluate(lambda df: df.sample(n=3), df)
 
     self.assertEqual(len(result), 3)
 
-    series_result = self._run_test(lambda df: df.GDP.sample(n=3), df)
+    series_result = self._evaluate(lambda df: df.GDP.sample(n=3), df)
     self.assertEqual(len(series_result), 3)
     self.assertEqual(series_result.name, "GDP")
 
@@ -1665,13 +1665,13 @@ class BeamSpecificTest(unittest.TestCase):
 
     weights = pd.Series([0, 0, 0, 0, 0, 0, 0, 1, 1], index=df.index)
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df, weights: df.sample(n=2, weights=weights), df, weights)
 
     self.assertEqual(len(result), 2)
     self.assertEqual(set(result.index), set(["Tuvalu", "Anguilla"]))
 
-    series_result = self._run_test(
+    series_result = self._evaluate(
         lambda df, weights: df.GDP.sample(n=2, weights=weights), df, weights)
     self.assertEqual(len(series_result), 2)
     self.assertEqual(series_result.name, "GDP")
@@ -1709,13 +1709,13 @@ class BeamSpecificTest(unittest.TestCase):
     weights = pd.Series([.1, .01, np.nan, 0],
                         index=["Nauru", "Iceland", "Anguilla", "Italy"])
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df, weights: df.sample(n=2, weights=weights), df, weights)
 
     self.assertEqual(len(result), 2)
     self.assertEqual(set(result.index), set(["Nauru", "Iceland"]))
 
-    series_result = self._run_test(
+    series_result = self._evaluate(
         lambda df, weights: df.GDP.sample(n=2, weights=weights), df, weights)
 
     self.assertEqual(len(series_result), 2)
@@ -1732,7 +1732,7 @@ class BeamSpecificTest(unittest.TestCase):
     other_weight = (1 - target_prob) / num_other_elements
     self.assertTrue(target_weight > other_weight * 10, "weights too close")
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda s,
         weights: s.sample(n=num_samples, weights=weights).sum(),
         # The first elements are 1, the rest are all 0.  This means that when
