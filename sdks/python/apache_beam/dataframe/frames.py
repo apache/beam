@@ -55,6 +55,9 @@ __all__ = [
     'DeferredDataFrame',
 ]
 
+# Get major, minor version
+PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
+
 
 def populate_not_implemented(pd_type):
   def wrapper(deferred_type):
@@ -2207,8 +2210,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if func in ('quantile',):
       return getattr(self, func)(*args, axis=axis, **kwargs)
 
-    # Maps to a property, args are ignored
-    if func in ('size',):
+    # In pandas<1.3.0, maps to a property, args are ignored
+    if func in ('size',) and PD_VERSION < (1,3):
       return getattr(self, func)
 
     # We also have specialized distributed implementations for these. They only
