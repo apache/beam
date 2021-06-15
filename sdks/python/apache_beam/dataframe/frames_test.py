@@ -1706,7 +1706,8 @@ class BeamSpecificTest(unittest.TestCase):
                       ])
 
     # Missing weights are treated as 0
-    weights = pd.Series([.1, .0001], index=["Nauru", "Iceland"])
+    weights = pd.Series([.1, .01, np.nan, 0],
+                        index=["Nauru", "Iceland", "Anguilla", "Italy"])
 
     result = self._run_test(
         lambda df, weights: df.sample(n=2, weights=weights), df, weights)
@@ -1720,6 +1721,31 @@ class BeamSpecificTest(unittest.TestCase):
     self.assertEqual(len(series_result), 2)
     self.assertEqual(series_result.name, "GDP")
     self.assertEqual(set(series_result.index), set(["Nauru", "Iceland"]))
+
+  def test_sample_with_weights_distribution(self):
+    target_prob = 0.25
+    num_samples = 100
+    num_targets = 200
+    num_other_elements = 10000
+
+    target_weight = target_prob / num_targets
+    other_weight = (1 - target_prob) / num_other_elements
+    self.assertTrue(target_weight > other_weight * 10, "weights too close")
+
+    result = self._run_test(
+        lambda s,
+        weights: s.sample(n=num_samples, weights=weights).sum(),
+        # The first elements are 1, the rest are all 0.  This means that when
+        # we sum all the sampled elements (above), the result should be the
+        # number of times the first elements (aka targets) were sampled.
+        pd.Series([1] * num_targets + [0] * num_other_elements),
+        pd.Series([target_weight] * num_targets +
+                  [other_weight] * num_other_elements))
+
+    # With the above constants, the probability of violating this invariant
+    # (as computed using the Bernoulli distribution) is about 0.0012%.
+    expected = num_samples * target_prob
+    self.assertTrue(expected / 3 < result < expected * 2, (expected, result))
 
 
 class AllowNonParallelTest(unittest.TestCase):
