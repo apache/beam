@@ -3300,7 +3300,17 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                                                       grouping_columns),
             preserves_partition_by=partitionings.Index(grouping_indexes)))
 
+
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def transform(self, fn, *args, **kwargs):
+    """Note that ``func`` will be called once during pipeline construction time
+    with an empty pandas object, so take care if ``func`` has a side effect.
+
+    When called with an empty pandas object, ``func`` is expected to return an
+    object of the same type as what will be returned when the pipeline is
+    processing actual data. The result should have the same type and name (for
+    a Series) or column types and names (for a DataFrame) as the actual
+    results."""
     if not callable(fn):
       raise NotImplementedError(
           "String functions are not yet supported in transform.")
@@ -3349,6 +3359,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Index(levels),
             preserves_partition_by=partitionings.Index(self._grouping_indexes)))
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def filter(self, func=None, dropna=True):
     if func is None or not callable(func):
       raise TypeError("func must be specified and it must be callable")
@@ -3365,7 +3376,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
     return self.apply(apply_fn).droplevel(self._grouping_columns)
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def dtypes(self):
     grouping_columns = self._grouping_columns
     return self.apply(lambda df: df.drop(grouping_columns, axis=1).dtypes)
