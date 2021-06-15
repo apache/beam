@@ -358,10 +358,44 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       grouping_indexes = [0]
 
     elif isinstance(by, DeferredSeries):
-      # TODO(BEAM-11305)
-      raise NotImplementedError(
-          "grouping by a Series is not yet implemented. You can group by a "
-          "DataFrame column by specifying its name.")
+      if isinstance(self, DeferredSeries):
+
+        def set_index(s, by):
+          df = pd.DataFrame(s)
+          df, by = df.align(by, axis=0, join='inner')
+          return df.set_index(by).iloc[:, 0]
+
+        def prepend_index(s, by):
+          df = pd.DataFrame(s)
+          df, by = df.align(by, axis=0, join='inner')
+          return df.set_index([by, df.index]).iloc[:, 0]
+
+      else:
+
+        def set_index(df, by):  # type: ignore
+          df, by = df.align(by, axis=0, join='inner')
+          return df.set_index(by)
+
+        def prepend_index(df, by):  # type: ignore
+          df, by = df.align(by, axis=0, join='inner')
+          return df.set_index([by, df.index])
+
+      to_group = expressions.ComputedExpression(
+          'set_index',
+          set_index, [self._expr, by._expr],
+          requires_partition_by=partitionings.Index(),
+          preserves_partition_by=partitionings.Singleton())
+
+      orig_nlevels = self._expr.proxy().index.nlevels
+      to_group_with_index = expressions.ComputedExpression(
+          'prependindex',
+          prepend_index, [self._expr, by._expr],
+          requires_partition_by=partitionings.Index(),
+          preserves_partition_by=partitionings.Index(
+              list(range(1, orig_nlevels + 1))))
+
+      grouping_columns = []
+      grouping_indexes = [0]
 
     elif isinstance(by, np.ndarray):
       raise frame_base.WontImplementError(
@@ -1602,6 +1636,56 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   unstack = frame_base.wont_implement_method(
       pd.Series, 'unstack', reason='non-deferred-columns')
+
+  @frame_base.with_docs_from(pd.Series)
+  def value_counts(
+      self,
+      sort=False,
+      normalize=False,
+      ascending=False,
+      bins=None,
+      dropna=True):
+    """``sort`` is ``False`` by default, and ``sort=True`` is not supported
+    because it imposes an ordering on the dataset which likely will not be
+    preserved.
+
+    When ``bin`` is specified this operation is not parallelizable. See
+    [BEAM-12441](https://issues.apache.org/jira/browse/BEAM-12441) tracking the
+    possible addition of a distributed implementation."""
+
+    if sort:
+      raise frame_base.WontImplementMethod(
+          "value_counts(sort=True) is not supported because it imposes an "
+          "ordering on the dataset which likely will not be preserved.",
+          reason="order-sensitive")
+
+    if bins is not None:
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'value_counts',
+              lambda s: s.value_counts(
+                  normalize=normalize, bins=bins, dropna=dropna)[self._expr],
+              requires_partition_by=partitionings.Singleton(
+                  reason=(
+                      "value_counts with bin specified requires collecting "
+                      "the entire dataset to identify the range.")),
+              preserves_partition_by=partitionings.Singleton(),
+          ))
+
+    if dropna:
+      column = self.dropna()
+    else:
+      column = self
+
+    result = column.groupby(column).size()
+
+    # groupby.size() names the index, which we don't need
+    result.index.name = None
+
+    if normalize:
+      return result / column.length()
+    else:
+      return result
 
   values = property(
       frame_base.wont_implement_method(
@@ -3520,6 +3604,14 @@ class _DeferredIndex(object):
       [self._frame._expr],
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Arbitrary())
+
+  @property
+  def name(self):
+    return self._frame._expr.proxy().index.name
+
+  @name.setter
+  def name(self, value):
+    self.names = [value]
 
   @property
   def ndim(self):
