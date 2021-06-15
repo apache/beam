@@ -36,6 +36,7 @@ GH_PRS_CREATE_TABLE_QUERY = f"""
   ga_id serial NOT NULL PRIMARY KEY,
   job_name varchar NOT NULL,
   status varchar NOT NULL,
+  workflow_url varchar NOT NULL,
   executed_ts timestamp NOT NULL
   )
   """
@@ -43,11 +44,11 @@ GH_PRS_CREATE_TABLE_QUERY = f"""
 def initDBConnection():
   '''Opens connection to postgresql DB, as configured via global variables.'''
 
-  DB_HOST = sys.argv[3]
-  DB_PORT = sys.argv[4]
-  DB_NAME = sys.argv[5]
-  DB_USER_NAME = sys.argv[6]
-  DB_PASSWORD = sys.argv[7]
+  DB_HOST = sys.argv[4]
+  DB_PORT = sys.argv[5]
+  DB_NAME = sys.argv[6]
+  DB_USER_NAME = sys.argv[7]
+  DB_PASSWORD = sys.argv[8]
 
   conn = None
   while not conn:
@@ -56,9 +57,9 @@ def initDBConnection():
           f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
           f" port='{DB_PORT}' password='{DB_PASSWORD}'")
     except:
-      print('Failed to connect to DB; retrying in 1 day')
+      print('Failed to connect to DB; retrying in one hour')
       sys.stdout.flush()
-      time.sleep(86400)
+      time.sleep(3600)
   return conn
 
 def tableExists(cursor, tableName):
@@ -87,9 +88,10 @@ def insertIntoTable(cursor, values):
   insertRowQuery = f'''INSERT INTO {GH_PRS_TABLE_NAME}
                             (job_name,
                             status,
+                            workflow_url,
                             executed_ts)
                           VALUES
-                            (%s, %s, %s)
+                            (%s, %s, %s, %s)
                           '''
   cursor.execute(insertRowQuery, values)
 
@@ -100,8 +102,9 @@ def fetchNewData():
 
   job_name = sys.argv[1]
   status = sys.argv[2]
+  workflow_url = sys.argv[3]
   executed_ts = datetime.datetime.now()
-  row_values = [job_name, status, executed_ts]
+  row_values = [job_name, status, workflow_url, executed_ts]
   connection = initDBConnection()
   cursor = connection.cursor()
   insertIntoTable(cursor, row_values)
@@ -118,7 +121,7 @@ if __name__ == '__main__':
   '''
   print("Started.")
 
-  if len(sys.argv) < 8:
+  if len(sys.argv) < 9:
     print('Please provide the appropriate number of parameters.')
     print('Exiting...')
 

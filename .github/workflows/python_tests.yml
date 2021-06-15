@@ -137,10 +137,11 @@ jobs:
       - name: "Python Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
+        run: python sync_github_actions.py $name $jobstatus $workflow_url $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
         env:
           name: unit_tests-${{matrix.os}}-${{matrix.params.py_ver}}
           jobstatus: ${{ job.status }}
+          workflow_url: https://github.com/apache/beam/actions/runs/${{ github.run_id }}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -183,10 +184,11 @@ jobs:
       - name: "Python Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
+        run: python sync_github_actions.py $name $jobstatus $workflow_url $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
         env:
           name: word_count_direct_runner-${{matrix.os}}-${{matrix.python}}
           jobstatus: ${{ job.status }}
+          workflow_url: https://github.com/apache/beam/actions/runs/${{ github.run_id }}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -250,10 +252,11 @@ jobs:
       - name: "Python Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
+        run: python sync_github_actions.py $name $jobstatus $workflow_url $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
         env:
           name: word_count_dataflow-${{matrix.os}}-${{matrix.python}}
           jobstatus: ${{ job.status }}
+          workflow_url: https://github.com/apache/beam/actions/runs/${{ github.run_id }}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_NAME: ${{ secrets.DB_NAME }}
