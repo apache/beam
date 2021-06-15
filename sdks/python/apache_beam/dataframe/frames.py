@@ -3155,8 +3155,8 @@ for meth in ('filter', ):
 @populate_not_implemented(DataFrameGroupBy)
 class DeferredGroupBy(frame_base.DeferredFrame):
   def __init__(self, expr, kwargs,
-               ungrouped: expressions.Expression,
-               ungrouped_with_index: expressions.Expression,
+               ungrouped: expressions.Expression[pd.core.generic.NDFrame],
+               ungrouped_with_index: expressions.Expression[pd.core.generic.NDFrame], # pylint: disable=line-too-long
                grouping_columns,
                grouping_indexes,
                projection=None):
@@ -3188,7 +3188,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     self._kwargs = kwargs
 
     if (self._kwargs.get('dropna', True) is False and
-        self._ungrouped.proxy().index.nlevels  > 1):
+        self._ungrouped.proxy().index.nlevels > 1):
       raise NotImplementedError(
           "dropna=False does not work as intended in the Beam DataFrame API "
           "when grouping on multiple columns or indexes (See BEAM-12495).")
