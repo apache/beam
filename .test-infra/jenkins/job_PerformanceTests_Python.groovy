@@ -80,7 +80,7 @@ private void createPythonPerformanceTestJob(Map testConfig) {
         )
 
     publishers {
-      archiveJunit('**/nosetests*.xml') // TODO(BEAM-3713) Change to pytest before merge (Testing)
+      archiveJunit('**/pytest*.xml')
     }
 
     steps {
