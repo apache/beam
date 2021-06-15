@@ -69,6 +69,7 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.generic.NDFrame.fillna': [
                 "df.fillna(method='ffill')",
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.generic.NDFrame.sort_values': ['*'],
@@ -163,6 +164,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.diff': ['*'],
             'pandas.core.frame.DataFrame.fillna': [
                 "df.fillna(method='ffill')",
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.frame.DataFrame.items': ['*'],
@@ -235,6 +237,9 @@ class DoctestTest(unittest.TestCase):
                 # reindex not supported
                 's2 = s.reindex([1, 0, 2, 3])',
             ],
+            'pandas.core.frame.DataFrame.reindex': ['*'],
+            'pandas.core.frame.DataFrame.resample': ['*'],
+            'pandas.core.frame.DataFrame.values': ['*'],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': [
@@ -242,6 +247,8 @@ class DoctestTest(unittest.TestCase):
                 # frames_test.py::DeferredFrameTest::test_groupby_transform_sum
                 "df.groupby('Date')['Data'].transform('sum')",
             ],
+            'pandas.core.frame.DataFrame.swaplevel': ['*'],
+            'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
             'pandas.core.frame.DataFrame.round': [
                 'df.round(decimals)',
@@ -272,6 +279,8 @@ class DoctestTest(unittest.TestCase):
                 'df.dot(s2)',
             ],
 
+            'pandas.core.frame.DataFrame.resample': ['df'],
+            'pandas.core.frame.DataFrame.asfreq': ['*'],
             # Throws NotImplementedError when modifying df
             'pandas.core.frame.DataFrame.axes': [
                 # Returns deferred index.
@@ -384,6 +393,7 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.series.Series.fillna': [
                 "df.fillna(method='ffill')",
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.series.Series.items': ['*'],
@@ -432,10 +442,10 @@ class DoctestTest(unittest.TestCase):
                 's.drop_duplicates()',
                 "s.drop_duplicates(keep='last')",
             ],
-            'pandas.core.series.Series.repeat': [
-                's.repeat([1, 2, 3])'
-            ],
             'pandas.core.series.Series.reindex': ['*'],
+            'pandas.core.series.Series.repeat': ['s.repeat([1, 2, 3])'],
+            'pandas.core.series.Series.resample': ['*'],
+            'pandas.core.series.Series': ['ser.iloc[0] = 999'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': [
@@ -450,6 +460,8 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         skip={
+            # Relies on setting values with iloc
+            'pandas.core.series.Series': ['ser', 'r'],
             'pandas.core.series.Series.groupby': [
                 # TODO(BEAM-11393): This example requires aligning two series
                 # with non-unique indexes. It only works in pandas because
@@ -457,6 +469,7 @@ class DoctestTest(unittest.TestCase):
                 # alignment.
                 'ser.groupby(ser > 100).mean()',
             ],
+            'pandas.core.series.Series.asfreq': ['*'],
             # error formatting
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
@@ -490,6 +503,7 @@ class DoctestTest(unittest.TestCase):
                 # Inspection after modification.
                 's'
             ],
+            'pandas.core.series.Series.resample': ['df'],
         })
     self.assertEqual(result.failed, 0)
 
@@ -668,10 +682,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.fillna': [
                 "df.fillna(method='ffill')",
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.groupby.generic.SeriesGroupBy.fillna': [
                 "df.fillna(method='ffill')",
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
         },
