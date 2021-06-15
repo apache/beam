@@ -3187,6 +3187,13 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     self._grouping_indexes = grouping_indexes
     self._kwargs = kwargs
 
+    if (self._kwargs.get('dropna', True) is False and
+        self._ungrouped.proxy().index.nlevels  > 1):
+      raise NotImplementedError(
+          "dropna=False does not work as intended in the Beam DataFrame API "
+          "when grouping on multiple columns or indexes (See BEAM-12495).")
+
+
   def __getattr__(self, name):
     return DeferredGroupBy(
         expressions.ComputedExpression(

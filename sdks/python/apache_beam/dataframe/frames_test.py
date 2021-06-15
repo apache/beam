@@ -1141,6 +1141,13 @@ class GroupByTest(_AbstractFrameTest):
         lambda df: df.groupby(df.group)[['foo', 'bar']].apply(describe), df)
     self._run_test(lambda df: df.groupby(df.group).apply(median_sum_fn), df)
 
+  def test_groupby_multiindex_keep_nans(self):
+    # Due to https://github.com/pandas-dev/pandas/issues/36470
+    # groupby(dropna=False) doesn't work with multiple columns
+    with self.assertRaisesRegex(NotImplementedError, "BEAM-12495"):
+      self._run_test(
+          lambda df: df.groupby(['foo', 'bar'], dropna=False).sum(), GROUPBY_DF)
+
 
 class AggregationTest(_AbstractFrameTest):
   """Tests for global aggregation methods on DataFrame/Series."""
