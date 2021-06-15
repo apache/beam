@@ -185,6 +185,7 @@ GCP_REQUIREMENTS = [
     # Until this issue is closed
     # https://github.com/googleapis/google-cloud-python/issues/10566
     'google-auth>=1.18.0,<3',
+    'google-auth-httplib2>=0.1.0,<0.2.0',
     'google-cloud-datastore>=1.8.0,<2',
     'google-cloud-pubsub>=2.1.0,<3',
     'google-cloud-pubsublite>=1.2.0,<2',

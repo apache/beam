@@ -26,6 +26,7 @@ import threading
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
   import google.auth
+  import google_auth_httplib2
   _GOOGLE_AUTH_AVAILABLE = True
 except ImportError:
   _GOOGLE_AUTH_AVAILABLE = False
@@ -37,7 +38,6 @@ is_running_in_gce = False
 # information.
 executing_project = None
 
-_DEFAULT_MAX_REDIRECTS = 5
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -73,48 +73,6 @@ def get_service_credentials():
 
 if _GOOGLE_AUTH_AVAILABLE:
 
-  class _Httplib2Response(google.auth.transport.Response):  # pylint: disable=c-extension-no-member
-    """For internal use only; no backwards-compatibility guarantees.
-
-    Wrapper for httplib2 response so that it can be used with google-auth.
-    """
-    def __init__(self, httplib2_response, httplib2_content):
-      self._httplib2_response = httplib2_response
-      self._httplib2_content = httplib2_content
-
-    @property
-    def status(self):
-      return self._httplib2_response.status
-
-    @property
-    def headers(self):
-      return self._httplib2_response
-
-    @property
-    def data(self):
-      return self._httplib2_content
-
-  class _GoogleAuthRequestAdapter(google.auth.transport.Request):  # pylint: disable=c-extension-no-member
-    """For internal use only; no backwards-compatibility guarantees.
-
-    Adapter allowing use of the httplib2.Http.request method for refreshing
-    google-auth credentials.
-    """
-    def __init__(self, httplib2_request):
-      self._httplib2_request = httplib2_request
-
-    def __call__(
-        self,
-        url,
-        method="GET",
-        body=None,
-        headers=None,
-        timeout=None,
-        **kwargs):
-      resp, content = self._httplib2_request(
-          url, method=method, body=body, headers=headers, **kwargs)
-      return _Httplib2Response(resp, content)
-
   class _ApitoolsCredentialsAdapter:
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -127,42 +85,17 @@ if _GOOGLE_AUTH_AVAILABLE:
       self._google_auth_credentials = google_auth_credentials
 
     def authorize(self, http):
-      """Take an httplib2.Http instance (or equivalent) and authorizes it.
-
-      Authorizes it for the set of credentials, usually by replacing
-      http.request() with a method that adds in the appropriate headers and
-      then delegates to the original Http.request() method.
+      """Return an http client authorized with the google-auth credentials.
 
       Args:
         http: httplib2.Http, an http object to be used to make the refresh
           request.
+
+      Returns:
+        google_auth_httplib2.AuthorizedHttp: An authorized http client.
       """
-      orig_request_method = http.request
-
-      # The closure that will replace 'httplib2.Http.request'.
-      def new_request(
-          uri,
-          method="GET",
-          body=None,
-          headers=None,
-          redirections=_DEFAULT_MAX_REDIRECTS,
-          connection_type=None):
-        # Clone headers or create an empty headers dict.
-        headers = {} if not headers else dict(headers)
-
-        # Add auth headers.
-        self._google_auth_credentials.before_request(
-            _GoogleAuthRequestAdapter(orig_request_method),
-            method=method,
-            url=uri,
-            headers=headers)
-
-        # Make the request.
-        return orig_request_method(
-            uri, method, body, headers, redirections, connection_type)
-
-      http.request = new_request
-      return http
+      return google_auth_httplib2.AuthorizedHttp(
+          self._google_auth_credentials, http=http)
 
     def __getattr__(self, attr):
       """Delegate attribute access to underlying google-auth credentials."""
