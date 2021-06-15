@@ -481,7 +481,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.replace': [
                 "df.replace({'a string': 'new value', True: False})  # raises"
             ],
-            'pandas.core.series.Series.reset_index': ['*'],
             'pandas.core.series.Series.searchsorted': [
                 # This doctest seems to be incorrectly parsed.
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
