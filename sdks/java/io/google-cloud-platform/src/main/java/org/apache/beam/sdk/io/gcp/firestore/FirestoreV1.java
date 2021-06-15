@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -1140,38 +1141,53 @@ public final class FirestoreV1 {
       static final Comparator<Cursor> CURSOR_REFERENCE_VALUE_COMPARATOR;
 
       static {
-        Function<Cursor, @Nullable Value> firstReferenceValue =
-            PartitionQueryResponseToRunQueryRequest::firstReferenceValue;
-        Function<Value, @Nullable String> getReferenceValue = Value::getReferenceValue;
+        Function<Cursor, Optional<Value>> firstReferenceValue =
+            (Cursor c) ->
+                c.getValuesList().stream()
+                    .filter(
+                        v -> {
+                          String referenceValue = v.getReferenceValue();
+                          return referenceValue != null && !referenceValue.isEmpty();
+                        })
+                    .findFirst();
+        Function<String, String[]> stringToPath = (String s) -> s.split("/");
         // compare references by their path segments rather than as a whole string to ensure
         // per path segment comparison is taken into account.
-        // Null values are considered after non-null values.
-        Comparator<String> compareReferenceByPathSegments =
+        Comparator<String[]> pathWiseCompare =
+            (String[] path1, String[] path2) -> {
+              int minLength = Math.min(path1.length, path2.length);
+              for (int i = 0; i < minLength; i++) {
+                String pathSegment1 = path1[i];
+                String pathSegment2 = path2[i];
+                int compare = pathSegment1.compareTo(pathSegment2);
+                if (compare != 0) {
+                  return compare;
+                }
+              }
+              if (path1.length == path2.length) {
+                return 0;
+              } else if (minLength == path1.length) {
+                return -1;
+              } else {
+                return 1;
+              }
+            };
+
+        // Sort those cursors which have no firstReferenceValue at the bottom of the list
+        CURSOR_REFERENCE_VALUE_COMPARATOR =
             Comparator.comparing(
-                s -> s.split("/"),
-                (path1, path2) -> {
-                  int minLength = Math.min(path1.length, path2.length);
-                  for (int i = 0; i < minLength; i++) {
-                    String pathSegment1 = path1[i];
-                    String pathSegment2 = path2[i];
-                    int compare = pathSegment1.compareTo(pathSegment2);
-                    if (compare != 0) {
-                      return compare;
-                    }
-                  }
-                  if (path1.length == path2.length) {
-                    return 0;
-                  } else if (minLength == path1.length) {
+                firstReferenceValue,
+                (o1, o2) -> {
+                  if (o1.isPresent() && o2.isPresent()) {
+                    return pathWiseCompare.compare(
+                        stringToPath.apply(o1.get().getReferenceValue()),
+                        stringToPath.apply(o2.get().getReferenceValue()));
+                  } else if (o1.isPresent()) {
                     return -1;
                   } else {
                     return 1;
                   }
                 });
-        Comparator<@Nullable Value> comparing =
-            Comparator.comparing(getReferenceValue, compareReferenceByPathSegments);
-        Comparator<@Nullable Value> keyComparator = Comparator.nullsLast(comparing);
-        CURSOR_REFERENCE_VALUE_COMPARATOR =
-            Comparator.comparing(firstReferenceValue, keyComparator);
       }
 
       @ProcessElement
@@ -1214,17 +1230,6 @@ public final class FirestoreV1 {
                 .setStructuredQuery(builder.build())
                 .build();
         c.output(runQueryRequest);
-      }
-
-      private static @Nullable Value firstReferenceValue(Cursor c) {
-        return c.getValuesList().stream()
-            .filter(
-                v -> {
-                  String referenceValue = v.getReferenceValue();
-                  return referenceValue != null && !referenceValue.isEmpty();
-                })
-            .findFirst()
-            .orElse(null);
       }
     }
   }
