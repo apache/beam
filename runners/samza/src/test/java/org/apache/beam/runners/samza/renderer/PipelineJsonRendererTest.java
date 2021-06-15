@@ -19,11 +19,15 @@ package org.apache.beam.runners.samza.renderer;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.SamzaRunner;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -32,20 +36,18 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for {@link PipelineJsonRenderer}. */
 public class PipelineJsonRendererTest {
 
-  static {
-    System.setProperty("beamUseDummyRunner", Boolean.TRUE.toString());
-  }
-
-  @Rule public final transient TestPipeline p = TestPipeline.create();
-
   @Test
   public void testEmptyPipeline() {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setRunner(SamzaRunner.class);
+
+    Pipeline p = Pipeline.create(options);
+
     System.out.println(PipelineJsonRenderer.toJsonString(p));
     assertEquals(
         "{  \"RootNode\": ["
@@ -59,6 +61,10 @@ public class PipelineJsonRendererTest {
 
   @Test
   public void testCompositePipeline() throws IOException {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setRunner(SamzaRunner.class);
+
+    Pipeline p = Pipeline.create(options);
 
     p.apply(Create.timestamped(TimestampedValue.of(KV.of(1, 1), new Instant(1))))
         .apply(Window.into(FixedWindows.of(Duration.millis(10))))
@@ -69,10 +75,8 @@ public class PipelineJsonRendererTest {
         new String(Files.readAllBytes(Paths.get(jsonDagFileName)), StandardCharsets.UTF_8);
 
     assertEquals(
-        jsonDag.replaceAll("\\s+", "").replaceAll(",\"hashId\":\"[^\"]*\"", ""),
-        PipelineJsonRenderer.toJsonString(p)
-            .replaceAll(System.lineSeparator(), "")
-            .replaceAll("\\s+", "")
-            .replaceAll(",\"hashId\":\"[^\"]*\"", ""));
+        JsonParser.parseString(jsonDag),
+        JsonParser.parseString(
+            PipelineJsonRenderer.toJsonString(p).replaceAll(System.lineSeparator(), "")));
   }
 }

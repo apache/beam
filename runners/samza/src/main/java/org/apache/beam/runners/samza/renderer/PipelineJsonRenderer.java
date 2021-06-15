@@ -117,9 +117,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
                 style = "dashed";
               }
               graphLinks.append(
-                  String.format(
-                      "{\"from\":\"%s\"," + "\"to\":\"%s\"," + "\"hashId\":\"%s\"},",
-                      producerName, fullName, escapeString(shortenTag(key.getId()))));
+                  String.format("{\"from\":\"%s\"," + "\"to\":\"%s\"},", producerName, fullName));
             });
   }
 
