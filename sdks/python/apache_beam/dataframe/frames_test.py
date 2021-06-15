@@ -271,6 +271,20 @@ class DeferredFrameTest(_AbstractFrameTest):
         s,
         ambiguous)
 
+  def test_tz_convert(self):
+    # This replicates a tz_localize doctest:
+    #   s.tz_localize('CET', ambiguous=np.array([True, True, False]))
+    # But using a DeferredSeries instead of a np array
+
+    s = pd.Series(
+        range(3),
+        index=pd.DatetimeIndex([
+            '2018-10-27 01:20:00', '2018-10-27 02:36:00', '2018-10-27 03:46:00'
+        ],
+                               tz='Europe/Berlin'))
+
+    self._run_test(lambda s: s.tz_convert('America/Los_Angeles'), s)
+
   def test_sort_index_columns(self):
     df = pd.DataFrame({
         'c': range(10),
