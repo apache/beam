@@ -1068,10 +1068,10 @@ class BigQueryServicesImpl implements BigQueryServices {
           if (!failedIndices.contains(i)) {
             successfulRows.add(
                 ValueInSingleWindow.of(
-                    successfulRows.get(i).getValue(),
-                    successfulRows.get(i).getTimestamp(),
-                    successfulRows.get(i).getWindow(),
-                    successfulRows.get(i).getPane()));
+                    rowsToPublish.get(i).getValue(),
+                    rowsToPublish.get(i).getTimestamp(),
+                    rowsToPublish.get(i).getWindow(),
+                    rowsToPublish.get(i).getPane()));
           }
         }
       }
