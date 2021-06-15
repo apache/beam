@@ -542,6 +542,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
 
+    self._run_test(lambda df: df.num_wings.value_counts(), df)
+    self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
     self._run_test(lambda s: s[...], s)
@@ -1090,6 +1093,53 @@ class GroupByTest(_AbstractFrameTest):
         lambda df: df.groupby('group').dtypes, GROUPBY_DF, check_proxy=False)
     self._run_test(
         lambda df: df.groupby(level=0).dtypes, GROUPBY_DF, check_proxy=False)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_dataframe_groupby_series(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+    self._run_test(
+        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type),
+        GROUPBY_DF,
+        check_proxy=False)
+    self._run_test(
+        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type),
+        GROUPBY_DF,
+        check_proxy=False)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_series_groupby_series(self, agg_type):
+    if agg_type == 'describe':
+      self.skipTest(
+          "BEAM-12366: proxy generation of SeriesGroupBy.describe "
+          "fails")
+    if agg_type in ('corr', 'cov'):
+      self.skipTest(
+          "BEAM-12367: SeriesGroupBy.{corr, cov} do not raise the "
+          "expected error.")
+    self._run_test(
+        lambda df: df[df.foo < 40].bar.groupby(df.group).agg(agg_type),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df[df.foo < 40].bar.groupby(df.foo % 3).agg(agg_type),
+        GROUPBY_DF)
+
+  def test_groupby_series_apply(self):
+    df = GROUPBY_DF
+
+    def median_sum_fn(x):
+      return (x.foo + x.bar).median()
+
+    # Note this is the same as DataFrameGroupBy.describe. Using it here is
+    # just a convenient way to test apply() with a user fn that returns a Series
+    describe = lambda df: df.describe()
+
+    self._run_test(lambda df: df.groupby(df.group).foo.apply(describe), df)
+    self._run_test(
+        lambda df: df.groupby(df.group)[['foo', 'bar']].apply(describe), df)
+    self._run_test(lambda df: df.groupby(df.group).apply(median_sum_fn), df)
 
 
 class AggregationTest(_AbstractFrameTest):
