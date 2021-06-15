@@ -41,12 +41,16 @@
 //    - Reference Class: org.apache.beam.sdk.io.kafka.KafkaIO
 package kafkaio
 
+// TODO(BEAM-12492): Implement an API for specifying Kafka type serializers and
+// deserializers.
+
 import (
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"reflect"
 )
 
 func init() {
@@ -83,7 +87,7 @@ const (
 
 // Read is a cross-language PTransform which reads from Kafka and returns a
 // KV pair for each item in the specified Kafka topics. By default, this runs
-// as an unbounded transform and outputs keys and values as raw byte arrays.
+// as an unbounded transform and outputs keys and values as byte slices.
 // These properties can be changed through optional parameters.
 //
 // Read requires the address for an expansion service for Kafka Read transforms,
@@ -148,32 +152,6 @@ func ConsumerConfigs(cfgs map[string]string) readOption {
 		for k, v := range cfgs {
 			cfg.pl.ConsumerConfig[k] = v
 		}
-	}
-}
-
-// KeyDeserializer is a Read option that specifies a fully-qualified Java class
-// name of a Kafka Deserializer for the topic's key, along with the
-// corresponding Go type to deserialize keys to.
-//
-// Defaults to []byte, with classname
-// "org.apache.kafka.common.serialization.ByteArrayDeserializer".
-func KeyDeserializer(classname string, keyType reflect.Type) readOption {
-	return func(cfg *readConfig) {
-		cfg.pl.KeyDeserializer = classname
-		cfg.key = keyType
-	}
-}
-
-// ValueDeserializer is a Read option that specifies a fully-qualified Java
-// class name of a Kafka Deserializer for the topic's value, along with the
-// corresponding Go type to deserialize values to.
-//
-// Defaults to []byte, with classname
-// "org.apache.kafka.common.serialization.ByteArrayDeserializer".
-func ValueDeserializer(classname string, valType reflect.Type) readOption {
-	return func(cfg *readConfig) {
-		cfg.pl.ValueDeserializer = classname
-		cfg.val = valType
 	}
 }
 
@@ -246,8 +224,8 @@ type readPayload struct {
 }
 
 // Write is a cross-language PTransform which writes KV data to a specified
-// Kafka topic. By default, this assumes keys and values to be received as raw
-// byte arrays. This can be changed through optional parameters.
+// Kafka topic. By default, this assumes keys and values to be received as
+// byte slices. This can be changed through optional parameters.
 //
 // Write requires the address for an expansion service for Kafka Write
 // transforms, a comma-seperated list of bootstrap server addresses (see the
@@ -295,26 +273,6 @@ func ProducerConfigs(cfgs map[string]string) writeOption {
 		for k, v := range cfgs {
 			pl.ProducerConfig[k] = v
 		}
-	}
-}
-
-// KeySerializer is a Write option that specifies a fully-qualified Java class
-// name of a Kafka Serializer for the topic's key.
-//
-// Default: "org.apache.kafka.common.serialization.ByteArraySerializer"
-func KeySerializer(classname string) writeOption {
-	return func(pl *writePayload) {
-		pl.KeySerializer = classname
-	}
-}
-
-// ValueSerializer is a Write option that specifies a fully-qualified Java
-// class name of a Kafka Serializer for the topic's value.
-//
-// Default: "org.apache.kafka.common.serialization.ByteArraySerializer"
-func ValueSerializer(classname string) writeOption {
-	return func(pl *writePayload) {
-		pl.ValueSerializer = classname
 	}
 }
 
