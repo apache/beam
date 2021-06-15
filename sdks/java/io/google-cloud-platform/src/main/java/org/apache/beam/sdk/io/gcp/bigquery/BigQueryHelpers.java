@@ -540,12 +540,17 @@ public class BigQueryHelpers {
   public static @Nullable BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
       throws InterruptedException, IOException {
 
-    DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options);
-    Table table = datasetService.getTable(tableRef);
-    if (table == null) {
-      return null;
+    try (DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options)) {
+      Table table = datasetService.getTable(tableRef);
+      if (table == null) {
+        return null;
+      }
+      return table.getNumRows();
+    } catch (IOException | InterruptedException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
-    return table.getNumRows();
   }
 
   static String getDatasetLocation(
