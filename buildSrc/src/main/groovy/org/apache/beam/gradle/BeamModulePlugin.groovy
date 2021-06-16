@@ -45,7 +45,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.net.ServerSocket
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -82,7 +82,16 @@ class BeamModulePlugin implements Plugin<Project> {
  * limitations under the License.
  */
 """
-  static AtomicInteger startingExpansionPortNumber = new AtomicInteger(18091)
+  static def getRandomPort() {
+    new ServerSocket(0).withCloseable { socket ->
+      def port = socket.getLocalPort()
+      if (port > 0) {
+        return port
+      } else {
+        throw new GradleException("couldn't find a free port.")
+      }
+    }
+  }
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
@@ -2029,8 +2038,8 @@ class BeamModulePlugin implements Plugin<Project> {
       // Task for launching expansion services
       def envDir = project.project(":sdks:python").envdir
       def pythonDir = project.project(":sdks:python").projectDir
-      def javaPort = startingExpansionPortNumber.getAndDecrement()
-      def pythonPort = startingExpansionPortNumber.getAndDecrement()
+      def javaPort = getRandomPort()
+      def pythonPort = getRandomPort()
       def expansionJar = project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
       def expansionServiceOpts = [
         "group_id": project.name,
