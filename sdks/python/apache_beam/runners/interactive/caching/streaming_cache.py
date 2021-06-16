@@ -32,6 +32,7 @@ from pathlib import Path
 from google.protobuf.message import DecodeError
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
@@ -238,7 +239,11 @@ class StreamingCache(CacheManager):
   """Abstraction that holds the logic for reading and writing to cache.
   """
   def __init__(
-      self, cache_dir, is_cache_complete=None, sample_resolution_sec=0.1):
+      self,
+      cache_dir,
+      is_cache_complete=None,
+      sample_resolution_sec=0.1,
+      saved_pcoders={}):
     self._sample_resolution_sec = sample_resolution_sec
     self._is_cache_complete = is_cache_complete
 
@@ -258,7 +263,7 @@ class StreamingCache(CacheManager):
     # However, if we are to implement better cache persistence, one needs
     # to take care of keeping consistency between the cached PCollection
     # and its PCoder type.
-    self._saved_pcoders = {}
+    self._saved_pcoders = saved_pcoders
     self._default_pcoder = SafeFastPrimitivesCoder()
 
     # The sinks to capture data from capturable sources.
@@ -298,7 +303,10 @@ class StreamingCache(CacheManager):
       return iter([]), -1
 
     reader = StreamingCacheSource(
-        self._cache_dir, labels, self._is_cache_complete).read(tail=tail)
+        self._cache_dir,
+        labels,
+        self._is_cache_complete,
+        self.load_pcoder(*labels)).read(tail=tail)
 
     # Return an empty iterator if there is nothing in the file yet. This can
     # only happen when tail is False.
@@ -316,9 +324,9 @@ class StreamingCache(CacheManager):
     pipeline runtime which needs to block.
     """
     readers = [
-        StreamingCacheSource(self._cache_dir, l,
-                             self._is_cache_complete).read(tail=tail)
-        for l in labels
+        StreamingCacheSource(
+            self._cache_dir, l, self._is_cache_complete,
+            self.load_pcoder(*l)).read(tail=tail) for l in labels
     ]
     headers = [next(r) for r in readers]
     return StreamingCache.Reader(headers, readers).read()
@@ -336,7 +344,8 @@ class StreamingCache(CacheManager):
           val = v.SerializeToString()
         else:
           val = v
-        f.write(self._default_pcoder.encode(val) + b'\n')
+          self.save_pcoder(coders.registry.get_coder(type(val)), *labels)
+        f.write(self.load_pcoder(*labels).encode(val) + b'\n')
 
   def clear(self, *labels):
     directory = os.path.join(self._cache_dir, *labels[:-1])
@@ -364,19 +373,23 @@ class StreamingCache(CacheManager):
     """
     filename = labels[-1]
     cache_dir = os.path.join(self._cache_dir, *labels[:-1])
-    sink = StreamingCacheSink(cache_dir, filename, self._sample_resolution_sec)
+    sink = StreamingCacheSink(
+        cache_dir,
+        filename,
+        self._sample_resolution_sec,
+        self.load_pcoder(*labels))
     if is_capture:
       self._capture_sinks[sink.path] = sink
       self._capture_keys.add(filename)
     return sink
 
   def save_pcoder(self, pcoder, *labels):
-    self._saved_pcoders[os.path.join(*labels)] = pcoder
+    self._saved_pcoders[os.path.join(self._cache_dir, *labels)] = pcoder
 
   def load_pcoder(self, *labels):
-    return (
-        self._default_pcoder if self._default_pcoder is not None else
-        self._saved_pcoders[os.path.join(*labels)])
+    saved_pcoder = self._saved_pcoders.get(
+        os.path.join(self._cache_dir, *labels), None)
+    return (self._default_pcoder if saved_pcoder is None else saved_pcoder)
 
   def cleanup(self):
 
