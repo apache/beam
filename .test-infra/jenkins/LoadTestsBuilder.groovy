@@ -24,29 +24,24 @@ import InfluxDBCredentialsHelper
 import static PythonTestProperties.LOAD_TEST_PYTHON_VERSION
 
 class LoadTestsBuilder {
-  final static String DEFAULT_JAVA_RUNTIME_VERSION = "1.8";
-  final static String JAVA_11_RUNTIME_VERSION = "11";
   final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam_portability'
   final static String DOCKER_BEAM_SDK_IMAGE = "beam_python${LOAD_TEST_PYTHON_VERSION}_sdk:latest"
 
   static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode,
-      List<String> jobSpecificSwitches = null,
-      String javaRuntimeVersion = DEFAULT_JAVA_RUNTIME_VERSION) {
+      List<String> jobSpecificSwitches = null) {
     scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     for (testConfiguration in testConfigurations) {
       loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.pipelineOptions,
-          testConfiguration.test, jobSpecificSwitches,
-          javaRuntimeVersion)
+          testConfiguration.test, jobSpecificSwitches)
     }
   }
 
 
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options,
-      String mainClass, List<String> jobSpecificSwitches = null,
-      String javaRuntimeVersion = DEFAULT_JAVA_RUNTIME_VERSION) {
+      String mainClass, List<String> jobSpecificSwitches = null) {
     options.put('runner', runner.option)
     InfluxDBCredentialsHelper.useCredentials(context)
 
@@ -55,7 +50,7 @@ class LoadTestsBuilder {
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         setGradleTask(delegate, runner, sdk, options, mainClass,
-            jobSpecificSwitches, javaRuntimeVersion)
+            jobSpecificSwitches)
         commonJobProperties.setGradleSwitches(delegate)
       }
     }
@@ -81,8 +76,8 @@ class LoadTestsBuilder {
   }
 
   private static void setGradleTask(context, Runner runner, SDK sdk, Map<String, ?> options,
-      String mainClass, List<String> jobSpecificSwitches, String javaRuntimeVersion) {
-    context.tasks(getGradleTaskName(sdk, javaRuntimeVersion))
+      String mainClass, List<String> jobSpecificSwitches) {
+    context.tasks(getGradleTaskName(sdk))
     context.switches("-PloadTest.mainClass=\"${mainClass}\"")
     context.switches("-Prunner=${runner.getDependencyBySDK(sdk)}")
     context.switches("-PloadTest.args=\"${parseOptions(options)}\"")
@@ -97,12 +92,9 @@ class LoadTestsBuilder {
     }
   }
 
-  private static String getGradleTaskName(SDK sdk, String runtimeVersion) {
+  private static String getGradleTaskName(SDK sdk) {
     switch (sdk) {
       case SDK.JAVA:
-        if (runtimeVersion.equals(JAVA_11_RUNTIME_VERSION)) {
-          return ':sdks:java:testing:load-tests:runJava11'
-        }
         return ':sdks:java:testing:load-tests:run'
       case SDK.PYTHON:
         return ':sdks:python:apache_beam:testing:load_tests:run'

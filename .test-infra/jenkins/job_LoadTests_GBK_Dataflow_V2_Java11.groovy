@@ -286,7 +286,7 @@ def streamingLoadTestJob = { scope, triggeringContext ->
   for (testConfiguration in loadTestConfigurations('streaming', true, datasetName)) {
     testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
     loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA,
-        testConfiguration.pipelineOptions, testConfiguration.test, JOB_SPECIFIC_SWITCHES, loadTestsBuilder.JAVA_11_RUNTIME_VERSION)
+        testConfiguration.pipelineOptions, testConfiguration.test, JOB_SPECIFIC_SWITCHES)
   }
 }
 
@@ -312,7 +312,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 def batchLoadTestJob = { scope, triggeringContext ->
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false, datasetName),
-      "GBK", "batch", JOB_SPECIFIC_SWITCHES, loadTestsBuilder.JAVA_11_RUNTIME_VERSION)
+      "GBK", "batch", JOB_SPECIFIC_SWITCHES)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java11', 'H 14 * * *', this) {

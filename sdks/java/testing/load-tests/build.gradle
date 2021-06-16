@@ -126,40 +126,19 @@ def getLoadTestArgs = {
 task run(type: JavaExec) {
   def loadTestArgsList = getLoadTestArgs()
   if (isDataflowRunner) {
+    project.logger.lifecycle("------IS DATAFLOW-------")
     if (isDataflowRunnerV2){
+      project.logger.lifecycle("------IS DATAFLOW V2-------")
       dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
       finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
     } else {
+      project.logger.lifecycle("------IS NOT DATAFLOW V2-------")
       dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     }
+  } else {
+    project.logger.lifecycle("------IS NOT DATAFLOW-------")
   }
   main = mainClass
   classpath = configurations.gradleRun
   args loadTestArgsList.toArray()
-}
-
-task runJava11(type: JavaExec) {
-  def loadTestArgsList = getLoadTestArgs()
-  if (isDataflowRunner) {
-    if (isDataflowRunnerV2){
-      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
-      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
-    } else {
-      dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-    }
-  }
-  javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(11)
-  }
-  main = mainClass
-  classpath = configurations.gradleRun
-  args loadTestArgsList.toArray()
-}
-
-if (!project.hasProperty("compileAndRunTestsWithJava11")) {
-  tasks.withType(JavaCompile).configureEach {
-    javaCompiler = javaToolchains.compilerFor {
-      languageVersion = JavaLanguageVersion.of(8)
-    }
-  }
 }
