@@ -243,7 +243,7 @@ class StreamingCache(CacheManager):
       cache_dir,
       is_cache_complete=None,
       sample_resolution_sec=0.1,
-      saved_pcoders={}):
+      saved_pcoders=None):
     self._sample_resolution_sec = sample_resolution_sec
     self._is_cache_complete = is_cache_complete
 
@@ -263,7 +263,7 @@ class StreamingCache(CacheManager):
     # However, if we are to implement better cache persistence, one needs
     # to take care of keeping consistency between the cached PCollection
     # and its PCoder type.
-    self._saved_pcoders = saved_pcoders
+    self._saved_pcoders = saved_pcoders or {}
     self._default_pcoder = SafeFastPrimitivesCoder()
 
     # The sinks to capture data from capturable sources.
@@ -389,7 +389,7 @@ class StreamingCache(CacheManager):
   def load_pcoder(self, *labels):
     saved_pcoder = self._saved_pcoders.get(
         os.path.join(self._cache_dir, *labels), None)
-    return (self._default_pcoder if saved_pcoder is None else saved_pcoder)
+    return self._default_pcoder if saved_pcoder is None else saved_pcoder
 
   def cleanup(self):
 
