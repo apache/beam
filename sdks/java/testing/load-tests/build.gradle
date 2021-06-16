@@ -126,17 +126,12 @@ def getLoadTestArgs = {
 task run(type: JavaExec) {
   def loadTestArgsList = getLoadTestArgs()
   if (isDataflowRunner) {
-    project.logger.lifecycle("------IS DATAFLOW-------")
     if (isDataflowRunnerV2){
-      project.logger.lifecycle("------IS DATAFLOW V2-------")
       dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
       finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
     } else {
-      project.logger.lifecycle("------IS NOT DATAFLOW V2-------")
       dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     }
-  } else {
-    project.logger.lifecycle("------IS NOT DATAFLOW-------")
   }
   main = mainClass
   classpath = configurations.gradleRun
