@@ -202,8 +202,8 @@ task validatesPortableRunner() {
   dependsOn validatesPortableRunnerStreaming
 }
 
-def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
-def artifactPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+def jobPort = BeamModulePlugin.getRandomPort()
+def artifactPort = BeamModulePlugin.getRandomPort()
 
 def setupTask = project.tasks.create(name: "sparkJobServerSetup", type: Exec) {
   dependsOn shadowJar
