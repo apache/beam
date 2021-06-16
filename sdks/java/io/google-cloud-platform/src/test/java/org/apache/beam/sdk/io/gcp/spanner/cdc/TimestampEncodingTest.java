@@ -1,6 +1,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.cloud.Timestamp;
 import java.io.ByteArrayInputStream;
@@ -55,6 +56,21 @@ public class TimestampEncodingTest {
     final Timestamp actualTimestamp = encoding.read(Timestamp.now(), decoder);
 
     assertEquals(expectedTimestamp, actualTimestamp);
+  }
+
+  @Test
+  public void testWriteAndReadNullTimestamp() throws IOException {
+    final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    final BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(outputStream, null);
+
+    encoding.write(null, encoder);
+
+    final byte[] bytes = outputStream.toByteArray();
+    final ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+    final BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+    final Timestamp actualTimestamp = encoding.read(null, decoder);
+
+    assertNull(actualTimestamp);
   }
 
   @Test(expected = ClassCastException.class)
