@@ -23,6 +23,7 @@ import tempfile
 import time
 import unittest
 
+import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.runners.interactive import cache_manager as cache
@@ -213,6 +214,14 @@ class FileBasedCacheManagerTest(object):
     self.assertEqual(version, 1)
     self.assertTrue(
         self.cache_manager.is_latest_version(version, prefix, cache_label))
+
+  def test_load_saved_pcoder(self):
+    pipeline = beam.Pipeline()
+    pcoll = pipeline | beam.Create([1, 2, 3])
+    _ = pcoll | cache.WriteCache(self.cache_manager, 'a key')
+    self.assertIs(
+        type(self.cache_manager.load_pcoder('full', 'a key')),
+        type(coders.registry.get_coder(int)))
 
 
 class TextFileBasedCacheManagerTest(

@@ -17,14 +17,18 @@
 
 # pytype: skip-file
 
+import tempfile
 import unittest
 
+import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive.cache_manager import FileBasedCacheManager
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
+from apache_beam.runners.interactive.cache_manager import WriteCache
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.runners.interactive.testing.test_cache_manager import FileRecordsBuilder
@@ -426,6 +430,43 @@ class StreamingCacheTest(unittest.TestCase):
     ]
 
     self.assertListEqual(actual_events, expected_events)
+
+  def test_always_default_coder_for_test_stream_records(self):
+    CACHED_NUMBERS = repr(CacheKey('numbers', '', '', ''))
+    numbers = (FileRecordsBuilder(CACHED_NUMBERS)
+               .advance_processing_time(2)
+               .add_element(element=1, event_time_secs=0)
+               .advance_processing_time(1)
+               .add_element(element=2, event_time_secs=0)
+               .advance_processing_time(1)
+               .add_element(element=2, event_time_secs=0)
+               .build()) # yapf: disable
+    cache = StreamingCache(cache_dir=None)
+    cache.write(numbers, CACHED_NUMBERS)
+    self.assertIs(
+        type(cache.load_pcoder(CACHED_NUMBERS)), type(cache._default_pcoder))
+
+  def test_load_saved_coder_for_non_record_types(self):
+    cache = StreamingCache(cache_dir=None)
+    cache.write('some value', 'a key')
+    self.assertIs(
+        type(cache.load_pcoder('a key')), type(coders.registry.get_coder(str)))
+
+  def test_wrap_file_based_cache_respect_load_saved_coders(self):
+    file_based_cache = FileBasedCacheManager(tempfile.mkdtemp())
+    pipeline = beam.Pipeline()
+    pcoll = pipeline | beam.Create([1, 2, 3])
+    _ = pcoll | WriteCache(file_based_cache, 'a key')
+    self.assertIs(
+        type(file_based_cache.load_pcoder('full', 'a key')),
+        type(coders.registry.get_coder(int)))
+    streaming_cache = StreamingCache(
+        cache_dir=file_based_cache._cache_dir,
+        saved_pcoders=file_based_cache._saved_pcoders)
+    streaming_cache.write('some value', 'another key')
+    self.assertIs(
+        type(streaming_cache.load_pcoder('full', 'a key')),
+        type(coders.registry.get_coder(int)))
 
 
 if __name__ == '__main__':
