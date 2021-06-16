@@ -144,7 +144,7 @@ public class AzureModule extends SimpleModule {
             .clientId(asMap.getOrDefault(AZURE_CLIENT_ID, ""))
             .username(asMap.getOrDefault(AZURE_USERNAME, ""))
             .password(asMap.getOrDefault(AZURE_PASSWORD, ""))
-            .tenantId(asMap.getOrDefault(AZURE_TENANT_ID, null))
+            .tenantId(asMap.getOrDefault(AZURE_TENANT_ID, ""))
             .build();
       } else {
         throw new IOException(
