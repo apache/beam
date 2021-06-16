@@ -208,7 +208,7 @@ class FileBasedCacheManager(CacheManager):
 
   def load_pcoder(self, *labels):
     saved_pcoder = self._saved_pcoders.get(self._path(*labels), None)
-    return (self._default_pcoder if saved_pcoder is None else saved_pcoder)
+    return self._default_pcoder if saved_pcoder is None else saved_pcoder
 
   def read(self, *labels, **args):
     # Return an iterator to an empty list if it doesn't exist.
