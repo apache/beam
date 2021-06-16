@@ -25,6 +25,7 @@ import shutil
 import signal
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -35,6 +36,7 @@ import grpc
 
 from apache_beam.version import __version__ as beam_version
 
+_ON_WINDOWS = (sys.platform == 'win32')
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -134,12 +136,16 @@ class SubprocessServer(object):
     with self._process_lock:
       if not self._process:
         return
-      for _ in range(5):
-        if self._process.poll() is not None:
-          break
-        logging.debug("Sending SIGINT to job_server")
-        self._process.send_signal(signal.SIGINT)
-        time.sleep(1)
+      if not _ON_WINDOWS:
+        # Send SIGINT to give the process a chance to shut down
+        # gracefully.
+        # Skip this on Windows, where we can't send SIGINT.
+        for _ in range(5):
+          if self._process.poll() is not None:
+            break
+          logging.debug("Sending SIGINT to job_server")
+          self._process.send_signal(signal.SIGINT)
+          time.sleep(1)
       if self._process.poll() is None:
         self._process.kill()
       self._process = None
