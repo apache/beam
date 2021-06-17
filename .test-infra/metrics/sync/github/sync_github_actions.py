@@ -36,6 +36,7 @@ GH_PRS_CREATE_TABLE_QUERY = f"""
   ga_id serial NOT NULL PRIMARY KEY,
   job_name varchar NOT NULL,
   status varchar NOT NULL,
+  workflow_id varchar NOT NULL,
   workflow_url varchar NOT NULL,
   executed_ts timestamp NOT NULL
   )
@@ -88,10 +89,11 @@ def insertIntoTable(cursor, values):
   insertRowQuery = f'''INSERT INTO {GH_PRS_TABLE_NAME}
                             (job_name,
                             status,
+                            workflow_id,
                             workflow_url,
                             executed_ts)
                           VALUES
-                            (%s, %s, %s, %s)
+                            (%s, %s, %s, %s, %s)
                           '''
   cursor.execute(insertRowQuery, values)
 
@@ -102,9 +104,10 @@ def fetchNewData():
 
   job_name = sys.argv[1]
   status = sys.argv[2]
-  workflow_url = sys.argv[3]
+  workflow_id = sys.argv[3]
+  workflow_url = f'''https://github.com/fernando-wizeline/beam/actions/runs/{workflow_id}''' #TODO: remove reference to personal repository
   executed_ts = datetime.datetime.now()
-  row_values = [job_name, status, workflow_url, executed_ts]
+  row_values = [job_name, status, workflow_id, workflow_url, executed_ts]
   connection = initDBConnection()
   cursor = connection.cursor()
   insertIntoTable(cursor, row_values)
