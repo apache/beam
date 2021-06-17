@@ -7,6 +7,8 @@ import com.google.cloud.Timestamp;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
@@ -81,27 +83,39 @@ public class TimestampEncodingTest {
   @Test
   public void testReadAndWriteClassWithTimestampField() throws IOException {
     final AvroCoder<TestTimestamp> coder = AvroCoder.of(TestTimestamp.class);
-    final TestTimestamp expected = new TestTimestamp(Timestamp.ofTimeSecondsAndNanos(123L, 456));
+    final List<TestTimestamp> allExpected = Arrays.asList(
+        new TestTimestamp(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE),
+        new TestTimestamp(Timestamp.ofTimeSecondsAndNanos(123L, 456), Timestamp.now()),
+        new TestTimestamp(Timestamp.MIN_VALUE, null),
+        new TestTimestamp(null, Timestamp.MAX_VALUE)
+    );
     final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-    coder.encode(expected, outputStream);
+    for (TestTimestamp testTimestamp : allExpected) {
+      coder.encode(testTimestamp, outputStream);
+    }
 
     final ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-    final TestTimestamp actual = coder.decode(inputStream);
-
-    assertEquals(expected, actual);
+    for (TestTimestamp expected : allExpected) {
+      final TestTimestamp actual = coder.decode(inputStream);
+      assertEquals(expected, actual);
+    }
   }
 
   private static class TestTimestamp {
 
     @AvroEncode(using = TimestampEncoding.class)
-    private Timestamp timestamp;
+    private Timestamp timestamp1;
+
+    @AvroEncode(using = TimestampEncoding.class)
+    private Timestamp timestamp2;
 
     private TestTimestamp() {
     }
 
-    private TestTimestamp(Timestamp timestamp) {
-      this.timestamp = timestamp;
+    private TestTimestamp(Timestamp timestamp1, Timestamp timestamp2) {
+      this.timestamp1 = timestamp1;
+      this.timestamp2 = timestamp2;
     }
 
     @Override
@@ -113,12 +127,13 @@ public class TimestampEncodingTest {
         return false;
       }
       TestTimestamp that = (TestTimestamp) o;
-      return Objects.equals(timestamp, that.timestamp);
+      return Objects.equals(timestamp1, that.timestamp1) && Objects
+          .equals(timestamp2, that.timestamp2);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(timestamp);
+      return Objects.hash(timestamp1, timestamp2);
     }
   }
 }

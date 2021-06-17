@@ -36,7 +36,6 @@ public class TimestampEncoding extends CustomEncoding<Timestamp> {
         .builder()
         .record("timestamp")
         .fields()
-        .requiredBoolean("isNull")
         .requiredLong("seconds")
         .requiredInt("nanos")
         .endRecord();
@@ -47,9 +46,9 @@ public class TimestampEncoding extends CustomEncoding<Timestamp> {
   protected void write(Object datum, Encoder out) throws IOException {
     final Timestamp timestamp = (Timestamp) datum;
     if (timestamp == null) {
-      out.writeBoolean(true);
+      out.writeLong(-1L);
+      out.writeInt(-1);
     } else {
-      out.writeBoolean(false);
       out.writeLong(timestamp.getSeconds());
       out.writeInt(timestamp.getNanos());
     }
@@ -57,14 +56,12 @@ public class TimestampEncoding extends CustomEncoding<Timestamp> {
 
   @Override
   protected Timestamp read(Object reuse, Decoder in) throws IOException {
-    final boolean isNull = in.readBoolean();
-    if (isNull) {
+    final long seconds = in.readLong();
+    final int nanos = in.readInt();
+    if (seconds < 0 && nanos < 0) {
       return null;
     } else {
-      return Timestamp.ofTimeSecondsAndNanos(
-          in.readLong(),
-          in.readInt()
-      );
+      return Timestamp.ofTimeSecondsAndNanos(seconds, nanos);
     }
   }
 }
