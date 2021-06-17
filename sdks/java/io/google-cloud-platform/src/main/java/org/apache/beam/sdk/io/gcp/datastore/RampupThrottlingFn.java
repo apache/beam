@@ -91,7 +91,6 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
             1 /* numSignificantBuckets */,
             1 /* numSignificantSamples */,
             Sum.ofLongs());
-    this.firstInstant = Instant.now();
   }
 
   /** Emit only as many elements as the exponentially increasing budget allows. */
