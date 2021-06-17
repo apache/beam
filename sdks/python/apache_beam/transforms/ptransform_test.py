@@ -816,18 +816,16 @@ class PTransformTest(unittest.TestCase):
           tuple() | 'EmptyTuple' >> beam.CoGroupByKey(pipeline=pipeline),
           equal_to([]),
           label='AssertEmptyTuple')
-      assert_that(
-          [] | 'EmptyList' >> beam.CoGroupByKey(pipeline=pipeline),
-          equal_to([]),
-          label='AssertEmptyList')
+      assert_that([] | 'EmptyList' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyList')
       assert_that(
           iter([]) | 'EmptyIterable' >> beam.CoGroupByKey(pipeline=pipeline),
           equal_to([]),
           label='AssertEmptyIterable')
-      assert_that(
-          {} | 'EmptyDict' >> beam.CoGroupByKey(pipeline=pipeline),
-          equal_to([]),
-          label='AssertEmptyDict')
+      assert_that({} | 'EmptyDict' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyDict')
 
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:

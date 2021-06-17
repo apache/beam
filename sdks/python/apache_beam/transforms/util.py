@@ -29,7 +29,6 @@ import time
 import uuid
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Tuple
@@ -38,7 +37,6 @@ from typing import Union
 
 from apache_beam import coders
 from apache_beam import typehints
-from apache_beam import pvalue
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -72,6 +70,7 @@ from apache_beam.utils.annotations import experimental
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
+  from apache_beam import pvalue
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
