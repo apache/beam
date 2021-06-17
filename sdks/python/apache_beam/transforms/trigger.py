@@ -248,8 +248,7 @@ class TriggerFn(metaclass=ABCMeta):
     """Clear any state and timers used by this TriggerFn."""
     pass
 
-  @abstractmethod
-  def may_lose_data(self, windowing):
+  def may_lose_data(self, unused_windowing):
     # type: (core.Windowing) -> DataLossReason
 
     """Returns whether or not this trigger could cause data loss.
@@ -283,7 +282,8 @@ class TriggerFn(metaclass=ABCMeta):
         data loss can result from finishing or not having the condition met,
         the result will be DataLossReason.MAY_FINISH|CONDITION_NOT_GUARANTEED.
     """
-    pass
+    # For backwards compatibility's sake, we're assuming the trigger is safe.
+    return DataLossReason.NO_POTENTIAL_LOSS
 
 
 # pylint: enable=unused-argument
