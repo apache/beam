@@ -904,6 +904,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         "Assigning an index is not yet supported. "
         "Consider using set_index() instead.")
 
+  reindex = frame_base.wont_implement_method(
+      pd.DataFrame, 'reindex', reason="order-sensitive")
+
   hist = frame_base.wont_implement_method(
       pd.DataFrame, 'hist', reason="plotting-tools")
 
