@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -236,33 +236,32 @@ public class ArrowConversion {
   }
 
   /**
-   * Returns an {@link Iterable<Row>} backed by the Arrow record batch stored in {@code
+   * Returns a {@link RecordBatchRowIterator} backed by the Arrow record batch stored in {@code
    * vectorSchemaRoot}.
    *
    * <p>Note this is a lazy interface. The data in the underlying Arrow buffer is not read until a
    * field of one of the returned {@link Row}s is accessed.
    */
-  public static Iterable<Row> rowsFromRecordBatch(
+  public static RecordBatchRowIterator rowsFromRecordBatch(
       Schema schema, VectorSchemaRoot vectorSchemaRoot) {
-    return new RecordBatchIterable(schema, vectorSchemaRoot);
+    return new RecordBatchRowIterator(schema, vectorSchemaRoot);
   }
 
-  public static Iterable<Row> rowsFromRecordBatch(VectorSchemaRoot vectorSchemaRoot) {
-    return rowsFromRecordBatch(
-        ArrowSchemaTranslator.toBeamSchema(vectorSchemaRoot.getSchema()), vectorSchemaRoot);
-  }
-
-  public static VectorSchemaRoot rowFromSerializedRecordBatch(
-      RootAllocator alloc,
-      ReadChannel readChannel,
-      org.apache.arrow.vector.types.pojo.Schema arrowSchema)
+  public static RecordBatchRowIterator rowsFromSerializedRecordBatch(
+      org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+      InputStream inputStream,
+      BufferAllocator allocator)
       throws IOException {
-    VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, alloc);
+    VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, allocator);
     VectorLoader vectorLoader = new VectorLoader(vectorRoot);
     vectorRoot.clear();
-    ArrowRecordBatch arrowMessage = MessageSerializer.deserializeRecordBatch(readChannel, alloc);
-    vectorLoader.load(arrowMessage);
-    return vectorRoot;
+    try (ReadChannel read = new ReadChannel(Channels.newChannel(inputStream))) {
+      try (ArrowRecordBatch arrowMessage =
+          MessageSerializer.deserializeRecordBatch(read, allocator)) {
+        vectorLoader.load(arrowMessage);
+      }
+    }
+    return rowsFromRecordBatch(ArrowSchemaTranslator.toBeamSchema(arrowSchema), vectorRoot);
   }
 
   public static org.apache.arrow.vector.types.pojo.Schema arrowSchemaFromInput(InputStream input)
@@ -272,7 +271,7 @@ public class ArrowConversion {
   }
 
   @SuppressWarnings("rawtypes")
-  private static class VectorSchemaRootRowIterator implements Iterator<Row> {
+  public static class RecordBatchRowIterator implements Iterator<Row>, AutoCloseable {
     private static final ArrowValueConverterVisitor valueConverterVisitor =
         new ArrowValueConverterVisitor();
     private final Schema schema;
@@ -461,13 +460,18 @@ public class ArrowConversion {
       }
     }
 
-    public VectorSchemaRootRowIterator(Schema schema, VectorSchemaRoot vectorSchemaRoot) {
+    private RecordBatchRowIterator(Schema schema, VectorSchemaRoot vectorSchemaRoot) {
       this.schema = schema;
       this.vectorSchemaRoot = vectorSchemaRoot;
       this.fieldValueGetters =
           new CachingFactory<>(
               FieldVectorListValueGetterFactory.of(vectorSchemaRoot.getFieldVectors()));
       this.currRowIndex = 0;
+    }
+
+    @Override
+    public void close() {
+      this.vectorSchemaRoot.close();
     }
 
     @Override
@@ -484,21 +488,6 @@ public class ArrowConversion {
           Row.withSchema(schema).withFieldValueGetters(this.fieldValueGetters, this.currRowIndex);
       this.currRowIndex += 1;
       return result;
-    }
-  }
-
-  private static class RecordBatchIterable implements Iterable<Row> {
-    private final Schema schema;
-    private final VectorSchemaRoot vectorSchemaRoot;
-
-    RecordBatchIterable(Schema schema, VectorSchemaRoot vectorSchemaRoot) {
-      this.schema = schema;
-      this.vectorSchemaRoot = vectorSchemaRoot;
-    }
-
-    @Override
-    public Iterator<Row> iterator() {
-      return new VectorSchemaRootRowIterator(schema, vectorSchemaRoot);
     }
   }
 

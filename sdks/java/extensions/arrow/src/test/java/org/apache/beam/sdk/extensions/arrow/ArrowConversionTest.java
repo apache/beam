@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedSizeBinaryVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
@@ -101,10 +100,8 @@ public class ArrowConversionTest {
     Schema beamSchema = ArrowConversion.ArrowSchemaTranslator.toBeamSchema(schema);
 
     VectorSchemaRoot expectedSchemaRoot = VectorSchemaRoot.create(schema, allocator);
+    expectedSchemaRoot.allocateNew();
     expectedSchemaRoot.setRowCount(16);
-    for (FieldVector vector : expectedSchemaRoot.getFieldVectors()) {
-      vector.allocateNew();
-    }
     IntVector intVector = (IntVector) expectedSchemaRoot.getFieldVectors().get(0);
     Float8Vector floatVector = (Float8Vector) expectedSchemaRoot.getFieldVectors().get(1);
     VarCharVector strVector = (VarCharVector) expectedSchemaRoot.getFieldVectors().get(2);
@@ -152,7 +149,7 @@ public class ArrowConversionTest {
     }
 
     assertThat(
-        ArrowConversion.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
+        ImmutableList.copyOf(ArrowConversion.rowsFromRecordBatch(beamSchema, expectedSchemaRoot)),
         IsIterableContainingInOrder.contains(
             expectedRows.stream()
                 .map((row) -> equalTo(row))

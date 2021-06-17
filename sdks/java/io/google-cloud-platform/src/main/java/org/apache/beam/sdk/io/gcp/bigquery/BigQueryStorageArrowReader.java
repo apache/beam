@@ -22,24 +22,22 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.channels.Channels;
-import java.util.Iterator;
 import javax.annotation.Nullable;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.ipc.ReadChannel;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
+import org.apache.beam.sdk.extensions.arrow.ArrowConversion.RecordBatchRowIterator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 
 class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   private org.apache.beam.sdk.schemas.Schema arrowBeamSchema;
-  private @Nullable Iterator<Row> recordBatchIterable;
+  private @Nullable RecordBatchRowIterator recordBatchIterator;
   private long rowCount;
   private ArrowSchema protoSchema;
   private @Nullable RootAllocator alloc;
-  private @Nullable ReadChannel read;
 
   BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
     protoSchema = readSession.getArrowSchema();
@@ -48,7 +46,6 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
         ArrowConversion.ArrowSchemaTranslator.toBeamSchema(
             ArrowConversion.arrowSchemaFromInput(input));
     this.rowCount = 0;
-    this.read = null;
     this.alloc = null;
   }
 
@@ -57,16 +54,12 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
     com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
         readRowsResponse.getArrowRecordBatch();
     rowCount = recordBatch.getRowCount();
-    this.read =
-        new ReadChannel(Channels.newChannel(recordBatch.getSerializedRecordBatch().newInput()));
     this.alloc = new RootAllocator(Long.MAX_VALUE);
     InputStream input = protoSchema.getSerializedSchema().newInput();
-    recordBatchIterable =
-        ArrowConversion.rowsFromRecordBatch(
-                arrowBeamSchema,
-                ArrowConversion.rowFromSerializedRecordBatch(
-                    this.alloc, this.read, ArrowConversion.arrowSchemaFromInput(input)))
-            .iterator();
+    Schema arrowSchema = ArrowConversion.arrowSchemaFromInput(input);
+    this.recordBatchIterator =
+        ArrowConversion.rowsFromSerializedRecordBatch(
+            arrowSchema, recordBatch.getSerializedRecordBatch().newInput(), this.alloc);
   }
 
   @Override
@@ -76,44 +69,36 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   @Override
   public GenericRecord readSingleRecord() throws IOException {
-    if (recordBatchIterable == null) {
+    if (recordBatchIterator == null) {
       throw new IOException("Not Initialized");
     }
-    Row row = recordBatchIterable.next();
+    Row row = recordBatchIterator.next();
     return AvroUtils.toGenericRecord(row, null);
   }
 
   @Override
   public boolean readyForNextReadResponse() throws IOException {
-    return recordBatchIterable == null || !recordBatchIterable.hasNext();
+    return recordBatchIterator == null || !recordBatchIterator.hasNext();
   }
 
   @Override
   public void resetBuffer() {
-    recordBatchIterable = null;
+    cleanUp();
+  }
+
+  private void cleanUp() {
+    if (recordBatchIterator != null) {
+      recordBatchIterator.close();
+      recordBatchIterator = null;
+    }
     if (alloc != null) {
       alloc.close();
-    }
-    try {
-      if (read != null) {
-        read.close();
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e.getMessage());
+      alloc = null;
     }
   }
 
   @Override
   public void close() {
-    if (alloc != null) {
-      alloc.close();
-    }
-    try {
-      if (read != null) {
-        read.close();
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e.getMessage());
-    }
+    this.cleanUp();
   }
 }
