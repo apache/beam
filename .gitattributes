@@ -32,4 +32,4 @@ Dockerfile text
 .gitignore export-ignore
 .gitattributes export-ignore
 /gradlew* export-ignore
-/gradle export-ignore
+**/gradle export-ignore
