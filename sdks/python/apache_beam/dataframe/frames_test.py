@@ -232,6 +232,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     })
     self._run_test(lambda df: df['Animal'], df)
     self._run_test(lambda df: df.Speed, df)
+    self._run_test(lambda df: df.get('Animal'), df)
+    self._run_test(lambda df: df.get('FOO', df.Animal), df)
 
   def test_set_column(self):
     def new_column(df):
@@ -1844,6 +1846,11 @@ class ConstructionTimeTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('int_col').flt_col.ndim)
     self._run_test(
         lambda df: df.groupby('int_col')[['flt_col', 'str_col']].ndim)
+
+  def test_get_column_default_None(self):
+    # .get just returns default_value=None at construction time if the column
+    # doesn't exist
+    self._run_test(lambda df: df.get('FOO'))
 
 
 class DocstringTest(unittest.TestCase):
