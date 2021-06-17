@@ -2102,6 +2102,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     self._expr = inserted._expr
 
+  @staticmethod
+  @frame_base.with_docs_from(pd.DataFrame)
+  def from_dict(*args, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(pd.DataFrame.from_dict(*args, **kwargs)))
+
+  @staticmethod
+  @frame_base.with_docs_from(pd.DataFrame)
+  def from_records(*args, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(pd.DataFrame.from_records(*args, **kwargs)))
+
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
