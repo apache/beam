@@ -1049,7 +1049,10 @@ public class DatastoreV1 {
       return new Write(projectId, localhost, false, hintNumWorkers);
     }
 
-    /** Returns a new {@link Write} with a different worker count hint for ramp-up throttling. */
+    /**
+     * Returns a new {@link Write} with a different worker count hint for ramp-up throttling. Value
+     * is ignored if ramp-up throttling is disabled.
+     */
     public Write withHintNumWorkers(int hintNumWorkers) {
       checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
       return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
@@ -1106,6 +1109,7 @@ public class DatastoreV1 {
 
     /**
      * Returns a new {@link DeleteEntity} with a different worker count hint for ramp-up throttling.
+     * Value is ignored if ramp-up throttling is disabled.
      */
     public DeleteEntity withHintNumWorkers(int hintNumWorkers) {
       checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
@@ -1164,6 +1168,7 @@ public class DatastoreV1 {
 
     /**
      * Returns a new {@link DeleteKey} with a different worker count hint for ramp-up throttling.
+     * Value is ignored if ramp-up throttling is disabled.
      */
     public DeleteKey withHintNumWorkers(int hintNumWorkers) {
       checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");

@@ -78,7 +78,7 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
         (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
     double growth = Math.max(0, calculatedGrowth);
     double maxOpsBudget = BASE_BUDGET / this.numWorkers * Math.pow(1.5, growth);
-    return (int) Math.max(1, maxOpsBudget);
+    return (int) Math.min(Integer.MAX_VALUE, Math.max(1, maxOpsBudget));
   }
 
   @Setup
@@ -107,7 +107,7 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
       long currentOpCount = successfulOps.get(instant.getMillis());
       long availableOps = maxOpsBudget - currentOpCount;
 
-      if (availableOps > 0) {
+      if (maxOpsBudget >= Integer.MAX_VALUE || availableOps > 0) {
         c.output(element);
         successfulOps.add(instant.getMillis(), 1);
         return;
