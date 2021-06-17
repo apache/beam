@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -250,7 +250,7 @@ public class ArrowConversion {
   public static RecordBatchRowIterator rowsFromSerializedRecordBatch(
       org.apache.arrow.vector.types.pojo.Schema arrowSchema,
       InputStream inputStream,
-      BufferAllocator allocator)
+      RootAllocator allocator)
       throws IOException {
     VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, allocator);
     VectorLoader vectorLoader = new VectorLoader(vectorRoot);
