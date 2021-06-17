@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.verify;
 
 import java.util.Map;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
 import org.apache.beam.sdk.util.Sleeper;
@@ -30,14 +32,17 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link RampupThrottlingFn}. */
 @RunWith(JUnit4.class)
 public class RampupThrottlingFnTest {
 
+  @Mock private Counter mockCounter;
   private final Sleeper mockSleeper =
       millis -> {
+        verify(mockCounter).inc(millis);
         throw new RampupDelayException();
       };
   private DoFnTester<Void, Void> rampupThrottlingFnTester;
@@ -52,6 +57,7 @@ public class RampupThrottlingFnTest {
     rampupThrottlingFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     rampupThrottlingFnTester.startBundle();
     rampupThrottlingFn.sleeper = mockSleeper;
+    rampupThrottlingFn.throttlingMsecs = mockCounter;
   }
 
   @Test
