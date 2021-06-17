@@ -238,8 +238,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // Attribute tag that can filter the test set.
     String attribute = System.getProperty('attr')
 
-    // Extra test options pass to nose.
-    String[] extraTestOptions = ["--nocapture"]
+    // Extra test options pass to pytest.
+    String[] extraTestOptions = ["--capture=no"]
 
     // Name of Cloud KMS encryption key to use in some tests.
     String kmsKeyName = System.getProperty('kmsKeyName')
@@ -312,8 +312,8 @@ class BeamModulePlugin implements Plugin<Project> {
       "--environment_cache_millis=10000",
       "--experiments=beam_fn_api",
     ]
-    // Additional nosetests options
-    List<String> nosetestsOptions = []
+    // Additional pytest options
+    List<String> pytestOptions = []
     // Job server startup task.
     Task startJobServer
     // Job server cleanup task.
@@ -330,7 +330,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
     // Attribute for Python tests to run.
-    String pythonTestAttr = "UsesCrossLanguageTransforms"
+    String pythonTestAttr = "xlang_transforms"
     // classpath for running tests.
     FileCollection classpath
   }
@@ -2104,13 +2104,12 @@ class BeamModulePlugin implements Plugin<Project> {
         config.cleanupJobServer.mustRunAfter javaTask
 
         // Task for running testcases in Python SDK
-        def testOpts = [
-          "--attr=${config.pythonTestAttr}"
-        ]
         def beamPythonTestPipelineOptions = [
           "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
-          "test_opts": testOpts + config.nosetestsOptions,
-          "suite": "xlangValidateRunner"
+          "test_opts": config.pytestOptions,
+          "suite": "xlangValidateRunner",
+          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+          "collect": config.pythonTestAttr
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
         def pythonTask = project.tasks.create(name: config.name+"PythonUsing"+sdk, type: Exec) {
@@ -2152,13 +2151,12 @@ class BeamModulePlugin implements Plugin<Project> {
       config.cleanupJobServer.mustRunAfter javaUsingPythonOnlyTask
 
       // Task for running testcases in Python SDK
-      def testOpts = [
-        "--attr=UsesSqlExpansionService"
-      ]
       def beamPythonTestPipelineOptions = [
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
-        "test_opts": testOpts + config.nosetestsOptions,
-        "suite": "xlangSqlValidateRunner"
+        "test_opts":  config.pytestOptions,
+        "suite": "xlangSqlValidateRunner",
+        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+        "collect": "xlang_sql_expansion_service"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
       def pythonSqlTask = project.tasks.create(name: config.name+"PythonUsingSql", type: Exec) {
@@ -2335,9 +2333,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // Build test options that configures test environment and framework
             def testOptions = []
             if (config.tests)
-              testOptions += "--tests=$config.tests"
+              testOptions += "$config.tests"
             if (config.attribute)
-              testOptions += "--attr=$config.attribute"
+              testOptions += "-m=$config.attribute"
             testOptions.addAll(config.extraTestOptions)
             argMap["test_opts"] = testOptions
 
