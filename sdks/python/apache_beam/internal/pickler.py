@@ -44,7 +44,7 @@ from typing import Tuple
 
 import dill
 
-settings = {'dill_byref': False}
+settings = {'dill_byref': None}
 
 
 class _NoOpContextManager(object):

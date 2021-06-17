@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
@@ -313,16 +314,22 @@ public class CalciteUtils {
     } else if (type instanceof ParameterizedType) {
       ParameterizedType parameterizedType = (ParameterizedType) type;
       if (java.util.List.class.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
-        Class<?> genericType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
-        RelDataType collectionElementType = typeFactory.createJavaType(genericType);
-        return typeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
+        RelDataType elementType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[0]);
+        return typeFactory.createArrayType(elementType, UNLIMITED_ARRAY_SIZE);
       } else if (java.util.Map.class.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
-        Class<?> genericKeyType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
-        Class<?> genericValueType = (Class<?>) parameterizedType.getActualTypeArguments()[1];
-        RelDataType mapElementKeyType = typeFactory.createJavaType(genericKeyType);
-        RelDataType mapElementValueType = typeFactory.createJavaType(genericValueType);
+        RelDataType mapElementKeyType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[0]);
+        RelDataType mapElementValueType =
+            sqlTypeWithAutoCast(typeFactory, parameterizedType.getActualTypeArguments()[1]);
         return typeFactory.createMapType(mapElementKeyType, mapElementValueType);
       }
+    } else if (type instanceof GenericArrayType) {
+      throw new IllegalArgumentException(
+          "Cannot infer types from "
+              + type
+              + ". This is currently unsupported, use List instead "
+              + "of Array.");
     }
     return typeFactory.createJavaType((Class) type);
   }

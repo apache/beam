@@ -271,6 +271,20 @@ class DeferredFrameTest(_AbstractFrameTest):
         s,
         ambiguous)
 
+  def test_tz_convert(self):
+    # This replicates a tz_localize doctest:
+    #   s.tz_localize('CET', ambiguous=np.array([True, True, False]))
+    # But using a DeferredSeries instead of a np array
+
+    s = pd.Series(
+        range(3),
+        index=pd.DatetimeIndex([
+            '2018-10-27 01:20:00', '2018-10-27 02:36:00', '2018-10-27 03:46:00'
+        ],
+                               tz='Europe/Berlin'))
+
+    self._run_test(lambda s: s.tz_convert('America/Los_Angeles'), s)
+
   def test_sort_index_columns(self):
     df = pd.DataFrame({
         'c': range(10),
@@ -542,6 +556,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
 
+    self._run_test(lambda df: df.num_wings.value_counts(), df)
+    self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
     self._run_test(lambda s: s[...], s)
@@ -587,6 +604,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.loc[:dates[3]], df)
     self._run_test(lambda df: df.loc[df.A > 10], df)
     self._run_test(lambda df: df.loc[lambda df: df.A > 10], df)
+    self._run_test(lambda df: df.C.loc[df.A > 10], df)
+    self._run_test(lambda df, s: df.loc[s.loc[1:3]], df, pd.Series(dates))
 
   def test_append_sort(self):
     # yapf: disable
@@ -1083,6 +1102,59 @@ class GroupByTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
+  def test_groupby_dtypes(self):
+    self._run_test(
+        lambda df: df.groupby('group').dtypes, GROUPBY_DF, check_proxy=False)
+    self._run_test(
+        lambda df: df.groupby(level=0).dtypes, GROUPBY_DF, check_proxy=False)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_dataframe_groupby_series(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+    self._run_test(
+        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type),
+        GROUPBY_DF,
+        check_proxy=False)
+    self._run_test(
+        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type),
+        GROUPBY_DF,
+        check_proxy=False)
+
+  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  def test_series_groupby_series(self, agg_type):
+    if agg_type == 'describe':
+      self.skipTest(
+          "BEAM-12366: proxy generation of SeriesGroupBy.describe "
+          "fails")
+    if agg_type in ('corr', 'cov'):
+      self.skipTest(
+          "BEAM-12367: SeriesGroupBy.{corr, cov} do not raise the "
+          "expected error.")
+    self._run_test(
+        lambda df: df[df.foo < 40].bar.groupby(df.group).agg(agg_type),
+        GROUPBY_DF)
+    self._run_test(
+        lambda df: df[df.foo < 40].bar.groupby(df.foo % 3).agg(agg_type),
+        GROUPBY_DF)
+
+  def test_groupby_series_apply(self):
+    df = GROUPBY_DF
+
+    def median_sum_fn(x):
+      return (x.foo + x.bar).median()
+
+    # Note this is the same as DataFrameGroupBy.describe. Using it here is
+    # just a convenient way to test apply() with a user fn that returns a Series
+    describe = lambda df: df.describe()
+
+    self._run_test(lambda df: df.groupby(df.group).foo.apply(describe), df)
+    self._run_test(
+        lambda df: df.groupby(df.group)[['foo', 'bar']].apply(describe), df)
+    self._run_test(lambda df: df.groupby(df.group).apply(median_sum_fn), df)
+
 
 class AggregationTest(_AbstractFrameTest):
   """Tests for global aggregation methods on DataFrame/Series."""
@@ -1368,6 +1440,25 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.std(numeric_only=True), GROUPBY_DF)
     self._run_test(lambda df: df.var(numeric_only=True), GROUPBY_DF)
 
+  def test_dataframe_mode(self):
+    self._run_test(
+        lambda df: df.mode(), GROUPBY_DF, nonparallel=True, check_proxy=False)
+    self._run_test(
+        lambda df: df.mode(numeric_only=True),
+        GROUPBY_DF,
+        nonparallel=True,
+        check_proxy=False)
+    self._run_test(
+        lambda df: df.mode(dropna=True, numeric_only=True),
+        GROUPBY_DF,
+        nonparallel=True,
+        check_proxy=False)
+
+  def test_series_mode(self):
+    self._run_test(lambda df: df.foo.mode(), GROUPBY_DF, nonparallel=True)
+    self._run_test(
+        lambda df: df.baz.mode(dropna=True), GROUPBY_DF, nonparallel=True)
+
 
 class BeamSpecificTest(unittest.TestCase):
   """Tests for functionality that's specific to the Beam DataFrame API.
@@ -1392,7 +1483,7 @@ class BeamSpecificTest(unittest.TestCase):
     elif isinstance(expected, pd.DataFrame):
       pd.testing.assert_frame_equal(actual, expected)
 
-  def _run_test(self, func, *args, distributed=True):
+  def _evaluate(self, func, *args, distributed=True):
     deferred_args = [
         frame_base.DeferredFrame.wrap(
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
@@ -1410,7 +1501,7 @@ class BeamSpecificTest(unittest.TestCase):
         'rating': [4, 4, 3.5, 15, 5]
     })
 
-    result = self._run_test(lambda df: df.drop_duplicates(keep='any'), df)
+    result = self._evaluate(lambda df: df.drop_duplicates(keep='any'), df)
 
     # Verify that the result is the same as conventional drop_duplicates
     self.assert_frame_data_equivalent(result, df.drop_duplicates())
@@ -1422,7 +1513,7 @@ class BeamSpecificTest(unittest.TestCase):
         'rating': [4, 4, 3.5, 15, 5]
     })
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df: df.drop_duplicates(keep='any', subset=['brand']), df)
 
     self.assertTrue(result.brand.unique)
@@ -1436,7 +1527,7 @@ class BeamSpecificTest(unittest.TestCase):
         'rating': [4, 4, 3.5, 15, 5]
     })
 
-    result = self._run_test(lambda df: df.brand.drop_duplicates(keep='any'), df)
+    result = self._evaluate(lambda df: df.brand.drop_duplicates(keep='any'), df)
 
     self.assert_frame_data_equivalent(result, df.brand.drop_duplicates())
 
@@ -1447,7 +1538,7 @@ class BeamSpecificTest(unittest.TestCase):
         'rating': [4, 4, 3.5, 15, 5]
     })
 
-    result = self._run_test(lambda df: df.duplicated(keep='any'), df)
+    result = self._evaluate(lambda df: df.duplicated(keep='any'), df)
 
     # Verify that the result is the same as conventional duplicated
     self.assert_frame_data_equivalent(result, df.duplicated())
@@ -1480,7 +1571,7 @@ class BeamSpecificTest(unittest.TestCase):
                           "Anguilla"
                       ])
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df: df.population.nsmallest(3, keep='any'), df)
 
     # keep='any' should produce the same result as keep='first',
@@ -1515,7 +1606,7 @@ class BeamSpecificTest(unittest.TestCase):
                           "Anguilla"
                       ])
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df: df.population.nlargest(3, keep='any'), df)
 
     # keep='any' should produce the same result as keep='first',
@@ -1550,11 +1641,11 @@ class BeamSpecificTest(unittest.TestCase):
                           "Anguilla"
                       ])
 
-    result = self._run_test(lambda df: df.sample(n=3), df)
+    result = self._evaluate(lambda df: df.sample(n=3), df)
 
     self.assertEqual(len(result), 3)
 
-    series_result = self._run_test(lambda df: df.GDP.sample(n=3), df)
+    series_result = self._evaluate(lambda df: df.GDP.sample(n=3), df)
     self.assertEqual(len(series_result), 3)
     self.assertEqual(series_result.name, "GDP")
 
@@ -1588,13 +1679,13 @@ class BeamSpecificTest(unittest.TestCase):
 
     weights = pd.Series([0, 0, 0, 0, 0, 0, 0, 1, 1], index=df.index)
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df, weights: df.sample(n=2, weights=weights), df, weights)
 
     self.assertEqual(len(result), 2)
     self.assertEqual(set(result.index), set(["Tuvalu", "Anguilla"]))
 
-    series_result = self._run_test(
+    series_result = self._evaluate(
         lambda df, weights: df.GDP.sample(n=2, weights=weights), df, weights)
     self.assertEqual(len(series_result), 2)
     self.assertEqual(series_result.name, "GDP")
@@ -1629,20 +1720,46 @@ class BeamSpecificTest(unittest.TestCase):
                       ])
 
     # Missing weights are treated as 0
-    weights = pd.Series([.1, .0001], index=["Nauru", "Iceland"])
+    weights = pd.Series([.1, .01, np.nan, 0],
+                        index=["Nauru", "Iceland", "Anguilla", "Italy"])
 
-    result = self._run_test(
+    result = self._evaluate(
         lambda df, weights: df.sample(n=2, weights=weights), df, weights)
 
     self.assertEqual(len(result), 2)
     self.assertEqual(set(result.index), set(["Nauru", "Iceland"]))
 
-    series_result = self._run_test(
+    series_result = self._evaluate(
         lambda df, weights: df.GDP.sample(n=2, weights=weights), df, weights)
 
     self.assertEqual(len(series_result), 2)
     self.assertEqual(series_result.name, "GDP")
     self.assertEqual(set(series_result.index), set(["Nauru", "Iceland"]))
+
+  def test_sample_with_weights_distribution(self):
+    target_prob = 0.25
+    num_samples = 100
+    num_targets = 200
+    num_other_elements = 10000
+
+    target_weight = target_prob / num_targets
+    other_weight = (1 - target_prob) / num_other_elements
+    self.assertTrue(target_weight > other_weight * 10, "weights too close")
+
+    result = self._evaluate(
+        lambda s,
+        weights: s.sample(n=num_samples, weights=weights).sum(),
+        # The first elements are 1, the rest are all 0.  This means that when
+        # we sum all the sampled elements (above), the result should be the
+        # number of times the first elements (aka targets) were sampled.
+        pd.Series([1] * num_targets + [0] * num_other_elements),
+        pd.Series([target_weight] * num_targets +
+                  [other_weight] * num_other_elements))
+
+    # With the above constants, the probability of violating this invariant
+    # (as computed using the Bernoulli distribution) is about 0.0012%.
+    expected = num_samples * target_prob
+    self.assertTrue(expected / 3 < result < expected * 2, (expected, result))
 
 
 class AllowNonParallelTest(unittest.TestCase):
@@ -1719,6 +1836,14 @@ class ConstructionTimeTest(unittest.TestCase):
 
   def test_categorical_ordered(self):
     self._run_test(lambda df: df.cat_col.cat.ordered)
+
+  def test_groupby_ndim(self):
+    self._run_test(lambda df: df.groupby('int_col').ndim)
+
+  def test_groupby_project_ndim(self):
+    self._run_test(lambda df: df.groupby('int_col').flt_col.ndim)
+    self._run_test(
+        lambda df: df.groupby('int_col')[['flt_col', 'str_col']].ndim)
 
 
 class DocstringTest(unittest.TestCase):

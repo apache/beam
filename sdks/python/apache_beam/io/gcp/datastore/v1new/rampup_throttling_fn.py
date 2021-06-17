@@ -89,7 +89,9 @@ class RampupThrottlingFn(DoFn):
         yield element
         break
       else:
-        backoff_ms = next(backoff)
-        _LOG.info('Delaying by %sms to conform to gradual ramp-up.', backoff_ms)
-        time.sleep(backoff_ms)
-        self._throttled_secs.inc(backoff_ms)
+        backoff_secs = next(backoff)
+        _LOG.info(
+            'Delaying by %sms to conform to gradual ramp-up.',
+            int(1000 * backoff_secs))
+        time.sleep(backoff_secs)
+        self._throttled_secs.inc(int(backoff_secs))

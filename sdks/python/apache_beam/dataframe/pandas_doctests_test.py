@@ -37,9 +37,7 @@ class DoctestTest(unittest.TestCase):
         use_beam=False,
         report=True,
         wont_implement_ok={
-            'pandas.core.generic.NDFrame.first': ['*'],
             'pandas.core.generic.NDFrame.head': ['*'],
-            'pandas.core.generic.NDFrame.last': ['*'],
             'pandas.core.generic.NDFrame.shift': [
                 'df.shift(periods=3)',
                 'df.shift(periods=3, fill_value=0)',
@@ -83,6 +81,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.interpolate': ['*'],
             'pandas.core.generic.NDFrame.resample': ['*'],
             'pandas.core.generic.NDFrame.rolling': ['*'],
+            # argsort wont implement
+            'pandas.core.generic.NDFrame.abs': [
+                'df.loc[(df.c - 43).abs().argsort()]',
+            ],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -101,10 +103,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.squeeze': ['*'],
             'pandas.core.generic.NDFrame.truncate': ['*'],
             'pandas.core.generic.NDFrame.xs': ['*'],
-            # argsort unimplemented
-            'pandas.core.generic.NDFrame.abs': [
-                'df.loc[(df.c - 43).abs().argsort()]',
-            ],
         },
         skip={
             # Internal test
@@ -449,12 +447,17 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", "b"]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
-                # Grouping by a series is not supported
-                'ser.groupby(ser > 100).mean()',
             ],
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
+            'pandas.core.series.Series.groupby': [
+                # TODO(BEAM-11393): This example requires aligning two series
+                # with non-unique indexes. It only works in pandas because
+                # pandas can recognize the indexes are identical and elide the
+                # alignment.
+                'ser.groupby(ser > 100).mean()',
+            ],
             # error formatting
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
@@ -476,7 +479,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.replace': [
                 "df.replace({'a string': 'new value', True: False})  # raises"
             ],
-            'pandas.core.series.Series.reset_index': ['*'],
             'pandas.core.series.Series.searchsorted': [
                 # This doctest seems to be incorrectly parsed.
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
@@ -670,14 +672,9 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.filter': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': [
-                "df.groupby('id').filter(lambda g: (g.nunique() > 1).any())",
-            ],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
-            'pandas.core.groupby.generic.SeriesGroupBy.filter': ['*'],
         },
         skip={
             'pandas.core.groupby.generic.SeriesGroupBy.cov': [
