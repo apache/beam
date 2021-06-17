@@ -247,6 +247,7 @@ public class ArrowConversion {
     return new RecordBatchRowIterator(schema, vectorSchemaRoot);
   }
 
+  @SuppressWarnings("nullness")
   public static RecordBatchRowIterator rowsFromSerializedRecordBatch(
       org.apache.arrow.vector.types.pojo.Schema arrowSchema,
       InputStream inputStream,
