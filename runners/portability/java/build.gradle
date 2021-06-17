@@ -39,7 +39,6 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile "org.hamcrest:hamcrest:2.1"
-  compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(path: ":model:job-management:", configuration: "shadow")
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(":runners:core-construction-java")
