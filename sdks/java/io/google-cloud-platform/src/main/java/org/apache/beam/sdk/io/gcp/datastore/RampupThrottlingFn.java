@@ -47,8 +47,8 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   private static final FluentBackoff fluentBackoff = FluentBackoff.DEFAULT;
 
   private final int numWorkers;
-  @VisibleForTesting Counter throttlingMsecs =
-      Metrics.counter(RampupThrottlingFn.class, "throttling-msecs");
+  @VisibleForTesting
+  Counter throttlingMsecs = Metrics.counter(RampupThrottlingFn.class, "throttling-msecs");
 
   // Initialized on every setup.
   private transient MovingFunction successfulOps;
