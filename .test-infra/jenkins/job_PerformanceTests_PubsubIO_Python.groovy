@@ -24,7 +24,9 @@ import static java.util.UUID.randomUUID
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def withDataflowWorkerJar = true
+def final JOB_SPECIFIC_SWITCHES = [
+  '-PwithDataflowWorkerJar="true"'
+]
 
 def psio_test = [
   title          : 'PubsubIO Write Performance Test Python 2GB',
@@ -56,7 +58,7 @@ def executeJob = { scope, testConfig ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner,
-      CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, withDataflowWorkerJar)
+      CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, JOB_SPECIFIC_SWITCHES)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
