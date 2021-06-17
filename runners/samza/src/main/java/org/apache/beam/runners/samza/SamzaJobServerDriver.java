@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.samza;
 
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.jobsubmission.JobServerDriver;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
