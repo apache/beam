@@ -38,7 +38,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.harness.test.TestStreams;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.BindableService;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;

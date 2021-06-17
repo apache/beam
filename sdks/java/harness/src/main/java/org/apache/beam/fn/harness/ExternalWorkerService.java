@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.portability;
+package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.util.Collections;
-import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StartWorkerResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerRequest;
@@ -29,9 +28,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnE
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.sdk.fn.server.FnService;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
