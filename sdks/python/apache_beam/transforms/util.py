@@ -29,6 +29,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Tuple
@@ -37,6 +38,7 @@ from typing import Union
 
 from apache_beam import coders
 from apache_beam import typehints
+from apache_beam import pvalue
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -70,7 +72,6 @@ from apache_beam.utils.annotations import experimental
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
-  from apache_beam import pvalue
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
@@ -144,66 +145,76 @@ class CoGroupByKey(PTransform):
       (or if there's a chance there may be none), this argument is the only way
       to provide pipeline information, and should be considered mandatory.
   """
-  def __init__(self, **kwargs):
-    super(CoGroupByKey, self).__init__()
-    self.pipeline = kwargs.pop('pipeline', None)
-    if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
+  def __init__(self, *, pipeline=None):
+    self.pipeline = pipeline
 
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
       return pvalueish, tuple(pvalueish.values())
     except AttributeError:
+      # Cast iterables a tuple so we can do re-iteration.
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
 
   def expand(self, pcolls):
-    """Performs CoGroupByKey on argument pcolls; see class docstring."""
+    if isinstance(pcolls, dict):
+      if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
+        # Small, string tags. Pass them as data.
+        pcolls_dict = pcolls
+        post_process = None
+      else:
+        # Pass the tags in the post_process closure.
+        tags = list(pcolls.keys())
+        pcolls_dict = {str(ix): pcolls[tag] for (ix, tag) in enumerate(tags)}
+        post_process = lambda vs: {
+            tag: vs[str(ix)]
+            for (ix, tag) in enumerate(tags)
+        }
+    else:
+      # Tags are tuple indices.
+      num_tags = len(pcolls)
+      pcolls_dict = {str(ix): pcolls[ix] for ix in range(num_tags)}
+      post_process = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
 
-    # For associating values in K-V pairs with the PCollections they came from.
-    def _pair_tag_with_value(key_value, tag):
-      (key, value) = key_value
-      return (key, (tag, value))
+    result = pcolls_dict | _CoGBKImpl(pipeline=self.pipeline)
+    if post_process:
+      return result | MapTuple(lambda k, vs: (k, post_process(vs)))
+    else:
+      return result
 
-    # Creates the key, value pairs for the output PCollection. Values are either
-    # lists or dicts (per the class docstring), initialized by the result of
-    # result_ctor(result_ctor_arg).
-    def _merge_tagged_vals_under_key(key_grouped, result_ctor, result_ctor_arg):
-      (key, grouped) = key_grouped
-      result_value = result_ctor(result_ctor_arg)
-      for tag, value in grouped:
-        result_value[tag].append(value)
-      return (key, result_value)
 
-    try:
-      # If pcolls is a dict, we turn it into (tag, pcoll) pairs for use in the
-      # general-purpose code below. The result value constructor creates dicts
-      # whose keys are the tags.
-      result_ctor_arg = list(pcolls)
-      result_ctor = lambda tags: dict((tag, []) for tag in tags)
-      pcolls = pcolls.items()
-    except AttributeError:
-      # Otherwise, pcolls is a list/tuple, so we turn it into (index, pcoll)
-      # pairs. The result value constructor makes tuples with len(pcolls) slots.
-      pcolls = list(enumerate(pcolls))
-      result_ctor_arg = len(pcolls)
-      result_ctor = lambda size: tuple([] for _ in range(size))
+class _CoGBKImpl(PTransform):
+  def __init__(self, *, pipeline=None):
+    self.pipeline = pipeline
 
+  def expand(self, pcolls):
     # Check input PCollections for PCollection-ness, and that they all belong
     # to the same pipeline.
-    for _, pcoll in pcolls:
+    for pcoll in pcolls.values():
       self._check_pcollection(pcoll)
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline
 
+    tags = list(pcolls.keys())
+
+    def add_tag(tag):
+      return lambda k, v: (k, (tag, v))
+
+    def collect_values(key, tagged_values):
+      grouped_values = {tag: [] for tag in tags}
+      for tag, value in tagged_values:
+        grouped_values[tag].append(value)
+      return key, grouped_values
+
     return ([
-        pcoll | 'pair_with_%s' % tag >> Map(_pair_tag_with_value, tag) for tag,
-        pcoll in pcolls
+        pcoll
+        | 'Tag[%s]' % tag >> MapTuple(add_tag(tag))
+        for (tag, pcoll) in pcolls.items()
     ]
             | Flatten(pipeline=self.pipeline)
             | GroupByKey()
-            | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
+            | MapTuple(collect_values))
 
 
 @ptransform_fn
