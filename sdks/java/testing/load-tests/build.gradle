@@ -108,7 +108,8 @@ def getLoadTestArgs = {
 
   if (isDataflowRunner) {
     if (isDataflowRunnerV2) {
-      loadTestArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
+      // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+      loadTestArgsList.add("--experiments=use_unified_worker,use_runner_v2,shuffle_mode=appliance")
       def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerImageName
       loadTestArgsList.add("--sdkContainerImage=${sdkContainerImage}")
     } else {
