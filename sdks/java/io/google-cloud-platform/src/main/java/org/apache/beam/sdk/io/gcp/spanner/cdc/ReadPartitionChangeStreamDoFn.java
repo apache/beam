@@ -18,14 +18,15 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
-public class ReadPartitionChangeStream
-    extends PTransform<PCollection<String>, PCollection<DataChangesRecord>> {
+public class ReadPartitionChangeStreamDoFn
+    extends PTransform<PCollection<PartitionMetadata>, PCollection<DataChangesRecord>> {
 
   @Override
-  public PCollection<DataChangesRecord> expand(PCollection<String> input) {
+  public PCollection<DataChangesRecord> expand(PCollection<PartitionMetadata> input) {
     return null;
   }
 }

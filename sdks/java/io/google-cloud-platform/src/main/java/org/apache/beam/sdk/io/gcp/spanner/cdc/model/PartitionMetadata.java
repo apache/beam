@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Value;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.avro.reflect.AvroEncode;
@@ -72,7 +73,7 @@ public class PartitionMetadata implements Serializable {
   /** Default constructor for serialization only. */
   private PartitionMetadata() {}
 
-  PartitionMetadata(
+  public PartitionMetadata(
       String partitionToken,
       List<String> parentTokens,
       Timestamp startTimestamp,
@@ -316,6 +317,12 @@ public class PartitionMetadata implements Serializable {
       }
       if (inclusiveEnd == null) {
         inclusiveEnd = false;
+      }
+      if (createdAt == null) {
+        createdAt = Value.COMMIT_TIMESTAMP;
+      }
+      if (updatedAt == null) {
+        updatedAt = Value.COMMIT_TIMESTAMP;
       }
       return new PartitionMetadata(
           partitionToken,

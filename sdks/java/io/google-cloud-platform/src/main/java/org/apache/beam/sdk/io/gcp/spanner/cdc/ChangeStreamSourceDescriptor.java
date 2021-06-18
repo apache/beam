@@ -17,6 +17,28 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import com.google.auto.value.AutoValue;
+import com.google.cloud.Timestamp;
+import java.io.Serializable;
+import javax.annotation.Nullable;
 
-public class DetectNewPartitions extends DoFn<Integer, String> {}
+/** Represents a Cloud Spanner Change Stream source description. */
+@AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+public abstract class ChangeStreamSourceDescriptor implements Serializable {
+  abstract String getChangeStreamName();
+
+  abstract String getMetadataTableName();
+
+  abstract @Nullable Timestamp getStartAt();
+
+  abstract @Nullable Timestamp getEndAt();
+
+  public static ChangeStreamSourceDescriptor of(
+      String changeStreamName, String metadataTableName, Timestamp startAt, Timestamp endAt) {
+    return new AutoValue_ChangeStreamSourceDescriptor(
+        changeStreamName, metadataTableName, startAt, endAt);
+  }
+}
