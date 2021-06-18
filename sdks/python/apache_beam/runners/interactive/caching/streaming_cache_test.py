@@ -17,10 +17,8 @@
 
 # pytype: skip-file
 
-import tempfile
 import unittest
 
-import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader

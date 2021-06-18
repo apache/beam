@@ -17,15 +17,11 @@
 
 # pytype: skip-file
 
-import os
-import shutil
-import tempfile
 import time
 import unittest
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.io import filesystems
 from apache_beam.runners.interactive import cache_manager as cache
 
 
