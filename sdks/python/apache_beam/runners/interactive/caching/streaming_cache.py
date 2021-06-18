@@ -251,7 +251,7 @@ class StreamingCache(CacheManager):
       self._cache_dir = cache_dir
     else:
       self._cache_dir = tempfile.mkdtemp(
-          prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
+          prefix='ib-', dir=os.environ.get('TEST_TMPDIR', None))
 
     # List of saved pcoders keyed by PCollection path. It is OK to keep this
     # list in memory because once FileBasedCacheManager object is
@@ -343,8 +343,9 @@ class StreamingCache(CacheManager):
         if isinstance(v, (TestStreamFileHeader, TestStreamFileRecord)):
           val = v.SerializeToString()
         else:
-          val = v
-          self.save_pcoder(coders.registry.get_coder(type(val)), *labels)
+          raise TypeError(
+              'Values given to streaming cache should be either '
+              'TestStreamFileHeader or TestStreamFileRecord.')
         f.write(self.load_pcoder(*labels).encode(val) + b'\n')
 
   def clear(self, *labels):
@@ -389,7 +390,12 @@ class StreamingCache(CacheManager):
   def load_pcoder(self, *labels):
     saved_pcoder = self._saved_pcoders.get(
         os.path.join(self._cache_dir, *labels), None)
-    return self._default_pcoder if saved_pcoder is None else saved_pcoder
+    # TODO(BEAM-12506): Get rid of the SafeFastPrimitivesCoder for
+    # WindowedValueHolder.
+    if saved_pcoder is None or isinstance(saved_pcoder,
+                                          coders.FastPrimitivesCoder):
+      return self._default_pcoder
+    return saved_pcoder
 
   def cleanup(self):
 
