@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.NameGenerator.generateMetadataTableName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -56,8 +57,8 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitions;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ReadPartitionChangeStream;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -1381,32 +1382,28 @@ public class SpannerIO {
           "SpannerIO.readChangeStream() requires the start time to be set.");
 
       // Start time must be before end time
-      if (getExclusiveEndAt() != null && getInclusiveStartAt().toSqlTimestamp()
-          .after(getExclusiveEndAt().toSqlTimestamp())) {
+      if (getExclusiveEndAt() != null
+          && getInclusiveStartAt().toSqlTimestamp().after(getExclusiveEndAt().toSqlTimestamp())) {
         throw new IllegalArgumentException("Start time cannot be after end time.");
       }
 
       SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(getSpannerConfig());
       DatabaseAdminClient databaseAdminClient = spannerAccessor.getDatabaseAdminClient();
       DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
-      Database changeStreamsDb = databaseAdminClient.getDatabase(getSpannerConfig().getInstanceId().get(),
-          getSpannerConfig().getDatabaseId().get());
+      Database changeStreamsDb =
+          databaseAdminClient.getDatabase(
+              getSpannerConfig().getInstanceId().get(), getSpannerConfig().getDatabaseId().get());
 
-      // Start time must be within data retention period
-      // TODO: spanner dependency version is too old, need to be updated to see data retention period
+      DatabaseId databaseId =
+          DatabaseId.of(
+              getSpannerConfig().getProjectId().get(),
+              getSpannerConfig().getInstanceId().get(),
+              getSpannerConfig().getDatabaseId().get());
+      String partitionMetadataTableName = generateMetadataTableName(databaseId.getDatabase());
 
-      // Start time must be after change stream creation time
-      checkArgument(!getInclusiveStartAt().toSqlTimestamp()
-              .before(changeStreamsDb.getCreateTime().toSqlTimestamp()),
-          "Start time must not be before the change stream creation time.");
-
-      PipelineInitializer pipelineInitializer = new PipelineInitializer();
-      PartitionMetadataDao partitionMetadataDao = new PartitionMetadataDao(databaseClient);
-      DatabaseId databaseId = DatabaseId.of(
-          getSpannerConfig().getProjectId().get(),
-          getSpannerConfig().getInstanceId().get(),
-          getSpannerConfig().getDatabaseId().get());
-      pipelineInitializer.initialize(
+      PartitionMetadataDao partitionMetadataDao =
+          new PartitionMetadataDao(databaseClient, partitionMetadataTableName);
+      PipelineInitializer.initialize(
           databaseAdminClient,
           partitionMetadataDao,
           databaseId,

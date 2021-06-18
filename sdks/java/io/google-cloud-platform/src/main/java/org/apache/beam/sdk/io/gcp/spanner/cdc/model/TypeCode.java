@@ -29,9 +29,7 @@ public class TypeCode implements Serializable {
 
   private String code;
 
-  /**
-   * Default constructor for serialization only.
-   */
+  /** Default constructor for serialization only. */
   private TypeCode() {}
 
   public TypeCode(String code) {
@@ -65,8 +63,6 @@ public class TypeCode implements Serializable {
 
   @Override
   public String toString() {
-    return "TypeCode{" +
-        "code='" + code + '\'' +
-        '}';
+    return "TypeCode{" + "code='" + code + '\'' + '}';
   }
 }

@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import java.io.Serializable;
-import java.util.Objects;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 
 @DefaultCoder(AvroCoder.class)
 public class ColumnType implements Serializable {
@@ -31,17 +31,17 @@ public class ColumnType implements Serializable {
   private String name;
   private TypeCode type;
   private boolean isPrimaryKey;
+  private long ordinalPosition;
 
-  /**
-   * Default constructor for serialization only.
-   */
+  /** Default constructor for serialization only. */
   private ColumnType() {}
 
   @SchemaCreate
-  public ColumnType(String name, TypeCode type, boolean isPrimaryKey) {
+  public ColumnType(String name, TypeCode type, boolean isPrimaryKey, long ordinalPosition) {
     this.name = name;
     this.type = type;
     this.isPrimaryKey = isPrimaryKey;
+    this.ordinalPosition = ordinalPosition;
   }
 
   public String getName() {
@@ -68,6 +68,14 @@ public class ColumnType implements Serializable {
     isPrimaryKey = primaryKey;
   }
 
+  public long getOrdinalPosition() {
+    return ordinalPosition;
+  }
+
+  public void setOrdinalPosition(int ordinalPosition) {
+    this.ordinalPosition = ordinalPosition;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -77,22 +85,29 @@ public class ColumnType implements Serializable {
       return false;
     }
     ColumnType that = (ColumnType) o;
-    return isPrimaryKey == that.isPrimaryKey
-        && Objects.equals(name, that.name)
-        && Objects.equals(type, that.type);
+    return isPrimaryKey() == that.isPrimaryKey()
+        && getOrdinalPosition() == that.getOrdinalPosition()
+        && Objects.equal(getName(), that.getName())
+        && Objects.equal(getType(), that.getType());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, type, isPrimaryKey);
+    return Objects.hashCode(getName(), getType(), isPrimaryKey(), getOrdinalPosition());
   }
 
   @Override
   public String toString() {
-    return "ColumnType{" +
-        "name='" + name + '\'' +
-        ", type=" + type +
-        ", isPrimaryKey=" + isPrimaryKey +
-        '}';
+    return "ColumnType{"
+        + "name='"
+        + name
+        + '\''
+        + ", type="
+        + type
+        + ", isPrimaryKey="
+        + isPrimaryKey
+        + ", ordinalPosition="
+        + ordinalPosition
+        + '}';
   }
 }

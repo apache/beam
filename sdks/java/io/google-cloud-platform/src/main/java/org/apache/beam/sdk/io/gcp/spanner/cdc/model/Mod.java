@@ -20,15 +20,16 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 
 @DefaultCoder(AvroCoder.class)
 public class Mod implements Serializable {
 
   private static final long serialVersionUID = 7362322548913179939L;
 
+  private Map<String, String> keys;
   private Map<String, String> oldValues;
   private Map<String, String> newValues;
 
@@ -36,12 +37,12 @@ public class Mod implements Serializable {
     return new OldAndNewBuilder();
   }
 
-  /**
-   * Default constructor for serialization only.
-   */
+  /** Default constructor for serialization only. */
   private Mod() {}
 
-  public Mod(Map<String, String> oldValues, Map<String, String> newValues) {
+  public Mod(
+      Map<String, String> keys, Map<String, String> oldValues, Map<String, String> newValues) {
+    this.keys = keys;
     this.oldValues = oldValues;
     this.newValues = newValues;
   }
@@ -62,23 +63,35 @@ public class Mod implements Serializable {
     this.newValues = newValues;
   }
 
+  public Map<String, String> getKeys() {
+    return keys;
+  }
+
+  public void setKeys(Map<String, String> keys) {
+    this.keys = keys;
+  }
+
   public static class OldAndNewBuilder {
+    private final Map<String, String> keys;
     private final Map<String, String> oldValues;
     private final Map<String, String> newValues;
 
     public OldAndNewBuilder() {
+      this.keys = new HashMap<>();
       this.oldValues = new HashMap<>();
       this.newValues = new HashMap<>();
     }
 
-    public OldAndNewBuilder addValue(String name, String oldValue, String newValue) {
+    public OldAndNewBuilder addValue(
+        String keyColumn, String keyValue, String name, String oldValue, String newValue) {
+      keys.put(keyColumn, keyValue);
       oldValues.put(name, oldValue);
       newValues.put(name, newValue);
       return this;
     }
 
     public Mod build() {
-      return new Mod(oldValues, newValues);
+      return new Mod(keys, oldValues, newValues);
     }
   }
 
@@ -91,19 +104,18 @@ public class Mod implements Serializable {
       return false;
     }
     Mod mod = (Mod) o;
-    return Objects.equals(newValues, mod.newValues) && Objects.equals(oldValues, mod.oldValues);
+    return Objects.equal(getKeys(), mod.getKeys())
+        && Objects.equal(getOldValues(), mod.getOldValues())
+        && Objects.equal(getNewValues(), mod.getNewValues());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(newValues, oldValues);
+    return Objects.hashCode(getKeys(), getOldValues(), getNewValues());
   }
 
   @Override
   public String toString() {
-    return "Mod{" +
-        "oldValues=" + oldValues +
-        ", newValues=" + newValues +
-        '}';
+    return "Mod{" + "keys=" + keys + ", oldValues=" + oldValues + ", newValues=" + newValues + '}';
   }
 }

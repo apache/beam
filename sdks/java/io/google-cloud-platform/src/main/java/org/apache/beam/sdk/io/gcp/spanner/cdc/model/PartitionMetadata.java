@@ -27,9 +27,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
-/**
- * Model for the partition metadata database table used in the Connector.
- */
+/** Model for the partition metadata database table used in the Connector. */
 @DefaultCoder(AvroCoder.class)
 public class PartitionMetadata implements Serializable {
 
@@ -71,9 +69,7 @@ public class PartitionMetadata implements Serializable {
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp updatedAt;
 
-  /**
-   * Default constructor for serialization only.
-   */
+  /** Default constructor for serialization only. */
   private PartitionMetadata() {}
 
   PartitionMetadata(
@@ -217,18 +213,29 @@ public class PartitionMetadata implements Serializable {
 
   @Override
   public String toString() {
-    return "PartitionMetadata{" +
-        "partitionToken='" + partitionToken + '\'' +
-        ", parentTokens=" + parentTokens +
-        ", startTimestamp=" + startTimestamp +
-        ", inclusiveStart=" + inclusiveStart +
-        ", endTimestamp=" + endTimestamp +
-        ", inclusiveEnd=" + inclusiveEnd +
-        ", heartbeatSeconds=" + heartbeatSeconds +
-        ", state=" + state +
-        ", createdAt=" + createdAt +
-        ", updatedAt=" + updatedAt +
-        '}';
+    return "PartitionMetadata{"
+        + "partitionToken='"
+        + partitionToken
+        + '\''
+        + ", parentTokens="
+        + parentTokens
+        + ", startTimestamp="
+        + startTimestamp
+        + ", inclusiveStart="
+        + inclusiveStart
+        + ", endTimestamp="
+        + endTimestamp
+        + ", inclusiveEnd="
+        + inclusiveEnd
+        + ", heartbeatSeconds="
+        + heartbeatSeconds
+        + ", state="
+        + state
+        + ", createdAt="
+        + createdAt
+        + ", updatedAt="
+        + updatedAt
+        + '}';
   }
 
   public static PartitionMetadata.Builder newBuilder() {

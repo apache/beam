@@ -1,11 +1,13 @@
 /*
- * Copyright 2021 Google LLC
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,16 +34,19 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 public class ModelEncodingTest {
 
   @Test
   public void testModCanBeEncoded() throws IOException {
-    final Mod mod = new Mod(
-        ImmutableMap.of("column1", "value1", "column2", "oldValue2"),
-        ImmutableMap.of("column1", "value1", "column2", "newValue2")
-    );
+    final Mod mod =
+        new Mod(
+            ImmutableMap.of("keyColumn1", "keyValue1"),
+            ImmutableMap.of("column1", "value1", "column2", "oldValue2"),
+            ImmutableMap.of("column1", "value1", "column2", "newValue2"));
 
     assertEquals(mod, encodeAndDecode(mod));
   }
@@ -63,55 +65,57 @@ public class ModelEncodingTest {
 
   @Test
   public void testValueCaptureTypeCanBeEncoded() throws IOException {
-    assertEquals(ValueCaptureType.OLD_AND_NEW_VALUES, encodeAndDecode(ValueCaptureType.OLD_AND_NEW_VALUES));
+    assertEquals(
+        ValueCaptureType.OLD_AND_NEW_VALUES, encodeAndDecode(ValueCaptureType.OLD_AND_NEW_VALUES));
   }
 
   @Test
   public void testColumnTypeCanBeEncoded() throws IOException {
-    final ColumnType columnType = new ColumnType("column", new TypeCode("typeCode"), true);
+    final ColumnType columnType = new ColumnType("column", new TypeCode("typeCode"), true, 1);
 
     assertEquals(columnType, encodeAndDecode(columnType));
   }
 
   @Test
   public void testDataChangesRecordCanBeEncoded() throws IOException {
-    final DataChangesRecord dataChangesRecord = new DataChangesRecord(
-        "1",
-        Timestamp.now(),
-        "2",
-        true,
-        "3",
-        "TableName",
-        Arrays.asList(
-            new ColumnType("column1", new TypeCode("typeCode1"), true),
-            new ColumnType("column2", new TypeCode("typeCode2"), false)
-        ),
-        Collections.singletonList(
-            new Mod(
-                ImmutableMap.of("column1", "value1", "column2", "oldValue2"),
-                ImmutableMap.of("column1", "value1", "column2", "newValue2")
-            )
-        ),
-        ModType.INSERT,
-        ValueCaptureType.OLD_AND_NEW_VALUES
-    );
+    final DataChangesRecord dataChangesRecord =
+        new DataChangesRecord(
+            "1",
+            Timestamp.now(),
+            "2",
+            true,
+            "3",
+            "TableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("typeCode1"), true, 1),
+                new ColumnType("column2", new TypeCode("typeCode2"), false, 2)),
+            Collections.singletonList(
+                new Mod(
+                    ImmutableMap.of("keyColumn1", "keyValue1"),
+                    ImmutableMap.of("column1", "value1", "column2", "oldValue2"),
+                    ImmutableMap.of("column1", "value1", "column2", "newValue2"))),
+            ModType.INSERT,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            1,
+            1);
 
     assertEquals(dataChangesRecord, encodeAndDecode(dataChangesRecord));
   }
 
   @Test
   public void testPartitionMetadataCanBeEncoded() throws IOException {
-    final PartitionMetadata partitionMetadata = new PartitionMetadata(
-        "partitionToken",
-        ImmutableList.of("parentToken"),
-        Timestamp.now(),
-        true,
-        Timestamp.now(),
-        false,
-        10,
-        State.CREATED,
-        Timestamp.now(),
-        Timestamp.now());
+    final PartitionMetadata partitionMetadata =
+        new PartitionMetadata(
+            "partitionToken",
+            ImmutableList.of("parentToken"),
+            Timestamp.now(),
+            true,
+            Timestamp.now(),
+            false,
+            10,
+            State.CREATED,
+            Timestamp.now(),
+            Timestamp.now());
 
     assertEquals(partitionMetadata, encodeAndDecode(partitionMetadata));
   }
