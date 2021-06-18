@@ -947,8 +947,8 @@ public class ProcessBundleHandlerTest {
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
-    CompletableFuture<StateResponse> successfulResponse = new CompletableFuture<>();
-    CompletableFuture<StateResponse> unsuccessfulResponse = new CompletableFuture<>();
+    CompletableFuture<StateResponse>[] successfulResponse = new CompletableFuture[1];
+    CompletableFuture<StateResponse>[] unsuccessfulResponse = new CompletableFuture[1];
 
     BeamFnStateGrpcClientCache mockBeamFnStateGrpcClient =
         Mockito.mock(BeamFnStateGrpcClientCache.class);
@@ -960,8 +960,7 @@ public class ProcessBundleHandlerTest {
             invocation -> {
               StateRequest.Builder stateRequestBuilder =
                   (StateRequest.Builder) invocation.getArguments()[0];
-              CompletableFuture<StateResponse> completableFuture =
-                  (CompletableFuture<StateResponse>) invocation.getArguments()[1];
+              CompletableFuture<StateResponse> completableFuture = new CompletableFuture<>();
               new Thread(
                       () -> {
                         // Simulate sleeping which introduces a race which most of the time requires
@@ -977,10 +976,10 @@ public class ProcessBundleHandlerTest {
                         }
                       })
                   .start();
-              return null;
+              return completableFuture;
             })
         .when(mockBeamFnStateClient)
-        .handle(any(), any());
+        .handle(any());
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1021,10 +1020,12 @@ public class ProcessBundleHandlerTest {
                   }
 
                   private void doStateCalls(BeamFnStateClient beamFnStateClient) {
-                    beamFnStateClient.handle(
-                        StateRequest.newBuilder().setInstructionId("SUCCESS"), successfulResponse);
-                    beamFnStateClient.handle(
-                        StateRequest.newBuilder().setInstructionId("FAIL"), unsuccessfulResponse);
+                    successfulResponse[0] =
+                        beamFnStateClient.handle(
+                            StateRequest.newBuilder().setInstructionId("SUCCESS"));
+                    unsuccessfulResponse[0] =
+                        beamFnStateClient.handle(
+                            StateRequest.newBuilder().setInstructionId("FAIL"));
                   }
                 }),
             new BundleProcessorCache());
@@ -1034,8 +1035,8 @@ public class ProcessBundleHandlerTest {
                 BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
             .build());
 
-    assertTrue(successfulResponse.isDone());
-    assertTrue(unsuccessfulResponse.isDone());
+    assertTrue(successfulResponse[0].isDone());
+    assertTrue(unsuccessfulResponse[0].isDone());
   }
 
   @Test
@@ -1091,9 +1092,7 @@ public class ProcessBundleHandlerTest {
                   private void doStateCalls(BeamFnStateClient beamFnStateClient) {
                     thrown.expect(IllegalStateException.class);
                     thrown.expectMessage("State API calls are unsupported");
-                    beamFnStateClient.handle(
-                        StateRequest.newBuilder().setInstructionId("SUCCESS"),
-                        new CompletableFuture<>());
+                    beamFnStateClient.handle(StateRequest.newBuilder().setInstructionId("SUCCESS"));
                   }
                 }),
             new BundleProcessorCache());

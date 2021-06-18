@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.LazyBlockingStateFetchingIterator;
@@ -78,15 +79,14 @@ public class StateFetchingIteratorsTest {
     }
 
     private BeamFnStateClient fakeStateClient(AtomicInteger callCount, ByteString... expected) {
-      return (requestBuilder, response) -> {
+      return (requestBuilder) -> {
         callCount.incrementAndGet();
         if (expected.length == 0) {
-          response.complete(
+          return CompletableFuture.completedFuture(
               StateResponse.newBuilder()
                   .setId(requestBuilder.getId())
                   .setGet(StateGetResponse.newBuilder())
                   .build());
-          return;
         }
 
         ByteString continuationToken = requestBuilder.getGet().getContinuationToken();
@@ -101,7 +101,7 @@ public class StateFetchingIteratorsTest {
         if (requestedPosition != expected.length - 1) {
           newContinuationToken = ByteString.copyFromUtf8(Integer.toString(requestedPosition + 1));
         }
-        response.complete(
+        return CompletableFuture.completedFuture(
             StateResponse.newBuilder()
                 .setId(requestBuilder.getId())
                 .setGet(
