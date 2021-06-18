@@ -230,7 +230,8 @@ Much like the schema case, the parameter with `additional_bq_parameters` can
 also take a callable that receives a table reference.
 
 
-[1] https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
+[1] https://cloud.google.com/bigquery/docs/reference/rest/v2/Job\
+        #jobconfigurationload
 [2] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
 [3] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
 
