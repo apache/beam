@@ -327,8 +327,9 @@ class DataInputOperation(RunnerIOOperation):
 
   def reset(self):
     # type: () -> None
-    self.index = -1
-    self.stop = float('inf')
+    with self.splitting_lock:
+      self.index = -1
+      self.stop = float('inf')
     super(DataInputOperation, self).reset()
 
 
@@ -943,6 +944,7 @@ class BundleProcessor(object):
 
     try:
       execution_context = ExecutionContext()
+      self.current_instruction_id = instruction_id
       self.state_sampler.start()
       # Start all operations.
       for op in reversed(self.ops.values()):
@@ -1012,7 +1014,7 @@ class BundleProcessor(object):
     finally:
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
-        pass
+        self.current_instruction_id = None
       self.state_sampler.stop_if_still_running()
 
   def finalize_bundle(self):
@@ -1029,6 +1031,10 @@ class BundleProcessor(object):
     # type: (beam_fn_api_pb2.ProcessBundleSplitRequest) -> beam_fn_api_pb2.ProcessBundleSplitResponse
     split_response = beam_fn_api_pb2.ProcessBundleSplitResponse()
     with self.splitting_lock:
+      if bundle_split_request.instruction_id != self.current_instruction_id:
+        # This may be a delayed split for a former bundle, see BEAM-12475.
+        return split_response
+
       for op in self.ops.values():
         if isinstance(op, DataInputOperation):
           desired_split = bundle_split_request.desired_splits.get(
