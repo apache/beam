@@ -24,6 +24,7 @@ import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -81,12 +82,15 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   private final InfluxDBSettings settings;
 
+  private final Map<String, String> influxTags;
+
   LoadTest(String[] args, Class<OptionsT> testOptions, String metricsNamespace) throws IOException {
     this.metricsNamespace = metricsNamespace;
     this.runtimeMonitor = new TimeMonitor<>(metricsNamespace, "runtime");
     this.options = LoadTestOptions.readFromArgs(args, testOptions);
     this.sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
     this.pipeline = Pipeline.create(options);
+    this.influxTags = options.getInfluxTags();
     this.runner = getRunnerName(options.getRunner().getName());
     settings =
         InfluxDBSettings.builder()
@@ -147,6 +151,19 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     return pipelineResult;
   }
 
+  private String buildMetric(String suffix) {
+    StringBuilder metricBuilder = new StringBuilder(runner);
+    if (influxTags != null && !influxTags.isEmpty()) {
+      influxTags.entrySet().stream()
+          .forEach(
+              entry -> {
+                metricBuilder.append(entry.getValue()).append("_");
+              });
+    }
+    metricBuilder.append(suffix);
+    return metricBuilder.toString();
+  }
+
   private List<NamedTestResult> readMetrics(
       Timestamp timestamp, PipelineResult result, String testId) {
     MetricsReader reader = new MetricsReader(result, metricsNamespace);
@@ -155,14 +172,14 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
         NamedTestResult.create(
             testId,
             timestamp.toString(),
-            runner + "runtime_sec",
+            buildMetric("runtime_sec"),
             (reader.getEndTimeMetric("runtime") - reader.getStartTimeMetric("runtime")) / 1000D);
 
     NamedTestResult totalBytes =
         NamedTestResult.create(
             testId,
             timestamp.toString(),
-            runner + "total_bytes_count",
+            buildMetric("total_bytes_count"),
             reader.getCounterMetric("totalBytes.count"));
 
     return Arrays.asList(runtime, totalBytes);

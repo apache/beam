@@ -37,6 +37,7 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
+import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -97,9 +98,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.core.metrics.LabeledMetrics;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -131,8 +132,9 @@ import org.slf4j.LoggerFactory;
  * service.
  */
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-class BigQueryServicesImpl implements BigQueryServices {
 
+// TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+class BigQueryServicesImpl implements BigQueryServices {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
   // How frequently to log while polling.
@@ -449,6 +451,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @VisibleForTesting
   static class DatasetServiceImpl implements DatasetService {
+    // Backoff: 200ms * 1.5 ^ n, n=[1,5]
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
@@ -469,24 +472,6 @@ class BigQueryServicesImpl implements BigQueryServices {
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
     private ExecutorService executor;
-
-    protected static final Map<Integer, String> CANONICAL_STATUS_MAP =
-        ImmutableMap.<Integer, String>builder()
-            .put(200, "ok")
-            .put(400, "out_of_range")
-            .put(401, "unauthenticated")
-            .put(403, "permission_denied")
-            .put(404, "not_found")
-            .put(409, "already_exists")
-            .put(429, "resource_exhausted")
-            .put(499, "cancelled")
-            .put(500, "internal")
-            .put(501, "not_implemented")
-            .put(503, "unavailable")
-            .put(504, "deadline_exceeded")
-            .build();
-
-    protected static final String CANONICAL_STATUS_UNKNOWN = "unknown";
 
     @VisibleForTesting
     DatasetServiceImpl(
@@ -853,6 +838,24 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (!ignoreInsertIds) {
         idsToPublish = insertIdList;
       }
+
+      HashMap<String, String> baseLabels = new HashMap<String, String>();
+      // TODO(ajamato): Add Ptransform label. Populate it as empty for now to prevent the
+      // SpecMonitoringInfoValidator from dropping the MonitoringInfo.
+      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.RESOURCE,
+          GcpResourceIdentifiers.bigQueryTable(
+              ref.getProjectId(), ref.getDatasetId(), ref.getTableId()));
+      baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, ref.getProjectId());
+      baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, ref.getDatasetId());
+      baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, ref.getTableId());
+
+      ServiceCallMetric serviceCallMetric =
+          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+
       while (true) {
         List<FailsafeValueInSingleWindow<TableRow, TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
@@ -896,6 +899,8 @@ class BigQueryServicesImpl implements BigQueryServices {
                     .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(), content)
                     .setPrettyPrint(false);
 
+            // Create final reference (which cannot change).
+            // So the lamba expression can refer to rowsInsertedForRequest to use on error.
             futures.add(
                 executor.submit(
                     () -> {
@@ -905,13 +910,25 @@ class BigQueryServicesImpl implements BigQueryServices {
                       long totalBackoffMillis = 0L;
                       while (true) {
                         try {
-                          return insert.execute().getInsertErrors();
+                          List<TableDataInsertAllResponse.InsertErrors> response =
+                              insert.execute().getInsertErrors();
+                          if (response == null || response.isEmpty()) {
+                            serviceCallMetric.call("ok");
+                          } else {
+                            for (TableDataInsertAllResponse.InsertErrors insertErrors : response) {
+                              for (ErrorProto insertError : insertErrors.getErrors()) {
+                                serviceCallMetric.call(insertError.getReason());
+                              }
+                            }
+                          }
+                          return response;
                         } catch (IOException e) {
-                          recordError(e);
                           GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
                           if (errorInfo == null) {
+                            serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
                             throw e;
                           }
+                          serviceCallMetric.call(errorInfo.getReason());
                           /**
                            * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
                            * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
@@ -958,15 +975,18 @@ class BigQueryServicesImpl implements BigQueryServices {
             if (errors == null) {
               continue;
             }
+
             for (TableDataInsertAllResponse.InsertErrors error : errors) {
               if (error.getIndex() == null) {
                 throw new IOException("Insert failed: " + error + ", other errors: " + allErrors);
               }
-
               int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                 allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
+                // TODO (BEAM-12139): Select the retry rows(using errorIndex) from the batch of rows
+                // which attempted insertion in this call. Not the entire set of rows in
+                // rowsToPublish.
                 if (retryIds != null) {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
@@ -1043,23 +1063,6 @@ class BigQueryServicesImpl implements BigQueryServices {
       GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
       GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
       return errorInfo;
-    }
-
-    protected void recordError(IOException e) {
-      if (e instanceof GoogleJsonResponseException) {
-        int errorCode = ((GoogleJsonResponseException) e).getDetails().getCode();
-        String canonicalGcpStatus =
-            CANONICAL_STATUS_MAP.getOrDefault(errorCode, CANONICAL_STATUS_UNKNOWN);
-        LabeledMetrics.counter(
-                MonitoringInfoMetricName.named(
-                    MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
-                    ImmutableMap.<String, String>builder()
-                        .putAll(API_METRIC_LABEL)
-                        .put(MonitoringInfoConstants.Labels.STATUS, canonicalGcpStatus)
-                        .build()),
-                true)
-            .inc();
-      }
     }
 
     @Override
