@@ -725,7 +725,7 @@ final class RpcQosImpl implements RpcQos {
 
   /**
    * This class implements a backoff algorithm similar to that of {@link
-   * org.apache.beam.sdk.util.FluentBackoff} with a could key differences:
+   * org.apache.beam.sdk.util.FluentBackoff} with a key differences:
    *
    * <ol>
    *   <li>A set of status code numbers may be specified to have a graceful evaluation
