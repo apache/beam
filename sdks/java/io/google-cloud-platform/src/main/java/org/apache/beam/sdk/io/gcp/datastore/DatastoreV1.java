@@ -217,7 +217,7 @@ public class DatastoreV1 {
    * size; it is adjusted at runtime based on the performance of previous writes (see {@link
    * DatastoreV1.WriteBatcher}).
    *
-   * <p>Testing has found that a batch of 200 entities will generally finish within the timeout even
+   * <p>Testing has found that a batch of 50 entities will generally finish within the timeout even
    * in adverse conditions.
    */
   @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_START = 50;
