@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.arrow.ArrowConversion.RecordBatchRowIterat
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 
+@SuppressWarnings("nullness")
 class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   private org.apache.beam.sdk.schemas.Schema arrowBeamSchema;
