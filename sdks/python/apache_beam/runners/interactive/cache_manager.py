@@ -29,7 +29,6 @@ from apache_beam.io import filesystems
 from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.transforms import combiners
-from apache_beam.runners.interactive.utils import obfuscate
 
 
 class CacheManager(object):
