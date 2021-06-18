@@ -100,9 +100,7 @@ class UnusableUnpickledDeferredBase(object):
 
 
 class DeferredFrame(DeferredBase):
-  @property
-  def dtypes(self):
-    return self._expr.proxy().dtypes
+  pass
 
 
 class _DeferredScalar(DeferredBase):
