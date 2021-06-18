@@ -230,8 +230,7 @@ Much like the schema case, the parameter with `additional_bq_parameters` can
 also take a callable that receives a table reference.
 
 
-[1] https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#\
-configuration.load
+[1] https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
 [2] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
 [3] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
 
@@ -1592,7 +1591,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         with additional parameters to pass to BQ when creating / loading data
         into a table. These can be 'timePartitioning', 'clustering', etc. They
         are passed directly to the job load configuration. See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
       table_side_inputs (tuple): A tuple with ``AsSideInput`` PCollections to be
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
