@@ -714,7 +714,7 @@ class _CustomBigQuerySource(BoundedSource):
       if (isinstance(self.table_reference, vp.ValueProvider) and
           self.table_reference.is_accessible()):
         table_ref = bigquery_tools.parse_table_reference(
-            table_ref, project=self._get_project())
+            self.table_reference.get(), project=self._get_project())
       elif isinstance(self.table_reference, vp.ValueProvider):
         # Size estimation is best effort. We return None as we have
         # no access to the table that we're querying.
