@@ -60,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -228,8 +229,7 @@ final class FirestoreV1ReadFn {
     }
 
     private PartitionQueryRequest setPageToken(
-        PartitionQueryRequest request,
-        @edu.umd.cs.findbugs.annotations.Nullable PartitionQueryResponse.Builder aggregate) {
+        PartitionQueryRequest request, @NullableDecl PartitionQueryResponse.Builder aggregate) {
       if (aggregate != null && aggregate.getNextPageToken() != null) {
         return request.toBuilder().setPageToken(aggregate.getNextPageToken()).build();
       }
@@ -575,8 +575,7 @@ final class FirestoreV1ReadFn {
 
     /** {@inheritDoc} */
     @Override
-    public final void populateDisplayData(
-        @edu.umd.cs.findbugs.annotations.NonNull DisplayData.Builder builder) {
+    public final void populateDisplayData(DisplayData.Builder builder) {
       builder.include("rpcQosOptions", rpcQosOptions);
     }
   }
