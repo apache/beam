@@ -2112,7 +2112,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.DataFrame)
   def from_records(*args, **kwargs):
     return frame_base.DeferredFrame.wrap(
-        expressions.ConstantExpression(pd.DataFrame.from_records(*args, **kwargs)))
+        expressions.ConstantExpression(pd.DataFrame.from_records(*args,
+                                                                 **kwargs)))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
