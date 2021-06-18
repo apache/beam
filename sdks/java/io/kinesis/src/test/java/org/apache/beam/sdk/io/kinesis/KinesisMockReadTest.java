@@ -49,21 +49,12 @@ public class KinesisMockReadTest {
     verifyReadWithProvider(new AmazonKinesisMock.Provider(testData, 10), testData);
   }
 
-  @Test
-  public void readsDataFromMockKinesisWithDescribeStreamRateLimit() {
-    List<List<AmazonKinesisMock.TestData>> testData = defaultTestData();
-    verifyReadWithProvider(
-        new AmazonKinesisMock.Provider(testData, 10).withRateLimitedDescribeStream(2), testData);
-  }
-
   @Test(expected = PipelineExecutionException.class)
-  public void readsDataFromMockKinesisWithDescribeStreamRateLimitFailure() {
+  public void readsDataFromMockKinesisWithLimitFailure() {
     List<List<AmazonKinesisMock.TestData>> testData = defaultTestData();
-    // Verify with a provider that will generate more LimitExceededExceptions then we
-    // will retry. Should result in generation of a TransientKinesisException and subsequently
-    // a PipelineExecutionException.
     verifyReadWithProvider(
-        new AmazonKinesisMock.Provider(testData, 10).withRateLimitedDescribeStream(11), testData);
+        new AmazonKinesisMock.Provider(testData, 10).withExpectedListShardsLimitExceededException(),
+        testData);
   }
 
   public void verifyReadWithProvider(

@@ -18,6 +18,7 @@
 """Utilities to be used in  Interactive Beam.
 """
 
+import functools
 import hashlib
 import json
 import logging
@@ -240,6 +241,7 @@ def progress_indicated(func):
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
+  @functools.wraps(func)
   def run_within_progress_indicator(*args, **kwargs):
     with ProgressIndicator('Processing...', 'Done.'):
       return func(*args, **kwargs)

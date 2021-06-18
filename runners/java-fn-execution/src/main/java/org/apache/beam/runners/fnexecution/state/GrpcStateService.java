@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
-import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.ServerCallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 

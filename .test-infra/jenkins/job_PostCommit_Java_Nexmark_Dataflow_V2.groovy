@@ -53,7 +53,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-      Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.POST_COMMIT, JOB_SPECIFIC_SWITCHES, Nexmark.DEFAULT_JAVA_RUNTIME_VERSION)
+      Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.POST_COMMIT, JOB_SPECIFIC_SWITCHES, Nexmark.DEFAULT_JAVA_RUNTIME_VERSION)
     }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_DataflowV2',
@@ -63,5 +63,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Da
 
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-      Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR, JOB_SPECIFIC_SWITCHES, Nexmark.DEFAULT_JAVA_RUNTIME_VERSION)
+      Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR, JOB_SPECIFIC_SWITCHES, Nexmark.DEFAULT_JAVA_RUNTIME_VERSION)
     }

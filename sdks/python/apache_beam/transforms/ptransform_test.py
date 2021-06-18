@@ -477,16 +477,20 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
 
   def test_group_by_key_unbounded_global_default_trigger(self):
+    test_options = PipelineOptions()
+    test_options.view_as(TypeOptions).allow_unsafe_triggers = False
     with self.assertRaisesRegex(
         ValueError,
         'GroupByKey cannot be applied to an unbounded PCollection with ' +
         'global windowing and a default trigger'):
-      with TestPipeline() as pipeline:
+      with TestPipeline(options=test_options) as pipeline:
         pipeline | TestStream() | beam.GroupByKey()
 
   def test_group_by_key_unsafe_trigger(self):
+    test_options = PipelineOptions()
+    test_options.view_as(TypeOptions).allow_unsafe_triggers = False
     with self.assertRaisesRegex(ValueError, 'Unsafe trigger'):
-      with TestPipeline() as pipeline:
+      with TestPipeline(options=test_options) as pipeline:
         _ = (
             pipeline
             | beam.Create([(None, None)])

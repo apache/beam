@@ -238,8 +238,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // Attribute tag that can filter the test set.
     String attribute = System.getProperty('attr')
 
-    // Extra test options pass to nose.
-    String[] extraTestOptions = ["--nocapture"]
+    // Extra test options pass to pytest.
+    String[] extraTestOptions = ["--capture=no"]
 
     // Name of Cloud KMS encryption key to use in some tests.
     String kmsKeyName = System.getProperty('kmsKeyName')
@@ -312,8 +312,8 @@ class BeamModulePlugin implements Plugin<Project> {
       "--environment_cache_millis=10000",
       "--experiments=beam_fn_api",
     ]
-    // Additional nosetests options
-    List<String> nosetestsOptions = []
+    // Additional pytest options
+    List<String> pytestOptions = []
     // Job server startup task.
     Task startJobServer
     // Job server cleanup task.
@@ -330,7 +330,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
     // Attribute for Python tests to run.
-    String pythonTestAttr = "UsesCrossLanguageTransforms"
+    String pythonTestAttr = "xlang_transforms"
     // classpath for running tests.
     FileCollection classpath
   }
@@ -352,7 +352,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.31.0'
+    project.version = '2.32.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -530,6 +530,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
+        google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite:$google_cloud_pubsublite_version",
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
@@ -553,6 +554,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_auth                                   : "io.grpc:grpc-auth", // google_cloud_platform_libraries_bom sets version
         grpc_context                                : "io.grpc:grpc-context", // google_cloud_platform_libraries_bom sets version
         grpc_core                                   : "io.grpc:grpc-core", // google_cloud_platform_libraries_bom sets version
+        grpc_google_cloud_firestore_v1              : "com.google.api.grpc:grpc-google-cloud-firestore-v1", // google_cloud_platform_libraries_bom sets version
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         grpc_google_cloud_pubsublite_v1             : "com.google.api.grpc:grpc-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         grpc_google_common_protos                   : "com.google.api.grpc:grpc-google-common-protos", // google_cloud_platform_libraries_bom sets version
@@ -613,6 +615,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_firestore_v1             : "com.google.api.grpc:proto-google-cloud-firestore-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         proto_google_cloud_spanner_v1: "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
@@ -2101,13 +2104,12 @@ class BeamModulePlugin implements Plugin<Project> {
         config.cleanupJobServer.mustRunAfter javaTask
 
         // Task for running testcases in Python SDK
-        def testOpts = [
-          "--attr=${config.pythonTestAttr}"
-        ]
         def beamPythonTestPipelineOptions = [
           "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
-          "test_opts": testOpts + config.nosetestsOptions,
-          "suite": "xlangValidateRunner"
+          "test_opts": config.pytestOptions,
+          "suite": "xlangValidateRunner",
+          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+          "collect": config.pythonTestAttr
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
         def pythonTask = project.tasks.create(name: config.name+"PythonUsing"+sdk, type: Exec) {
@@ -2149,13 +2151,12 @@ class BeamModulePlugin implements Plugin<Project> {
       config.cleanupJobServer.mustRunAfter javaUsingPythonOnlyTask
 
       // Task for running testcases in Python SDK
-      def testOpts = [
-        "--attr=UsesSqlExpansionService"
-      ]
       def beamPythonTestPipelineOptions = [
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
-        "test_opts": testOpts + config.nosetestsOptions,
-        "suite": "xlangSqlValidateRunner"
+        "test_opts":  config.pytestOptions,
+        "suite": "xlangSqlValidateRunner",
+        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+        "collect": "xlang_sql_expansion_service"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
       def pythonSqlTask = project.tasks.create(name: config.name+"PythonUsingSql", type: Exec) {
@@ -2332,9 +2333,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // Build test options that configures test environment and framework
             def testOptions = []
             if (config.tests)
-              testOptions += "--tests=$config.tests"
+              testOptions += "$config.tests"
             if (config.attribute)
-              testOptions += "--attr=$config.attribute"
+              testOptions += "-m=$config.attribute"
             testOptions.addAll(config.extraTestOptions)
             argMap["test_opts"] = testOptions
 

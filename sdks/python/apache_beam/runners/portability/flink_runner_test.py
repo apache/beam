@@ -398,10 +398,6 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_custom_merging_window(self):
     raise unittest.SkipTest("BEAM-11004")
 
-  def test_pack_combiners(self):
-    raise unittest.SkipTest(
-        "BEAM-12305: pack_combiners does not work in Flink yet")
-
   # Inherits all other tests.
 
 
@@ -426,6 +422,12 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
 
   def test_sql(self):
     raise unittest.SkipTest("BEAM-7252")
+
+  def test_pack_combiners(self):
+    # Stages produced by translations.pack_combiners are fused
+    # by translations.greedily_fuse, which prevent the stages
+    # from being detecting using counters by the test.
+    self._test_pack_combiners(assert_using_counter_names=False)
 
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):

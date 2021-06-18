@@ -27,11 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJobManager;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -62,6 +64,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   private final CreateDisposition firstPaneCreateDisposition;
   private final int maxRetryJobs;
   private final String kmsKey;
+  private @Nullable DatasetService datasetService;
 
   private static class PendingJobData {
     final BigQueryHelpers.PendingJob retryJob;
@@ -100,6 +103,18 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
     pendingJobs.clear();
   }
 
+  @Teardown
+  public void onTeardown() {
+    try {
+      if (datasetService != null) {
+        datasetService.close();
+        datasetService = null;
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
     Multimap<TableDestination, String> tempTables = ArrayListMultimap.create();
@@ -118,7 +133,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   @FinishBundle
   public void finishBundle(FinishBundleContext c) throws Exception {
     DatasetService datasetService =
-        bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
+        getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
     PendingJobManager jobManager = new PendingJobManager();
     for (PendingJobData pendingJob : pendingJobs) {
       jobManager.addPendingJob(
@@ -142,6 +157,13 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
     jobManager.waitForDone();
   }
 
+  private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+    if (datasetService == null) {
+      datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+    }
+    return datasetService;
+  }
+
   private PendingJobData startWriteRename(
       TableDestination finalTableDestination, Iterable<String> tempTableNames, ProcessContext c)
       throws Exception {
@@ -163,7 +185,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
     BigQueryHelpers.PendingJob retryJob =
         startCopy(
             bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-            bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+            getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
             jobIdPrefix,
             finalTableDestination.getTableReference(),
             tempTables,

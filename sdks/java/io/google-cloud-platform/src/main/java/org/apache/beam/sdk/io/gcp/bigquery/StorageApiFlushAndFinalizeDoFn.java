@@ -118,6 +118,18 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
     return datasetService;
   }
 
+  @Teardown
+  public void onTeardown() {
+    try {
+      if (datasetService != null) {
+        datasetService.close();
+        datasetService = null;
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @SuppressWarnings({"nullness"})
   @ProcessElement
   public void process(PipelineOptions pipelineOptions, @Element KV<String, Operation> element)

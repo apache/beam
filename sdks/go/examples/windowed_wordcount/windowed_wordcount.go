@@ -62,6 +62,7 @@ var (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*addTimestampFn)(nil)).Elem())
+	beam.RegisterFunction(formatFn)
 }
 
 // Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
@@ -95,7 +96,7 @@ func main() {
 	ctx := context.Background()
 
 	if *output == "" {
-		log.Exit(ctx, "No output provided")
+		log.Exit(ctx, "No --output provided")
 	}
 
 	p := beam.NewPipeline()
