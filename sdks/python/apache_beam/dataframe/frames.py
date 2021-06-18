@@ -3244,6 +3244,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._grouping_indexes,
         projection=name)
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def agg(self, fn, *args, **kwargs):
     if _is_associative(fn):
       return _liftable_agg(fn)(self, *args, **kwargs)
@@ -3265,17 +3266,26 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   def ndim(self):
     return self._expr.proxy().ndim
 
-  def apply(self, fn, *args, **kwargs):
+  @frame_base.with_docs_from(DataFrameGroupBy)
+  def apply(self, func, *args, **kwargs):
+    """Note that ``func`` will be called once during pipeline construction time
+    with an empty pandas object, so take care if ``func`` has a side effect.
+
+    When called with an empty pandas object, ``func`` is expected to return an
+    object of the same type as what will be returned when the pipeline is
+    processing actual data. If the result is a pandas object it should have the
+    same type and name (for a Series) or column types and names (for
+    a DataFrame) as the actual results."""
     project = _maybe_project_func(self._projection)
     grouping_indexes = self._grouping_indexes
     grouping_columns = self._grouping_columns
 
-    # Unfortunately pandas does not execute fn to determine the right proxy.
-    # We run user fn on a proxy here to detect the return type and generate the
-    # proxy.
+    # Unfortunately pandas does not execute func to determine the right proxy.
+    # We run user func on a proxy here to detect the return type and generate
+    # the proxy.
     fn_input = project(self._ungrouped_with_index.proxy().reset_index(
         grouping_columns, drop=True))
-    result = fn(fn_input)
+    result = func(fn_input)
     if isinstance(result, pd.core.generic.NDFrame):
       if result.index is fn_input.index:
         proxy = result
@@ -3307,7 +3317,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                       by=grouping_columns or None)
 
       gb = project(gb)
-      return gb.apply(fn, *args, **kwargs)
+      return gb.apply(func, *args, **kwargs)
 
     return DeferredDataFrame(
         expressions.ComputedExpression(
@@ -3319,7 +3329,17 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                                                       grouping_columns),
             preserves_partition_by=partitionings.Index(grouping_indexes)))
 
+
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def transform(self, fn, *args, **kwargs):
+    """Note that ``func`` will be called once during pipeline construction time
+    with an empty pandas object, so take care if ``func`` has a side effect.
+
+    When called with an empty pandas object, ``func`` is expected to return an
+    object of the same type as what will be returned when the pipeline is
+    processing actual data. The result should have the same type and name (for
+    a Series) or column types and names (for a DataFrame) as the actual
+    results."""
     if not callable(fn):
       raise NotImplementedError(
           "String functions are not yet supported in transform.")
@@ -3368,6 +3388,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Index(levels),
             preserves_partition_by=partitionings.Index(self._grouping_indexes)))
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def filter(self, func=None, dropna=True):
     if func is None or not callable(func):
       raise TypeError("func must be specified and it must be callable")
@@ -3384,7 +3405,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
     return self.apply(apply_fn).droplevel(self._grouping_columns)
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def dtypes(self):
     grouping_columns = self._grouping_columns
     return self.apply(lambda df: df.drop(grouping_columns, axis=1).dtypes)
@@ -3467,6 +3489,7 @@ def _liftable_agg(meth, postagg_meth=None):
   else:
     post_agg_name, _ = frame_base.name_and_func(postagg_meth)
 
+  @frame_base.with_docs_from(DataFrameGroupBy, name=agg_name)
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
 
@@ -3518,6 +3541,7 @@ def _liftable_agg(meth, postagg_meth=None):
 def _unliftable_agg(meth):
   agg_name, _ = frame_base.name_and_func(meth)
 
+  @frame_base.with_docs_from(DataFrameGroupBy, name=agg_name)
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
 
@@ -3621,19 +3645,23 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
   var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def groups(self):
     return self._expr.proxy().groups
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def indices(self):
     return self._expr.proxy().indices
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def ndim(self):
     return self._expr.proxy().ndim
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def ngroups(self):
     return self._expr.proxy().ngroups
 
