@@ -545,7 +545,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.num_wings.value_counts(), df)
     self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
 
-  def test_value_counts_sort_error(self):
+  def test_value_counts_does_not_support_sort(self):
     df = pd.DataFrame({
         'num_legs': [2, 4, 4, 6, np.nan, np.nan],
         'num_wings': [2, 0, 0, 0, np.nan, 2]
@@ -816,7 +816,7 @@ class DeferredFrameTest(_AbstractFrameTest):
         check_proxy=False)
     self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
 
-  def test_insert_list_error(self):
+  def test_insert_does_not_support_list_value(self):
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
 
     with self.assertRaisesRegex(frame_base.WontImplementError,
