@@ -230,7 +230,8 @@ Much like the schema case, the parameter with `additional_bq_parameters` can
 also take a callable that receives a table reference.
 
 
-[1] https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
+[1] https://cloud.google.com/bigquery/docs/reference/rest/v2/Job\
+        #jobconfigurationload
 [2] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
 [3] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
 
@@ -1311,10 +1312,11 @@ class BigQueryWriteFn(DoFn):
           skip_invalid_rows=True)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
-      failed_rows = [rows[entry.index] for entry in errors]
+      failed_rows = [rows[entry['index']] for entry in errors]
       should_retry = any(
           RetryStrategy.should_retry(
-              self._retry_strategy, entry.errors[0].reason) for entry in errors)
+              self._retry_strategy, entry['errors'][0]['reason'])
+          for entry in errors)
       if not passed:
         self.failed_rows_metric.update(len(failed_rows))
         message = (
