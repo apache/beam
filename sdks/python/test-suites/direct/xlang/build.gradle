@@ -26,7 +26,7 @@ project.evaluationDependsOn(":runners:portability:java")
 
 def envDir = project.project(":sdks:python").envdir
 def crossLanguageTestClasspath = project.project(":runners:portability:java").sourceSets.test.runtimeClasspath
-def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+def jobPort = BeamModulePlugin.getRandomPort()
 def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
 def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
 
