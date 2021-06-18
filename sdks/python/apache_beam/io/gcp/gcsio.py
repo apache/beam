@@ -591,7 +591,7 @@ class GcsDownloader(Downloader):
         monitoring_infos.METHOD_LABEL: 'Objects.get',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: project_number
+        monitoring_infos.GCS_PROJECT_ID_LABEL: str(project_number)
     }
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
@@ -697,7 +697,7 @@ class GcsUploader(Uploader):
         monitoring_infos.METHOD_LABEL: 'Objects.insert',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: project_number
+        monitoring_infos.GCS_PROJECT_ID_LABEL: str(project_number)
     }
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
