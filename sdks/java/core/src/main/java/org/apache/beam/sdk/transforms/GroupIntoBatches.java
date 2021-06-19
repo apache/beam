@@ -378,7 +378,6 @@ public class GroupIntoBatches<K, InputT>
 
     @ProcessElement
     public void processElement(
-        @TimerId(END_OF_WINDOW_ID) Timer windowTimer,
         @TimerId(END_OF_BUFFERING_ID) Timer bufferingTimer,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> storedBatchSize,
@@ -387,8 +386,6 @@ public class GroupIntoBatches<K, InputT>
         BoundedWindow window,
         OutputReceiver<KV<K, Iterable<InputT>>> receiver) {
       Instant windowEnds = window.maxTimestamp().plus(allowedLateness);
-      LOG.debug("*** SET TIMER *** to point in time {} for window {}", windowEnds, window);
-      windowTimer.set(windowEnds);
       LOG.debug("*** BATCH *** Add element for window {} ", window);
       batch.add(element.getValue());
       // Blind add is supported with combiningState
@@ -401,7 +398,8 @@ public class GroupIntoBatches<K, InputT>
       long num = storedBatchSize.read();
       if (maxBufferingDuration.isLongerThan(Duration.ZERO) && num == 1) {
         // This is the first element in batch. Start counting buffering time if a limit was set.
-        bufferingTimer.offset(maxBufferingDuration).setRelative();
+        // Currently this transform does not properly track the watermark of buffered elements.
+        bufferingTimer.offset(maxBufferingDuration).withOutputTimestamp(windowEnds).setRelative();
       }
       if (num % prefetchFrequency == 0) {
         // Prefetch data and modify batch state (readLater() modifies this)
@@ -416,9 +414,9 @@ public class GroupIntoBatches<K, InputT>
         // release the watermark. It'll be extended again if a
         // new element arrives prior to the expiration time set here.
         // TODO(BEAM-10887): Use clear() when it's available.
-        if (maxBufferingDuration.isLongerThan(Duration.ZERO)) {
-          bufferingTimer.offset(maxBufferingDuration).setRelative();
-        }
+        //    if (maxBufferingDuration.isLongerThan(Duration.ZERO)) {
+        //      bufferingTimer.offset(maxBufferingDuration).setRelative();
+        //    }
       }
     }
 
