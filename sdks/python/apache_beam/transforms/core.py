@@ -2887,13 +2887,6 @@ class Flatten(PTransform):
     is_bounded = all(pcoll.is_bounded for pcoll in pcolls)
     return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
-  def get_windowing(self, inputs):
-    # type: (typing.Any) -> Windowing
-    if not inputs:
-      # TODO(robertwb): Return something compatible with every windowing?
-      return Windowing(GlobalWindows())
-    return super(Flatten, self).get_windowing(inputs)
-
   def infer_output_type(self, input_type):
     return input_type
 
