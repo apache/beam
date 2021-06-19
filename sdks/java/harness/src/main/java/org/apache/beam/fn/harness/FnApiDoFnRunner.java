@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
@@ -43,6 +44,9 @@ import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.Modifications;
+import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.TimerInfo;
 import org.apache.beam.fn.harness.state.SideInputSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
@@ -121,6 +125,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
@@ -233,6 +238,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
   private Map<String, BeamFnTimerClient.TimerHandler<?>> timerHandlers;
+  private FnApiTimerBundleTracker timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
@@ -252,6 +258,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   // The member variables below are only valid for the lifetime of certain methods.
   /** Only valid during {@code processElement...} methods, null otherwise. */
   private WindowedValue<InputT> currentElement;
+
+  private Object currentKey;
 
   /**
    * Only valud during {@link
@@ -710,24 +718,33 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             beamFnStateClient,
             keyCoder,
             windowCoder,
-            () -> {
-              if (currentElement != null) {
-                checkState(
-                    currentElement.getValue() instanceof KV,
-                    "Accessing state in unkeyed context. Current element is not a KV: %s.",
-                    currentElement.getValue());
-                return ((KV) currentElement.getValue()).getKey();
-              } else if (currentTimer != null) {
-                return currentTimer.getUserKey();
-              }
-              return null;
-            },
+            this::getCurrentKey,
             () -> currentWindow);
+  }
+
+  private Object getCurrentKey() {
+    if (currentKey != null) {
+      return currentKey;
+    }
+    // TODO: Maybe memoize the key?
+    if (currentElement != null) {
+      checkState(
+          currentElement.getValue() instanceof KV,
+          "Accessing state in unkeyed context. Current element is not a KV: %s.",
+          currentElement.getValue());
+      return ((KV) currentElement.getValue()).getKey();
+    } else if (currentTimer != null) {
+      return currentTimer.getUserKey();
+    }
+    return null;
   }
 
   private void startBundle() {
     // Register as a consumer for each timer.
     timerHandlers = new HashMap<>();
+    timerBundleTracker =
+        new FnApiTimerBundleTracker(
+            keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
     for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
         timerFamilyInfos.entrySet()) {
       String localName = timerFamilyInfo.getKey();
@@ -1624,33 +1641,93 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private <K> void processTimer(
       String timerIdOrTimerFamilyId, TimeDomain timeDomain, Timer<K> timer) {
-    currentTimer = timer;
-    currentTimeDomain = timeDomain;
-    // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or timerFamilyId
-    // from timer family declaration.
-    String timerId =
-        timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-            ? ""
-            : timerIdOrTimerFamilyId;
-    String timerFamilyId =
-        timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-            ? timerIdOrTimerFamilyId
-            : "";
     try {
+      currentKey = timer.getUserKey();
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+        Modifications bundleModifications = timerBundleTracker.getBundleModifications();
+        Table<String, String, Timer<K>> modifiedTimerIds =
+            bundleModifications.getModifiedTimerIds();
+        NavigableSet<TimerInfo<K>> earlierTimers =
+            bundleModifications
+                .getModifiedTimersOrdered(timeDomain)
+                .headSet(TimerInfo.of(timer, "", timeDomain), true);
+        while (!earlierTimers.isEmpty()) {
+          TimerInfo<K> insertedTimer = earlierTimers.pollFirst();
+          if (timerModified(
+              modifiedTimerIds, insertedTimer.getTimerFamilyOrId(), insertedTimer.getTimer())) {
+            continue;
+          }
+
+          String timerId =
+              insertedTimer.getTimer().getDynamicTimerTag().isEmpty()
+                  ? insertedTimer.getTimerFamilyOrId()
+                  : insertedTimer.getTimer().getDynamicTimerTag();
+          String timerFamily =
+              insertedTimer.getTimer().getDynamicTimerTag().isEmpty()
+                  ? ""
+                  : insertedTimer.getTimerFamilyOrId();
+
+          // If this timer was created previously in the bundle as an overwrite of a previous timer,
+          // we must make sure
+          // to clear the old timer. Since we are firing the timer inline, the runner doesn't know
+          // that the old timer
+          // was overwritten, and will otherwise fire it - causing a spurious timer fire.
+          modifiedTimerIds.put(
+              insertedTimer.getTimerFamilyOrId(),
+              insertedTimer.getTimer().getDynamicTimerTag(),
+              Timer.cleared(
+                  insertedTimer.getTimer().getUserKey(),
+                  insertedTimer.getTimer().getDynamicTimerTag(),
+                  insertedTimer.getTimer().getWindows()));
+          // It's important to call processTimer after inserting the above deletion, otherwise the
+          // above line
+          // would overwrite any looping timer with a deletion.
+          processTimerDirect(
+              timerFamily, timerId, insertedTimer.getTimeDomain(), insertedTimer.getTimer());
+        }
+
+        if (!timerModified(modifiedTimerIds, timerIdOrTimerFamilyId, timer)) {
+          // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or
+          // timerFamilyId
+          // from timer family declaration.
+          String timerId =
+              timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
+                  ? ""
+                  : timerIdOrTimerFamilyId;
+          String timerFamilyId =
+              timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
+                  ? timerIdOrTimerFamilyId
+                  : "";
+          processTimerDirect(timerFamilyId, timerId, timeDomain, timer);
+        }
       }
     } finally {
+      currentKey = null;
       currentTimer = null;
       currentTimeDomain = null;
       currentWindow = null;
     }
   }
 
+  private <K> boolean timerModified(
+      Table<String, String, Timer<K>> modifiedTimerIds, String timerFamilyOrId, Timer<K> timer) {
+    @Nullable
+    Timer<K> modifiedTimer = modifiedTimerIds.get(timerFamilyOrId, timer.getDynamicTimerTag());
+    return modifiedTimer != null && !modifiedTimer.equals(timer);
+  }
+
+  private <K> void processTimerDirect(
+      String timerFamilyId, String timerId, TimeDomain timeDomain, Timer<K> timer) {
+    currentTimer = timer;
+    currentTimeDomain = timeDomain;
+    doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+  }
+
   private void finishBundle() throws Exception {
+    timerBundleTracker.outputTimers(timerFamilyOrId -> timerHandlers.get(timerFamilyOrId));
     for (TimerHandler timerHandler : timerHandlers.values()) {
       timerHandler.awaitCompletion();
     }
@@ -1685,7 +1762,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private class FnApiTimer<K> implements org.apache.beam.sdk.state.Timer {
-    private final String timerId;
+    private final String timerIdOrFamily;
     private final K userKey;
     private final String dynamicTimerTag;
     private final TimeDomain timeDomain;
@@ -1700,7 +1777,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     private Duration offset = Duration.ZERO;
 
     FnApiTimer(
-        String timerId,
+        String timerIdOrFamily,
         K userKey,
         String dynamicTimerTag,
         BoundedWindow boundedWindow,
@@ -1708,7 +1785,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant elementTimestampOrTimerFireTimestamp,
         PaneInfo paneInfo,
         TimeDomain timeDomain) {
-      this.timerId = timerId;
+      this.timerIdOrFamily = timerIdOrFamily;
       this.userKey = userKey;
       this.dynamicTimerTag = dynamicTimerTag;
       this.elementTimestampOrTimerHoldTimestamp = elementTimestampOrTimerHoldTimestamp;
@@ -1738,7 +1815,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 .getAllowedLateness();
       } catch (IOException e) {
         throw new IllegalArgumentException(
-            String.format("Unable to get allowed lateness for timer %s", timerId));
+            String.format("Unable to get allowed lateness for timer %s", timerIdOrFamily));
       }
     }
 
@@ -1755,8 +1832,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             absoluteTime,
             windowExpiry);
       }
-
-      output(absoluteTime);
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(absoluteTime));
     }
 
     @Override
@@ -1772,18 +1848,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 : fireTimestamp.plus(period).minus(millisSinceStart);
       }
       target = minTargetAndGcTime(target);
-      output(target);
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));
     }
 
     @Override
     public void clear() {
-      TimerHandler<K> consumer = (TimerHandler) timerHandlers.get(timerId);
-      try {
-        consumer.accept(
-            Timer.cleared(userKey, dynamicTimerTag, Collections.singletonList(boundedWindow)));
-      } catch (Throwable t) {
-        throw UserCodeException.wrap(t);
-      }
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getClearedTimer());
     }
 
     @Override
@@ -1823,7 +1893,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return target;
     }
 
-    private void output(Instant scheduledTime) {
+    private Timer<K> getClearedTimer() {
+      return Timer.cleared(userKey, dynamicTimerTag, Collections.singletonList(boundedWindow));
+    }
+
+    private Timer<K> getTimerForTime(Instant scheduledTime) {
       if (outputTimestamp != null) {
         checkArgument(
             !outputTimestamp.isBefore(elementTimestampOrTimerHoldTimestamp),
@@ -1869,20 +1943,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             outputTimestamp,
             windowExpiry);
       }
-
-      TimerHandler<K> consumer = (TimerHandler) timerHandlers.get(timerId);
-      try {
-        consumer.accept(
-            Timer.of(
-                userKey,
-                dynamicTimerTag,
-                Collections.singletonList(boundedWindow),
-                scheduledTime,
-                outputTimestamp,
-                paneInfo));
-      } catch (Throwable t) {
-        throw UserCodeException.wrap(t);
-      }
+      return Timer.of(
+          userKey,
+          dynamicTimerTag,
+          Collections.singletonList(boundedWindow),
+          scheduledTime,
+          outputTimestamp,
+          paneInfo);
     }
   }
 
