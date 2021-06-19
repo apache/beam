@@ -559,6 +559,21 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.num_wings.value_counts(), df)
     self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
 
+  def test_value_counts_does_not_support_sort(self):
+    df = pd.DataFrame({
+        'num_legs': [2, 4, 4, 6, np.nan, np.nan],
+        'num_wings': [2, 0, 0, 0, np.nan, 2]
+    },
+                      index=['falcon', 'dog', 'cat', 'ant', 'car', 'plane'])
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"value_counts\(sort\=True\)"):
+      self._run_test(lambda df: df.value_counts(sort=True), df)
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"value_counts\(sort\=True\)"):
+      self._run_test(lambda df: df.num_wings.value_counts(sort=True), df)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
     self._run_test(lambda s: s[...], s)
@@ -814,6 +829,13 @@ class DeferredFrameTest(_AbstractFrameTest):
         df,
         check_proxy=False)
     self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
+
+  def test_insert_does_not_support_list_value(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"insert\(value=list\)"):
+      self._run_inplace_test(lambda df: df.insert(1, 'C', [7, 8, 9]), df)
 
   def test_drop_duplicates(self):
     df = pd.DataFrame({

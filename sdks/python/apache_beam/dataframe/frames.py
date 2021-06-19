@@ -1719,7 +1719,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     possible addition of a distributed implementation."""
 
     if sort:
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "value_counts(sort=True) is not supported because it imposes an "
           "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
@@ -2065,7 +2065,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     """``value`` cannot be a ``List`` because aligning it with this
     DeferredDataFrame is order-sensitive."""
     if isinstance(value, list):
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "insert(value=list) is not supported because it joins the input "
           "list to the deferred DataFrame based on the order of the data.",
           reason="order-sensitive")
@@ -3157,7 +3157,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     preserved."""
 
     if sort:
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "value_counts(sort=True) is not supported because it imposes an "
           "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
