@@ -220,7 +220,7 @@ class Coder(object):
     return self.__dict__
 
   def to_type_hint(self):
-    raise NotImplementedError('BEAM-2717')
+    raise NotImplementedError('BEAM-2717: %s' % self.__class__.__name__)
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):
@@ -531,6 +531,9 @@ class MapCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self)) + hash(self._key_coder) + hash(self._value_coder)
+
+  def __repr__(self):
+    return 'MapCoder[%s, %s]' % (self._key_coder, self._value_coder)
 
 
 class NullableCoder(FastCoder):
@@ -929,10 +932,10 @@ class ProtoCoder(FastCoder):
   def __hash__(self):
     return hash(self.proto_message_type)
 
-  @staticmethod
-  def from_type_hint(typehint, unused_registry):
+  @classmethod
+  def from_type_hint(cls, typehint, unused_registry):
     if issubclass(typehint, proto_utils.message_types):
-      return ProtoCoder(typehint)
+      return cls(typehint)
     else:
       raise ValueError((
           'Expected a subclass of google.protobuf.message.Message'
@@ -1019,10 +1022,10 @@ class TupleCoder(FastCoder):
   def to_type_hint(self):
     return typehints.Tuple[tuple(c.to_type_hint() for c in self._coders)]
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
     # type: (typehints.TupleConstraint, CoderRegistry) -> TupleCoder
-    return TupleCoder([registry.get_coder(t) for t in typehint.tuple_types])
+    return cls([registry.get_coder(t) for t in typehint.tuple_types])
 
   def as_cloud_object(self, coders_context=None):
     if self.is_kv_coder():
@@ -1106,10 +1109,10 @@ class TupleSequenceCoder(FastCoder):
       return TupleSequenceCoder(
           self._elem_coder.as_deterministic_coder(step_label, error_message))
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
     # type: (Any, CoderRegistry) -> TupleSequenceCoder
-    return TupleSequenceCoder(registry.get_coder(typehint.inner_type))
+    return cls(registry.get_coder(typehint.inner_type))
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
@@ -1484,11 +1487,11 @@ class ShardedKeyCoder(FastCoder):
     return sharded_key_type.ShardedKeyTypeConstraint(
         self._key_coder.to_type_hint())
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
     from apache_beam.typehints import sharded_key_type
     if isinstance(typehint, sharded_key_type.ShardedKeyTypeConstraint):
-      return ShardedKeyCoder(registry.get_coder(typehint.key_type))
+      return cls(registry.get_coder(typehint.key_type))
     else:
       raise ValueError((
           'Expected an instance of ShardedKeyTypeConstraint'
