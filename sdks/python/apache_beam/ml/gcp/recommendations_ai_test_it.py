@@ -40,6 +40,7 @@ except ImportError:
 
 GCP_TEST_PROJECT = 'apache-beam-testing'
 
+
 def extract_id(response):
   yield response["id"]
 
