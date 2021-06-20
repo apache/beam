@@ -139,7 +139,7 @@ You can install these in a Debian-based distribution for Linux or macOs using th
 * Python
 * Docker
 
-To istall:
+To install:
 
 1. Execute:
 ```
