@@ -89,15 +89,14 @@ class RecommendationAIIT(unittest.TestCase):
 
       assert_that(output, equal_to([[USER_EVENT["event_type"]]]))
 
-  def test_create_predict(self):
+  def test_predict(self):
     USER_EVENT = {"event_type": "page-visit", "user_info": {"visitor_id": "1"}}
 
     with TestPipeline(is_integration_test=True) as p:
       output = (
           p | 'Create data' >> beam.Create([USER_EVENT])
           | 'Predict UserEvent' >> recommendations_ai.PredictUserEvent(
-              project=GCP_TEST_PROJECT,
-              placement_id="recently_viewed_default")
+              project=GCP_TEST_PROJECT, placement_id="recently_viewed_default")
           | beam.ParDo(extract_prediction))
 
       assert_that(output, is_not_empty())
