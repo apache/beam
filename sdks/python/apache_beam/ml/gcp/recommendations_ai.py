@@ -92,7 +92,7 @@ class CreateCatalogItem(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = None,
+      metadata: Sequence[Tuple[str, str]] = (),
       catalog_name: str = "default_catalog"):
     """Initializes a :class:`CreateCatalogItem` transform.
 
@@ -136,7 +136,7 @@ class _CreateCatalogItemFn(DoFn):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = None,
+      metadata: Sequence[Tuple[str, str]] = (),
       catalog_name: str = None):
     self._client = None
     self.retry = retry
@@ -187,7 +187,7 @@ class ImportCatalogItems(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = None,
+      metadata: Sequence[Tuple[str, str]] = (),
       catalog_name: str = "default_catalog"):
     """Initializes a :class:`ImportCatalogItems` transform
 
@@ -287,7 +287,7 @@ class WriteUserEvent(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = None,
+      metadata: Sequence[Tuple[str, str]] = (),
       catalog_name: str = "default_catalog",
       event_store: str = "default_event_store"):
     """Initializes a :class:`WriteUserEvent` transform.
@@ -386,7 +386,7 @@ class ImportUserEvents(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = None,
+      metadata: Sequence[Tuple[str, str]] = (),
       catalog_name: str = "default_catalog",
       event_store: str = "default_event_store"):
     """Initializes a :class:`WriteUserEvent` transform.
@@ -492,7 +492,7 @@ class PredictUserEvent(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = None,
+      metadata: Sequence[Tuple[str, str]] = (),
       catalog_name: str = "default_catalog",
       event_store: str = "default_event_store",
       placement_id: str = None):
