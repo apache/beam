@@ -1,11 +1,13 @@
 /*
- * Copyright 2021 Google LLC
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
 import com.google.cloud.spanner.ResultSet;
@@ -56,8 +57,8 @@ import org.slf4j.LoggerFactory;
 
 // TODO: Add java docs
 @UnboundedPerElement
-public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataChangesRecord> implements
-    Serializable {
+public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataChangesRecord>
+    implements Serializable {
 
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
@@ -95,16 +96,15 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   }
 
   @NewWatermarkEstimator
-  public ManualWatermarkEstimator<Instant> newWatermarkEstimator(@WatermarkEstimatorState Instant watermarkEstimatorState) {
+  public ManualWatermarkEstimator<Instant> newWatermarkEstimator(
+      @WatermarkEstimatorState Instant watermarkEstimatorState) {
     return new Manual(watermarkEstimatorState);
   }
 
   @GetInitialRestriction
   public PartitionRestriction initialRestriction(@Element PartitionMetadata element) {
     return new PartitionRestriction(
-        element.getStartTimestamp(),
-        PartitionMode.QUERY_CHANGE_STREAM,
-        null);
+        element.getStartTimestamp(), PartitionMode.QUERY_CHANGE_STREAM, null);
   }
 
   @NewTracker
@@ -114,19 +114,24 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   @Setup
   public void setup() {
-    final PartitionMetadataDao partitionMetadataDao = daoFactory.partitionMetadataDaoFrom(spannerConfig);
+    final PartitionMetadataDao partitionMetadataDao =
+        daoFactory.partitionMetadataDaoFrom(spannerConfig);
     this.changeStreamDao = daoFactory.changeStreamDaoFrom(spannerConfig);
     this.changeStreamRecordMapper = mapperFactory.changeStreamRecordMapper();
 
-    this.waitForChildPartitionsAction = actionFactory.waitForChildPartitionsAction(partitionMetadataDao, Duration.millis(100));
+    this.waitForChildPartitionsAction =
+        actionFactory.waitForChildPartitionsAction(partitionMetadataDao, Duration.millis(100));
     this.finishPartitionAction = actionFactory.finishPartitionAction(partitionMetadataDao);
-    this.waitForParentPartitionsAction = actionFactory.waitForParentPartitionsAction(partitionMetadataDao, Duration.millis(100));
+    this.waitForParentPartitionsAction =
+        actionFactory.waitForParentPartitionsAction(partitionMetadataDao, Duration.millis(100));
     this.deletePartitionAction = actionFactory.deletePartitionAction(partitionMetadataDao);
     this.donePartitionAction = actionFactory.donePartitionAction();
 
     this.dataChangesRecordAction = actionFactory.dataChangesRecordAction();
     this.heartbeatRecordAction = actionFactory.heartbeatRecordAction();
-    this.childPartitionsRecordAction = actionFactory.childPartitionsRecordAction(partitionMetadataDao, waitForChildPartitionsAction);
+    this.childPartitionsRecordAction =
+        actionFactory.childPartitionsRecordAction(
+            partitionMetadataDao, waitForChildPartitionsAction);
   }
 
   // TODO: Close DAOs on teardown
@@ -136,12 +141,12 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       @Element PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangesRecord> receiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator
-  ) {
-    LOG.debug("Processing element "
-        + partition.getPartitionToken()
-        + " with restriction "
-        + tracker.currentRestriction());
+      ManualWatermarkEstimator<Instant> watermarkEstimator) {
+    LOG.debug(
+        "Processing element "
+            + partition.getPartitionToken()
+            + " with restriction "
+            + tracker.currentRestriction());
     switch (tracker.currentRestriction().getMode()) {
       case QUERY_CHANGE_STREAM:
         return queryChangeStream(partition, tracker, receiver, watermarkEstimator);
@@ -157,10 +162,12 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
         return done(partition, tracker);
       default:
         // TODO: Verify what to do here
-        throw new IllegalArgumentException("Unknown mode " + tracker.currentRestriction().getMode());
+        throw new IllegalArgumentException(
+            "Unknown mode " + tracker.currentRestriction().getMode());
     }
   }
 
+  // spotless:off
   /**
    * The following graph represents the state machine that will be followed by this function.
    * The states will be stored in the {@link PartitionRestriction} and claimed through the
@@ -195,50 +202,40 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    *                                      +------+
    *
    */
+  // spotless:on
   private ProcessContinuation queryChangeStream(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangesRecord> receiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator
-  ) {
-    try (ResultSet resultSet = changeStreamDao.changeStreamQuery(
-        partition.getPartitionToken(),
-        tracker.currentRestriction().getStartTimestamp(),
-        partition.isInclusiveStart(),
-        partition.getEndTimestamp(),
-        partition.isInclusiveEnd(),
-        partition.getHeartbeatMillis())
-    ) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator) {
+    try (ResultSet resultSet =
+        changeStreamDao.changeStreamQuery(
+            partition.getPartitionToken(),
+            tracker.currentRestriction().getStartTimestamp(),
+            partition.isInclusiveStart(),
+            partition.getEndTimestamp(),
+            partition.isInclusiveEnd(),
+            partition.getHeartbeatMillis())) {
       while (resultSet.next()) {
         // TODO: Check what should we do if there is an error here
-        final List<ChangeStreamRecord> records = changeStreamRecordMapper.toChangeStreamRecords(
-            partition.getPartitionToken(),
-            resultSet.getCurrentRowAsStruct()
-        );
+        final List<ChangeStreamRecord> records =
+            changeStreamRecordMapper.toChangeStreamRecords(
+                partition.getPartitionToken(), resultSet.getCurrentRowAsStruct());
         LOG.debug("Mapped records: " + records);
 
         Optional<ProcessContinuation> maybeContinuation;
         for (ChangeStreamRecord record : records) {
           if (record instanceof DataChangesRecord) {
-            maybeContinuation = dataChangesRecordAction.run(
-                (DataChangesRecord) record,
-                tracker,
-                receiver,
-                watermarkEstimator
-            );
+            maybeContinuation =
+                dataChangesRecordAction.run(
+                    (DataChangesRecord) record, tracker, receiver, watermarkEstimator);
           } else if (record instanceof HeartbeatRecord) {
-            maybeContinuation = heartbeatRecordAction.run(
-                (HeartbeatRecord) record,
-                tracker,
-                watermarkEstimator
-            );
+            maybeContinuation =
+                heartbeatRecordAction.run((HeartbeatRecord) record, tracker, watermarkEstimator);
           } else if (record instanceof ChildPartitionsRecord) {
-            maybeContinuation = childPartitionsRecordAction.run(
-                (ChildPartitionsRecord) record,
-                partition,
-                tracker,
-                watermarkEstimator
-            );
+            maybeContinuation =
+                childPartitionsRecordAction.run(
+                    (ChildPartitionsRecord) record, partition, tracker, watermarkEstimator);
           } else {
             // FIXME: Check what should we do if the record is unknown
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
@@ -255,11 +252,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private ProcessContinuation waitForChildPartitions(
       PartitionMetadata partition,
-      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker
-  ) {
-    final Long childPartitionsToWaitFor = tracker
-        .currentRestriction()
-        .getChildPartitionsToWaitFor();
+      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
+    final Long childPartitionsToWaitFor =
+        tracker.currentRestriction().getChildPartitionsToWaitFor();
     return waitForChildPartitionsAction
         .run(partition, tracker, childPartitionsToWaitFor)
         .orElseGet(() -> finishPartition(partition, tracker));
@@ -267,8 +262,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private ProcessContinuation finishPartition(
       PartitionMetadata partition,
-      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker
-  ) {
+      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
     return finishPartitionAction
         .run(partition, tracker)
         .orElseGet(() -> waitForParentPartitions(partition, tracker));
@@ -285,9 +279,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private ProcessContinuation deletePartition(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    return deletePartitionAction
-        .run(partition, tracker)
-        .orElseGet(() -> done(partition, tracker));
+    return deletePartitionAction.run(partition, tracker).orElseGet(() -> done(partition, tracker));
   }
 
   private ProcessContinuation done(

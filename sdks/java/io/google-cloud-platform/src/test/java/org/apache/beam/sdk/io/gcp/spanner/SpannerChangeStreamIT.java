@@ -104,17 +104,20 @@ public class SpannerChangeStreamIT {
   @BeforeClass
   public static void setup() throws InterruptedException, ExecutionException, TimeoutException {
     options = IOITHelper.readIOTestPipelineOptions(SpannerTestPipelineOptions.class);
-    projectId = options.getProjectId() == null ? options.as(GcpOptions.class).getProject() : options.getProjectId();
+    projectId =
+        options.getProjectId() == null
+            ? options.as(GcpOptions.class).getProject()
+            : options.getProjectId();
     instanceId = options.getInstanceId();
     databaseId = options.getDatabaseId();
     tableName = generateTableName();
     changeStreamName = generateChangeStreamName();
-    spanner = SpannerOptions
-        .newBuilder()
-        .setHost(SPANNER_HOST)
-        .setProjectId(projectId)
-        .build()
-        .getService();
+    spanner =
+        SpannerOptions.newBuilder()
+            .setHost(SPANNER_HOST)
+            .setProjectId(projectId)
+            .build()
+            .getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
     databaseClient = spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
 
@@ -125,42 +128,42 @@ public class SpannerChangeStreamIT {
   @AfterClass
   public static void afterClass()
       throws InterruptedException, ExecutionException, TimeoutException {
-    databaseAdminClient.updateDatabaseDdl(
-        instanceId,
-        databaseId,
-        Arrays.asList("DROP TABLE " + tableName, "DROP CHANGE STREAM " + changeStreamName),
-        "op" + RandomUtils.randomAlphaNumeric(8)
-    ).get(5, TimeUnit.MINUTES);
+    databaseAdminClient
+        .updateDatabaseDdl(
+            instanceId,
+            databaseId,
+            Arrays.asList("DROP TABLE " + tableName, "DROP CHANGE STREAM " + changeStreamName),
+            "op" + RandomUtils.randomAlphaNumeric(8))
+        .get(5, TimeUnit.MINUTES);
     spanner.close();
   }
 
   @Test
   public void testReadSpannerChangeStream() {
-    final SpannerConfig spannerConfig = SpannerConfig.create()
-        .withHost(StaticValueProvider.of(SPANNER_HOST))
-        .withProjectId(projectId)
-        .withInstanceId(instanceId)
-        .withDatabaseId(databaseId);
+    final SpannerConfig spannerConfig =
+        SpannerConfig.create()
+            .withHost(StaticValueProvider.of(SPANNER_HOST))
+            .withProjectId(projectId)
+            .withInstanceId(instanceId)
+            .withDatabaseId(databaseId);
     final Timestamp now = Timestamp.now();
-    final Timestamp after10Seconds = Timestamp.ofTimeSecondsAndNanos(
-        now.getSeconds() + 10, now.getNanos()
-    );
+    final Timestamp after10Seconds =
+        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 10, now.getNanos());
 
     pipeline.getOptions().as(SpannerTestPipelineOptions.class).setStreaming(true);
     pipeline.getOptions().as(SpannerTestPipelineOptions.class).setBlockOnRun(false);
 
-    final PCollection<String> tokens = pipeline
-        .apply(SpannerIO
-            .readChangeStream()
-            .withSpannerConfig(spannerConfig)
-            .withChangeStreamName(changeStreamName)
-            .withInclusiveStartAt(now)
-            .withExclusiveEndAt(after10Seconds)
-        )
-        .apply(MapElements
-            .into(TypeDescriptors.strings())
-            .via(DataChangesRecord::getPartitionToken)
-        );
+    final PCollection<String> tokens =
+        pipeline
+            .apply(
+                SpannerIO.readChangeStream()
+                    .withSpannerConfig(spannerConfig)
+                    .withChangeStreamName(changeStreamName)
+                    .withInclusiveStartAt(now)
+                    .withExclusiveEndAt(after10Seconds))
+            .apply(
+                MapElements.into(TypeDescriptors.strings())
+                    .via(DataChangesRecord::getPartitionToken));
 
     final PipelineResult pipelineResult = pipeline.run();
     insertRecords();
@@ -170,24 +173,22 @@ public class SpannerChangeStreamIT {
   }
 
   private static Timestamp insertRecords() {
-    return databaseClient.write(Collections.singletonList(
-        Mutation.newInsertBuilder(tableName)
-            .set("SingerId")
-            .to(1L)
-            .set("FirstName")
-            .to("First Name 1")
-            .set("LastName")
-            .to("Last Name 1")
-            .build()
-    ));
+    return databaseClient.write(
+        Collections.singletonList(
+            Mutation.newInsertBuilder(tableName)
+                .set("SingerId")
+                .to(1L)
+                .set("FirstName")
+                .to("First Name 1")
+                .set("LastName")
+                .to("Last Name 1")
+                .build()));
   }
 
   private static String generateTableName() {
     return TABLE_NAME_PREFIX
         + "_"
-        + RandomUtils.randomAlphaNumeric(
-            MAX_TABLE_NAME_LENGTH - 1 - TABLE_NAME_PREFIX.length()
-        );
+        + RandomUtils.randomAlphaNumeric(MAX_TABLE_NAME_LENGTH - 1 - TABLE_NAME_PREFIX.length());
   }
 
   // TODO: Check if stream name supports dashes
@@ -195,49 +196,38 @@ public class SpannerChangeStreamIT {
     return TABLE_NAME_PREFIX
         + "Stream"
         + RandomUtils.randomAlphaNumeric(
-        MAX_CHANGE_STREAM_NAME_LENGTH - 1 - (TABLE_NAME_PREFIX + "Stream").length()
-    );
+            MAX_CHANGE_STREAM_NAME_LENGTH - 1 - (TABLE_NAME_PREFIX + "Stream").length());
   }
 
-  private static void createTable(
-      String instanceId,
-      String databaseId,
-      String tableName)
+  private static void createTable(String instanceId, String databaseId, String tableName)
       throws InterruptedException, ExecutionException, TimeoutException {
-    databaseAdminClient.updateDatabaseDdl(
-        instanceId,
-        databaseId,
-        Collections.singletonList(
-            "CREATE TABLE "
-                + tableName
-                + " ("
-                + "   SingerId   INT64 NOT NULL,"
-                + "   FirstName  STRING(1024),"
-                + "   LastName   STRING(1024),"
-                + "   SingerInfo BYTES(MAX)"
-                + " ) PRIMARY KEY (SingerId)"
-        ),
-        "op" + RandomUtils.randomAlphaNumeric(8)
-    ).get(5, TimeUnit.MINUTES);
+    databaseAdminClient
+        .updateDatabaseDdl(
+            instanceId,
+            databaseId,
+            Collections.singletonList(
+                "CREATE TABLE "
+                    + tableName
+                    + " ("
+                    + "   SingerId   INT64 NOT NULL,"
+                    + "   FirstName  STRING(1024),"
+                    + "   LastName   STRING(1024),"
+                    + "   SingerInfo BYTES(MAX)"
+                    + " ) PRIMARY KEY (SingerId)"),
+            "op" + RandomUtils.randomAlphaNumeric(8))
+        .get(5, TimeUnit.MINUTES);
   }
 
   private static void createChangeStream(
-      String instanceId,
-      String databaseId,
-      String changeStreamName,
-      String tableName)
+      String instanceId, String databaseId, String changeStreamName, String tableName)
       throws InterruptedException, ExecutionException, TimeoutException {
-    databaseAdminClient.updateDatabaseDdl(
-        instanceId,
-        databaseId,
-        Collections.singletonList(
-            "CREATE CHANGE STREAM "
-                + changeStreamName
-                + " FOR "
-                + tableName
-        ),
-        "op" + RandomUtils.randomAlphaNumeric(8)
-    ).get(5, TimeUnit.MINUTES);
+    databaseAdminClient
+        .updateDatabaseDdl(
+            instanceId,
+            databaseId,
+            Collections.singletonList(
+                "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName),
+            "op" + RandomUtils.randomAlphaNumeric(8))
+        .get(5, TimeUnit.MINUTES);
   }
-
 }

@@ -27,7 +27,6 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
-import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
@@ -61,7 +60,6 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
 import org.apache.beam.sdk.metrics.Counter;
@@ -1419,22 +1417,16 @@ public class SpannerIO {
               getInclusiveStartAt(),
               getExclusiveEndAt()));
       // FIXME: This should come from the generated table name
-      final DaoFactory daoFactory = new DaoFactory(
-          getChangeStreamName(),
-          partitionMetadataTableName
-      );
+      final DaoFactory daoFactory =
+          new DaoFactory(getChangeStreamName(), partitionMetadataTableName);
       final MapperFactory mapperFactory = new MapperFactory();
       final ActionFactory actionFactory = new ActionFactory();
       // FIXME: We should use the DAOFactory here instead of passing in the table name
-      final DetectNewPartitionsDoFn detectNewPartitionsDoFn = new DetectNewPartitionsDoFn(
-          getSpannerConfig(),
-          partitionMetadataTableName);
+      final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
+          new DetectNewPartitionsDoFn(getSpannerConfig(), partitionMetadataTableName);
       final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(
-              getSpannerConfig(),
-              daoFactory,
-              mapperFactory,
-              actionFactory);
+              getSpannerConfig(), daoFactory, mapperFactory, actionFactory);
 
       // FIXME: Remove the partitionMetadataDAO as a parameter
       // TODO: See if we can have a DAO for the admin operations

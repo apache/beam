@@ -49,7 +49,8 @@ public class PipelineInitializer {
   private static final ImmutableList<String> DEFAULT_PARENT_TOKENS = ImmutableList.of();
   private static final long DEFAULT_HEARTBEAT_MILLIS = 1000;
 
-  // TODO: See if we can get away with not passing in the database id, but the generated table name instead
+  // TODO: See if we can get away with not passing in the database id, but the generated table name
+  // instead
   public static void initialize(
       DatabaseAdminClient databaseAdminClient,
       PartitionMetadataDao partitionMetadataDao,
@@ -111,14 +112,15 @@ public class PipelineInitializer {
       PartitionMetadataDao partitionMetadataDao,
       Timestamp inclusiveStartAt,
       @Nullable Timestamp exclusiveEndAt) {
-    PartitionMetadata parentPartition = PartitionMetadata.newBuilder()
-        .setPartitionToken(DEFAULT_PARENT_PARTITION_TOKEN)
-        .setParentTokens(DEFAULT_PARENT_TOKENS)
-        .setStartTimestamp(inclusiveStartAt)
-        .setEndTimestamp(exclusiveEndAt)
-        .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
-        .setState(State.CREATED)
-        .build();
+    PartitionMetadata parentPartition =
+        PartitionMetadata.newBuilder()
+            .setPartitionToken(DEFAULT_PARENT_PARTITION_TOKEN)
+            .setParentTokens(DEFAULT_PARENT_TOKENS)
+            .setStartTimestamp(inclusiveStartAt)
+            .setEndTimestamp(exclusiveEndAt)
+            .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
+            .setState(State.CREATED)
+            .build();
     partitionMetadataDao.insert(parentPartition);
   }
 }

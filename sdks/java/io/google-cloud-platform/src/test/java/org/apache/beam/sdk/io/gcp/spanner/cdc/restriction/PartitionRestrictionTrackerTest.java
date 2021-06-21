@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.DELETE_PARTITION;
@@ -32,8 +49,8 @@ public class PartitionRestrictionTrackerTest {
 
   @Test
   public void testTryClaimModeTransitions() {
-    final TryClaimTestScenario runner = new TryClaimTestScenario(
-        tracker, Timestamp.ofTimeSecondsAndNanos(10L, 20));
+    final TryClaimTestScenario runner =
+        new TryClaimTestScenario(tracker, Timestamp.ofTimeSecondsAndNanos(10L, 20));
 
     runner.from(null).to(QUERY_CHANGE_STREAM).assertSuccess();
     runner.from(null).to(WAIT_FOR_CHILD_PARTITIONS).assertError();
@@ -188,8 +205,7 @@ public class PartitionRestrictionTrackerTest {
     public PartitionMode toMode;
 
     private TryClaimTestScenario(
-        PartitionRestrictionTracker restrictionTracker,
-        Timestamp defaultTimestamp) {
+        PartitionRestrictionTracker restrictionTracker, Timestamp defaultTimestamp) {
       this.restrictionTracker = restrictionTracker;
       this.defaultTimestamp = defaultTimestamp;
       this.defaultChildPartitionsToWaitFor = 0L;
@@ -217,29 +233,27 @@ public class PartitionRestrictionTrackerTest {
       restrictionTracker.setLastClaimedTimestamp(defaultTimestamp);
       restrictionTracker.setLastClaimedMode(fromMode);
       restrictionTracker.setLastClaimedChildPartitionsToWaitFor(defaultChildPartitionsToWaitFor);
-      final Consumer<PartitionPosition> assertFn = errorExpected ?
-          (PartitionPosition position) -> {
-            assertThrows(IllegalArgumentException.class, () -> restrictionTracker.tryClaim(position));
-          } :
-          (PartitionPosition position) -> {
-            assertTrue(restrictionTracker.tryClaim(position));
-            assertEquals(
-                toMode,
-                restrictionTracker.currentRestriction().getMode()
-            );
-            assertEquals(
-                position.getTimestamp().orElse(defaultTimestamp),
-                restrictionTracker.currentRestriction().getStartTimestamp()
-            );
-            assertEquals(
-                position.getChildPartitionsToWaitFor().orElse(defaultChildPartitionsToWaitFor),
-                restrictionTracker.currentRestriction().getChildPartitionsToWaitFor()
-            );
-          };
+      final Consumer<PartitionPosition> assertFn =
+          errorExpected
+              ? (PartitionPosition position) -> {
+                assertThrows(
+                    IllegalArgumentException.class, () -> restrictionTracker.tryClaim(position));
+              }
+              : (PartitionPosition position) -> {
+                assertTrue(restrictionTracker.tryClaim(position));
+                assertEquals(toMode, restrictionTracker.currentRestriction().getMode());
+                assertEquals(
+                    position.getTimestamp().orElse(defaultTimestamp),
+                    restrictionTracker.currentRestriction().getStartTimestamp());
+                assertEquals(
+                    position.getChildPartitionsToWaitFor().orElse(defaultChildPartitionsToWaitFor),
+                    restrictionTracker.currentRestriction().getChildPartitionsToWaitFor());
+              };
 
       switch (toMode) {
         case QUERY_CHANGE_STREAM:
-          assertFn.accept(PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(100L, 200)));
+          assertFn.accept(
+              PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(100L, 200)));
           break;
         case WAIT_FOR_CHILD_PARTITIONS:
           assertFn.accept(PartitionPosition.waitForChildPartitions(10L));

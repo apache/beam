@@ -59,12 +59,15 @@ public class PartitionMetadataDao {
       String partitionToken, List<PartitionMetadata.State> states) {
     Statement statement =
         Statement.newBuilder(
-            "SELECT COUNT(*)"
-                + " FROM " + tableName
-                + " WHERE @partition IN UNNEST (" + COLUMN_PARENT_TOKEN + ")"
-                + " AND "
-                + COLUMN_STATE
-                + " IN UNNEST (@states)")
+                "SELECT COUNT(*)"
+                    + " FROM "
+                    + tableName
+                    + " WHERE @partition IN UNNEST ("
+                    + COLUMN_PARENT_TOKEN
+                    + ")"
+                    + " AND "
+                    + COLUMN_STATE
+                    + " IN UNNEST (@states)")
             .bind("partition")
             .to(partitionToken)
             .bind("states")
@@ -79,19 +82,21 @@ public class PartitionMetadataDao {
   public long countExistingParents(String partitionToken) {
     Statement statement =
         Statement.newBuilder(
-            "SELECT COUNT(*)"
-                + " FROM " + tableName
-                + " WHERE "
-                + COLUMN_PARTITION_TOKEN
-                + " IN UNNEST (("
-                + " SELECT "
-                + COLUMN_PARENT_TOKEN
-                + " FROM " + tableName
-                + " WHERE "
-                + COLUMN_PARTITION_TOKEN
-                + " = "
-                + "@partition"
-                + "))")
+                "SELECT COUNT(*)"
+                    + " FROM "
+                    + tableName
+                    + " WHERE "
+                    + COLUMN_PARTITION_TOKEN
+                    + " IN UNNEST (("
+                    + " SELECT "
+                    + COLUMN_PARENT_TOKEN
+                    + " FROM "
+                    + tableName
+                    + " WHERE "
+                    + COLUMN_PARTITION_TOKEN
+                    + " = "
+                    + "@partition"
+                    + "))")
             .bind("partition")
             .to(partitionToken)
             .build();
@@ -118,8 +123,8 @@ public class PartitionMetadataDao {
         .readWriteTransaction()
         .run(
             transaction -> {
-              final InTransactionContext transactionContext = new InTransactionContext(tableName,
-                  transaction);
+              final InTransactionContext transactionContext =
+                  new InTransactionContext(tableName, transaction);
               return callable.apply(transactionContext);
             });
   }
@@ -154,14 +159,15 @@ public class PartitionMetadataDao {
       try (final ResultSet resultSet =
           transaction.executeQuery(
               Statement.newBuilder(
-                  "SELECT COUNT(*)"
-                      + " FROM " + tableName
-                      + " WHERE "
-                      + COLUMN_PARTITION_TOKEN
-                      + " IN UNNEST (@partitions)"
-                      + " AND "
-                      + COLUMN_STATE
-                      + " IN UNNEST (@states)")
+                      "SELECT COUNT(*)"
+                          + " FROM "
+                          + tableName
+                          + " WHERE "
+                          + COLUMN_PARTITION_TOKEN
+                          + " IN UNNEST (@partitions)"
+                          + " AND "
+                          + COLUMN_STATE
+                          + " IN UNNEST (@states)")
                   .bind("partitions")
                   .toStringArray(partitionTokens)
                   .bind("states")

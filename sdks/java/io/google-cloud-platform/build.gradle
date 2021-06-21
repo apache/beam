@@ -18,7 +18,10 @@
 
 import groovy.json.JsonOutput
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  id 'com.diffplug.spotless'
+}
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
@@ -200,4 +203,10 @@ task postCommit {
   description = "Integration tests of GCP connectors using the DirectRunner."
   dependsOn integrationTest
   dependsOn integrationTestKms
+}
+
+spotless {
+  java {
+    toggleOffOn()
+  }
 }

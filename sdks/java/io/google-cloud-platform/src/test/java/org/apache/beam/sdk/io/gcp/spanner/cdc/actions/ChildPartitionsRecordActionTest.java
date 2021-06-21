@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
@@ -54,48 +71,47 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
-    final ChildPartitionsRecord record = new ChildPartitionsRecord(
-        startTimestamp,
-        "recordSequence",
-        Arrays.asList(
-            new ChildPartition("childPartition1", partitionToken),
-            new ChildPartition("childPartition2", partitionToken)
-        )
-    );
+    final ChildPartitionsRecord record =
+        new ChildPartitionsRecord(
+            startTimestamp,
+            "recordSequence",
+            Arrays.asList(
+                new ChildPartition("childPartition1", partitionToken),
+                new ChildPartition("childPartition2", partitionToken)));
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
     when(waitForChildPartitionsAction.run(partition, tracker, 2)).thenReturn(Optional.empty());
 
-    final Optional<ProcessContinuation> maybeContinuation = action
-        .run(record, partition, tracker, watermarkEstimator);
+    final Optional<ProcessContinuation> maybeContinuation =
+        action.run(record, partition, tracker, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
-    verify(dao).insert(
-        PartitionMetadata.newBuilder()
-            .setPartitionToken("childPartition1")
-            .setParentTokens(Collections.singletonList(partitionToken))
-            .setStartTimestamp(startTimestamp)
-            .setInclusiveStart(true)
-            .setEndTimestamp(endTimestamp)
-            .setInclusiveEnd(false)
-            .setHeartbeatMillis(heartbeat)
-            .setState(CREATED)
-            .build()
-    );
-    verify(dao).insert(
-        PartitionMetadata.newBuilder()
-            .setPartitionToken("childPartition2")
-            .setParentTokens(Collections.singletonList(partitionToken))
-            .setStartTimestamp(startTimestamp)
-            .setInclusiveStart(true)
-            .setEndTimestamp(endTimestamp)
-            .setInclusiveEnd(false)
-            .setHeartbeatMillis(heartbeat)
-            .setState(CREATED)
-            .build()
-    );
+    verify(dao)
+        .insert(
+            PartitionMetadata.newBuilder()
+                .setPartitionToken("childPartition1")
+                .setParentTokens(Collections.singletonList(partitionToken))
+                .setStartTimestamp(startTimestamp)
+                .setInclusiveStart(true)
+                .setEndTimestamp(endTimestamp)
+                .setInclusiveEnd(false)
+                .setHeartbeatMillis(heartbeat)
+                .setState(CREATED)
+                .build());
+    verify(dao)
+        .insert(
+            PartitionMetadata.newBuilder()
+                .setPartitionToken("childPartition2")
+                .setParentTokens(Collections.singletonList(partitionToken))
+                .setStartTimestamp(startTimestamp)
+                .setInclusiveStart(true)
+                .setEndTimestamp(endTimestamp)
+                .setInclusiveEnd(false)
+                .setHeartbeatMillis(heartbeat)
+                .setState(CREATED)
+                .build());
   }
 
   @Test
@@ -107,36 +123,38 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
-    final ChildPartitionsRecord record = new ChildPartitionsRecord(
-        startTimestamp,
-        "recordSequence",
-        Collections.singletonList(new ChildPartition("childPartition1", parentTokens))
-    );
+    final ChildPartitionsRecord record =
+        new ChildPartitionsRecord(
+            startTimestamp,
+            "recordSequence",
+            Collections.singletonList(new ChildPartition("childPartition1", parentTokens)));
     final InTransactionContext transaction = mock(InTransactionContext.class);
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
-    when(dao.runInTransaction(any(Function.class))).thenAnswer(new TestTransactionAnswer(transaction));
-    when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED))).thenReturn(1L);
+    when(dao.runInTransaction(any(Function.class)))
+        .thenAnswer(new TestTransactionAnswer(transaction));
+    when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
+        .thenReturn(1L);
     when(waitForChildPartitionsAction.run(partition, tracker, 1)).thenReturn(Optional.empty());
 
-    final Optional<ProcessContinuation> maybeContinuation = action
-        .run(record, partition, tracker, watermarkEstimator);
+    final Optional<ProcessContinuation> maybeContinuation =
+        action.run(record, partition, tracker, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
-    verify(transaction).insert(
-        PartitionMetadata.newBuilder()
-            .setPartitionToken("childPartition1")
-            .setParentTokens(parentTokens)
-            .setStartTimestamp(startTimestamp)
-            .setInclusiveStart(true)
-            .setEndTimestamp(endTimestamp)
-            .setInclusiveEnd(false)
-            .setHeartbeatMillis(heartbeat)
-            .setState(CREATED)
-            .build()
-    );
+    verify(transaction)
+        .insert(
+            PartitionMetadata.newBuilder()
+                .setPartitionToken("childPartition1")
+                .setParentTokens(parentTokens)
+                .setStartTimestamp(startTimestamp)
+                .setInclusiveStart(true)
+                .setEndTimestamp(endTimestamp)
+                .setInclusiveEnd(false)
+                .setHeartbeatMillis(heartbeat)
+                .setState(CREATED)
+                .build());
   }
 
   @Test
@@ -148,21 +166,23 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
-    final ChildPartitionsRecord record = new ChildPartitionsRecord(
-        startTimestamp,
-        "recordSequence",
-        Collections.singletonList(new ChildPartition("childPartition1", parentTokens))
-    );
+    final ChildPartitionsRecord record =
+        new ChildPartitionsRecord(
+            startTimestamp,
+            "recordSequence",
+            Collections.singletonList(new ChildPartition("childPartition1", parentTokens)));
     final InTransactionContext transaction = mock(InTransactionContext.class);
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
-    when(dao.runInTransaction(any(Function.class))).thenAnswer(new TestTransactionAnswer(transaction));
-    when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED))).thenReturn(0L);
+    when(dao.runInTransaction(any(Function.class)))
+        .thenAnswer(new TestTransactionAnswer(transaction));
+    when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
+        .thenReturn(0L);
     when(waitForChildPartitionsAction.run(partition, tracker, 1)).thenReturn(Optional.empty());
 
-    final Optional<ProcessContinuation> maybeContinuation = action
-        .run(record, partition, tracker, watermarkEstimator);
+    final Optional<ProcessContinuation> maybeContinuation =
+        action.run(record, partition, tracker, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
@@ -174,18 +194,17 @@ public class ChildPartitionsRecordActionTest {
     final String partitionToken = "partitionToken";
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
-    final ChildPartitionsRecord record = new ChildPartitionsRecord(
-        startTimestamp,
-        "recordSequence",
-        Arrays.asList(
-            new ChildPartition("childPartition1", partitionToken),
-            new ChildPartition("childPartition2", partitionToken)
-        )
-    );
+    final ChildPartitionsRecord record =
+        new ChildPartitionsRecord(
+            startTimestamp,
+            "recordSequence",
+            Arrays.asList(
+                new ChildPartition("childPartition1", partitionToken),
+                new ChildPartition("childPartition2", partitionToken)));
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(false);
 
-    final Optional<ProcessContinuation> maybeContinuation = action
-        .run(record, partition, tracker, watermarkEstimator);
+    final Optional<ProcessContinuation> maybeContinuation =
+        action.run(record, partition, tracker, watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());

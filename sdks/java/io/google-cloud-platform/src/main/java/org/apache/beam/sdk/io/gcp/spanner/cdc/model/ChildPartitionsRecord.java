@@ -1,11 +1,13 @@
 /*
- * Copyright 2021 Google LLC
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import com.google.cloud.Timestamp;
@@ -33,16 +34,11 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
   private String recordSequence;
   private List<ChildPartition> childPartitions;
 
-  /**
-   * Default constructor for serialization only.
-   */
+  /** Default constructor for serialization only. */
   private ChildPartitionsRecord() {}
 
   public ChildPartitionsRecord(
-      Timestamp startTimestamp,
-      String recordSequence,
-      List<ChildPartition> childPartitions
-  ) {
+      Timestamp startTimestamp, String recordSequence, List<ChildPartition> childPartitions) {
     this.startTimestamp = startTimestamp;
     this.recordSequence = recordSequence;
     this.childPartitions = childPartitions;
@@ -68,8 +64,7 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
     return childPartitions;
   }
 
-  public void setChildPartitions(
-      List<ChildPartition> childPartitions) {
+  public void setChildPartitions(List<ChildPartition> childPartitions) {
     this.childPartitions = childPartitions;
   }
 
@@ -82,9 +77,9 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
       return false;
     }
     ChildPartitionsRecord that = (ChildPartitionsRecord) o;
-    return Objects.equals(startTimestamp, that.startTimestamp) &&
-        Objects.equals(recordSequence, that.recordSequence) &&
-        Objects.equals(childPartitions, that.childPartitions);
+    return Objects.equals(startTimestamp, that.startTimestamp)
+        && Objects.equals(recordSequence, that.recordSequence)
+        && Objects.equals(childPartitions, that.childPartitions);
   }
 
   @Override
@@ -94,11 +89,15 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
 
   @Override
   public String toString() {
-    return "ChildPartitionRecord{" +
-        "startTimestamp=" + startTimestamp +
-        ", recordSequence='" + recordSequence + '\'' +
-        ", childPartitions=" + childPartitions +
-        '}';
+    return "ChildPartitionRecord{"
+        + "startTimestamp="
+        + startTimestamp
+        + ", recordSequence='"
+        + recordSequence
+        + '\''
+        + ", childPartitions="
+        + childPartitions
+        + '}';
   }
 
   // TODO: Check if we can remove the setters
@@ -145,8 +144,7 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
         return false;
       }
       ChildPartition that = (ChildPartition) o;
-      return Objects.equals(token, that.token) &&
-          Objects.equals(parentTokens, that.parentTokens);
+      return Objects.equals(token, that.token) && Objects.equals(parentTokens, that.parentTokens);
     }
 
     @Override
@@ -156,10 +154,13 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
 
     @Override
     public String toString() {
-      return "ChildPartition{" +
-          "childToken='" + token + '\'' +
-          ", parentTokens=" + parentTokens +
-          '}';
+      return "ChildPartition{"
+          + "childToken='"
+          + token
+          + '\''
+          + ", parentTokens="
+          + parentTokens
+          + '}';
     }
   }
 }

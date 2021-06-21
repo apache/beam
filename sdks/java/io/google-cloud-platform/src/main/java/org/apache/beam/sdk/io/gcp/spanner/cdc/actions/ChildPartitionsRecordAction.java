@@ -1,11 +1,13 @@
 /*
- * Copyright 2021 Google LLC
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
@@ -53,8 +54,7 @@ public class ChildPartitionsRecordAction {
       ChildPartitionsRecord record,
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
-      ManualWatermarkEstimator<Instant> watermarkEstimator
-  ) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator) {
     LOG.debug("Processing child partition record " + record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();
@@ -67,51 +67,51 @@ public class ChildPartitionsRecordAction {
     for (ChildPartition childPartition : record.getChildPartitions()) {
       if (isSplit(childPartition)) {
         LOG.debug("Processing child partition split event");
-        final PartitionMetadata row = toPartitionMetadata(
-            record.getStartTimestamp(),
-            partition.getEndTimestamp(),
-            partition.getHeartbeatMillis(),
-            childPartition
-        );
+        final PartitionMetadata row =
+            toPartitionMetadata(
+                record.getStartTimestamp(),
+                partition.getEndTimestamp(),
+                partition.getHeartbeatMillis(),
+                childPartition);
         // Updates the metadata table
         // FIXME: Figure out what to do if this throws an exception
         // TODO: Make sure this does not fail if the rows already exist
         partitionMetadataDao.insert(row);
       } else {
         LOG.debug("Processing child partition merge event");
-        partitionMetadataDao.runInTransaction(transaction -> {
-          final long finishedParents = transaction.countPartitionsInStates(
-              childPartition.getParentTokens(),
-              Collections.singletonList(FINISHED)
-          );
+        partitionMetadataDao.runInTransaction(
+            transaction -> {
+              final long finishedParents =
+                  transaction.countPartitionsInStates(
+                      childPartition.getParentTokens(), Collections.singletonList(FINISHED));
 
-          if (finishedParents == childPartition.getParentTokens().size() - 1) {
-            LOG.debug("All parents are finished, inserting child partition " + childPartition);
-            transaction.insert(toPartitionMetadata(
-                record.getStartTimestamp(),
-                partition.getEndTimestamp(),
-                partition.getHeartbeatMillis(),
-                childPartition
-            ));
-          } else {
-            LOG.debug("At least one parent is not finished ("
-                + "finishedParents = " + finishedParents + ", "
-                + "expectedToBeFinished = " + (childPartition.getParentTokens().size() - 1)
-                + "), skipping child partition insertion");
-          }
+              if (finishedParents == childPartition.getParentTokens().size() - 1) {
+                LOG.debug("All parents are finished, inserting child partition " + childPartition);
+                transaction.insert(
+                    toPartitionMetadata(
+                        record.getStartTimestamp(),
+                        partition.getEndTimestamp(),
+                        partition.getHeartbeatMillis(),
+                        childPartition));
+              } else {
+                LOG.debug(
+                    "At least one parent is not finished ("
+                        + "finishedParents = "
+                        + finishedParents
+                        + ", "
+                        + "expectedToBeFinished = "
+                        + (childPartition.getParentTokens().size() - 1)
+                        + "), skipping child partition insertion");
+              }
 
-          return null;
-        });
+              return null;
+            });
       }
     }
 
     LOG.debug("Child partitions action completed successfully");
     // Needs to hold the watermark until all my children have finished
-    return waitForChildPartitionsAction.run(
-        partition,
-        tracker,
-        record.getChildPartitions().size()
-    );
+    return waitForChildPartitionsAction.run(partition, tracker, record.getChildPartitions().size());
   }
 
   private boolean isSplit(ChildPartition childPartition) {
@@ -123,10 +123,8 @@ public class ChildPartitionsRecordAction {
       Timestamp startTimestamp,
       Timestamp endTimestamp,
       long heartbeatMillis,
-      ChildPartition childPartition
-  ) {
-    return PartitionMetadata
-        .newBuilder()
+      ChildPartition childPartition) {
+    return PartitionMetadata.newBuilder()
         .setPartitionToken(childPartition.getToken())
         .setParentTokens(childPartition.getParentTokens())
         .setStartTimestamp(startTimestamp)
