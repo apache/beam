@@ -837,6 +837,7 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
+    self.current_instruction_id = None  # type: Optional[str]
 
     # There is no guarantee that the runner only set
     # timer_api_service_descriptor when having timers. So this field cannot be
