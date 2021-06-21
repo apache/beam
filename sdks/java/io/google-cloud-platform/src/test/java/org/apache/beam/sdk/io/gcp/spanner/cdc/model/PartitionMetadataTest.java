@@ -53,7 +53,7 @@ public class PartitionMetadataTest {
             .setParentTokens(ImmutableList.of(A_PARTITION_TOKEN))
             .setStartTimestamp(A_TIMESTAMP)
             .setEndTimestamp(A_TIMESTAMP)
-            .setHeartbeatSeconds(10)
+            .setHeartbeatMillis(10)
             .setState(State.CREATED)
             .setCreatedAt(A_TIMESTAMP)
             .setUpdatedAt(A_TIMESTAMP)
@@ -71,7 +71,7 @@ public class PartitionMetadataTest {
                 .setParentTokens(ImmutableList.of(A_PARTITION_TOKEN))
                 .setStartTimestamp(A_TIMESTAMP)
                 .setEndTimestamp(A_TIMESTAMP)
-                .setHeartbeatSeconds(10)
+                .setHeartbeatMillis(10)
                 .setState(State.CREATED)
                 .setCreatedAt(A_TIMESTAMP)
                 .setUpdatedAt(A_TIMESTAMP)
@@ -88,7 +88,7 @@ public class PartitionMetadataTest {
                 .setPartitionToken(A_PARTITION_TOKEN)
                 .setStartTimestamp(A_TIMESTAMP)
                 .setEndTimestamp(A_TIMESTAMP)
-                .setHeartbeatSeconds(10)
+                .setHeartbeatMillis(10)
                 .setState(State.CREATED)
                 .setCreatedAt(A_TIMESTAMP)
                 .setUpdatedAt(A_TIMESTAMP)
@@ -105,7 +105,7 @@ public class PartitionMetadataTest {
                 .setPartitionToken(A_PARTITION_TOKEN)
                 .setParentTokens(ImmutableList.of(A_PARTITION_TOKEN))
                 .setEndTimestamp(A_TIMESTAMP)
-                .setHeartbeatSeconds(10)
+                .setHeartbeatMillis(10)
                 .setState(State.CREATED)
                 .setCreatedAt(A_TIMESTAMP)
                 .setUpdatedAt(A_TIMESTAMP)
@@ -113,9 +113,9 @@ public class PartitionMetadataTest {
   }
 
   @Test
-  public void testBuilderThrowsExceptionWhenHeartbeatSecondsMissing() {
+  public void testBuilderThrowsExceptionWhenHeartbeatMillisMissing() {
     assertThrows(
-        "heartbeatSeconds",
+        "heartbeatMillis",
         IllegalStateException.class,
         () ->
             PartitionMetadata.newBuilder()
@@ -140,7 +140,7 @@ public class PartitionMetadataTest {
                 .setParentTokens(ImmutableList.of(A_PARTITION_TOKEN))
                 .setStartTimestamp(A_TIMESTAMP)
                 .setEndTimestamp(A_TIMESTAMP)
-                .setHeartbeatSeconds(10)
+                .setHeartbeatMillis(10)
                 .setCreatedAt(A_TIMESTAMP)
                 .setUpdatedAt(A_TIMESTAMP)
                 .build());

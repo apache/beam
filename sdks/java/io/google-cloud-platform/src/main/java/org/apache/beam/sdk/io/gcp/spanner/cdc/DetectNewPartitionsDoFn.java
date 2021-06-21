@@ -73,15 +73,40 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
     this.resumeDuration = resumeDuration;
   }
 
+  @GetInitialWatermarkEstimatorState
+  public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+    return currentElementTimestamp;
+  }
+
+  @NewWatermarkEstimator
+  public WatermarkEstimator<Instant> newWatermarkEstimator(
+      @WatermarkEstimatorState Instant watermarkEstimatorState) {
+    return new MonotonicallyIncreasing(watermarkEstimatorState);
+  }
+
   @GetInitialRestriction
   public OffsetRange initialRestriction(@Element ChangeStreamSourceDescriptor inputElement) {
     return new OffsetRange(0, Long.MAX_VALUE);
   }
 
+  // TODO: Remove @Element parameter if it is not needed
   @NewTracker
   public OffsetRangeTracker restrictionTracker(
       @Element ChangeStreamSourceDescriptor inputElement, @Restriction OffsetRange restriction) {
     return new OffsetRangeTracker(new OffsetRange(restriction.getFrom(), Long.MAX_VALUE));
+  }
+
+  @Setup
+  public void setup() throws Exception {
+    this.spannerAccessor = SpannerAccessor.getOrCreate(this.spannerConfig);
+    this.databaseClient = spannerAccessor.getDatabaseClient();
+    this.partitionMetadataDao =
+        new PartitionMetadataDao(this.metadataTableName, this.databaseClient);
+  }
+
+  @Teardown
+  public void teardown() throws Exception {
+    this.spannerAccessor.close();
   }
 
   @ProcessElement
@@ -93,7 +118,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
 
     Instant start = Instant.now();
 
-    LOG.info("Calling process element:" + start);
+    LOG.debug("Calling process element:" + start);
 
     // Find all records where their states are CREATED.
     // TODO(hengfeng): move this to DAO.
@@ -106,18 +131,18 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
     // Output the records.
     while (resultSet.next()) {
       // TODO(hengfeng): change the log level in this file.
-      LOG.info("Reading record currentIndex:" + currentIndex);
+      LOG.debug("Reading record currentIndex:" + currentIndex);
       if (!tracker.tryClaim(currentIndex)) {
         return ProcessContinuation.stop();
       }
       PartitionMetadata metadata = buildPartitionMetadata(resultSet);
-      LOG.info(
+      LOG.debug(
           String.format("Get partition metadata currentIndex:%d meta:%s", currentIndex, metadata));
 
       currentIndex++;
 
       Instant now = Instant.now();
-      LOG.info("Read watermark:" + watermarkEstimator.currentWatermark() + " now:" + now);
+      LOG.debug("Read watermark:" + watermarkEstimator.currentWatermark() + " now:" + now);
       receiver.output(metadata);
 
       // TODO(hengfeng): investigate if we can move this to DAO.
@@ -138,37 +163,13 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
                         .to(metadata.getPartitionToken())
                         .build();
                 transaction.executeUpdate(updateStatement);
-                LOG.info("Updated the record:" + metadata.getPartitionToken());
+                LOG.debug("Updated the record:" + metadata.getPartitionToken());
                 return null;
               });
     }
 
     // TODO(hengfeng): investigate how we can terminate this function.
     return ProcessContinuation.resume().withResumeDelay(resumeDuration);
-  }
-
-  @Setup
-  public void setup() throws Exception {
-    this.spannerAccessor = SpannerAccessor.getOrCreate(this.spannerConfig);
-    this.databaseClient = spannerAccessor.getDatabaseClient();
-    this.partitionMetadataDao =
-        new PartitionMetadataDao(this.databaseClient, this.metadataTableName);
-  }
-
-  @Teardown
-  public void teardown() throws Exception {
-    this.spannerAccessor.close();
-  }
-
-  @GetInitialWatermarkEstimatorState
-  public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
-    return currentElementTimestamp;
-  }
-
-  @NewWatermarkEstimator
-  public WatermarkEstimator<Instant> newWatermarkEstimator(
-      @WatermarkEstimatorState Instant watermarkEstimatorState) {
-    return new MonotonicallyIncreasing(watermarkEstimatorState);
   }
 
   private PartitionMetadata buildPartitionMetadata(ResultSet resultSet) {
@@ -181,7 +182,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
             ? resultSet.getTimestamp(PartitionMetadataDao.COLUMN_END_TIMESTAMP)
             : null,
         resultSet.getBoolean(PartitionMetadataDao.COLUMN_INCLUSIVE_END),
-        resultSet.getLong(PartitionMetadataDao.COLUMN_HEARTBEAT_SECONDS),
+        resultSet.getLong(PartitionMetadataDao.COLUMN_HEARTBEAT_MILLIS),
         PartitionMetadata.State.valueOf(resultSet.getString(PartitionMetadataDao.COLUMN_STATE)),
         resultSet.getTimestamp(PartitionMetadataDao.COLUMN_CREATED_AT),
         resultSet.getTimestamp(PartitionMetadataDao.COLUMN_UPDATED_AT));

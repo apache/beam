@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Data access layer for the Spanner change stream API. */
+/** User model for the Spanner change stream API. */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;

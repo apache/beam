@@ -15,23 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import java.util.UUID;
-
-// TODO: Add java docs
-public class NameGenerator {
-
-  private static final String METADATA_TABLE_NAME_FORMAT = "CDC_Partitions_%s_%s";
-
-  // TODO: Add java docs
-  public static String generateMetadataTableName(String databaseId) {
-    // Maximum Spanner table name length is 128 characters.
-    // There are 16 characters in the name format.
-    // Maximum Spanner database ID length is 30 characters.
-    // UUID always generates a String with 36 characters.
-    // 128 - (16 + 30 + 36) = 46 characters short of the limit
-    return String.format(METADATA_TABLE_NAME_FORMAT, databaseId, UUID.randomUUID())
-        .replaceAll("-", "_");
-  }
-}
+/** User model for the Spanner change stream API. */
+package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;

@@ -15,18 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-
-public class ReadPartitionChangeStreamDoFn
-    extends PTransform<PCollection<PartitionMetadata>, PCollection<DataChangesRecord>> {
-
-  @Override
-  public PCollection<DataChangesRecord> expand(PCollection<PartitionMetadata> input) {
-    return null;
-  }
-}
+/** User model for the Spanner change stream API. */
+package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;

@@ -43,6 +43,7 @@ public class TimestampEncoding extends CustomEncoding<Timestamp> {
     this.schema.addProp("CustomEncoding", TimestampEncoding.class.getSimpleName());
   }
 
+  // TODO: Add java docs
   @Override
   protected void write(Object datum, Encoder out) throws IOException {
     final Timestamp timestamp = (Timestamp) datum;
@@ -55,6 +56,7 @@ public class TimestampEncoding extends CustomEncoding<Timestamp> {
     }
   }
 
+  // TODO: Add java docs
   @Override
   protected Timestamp read(Object reuse, Decoder in) throws IOException {
     final long seconds = in.readLong();

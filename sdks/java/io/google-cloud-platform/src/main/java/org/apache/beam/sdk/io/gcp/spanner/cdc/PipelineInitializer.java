@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_END_TIMESTAMP;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_HEARTBEAT_SECONDS;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_HEARTBEAT_MILLIS;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_INCLUSIVE_END;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_INCLUSIVE_START;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_PARENT_TOKEN;
@@ -34,7 +34,6 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
-import com.google.cloud.spanner.Value;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
@@ -46,17 +45,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 public class PipelineInitializer {
 
-  private static final String DEFAULT_PARENT_PARTITION_TOKEN = "Parent0";
+  public static final String DEFAULT_PARENT_PARTITION_TOKEN = "Parent0";
   private static final ImmutableList<String> DEFAULT_PARENT_TOKENS = ImmutableList.of();
-  private static final long DEFAULT_HEARTBEAT_SECONDS = 1;
+  private static final long DEFAULT_HEARTBEAT_MILLIS = 1000;
 
+  // TODO: See if we can get away with not passing in the database id, but the generated table name instead
   public static void initialize(
       DatabaseAdminClient databaseAdminClient,
       PartitionMetadataDao partitionMetadataDao,
       DatabaseId id,
+      String partitionMetadataTableName,
       Timestamp inclusiveStartAt,
       @Nullable Timestamp exclusiveEndAt) {
-    createMetadataTable(databaseAdminClient, id, partitionMetadataDao.getTableName());
+    createMetadataTable(databaseAdminClient, id, partitionMetadataTableName);
     createFakeParentPartition(partitionMetadataDao, inclusiveStartAt, exclusiveEndAt);
   }
 
@@ -78,7 +79,7 @@ public class PipelineInitializer {
             + " TIMESTAMP,"
             + COLUMN_INCLUSIVE_END
             + " BOOL,"
-            + COLUMN_HEARTBEAT_SECONDS
+            + COLUMN_HEARTBEAT_MILLIS
             + " INT64 NOT NULL,"
             + COLUMN_STATE
             + " STRING(MAX) NOT NULL,"
@@ -110,17 +111,14 @@ public class PipelineInitializer {
       PartitionMetadataDao partitionMetadataDao,
       Timestamp inclusiveStartAt,
       @Nullable Timestamp exclusiveEndAt) {
-    PartitionMetadata parentPartition =
-        PartitionMetadata.newBuilder()
-            .setPartitionToken(DEFAULT_PARENT_PARTITION_TOKEN)
-            .setParentTokens(DEFAULT_PARENT_TOKENS)
-            .setStartTimestamp(inclusiveStartAt)
-            .setEndTimestamp(exclusiveEndAt)
-            .setHeartbeatSeconds(DEFAULT_HEARTBEAT_SECONDS)
-            .setState(State.CREATED)
-            .setCreatedAt(Value.COMMIT_TIMESTAMP)
-            .setUpdatedAt(Value.COMMIT_TIMESTAMP)
-            .build();
+    PartitionMetadata parentPartition = PartitionMetadata.newBuilder()
+        .setPartitionToken(DEFAULT_PARENT_PARTITION_TOKEN)
+        .setParentTokens(DEFAULT_PARENT_TOKENS)
+        .setStartTimestamp(inclusiveStartAt)
+        .setEndTimestamp(exclusiveEndAt)
+        .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
+        .setState(State.CREATED)
+        .build();
     partitionMetadataDao.insert(parentPartition);
   }
 }

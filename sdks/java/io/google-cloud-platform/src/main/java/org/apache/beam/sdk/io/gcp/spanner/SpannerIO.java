@@ -57,8 +57,13 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamSourceDescriptor;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ReadChangeStreamPartitionDoFn;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ActionFactory;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.MapperFactory;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -1272,7 +1277,7 @@ public class SpannerIO {
 
   @AutoValue
   public abstract static class ReadChangeStream
-      extends PTransform<PBegin, PCollection<PartitionMetadata>> {
+      extends PTransform<PBegin, PCollection<DataChangesRecord>> {
 
     abstract SpannerConfig getSpannerConfig();
 
@@ -1283,9 +1288,6 @@ public class SpannerIO {
     abstract @Nullable Timestamp getExclusiveEndAt();
 
     abstract @Nullable Deserializer getDeserializer();
-
-    // TODO(hengfeng): Remove this when we can write the real IT test for the connector.
-    abstract @Nullable String getTestMetadataTable();
 
     abstract Builder toBuilder();
 
@@ -1301,8 +1303,6 @@ public class SpannerIO {
       abstract Builder setExclusiveEndAt(Timestamp exclusiveEndAt);
 
       abstract Builder setDeserializer(Deserializer deserializer);
-
-      abstract Builder setTestMetadataTable(String metadataTable);
 
       abstract ReadChangeStream build();
     }
@@ -1360,11 +1360,6 @@ public class SpannerIO {
       return toBuilder().setExclusiveEndAt(timestamp).build();
     }
 
-    /** Specifies the change stream metadata table name for testing purpose. */
-    public ReadChangeStream withTestMetadataTable(String metadataTable) {
-      return toBuilder().setTestMetadataTable(metadataTable).build();
-    }
-
     /**
      * Specifies the class to be used to transform the data records read from the change stream into
      * Java objects or other serial formats.
@@ -1374,7 +1369,7 @@ public class SpannerIO {
     }
 
     @Override
-    public PCollection<PartitionMetadata> expand(PBegin input) {
+    public PCollection<DataChangesRecord> expand(PBegin input) {
       checkArgument(
           getSpannerConfig() != null,
           "SpannerIO.readChangeStream() requires the spanner config to be set.");
@@ -1400,47 +1395,62 @@ public class SpannerIO {
         throw new IllegalArgumentException("Start time cannot be after end time.");
       }
 
-      SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(getSpannerConfig());
-      DatabaseAdminClient databaseAdminClient = spannerAccessor.getDatabaseAdminClient();
-      DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
-      Database changeStreamsDb =
-          databaseAdminClient.getDatabase(
-              getSpannerConfig().getInstanceId().get(), getSpannerConfig().getDatabaseId().get());
-
-      DatabaseId databaseId =
+      final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(getSpannerConfig());
+      final DatabaseAdminClient databaseAdminClient = spannerAccessor.getDatabaseAdminClient();
+      final DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
+      final DatabaseId databaseId =
           DatabaseId.of(
               getSpannerConfig().getProjectId().get(),
               getSpannerConfig().getInstanceId().get(),
               getSpannerConfig().getDatabaseId().get());
-      String partitionMetadataTableName = generateMetadataTableName(databaseId.getDatabase());
-      if (!getTestMetadataTable().isEmpty()) {
-        partitionMetadataTableName = getTestMetadataTable();
-      }
 
-      PartitionMetadataDao partitionMetadataDao =
-          new PartitionMetadataDao(databaseClient, partitionMetadataTableName);
-      PipelineInitializer.initialize(
-          databaseAdminClient,
-          partitionMetadataDao,
-          databaseId,
-          getInclusiveStartAt(),
-          getExclusiveEndAt());
+      final String partitionMetadataTableName = generateMetadataTableName(databaseId.getDatabase());
 
-      List<ChangeStreamSourceDescriptor> sources = new ArrayList<>();
+      // FIXME: This should be removed and only the dao factory should be used
+      final PartitionMetadataDao partitionMetadataDao =
+          new PartitionMetadataDao(partitionMetadataTableName, databaseClient);
+
+      // TODO: See if we can remove the metadata table name from the source
+      final List<ChangeStreamSourceDescriptor> sources = new ArrayList<>();
       sources.add(
           ChangeStreamSourceDescriptor.of(
               getChangeStreamName(),
               partitionMetadataTableName,
               getInclusiveStartAt(),
               getExclusiveEndAt()));
+      // FIXME: This should come from the generated table name
+      final DaoFactory daoFactory = new DaoFactory(
+          getChangeStreamName(),
+          partitionMetadataTableName
+      );
+      final MapperFactory mapperFactory = new MapperFactory();
+      final ActionFactory actionFactory = new ActionFactory();
+      // FIXME: We should use the DAOFactory here instead of passing in the table name
+      final DetectNewPartitionsDoFn detectNewPartitionsDoFn = new DetectNewPartitionsDoFn(
+          getSpannerConfig(),
+          partitionMetadataTableName);
+      final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
+          new ReadChangeStreamPartitionDoFn(
+              getSpannerConfig(),
+              daoFactory,
+              mapperFactory,
+              actionFactory);
 
+      // FIXME: Remove the partitionMetadataDAO as a parameter
+      // TODO: See if we can have a DAO for the admin operations
+      PipelineInitializer.initialize(
+          databaseAdminClient,
+          partitionMetadataDao,
+          databaseId,
+          partitionMetadataTableName,
+          getInclusiveStartAt(),
+          getExclusiveEndAt());
       return input
           .apply("Generate change stream sources", Create.of(sources))
-          .apply(
-              "Detect new partitions",
-              ParDo.of(
-                  new DetectNewPartitionsDoFn(getSpannerConfig(), partitionMetadataTableName)));
-      // .apply(new ReadPartitionChangeStreamDoFn());
+          .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
+          .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn));
+
+      // TODO: We need to perform cleanup after everything has terminated (delete metadata table)
     }
   }
 

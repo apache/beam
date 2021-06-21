@@ -60,7 +60,7 @@ public class PartitionMetadata implements Serializable {
   private boolean inclusiveEnd;
   // The interval for a heartbeat record to be returned for a partition when there are no changes
   // within the partition.
-  private long heartbeatSeconds;
+  private long heartbeatMillis;
   // The current state of the partition in the Connector.
   private State state;
   // When the row was inserted.
@@ -80,7 +80,7 @@ public class PartitionMetadata implements Serializable {
       boolean inclusiveStart,
       Timestamp endTimestamp,
       boolean inclusiveEnd,
-      long heartbeatSeconds,
+      long heartbeatMillis,
       State state,
       Timestamp createdAt,
       Timestamp updatedAt) {
@@ -90,7 +90,7 @@ public class PartitionMetadata implements Serializable {
     this.inclusiveStart = inclusiveStart;
     this.endTimestamp = endTimestamp;
     this.inclusiveEnd = inclusiveEnd;
-    this.heartbeatSeconds = heartbeatSeconds;
+    this.heartbeatMillis = heartbeatMillis;
     this.state = state;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
@@ -144,12 +144,12 @@ public class PartitionMetadata implements Serializable {
     this.inclusiveEnd = inclusiveEnd;
   }
 
-  public long getHeartbeatSeconds() {
-    return heartbeatSeconds;
+  public long getHeartbeatMillis() {
+    return heartbeatMillis;
   }
 
-  public void setHeartbeatSeconds(long heartbeatSeconds) {
-    this.heartbeatSeconds = heartbeatSeconds;
+  public void setHeartbeatMillis(long heartbeatMillis) {
+    this.heartbeatMillis = heartbeatMillis;
   }
 
   public State getState() {
@@ -187,7 +187,7 @@ public class PartitionMetadata implements Serializable {
     PartitionMetadata partitionMetadata = (PartitionMetadata) o;
     return isInclusiveStart() == partitionMetadata.isInclusiveStart()
         && isInclusiveEnd() == partitionMetadata.isInclusiveEnd()
-        && getHeartbeatSeconds() == partitionMetadata.getHeartbeatSeconds()
+        && getHeartbeatMillis() == partitionMetadata.getHeartbeatMillis()
         && Objects.equal(getPartitionToken(), partitionMetadata.getPartitionToken())
         && Objects.equal(getParentTokens(), partitionMetadata.getParentTokens())
         && Objects.equal(getStartTimestamp(), partitionMetadata.getStartTimestamp())
@@ -206,7 +206,7 @@ public class PartitionMetadata implements Serializable {
         isInclusiveStart(),
         getEndTimestamp(),
         isInclusiveEnd(),
-        getHeartbeatSeconds(),
+        getHeartbeatMillis(),
         getState(),
         getCreatedAt(),
         getUpdatedAt());
@@ -228,8 +228,8 @@ public class PartitionMetadata implements Serializable {
         + endTimestamp
         + ", inclusiveEnd="
         + inclusiveEnd
-        + ", heartbeatSeconds="
-        + heartbeatSeconds
+        + ", heartbeatMillis="
+        + heartbeatMillis
         + ", state="
         + state
         + ", createdAt="
@@ -251,7 +251,7 @@ public class PartitionMetadata implements Serializable {
     private Boolean inclusiveStart;
     private Timestamp endTimestamp;
     private Boolean inclusiveEnd;
-    private Long heartbeatSeconds;
+    private Long heartbeatMillis;
     private State state;
     private Timestamp createdAt;
     private Timestamp updatedAt;
@@ -286,8 +286,8 @@ public class PartitionMetadata implements Serializable {
       return this;
     }
 
-    public Builder setHeartbeatSeconds(long heartbeatSeconds) {
-      this.heartbeatSeconds = heartbeatSeconds;
+    public Builder setHeartbeatMillis(long heartbeatMillis) {
+      this.heartbeatMillis = heartbeatMillis;
       return this;
     }
 
@@ -310,7 +310,7 @@ public class PartitionMetadata implements Serializable {
       Preconditions.checkState(partitionToken != null, "partitionToken");
       Preconditions.checkState(parentTokens != null, "parentTokens");
       Preconditions.checkState(startTimestamp != null, "startTimestamp");
-      Preconditions.checkState(heartbeatSeconds != null, "heartbeatSeconds");
+      Preconditions.checkState(heartbeatMillis != null, "heartbeatMillis");
       Preconditions.checkState(state != null, "state");
       if (inclusiveStart == null) {
         inclusiveStart = true;
@@ -331,7 +331,7 @@ public class PartitionMetadata implements Serializable {
           inclusiveStart,
           endTimestamp,
           inclusiveEnd,
-          heartbeatSeconds,
+          heartbeatMillis,
           state,
           createdAt,
           updatedAt);
