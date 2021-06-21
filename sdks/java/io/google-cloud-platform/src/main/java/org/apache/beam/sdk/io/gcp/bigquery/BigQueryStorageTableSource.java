@@ -102,11 +102,39 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
 
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-    return getTargetTable(options.as(BigQueryOptions.class)).getNumBytes();
+    Table table = getTargetTable(options.as(BigQueryOptions.class));
+    if (table != null) {
+      return table.getNumBytes();
+    }
+    // If the table does not exist, then it will be null.
+    // Avoid the NullPointerException here, allow a more meaningful table "not_found"
+    // error to be shown to the user, upon table read.
+    return 0;
   }
 
   @Override
-  protected Table getTargetTable(BigQueryOptions options) throws Exception {
+  protected String getTargetTableId(BigQueryOptions options) throws Exception {
+    TableReference tableReference = tableReferenceProvider.get();
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      checkState(
+          !Strings.isNullOrEmpty(options.getProject()),
+          "No project ID set in %s or %s, cannot construct a complete %s",
+          TableReference.class.getSimpleName(),
+          BigQueryOptions.class.getSimpleName(),
+          TableReference.class.getSimpleName());
+      LOG.info(
+          "Project ID not set in {}. Using default project from {}.",
+          TableReference.class.getSimpleName(),
+          BigQueryOptions.class.getSimpleName());
+      tableReference.setProjectId(options.getProject());
+    }
+    return String.format(
+        "projects/%s/datasets/%s/tables/%s",
+        tableReference.getProjectId(), tableReference.getDatasetId(), tableReference.getTableId());
+  }
+
+  @Override
+  protected @Nullable Table getTargetTable(BigQueryOptions options) throws Exception {
     if (cachedTable.get() == null) {
       TableReference tableReference = tableReferenceProvider.get();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {

@@ -21,7 +21,9 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.fromJsonString
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.FailedPreconditionException;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
@@ -33,6 +35,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
@@ -162,6 +165,9 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private long rowsConsumedFromCurrentResponse;
     private long totalRowsInCurrentResponse;
 
+    private TableReference tableReference;
+    private ServiceCallMetric serviceCallMetric;
+
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
       this.source = source;
@@ -186,7 +192,9 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
               .setOffset(currentOffset)
               .build();
 
-      responseStream = storageClient.readRows(request);
+      tableReference = BigQueryUtils.toTableReference(source.readSession.getTable());
+      serviceCallMetric = BigQueryUtils.readCallMetric(tableReference);
+      responseStream = storageClient.readRows(request, source.readSession.getTable());
       responseIterator = responseStream.iterator();
       LOG.info("Started BigQuery Storage API read from stream {}.", source.readStream.getName());
       return readNextRecord();
@@ -205,7 +213,23 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           return false;
         }
 
-        ReadRowsResponse response = responseIterator.next();
+        ReadRowsResponse response;
+        try {
+          response = responseIterator.next();
+          // Since we don't have a direct hook to the underlying
+          // API call, record success ever time we read a record successfully.
+          if (serviceCallMetric != null) {
+            serviceCallMetric.call("ok");
+          }
+        } catch (ApiException e) {
+          // Occasionally the iterator will fail and raise an exception.
+          // Capture it here and record the error in the metric.
+          if (serviceCallMetric != null) {
+            serviceCallMetric.call(e.getStatusCode().getCode().name());
+          }
+          throw e;
+        }
+
         progressAtResponseStart = response.getStats().getProgress().getAtResponseStart();
         progressAtResponseEnd = response.getStats().getProgress().getAtResponseEnd();
         totalRowsInCurrentResponse = response.getRowCount();
@@ -315,7 +339,8 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   ReadRowsRequest.newBuilder()
                       .setReadStream(splitResponse.getPrimaryStream().getName())
                       .setOffset(currentOffset + 1)
-                      .build());
+                      .build(),
+                  source.readSession.getTable());
           newResponseIterator = newResponseStream.iterator();
           newResponseIterator.hasNext();
         } catch (FailedPreconditionException e) {
