@@ -48,10 +48,10 @@ def run(bootstrap_servers, topic, with_metadata, pipeline_args):
   window_size = 15  # size of the Window in seconds.
 
   def log_ride_with_metadata(record):
-    logging.info('Found ride. record: %r key: %r value: %r type(key): %r type(value): %r ', record, record.key, record.value, type(record.key), type(record.value))
     # Converting bytes record from Kafka to a dictionary.
+    ride_bytes = record.value
     import ast
-    ride = ast.literal_eval(record.value.decode("UTF-8"))
+    ride = ast.literal_eval(ride_bytes.decode("UTF-8"))
     logging.info(
         'Found ride at latitude %r and longitude %r with %r '
         'passengers at timestamp %r',
@@ -61,10 +61,10 @@ def run(bootstrap_servers, topic, with_metadata, pipeline_args):
         record.timestamp)  # timestamp is read from Kafka metadata
 
   def log_ride(kv):
-    ride = kv[1]
+    ride_bytes = kv[1]
     # Converting bytes record from Kafka to a dictionary.
     import ast
-    ride = ast.literal_eval(ride.value.decode("UTF-8"))
+    ride = ast.literal_eval(ride_bytes.decode("UTF-8"))
     logging.info(
         'Found ride at latitude %r and longitude %r with %r '
         'passengers',
@@ -118,4 +118,6 @@ if __name__ == '__main__':
       help='If set, also reads metadata from the Kafka broker.')
   known_args, pipeline_args = parser.parse_known_args()
 
-  run(known_args.bootstrap_servers, known_args.topic, known_args.with_metadata, pipeline_args)
+  run(
+      known_args.bootstrap_servers, known_args.topic, known_args.with_metadata,
+      pipeline_args)
