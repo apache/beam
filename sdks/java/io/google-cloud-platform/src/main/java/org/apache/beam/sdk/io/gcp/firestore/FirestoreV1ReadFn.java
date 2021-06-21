@@ -376,8 +376,10 @@ final class FirestoreV1ReadFn {
             .forEach(builder::addDocuments);
         return builder.build();
       }
-      // unable to find a match, return the original request
-      return originalRequest;
+      throw new IllegalStateException(
+          String.format(
+              "Unable to determine BatchGet resumption point. Most recently received doc __name__ '%s'",
+              foundName != null ? foundName : missing));
     }
   }
 
