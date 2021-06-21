@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.values.Row;
 
 /**
  * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
@@ -33,11 +31,6 @@ public class SchemaAndRecord {
   public SchemaAndRecord(GenericRecord record, TableSchema tableSchema) {
     this.record = record;
     this.tableSchema = tableSchema;
-  }
-
-  public SchemaAndRecord(Row record, TableSchema tableSchema) {
-    this.tableSchema = tableSchema;
-    this.record = AvroUtils.toGenericRecord(record, null);
   }
 
   public GenericRecord getRecord() {
