@@ -87,6 +87,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Fixed bug in ReadFromBigQuery when a RuntimeValueProvider is used as value of table argument (Python) ([BEAM-12514](https://issues.apache.org/jira/browse/BEAM-12514)).
 
 ## New Features / Improvements
 
