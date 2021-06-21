@@ -1091,6 +1091,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       frame_base.wont_implement_method(
           pd.Series, 'array', reason="non-deferred-result"))
 
+  # We can't reliably predict the output type, it depends on whether `key` is:
+  # - not in the index (default_value)
+  # - in the index once (constant)
+  # - in the index multiple times (Series)
+  get = frame_base.wont_implement_method(
+      pd.Series, 'get', reason="non-deferred-columns")
+
   ravel = frame_base.wont_implement_method(
       pd.Series, 'ravel', reason="non-deferred-result")
 
@@ -1992,6 +1999,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Arbitrary()
         )
     )
+
+  # If column name exists this is a simple project, otherwise it is a constant
+  # (default_value)
+  @frame_base.with_docs_from(pd.DataFrame)
+  def get(self, key, default_value=None):
+    if key in self.columns:
+      return self[key]
+    else:
+      return default_value
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
