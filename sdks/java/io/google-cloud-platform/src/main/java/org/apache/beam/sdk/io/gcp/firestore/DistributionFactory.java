@@ -15,10 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution;
+package org.apache.beam.sdk.io.gcp.firestore;
 
-/** Interface to access headers in the client request. */
-public interface HeaderAccessor {
-  /** This method should be called from the request method. */
-  String getSdkWorkerId();
+import java.io.Serializable;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
+
+interface DistributionFactory extends Serializable {
+
+  DistributionFactory DEFAULT = Metrics::distribution;
+
+  Distribution get(String namespace, String name);
 }

@@ -404,6 +404,16 @@ public class Environments {
     return String.format("%s-%s%s", fileName, encodedHash, suffix);
   }
 
+  public static String getExternalServiceAddress(PortablePipelineOptions options) {
+    String environmentConfig = options.getDefaultEnvironmentConfig();
+    String environmentOption =
+        PortablePipelineOptions.getEnvironmentOption(options, externalServiceAddressOption);
+    if (environmentConfig != null && !environmentConfig.isEmpty()) {
+      return environmentConfig;
+    }
+    return environmentOption;
+  }
+
   private static File zipDirectory(File directory) throws IOException {
     File zipFile = File.createTempFile(directory.getName(), ".zip");
     try (FileOutputStream fos = new FileOutputStream(zipFile)) {
@@ -448,16 +458,6 @@ public class Environments {
     String environmentConfig = options.getDefaultEnvironmentConfig();
     String environmentOption =
         PortablePipelineOptions.getEnvironmentOption(options, dockerContainerImageOption);
-    if (environmentConfig != null && !environmentConfig.isEmpty()) {
-      return environmentConfig;
-    }
-    return environmentOption;
-  }
-
-  private static String getExternalServiceAddress(PortablePipelineOptions options) {
-    String environmentConfig = options.getDefaultEnvironmentConfig();
-    String environmentOption =
-        PortablePipelineOptions.getEnvironmentOption(options, externalServiceAddressOption);
     if (environmentConfig != null && !environmentConfig.isEmpty()) {
       return environmentConfig;
     }

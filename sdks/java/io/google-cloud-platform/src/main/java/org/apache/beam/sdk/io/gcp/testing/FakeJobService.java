@@ -103,6 +103,9 @@ public class FakeJobService implements JobService, Serializable {
 
   private final FakeDatasetService datasetService;
 
+  @Override
+  public void close() throws Exception {}
+
   private static class JobInfo {
     Job job;
     int getJobCount = 0;

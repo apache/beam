@@ -28,7 +28,7 @@ fastavro==1.0.0.post1
 crcmod==1.7
 dill==0.3.1.1
 future==0.18.2
-grpcio==1.32.0
+grpcio==1.34.0
 hdfs==2.5.8
 httplib2==0.19.1
 oauth2client==4.1.3
@@ -47,7 +47,7 @@ google-cloud-pubsub==1.0.2
 google-cloud-bigquery==1.26.1
 google-cloud-bigtable==1.0.0
 google-cloud-core==1.4.1
-google-cloud-datastore==1.7.4
+google-cloud-datastore==1.15.3
 google-cloud-profiler==3.0.4
 
 # Optional packages
@@ -63,7 +63,7 @@ pandas==1.1.5 ; python_version<"3.7"
 pandas==1.2.4 ; python_version>="3.7"
 protorpc==0.12.0
 python-gflags==3.0.6
-tensorflow==2.4.1
+tensorflow==2.5.0
 
 # Packages needed for testing.
 tenacity>=5.0.2
