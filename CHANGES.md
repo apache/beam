@@ -92,6 +92,8 @@
 
 * `CREATE FUNCTION` DDL statement added to Calcite SQL syntax. `JAR` and `AGGREGATE` are now reserved keywords. ([BEAM-12339](https://issues.apache.org/jira/browse/BEAM-12339)).
 * Flink 1.13 is now supported by the Flink runner ([BEAM-12277](https://issues.apache.org/jira/browse/BEAM-12277)).
+* DatastoreIO: Write and delete operations now follow automatic gradual ramp-up,
+  in line with best practices (Java/Python) ([BEAM-12260](https://issues.apache.org/jira/browse/BEAM-12260), [BEAM-12272](https://issues.apache.org/jira/browse/BEAM-12272)).
 * Python `TriggerFn` has a new `may_lose_data` method to signal potential data loss. Default behavior assumes safe (necessary for backwards compatibility). See Deprecations for potential impact of overriding this. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
