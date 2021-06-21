@@ -175,7 +175,6 @@ jobs:
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e .
       - name: Run WordCount
-        id: run_python_wordcount_direct_runner
         working-directory: ./sdks/python
         shell: bash
         run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts

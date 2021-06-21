@@ -77,7 +77,6 @@ jobs:
           python-version: 3.7
       # :sdks:java:core:test
       - name: Run :sdks:java:core:test
-        id: java_core_test
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: :sdks:java:core:test
@@ -85,11 +84,10 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: java_unit_tests-sdks-java-core-test
+          name: java_unit_tests-sdks-java-core-test-${{ matrix.os }}
           path: sdks/java/core/build/reports/tests/test
       # :sdks:java:harness:test
       - name: Run :sdks:java:harness:test
-        id: java_harness_test
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: :sdks:java:harness:test
@@ -98,11 +96,10 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: java_unit_tests-sdks-java-harness-test
+          name: java_unit_tests-sdks-java-harness-test-${{ matrix.os }}
           path: sdks/java/harness/build/reports/tests/test
       # :runners:core-java:test
       - name: Run :runners:core-java:test
-        id: java_runners_test
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: :runners:core-java:test
@@ -111,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: java_unit_tests-runners-core-java-test
+          name: java_unit_tests-runners-core-java-test-${{ matrix.os }}
           path: runners/core-java/build/reports/tests/test
       - name: "Install psycopg2"
         run: pip install psycopg2-binary
@@ -147,7 +144,6 @@ jobs:
         with:
           python-version: 3.7
       - name: Run WordCount Unix
-        id: run_java_wordcount_direct_runner
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
@@ -157,7 +153,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: java_wordcount_direct_runner
+          name: java_wordcount_direct_runner-${{ matrix.os }}
           path: examples/java/build/reports/tests/integrationTest
       - name: "Install psycopg2"
         run: pip install psycopg2-binary
@@ -216,7 +212,6 @@ jobs:
         # settings.xml file
         run: rm ~/.m2/settings.xml
       - name: Run WordCount
-        id: run_java_wordcount_dataflow
         uses: ./.github/actions/gradle-command-action
         with:
           arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
@@ -226,7 +221,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: java_wordcount_dataflow
+          name: java_wordcount_dataflow-${{ matrix.os }}
           path: examples/java/build/reports/tests/integrationTest
       - name: "Install psycopg2"
         run: pip install psycopg2-binary
