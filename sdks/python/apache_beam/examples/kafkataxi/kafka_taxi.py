@@ -91,7 +91,8 @@ def run(bootstrap_servers, topic, with_metadata, pipeline_args):
         pipeline
         | ReadFromKafka(
             consumer_config={'bootstrap.servers': bootstrap_servers},
-            topics=[topic], with_metadata=True)
+            topics=[topic],
+            with_metadata=with_metadata)
         | beam.FlatMap(lambda ride: log_function(ride)))
 
 
@@ -119,5 +120,7 @@ if __name__ == '__main__':
   known_args, pipeline_args = parser.parse_known_args()
 
   run(
-      known_args.bootstrap_servers, known_args.topic, known_args.with_metadata,
+      known_args.bootstrap_servers,
+      known_args.topic,
+      known_args.with_metadata,
       pipeline_args)
