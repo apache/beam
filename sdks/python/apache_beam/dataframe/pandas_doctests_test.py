@@ -573,13 +573,17 @@ class DoctestTest(unittest.TestCase):
         pd.core.arrays.datetimes,
         use_beam=False,
         wont_implement_ok={
+            'pandas.core.arrays.datetimes.DatetimeArray.to_period': ['*'],
             # All tz_localize tests use unsupported values for ambiguous=
             # Verified seperately in
             # frames_test.py::DeferredFrameTest::test_dt_tz_localize_*
             'pandas.core.arrays.datetimes.DatetimeArray.tz_localize': ['*'],
         },
         not_implemented_ok={
-            'pandas.core.arrays.datetimes.DatetimeArray.to_period': ['*'],
+            # Verifies index version of this method
+            'pandas.core.arrays.datetimes.DatetimeArray.to_period': [
+                'df.index.to_period("M")'
+            ],
         })
 
     self.assertEqual(indexes_accessors_result.failed, 0)

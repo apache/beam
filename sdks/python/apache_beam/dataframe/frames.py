@@ -4111,9 +4111,9 @@ class _DeferredDatetimeMethods(frame_base.DeferredBase):
             preserves_partition_by=partitionings.Arbitrary()))
 
 
-  to_period = frame_base.not_implemented_method(
-      'to_period', base_type=pd.core.indexes.accessors.DatetimeProperties)
-
+  to_period = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_period',
+      reason="event-time-semantics")
   to_pydatetime = frame_base.wont_implement_method(
       pd.core.indexes.accessors.DatetimeProperties, 'to_pydatetime',
       reason="non-deferred-result")
