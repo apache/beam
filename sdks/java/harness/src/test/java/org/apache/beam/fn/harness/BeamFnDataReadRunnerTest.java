@@ -288,6 +288,7 @@ public class BeamFnDataReadRunnerTest {
               Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
       assertThat(values, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
+      bundleId.set(null);
       readRunner.reset();
       values.clear();
       // Ensure that when we reuse the BeamFnDataReadRunner the read index is reset to -1
