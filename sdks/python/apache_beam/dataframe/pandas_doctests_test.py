@@ -552,7 +552,7 @@ class DoctestTest(unittest.TestCase):
                 'seconds_series.dt.seconds'
             ],
 
-            # Test data creation fails for these:
+            # TODO(BEAM-12530): Test data creation fails for these
             #   s = pd.Series(pd.to_timedelta(np.arange(5), unit="d"))
             # pylint: disable=line-too-long
             'pandas.core.indexes.accessors.DatetimeProperties.to_pydatetime': [
