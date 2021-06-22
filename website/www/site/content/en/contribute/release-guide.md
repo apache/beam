@@ -773,9 +773,9 @@ Here’s an email template; please adjust as you see fit.
     * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
-    * website pull request listing the release [6], publishing the API reference manual [7], and the blog post [8].
+    * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
     * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2].
+    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and pypy[8].
     * Validation sheet with a tab for 1.2.3 release to help with validation [9].
     * Docker images published to Docker Hub [10].
 
@@ -793,7 +793,7 @@ Here’s an email template; please adjust as you see fit.
     [5] https://github.com/apache/beam/tree/v1.2.3-RC3
     [6] https://github.com/apache/beam/pull/...
     [7] https://github.com/apache/beam-site/pull/...
-    [8] https://github.com/apache/beam/pull/...
+    [8] https://pypi.org/project/apache-beam/1.2.3rc3/
     [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
     [10] https://hub.docker.com/search?q=apache%2Fbeam&type=image
 
