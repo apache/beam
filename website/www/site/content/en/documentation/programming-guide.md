@@ -35,7 +35,7 @@ The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Pytho
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-The Go SDK is presently considered experimental, but removing that designation is 
+The Go SDK is presently considered experimental, but removing that designation is
 [under discussion](https://lists.apache.org/thread.html/re3589c797d2dc6c5a9c1015683b4a8b48a097bacfa6f12bb1e48aa45%40%3Cdev.beam.apache.org%3E).
 {{< /paragraph >}}
 
@@ -270,7 +270,7 @@ Now your pipeline can accept `--input=value` and `--output=value` as command-lin
 
 The <span class="language-java">[PCollection](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/values/PCollection.html)</span>
 <span class="language-py">`PCollection`</span>
-<span class="language-go">[PCollection](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pcollection.go#L39)</span> 
+<span class="language-go">[PCollection](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pcollection.go#L39)</span>
 abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 `PCollection` as "pipeline" data; Beam transforms use `PCollection` objects as
@@ -393,7 +393,7 @@ public static void main(String[] args) {
 
 A `PCollection` is owned by the specific `Pipeline` object for which it is
 created; multiple pipelines cannot share a `PCollection`.
-<span class="language-java">In some respects, a `PCollection` functions like 
+<span class="language-java">In some respects, a `PCollection` functions like
 a `Collection` class. However, a `PCollection` can differ in a few key ways:</span>
 
 #### 3.2.1. Element type {#element-type}
@@ -407,7 +407,7 @@ specifying custom encodings as needed.
 
 {{< paragraph class="language-go" >}}
 Custom struct types should be registered with beam using `beam.RegisterType`.
-Among other things, this allows the Go SDK to infer an encoding from their 
+Among other things, this allows the Go SDK to infer an encoding from their
 exported fields. Unexported fields in struct types are ignored.
 {{< /paragraph >}}
 
@@ -534,7 +534,7 @@ SDKs).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Because Go doesn't support function overloading, it's recommended to 
+Because Go doesn't support function overloading, it's recommended to
 create a new variable for each new `PCollection` to sequentially transform input data.
 `Scope`s can be used to create functions that contain other other transforms
  (called [composite transforms](#composite-transforms) in the Beam SDKs).
@@ -543,7 +543,7 @@ create a new variable for each new `PCollection` to sequentially transform input
 How you apply your pipeline's transforms determines the structure of your
 pipeline. The best way to think of your pipeline is as a directed acyclic graph,
 where `PTransform` nodes are subroutines that accept `PCollection` nodes as
-inputs and emit `PCollection` nodes as outputs. 
+inputs and emit `PCollection` nodes as outputs.
 <span class="language-java language-py">
 For example, you can chain together transforms to create a pipeline that successively modifies input data:
 </span>
@@ -697,7 +697,7 @@ words = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pardo.go" model_pardo_pardo >}} 
+{{< code_sample "sdks/go/examples/snippets/pardo.go" model_pardo_pardo >}}
 // words is an input PCollection of strings
 var words beam.PCollection = ...
 {{< code_sample  "sdks/go/examples/snippets/pardo.go" model_pardo_apply >}}
@@ -734,7 +734,7 @@ look like this:
 A `DoFn` processes one element at a time from the input `PCollection`. When you
 create a `DoFn` struct, you'll need to provide type parameters that match
 the types of the input and output elements in a ProcessElement method.
-If your `DoFn` processes incoming `string` elements and produces `int` elements 
+If your `DoFn` processes incoming `string` elements and produces `int` elements
 for the output collection (like our previous example, `ComputeWordLengthFn`), your dofn could
 look like this:
 {{< /paragraph >}}
@@ -783,7 +783,7 @@ For your `DoFn` type, you'll write a method `ProcessElement` where you provide
 the actual processing logic. You don't need to manually extract the elements
 from the input collection; the Beam SDKs handle that for you. Your `ProcessElement` method
 should accept a parameter `element`, which is the input element. In order to output elements,
-the method can also take a function parameter, which can be called to emit elements. 
+the method can also take a function parameter, which can be called to emit elements.
 The parameter types must match the input and output types of your `DoFn`
  or the framework will raise an error.
 {{< /paragraph >}}
@@ -879,7 +879,7 @@ following requirements:
   `ProcessElement` method, or any side inputs.
 * Once you output a value using an `emitter function`, you should not modify
   that value in any way.
-  
+
 </span>
 
 
@@ -1123,7 +1123,7 @@ iterable of the values under they key in the corresponding `PCollection`.
 {{< paragraph class="language-go" >}}
 In the Beam Go SDK, `CoGroupByKey` accepts an arbitrary number of
 `PCollection`s as input. As output, `CoGroupByKey` creates a single output
-`PCollection` that groups each key with value iterator functions for each 
+`PCollection` that groups each key with value iterator functions for each
 input `PCollection`. The iterator functions map to input `PCollections` in
  the same order they were provided to the `CoGroupByKey`.
 {{< /paragraph >}}
@@ -1262,7 +1262,7 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 
 ##### 4.2.4.2. Advanced combinations using CombineFn {#advanced-combines}
 
-For more complex combine functions, you can define a 
+For more complex combine functions, you can define a
 <span class="language-java language-py">subclass of</span>`CombineFn`.
 You should use a `CombineFn` if the combine function requires a more sophisticated
 accumulator, must perform additional pre- or post-processing, might change the
@@ -1447,7 +1447,7 @@ considering them individually), you can combine the iterable of integers to
 create a single, merged value to be paired with each key. This pattern of a
 `GroupByKey` followed by merging the collection of values is equivalent to
 Beam's Combine PerKey transform. The combine function you supply to Combine
-PerKey must be an associative reduction function or a 
+PerKey must be an associative reduction function or a
 <span class="language-java language-py">subclass of</span> `CombineFn`.
 
 {{< highlight java >}}
