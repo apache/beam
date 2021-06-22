@@ -18,4 +18,6 @@
 // and their tests run to ensure correctness. However, due to their
 // piecemeal pedagogical use, they may not be the best example of
 // production code.
+//
+// The Beam Programming Guide can be found at https://beam.apache.org/documentation/programming-guide/.
 package snippets

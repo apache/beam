@@ -132,7 +132,7 @@ Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pipeline.go" pipelines_constructing_creating >}}
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
@@ -151,12 +151,21 @@ to a DoFn's `@ProcessElement` method, it will be populated by the system.
 
 #### 2.1.1. Setting PipelineOptions from command-line arguments {#pipeline-options-cli}
 
+{{< paragraph class="language-java language-py" >}}
 While you can configure your pipeline by creating a `PipelineOptions` object and
 setting the fields directly, the Beam SDKs include a command-line parser that
 you can use to set fields in `PipelineOptions` using command-line arguments.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java language-py" >}}
 To read options from the command-line, construct your `PipelineOptions` object
 as demonstrated in the following example code:
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Use Go flags to parse command line arguments to configure your pipeline. Flags must be parsed
+before `beam.Init()` is called.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PipelineOptions options =
@@ -168,7 +177,7 @@ PipelineOptions options =
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pipeline.go" pipeline_options >}}
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipeline_options >}}
 {{< /highlight >}}
 
 This interprets command-line arguments that follow the format:
@@ -213,7 +222,7 @@ public interface MyOptions extends PipelineOptions {
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pipeline.go" pipeline_options_define_custom >}}
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipeline_options_define_custom >}}
 {{< /highlight >}}
 
 You can also specify a description, which appears when a user passes `--help` as
@@ -240,7 +249,7 @@ public interface MyOptions extends PipelineOptions {
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pipeline.go" pipeline_options_define_custom_with_help_and_default >}}
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipeline_options_define_custom_with_help_and_default >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -328,7 +337,7 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pipeline.go" pipelines_constructing_reading >}}
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -356,11 +365,11 @@ itself.
 
 {{< paragraph class="language-go" >}}
 To create a `PCollection` from an in-memory `slice`, you use the Beam-provided
-`beam.CreateList` transform. Pass the pipeline `scope`, and `slice` to this transform.
+`beam.CreateList` transform. Pass the pipeline `scope`, and the `slice` to this transform.
 {{< /paragraph >}}
 
 The following example code shows how to create a `PCollection` from an in-memory
-<span class="language-java">`List`</span><span class="language-py">`list`</span><span class="language-go">`slice`</span>::
+<span class="language-java">`List`</span><span class="language-py">`list`</span><span class="language-go">`slice`</span>:
 
 {{< highlight java >}}
 public static void main(String[] args) {
@@ -386,7 +395,7 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pipeline.go" model_pcollection >}}
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" model_pcollection >}}
 {{< /highlight >}}
 
 ### 3.2. PCollection characteristics {#pcollection-characteristics}
@@ -669,9 +678,16 @@ processing function.
 
 ##### 4.2.1.1. Applying ParDo {#applying-pardo}
 
+{{< paragraph class="language-java language-py" >}}
 Like all Beam transforms, you apply `ParDo` by calling the `apply` method on the
 input `PCollection` and passing `ParDo` as an argument, as shown in the
 following example code:
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+`beam.ParDo` applies the passed in `DoFn` argument to the input `PCollection`,
+as shown in the following example code:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 // The input PCollection of Strings.
@@ -697,10 +713,10 @@ words = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pardo.go" model_pardo_pardo >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_pardo >}}
 // words is an input PCollection of strings
 var words beam.PCollection = ...
-{{< code_sample  "sdks/go/examples/snippets/pardo.go" model_pardo_apply >}}
+{{< code_sample  "sdks/go/examples/snippets/04transforms.go" model_pardo_apply >}}
 {{< /highlight >}}
 
 In the example, our input `PCollection` contains <span class="language-java language-py">`String`</span>
@@ -803,7 +819,7 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> {
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pardo.go" model_pardo_pardo >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_pardo >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
@@ -966,7 +982,7 @@ words = ...
 // words is the input PCollection of strings
 var words beam.PCollection = ...
 
-{{< code_sample "sdks/go/examples/snippets/pardo.go" model_pardo_apply_anon >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_apply_anon >}}
 {{< /highlight >}}
 
 <span class="language-java" >
@@ -1151,8 +1167,8 @@ data contains names and phone numbers.
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/cogbk.go" cogroupbykey_input_helpers >}}
-{{< code_sample "sdks/go/examples/snippets/cogbk.go" cogroupbykey_inputs >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" cogroupbykey_input_helpers >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" cogroupbykey_inputs >}}
 {{< /highlight >}}
 
 After `CoGroupByKey`, the resulting data contains all data associated with each
@@ -1167,8 +1183,8 @@ unique key from any of the input collections.
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/cogbk.go" cogroupbykey_outputs >}}
-{{< code_sample "sdks/go/examples/snippets/cogbk_test.go" cogroupbykey_outputs >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" cogroupbykey_outputs >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms_test.go" cogroupbykey_outputs >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java language-py" >}}
@@ -1192,8 +1208,8 @@ parameters maps to the ordering of the `CoGroupByKey` inputs.
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/cogbk.go" cogroupbykey_output_helpers >}}
-{{< code_sample "sdks/go/examples/snippets/cogbk_test.go" cogroupbykey_outputs >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" cogroupbykey_output_helpers >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms_test.go" cogroupbykey_outputs >}}
 {{< /highlight >}}
 
 The formatted data looks like this:
@@ -1207,7 +1223,7 @@ The formatted data looks like this:
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/cogbk_test.go" cogroupbykey_formatted_outputs >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms_test.go" cogroupbykey_formatted_outputs >}}
 {{< /highlight >}}
 
 #### 4.2.4. Combine {#combine}
@@ -1231,8 +1247,8 @@ and max.
 
 Simple combine operations, such as sums, can usually be implemented as a simple
 function. More complex combination operations might require you to create a
-subclass of `CombineFn` that has an accumulation type distinct from the
-input/output type.
+<span class="language-java language-py">subclass of</span> `CombineFn`
+that has an accumulation type distinct from the input/output type.
 
 ##### 4.2.4.1. Simple combinations using simple functions {#simple-combines}
 
@@ -1257,7 +1273,7 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/combine.go" combine_simple_sum >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
 {{< /highlight >}}
 
 ##### 4.2.4.2. Advanced combinations using CombineFn {#advanced-combines}
@@ -1336,7 +1352,7 @@ pc = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/combine.go" combine_custom_average >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_custom_average >}}
 {{< /highlight >}}
 
 <span class="language-go">
@@ -1371,7 +1387,7 @@ pc = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/combine.go" combine_global_average >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_average >}}
 {{< /highlight >}}
 
 ##### 4.2.4.4. Combine and global windowing {#combine-global-windowing}
@@ -1399,7 +1415,7 @@ sum = pc | beam.CombineGlobally(sum).without_defaults()
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/combine.go" combine_global_with_default >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_with_default >}}
 {{< /highlight >}}
 
 ##### 4.2.4.5. Combine and non-global windowing {#combine-non-global-windowing}
@@ -1476,7 +1492,7 @@ player_accuracies = ...
 // PCollection is grouped by key and the numeric values associated with each key
 // are averaged into a float64.
 playerAccuracies := ... // PCollection<string,int>
-{{< code_sample "sdks/go/examples/snippets/combine.go" combine_per_key >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_per_key >}}
 // avgAccuracyPerPlayer is a PCollection<string,float64>
 {{< /highlight >}}
 
@@ -1513,7 +1529,7 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< highlight go >}}
 // Flatten accepts any number of PCollections of the same element type.
 // Returns a single PCollection that contains all of the elements in input PCollections.
-{{< code_sample "sdks/go/examples/snippets/pardo.go" model_multiple_pcollections_flatten >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
 
 ##### 4.2.5.1. Data encoding in merged collections {#data-encoding-merged-collections}
@@ -1584,8 +1600,8 @@ students = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/pardo.go" model_multiple_pcollections_partition_fn >}}
-{{< code_sample "sdks/go/examples/snippets/pardo.go" model_multiple_pcollections_partition >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_multiple_pcollections_partition_fn >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_multiple_pcollections_partition >}}
 {{< /highlight >}}
 
 ### 4.3. Requirements for writing user code for Beam transforms {#requirements-for-writing-user-code-for-beam-transforms}
@@ -1609,18 +1625,36 @@ In addition, it's recommended that you make your function object **idempotent**.
 Non-idempotent functions are supported by Beam, but require additional
 thought to ensure correctness when there are external side effects.
 
-> **Note:** These requirements apply to subclasses of `DoFn` (a function object
+<span class="language-java language-py">
+
+> **Note:** These requirements apply to subclasses of `DoFn`</span> (a function object
 > used with the [ParDo](#pardo) transform), `CombineFn` (a function object used
 > with the [Combine](#combine) transform), and `WindowFn` (a function object
 > used with the [Window](#windowing) transform).
+
+</span>
+
+<span class="language-go">
+
+> **Note:** These requirements apply to `DoFn`s</span> (a function object
+> used with the [ParDo](#pardo) transform), `CombineFn`s (a function object used
+> with the [Combine](#combine) transform), and `WindowFn`s (a function object
+> used with the [Window](#windowing) transform).
+
+</span>
 
 #### 4.3.1. Serializability {#user-code-serializability}
 
 Any function object you provide to a transform must be **fully serializable**.
 This is because a copy of the function needs to be serialized and transmitted to
-a remote worker in your processing cluster. The base classes for user code, such
+a remote worker in your processing cluster.
+<span class="language-java language-py">The base classes for user code, such
 as `DoFn`, `CombineFn`, and `WindowFn`, already implement `Serializable`;
-however, your subclass must not add any non-serializable members.
+however, your subclass must not add any non-serializable members.</span>
+<span class="language-go">Funcs are serializable as long as
+they are registered with `beam.RegisterFunction`, and are not
+closures. Structural `DoFn`s will have all exported fields serialized.
+Unexported fields are unable to be serialized, and will be silently ignored.</span>
 
 Some other serializability factors you should keep in mind are:
 
