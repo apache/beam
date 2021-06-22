@@ -126,6 +126,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       }
       readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
     }
+    readSessionBuilder.setDataFormat(this.format);
 
     int streamCount = 0;
     if (desiredBundleSizeBytes > 0) {
