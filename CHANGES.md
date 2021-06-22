@@ -63,10 +63,11 @@
   [examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/dataframe),
   integrating DataFrames with [interactive
   Beam](https://beam.apache.org/releases/pydoc/current/apache_beam.runners.interactive.interactive_beam.html),
-  and of course finding and fixing [bugs](TODO: Search for fixed bugs in
-  dsls-dataframe-api).  Leaving experimental just means that we now have high
-  confidence in the API and recommend its use for production workloads. We will
-  continue to improve the API, guided by your
+  and of course finding and fixing
+  [bugs](https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20issuetype%3DBug%20AND%20status%3DResolved%20AND%20component%3Ddsl-dataframe).
+  Leaving experimental just means that we now have high confidence in the API
+  and recommend its use for production workloads. We will continue to improve
+  the API, guided by your
   [feedback](https://beam.apache.org/community/contact-us/).
 
 
