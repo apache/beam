@@ -20,38 +20,48 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.values.KV;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /** Test utilities to use with {@link ElasticsearchIO}. */
 class ElasticsearchIOTestUtils {
+  static final int ELASTICSEARCH_DEFAULT_PORT = 9200;
+  static final String ELASTICSEARCH_PASSWORD = "superSecure";
+  static final String ELASTIC_UNAME = "elastic";
+
   static final String[] FAMOUS_SCIENTISTS = {
-    "Einstein",
-    "Darwin",
-    "Copernicus",
-    "Pasteur",
-    "Curie",
-    "Faraday",
-    "Newton",
-    "Bohr",
-    "Galilei",
-    "Maxwell"
+    "einstein",
+    "darwin",
+    "copernicus",
+    "pasteur",
+    "curie",
+    "faraday",
+    "newton",
+    "bohr",
+    "galilei",
+    "maxwell"
   };
   static final ObjectMapper MAPPER = new ObjectMapper();
   static final int NUM_SCIENTISTS = FAMOUS_SCIENTISTS.length;
@@ -76,11 +86,10 @@ class ElasticsearchIOTestUtils {
     restClient.performRequest(request);
   }
 
-  private static void deleteIndex(RestClient restClient, String index) throws IOException {
+  static void deleteIndex(RestClient restClient, String index) throws IOException {
     try {
       closeIndex(restClient, index);
       Request request = new Request("DELETE", String.format("/%s", index));
-      request.addParameters(Collections.singletonMap("refresh", "wait_for"));
       restClient.performRequest(request);
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,
@@ -89,6 +98,27 @@ class ElasticsearchIOTestUtils {
         throw e;
       }
     }
+  }
+
+  public static void createIndex(RestClient restClient, String indexName) throws IOException {
+    deleteIndex(restClient, indexName);
+    Request request = new Request("PUT", String.format("/%s", indexName));
+    restClient.performRequest(request);
+  }
+
+  public static void setDefaultTemplate(RestClient restClient) throws IOException {
+    Request request = new Request("PUT", "/_template/default");
+    NStringEntity body =
+        new NStringEntity(
+            "{"
+                + "\"order\": 0,"
+                + "\"index_patterns\": [\"*\"],"
+                + "\"template\": \"*\","
+                + "\"settings\": {\"index.number_of_shards\": 1, \"index.number_of_replicas\": 0}}",
+            ContentType.APPLICATION_JSON);
+
+    request.setEntity(body);
+    restClient.performRequest(request);
   }
 
   /**
@@ -391,5 +421,35 @@ class ElasticsearchIOTestUtils {
     } else {
       return searchResult.path("hits").path("total").asInt();
     }
+  }
+
+  static RestClient clientFromContainer(ElasticsearchContainer container) {
+    return RestClient.builder(
+            new HttpHost(
+                container.getContainerIpAddress(),
+                container.getMappedPort(ELASTICSEARCH_DEFAULT_PORT),
+                "http"))
+        .build();
+  }
+
+  static ConnectionConfiguration createConnectionConfig(RestClient restClient) {
+    String[] hostStrings =
+        restClient.getNodes().stream().map(node -> node.getHost().toURI()).toArray(String[]::new);
+
+    return ConnectionConfiguration.create(hostStrings, getEsIndex(), ES_TYPE)
+        .withSocketTimeout(120000)
+        .withConnectTimeout(5000);
+  }
+
+  static ElasticsearchContainer createTestContainer(String imageTag) {
+    ElasticsearchContainer container =
+        new ElasticsearchContainer(
+                DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch")
+                    .withTag(imageTag))
+            .withEnv("xpack.security.enabled", "false");
+
+    container.withStartupTimeout(Duration.ofMinutes(3));
+
+    return container;
   }
 }
