@@ -1314,7 +1314,8 @@ class SparkRunnerOptions(PipelineOptions):
         'the execution.')
     parser.add_argument(
         '--spark_job_server_jar',
-        help='Path or URL to a Beam Spark jobserver jar.')
+        help='Path or URL to a Beam Spark job server jar. '
+        'Overrides --spark_version.')
     parser.add_argument(
         '--spark_submit_uber_jar',
         default=False,
@@ -1327,6 +1328,11 @@ class SparkRunnerOptions(PipelineOptions):
         help='URL for the Spark REST endpoint. '
         'Only required when using spark_submit_uber_jar. '
         'For example, http://hostname:6066')
+    parser.add_argument(
+        '--spark_version',
+        default='2',
+        choices=['2', '3'],
+        help='Spark major version to use.')
 
 
 class TestOptions(PipelineOptions):
