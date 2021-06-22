@@ -111,7 +111,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   static final String ES_TYPE = "test";
-  static final long NUM_DOCS_UTESTS = 400L;
+  static final long NUM_DOCS_UTESTS = 100L;
   static final long NUM_DOCS_ITESTS = 50000L;
   static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final long AVERAGE_DOC_SIZE = 25L;
@@ -124,7 +124,7 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   private final long numDocs;
   private final ConnectionConfiguration connectionConfiguration;
-  private final RestClient restClient;
+  final RestClient restClient;
   private final boolean useAsITests;
 
   private TestPipeline pipeline;
@@ -454,14 +454,25 @@ class ElasticsearchIOTestCommon implements Serializable {
   /** Extracts the name field from the JSON document. */
   private static class ExtractValueFn implements Write.FieldValueExtractFn {
     private final String fieldName;
+    private final String disambiguationName;
+
+    private ExtractValueFn(String fieldName, String disambiguationName) {
+      this.fieldName = fieldName;
+      this.disambiguationName = disambiguationName;
+    }
 
     private ExtractValueFn(String fieldName) {
       this.fieldName = fieldName;
+      this.disambiguationName = null;
     }
 
     @Override
     public String apply(JsonNode input) {
-      return input.path(fieldName).asText();
+      String output = input.path(fieldName).asText();
+      if (disambiguationName != null) {
+        output += disambiguationName;
+      }
+      return output;
     }
   }
 
@@ -497,6 +508,7 @@ class ElasticsearchIOTestCommon implements Serializable {
    * Therefore limit to a small number of docs to test routing behavior only.
    */
   void testWriteWithIndexFn() throws Exception {
+    String disambiguation = "testWriteWithIndexFn".toLowerCase();
     long docsPerScientist = 10; // very conservative
     long adjustedNumDocs = docsPerScientist * FAMOUS_SCIENTISTS.length;
 
@@ -508,12 +520,14 @@ class ElasticsearchIOTestCommon implements Serializable {
         .apply(
             ElasticsearchIO.write()
                 .withConnectionConfiguration(connectionConfiguration)
-                .withIndexFn(new ExtractValueFn("scientist")));
+                .withIndexFn(new ExtractValueFn("scientist", disambiguation)));
     pipeline.run();
 
     // verify counts on each index
     for (String scientist : FAMOUS_SCIENTISTS) {
-      String index = scientist.toLowerCase();
+      // Note that tests run in parallel, so without disambiguation multiple tests might be
+      // interacting with the index named after a particular scientist
+      String index = scientist.toLowerCase() + disambiguation;
       long count =
           refreshIndexAndGetCurrentNumDocs(
               restClient,
@@ -580,6 +594,10 @@ class ElasticsearchIOTestCommon implements Serializable {
    * As a result there should be only a single document in each index/type.
    */
   void testWriteWithFullAddressing() throws Exception {
+    // Note that tests run in parallel, so without disambiguation multiple tests might be
+    // interacting with the index named after a particular scientist
+    String disambiguation = "testWriteWithFullAddressing".toLowerCase();
+
     List<String> data =
         ElasticsearchIOTestUtils.createDocuments(
             numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
@@ -589,12 +607,12 @@ class ElasticsearchIOTestCommon implements Serializable {
             ElasticsearchIO.write()
                 .withConnectionConfiguration(connectionConfiguration)
                 .withIdFn(new ExtractValueFn("id"))
-                .withIndexFn(new ExtractValueFn("scientist"))
+                .withIndexFn(new ExtractValueFn("scientist", disambiguation))
                 .withTypeFn(new Modulo2ValueFn("scientist")));
     pipeline.run();
 
     for (String scientist : FAMOUS_SCIENTISTS) {
-      String index = scientist.toLowerCase();
+      String index = scientist.toLowerCase() + disambiguation;
       for (int i = 0; i < 2; i++) {
         String type = "TYPE_" + scientist.hashCode() % 2;
         long count =
