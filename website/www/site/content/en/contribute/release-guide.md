@@ -632,37 +632,6 @@ See the source of the script for more details or to run commands manually in cas
 
 ## 8. Prepare documents
 
-### Update and Verify Javadoc
-
-The build with `-PisRelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
-
-The file `sdks/java/javadoc/build.gradle` contains a list of modules to include and exclude, plus a list of offline URLs that populate links from Beam's Javadoc to the Javadoc for other modules that Beam depends on.
-
-* Confirm that new modules added since the last release have been added to the inclusion list as appropriate.
-
-* Confirm that the excluded package list is up to date.
-
-* Verify the version numbers for offline links match the versions used by Beam.
-  If the version number has changed, download a new version of the corresponding `<module>-docs/package-list` file.
-
-
-### Build the Pydoc API reference
-
-Make sure you have ```tox``` installed:
-
-```
-pip install tox
-```
-
-Create the Python SDK documentation using sphinx by running a helper script.
-
-```
-cd sdks/python && pip install -r build-requirements.txt && tox -e py37-docs
-```
-
-By default the Pydoc is generated in `sdks/python/target/docs/_build`.
-Let `${PYDOC_ROOT}` be the absolute path to `_build`.
-
 ### Propose pull requests for website updates
 
 Beam publishes API reference manuals for each release on the website.
