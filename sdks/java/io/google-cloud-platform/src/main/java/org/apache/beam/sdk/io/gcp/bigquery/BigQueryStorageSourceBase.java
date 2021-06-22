@@ -124,9 +124,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       if (rowRestrictionProvider != null) {
         tableReadOptionsBuilder.setRowRestriction(rowRestrictionProvider.get());
       }
+      if (format != null) {
+        readSessionBuilder.setDataFormat(format);
+      }
       readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
     }
-    readSessionBuilder.setDataFormat(this.format);
 
     int streamCount = 0;
     if (desiredBundleSizeBytes > 0) {
