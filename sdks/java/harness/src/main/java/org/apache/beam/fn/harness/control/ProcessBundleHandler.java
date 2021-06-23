@@ -309,12 +309,13 @@ public class ProcessBundleHandler {
                 throw new RuntimeException(e);
               }
             });
-    PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
-    ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
-    QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
-
     try {
+      PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
+      PTransformFunctionRegistry finishFunctionRegistry =
+          bundleProcessor.getFinishFunctionRegistry();
+      ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
+      QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
+
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
         try (Closeable closeTracker = stateTracker.activate()) {
           // Already in reverse topological order so we don't need to do anything.
@@ -354,14 +355,16 @@ public class ProcessBundleHandler {
           response.setRequiresFinalization(true);
         }
       }
+
+      // Mark the bundle processor as re-usable.
       bundleProcessorCache.release(
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
+      return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
     } catch (Exception e) {
-      bundleProcessorCache.release(
-          request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
+      // Make sure we clean-up from the active set of bundle processors.
+      bundleProcessorCache.discard(bundleProcessor);
       throw e;
     }
-    return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
   public BeamFnApi.InstructionResponse.Builder progress(BeamFnApi.InstructionRequest request)
@@ -648,13 +651,12 @@ public class ProcessBundleHandler {
     }
 
     /**
-     * Add a {@link BundleProcessor} to cache. The {@link BundleProcessor} will be reset before
-     * being added to the cache and will be marked as inactive.
+     * Add a {@link BundleProcessor} to cache. The {@link BundleProcessor} will be marked as
+     * inactive and reset before being added to the cache.
      */
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
       activeBundleProcessors.remove(bundleProcessor.getInstructionId());
       try {
-        bundleProcessor.setInstructionId(null);
         bundleProcessor.reset();
         cachedBundleProcessors.get(bundleDescriptorId).add(bundleProcessor);
       } catch (Exception e) {
@@ -663,6 +665,11 @@ public class ProcessBundleHandler {
             bundleDescriptorId,
             e);
       }
+    }
+
+    /** Discard an active {@link BundleProcessor} instead of being re-used. */
+    void discard(BundleProcessor bundleProcessor) {
+      activeBundleProcessors.remove(bundleProcessor.getInstructionId());
     }
 
     /** Shutdown all the cached {@link BundleProcessor}s, running the tearDown() functions. */
@@ -742,6 +749,7 @@ public class ProcessBundleHandler {
     }
 
     void reset() throws Exception {
+      this.instructionId = null;
       getStartFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();
       getSplitListener().clear();
