@@ -27,9 +27,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.function.Function;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
@@ -92,7 +93,7 @@ public class ChildPartitionsRecordActionTest {
         .insert(
             PartitionMetadata.newBuilder()
                 .setPartitionToken("childPartition1")
-                .setParentTokens(Collections.singletonList(partitionToken))
+                .setParentTokens(Sets.newHashSet(partitionToken))
                 .setStartTimestamp(startTimestamp)
                 .setInclusiveStart(true)
                 .setEndTimestamp(endTimestamp)
@@ -104,7 +105,7 @@ public class ChildPartitionsRecordActionTest {
         .insert(
             PartitionMetadata.newBuilder()
                 .setPartitionToken("childPartition2")
-                .setParentTokens(Collections.singletonList(partitionToken))
+                .setParentTokens(Sets.newHashSet(partitionToken))
                 .setStartTimestamp(startTimestamp)
                 .setInclusiveStart(true)
                 .setEndTimestamp(endTimestamp)
@@ -118,7 +119,7 @@ public class ChildPartitionsRecordActionTest {
   public void testRestrictionClaimedAndIsMergeCaseAndAllParentsFinished() {
     final String partitionToken = "partitionToken";
     final String anotherPartitionToken = "anotherPartitionToken";
-    final List<String> parentTokens = Arrays.asList(partitionToken, anotherPartitionToken);
+    final HashSet<String> parentTokens = Sets.newHashSet(partitionToken, anotherPartitionToken);
     final long heartbeat = 30L;
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
@@ -161,7 +162,7 @@ public class ChildPartitionsRecordActionTest {
   public void testRestrictionClaimedAndIsMergeCaseAndAtLeastOneParentIsNotFinished() {
     final String partitionToken = "partitionToken";
     final String anotherPartitionToken = "anotherPartitionToken";
-    final List<String> parentTokens = Arrays.asList(partitionToken, anotherPartitionToken);
+    final HashSet<String> parentTokens = Sets.newHashSet(partitionToken, anotherPartitionToken);
     final long heartbeat = 30L;
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);

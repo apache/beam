@@ -25,6 +25,7 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.Value;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -36,7 +37,7 @@ public class PartitionMetadataDao {
 
   // Metadata table column names
   public static final String COLUMN_PARTITION_TOKEN = "PartitionToken";
-  public static final String COLUMN_PARENT_TOKEN = "ParentToken";
+  public static final String COLUMN_PARENT_TOKENS = "ParentTokens";
   public static final String COLUMN_START_TIMESTAMP = "StartTimestamp";
   public static final String COLUMN_INCLUSIVE_START = "InclusiveStart";
   public static final String COLUMN_END_TIMESTAMP = "EndTimestamp";
@@ -63,7 +64,7 @@ public class PartitionMetadataDao {
                     + " FROM "
                     + tableName
                     + " WHERE @partition IN UNNEST ("
-                    + COLUMN_PARENT_TOKEN
+                    + COLUMN_PARENT_TOKENS
                     + ")"
                     + " AND "
                     + COLUMN_STATE
@@ -89,7 +90,7 @@ public class PartitionMetadataDao {
                     + COLUMN_PARTITION_TOKEN
                     + " IN UNNEST (("
                     + " SELECT "
-                    + COLUMN_PARENT_TOKEN
+                    + COLUMN_PARENT_TOKENS
                     + " FROM "
                     + tableName
                     + " WHERE "
@@ -155,7 +156,7 @@ public class PartitionMetadataDao {
     }
 
     public long countPartitionsInStates(
-        List<String> partitionTokens, List<PartitionMetadata.State> states) {
+        Set<String> partitionTokens, List<PartitionMetadata.State> states) {
       try (final ResultSet resultSet =
           transaction.executeQuery(
               Statement.newBuilder(
@@ -183,7 +184,7 @@ public class PartitionMetadataDao {
           .set(COLUMN_PARTITION_TOKEN)
           .to(partitionMetadata.getPartitionToken())
           // FIXME: This should be a list of parents
-          .set(COLUMN_PARENT_TOKEN)
+          .set(COLUMN_PARENT_TOKENS)
           .toStringArray(partitionMetadata.getParentTokens())
           .set(COLUMN_START_TIMESTAMP)
           .to(partitionMetadata.getStartTimestamp())

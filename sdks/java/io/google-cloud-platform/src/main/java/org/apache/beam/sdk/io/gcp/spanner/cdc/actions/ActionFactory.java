@@ -25,40 +25,85 @@ import org.joda.time.Duration;
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;
+  private static DataChangesRecordAction DATA_CHANGES_RECORD_ACTION_INSTANCE;
+  private static HeartbeatRecordAction HEARTBEAT_RECORD_ACTION_INSTANCE;
+  private static ChildPartitionsRecordAction CHILD_PARTITIONS_RECORD_ACTION_INSTANCE;
+  private static FinishPartitionAction FINISH_PARTITION_ACTION_INSTANCE;
+  private static WaitForChildPartitionsAction WAIT_FOR_CHILD_PARTITIONS_ACTION_INSTANCE;
+  private static WaitForParentPartitionsAction WAIT_FOR_PARENT_PARTITIONS_ACTION_INSTANCE;
+  private static DeletePartitionAction DELETE_PARTITION_ACTION_INSTANCE;
+  private static DonePartitionAction DONE_PARTITION_ACTION_INSTANCE;
 
-  public DataChangesRecordAction dataChangesRecordAction() {
-    return new DataChangesRecordAction();
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized DataChangesRecordAction dataChangesRecordAction() {
+    if (DATA_CHANGES_RECORD_ACTION_INSTANCE == null) {
+      DATA_CHANGES_RECORD_ACTION_INSTANCE = new DataChangesRecordAction();
+    }
+    return DATA_CHANGES_RECORD_ACTION_INSTANCE;
   }
 
-  public HeartbeatRecordAction heartbeatRecordAction() {
-    return new HeartbeatRecordAction();
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized HeartbeatRecordAction heartbeatRecordAction() {
+    if (HEARTBEAT_RECORD_ACTION_INSTANCE == null) {
+      HEARTBEAT_RECORD_ACTION_INSTANCE = new HeartbeatRecordAction();
+    }
+    return HEARTBEAT_RECORD_ACTION_INSTANCE;
   }
 
-  public ChildPartitionsRecordAction childPartitionsRecordAction(
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized ChildPartitionsRecordAction childPartitionsRecordAction(
       PartitionMetadataDao partitionMetadataDao,
       WaitForChildPartitionsAction waitForChildPartitionsAction) {
-    return new ChildPartitionsRecordAction(partitionMetadataDao, waitForChildPartitionsAction);
+    if (CHILD_PARTITIONS_RECORD_ACTION_INSTANCE == null) {
+      CHILD_PARTITIONS_RECORD_ACTION_INSTANCE =
+          new ChildPartitionsRecordAction(partitionMetadataDao, waitForChildPartitionsAction);
+    }
+    return CHILD_PARTITIONS_RECORD_ACTION_INSTANCE;
   }
 
-  public FinishPartitionAction finishPartitionAction(PartitionMetadataDao partitionMetadataDao) {
-    return new FinishPartitionAction(partitionMetadataDao);
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized FinishPartitionAction finishPartitionAction(
+      PartitionMetadataDao partitionMetadataDao) {
+    if (FINISH_PARTITION_ACTION_INSTANCE == null) {
+      FINISH_PARTITION_ACTION_INSTANCE = new FinishPartitionAction(partitionMetadataDao);
+    }
+    return FINISH_PARTITION_ACTION_INSTANCE;
   }
 
-  public WaitForChildPartitionsAction waitForChildPartitionsAction(
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized WaitForChildPartitionsAction waitForChildPartitionsAction(
       PartitionMetadataDao partitionMetadataDao, Duration resumeDuration) {
-    return new WaitForChildPartitionsAction(partitionMetadataDao, resumeDuration);
+    if (WAIT_FOR_CHILD_PARTITIONS_ACTION_INSTANCE == null) {
+      WAIT_FOR_CHILD_PARTITIONS_ACTION_INSTANCE =
+          new WaitForChildPartitionsAction(partitionMetadataDao, resumeDuration);
+    }
+    return WAIT_FOR_CHILD_PARTITIONS_ACTION_INSTANCE;
   }
 
-  public WaitForParentPartitionsAction waitForParentPartitionsAction(
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized WaitForParentPartitionsAction waitForParentPartitionsAction(
       PartitionMetadataDao partitionMetadataDao, Duration resumeDuration) {
-    return new WaitForParentPartitionsAction(partitionMetadataDao, resumeDuration);
+    if (WAIT_FOR_PARENT_PARTITIONS_ACTION_INSTANCE == null) {
+      WAIT_FOR_PARENT_PARTITIONS_ACTION_INSTANCE =
+          new WaitForParentPartitionsAction(partitionMetadataDao, resumeDuration);
+    }
+    return WAIT_FOR_PARENT_PARTITIONS_ACTION_INSTANCE;
   }
 
-  public DeletePartitionAction deletePartitionAction(PartitionMetadataDao partitionMetadataDao) {
-    return new DeletePartitionAction(partitionMetadataDao);
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized DeletePartitionAction deletePartitionAction(
+      PartitionMetadataDao partitionMetadataDao) {
+    if (DELETE_PARTITION_ACTION_INSTANCE == null) {
+      DELETE_PARTITION_ACTION_INSTANCE = new DeletePartitionAction(partitionMetadataDao);
+    }
+    return DELETE_PARTITION_ACTION_INSTANCE;
   }
 
-  public DonePartitionAction donePartitionAction() {
-    return new DonePartitionAction();
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized DonePartitionAction donePartitionAction() {
+    if (DONE_PARTITION_ACTION_INSTANCE == null) {
+      DONE_PARTITION_ACTION_INSTANCE = new DonePartitionAction();
+    }
+    return DONE_PARTITION_ACTION_INSTANCE;
   }
 }

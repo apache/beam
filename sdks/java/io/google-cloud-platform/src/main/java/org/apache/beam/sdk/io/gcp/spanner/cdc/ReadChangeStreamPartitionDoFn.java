@@ -54,6 +54,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 // TODO: Add java docs
 @UnboundedPerElement
@@ -142,6 +143,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangesRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
+    MDC.put("partitionToken", partition.getPartitionToken());
     LOG.debug(
         "Processing element "
             + partition.getPartitionToken()

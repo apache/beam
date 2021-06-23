@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import com.google.cloud.Timestamp;
+import com.google.common.collect.Sets;
 import java.io.Serializable;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -106,17 +107,19 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
 
     private static final long serialVersionUID = -650413326832931368L;
     private String token;
-    private List<String> parentTokens;
+    // This needs to be an implementation (HashSet), instead of the Set interface, otherwise
+    // we can not encode / decode this with Avro.
+    private HashSet<String> parentTokens;
 
     private ChildPartition() {}
 
-    public ChildPartition(String token, List<String> parentTokens) {
+    public ChildPartition(String token, HashSet<String> parentTokens) {
       this.token = token;
       this.parentTokens = parentTokens;
     }
 
     public ChildPartition(String token, String parentToken) {
-      this(token, Collections.singletonList(parentToken));
+      this(token, Sets.newHashSet(parentToken));
     }
 
     public String getToken() {
@@ -127,11 +130,11 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
       this.token = token;
     }
 
-    public List<String> getParentTokens() {
+    public HashSet<String> getParentTokens() {
       return parentTokens;
     }
 
-    public void setParentTokens(List<String> parentTokens) {
+    public void setParentTokens(HashSet<String> parentTokens) {
       this.parentTokens = parentTokens;
     }
 

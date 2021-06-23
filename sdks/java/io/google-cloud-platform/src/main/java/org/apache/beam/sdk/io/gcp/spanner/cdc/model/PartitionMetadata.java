@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Value;
 import java.io.Serializable;
-import java.util.List;
+import java.util.HashSet;
 import org.apache.avro.reflect.AvroEncode;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -47,7 +47,9 @@ public class PartitionMetadata implements Serializable {
   // call.
   private String partitionToken;
   // Unique partition token of the parents that generated this partition.
-  private List<String> parentTokens;
+  // This needs to be an implementation (HashSet), instead of the Set interface, otherwise
+  // we can not encode / decode this with Avro.
+  private HashSet<String> parentTokens;
   // Start timestamp, used to query the partition.
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
@@ -75,7 +77,7 @@ public class PartitionMetadata implements Serializable {
 
   public PartitionMetadata(
       String partitionToken,
-      List<String> parentTokens,
+      HashSet<String> parentTokens,
       Timestamp startTimestamp,
       boolean inclusiveStart,
       Timestamp endTimestamp,
@@ -104,11 +106,11 @@ public class PartitionMetadata implements Serializable {
     this.partitionToken = partitionToken;
   }
 
-  public List<String> getParentTokens() {
+  public HashSet<String> getParentTokens() {
     return parentTokens;
   }
 
-  public void setParentTokens(List<String> parentTokens) {
+  public void setParentTokens(HashSet<String> parentTokens) {
     this.parentTokens = parentTokens;
   }
 
@@ -246,7 +248,7 @@ public class PartitionMetadata implements Serializable {
   public static class Builder {
 
     private String partitionToken;
-    private List<String> parentTokens;
+    private HashSet<String> parentTokens;
     private Timestamp startTimestamp;
     private Boolean inclusiveStart;
     private Timestamp endTimestamp;
@@ -261,7 +263,7 @@ public class PartitionMetadata implements Serializable {
       return this;
     }
 
-    public Builder setParentTokens(List<String> parentTokens) {
+    public Builder setParentTokens(HashSet<String> parentTokens) {
       this.parentTokens = parentTokens;
       return this;
     }

@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer.DEFAULT_PARENT_PARTITION_TOKEN;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.util.TestStructMapper.recordsToStruct;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import java.util.Arrays;
 import java.util.Collections;
@@ -94,13 +96,39 @@ public class ChangeStreamRecordMapperTest {
             Timestamp.ofTimeSecondsAndNanos(10L, 20),
             "1",
             Arrays.asList(
-                new ChildPartition("childToken1", Arrays.asList("parentToken1", "parentToken2")),
-                new ChildPartition("childToken2", Arrays.asList("parentToken1", "parentToken2"))));
+                new ChildPartition("childToken1", Sets.newHashSet("parentToken1", "parentToken2")),
+                new ChildPartition(
+                    "childToken2", Sets.newHashSet("parentToken1", "parentToken2"))));
     final Struct struct = recordsToStruct(childPartitionsRecord);
 
     assertEquals(
         Collections.singletonList(childPartitionsRecord),
         mapper.toChangeStreamRecords("partitionToken", struct));
+  }
+
+  /** Adds the default parent partition token as a parent of each child partition. */
+  @Test
+  public void testMappingStructRowFromInitialPartitionToChildPartitionRecord() {
+    final Struct struct =
+        recordsToStruct(
+            new ChildPartitionsRecord(
+                Timestamp.ofTimeSecondsAndNanos(10L, 20),
+                "1",
+                Arrays.asList(
+                    new ChildPartition("childToken1", Sets.newHashSet()),
+                    new ChildPartition("childToken2", Sets.newHashSet()))));
+    final ChildPartitionsRecord expected =
+        new ChildPartitionsRecord(
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "1",
+            Arrays.asList(
+                new ChildPartition("childToken1", Sets.newHashSet(DEFAULT_PARENT_PARTITION_TOKEN)),
+                new ChildPartition(
+                    "childToken2", Sets.newHashSet(DEFAULT_PARENT_PARTITION_TOKEN))));
+
+    assertEquals(
+        Collections.singletonList(expected),
+        mapper.toChangeStreamRecords(DEFAULT_PARENT_PARTITION_TOKEN, struct));
   }
 
   // TODO: Add test case for unknown record type

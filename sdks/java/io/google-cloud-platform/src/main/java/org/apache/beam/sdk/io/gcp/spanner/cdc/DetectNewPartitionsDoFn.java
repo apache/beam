@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import com.google.common.collect.Sets;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
@@ -136,12 +137,14 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
         }
         PartitionMetadata metadata = buildPartitionMetadata(resultSet);
         LOG.debug(
-            String.format("Get partition metadata currentIndex:%d meta:%s", currentIndex, metadata));
+            String.format(
+                "Get partition metadata currentIndex:%d meta:%s", currentIndex, metadata));
 
         currentIndex++;
 
         Instant now = Instant.now();
         LOG.debug("Read watermark:" + watermarkEstimator.currentWatermark() + " now:" + now);
+        LOG.debug("Scheduling partition: " + metadata);
         receiver.output(metadata);
 
         // TODO(hengfeng): investigate if we can move this to DAO.
@@ -175,7 +178,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
     try (ResultSet resultSet = this.databaseClient.singleUse().executeQuery(Statement.of(query))) {
       if (resultSet.next() && resultSet.getLong(0) == 0) {
         if (!tracker.tryClaim(Long.MAX_VALUE)) {
-          LOG.warning("Failed to claim the end of range in DetectNewPartitionsDoFn.");
+          LOG.warn("Failed to claim the end of range in DetectNewPartitionsDoFn.");
         }
         return ProcessContinuation.stop();
       }
@@ -186,7 +189,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
   private PartitionMetadata buildPartitionMetadata(ResultSet resultSet) {
     return new PartitionMetadata(
         resultSet.getString(PartitionMetadataDao.COLUMN_PARTITION_TOKEN),
-        resultSet.getStringList(PartitionMetadataDao.COLUMN_PARENT_TOKEN),
+        Sets.newHashSet(resultSet.getStringList(PartitionMetadataDao.COLUMN_PARENT_TOKENS)),
         resultSet.getTimestamp(PartitionMetadataDao.COLUMN_START_TIMESTAMP),
         resultSet.getBoolean(PartitionMetadataDao.COLUMN_INCLUSIVE_START),
         !resultSet.isNull(PartitionMetadataDao.COLUMN_END_TIMESTAMP)

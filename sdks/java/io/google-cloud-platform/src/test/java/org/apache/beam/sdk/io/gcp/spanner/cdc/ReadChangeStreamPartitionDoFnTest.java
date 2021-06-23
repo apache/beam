@@ -29,8 +29,8 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
+import com.google.common.collect.Sets;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ActionFactory;
@@ -123,7 +123,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     partition =
         PartitionMetadata.newBuilder()
             .setPartitionToken(PARTITION_TOKEN)
-            .setParentTokens(Collections.singletonList("parentToken"))
+            .setParentTokens(Sets.newHashSet("parentToken"))
             .setStartTimestamp(PARTITION_START_TIMESTAMP)
             .setInclusiveStart(PARTITION_IS_INCLUSIVE_START)
             .setEndTimestamp(PARTITION_END_TIMESTAMP)

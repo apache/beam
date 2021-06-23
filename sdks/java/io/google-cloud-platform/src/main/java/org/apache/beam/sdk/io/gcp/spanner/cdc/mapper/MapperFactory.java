@@ -24,8 +24,13 @@ import java.io.Serializable;
 public class MapperFactory implements Serializable {
 
   private static final long serialVersionUID = -813434573067800902L;
+  private static ChangeStreamRecordMapper CHANGE_STREAM_RECORD_MAPPER_INSTANCE;
 
-  public ChangeStreamRecordMapper changeStreamRecordMapper() {
-    return new ChangeStreamRecordMapper(new Gson());
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
+    if (CHANGE_STREAM_RECORD_MAPPER_INSTANCE == null) {
+      CHANGE_STREAM_RECORD_MAPPER_INSTANCE = new ChangeStreamRecordMapper(new Gson());
+    }
+    return CHANGE_STREAM_RECORD_MAPPER_INSTANCE;
   }
 }

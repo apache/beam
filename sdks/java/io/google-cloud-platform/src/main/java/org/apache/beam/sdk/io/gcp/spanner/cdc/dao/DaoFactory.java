@@ -25,6 +25,8 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 public class DaoFactory implements Serializable {
 
   private static final long serialVersionUID = 7929063669009832487L;
+  private static PartitionMetadataDao PARTITION_METADATA_DAO_INSTANCE;
+  private static ChangeStreamDao CHANGE_STREAM_DAO_INSTANCE;
 
   private final String changeStreamName;
   private final String partitionMetadataTableName;
@@ -34,14 +36,24 @@ public class DaoFactory implements Serializable {
     this.partitionMetadataTableName = partitionMetadataTableName;
   }
 
-  public PartitionMetadataDao partitionMetadataDaoFrom(SpannerConfig spannerConfig) {
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized PartitionMetadataDao partitionMetadataDaoFrom(SpannerConfig spannerConfig) {
     final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig);
-    return new PartitionMetadataDao(
-        this.partitionMetadataTableName, spannerAccessor.getDatabaseClient());
+    if (PARTITION_METADATA_DAO_INSTANCE == null) {
+      PARTITION_METADATA_DAO_INSTANCE =
+          new PartitionMetadataDao(
+              this.partitionMetadataTableName, spannerAccessor.getDatabaseClient());
+    }
+    return PARTITION_METADATA_DAO_INSTANCE;
   }
 
-  public ChangeStreamDao changeStreamDaoFrom(SpannerConfig spannerConfig) {
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized ChangeStreamDao changeStreamDaoFrom(SpannerConfig spannerConfig) {
     final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig);
-    return new ChangeStreamDao(this.changeStreamName, spannerAccessor.getDatabaseClient());
+    if (CHANGE_STREAM_DAO_INSTANCE == null) {
+      CHANGE_STREAM_DAO_INSTANCE =
+          new ChangeStreamDao(this.changeStreamName, spannerAccessor.getDatabaseClient());
+    }
+    return CHANGE_STREAM_DAO_INSTANCE;
   }
 }

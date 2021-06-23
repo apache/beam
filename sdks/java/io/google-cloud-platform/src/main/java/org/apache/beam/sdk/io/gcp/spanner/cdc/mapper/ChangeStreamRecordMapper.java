@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer.DEFAULT_PARENT_PARTITION_TOKEN;
+
 import com.google.cloud.spanner.Struct;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -62,7 +66,7 @@ public class ChangeStreamRecordMapper {
     final Stream<ChildPartitionsRecord> childPartitionsRecords =
         row.getStructList("child_partitions_record").stream()
             .filter(this::isNonNullChildPartitionsRecord)
-            .map(this::toChildPartitionsRecord);
+            .map(struct -> toChildPartitionsRecord(partitionToken, struct));
     return Stream.concat(
         Stream.concat(dataChangeRecords, heartbeatRecords), childPartitionsRecords);
   }
@@ -103,13 +107,13 @@ public class ChangeStreamRecordMapper {
     return new HeartbeatRecord(row.getTimestamp("timestamp"));
   }
 
-  private ChildPartitionsRecord toChildPartitionsRecord(Struct row) {
+  private ChildPartitionsRecord toChildPartitionsRecord(String partitionToken, Struct row) {
     return new ChildPartitionsRecord(
         row.getTimestamp("start_timestamp"),
         // FIXME: The spec has this as a String, but an int64 is returned
         row.getLong("record_sequence") + "",
         row.getStructList("child_partitions").stream()
-            .map(this::childPartitionFrom)
+            .map(struct -> childPartitionFrom(partitionToken, struct))
             .collect(Collectors.toList()));
   }
 
@@ -128,8 +132,12 @@ public class ChangeStreamRecordMapper {
     return new Mod(keys, oldValues, newValues);
   }
 
-  private ChildPartition childPartitionFrom(Struct struct) {
-    return new ChildPartition(
-        struct.getString("token"), struct.getStringList("parent_partition_tokens"));
+  private ChildPartition childPartitionFrom(String partitionToken, Struct struct) {
+    final HashSet<String> parentTokens =
+        Sets.newHashSet(struct.getStringList("parent_partition_tokens"));
+    if (partitionToken.equals(DEFAULT_PARENT_PARTITION_TOKEN)) {
+      parentTokens.add(partitionToken);
+    }
+    return new ChildPartition(struct.getString("token"), parentTokens);
   }
 }
