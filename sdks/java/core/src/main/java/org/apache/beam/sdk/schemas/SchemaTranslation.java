@@ -37,6 +37,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
@@ -44,6 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility methods for translating schemas. */
 @Experimental(Kind.SCHEMAS)
@@ -136,6 +138,21 @@ public class SchemaTranslation {
                   .setRepresentation(
                       fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
                   .setUrn(logicalType.getIdentifier());
+        } else if (logicalType instanceof UnknownLogicalType) {
+          logicalTypeBuilder =
+              SchemaApi.LogicalType.newBuilder()
+                  .setUrn(logicalType.getIdentifier())
+                  .setPayload(ByteString.copyFrom(((UnknownLogicalType) logicalType).getPayload()))
+                  .setRepresentation(
+                      fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType));
+
+          if (logicalType.getArgumentType() != null) {
+            logicalTypeBuilder
+                .setArgumentType(
+                    fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
+                .setArgument(
+                    fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()));
+          }
         } else {
           logicalTypeBuilder =
               SchemaApi.LogicalType.newBuilder()
@@ -325,7 +342,20 @@ public class SchemaTranslation {
                   SerializableUtils.deserializeFromByteArray(
                       protoFieldType.getLogicalType().getPayload().toByteArray(), "logicalType"));
         } else {
-          throw new IllegalArgumentException("Encountered unsupported logical type URN: " + urn);
+          @Nullable FieldType argumentType = null;
+          @Nullable Object argumentValue = null;
+          if (protoFieldType.getLogicalType().hasArgumentType()) {
+            argumentType = fieldTypeFromProto(protoFieldType.getLogicalType().getArgumentType());
+            argumentValue =
+                fieldValueFromProto(argumentType, protoFieldType.getLogicalType().getArgument());
+          }
+          return FieldType.logicalType(
+              new UnknownLogicalType(
+                  urn,
+                  protoFieldType.getLogicalType().getPayload().toByteArray(),
+                  argumentType,
+                  argumentValue,
+                  fieldTypeFromProto(protoFieldType.getLogicalType().getRepresentation())));
         }
       default:
         throw new IllegalArgumentException(

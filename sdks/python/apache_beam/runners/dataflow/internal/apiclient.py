@@ -662,6 +662,10 @@ class DataflowApplicationClient(object):
         job.options.view_as(GoogleCloudOptions).template_location)
 
     if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
+      # For Runner V2, also set portable job submission.
+      if _use_unified_worker(job.options):
+        job.options.view_as(DebugOptions).add_experiment(
+            'use_portable_job_submission')
       self.stage_file(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json",

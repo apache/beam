@@ -26,9 +26,6 @@ encode many elements with minimal overhead.
 This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
 
-Py2/3 porting: Native range is used on both python versions instead of
-future.builtins.range to avoid performance regression in Cython compiled code.
-
 For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
@@ -37,8 +34,6 @@ import enum
 import json
 import logging
 import pickle
-from builtins import chr
-from builtins import object
 from io import BytesIO
 from typing import TYPE_CHECKING
 from typing import Any
@@ -83,18 +78,20 @@ except ImportError:
 else:
   SLOW_STREAM = False
 
+is_compiled = False
+fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
+
 if TYPE_CHECKING or SLOW_STREAM:
   from .slow_stream import InputStream as create_InputStream
   from .slow_stream import OutputStream as create_OutputStream
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
 
-  if False:  # pylint: disable=using-constant-test
-    # This clause is interpreted by the compiler.
-    from cython import compiled as is_compiled
-  else:
-    is_compiled = False
-    fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
+  try:
+    import cython
+    is_compiled = cython.compiled
+  except ImportError:
+    pass
 
 else:
   # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports

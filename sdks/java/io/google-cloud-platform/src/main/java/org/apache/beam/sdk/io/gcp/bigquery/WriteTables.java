@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -108,6 +109,8 @@ class WriteTables<DestinationT>
   private final @Nullable String kmsKey;
   private final String sourceFormat;
   private final boolean useAvroLogicalTypes;
+  private @Nullable DatasetService datasetService;
+  private @Nullable JobService jobService;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -219,8 +222,8 @@ class WriteTables<DestinationT>
 
       BigQueryHelpers.PendingJob retryJob =
           startLoad(
-              bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-              bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
               jobIdPrefix,
               tableReference,
               tableDestination.getTimePartitioning(),
@@ -232,6 +235,36 @@ class WriteTables<DestinationT>
               schemaUpdateOptions);
       pendingJobs.add(
           new PendingJobData(window, retryJob, partitionFiles, tableDestination, tableReference));
+    }
+
+    @Teardown
+    public void onTeardown() {
+      try {
+        if (datasetService != null) {
+          datasetService.close();
+          datasetService = null;
+        }
+        if (jobService != null) {
+          jobService.close();
+          jobService = null;
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+      if (datasetService == null) {
+        datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return datasetService;
+    }
+
+    private JobService getJobService(PipelineOptions pipelineOptions) throws IOException {
+      if (jobService == null) {
+        jobService = bqServices.getJobService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return jobService;
     }
 
     @Override

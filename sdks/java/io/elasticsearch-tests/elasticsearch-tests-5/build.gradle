@@ -48,6 +48,8 @@ dependencies {
   testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
   testCompile "org.elasticsearch.test:framework:$elastic_search_version"
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  // TODO(egalpin): Remove painless plugin in favour of containerized tests
+  testImplementation group: 'org.codelibs.elasticsearch.module', name: 'lang-painless', version: "$elastic_search_version"
   testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.5.0"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
 

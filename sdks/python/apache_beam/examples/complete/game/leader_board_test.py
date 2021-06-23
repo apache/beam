@@ -24,6 +24,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.complete.game import leader_board
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -59,7 +60,8 @@ class LeaderBoardTest(unittest.TestCase):
                     ('team3', 13)]))
 
   def test_leader_board_users(self):
-    with TestPipeline() as p:
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    with TestPipeline(options=test_options) as p:
       result = (
           self.create_data(p)
           | leader_board.CalculateUserScores(allowed_lateness=120))

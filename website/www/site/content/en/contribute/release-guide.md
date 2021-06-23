@@ -812,6 +812,8 @@ Here’s an email template; please adjust as you see fit.
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
+    For guidelines on how to try the release in your projects, check out our blog post at https://beam.apache.org/blog/validate-beam-release/.
+
     Thanks,
     Release Manager
 
@@ -882,7 +884,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   ```
   **Flink Local Runner**
   ```
-  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.13:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```

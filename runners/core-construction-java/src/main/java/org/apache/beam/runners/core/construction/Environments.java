@@ -90,20 +90,23 @@ public class Environments {
           .build();
 
   public enum JavaVersion {
-    v8("java8", "1.8"),
-    v11("java11", "11");
+    java8("java", "1.8"),
+    java11("java11", "11"),
+    java17("java17", "17");
 
-    private final String name;
+    // Legacy name, as used in container image
+    private final String legacyName;
+
+    // Specification version (e.g. System java.specification.version)
     private final String specification;
 
-    JavaVersion(final String name, final String specification) {
-      this.name = name;
+    JavaVersion(final String legacyName, final String specification) {
+      this.legacyName = legacyName;
       this.specification = specification;
     }
 
-    @Override
-    public String toString() {
-      return this.name;
+    public String legacyName() {
+      return this.legacyName;
     }
 
     public String specification() {
@@ -401,6 +404,16 @@ public class Environments {
     return String.format("%s-%s%s", fileName, encodedHash, suffix);
   }
 
+  public static String getExternalServiceAddress(PortablePipelineOptions options) {
+    String environmentConfig = options.getDefaultEnvironmentConfig();
+    String environmentOption =
+        PortablePipelineOptions.getEnvironmentOption(options, externalServiceAddressOption);
+    if (environmentConfig != null && !environmentConfig.isEmpty()) {
+      return environmentConfig;
+    }
+    return environmentOption;
+  }
+
   private static File zipDirectory(File directory) throws IOException {
     File zipFile = File.createTempFile(directory.getName(), ".zip");
     try (FileOutputStream fos = new FileOutputStream(zipFile)) {
@@ -445,16 +458,6 @@ public class Environments {
     String environmentConfig = options.getDefaultEnvironmentConfig();
     String environmentOption =
         PortablePipelineOptions.getEnvironmentOption(options, dockerContainerImageOption);
-    if (environmentConfig != null && !environmentConfig.isEmpty()) {
-      return environmentConfig;
-    }
-    return environmentOption;
-  }
-
-  private static String getExternalServiceAddress(PortablePipelineOptions options) {
-    String environmentConfig = options.getDefaultEnvironmentConfig();
-    String environmentOption =
-        PortablePipelineOptions.getEnvironmentOption(options, externalServiceAddressOption);
     if (environmentConfig != null && !environmentConfig.isEmpty()) {
       return environmentConfig;
     }

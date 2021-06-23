@@ -81,6 +81,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  keras-nightly:
+    license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   mmh3:
     license: "https://raw.githubusercontent.com/hajimes/mmh3/master/LICENSE"
   mock:
@@ -93,6 +95,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
   oauth2client:
     license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
+  orjson:
+    license: "https://github.com/ijl/orjson/raw/master/LICENSE-APACHE"
   pandas:
     license: "https://raw.githubusercontent.com/pandas-dev/pandas/master/LICENSE"
   pathlib2:

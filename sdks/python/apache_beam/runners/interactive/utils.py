@@ -18,6 +18,7 @@
 """Utilities to be used in  Interactive Beam.
 """
 
+import functools
 import hashlib
 import json
 import logging
@@ -101,8 +102,14 @@ def elements_to_df(elements, include_window_info=False, element_type=None):
     if include_window_info:
       windowed_info.append([e.timestamp.micros, e.windows, e.pane_info])
 
-  rows_df = pd.DataFrame(rows, columns=columns_names)
-  if include_window_info:
+  using_dataframes = isinstance(element_type, pd.DataFrame)
+  using_series = isinstance(element_type, pd.Series)
+  if using_dataframes or using_series:
+    rows_df = pd.concat(rows)
+  else:
+    rows_df = pd.DataFrame(rows, columns=columns_names)
+
+  if include_window_info and not using_series:
     windowed_info_df = pd.DataFrame(
         windowed_info, columns=['event_time', 'windows', 'pane_info'])
     final_df = pd.concat([rows_df, windowed_info_df], axis=1)
@@ -234,6 +241,7 @@ def progress_indicated(func):
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
+  @functools.wraps(func)
   def run_within_progress_indicator(*args, **kwargs):
     with ProgressIndicator('Processing...', 'Done.'):
       return func(*args, **kwargs)

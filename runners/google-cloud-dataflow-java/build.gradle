@@ -45,7 +45,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20210505',
+    'dataflow.legacy_container_version' : 'beam-master-20210525',
+    'dataflow.fnapi_container_version' : 'beam-master-20210524',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -351,12 +352,11 @@ createCrossLanguageValidatesRunnerTask(
     // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
     "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
-  nosetestsOptions: [
-    "--nocapture",
-    "--processes=8",
-    "--process-timeout=4500",
-    // TODO: enable after fixing BEAM-10507
-    "--exclude=test_xlang_parquetio_write|test_flatten",
+  pytestOptions: [
+    "--capture=no",
+    "--numprocesses=8",
+    "--timeout=4500",
+    "--log-cli-level=INFO",
   ]
 )
 

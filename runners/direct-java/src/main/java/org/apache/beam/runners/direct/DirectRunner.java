@@ -39,7 +39,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -171,15 +170,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     } catch (IOException e) {
       throw new IllegalArgumentException(
           "PipelineOptions specified failed to serialize to JSON.", e);
-    }
-
-    // TODO(BEAM-10670): Remove additional experiments when we address performance issue.
-    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")) {
-      // Populate experiments directly to avoid direct-runner <-> kafka circular dependency.
-      ExperimentalOptions.addExperiment(
-          pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api_use_deprecated_read");
-      ExperimentalOptions.addExperiment(
-          pipeline.getOptions().as(ExperimentalOptions.class), "use_deprecated_read");
     }
 
     performRewrites(pipeline);

@@ -440,14 +440,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					if len(inputs) != 1 {
 						return nil, errors.Errorf("unexpected sideinput to combine: got %d, want 1", len(inputs))
 					}
-					ec, _, err := b.makeCoderForPCollection(inputs[0])
+					ec, wc, err := b.makeCoderForPCollection(inputs[0])
 					if err != nil {
 						return nil, err
 					}
 					if !coder.IsKV(ec) {
 						return nil, errors.Errorf("unexpected non-KV coder PCollection input to combine: %v", ec)
 					}
-					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0]}
+					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0], WindowCoder: wc}
 				case urnPerKeyCombineMerge:
 					u = &MergeAccumulators{Combine: cn}
 				case urnPerKeyCombineExtract:
@@ -472,7 +472,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			if !coder.IsKV(c) {
 				return nil, errors.Errorf("unexpected inject coder: %v", c)
 			}
-			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(c.Components[1]), Out: out[0]}
+			valCoder := c.Components[1]
+			// JIRA BEAM-12438 - an extra LP coder can get added here, but isn't added
+			// on decode. Strip them until we get a better fix.
+			if valCoder.Kind == coder.LP {
+				// strip unexpected length prefix coder.
+				valCoder = valCoder.Components[0]
+			}
+			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
 
 		case graphx.URNExpand:
 			var pid string
