@@ -2102,6 +2102,55 @@ class ReprTest(unittest.TestCase):
             "[?? rows x 6 columns]"
         ]))
 
+  def test_basic_series(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF['bool']))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            ": :",
+            ": :",
+            "Name: bool, Length: ??, dtype: bool",
+        ]))
+
+  def test_series_with_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index('group')['str']))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "group  ",
+            ":     :",
+            ":     :",
+            "Name: str, Length: ??, dtype: object",
+        ]))
+
+  def test_dataframe_with_partial_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])['bar']))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "  group  ",
+            ": :     :",
+            ": :     :",
+            "Name: bar, Length: ??, dtype: float64",
+        ]))
+
+  def test_series_with_named_multi_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index(['str', 'group'])['baz']))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "str group  ",
+            ":   :     :",
+            ":   :     :",
+            "Name: baz, Length: ??, dtype: float64",
+        ]))
+
 
 if __name__ == '__main__':
   unittest.main()

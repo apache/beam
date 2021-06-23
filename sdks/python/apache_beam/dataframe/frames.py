@@ -940,6 +940,36 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(DeferredDataFrameOrSeries):
+  def __repr__(self):
+    index = self._expr.proxy().index
+    has_named_index = any(name is not None for name in index.names)
+
+    if has_named_index:
+      # If any of the indexes have a name, include a row for the names
+      index_columns = [[name if name is not None else '']
+                       for name in index.names]
+    else:
+      index_columns = [[] for name in index.names]
+
+    for column in index_columns:
+      column.extend([':', ':'])
+
+    index_rows = _justify_columns_and_transpose(index_columns, rjust=False)
+
+    # Add names for column indexes
+    index_column = _justify_str_column(index_rows, rjust=False)
+
+    if has_named_index:
+      data_column = ['']
+    else:
+      data_column = []
+
+    data_column.extend([':', ':'])
+
+    return '\n'.join(
+        list(_justify_columns_and_transpose([index_column, data_column])) +
+        [f"Name: {self.name}, Length: ??, dtype: {self.dtype}"])
+
   @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def name(self):
