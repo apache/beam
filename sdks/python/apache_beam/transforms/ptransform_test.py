@@ -801,7 +801,7 @@ class PTransformTest(unittest.TestCase):
               'X': [4], 'Y': [7, 8]
           })]))
 
-  def test_co_group_by_key_on_tuple_dict(self):
+  def test_co_group_by_key_on_dict_with_tuple_keys(self):
     with TestPipeline() as pipeline:
       key = ('a', ('b', 'c'))
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([(key, 1)])

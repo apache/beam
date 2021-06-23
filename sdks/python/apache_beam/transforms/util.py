@@ -161,12 +161,12 @@ class CoGroupByKey(PTransform):
       if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
         # Small, string tags. Pass them as data.
         pcolls_dict = pcolls
-        post_process = None
+        restore_tags = None
       else:
-        # Pass the tags in the post_process closure.
+        # Pass the tags in the restore_tags closure.
         tags = list(pcolls.keys())
         pcolls_dict = {str(ix): pcolls[tag] for (ix, tag) in enumerate(tags)}
-        post_process = lambda vs: {
+        restore_tags = lambda vs: {
             tag: vs[str(ix)]
             for (ix, tag) in enumerate(tags)
         }
@@ -174,11 +174,12 @@ class CoGroupByKey(PTransform):
       # Tags are tuple indices.
       num_tags = len(pcolls)
       pcolls_dict = {str(ix): pcolls[ix] for ix in range(num_tags)}
-      post_process = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
+      restore_tags = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
 
     result = pcolls_dict | _CoGBKImpl(pipeline=self.pipeline)
-    if post_process:
-      return result | MapTuple(lambda k, vs: (k, post_process(vs)))
+    if restore_tags:
+      return result | 'RestoreTags' >> MapTuple(
+          lambda k, vs: (k, restore_tags(vs)))
     else:
       return result
 
