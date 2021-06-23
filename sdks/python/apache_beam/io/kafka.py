@@ -117,8 +117,8 @@ class ReadFromKafka(ExternalTransform):
   create_time_policy = 'CreateTime'
   log_append_time = 'LogAppendTime'
 
-  URN_WITH_METADATA = 'beam:external:java:kafka:read:v1'
-  URN_WITHOUT_METADATA = 'beam:external:java:kafka:read:withoutmetadata:v1'
+  URN_WITH_METADATA = 'beam:external:java:kafkaio:externalwithmetadata:v1'
+  URN_WITHOUT_METADATA = 'beam:external:java:kafkaio:typedwithoutmetadata:v1'
 
   def __init__(
       self,

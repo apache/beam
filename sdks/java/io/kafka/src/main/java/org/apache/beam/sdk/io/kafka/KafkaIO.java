@@ -778,14 +778,17 @@ public class KafkaIO {
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
-      public static final String URN = "beam:external:java:kafka:read:v1";
+      // Using the transform name in the URN so that the corresponding transform can be easily
+      // identified.
+      public static final String URN_WITH_METADATA =
+          "beam:external:java:kafkaio:externalwithmetadata:v1";
       public static final String URN_WITHOUT_METADATA =
-          "beam:external:java:kafka:read:withoutmetadata:v1";
+          "beam:external:java:kafkaio:typedwithoutmetadata:v1";
 
       @Override
       public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
         return ImmutableMap.of(
-            URN,
+            URN_WITH_METADATA,
             (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
                 (Class<?>) ExternalWithMetadata.Builder.class,
             URN_WITHOUT_METADATA,

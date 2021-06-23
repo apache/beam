@@ -81,7 +81,7 @@ const (
 	// be found in Java's KafkaIO documentation.
 	LogAppendTime policy = "LogAppendTime"
 
-	readURN  = "beam:external:java:kafka:read:v1"
+	readURN  = "beam:external:java:kafkaio:typedwithoutmetadata:v1"
 	writeURN = "beam:external:java:kafka:write:v1"
 )
 

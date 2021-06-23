@@ -135,7 +135,7 @@ public class KafkaIOExternalTest {
                     .setUniqueName("test")
                     .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn(External.URN)
+                            .setUrn(External.URN_WITH_METADATA)
                             .setPayload(payload.toByteString())))
             .setNamespace("test_namespace")
             .build();
