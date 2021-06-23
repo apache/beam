@@ -232,6 +232,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     })
     self._run_test(lambda df: df['Animal'], df)
     self._run_test(lambda df: df.Speed, df)
+    self._run_test(lambda df: df.get('Animal'), df)
+    self._run_test(lambda df: df.get('FOO', df.Animal), df)
 
   def test_set_column(self):
     def new_column(df):
@@ -559,6 +561,21 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.num_wings.value_counts(), df)
     self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
 
+  def test_value_counts_does_not_support_sort(self):
+    df = pd.DataFrame({
+        'num_legs': [2, 4, 4, 6, np.nan, np.nan],
+        'num_wings': [2, 0, 0, 0, np.nan, 2]
+    },
+                      index=['falcon', 'dog', 'cat', 'ant', 'car', 'plane'])
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"value_counts\(sort\=True\)"):
+      self._run_test(lambda df: df.value_counts(sort=True), df)
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"value_counts\(sort\=True\)"):
+      self._run_test(lambda df: df.num_wings.value_counts(sort=True), df)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
     self._run_test(lambda s: s[...], s)
@@ -815,6 +832,13 @@ class DeferredFrameTest(_AbstractFrameTest):
         check_proxy=False)
     self._run_inplace_test(lambda df: df.insert(2, 'bar', value='q'), df)
 
+  def test_insert_does_not_support_list_value(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+
+    with self.assertRaisesRegex(frame_base.WontImplementError,
+                                r"insert\(value=list\)"):
+      self._run_inplace_test(lambda df: df.insert(1, 'C', [7, 8, 9]), df)
+
   def test_drop_duplicates(self):
     df = pd.DataFrame({
         'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
@@ -868,6 +892,74 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.cat.as_ordered(), s)
     self._run_test(lambda s: s.cat.as_unordered(), s)
     self._run_test(lambda s: s.cat.codes, s)
+
+  @parameterized.expand(frames.ELEMENTWISE_DATETIME_PROPERTIES)
+  def test_dt_property(self, prop_name):
+    # Generate a series with a lot of unique timestamps
+    s = pd.Series(
+        pd.date_range('1/1/2000', periods=100, freq='m') +
+        pd.timedelta_range(start='0 days', end='70 days', periods=100))
+    self._run_test(lambda s: getattr(s.dt, prop_name), s)
+
+  @parameterized.expand([
+      ('month_name', {}),
+      ('day_name', {}),
+      ('normalize', {}),
+      (
+          'strftime',
+          {
+              'date_format': '%B %d, %Y, %r'
+          },
+      ),
+      ('tz_convert', {
+          'tz': 'Europe/Berlin'
+      }),
+  ])
+  def test_dt_method(self, op, kwargs):
+    # Generate a series with a lot of unique timestamps
+    s = pd.Series(
+        pd.date_range(
+            '1/1/2000', periods=100, freq='m', tz='America/Los_Angeles') +
+        pd.timedelta_range(start='0 days', end='70 days', periods=100))
+
+    self._run_test(lambda s: getattr(s.dt, op)(**kwargs), s)
+
+  def test_dt_tz_localize_ambiguous_series(self):
+    # This replicates a dt.tz_localize doctest:
+    #   s.tz_localize('CET', ambiguous=np.array([True, True, False]))
+    # But using a DeferredSeries instead of a np array
+
+    s = pd.to_datetime(
+        pd.Series([
+            '2018-10-28 01:20:00', '2018-10-28 02:36:00', '2018-10-28 03:46:00'
+        ]))
+    ambiguous = pd.Series([True, True, False], index=s.index)
+
+    self._run_test(
+        lambda s,
+        ambiguous: s.dt.tz_localize('CET', ambiguous=ambiguous),
+        s,
+        ambiguous)
+
+  def test_dt_tz_localize_nonexistent(self):
+    # This replicates dt.tz_localize doctests that exercise `nonexistent`.
+    # However they specify ambiguous='NaT' because the default,
+    # ambiguous='infer', is not supported.
+    s = pd.to_datetime(
+        pd.Series(['2015-03-29 02:30:00', '2015-03-29 03:30:00']))
+
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent='shift_forward'),
+        s)
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent='shift_backward'),
+        s)
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
+        s)
 
 
 class GroupByTest(_AbstractFrameTest):
@@ -1154,6 +1246,13 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.groupby(df.group)[['foo', 'bar']].apply(describe), df)
     self._run_test(lambda df: df.groupby(df.group).apply(median_sum_fn), df)
+
+  def test_groupby_multiindex_keep_nans(self):
+    # Due to https://github.com/pandas-dev/pandas/issues/36470
+    # groupby(dropna=False) doesn't work with multiple columns
+    with self.assertRaisesRegex(NotImplementedError, "BEAM-12495"):
+      self._run_test(
+          lambda df: df.groupby(['foo', 'bar'], dropna=False).sum(), GROUPBY_DF)
 
 
 class AggregationTest(_AbstractFrameTest):
@@ -1799,6 +1898,9 @@ class ConstructionTimeTest(unittest.TestCase):
       'int_col': [1, 2] * 3,
       'flt_col': [1.1, 2.2] * 3,
       'cat_col': pd.Series(list('aabbca'), dtype="category"),
+      'datetime_col': pd.Series(
+          pd.date_range(
+              '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
   })
   DEFERRED_DF = frame_base.DeferredFrame.wrap(
       expressions.PlaceholderExpression(DF.iloc[:0]))
@@ -1845,6 +1947,14 @@ class ConstructionTimeTest(unittest.TestCase):
     self._run_test(
         lambda df: df.groupby('int_col')[['flt_col', 'str_col']].ndim)
 
+  def test_get_column_default_None(self):
+    # .get just returns default_value=None at construction time if the column
+    # doesn't exist
+    self._run_test(lambda df: df.get('FOO'))
+
+  def test_datetime_tz(self):
+    self._run_test(lambda df: df.datetime_col.dt.tz)
+
 
 class DocstringTest(unittest.TestCase):
   @parameterized.expand([
@@ -1855,8 +1965,11 @@ class DocstringTest(unittest.TestCase):
       (
           frames._DeferredCategoricalMethods,
           pd.core.arrays.categorical.CategoricalAccessor),
-      #(frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
-      #(frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+      (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
+      (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+      (
+          frames._DeferredDatetimeMethods,
+          pd.core.indexes.accessors.DatetimeProperties),
   ])
   def test_docs_defined(self, beam_type, pd_type):
     beam_attrs = set(dir(beam_type))

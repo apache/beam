@@ -240,7 +240,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
-
             'pandas.core.frame.DataFrame.round': [
                 'df.round(decimals)',
             ],
@@ -248,7 +247,6 @@ class DoctestTest(unittest.TestCase):
             # We should be able to support pivot and pivot_table for categorical
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
-
 
             # Difficult to parallelize but should be possible?
             'pandas.core.frame.DataFrame.dot': [
@@ -545,43 +543,50 @@ class DoctestTest(unittest.TestCase):
 
   def test_datetime_tests(self):
     # TODO(BEAM-10721)
-    datetimelike_result = doctests.testmod(
-        pd.core.arrays.datetimelike,
+    indexes_accessors_result = doctests.testmod(
+        pd.core.indexes.accessors,
         use_beam=False,
         skip={
-            'pandas.core.arrays.datetimelike.AttributesMixin._unbox_scalar': [
+            'pandas.core.indexes.accessors.TimedeltaProperties': [
+                # Seems like an upstream bug. The property is 'second'
+                'seconds_series.dt.seconds'
+            ],
+
+            # TODO(BEAM-12530): Test data creation fails for these
+            #   s = pd.Series(pd.to_timedelta(np.arange(5), unit="d"))
+            # pylint: disable=line-too-long
+            'pandas.core.indexes.accessors.DatetimeProperties.to_pydatetime': [
                 '*'
             ],
-            'pandas.core.arrays.datetimelike.TimelikeOps.ceil': ['*'],
-            'pandas.core.arrays.datetimelike.TimelikeOps.floor': ['*'],
-            'pandas.core.arrays.datetimelike.TimelikeOps.round': ['*'],
+            'pandas.core.indexes.accessors.TimedeltaProperties.components': [
+                '*'
+            ],
+            'pandas.core.indexes.accessors.TimedeltaProperties.to_pytimedelta': [
+                '*'
+            ],
+            # pylint: enable=line-too-long
         })
+    datetimelike_result = doctests.testmod(
+        pd.core.arrays.datetimelike, use_beam=False)
 
     datetime_result = doctests.testmod(
         pd.core.arrays.datetimes,
         use_beam=False,
-        skip={
-            'pandas.core.arrays.datetimes.DatetimeArray.day': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.hour': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.microsecond': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.minute': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.month': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.nanosecond': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.second': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.year': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.is_leap_year': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.is_month_end': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.is_month_start': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.is_quarter_end': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.is_quarter_start': [
-                '*'
-            ],
-            'pandas.core.arrays.datetimes.DatetimeArray.is_year_end': ['*'],
-            'pandas.core.arrays.datetimes.DatetimeArray.is_year_start': ['*'],
+        wont_implement_ok={
             'pandas.core.arrays.datetimes.DatetimeArray.to_period': ['*'],
+            # All tz_localize tests use unsupported values for ambiguous=
+            # Verified seperately in
+            # frames_test.py::DeferredFrameTest::test_dt_tz_localize_*
             'pandas.core.arrays.datetimes.DatetimeArray.tz_localize': ['*'],
+        },
+        not_implemented_ok={
+            # Verifies index version of this method
+            'pandas.core.arrays.datetimes.DatetimeArray.to_period': [
+                'df.index.to_period("M")'
+            ],
         })
 
+    self.assertEqual(indexes_accessors_result.failed, 0)
     self.assertEqual(datetimelike_result.failed, 0)
     self.assertEqual(datetime_result.failed, 0)
 

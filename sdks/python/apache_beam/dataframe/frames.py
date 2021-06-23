@@ -1091,6 +1091,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       frame_base.wont_implement_method(
           pd.Series, 'array', reason="non-deferred-result"))
 
+  # We can't reliably predict the output type, it depends on whether `key` is:
+  # - not in the index (default_value)
+  # - in the index once (constant)
+  # - in the index multiple times (Series)
+  get = frame_base.wont_implement_method(
+      pd.Series, 'get', reason="non-deferred-columns")
+
   ravel = frame_base.wont_implement_method(
       pd.Series, 'ravel', reason="non-deferred-result")
 
@@ -1719,7 +1726,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     possible addition of a distributed implementation."""
 
     if sort:
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "value_counts(sort=True) is not supported because it imposes an "
           "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
@@ -1772,6 +1779,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   def cat(self):
     return _DeferredCategoricalMethods(self._expr)
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
+  def dt(self):
+    return _DeferredDatetimeMethods(self._expr)
 
   @frame_base.with_docs_from(pd.Series)
   def mode(self, *args, **kwargs):
@@ -1993,6 +2005,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         )
     )
 
+  # If column name exists this is a simple project, otherwise it is a constant
+  # (default_value)
+  @frame_base.with_docs_from(pd.DataFrame)
+  def get(self, key, default_value=None):
+    if key in self.columns:
+      return self[key]
+    else:
+      return default_value
+
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -2065,7 +2086,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     """``value`` cannot be a ``List`` because aligning it with this
     DeferredDataFrame is order-sensitive."""
     if isinstance(value, list):
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "insert(value=list) is not supported because it joins the input "
           "list to the deferred DataFrame based on the order of the data.",
           reason="order-sensitive")
@@ -3157,7 +3178,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     preserved."""
 
     if sort:
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "value_counts(sort=True) is not supported because it imposes an "
           "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
@@ -3184,8 +3205,8 @@ for meth in ('filter', ):
 @populate_not_implemented(DataFrameGroupBy)
 class DeferredGroupBy(frame_base.DeferredFrame):
   def __init__(self, expr, kwargs,
-               ungrouped: expressions.Expression,
-               ungrouped_with_index: expressions.Expression,
+               ungrouped: expressions.Expression[pd.core.generic.NDFrame],
+               ungrouped_with_index: expressions.Expression[pd.core.generic.NDFrame], # pylint: disable=line-too-long
                grouping_columns,
                grouping_indexes,
                projection=None):
@@ -3216,6 +3237,13 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     self._grouping_indexes = grouping_indexes
     self._kwargs = kwargs
 
+    if (self._kwargs.get('dropna', True) is False and
+        self._ungrouped.proxy().index.nlevels > 1):
+      raise NotImplementedError(
+          "dropna=False does not work as intended in the Beam DataFrame API "
+          "when grouping on multiple columns or indexes (See BEAM-12495).")
+
+
   def __getattr__(self, name):
     return DeferredGroupBy(
         expressions.ComputedExpression(
@@ -3244,6 +3272,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._grouping_indexes,
         projection=name)
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def agg(self, fn, *args, **kwargs):
     if _is_associative(fn):
       return _liftable_agg(fn)(self, *args, **kwargs)
@@ -3265,17 +3294,26 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   def ndim(self):
     return self._expr.proxy().ndim
 
-  def apply(self, fn, *args, **kwargs):
+  @frame_base.with_docs_from(DataFrameGroupBy)
+  def apply(self, func, *args, **kwargs):
+    """Note that ``func`` will be called once during pipeline construction time
+    with an empty pandas object, so take care if ``func`` has a side effect.
+
+    When called with an empty pandas object, ``func`` is expected to return an
+    object of the same type as what will be returned when the pipeline is
+    processing actual data. If the result is a pandas object it should have the
+    same type and name (for a Series) or column types and names (for
+    a DataFrame) as the actual results."""
     project = _maybe_project_func(self._projection)
     grouping_indexes = self._grouping_indexes
     grouping_columns = self._grouping_columns
 
-    # Unfortunately pandas does not execute fn to determine the right proxy.
-    # We run user fn on a proxy here to detect the return type and generate the
-    # proxy.
+    # Unfortunately pandas does not execute func to determine the right proxy.
+    # We run user func on a proxy here to detect the return type and generate
+    # the proxy.
     fn_input = project(self._ungrouped_with_index.proxy().reset_index(
         grouping_columns, drop=True))
-    result = fn(fn_input)
+    result = func(fn_input)
     if isinstance(result, pd.core.generic.NDFrame):
       if result.index is fn_input.index:
         proxy = result
@@ -3307,7 +3345,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                       by=grouping_columns or None)
 
       gb = project(gb)
-      return gb.apply(fn, *args, **kwargs)
+      return gb.apply(func, *args, **kwargs)
 
     return DeferredDataFrame(
         expressions.ComputedExpression(
@@ -3319,7 +3357,17 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                                                       grouping_columns),
             preserves_partition_by=partitionings.Index(grouping_indexes)))
 
+
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def transform(self, fn, *args, **kwargs):
+    """Note that ``func`` will be called once during pipeline construction time
+    with an empty pandas object, so take care if ``func`` has a side effect.
+
+    When called with an empty pandas object, ``func`` is expected to return an
+    object of the same type as what will be returned when the pipeline is
+    processing actual data. The result should have the same type and name (for
+    a Series) or column types and names (for a DataFrame) as the actual
+    results."""
     if not callable(fn):
       raise NotImplementedError(
           "String functions are not yet supported in transform.")
@@ -3368,6 +3416,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Index(levels),
             preserves_partition_by=partitionings.Index(self._grouping_indexes)))
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def filter(self, func=None, dropna=True):
     if func is None or not callable(func):
       raise TypeError("func must be specified and it must be callable")
@@ -3384,7 +3433,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
     return self.apply(apply_fn).droplevel(self._grouping_columns)
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def dtypes(self):
     grouping_columns = self._grouping_columns
     return self.apply(lambda df: df.drop(grouping_columns, axis=1).dtypes)
@@ -3467,6 +3517,7 @@ def _liftable_agg(meth, postagg_meth=None):
   else:
     post_agg_name, _ = frame_base.name_and_func(postagg_meth)
 
+  @frame_base.with_docs_from(DataFrameGroupBy, name=agg_name)
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
 
@@ -3518,6 +3569,7 @@ def _liftable_agg(meth, postagg_meth=None):
 def _unliftable_agg(meth):
   agg_name, _ = frame_base.name_and_func(meth)
 
+  @frame_base.with_docs_from(DataFrameGroupBy, name=agg_name)
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
 
@@ -3621,19 +3673,23 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
   var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def groups(self):
     return self._expr.proxy().groups
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def indices(self):
     return self._expr.proxy().indices
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def ndim(self):
     return self._expr.proxy().ndim
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def ngroups(self):
     return self._expr.proxy().ngroups
 
@@ -4006,6 +4062,134 @@ for method in ELEMENTWISE_CATEGORICAL_METHODS:
           frame_base._elementwise_method(
               make_cat_func(method), name=method,
               base=pd.core.arrays.categorical.CategoricalAccessor))
+
+class _DeferredDatetimeMethods(frame_base.DeferredBase):
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def tz(self):
+    return self._expr.proxy().dt.tz
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def freq(self):
+    return self._expr.proxy().dt.freq
+
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def tz_localize(self, *args, ambiguous='infer', **kwargs):
+    """``ambiguous`` cannot be set to ``"infer"`` as its semantics are
+    order-sensitive. Similarly, specifying ``ambiguous`` as an
+    :class:`~numpy.ndarray` is order-sensitive, but you can achieve similar
+    functionality by specifying ``ambiguous`` as a Series."""
+    if isinstance(ambiguous, np.ndarray):
+      raise frame_base.WontImplementError(
+          "tz_localize(ambiguous=ndarray) is not supported because it makes "
+          "this operation sensitive to the order of the data. Please use a "
+          "DeferredSeries instead.",
+          reason="order-sensitive")
+    elif isinstance(ambiguous, frame_base.DeferredFrame):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'tz_localize',
+              lambda s,
+              ambiguous: s.dt.tz_localize(*args, ambiguous=ambiguous, **kwargs),
+              [self._expr, ambiguous._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Arbitrary()))
+    elif ambiguous == 'infer':
+      # infer attempts to infer based on the order of the timestamps
+      raise frame_base.WontImplementError(
+          f"tz_localize(ambiguous={ambiguous!r}) is not allowed because it "
+          "makes this operation sensitive to the order of the data.",
+          reason="order-sensitive")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'tz_localize',
+            lambda s: s.dt.tz_localize(*args, ambiguous=ambiguous, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+
+  to_period = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_period',
+      reason="event-time-semantics")
+  to_pydatetime = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_pydatetime',
+      reason="non-deferred-result")
+  to_pytimedelta = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_pytimedelta',
+      reason="non-deferred-result")
+
+def make_dt_property(method):
+  def func(df):
+    return getattr(df.dt, method)
+
+  return func
+
+def make_dt_func(method):
+  def func(df, *args, **kwargs):
+    return getattr(df.dt, method)(*args, **kwargs)
+
+  return func
+
+
+ELEMENTWISE_DATETIME_METHODS = [
+  'ceil',
+  'day_name',
+  'month_name',
+  'floor',
+  'isocalendar',
+  'round',
+  'normalize',
+  'strftime',
+  'tz_convert',
+]
+
+for method in ELEMENTWISE_DATETIME_METHODS:
+  setattr(_DeferredDatetimeMethods,
+          method,
+          frame_base._elementwise_method(
+              make_dt_func(method),
+              name=method,
+              base=pd.core.indexes.accessors.DatetimeProperties))
+
+ELEMENTWISE_DATETIME_PROPERTIES = [
+  'date',
+  'day',
+  'dayofweek',
+  'dayofyear',
+  'days_in_month',
+  'daysinmonth',
+  'hour',
+  'is_leap_year',
+  'is_month_end',
+  'is_month_start',
+  'is_quarter_end',
+  'is_quarter_start',
+  'is_year_end',
+  'is_year_start',
+  'microsecond',
+  'minute',
+  'month',
+  'nanosecond',
+  'quarter',
+  'second',
+  'time',
+  'timetz',
+  'week',
+  'weekday',
+  'weekofyear',
+  'year',
+]
+
+for method in ELEMENTWISE_DATETIME_PROPERTIES:
+  setattr(_DeferredDatetimeMethods,
+          method,
+          property(frame_base._elementwise_method(
+              make_dt_property(method),
+              name=method,
+              base=pd.core.indexes.accessors.DatetimeProperties)))
 
 
 for base in ['add',

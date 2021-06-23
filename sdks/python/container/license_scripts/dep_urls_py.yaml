@@ -95,6 +95,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
   oauth2client:
     license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
+  orjson:
+    license: "https://github.com/ijl/orjson/raw/master/LICENSE-APACHE"
   pandas:
     license: "https://raw.githubusercontent.com/pandas-dev/pandas/master/LICENSE"
   pathlib2:
