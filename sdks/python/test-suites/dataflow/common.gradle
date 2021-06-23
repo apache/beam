@@ -28,14 +28,7 @@ dependencies {
 
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
-// TODO(BEAM-3713) Remove once nose is removed
 // Basic test options for ITs running on Jenkins.
-def basicTestOpts = [
-    "--nocapture",  // print stdout instantly
-    "--processes=8",  // run tests in parallel
-    "--process-timeout=4500", // timeout of whole command execution
-]
-
 def basicPytestOpts = [
     "--capture=no",  // print stdout instantly
     "--timeout=4500", // timeout of whole command execution
@@ -116,7 +109,7 @@ task postCommitIT {
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
-    def testOpts = basicPytestOpts + ["--numprocesses=8"]
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
