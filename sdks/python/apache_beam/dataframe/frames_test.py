@@ -1993,5 +1993,115 @@ class DocstringTest(unittest.TestCase):
         f'operations:\n{docstring_missing}')
 
 
+class ReprTest(unittest.TestCase):
+  def test_basic_dataframe(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "  group foo bar baz bool str",
+            ":     :   :   :   :    :   :",
+            ":     :   :   :   :    :   :",
+            "",
+            "[?? rows x 6 columns]"
+        ]))
+
+  def test_dataframe_with_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index('group')))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "      foo bar baz bool str",
+            "group                     ",
+            ":       :   :   :    :   :",
+            ":       :   :   :    :   :",
+            "",
+            "[?? rows x 5 columns]"
+        ]))
+
+  def test_dataframe_with_partial_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "        foo bar baz bool str",
+            "  group                     ",
+            ": :       :   :   :    :   :",
+            ": :       :   :   :    :   :",
+            "",
+            "[?? rows x 5 columns]"
+        ]))
+
+  def test_dataframe_with_named_multi_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index(['str', 'group'])))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "          foo bar baz bool",
+            "str group                 ",
+            ":   :       :   :   :    :",
+            ":   :       :   :   :    :",
+            "",
+            "[?? rows x 4 columns]"
+        ]))
+
+  def test_dataframe_with_multiple_column_levels(self):
+    df = pd.DataFrame({
+        'foofoofoo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'barbar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'bazzy': [1, 2, 3, 4, 5, 6],
+        'zoop': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+
+    df = df.pivot(index='foofoofoo', columns='barbar')
+    df = frame_base.DeferredFrame.wrap(expressions.ConstantExpression(df))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "          bazzy bazzy bazzy zoop zoop zoop",
+            "barbar        A     B     C    A    B    C",
+            "foofoofoo                                 ",
+            ":             :     :     :    :    :    :",
+            ":             :     :     :    :    :    :",
+            "",
+            "[?? rows x 6 columns]"
+        ]))
+
+  def test_dataframe_with_multiple_column_and_multiple_index_levels(self):
+    df = pd.DataFrame({
+        'foofoofoo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'barbar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'bazzy': [1, 2, 3, 4, 5, 6],
+        'zoop': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+
+    df = df.pivot(index='foofoofoo', columns='barbar')
+    df.index = [['a', 'b'], df.index]
+
+    # pandas repr displays this:
+    #             bazzy       zoop
+    # barbar          A  B  C    A  B  C
+    #   foofoofoo
+    # a one           1  2  3    x  y  z
+    # b two           4  5  6    q  w  t
+    df = frame_base.DeferredFrame.wrap(expressions.ConstantExpression(df))
+    self.assertEqual(
+        repr(df),
+        "\n".join([
+            "            bazzy bazzy bazzy zoop zoop zoop",
+            "barbar          A     B     C    A    B    C",
+            "  foofoofoo                                 ",
+            ": :             :     :     :    :    :    :",
+            ": :             :     :     :    :    :    :",
+            "",
+            "[?? rows x 6 columns]"
+        ]))
+
+
 if __name__ == '__main__':
   unittest.main()

@@ -1843,9 +1843,69 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           f"DeferredSeries (encountered {type(repeats)}).")
 
 
+def _justify_str_column(objs, rjust=True):
+  strs = [str(o) for o in objs]
+  maxlen = max(len(s) for s in strs)
+  return [s.rjust(maxlen) if rjust else s.ljust(maxlen) for s in strs]
+
+
+def _ljustify_str_column(objs):
+  strs = [str(o) for o in objs]
+  maxlen = max(len(s) for s in strs)
+  return [s.ljust(maxlen) for s in strs]
+
+
+def _justify_columns_and_transpose(columns, rjust=True):
+  for row in zip(*[_justify_str_column(objs, rjust) for objs in columns]):
+    yield ' '.join(row)
+
+
 @populate_not_implemented(pd.DataFrame)
 @frame_base.DeferredFrame._register_for(pd.DataFrame)
 class DeferredDataFrame(DeferredDataFrameOrSeries):
+  def __repr__(self):
+    index = self._expr.proxy().index
+    has_named_index = any(name is not None for name in index.names)
+
+    if has_named_index:
+      # If any of the indexes have a name, include a row for the names
+      index_columns = [[name if name is not None else '']
+                       for name in index.names]
+    else:
+      index_columns = [[] for name in index.names]
+
+    for column in index_columns:
+      column.extend([':', ':'])
+
+    index_rows = _justify_columns_and_transpose(index_columns, rjust=False)
+
+    columns = self._expr.proxy().columns
+
+    # Add names for column indexes
+    index_column = _justify_str_column(
+        [name if name is not None else ''
+         for name in columns.names] + list(index_rows),
+        rjust=False)
+
+    string_columns = []
+    for col_num in range(len(columns)):
+      this_col = [
+          columns.get_level_values(col_level)[col_num]
+          for col_level in range(columns.nlevels)
+      ]
+
+      # If any of the indexes have a name add a blank row here for that space
+      if has_named_index:
+        this_col.append('')
+
+      this_col += [':', ':']
+      string_columns.append(this_col)
+
+    return '\n'.join(
+        list(_justify_columns_and_transpose([index_column] + string_columns)) +
+        ["", f"[?? rows x {len(columns)} columns]"])
+
+
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
   def columns(self):
