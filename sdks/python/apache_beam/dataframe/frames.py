@@ -1780,6 +1780,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def cat(self):
     return _DeferredCategoricalMethods(self._expr)
 
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
+  def dt(self):
+    return _DeferredDatetimeMethods(self._expr)
+
   @frame_base.with_docs_from(pd.Series)
   def mode(self, *args, **kwargs):
     """mode is not currently parallelizable. An approximate,
@@ -4057,6 +4062,134 @@ for method in ELEMENTWISE_CATEGORICAL_METHODS:
           frame_base._elementwise_method(
               make_cat_func(method), name=method,
               base=pd.core.arrays.categorical.CategoricalAccessor))
+
+class _DeferredDatetimeMethods(frame_base.DeferredBase):
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def tz(self):
+    return self._expr.proxy().dt.tz
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def freq(self):
+    return self._expr.proxy().dt.freq
+
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def tz_localize(self, *args, ambiguous='infer', **kwargs):
+    """``ambiguous`` cannot be set to ``"infer"`` as its semantics are
+    order-sensitive. Similarly, specifying ``ambiguous`` as an
+    :class:`~numpy.ndarray` is order-sensitive, but you can achieve similar
+    functionality by specifying ``ambiguous`` as a Series."""
+    if isinstance(ambiguous, np.ndarray):
+      raise frame_base.WontImplementError(
+          "tz_localize(ambiguous=ndarray) is not supported because it makes "
+          "this operation sensitive to the order of the data. Please use a "
+          "DeferredSeries instead.",
+          reason="order-sensitive")
+    elif isinstance(ambiguous, frame_base.DeferredFrame):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'tz_localize',
+              lambda s,
+              ambiguous: s.dt.tz_localize(*args, ambiguous=ambiguous, **kwargs),
+              [self._expr, ambiguous._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Arbitrary()))
+    elif ambiguous == 'infer':
+      # infer attempts to infer based on the order of the timestamps
+      raise frame_base.WontImplementError(
+          f"tz_localize(ambiguous={ambiguous!r}) is not allowed because it "
+          "makes this operation sensitive to the order of the data.",
+          reason="order-sensitive")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'tz_localize',
+            lambda s: s.dt.tz_localize(*args, ambiguous=ambiguous, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+
+  to_period = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_period',
+      reason="event-time-semantics")
+  to_pydatetime = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_pydatetime',
+      reason="non-deferred-result")
+  to_pytimedelta = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_pytimedelta',
+      reason="non-deferred-result")
+
+def make_dt_property(method):
+  def func(df):
+    return getattr(df.dt, method)
+
+  return func
+
+def make_dt_func(method):
+  def func(df, *args, **kwargs):
+    return getattr(df.dt, method)(*args, **kwargs)
+
+  return func
+
+
+ELEMENTWISE_DATETIME_METHODS = [
+  'ceil',
+  'day_name',
+  'month_name',
+  'floor',
+  'isocalendar',
+  'round',
+  'normalize',
+  'strftime',
+  'tz_convert',
+]
+
+for method in ELEMENTWISE_DATETIME_METHODS:
+  setattr(_DeferredDatetimeMethods,
+          method,
+          frame_base._elementwise_method(
+              make_dt_func(method),
+              name=method,
+              base=pd.core.indexes.accessors.DatetimeProperties))
+
+ELEMENTWISE_DATETIME_PROPERTIES = [
+  'date',
+  'day',
+  'dayofweek',
+  'dayofyear',
+  'days_in_month',
+  'daysinmonth',
+  'hour',
+  'is_leap_year',
+  'is_month_end',
+  'is_month_start',
+  'is_quarter_end',
+  'is_quarter_start',
+  'is_year_end',
+  'is_year_start',
+  'microsecond',
+  'minute',
+  'month',
+  'nanosecond',
+  'quarter',
+  'second',
+  'time',
+  'timetz',
+  'week',
+  'weekday',
+  'weekofyear',
+  'year',
+]
+
+for method in ELEMENTWISE_DATETIME_PROPERTIES:
+  setattr(_DeferredDatetimeMethods,
+          method,
+          property(frame_base._elementwise_method(
+              make_dt_property(method),
+              name=method,
+              base=pd.core.indexes.accessors.DatetimeProperties)))
 
 
 for base in ['add',
