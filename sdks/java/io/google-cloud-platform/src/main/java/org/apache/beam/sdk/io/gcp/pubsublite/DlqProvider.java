@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.auto.service.AutoService;
 import com.google.cloud.pubsublite.TopicPath;
+import com.google.cloud.pubsublite.beam.PublisherOptions;
 import com.google.cloud.pubsublite.proto.AttributeValues;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.protobuf.ByteString;
