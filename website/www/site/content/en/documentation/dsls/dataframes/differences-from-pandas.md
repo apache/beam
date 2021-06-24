@@ -76,7 +76,7 @@ Some DataFrame operations produce deferred scalars. In Beam, actual computation 
 
 The Beam DataFrame API implements many of the commonly used Pandas DataFrame operations, and we’re actively working to support the remaining operations. But Pandas has a large API, and there are still gaps ([BEAM-9547](https://issues.apache.org/jira/browse/BEAM-9547)). If you invoke an operation that hasn’t been implemented yet, it will raise a `NotImplementedError`. Please [let us know](https://beam.apache.org/community/contact-us/) if you encounter a missing operation that you think should be prioritized.
 
-## Using Interactive Beam to work with deferred or unordered values
+## Using Interactive Beam to access the full pandas API
 
 Some Pandas DataFrame operations can’t be implemented in Beam because they produce deferred values that are incompatible with the Beam programming model. Other operations with deferred results are implemented, but the results aren’t available for control flow in the pipeline. A third class of operations can’t be implemented because they’re order sensitive, and Beam PCollections are unordered. For all these cases, [Interactive Beam](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.runners.interactive.interactive_beam.html) can provide workarounds.
 
