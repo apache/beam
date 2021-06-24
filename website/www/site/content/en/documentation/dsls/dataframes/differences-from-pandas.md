@@ -18,9 +18,7 @@ limitations under the License.
 
 # Differences from Pandas
 
-The Apache Beam DataFrame API aims to be a drop-in replacement for Pandas DataFrame, but there are a few differences to be aware of. The Beam DataFrame API is adapted for deferred processing, and Beam doesn’t implement all of the Pandas DataFrame operations.
-
-This page describes divergences between the Beam and Pandas APIs and provides tips for working with the Beam DataFrame API.
+The Apache Beam DataFrame API aims to be a drop-in replacement for Pandas, but there are a few differences to be aware of. This page describes divergences between the Beam and Pandas APIs and provides tips for working with the Beam DataFrame API.
 
 ## Working with Pandas sources
 
