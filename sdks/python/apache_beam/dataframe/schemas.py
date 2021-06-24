@@ -305,7 +305,7 @@ def _dtype_to_fieldtype(dtype):
   elif dtype.kind == 'S':
     return bytes
   else:
-    raise TypeError("Unsupported dtype in proxy: '%s'" % dtype)
+    return Any
 
 
 @typehints.with_input_types(Union[pd.DataFrame, pd.Series])
