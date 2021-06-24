@@ -60,7 +60,6 @@ Because Beam operations are deferred, it’s infeasible to implement DataFrame A
 
 If you’re using [Interactive Beam](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.runners.interactive.interactive_beam.html), you can use `collect` to bring a dataset into local memory and then perform these operations.
 
-You can also use [to_pcollection](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.convert.html#apache_beam.dataframe.convert.to_pcollection) to convert a deferred DataFrame to a PCollection, and you can use [to_dataframe](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.convert.html#apache_beam.dataframe.convert.to_dataframe) to convert a PCollection to a deferred DataFrame. These methods provide additional flexibility in working around operations that aren’t implemented.
 
 ## Order-sensitive operations
 
