@@ -47,6 +47,9 @@ Beam schemas but converting that back to a Python type will yield
 
 :code:`nullable=True` on a Beam :code:`FieldType` is represented in Python by
 wrapping the type in :code:`Optional`.
+
+This module is intended for internal use only. Nothing defined here provides
+any backwards-compatibility guarantee.
 """
 
 # pytype: skip-file
@@ -54,10 +57,12 @@ wrapping the type in :code:`Optional`.
 from typing import Any
 from typing import ByteString
 from typing import Generic
+from typing import List
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 from typing import TypeVar
 from uuid import uuid4
 
@@ -276,7 +281,7 @@ def named_tuple_to_schema(named_tuple):
   return typing_to_runner_api(named_tuple).row_type.schema
 
 
-def schema_from_element_type(element_type):  # (type) -> schema_pb2.Schema
+def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
   """Get a schema for the given PCollection element_type.
 
   Returns schema as a list of (name, python_type) tuples"""
@@ -288,12 +293,13 @@ def schema_from_element_type(element_type):  # (type) -> schema_pb2.Schema
     return named_tuple_to_schema(element_type)
   else:
     raise TypeError(
-        "Attempted to determine schema for unsupported type '%s'" %
-        element_type)
+        f"Could not determine schema for type hint {element_type!r}. Did you "
+        "mean to create a schema-aware PCollection? See "
+        "https://s.apache.org/beam-python-schemas")
 
 
 def named_fields_from_element_type(
-    element_type):  # (type) -> typing.List[typing.Tuple[str, type]]
+    element_type: type) -> List[Tuple[str, type]]:
   return named_fields_from_schema(schema_from_element_type(element_type))
 
 
