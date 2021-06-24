@@ -87,6 +87,6 @@ The Beam DataFrame API implements many of the commonly used Pandas DataFrame ope
 
 Some Pandas DataFrame operations can’t be implemented in Beam because they produce deferred values that are incompatible with the Beam programming model. Other operations with deferred results are implemented, but the results aren’t available for control flow in the pipeline. A third class of operations can’t be implemented because they’re order sensitive, and Beam PCollections are unordered. For all these cases, [Interactive Beam](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.runners.interactive.interactive_beam.html) can provide workarounds.
 
-Interactive Beam is a module designed for use in interactive notebooks. The module, which by convention is imported as `ib`, provides an `ib.collect` operation that brings a dataset into local memory and makes it available for DataFrame operations that are order-sensitive or can’t be deferred.
+Interactive Beam is a module designed for use in interactive notebooks. The module, which by convention is imported as `ib`, provides an `ib.collect` function that brings a `PCollection` or deferred DataFrrame into local memory as a pandas DataFrame. After using `ib.collect` to materialize a deferred DataFrame you will be able to perform any operation in the pandas API, not just those that are supported in Beam. 
 
 To get started with Beam in a notebook, see [Try Apache Beam](https://beam.apache.org/get-started/try-apache-beam/).
