@@ -66,6 +66,13 @@ class ElementStream:
     return self._var
 
   @property
+  def pcoll(self):
+    # type: () -> beam.pvalue.PCollection
+
+    """Returns the PCollection that supplies this stream with data."""
+    return self._pcoll
+
+  @property
   def cache_key(self):
     # type: () -> str
 
