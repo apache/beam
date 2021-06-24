@@ -102,7 +102,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.set_flags': ['*'],
             'pandas.core.generic.NDFrame.squeeze': ['*'],
             'pandas.core.generic.NDFrame.truncate': ['*'],
-            'pandas.core.generic.NDFrame.xs': ['*'],
         },
         skip={
             # Internal test
