@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsublite;
 
 import com.google.cloud.pubsublite.SubscriptionPath;
+import com.google.cloud.pubsublite.beam.SubscriberOptions;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteIO;
-import org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;

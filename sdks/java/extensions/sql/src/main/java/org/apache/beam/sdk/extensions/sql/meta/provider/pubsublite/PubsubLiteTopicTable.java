@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsublite;
 
 import com.google.cloud.pubsublite.TopicPath;
+import com.google.cloud.pubsublite.beam.PublisherOptions;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
-import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOptions;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
