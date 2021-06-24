@@ -66,7 +66,7 @@ You can also use [to_pcollection](https://beam.apache.org/releases/pydoc/{{< par
 
 Beam PCollections are inherently unordered, so Pandas operations that are sensitive to the ordering of rows are not supported. These operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
 
-Order-sensitive operations may be supported in the future. To track progress on this issue, follow [BEAM-12129](https://issues.apache.org/jira/browse/BEAM-12129). You can also [contact us](https://beam.apache.org/community/contact-us/) to let us know we should prioritize this work.
+Order-sensitive operations may be supported in the future. To track progress on this issue, follow [BEAM-12129](https://issues.apache.org/jira/browse/BEAM-12129). If you think we should prioritize this work you can also [contact us](https://beam.apache.org/community/contact-us/) to let us know.
 
 **Workaround**
 
