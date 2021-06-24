@@ -32,7 +32,7 @@ For an example of using sources and sinks with the DataFrame API, see [taxiride.
 
 ## Classes of unsupported operations
 
-The sections below describe classes of operations that are not supported, or not yet supported, by Beam DataFrame. Workarounds are suggested, where applicable.
+The sections below describe classes of operations that are not supported, or not yet supported, by the Beam DataFrame API. Workarounds are suggested, where applicable.
 
 ### Non-parallelizable operations
 
