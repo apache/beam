@@ -30,7 +30,8 @@ This is similar to Pandas [read_csv](https://pandas.pydata.org/pandas-docs/stabl
 
 For an example of using sources and sinks with the DataFrame API, see [taxiride.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/dataframe/taxiride.py).
 
-## Non-parallelizable operations
+## Classes of Unsupported Operations
+### Non-parallelizable operations
 
 To support distributed processing, Beam invokes DataFrame operations on subsets of data in parallel. Some DataFrame operations can’t be parallelized, and these operations raise a [NonParallelOperation](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.expressions.html#apache_beam.dataframe.expressions.NonParallelOperation) error by default.
 
