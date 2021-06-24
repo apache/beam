@@ -42,7 +42,9 @@ To support distributed processing, Beam invokes DataFrame operations on subsets 
 
 If you want to use a non-parallelizable operation, you can guard it with a `beam.dataframe.allow_non_parallel_operations` block. For example:
 
-    with beam.dataframe.allow_non_parallel_operations:
+    from apache_beam import dataframe
+    
+    with dataframe.allow_non_parallel_operations():
       quantiles = df.quantile()
 
 Note that this collects the entire input dataset on a single node, so there’s a risk of running out of memory. You should only use this workaround if you’re sure that the input is small enough to process on a single worker.
