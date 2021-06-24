@@ -112,4 +112,3 @@ pc1, pc2 = {'a': pc} | DataframeTransform(lambda a: expr1, expr2)
 
 {...} = {a: pc} | DataframeTransform(lambda a: {...})
 {{< /highlight >}}
-

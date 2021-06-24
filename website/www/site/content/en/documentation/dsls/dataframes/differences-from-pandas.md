@@ -43,7 +43,7 @@ To support distributed processing, Beam invokes DataFrame operations on subsets 
 If you want to use a non-parallelizable operation, you can guard it with a `beam.dataframe.allow_non_parallel_operations` block. For example:
 
     from apache_beam import dataframe
-    
+
     with dataframe.allow_non_parallel_operations():
       quantiles = df.quantile()
 
