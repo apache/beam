@@ -41,11 +41,12 @@ import com.google.cloud.pubsublite.proto.Topic;
 import com.google.cloud.pubsublite.proto.Topic.PartitionConfig.Capacity;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.protobuf.ByteString;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Stack;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -90,7 +91,7 @@ public class PubsubLiteReadIT {
     return AdminClient.create(AdminClientSettings.newBuilder().setRegion(ZONE.region()).build());
   }
 
-  private final Stack<Runnable> cleanupActions = new Stack<>();
+  private final Deque<Runnable> cleanupActions = new ArrayDeque<>();
 
   private TopicPath createTopic(ProjectId id) throws Exception {
     TopicPath toReturn =
@@ -105,7 +106,7 @@ public class PubsubLiteReadIT {
         .setCount(2)
         .setCapacity(Capacity.newBuilder().setPublishMibPerSec(4).setSubscribeMibPerSec(4));
     topic.getRetentionConfigBuilder().setPerPartitionBytes(30 * (1L << 30));
-    cleanupActions.push(
+    cleanupActions.addLast(
         () -> {
           try (AdminClient client = newAdminClient()) {
             client.deleteTopic(toReturn).get();
@@ -131,7 +132,7 @@ public class PubsubLiteReadIT {
         .getDeliveryConfigBuilder()
         .setDeliveryRequirement(DeliveryRequirement.DELIVER_IMMEDIATELY);
     subscription.setTopic(topic.toString());
-    cleanupActions.push(
+    cleanupActions.addLast(
         () -> {
           try (AdminClient client = newAdminClient()) {
             client.deleteSubscription(toReturn).get();
@@ -147,8 +148,8 @@ public class PubsubLiteReadIT {
 
   @After
   public void tearDown() {
-    while (!cleanupActions.empty()) {
-      cleanupActions.pop().run();
+    while (!cleanupActions.isEmpty()) {
+      cleanupActions.removeLast().run();
     }
   }
 
@@ -193,7 +194,7 @@ public class PubsubLiteReadIT {
   }
 
   // This static out of band communication is needed to retain serializability.
-  @GuardedBy("this")
+  @GuardedBy("PubsubLiteReadIT.class")
   private static final List<SequencedMessage> received = new ArrayList<>();
 
   private static synchronized void addMessageReceived(SequencedMessage message) {
