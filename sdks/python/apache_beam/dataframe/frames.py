@@ -1583,7 +1583,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       keep = 'first'
     elif keep != 'all':
       raise frame_base.WontImplementError(
-          "nlargest(keep={keep!r}) is not supported because it is "
+          f"nlargest(keep={keep!r}) is not supported because it is "
           "order sensitive. Only keep=\"all\" is supported.",
           reason="order-sensitive")
     kwargs['keep'] = keep
@@ -1613,7 +1613,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       keep = 'first'
     elif keep != 'all':
       raise frame_base.WontImplementError(
-          "nsmallest(keep={keep!r}) is not supported because it is "
+          f"nsmallest(keep={keep!r}) is not supported because it is "
           "order sensitive. Only keep=\"all\" is supported.",
           reason="order-sensitive")
     kwargs['keep'] = keep
@@ -2854,7 +2854,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       keep = 'first'
     elif keep != 'all':
       raise frame_base.WontImplementError(
-          "nlargest(keep={keep!r}) is not supported because it is "
+          f"nlargest(keep={keep!r}) is not supported because it is "
           "order sensitive. Only keep=\"all\" is supported.",
           reason="order-sensitive")
     kwargs['keep'] = keep
@@ -2886,7 +2886,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       keep = 'first'
     elif keep != 'all':
       raise frame_base.WontImplementError(
-          "nsmallest(keep={keep!r}) is not supported because it is "
+          f"nsmallest(keep={keep!r}) is not supported because it is "
           "order sensitive. Only keep=\"all\" is supported.",
           reason="order-sensitive")
     kwargs['keep'] = keep
