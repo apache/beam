@@ -112,3 +112,6 @@ pc1, pc2 = {'a': pc} | DataframeTransform(lambda a: expr1, expr2)
 
 {...} = {a: pc} | DataframeTransform(lambda a: {...})
 {{< /highlight >}}
+
+[pydoc_dataframe_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform
+[pydoc_sql_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform
