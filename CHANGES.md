@@ -49,9 +49,27 @@
 # [2.32.X] - Unreleased
 
 ## Highlights
-
 * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* The [Beam DataFrame
+  API](https://beam.apache.org/documentation/dsls/dataframes/overview/) is no
+  longer experimental! We've spent the time since the [2.32.0 preview
+  announcement](https://beam.apache.org/blog/dataframe-api-preview-available/)
+  implementing the most frequently used pandas operations
+  ([BEAM-9547](https://issues.apache.org/jira/browse/BEAM-9547)), improving
+  [documentation](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.html)
+  and [error messages](https://issues.apache.org/jira/browse/BEAM-12028),
+  adding
+  [examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/dataframe),
+  integrating DataFrames with [interactive
+  Beam](https://beam.apache.org/releases/pydoc/current/apache_beam.runners.interactive.interactive_beam.html),
+  and of course finding and fixing
+  [bugs](https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20issuetype%3DBug%20AND%20status%3DResolved%20AND%20component%3Ddsl-dataframe).
+  Leaving experimental just means that we now have high confidence in the API
+  and recommend its use for production workloads. We will continue to improve
+  the API, guided by your
+  [feedback](https://beam.apache.org/community/contact-us/).
+
 
 ## I/Os
 
