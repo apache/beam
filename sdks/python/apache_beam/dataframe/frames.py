@@ -877,6 +877,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     time if the key does not exist in the index."""
 
     if axis in ('columns', 1):
+      # Special case for axis=columns. This is a simple project that raises a
+      # KeyError at construction time for missing columns.
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'xs',
@@ -884,6 +886,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Arbitrary()))
     elif axis not in ('index', 0):
+      # Make sure that user's axis is valid
       raise ValueError(
           "axis must be one of ('index', 0, 'columns', 1). "
           f"got {axis!r}.")
