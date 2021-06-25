@@ -749,7 +749,7 @@ public class ProcessBundleHandler {
     }
 
     void reset() throws Exception {
-      this.instructionId = null;
+      setInstructionId(null);
       getStartFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();
       getSplitListener().clear();
