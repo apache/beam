@@ -241,8 +241,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     if isinstance(value, frame_base.DeferredBase):
       value_expr = value._expr
+      requires = partitionings.Index()
     else:
       value_expr = expressions.ConstantExpression(value)
+      requires = partitionings.Arbitrary()
 
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
@@ -253,7 +255,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
                 value, method=method, axis=axis, limit=limit, **kwargs),
             [self._expr, value_expr],
             preserves_partition_by=partitionings.Arbitrary(),
-            requires_partition_by=partitionings.Arbitrary()))
+            requires_partition_by=requires))
 
   ffill = _fillna_alias('ffill')
   bfill = _fillna_alias('bfill')
