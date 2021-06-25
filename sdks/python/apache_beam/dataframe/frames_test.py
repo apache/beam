@@ -2125,7 +2125,7 @@ class ReprTest(unittest.TestCase):
             "Name: str, Length: ??, dtype: object",
         ]))
 
-  def test_dataframe_with_partial_named_index(self):
+  def test_series_with_partial_named_index(self):
     df = frame_base.DeferredFrame.wrap(
         expressions.ConstantExpression(
             GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])['bar']))
