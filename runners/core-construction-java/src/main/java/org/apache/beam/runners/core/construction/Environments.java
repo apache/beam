@@ -79,13 +79,14 @@ public class Environments {
 
   private static final String dockerContainerImageOption = "docker_container_image";
   private static final String externalServiceAddressOption = "external_service_address";
+  private static final String externalServiceExecutableOption = "external_service_executable";
   private static final String processCommandOption = "process_command";
   private static final String processVariablesOption = "process_variables";
 
   private static final Map<String, Set<String>> allowedEnvironmentOptions =
       ImmutableMap.<String, Set<String>>builder()
           .put(ENVIRONMENT_DOCKER, ImmutableSet.of(dockerContainerImageOption))
-          .put(ENVIRONMENT_EXTERNAL, ImmutableSet.of(externalServiceAddressOption))
+          .put(ENVIRONMENT_EXTERNAL, ImmutableSet.of(externalServiceAddressOption, externalServiceExecutableOption))
           .put(ENVIRONMENT_PROCESS, ImmutableSet.of(processCommandOption, processVariablesOption))
           .build();
 
@@ -412,6 +413,10 @@ public class Environments {
       return environmentConfig;
     }
     return environmentOption;
+  }
+
+  public static String getExternalServiceExecutable(PortablePipelineOptions options) {
+    return PortablePipelineOptions.getEnvironmentOption(options, externalServiceExecutableOption);
   }
 
   private static File zipDirectory(File directory) throws IOException {

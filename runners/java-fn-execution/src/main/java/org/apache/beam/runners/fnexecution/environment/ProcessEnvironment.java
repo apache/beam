@@ -19,6 +19,7 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
+import org.apache.beam.sdk.fn.ProcessManager;
 
 /**
  * Environment for process-based execution. The environment is responsible for stopping the process.

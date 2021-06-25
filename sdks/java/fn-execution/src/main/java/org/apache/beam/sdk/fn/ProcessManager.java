@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.environment;
+package org.apache.beam.sdk.fn;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -143,7 +143,7 @@ public class ProcessManager {
       pb.redirectOutput(outputFile);
     }
 
-    LOG.debug("Attempting to start process with command: {}", pb.command());
+    LOG.info("Attempting to start process with command: {}", pb.command());
     Process newProcess = pb.start();
     Process oldProcess = processes.put(id, newProcess);
     synchronized (ALL_PROCESS_MANAGERS) {

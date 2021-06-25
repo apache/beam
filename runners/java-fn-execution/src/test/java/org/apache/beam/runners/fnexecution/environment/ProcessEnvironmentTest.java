@@ -22,6 +22,7 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
+import org.apache.beam.sdk.fn.ProcessManager;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
