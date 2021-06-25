@@ -32,13 +32,8 @@ with :mod:`apache_beam.typehints.schemas`), and common pandas dtypes::
   pd.StringDType()        <-----> Optional[str]
                              \--- str
   np.object               <-----> Any
+
   * int, float, bool are treated the same as np.int64, np.float64, np.bool
-  ** Note beam Timestamps are always microsecond precision. A pandas datetime64
-  with lower precision (hour, minute, millisecond, ...) will have it's precision
-  increased when converted to a Beam type. A datetime64 with higher precision
-  (nanosecond, femtosecond, ...) will be truncated to microsecond precision. If
-  a timestamp that cannot be truncated losslessly is encountered at execution
-  time, an error will be raised.
 
 Note that when converting to pandas dtypes, any types not specified here are
 shunted to ``np.object``.
