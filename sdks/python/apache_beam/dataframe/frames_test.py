@@ -235,6 +235,25 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.get('Animal'), df)
     self._run_test(lambda df: df.get('FOO', df.Animal), df)
 
+  def test_series_xs(self):
+    # pandas doctests only verify DataFrame.xs, here we verify Series.xs as well
+    d = {
+        'num_legs': [4, 4, 2, 2],
+        'num_wings': [0, 0, 2, 2],
+        'class': ['mammal', 'mammal', 'mammal', 'bird'],
+        'animal': ['cat', 'dog', 'bat', 'penguin'],
+        'locomotion': ['walks', 'walks', 'flies', 'walks']
+    }
+    df = pd.DataFrame(data=d)
+    df = df.set_index(['class', 'animal', 'locomotion'])
+
+    self._run_test(lambda df: df.num_legs.xs('mammal'), df)
+    self._run_test(lambda df: df.num_legs.xs(('mammal', 'dog')), df)
+    self._run_test(lambda df: df.num_legs.xs('cat', level=1), df)
+    self._run_test(
+        lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
+        df)
+
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
