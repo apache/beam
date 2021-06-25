@@ -768,7 +768,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     It is not implemented for ``axis=columns`` because it makes the order of
     the columns depend on the data (see
-    https://s.apache.org/dataframe-non-deferred-column-names)."""
+    https://s.apache.org/dataframe-non-deferred-columns)."""
     if axis in (0, 'index'):
       # axis=index imposes an ordering on the DataFrame rows which we do not
       # support
@@ -1066,7 +1066,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     Filling NaN values via ``method`` is not supported, because it is
     `order-sensitive
-    <https://s.apache.org/dataframe-order-sensitive-operatons>`_.
+    <https://s.apache.org/dataframe-order-sensitive-operations>`_.
     Only the default, ``method=None``, is allowed."""
     if level is not None:
       raise NotImplementedError('per-level align')
@@ -1939,7 +1939,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     Filling NaN values via ``method`` is not supported, because it is
     `order-sensitive
-    <https://s.apache.org/dataframe-order-sensitive-operatons>`_. Only the
+    <https://s.apache.org/dataframe-order-sensitive-operations>`_. Only the
     default, ``method=None``, is allowed.
 
     ``copy=False`` is not supported because its behavior (whether or not it is
@@ -2352,7 +2352,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def corr(self, method, min_periods):
     """Only ``method="pearson"`` can be parallelized. Other methods require
     collecting all data on a single worker (see
-    https://s.apache.org/dataframe-non-parallelizable-operations for details).
+    https://s.apache.org/dataframe-non-parallel-operations for details).
     """
     if method == 'pearson':
       proxy = self._expr.proxy().corr()
