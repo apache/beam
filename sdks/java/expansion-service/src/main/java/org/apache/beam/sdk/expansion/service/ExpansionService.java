@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -41,10 +42,14 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -362,6 +367,19 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
+  private final PipelineOptions pipelineOptions;
+
+  public ExpansionService() {
+    this(new String[] {});
+  }
+
+  public ExpansionService(String[] args) {
+    this(PipelineOptionsFactory.fromArgs(args).create());
+  }
+
+  public ExpansionService(PipelineOptions opts) {
+    this.pipelineOptions = opts;
+  }
 
   private Map<String, TransformProvider> getRegisteredTransforms() {
     if (registeredTransforms == null) {
@@ -391,7 +409,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         request.getTransform().getSpec().getUrn());
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
-    Pipeline pipeline = Pipeline.create();
+    Pipeline pipeline = createPipeline();
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
     // TODO(BEAM-10670): Remove this when we address performance issue.
@@ -401,7 +419,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     ClassLoader classLoader = Environments.class.getClassLoader();
     if (classLoader == null) {
       throw new RuntimeException(
-          "Cannot detect classpath: classload is null (is it the bootstrap classloader?)");
+          "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
     }
 
     List<String> classpathResources =
@@ -486,6 +504,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .build();
   }
 
+  protected Pipeline createPipeline() {
+    pipelineOptions.setRunner(NoOpRunner.class);
+    return Pipeline.create(pipelineOptions);
+  }
+
   @Override
   public void expand(
       ExpansionApi.ExpansionRequest request,
@@ -510,7 +533,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
-    ExpansionService service = new ExpansionService();
+    @SuppressWarnings("nullness")
+    ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
     for (Map.Entry<String, TransformProvider> entry :
         service.getRegisteredTransforms().entrySet()) {
       System.out.println("\t" + entry.getKey() + ": " + entry.getValue());
@@ -523,5 +547,16 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             .build();
     server.start();
     server.awaitTermination();
+  }
+
+  private static class NoOpRunner extends PipelineRunner<PipelineResult> {
+    public static NoOpRunner fromOptions(PipelineOptions opts) {
+      return new NoOpRunner();
+    }
+
+    @Override
+    public PipelineResult run(Pipeline pipeline) {
+      throw new UnsupportedOperationException();
+    }
   }
 }
