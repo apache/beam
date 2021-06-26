@@ -790,7 +790,7 @@ public class KafkaIO {
         return ImmutableMap.of(
             URN_WITH_METADATA,
             (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
-                (Class<?>) ExternalWithMetadata.Builder.class,
+                (Class<?>) RowsWithMetadata.Builder.class,
             URN_WITHOUT_METADATA,
             (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
                 (Class<?>) TypedWithoutMetadata.Builder.class);
@@ -1197,7 +1197,7 @@ public class KafkaIO {
     }
 
     PTransform<PBegin, PCollection<Row>> externalWithMetadata() {
-      return new ExternalWithMetadata<>(this);
+      return new RowsWithMetadata<>(this);
     }
 
     @Override
@@ -1592,11 +1592,11 @@ public class KafkaIO {
   @DefaultSchema(JavaFieldSchema.class)
   @SuppressFBWarnings("URF_UNREAD_FIELD")
   /**
-   * Represents a Kafka record with metadata. This class should only be used to represent a Kafka
-   * record for external transforms. TODO(BEAM-7345): use regular KafkaRecord class when Beam Schema
-   * inference supports generics.
+   * Represents a Kafka record with metadata whey key and values are byte arrays. This class should
+   * only be used to represent a Kafka record for external transforms. TODO(BEAM-7345): use regular
+   * KafkaRecord class when Beam Schema inference supports generics.
    */
-  static class ExternalKafkaRecord {
+  static class ByteArrayKafkaRecord {
 
     String topic;
     int partition;
@@ -1609,7 +1609,7 @@ public class KafkaIO {
     String timestampTypeName;
 
     @SchemaCreate
-    public ExternalKafkaRecord(
+    public ByteArrayKafkaRecord(
         String topic,
         int partition,
         long offset,
@@ -1637,11 +1637,11 @@ public class KafkaIO {
    * transform since {@link KafkaRecord} is not a type that can be easily encoded using Beam's
    * standard coders. See {@link KafkaIO} for more information on usage and configuration of reader.
    */
-  static class ExternalWithMetadata<K, V> extends PTransform<PBegin, PCollection<Row>> {
+  static class RowsWithMetadata<K, V> extends PTransform<PBegin, PCollection<Row>> {
     private final Read<K, V> read;
 
-    ExternalWithMetadata(Read<K, V> read) {
-      super("KafkaIO.Read");
+    RowsWithMetadata(Read<K, V> read) {
+      super("KafkaIO.RowsWithMetadata");
       this.read = read;
     }
 
@@ -1671,15 +1671,15 @@ public class KafkaIO {
       }
     }
 
-    public static <K, V> ExternalKafkaRecord toExternalKafkaRecord(KafkaRecord<K, V> kafkaRecord) {
+    public static <K, V> ByteArrayKafkaRecord toExternalKafkaRecord(KafkaRecord<K, V> kafkaRecord) {
       List<KafkaHeader> headers =
           (kafkaRecord.getHeaders() == null)
               ? null
               : Arrays.stream(kafkaRecord.getHeaders().toArray())
                   .map(h -> new KafkaHeader(h.key(), h.value()))
                   .collect(Collectors.toList());
-      ExternalKafkaRecord externalKafkaRecord =
-          new ExternalKafkaRecord(
+      ByteArrayKafkaRecord byteArrayKafkaRecord =
+          new ByteArrayKafkaRecord(
               kafkaRecord.getTopic(),
               kafkaRecord.getPartition(),
               kafkaRecord.getOffset(),
@@ -1690,7 +1690,7 @@ public class KafkaIO {
               kafkaRecord.getTimestampType().id,
               kafkaRecord.getTimestampType().name);
 
-      return externalKafkaRecord;
+      return byteArrayKafkaRecord;
     }
 
     @Override
@@ -1700,7 +1700,7 @@ public class KafkaIO {
           .apply(
               "Convert to ExternalKafkaRecord",
               ParDo.of(
-                  new DoFn<KafkaRecord<K, V>, ExternalKafkaRecord>() {
+                  new DoFn<KafkaRecord<K, V>, ByteArrayKafkaRecord>() {
                     @ProcessElement
                     public void processElement(ProcessContext ctx) {
                       KafkaRecord<K, V> kafkRecord = ctx.element();
