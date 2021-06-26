@@ -765,8 +765,8 @@ public class AvroUtils {
       if (logicalType instanceof LogicalTypes.Decimal) {
         fieldType = FieldType.DECIMAL;
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
-        // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
-        // this is done, this logical type needs to be changed.
+        fieldType = FieldType.DATETIME;
+      } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
         fieldType = FieldType.DATETIME;
       } else if (logicalType instanceof LogicalTypes.Date) {
         fieldType = FieldType.DATETIME;
@@ -1127,6 +1127,12 @@ public class AvroUtils {
           return convertDateTimeStrict(((ReadableInstant) value).getMillis(), fieldType);
         } else {
           return convertDateTimeStrict((Long) value, fieldType);
+        }
+      } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
+        if (value instanceof ReadableInstant) {
+          return convertDateTimeStrict(((ReadableInstant) value).getMillis(), fieldType);
+        } else {
+          return convertDateTimeStrict((Long) value / 1000, fieldType);
         }
       } else if (logicalType instanceof LogicalTypes.Date) {
         if (value instanceof ReadableInstant) {
