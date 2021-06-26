@@ -50,7 +50,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -59,9 +58,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.IntFunction;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -140,7 +137,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -3455,6 +3451,7 @@ public class ParDoTest implements Serializable {
   /** Tests to validate ParDo timers. */
   @RunWith(JUnit4.class)
   public static class TimerTests extends SharedTestBase implements Serializable {
+
     @Test
     public void testTimerNotKeyed() {
       final String timerId = "foo";
@@ -4280,231 +4277,267 @@ public class ParDoTest implements Serializable {
     }
 
     /** A test makes sure that an event time timers are correctly ordered. */
+    //    @Test
+    //    @Category({
+    //      ValidatesRunner.class,
+    //      UsesTimersInParDo.class,
+    //      UsesTestStream.class,
+    //      UsesStatefulParDo.class,
+    //      UsesStrictTimerOrdering.class
+    //    })
+    //    public void testEventTimeTimerOrdering() throws Exception {
+    //      final int numTestElements = 100;
+    //      final Instant now = new Instant(1500000000000L);
+    //      TestStream.Builder<KV<String, String>> builder =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+    //              .advanceWatermarkTo(new Instant(0));
+    //
+    //      for (int i = 0; i < numTestElements; i++) {
+    //        builder =
+    //            builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i *
+    // 1000)));
+    //        if ((i + 1) % 10 == 0) {
+    //          builder = builder.advanceWatermarkTo(now.plus((i + 1) * 1000));
+    //        }
+    //      }
+    //
+    //      testEventTimeTimerOrderingWithInputPTransform(
+    //          now, numTestElements, builder.advanceWatermarkToInfinity());
+    //    }
+    //
+    //    /** A test makes sure that an event time timers are correctly ordered using Create
+    // transform. */
+    //    @Test
+    //    @Category({
+    //      ValidatesRunner.class,
+    //      UsesTimersInParDo.class,
+    //      UsesStatefulParDo.class,
+    //      UsesStrictTimerOrdering.class
+    //    })
+    //    public void testEventTimeTimerOrderingWithCreate() throws Exception {
+    //      final int numTestElements = 100;
+    //      final Instant now = new Instant(1500000000000L);
+    //
+    //      List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
+    //      for (int i = 0; i < numTestElements; i++) {
+    //        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
+    //      }
+    //
+    //      testEventTimeTimerOrderingWithInputPTransform(
+    //          now, numTestElements, Create.timestamped(elements));
+    //    }
+    //
+    //    private void testEventTimeTimerOrderingWithInputPTransform(
+    //        Instant now,
+    //        int numTestElements,
+    //        PTransform<PBegin, PCollection<KV<String, String>>> transform)
+    //        throws Exception {
+    //
+    //      final String timerIdBagAppend = "append";
+    //      final String timerIdGc = "gc";
+    //      final String bag = "bag";
+    //      final String minTimestamp = "minTs";
+    //      final Instant gcTimerStamp = now.plus((numTestElements + 1) * 1000);
+    //
+    //      DoFn<KV<String, String>, String> fn =
+    //          new DoFn<KV<String, String>, String>() {
+    //
+    //            @TimerId(timerIdBagAppend)
+    //            private final TimerSpec appendSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    //
+    //            @TimerId(timerIdGc)
+    //            private final TimerSpec gcSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    //
+    //            @StateId(bag)
+    //            private final StateSpec<BagState<TimestampedValue<String>>> bagStateSpec =
+    //                StateSpecs.bag();
+    //
+    //            @StateId(minTimestamp)
+    //            private final StateSpec<ValueState<Instant>> minTimestampSpec =
+    // StateSpecs.value();
+    //
+    //            @ProcessElement
+    //            public void processElement(
+    //                ProcessContext context,
+    //                @TimerId(timerIdBagAppend) Timer bagTimer,
+    //                @TimerId(timerIdGc) Timer gcTimer,
+    //                @StateId(bag) BagState<TimestampedValue<String>> bagState,
+    //                @StateId(minTimestamp) ValueState<Instant> minStampState) {
+    //
+    //              Instant currentMinStamp =
+    //                  MoreObjects.firstNonNull(minStampState.read(),
+    // BoundedWindow.TIMESTAMP_MAX_VALUE);
+    //              if (currentMinStamp.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+    //                gcTimer.set(gcTimerStamp);
+    //              }
+    //              if (currentMinStamp.isAfter(context.timestamp())) {
+    //                minStampState.write(context.timestamp());
+    //                bagTimer.set(context.timestamp());
+    //              }
+    //              bagState.add(TimestampedValue.of(context.element().getValue(),
+    // context.timestamp()));
+    //            }
+    //
+    //            @OnTimer(timerIdBagAppend)
+    //            public void onTimer(
+    //                OnTimerContext context,
+    //                @TimerId(timerIdBagAppend) Timer timer,
+    //                @StateId(bag) BagState<TimestampedValue<String>> bagState) {
+    //
+    //              List<TimestampedValue<String>> flush = new ArrayList<>();
+    //              Instant flushTime = context.timestamp();
+    //              for (TimestampedValue<String> val : bagState.read()) {
+    //                if (!val.getTimestamp().isAfter(flushTime)) {
+    //                  flush.add(val);
+    //                }
+    //              }
+    //              flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
+    //              context.output(
+    //
+    // Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
+    //              Instant newMinStamp = flushTime.plus(1000);
+    //              if (flush.size() < numTestElements) {
+    //                timer.set(newMinStamp);
+    //              }
+    //            }
+    //
+    //            @OnTimer(timerIdGc)
+    //            public void onTimer(
+    //                OnTimerContext context, @StateId(bag) BagState<TimestampedValue<String>>
+    // bagState) {
+    //
+    //              String output =
+    //                  Joiner.on(":")
+    //                          .join(
+    //                              StreamSupport.stream(bagState.read().spliterator(), false)
+    //
+    // .sorted(Comparator.comparing(TimestampedValue::getTimestamp))
+    //                                  .map(TimestampedValue::getValue)
+    //                                  .iterator())
+    //                      + ":cleanup";
+    //              context.output(output);
+    //              bagState.clear();
+    //            }
+    //          };
+    //
+    //      PCollection<String> output = pipeline.apply(transform).apply(ParDo.of(fn));
+    //      List<String> expected =
+    //          IntStream.rangeClosed(0, numTestElements)
+    //              .mapToObj(expandFn(numTestElements))
+    //              .collect(Collectors.toList());
+    //      PAssert.that(output).containsInAnyOrder(expected);
+    //      pipeline.run();
+    //    }
+    //
+    //    private IntFunction<String> expandFn(int numTestElements) {
+    //      return i ->
+    //          Joiner.on(":")
+    //                  .join(
+    //                      IntStream.rangeClosed(0, Math.min(numTestElements - 1, i))
+    //                          .mapToObj(String::valueOf)
+    //                          .iterator())
+    //              + (i == numTestElements ? ":cleanup" : "");
+    //    }
+
+    //    @Test
+    //    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    //    public void testPipelineOptionsParameterOnTimer() {
+    //      final String timerId = "thisTimer";
+    //
+    //      PCollection<String> results =
+    //          pipeline
+    //              .apply(Create.of(KV.of(0L, 0L)))
+    //              .apply(
+    //                  ParDo.of(
+    //                      new DoFn<KV<Long, Long>, String>() {
+    //                        @TimerId(timerId)
+    //                        private final TimerSpec spec =
+    // TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    //
+    //                        @ProcessElement
+    //                        public void process(
+    //                            ProcessContext c, BoundedWindow w, @TimerId(timerId) Timer timer)
+    // {
+    //                          timer.set(w.maxTimestamp());
+    //                        }
+    //
+    //                        @OnTimer(timerId)
+    //                        public void onTimer(OutputReceiver<String> r, PipelineOptions options)
+    // {
+    //                          r.output(options.as(MyOptions.class).getFakeOption());
+    //                        }
+    //                      }));
+    //
+    //      String testOptionValue = "not fake anymore";
+    //      pipeline.getOptions().as(MyOptions.class).setFakeOption(testOptionValue);
+    //      PAssert.that(results).containsInAnyOrder("not fake anymore");
+    //
+    //      pipeline.run();
+    //    }
+    //
+    //    @Test
+    //    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void duplicateTimerSetting() {
+    //      TestStream<KV<String, String>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+    //              .addElements(KV.of("key1", "v1"))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<String> result = pipeline.apply(stream).apply(ParDo.of(new TwoTimerDoFn()));
+    //      PAssert.that(result).containsInAnyOrder("It works");
+    //
+    //      pipeline.run().waitUntilFinish();
+    //    }
+
     @Test
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
       UsesTestStream.class,
-      UsesStatefulParDo.class,
       UsesStrictTimerOrdering.class
     })
-    public void testEventTimeTimerOrdering() throws Exception {
-      final int numTestElements = 100;
-      final Instant now = new Instant(1500000000000L);
-      TestStream.Builder<KV<String, String>> builder =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-              .advanceWatermarkTo(new Instant(0));
-
-      for (int i = 0; i < numTestElements; i++) {
-        builder =
-            builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
-        if ((i + 1) % 10 == 0) {
-          builder = builder.advanceWatermarkTo(now.plus((i + 1) * 1000));
-        }
-      }
-
-      testEventTimeTimerOrderingWithInputPTransform(
-          now, numTestElements, builder.advanceWatermarkToInfinity());
+    public void testTwoTimersSettingEachOtherBounded() {
+      testTwoTimersSettingEachOther(IsBounded.BOUNDED);
     }
 
-    /** A test makes sure that an event time timers are correctly ordered using Create transform. */
-    @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      UsesStatefulParDo.class,
-      UsesStrictTimerOrdering.class
-    })
-    public void testEventTimeTimerOrderingWithCreate() throws Exception {
-      final int numTestElements = 100;
-      final Instant now = new Instant(1500000000000L);
+    //    @Test
+    //    @Category({
+    //            ValidatesRunner.class,
+    //            UsesTimersInParDo.class,
+    //            UsesTestStream.class,
+    //            UsesStrictTimerOrdering.class
+    //    })
+    //    public void testTwoTimersSettingEachOtherUnbounded() {
+    //      testTwoTimersSettingEachOther(IsBounded.UNBOUNDED);
+    //    }
 
-      List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
-      for (int i = 0; i < numTestElements; i++) {
-        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
-      }
-
-      testEventTimeTimerOrderingWithInputPTransform(
-          now, numTestElements, Create.timestamped(elements));
-    }
-
-    private void testEventTimeTimerOrderingWithInputPTransform(
-        Instant now,
-        int numTestElements,
-        PTransform<PBegin, PCollection<KV<String, String>>> transform)
-        throws Exception {
-
-      final String timerIdBagAppend = "append";
-      final String timerIdGc = "gc";
-      final String bag = "bag";
-      final String minTimestamp = "minTs";
-      final Instant gcTimerStamp = now.plus((numTestElements + 1) * 1000);
-
-      DoFn<KV<String, String>, String> fn =
-          new DoFn<KV<String, String>, String>() {
-
-            @TimerId(timerIdBagAppend)
-            private final TimerSpec appendSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-            @TimerId(timerIdGc)
-            private final TimerSpec gcSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-            @StateId(bag)
-            private final StateSpec<BagState<TimestampedValue<String>>> bagStateSpec =
-                StateSpecs.bag();
-
-            @StateId(minTimestamp)
-            private final StateSpec<ValueState<Instant>> minTimestampSpec = StateSpecs.value();
-
-            @ProcessElement
-            public void processElement(
-                ProcessContext context,
-                @TimerId(timerIdBagAppend) Timer bagTimer,
-                @TimerId(timerIdGc) Timer gcTimer,
-                @StateId(bag) BagState<TimestampedValue<String>> bagState,
-                @StateId(minTimestamp) ValueState<Instant> minStampState) {
-
-              Instant currentMinStamp =
-                  MoreObjects.firstNonNull(minStampState.read(), BoundedWindow.TIMESTAMP_MAX_VALUE);
-              if (currentMinStamp.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-                gcTimer.set(gcTimerStamp);
-              }
-              if (currentMinStamp.isAfter(context.timestamp())) {
-                minStampState.write(context.timestamp());
-                bagTimer.set(context.timestamp());
-              }
-              bagState.add(TimestampedValue.of(context.element().getValue(), context.timestamp()));
-            }
-
-            @OnTimer(timerIdBagAppend)
-            public void onTimer(
-                OnTimerContext context,
-                @TimerId(timerIdBagAppend) Timer timer,
-                @StateId(bag) BagState<TimestampedValue<String>> bagState) {
-
-              List<TimestampedValue<String>> flush = new ArrayList<>();
-              Instant flushTime = context.timestamp();
-              for (TimestampedValue<String> val : bagState.read()) {
-                if (!val.getTimestamp().isAfter(flushTime)) {
-                  flush.add(val);
-                }
-              }
-              flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
-              context.output(
-                  Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
-              Instant newMinStamp = flushTime.plus(1000);
-              if (flush.size() < numTestElements) {
-                timer.set(newMinStamp);
-              }
-            }
-
-            @OnTimer(timerIdGc)
-            public void onTimer(
-                OnTimerContext context, @StateId(bag) BagState<TimestampedValue<String>> bagState) {
-
-              String output =
-                  Joiner.on(":")
-                          .join(
-                              StreamSupport.stream(bagState.read().spliterator(), false)
-                                  .sorted(Comparator.comparing(TimestampedValue::getTimestamp))
-                                  .map(TimestampedValue::getValue)
-                                  .iterator())
-                      + ":cleanup";
-              context.output(output);
-              bagState.clear();
-            }
-          };
-
-      PCollection<String> output = pipeline.apply(transform).apply(ParDo.of(fn));
-      List<String> expected =
-          IntStream.rangeClosed(0, numTestElements)
-              .mapToObj(expandFn(numTestElements))
-              .collect(Collectors.toList());
-      PAssert.that(output).containsInAnyOrder(expected);
-      pipeline.run();
-    }
-
-    private IntFunction<String> expandFn(int numTestElements) {
-      return i ->
-          Joiner.on(":")
-                  .join(
-                      IntStream.rangeClosed(0, Math.min(numTestElements - 1, i))
-                          .mapToObj(String::valueOf)
-                          .iterator())
-              + (i == numTestElements ? ":cleanup" : "");
-    }
-
-    @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
-    public void testPipelineOptionsParameterOnTimer() {
-      final String timerId = "thisTimer";
-
-      PCollection<String> results =
-          pipeline
-              .apply(Create.of(KV.of(0L, 0L)))
-              .apply(
-                  ParDo.of(
-                      new DoFn<KV<Long, Long>, String>() {
-                        @TimerId(timerId)
-                        private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-                        @ProcessElement
-                        public void process(
-                            ProcessContext c, BoundedWindow w, @TimerId(timerId) Timer timer) {
-                          timer.set(w.maxTimestamp());
-                        }
-
-                        @OnTimer(timerId)
-                        public void onTimer(OutputReceiver<String> r, PipelineOptions options) {
-                          r.output(options.as(MyOptions.class).getFakeOption());
-                        }
-                      }));
-
-      String testOptionValue = "not fake anymore";
-      pipeline.getOptions().as(MyOptions.class).setFakeOption(testOptionValue);
-      PAssert.that(results).containsInAnyOrder("not fake anymore");
-
-      pipeline.run();
-    }
-
-    @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void duplicateTimerSetting() {
-      TestStream<KV<String, String>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-              .addElements(KV.of("key1", "v1"))
-              .advanceWatermarkToInfinity();
-
-      PCollection<String> result = pipeline.apply(stream).apply(ParDo.of(new TwoTimerDoFn()));
-      PAssert.that(result).containsInAnyOrder("It works");
-
-      pipeline.run().waitUntilFinish();
-    }
-
-    @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      UsesTestStream.class,
-      UsesStrictTimerOrdering.class
-    })
-    public void testTwoTimersSettingEachOther() {
+    private void testTwoTimersSettingEachOther(IsBounded isBounded) {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
       TestStream<KV<Void, Void>> input =
           TestStream.create(KvCoder.of(VoidCoder.of(), VoidCoder.of()))
               .addElements(KV.of(null, null))
               .advanceWatermarkToInfinity();
-      pipeline.apply(TwoTimerTest.of(now, end, input));
+      pipeline.apply(TwoTimerTest.of(now, end, input, isBounded));
       pipeline.run();
     }
 
+    //    @Test
+    //    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
+    //    public void testTwoTimersSettingEachOtherWithCreateAsInputBounded() {
+    //      testTwoTimersSettingEachOtherWithCreateAsInput(IsBounded.BOUNDED);;
+    //    }
+
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
-    public void testTwoTimersSettingEachOtherWithCreateAsInput() {
+    public void testTwoTimersSettingEachOtherWithCreateAsInputUnbounded() {
+      testTwoTimersSettingEachOtherWithCreateAsInput(IsBounded.UNBOUNDED);
+    }
+
+    private void testTwoTimersSettingEachOtherWithCreateAsInput(IsBounded isBounded) {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
-      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null))));
+      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), isBounded));
       pipeline.run();
     }
 
@@ -4754,19 +4787,27 @@ public class ParDoTest implements Serializable {
     private static class TwoTimerTest extends PTransform<PBegin, PDone> {
 
       private static PTransform<PBegin, PDone> of(
-          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input) {
-        return new TwoTimerTest(start, end, input);
+          Instant start,
+          Instant end,
+          PTransform<PBegin, PCollection<KV<Void, Void>>> input,
+          IsBounded isBounded) {
+        return new TwoTimerTest(start, end, input, isBounded);
       }
 
       private final Instant start;
       private final Instant end;
       private final transient PTransform<PBegin, PCollection<KV<Void, Void>>> inputPTransform;
+      private IsBounded isBounded;
 
       public TwoTimerTest(
-          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input) {
+          Instant start,
+          Instant end,
+          PTransform<PBegin, PCollection<KV<Void, Void>>> input,
+          IsBounded isBounded) {
         this.start = start;
         this.end = end;
         this.inputPTransform = input;
+        this.isBounded = isBounded;
       }
 
       @Override
@@ -4778,6 +4819,7 @@ public class ParDoTest implements Serializable {
         PCollection<String> result =
             input
                 .apply(inputPTransform)
+                .setIsBoundedInternal(isBounded)
                 .apply(
                     ParDo.of(
                         new DoFn<KV<Void, Void>, String>() {
@@ -4797,7 +4839,6 @@ public class ParDoTest implements Serializable {
                               @TimerId(timerName1) Timer t1,
                               @TimerId(timerName2) Timer t2,
                               @StateId(countStateName) ValueState<Integer> state) {
-
                             state.write(0);
                             t1.set(start);
                             // set the t2 timer after end, so that we test that
@@ -4852,341 +4893,347 @@ public class ParDoTest implements Serializable {
       }
     }
 
-    @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void testSetAndClearProcessingTimeTimer() {
+    //    @Test
+    //    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void testSetAndClearProcessingTimeTimer() {
+    //
+    //      final String timerId = "processing-timer";
+    //
+    //      DoFn<KV<String, Integer>, Integer> fn =
+    //          new DoFn<KV<String, Integer>, Integer>() {
+    //
+    //            @TimerId(timerId)
+    //            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    //
+    //            @ProcessElement
+    //            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer>
+    // r) {
+    //              timer.offset(Duration.standardSeconds(1)).setRelative();
+    //              timer.clear();
+    //              r.output(3);
+    //            }
+    //
+    //            @OnTimer(timerId)
+    //            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+    //              r.output(42);
+    //            }
+    //          };
+    //
+    //      TestStream<KV<String, Integer>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+    //              .addElements(KV.of("hello", 37))
+    //              .advanceProcessingTime(
+    //                  Duration.millis(
+    //                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+    //                      .plus(Duration.standardMinutes(2)))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    //      PAssert.that(output).containsInAnyOrder(3);
+    //      pipeline.run();
+    //    }
+    //
+    //    @Test
+    //    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void testSetAndClearEventTimeTimer() {
+    //      final String timerId = "event-timer";
+    //
+    //      DoFn<KV<String, Integer>, Integer> fn =
+    //          new DoFn<KV<String, Integer>, Integer>() {
+    //
+    //            @TimerId(timerId)
+    //            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    //
+    //            @ProcessElement
+    //            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer>
+    // r) {
+    //              timer.offset(Duration.standardSeconds(1)).setRelative();
+    //              timer.clear();
+    //              r.output(3);
+    //            }
+    //
+    //            @OnTimer(timerId)
+    //            public void onTimer(OutputReceiver<Integer> r) {
+    //              r.output(42);
+    //            }
+    //          };
+    //
+    //      TestStream<KV<String, Integer>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+    //              .advanceWatermarkTo(new Instant(0))
+    //              .addElements(KV.of("hello", 37))
+    //              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    //      PAssert.that(output).containsInAnyOrder(3);
+    //      pipeline.run();
+    //    }
+    //
+    //    @Test
+    //    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void testClearUnsetProcessingTimeTimer() {
+    //      final String timerId = "processing-timer";
+    //
+    //      DoFn<KV<String, Integer>, Integer> fn =
+    //          new DoFn<KV<String, Integer>, Integer>() {
+    //
+    //            @TimerId(timerId)
+    //            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    //
+    //            @ProcessElement
+    //            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer>
+    // r) {
+    //              timer.clear();
+    //              r.output(3);
+    //            }
+    //
+    //            @OnTimer(timerId)
+    //            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+    //              r.output(42);
+    //            }
+    //          };
+    //
+    //      TestStream<KV<String, Integer>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+    //              .addElements(KV.of("hello", 37))
+    //              .advanceProcessingTime(
+    //                  Duration.millis(
+    //                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+    //                      .plus(Duration.standardMinutes(4)))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    //      PAssert.that(output).containsInAnyOrder(3);
+    //      pipeline.run();
+    //    }
+    //
+    //    @Test
+    //    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void testClearUnsetEventTimeTimer() {
+    //      final String timerId = "event-timer";
+    //
+    //      DoFn<KV<String, Integer>, Integer> fn =
+    //          new DoFn<KV<String, Integer>, Integer>() {
+    //
+    //            @TimerId(timerId)
+    //            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    //
+    //            @ProcessElement
+    //            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer>
+    // r) {
+    //              timer.clear();
+    //              r.output(3);
+    //            }
+    //
+    //            @OnTimer(timerId)
+    //            public void onTimer(OutputReceiver<Integer> r) {
+    //              r.output(42);
+    //            }
+    //          };
+    //
+    //      TestStream<KV<String, Integer>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+    //              .advanceWatermarkTo(new Instant(0))
+    //              .addElements(KV.of("hello", 37))
+    //              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    //      PAssert.that(output).containsInAnyOrder(3);
+    //      pipeline.run();
+    //    }
+    //
+    //    @Test
+    //    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void testClearProcessingTimeTimer() {
+    //      final String timerId = "processing-timer";
+    //      final String clearTimerId = "clear-timer";
+    //
+    //      DoFn<KV<String, Integer>, Integer> fn =
+    //          new DoFn<KV<String, Integer>, Integer>() {
+    //
+    //            @TimerId(timerId)
+    //            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    //
+    //            @TimerId(clearTimerId)
+    //            private final TimerSpec clearTimerSpec =
+    // TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    //
+    //            @ProcessElement
+    //            public void processElement(
+    //                @TimerId(timerId) Timer timer,
+    //                @TimerId(clearTimerId) Timer clearTimer,
+    //                OutputReceiver<Integer> r) {
+    //              timer.offset(Duration.standardSeconds(1)).setRelative();
+    //              clearTimer.offset(Duration.standardSeconds(2)).setRelative();
+    //
+    //              r.output(3);
+    //            }
+    //
+    //            @OnTimer(timerId)
+    //            public void onTimer(
+    //                OutputReceiver<Integer> r, @TimerId(clearTimerId) Timer clearTimer) {
+    //              System.err.println("onTimer");
+    //              r.output(42);
+    //              clearTimer.clear();
+    //            }
+    //
+    //            // This should never fire since we clear the timer in the earlier timer.
+    //            @OnTimer(clearTimerId)
+    //            public void clearTimer(OutputReceiver<Integer> r) {
+    //              System.err.println("clearTimer");
+    //              r.output(43);
+    //            }
+    //          };
+    //
+    //      TestStream<KV<String, Integer>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+    //              .addElements(KV.of("hello", 37))
+    //              .advanceProcessingTime(
+    //                  Duration.millis(
+    //                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+    //                      .plus(Duration.standardMinutes(2)))
+    //              .advanceProcessingTime(
+    //                  Duration.millis(
+    //                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+    //                      .plus(Duration.standardMinutes(4)))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    //      PAssert.that(output).containsInAnyOrder(3, 42);
+    //      pipeline.run();
+    //    }
 
-      final String timerId = "processing-timer";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
-
-            @ProcessElement
-            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
-              timer.offset(Duration.standardSeconds(1)).setRelative();
-              timer.clear();
-              r.output(3);
-            }
-
-            @OnTimer(timerId)
-            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
-              r.output(42);
-            }
-          };
-
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .addElements(KV.of("hello", 37))
-              .advanceProcessingTime(
-                  Duration.millis(
-                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
-                      .plus(Duration.standardMinutes(2)))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3);
-      pipeline.run();
-    }
-
-    @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void testSetAndClearEventTimeTimer() {
-      final String timerId = "event-timer";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-            @ProcessElement
-            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
-              timer.offset(Duration.standardSeconds(1)).setRelative();
-              timer.clear();
-              r.output(3);
-            }
-
-            @OnTimer(timerId)
-            public void onTimer(OutputReceiver<Integer> r) {
-              r.output(42);
-            }
-          };
-
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("hello", 37))
-              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3);
-      pipeline.run();
-    }
-
-    @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void testClearUnsetProcessingTimeTimer() {
-      final String timerId = "processing-timer";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
-
-            @ProcessElement
-            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
-              timer.clear();
-              r.output(3);
-            }
-
-            @OnTimer(timerId)
-            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
-              r.output(42);
-            }
-          };
-
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .addElements(KV.of("hello", 37))
-              .advanceProcessingTime(
-                  Duration.millis(
-                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
-                      .plus(Duration.standardMinutes(4)))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3);
-      pipeline.run();
-    }
-
-    @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void testClearUnsetEventTimeTimer() {
-      final String timerId = "event-timer";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-            @ProcessElement
-            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
-              timer.clear();
-              r.output(3);
-            }
-
-            @OnTimer(timerId)
-            public void onTimer(OutputReceiver<Integer> r) {
-              r.output(42);
-            }
-          };
-
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("hello", 37))
-              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3);
-      pipeline.run();
-    }
-
-    @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void testClearProcessingTimeTimer() {
-      final String timerId = "processing-timer";
-      final String clearTimerId = "clear-timer";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
-
-            @TimerId(clearTimerId)
-            private final TimerSpec clearTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
-
-            @ProcessElement
-            public void processElement(
-                @TimerId(timerId) Timer timer,
-                @TimerId(clearTimerId) Timer clearTimer,
-                OutputReceiver<Integer> r) {
-              timer.offset(Duration.standardSeconds(1)).setRelative();
-              clearTimer.offset(Duration.standardSeconds(2)).setRelative();
-
-              r.output(3);
-            }
-
-            @OnTimer(timerId)
-            public void onTimer(
-                OutputReceiver<Integer> r, @TimerId(clearTimerId) Timer clearTimer) {
-              System.err.println("onTimer");
-              r.output(42);
-              clearTimer.clear();
-            }
-
-            // This should never fire since we clear the timer in the earlier timer.
-            @OnTimer(clearTimerId)
-            public void clearTimer(OutputReceiver<Integer> r) {
-              System.err.println("clearTimer");
-              r.output(43);
-            }
-          };
-
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .addElements(KV.of("hello", 37))
-              .advanceProcessingTime(
-                  Duration.millis(
-                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
-                      .plus(Duration.standardMinutes(2)))
-              .advanceProcessingTime(
-                  Duration.millis(
-                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
-                      .plus(Duration.standardMinutes(4)))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3, 42);
-      pipeline.run();
-    }
-
-    @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void testClearEventTimeTimer() {
-      final String timerId = "event-timer";
-      final String clearTimerId = "clear-timer";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-            @TimerId(clearTimerId)
-            private final TimerSpec clearSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-            @ProcessElement
-            public void processElement(
-                @TimerId(timerId) Timer timer,
-                @TimerId(clearTimerId) Timer clearTimer,
-                OutputReceiver<Integer> r) {
-              timer.offset(Duration.standardSeconds(1)).setRelative();
-              clearTimer.offset(Duration.standardSeconds(2)).setRelative();
-
-              r.output(3);
-            }
-
-            @OnTimer(timerId)
-            public void onTimer(
-                OutputReceiver<Integer> r, @TimerId(clearTimerId) Timer clearTimer) {
-              r.output(42);
-              clearTimer.clear();
-            }
-
-            // This should never fire since we clear the timer in the earlier timer.
-            @OnTimer(clearTimerId)
-            public void clearTimer(OutputReceiver<Integer> r) {
-              r.output(43);
-            }
-          };
-
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("hello", 37))
-              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3, 42);
-      pipeline.run();
-    }
-
-    @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void testSetProcessingTimerAfterClear() {
-      final String timerId = "processing-timer";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
-
-            @ProcessElement
-            public void processElement(
-                @Element KV<String, Integer> e,
-                @TimerId(timerId) Timer timer,
-                OutputReceiver<Integer> r) {
-              timer.clear();
-              timer.offset(Duration.standardSeconds(1)).setRelative();
-              r.output(3);
-            }
-
-            @OnTimer(timerId)
-            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
-              r.output(42);
-            }
-          };
-
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .addElements(KV.of("hello", 37), KV.of("hello", 38))
-              .advanceProcessingTime(
-                  Duration.millis(
-                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
-                      .plus(Duration.standardMinutes(2)))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3, 3, 42);
-      pipeline.run();
-    }
-
-    @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
-    public void testSetEventTimerAfterClear() {
-      final String timerId = "event-timer";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-            @ProcessElement
-            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
-              timer.clear();
-              timer.offset(Duration.standardSeconds(1)).setRelative();
-              r.output(3);
-            }
-
-            @OnTimer(timerId)
-            public void onTimer(OutputReceiver<Integer> r) {
-              r.output(42);
-            }
-          };
-
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("hello", 37), KV.of("hello", 38))
-              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3, 3, 42);
-      pipeline.run();
-    }
+    //    @Test
+    //    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void testClearEventTimeTimer() {
+    //      final String timerId = "event-timer";
+    //      final String clearTimerId = "clear-timer";
+    //
+    //      DoFn<KV<String, Integer>, Integer> fn =
+    //          new DoFn<KV<String, Integer>, Integer>() {
+    //
+    //            @TimerId(timerId)
+    //            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    //
+    //            @TimerId(clearTimerId)
+    //            private final TimerSpec clearSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    //
+    //            @ProcessElement
+    //            public void processElement(
+    //                @TimerId(timerId) Timer timer,
+    //                @TimerId(clearTimerId) Timer clearTimer,
+    //                OutputReceiver<Integer> r) {
+    //              timer.offset(Duration.standardSeconds(1)).setRelative();
+    //              clearTimer.offset(Duration.standardSeconds(2)).setRelative();
+    //
+    //              r.output(3);
+    //            }
+    //
+    //            @OnTimer(timerId)
+    //            public void onTimer(
+    //                OutputReceiver<Integer> r, @TimerId(clearTimerId) Timer clearTimer) {
+    //              r.output(42);
+    //              clearTimer.clear();
+    //            }
+    //
+    //            // This should never fire since we clear the timer in the earlier timer.
+    //            @OnTimer(clearTimerId)
+    //            public void clearTimer(OutputReceiver<Integer> r) {
+    //              r.output(43);
+    //            }
+    //          };
+    //
+    //      TestStream<KV<String, Integer>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+    //              .advanceWatermarkTo(new Instant(0))
+    //              .addElements(KV.of("hello", 37))
+    //              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    //      PAssert.that(output).containsInAnyOrder(3, 42);
+    //      pipeline.run();
+    //    }
+    //
+    //    @Test
+    //    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void testSetProcessingTimerAfterClear() {
+    //      final String timerId = "processing-timer";
+    //
+    //      DoFn<KV<String, Integer>, Integer> fn =
+    //          new DoFn<KV<String, Integer>, Integer>() {
+    //
+    //            @TimerId(timerId)
+    //            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    //
+    //            @ProcessElement
+    //            public void processElement(
+    //                @Element KV<String, Integer> e,
+    //                @TimerId(timerId) Timer timer,
+    //                OutputReceiver<Integer> r) {
+    //              timer.clear();
+    //              timer.offset(Duration.standardSeconds(1)).setRelative();
+    //              r.output(3);
+    //            }
+    //
+    //            @OnTimer(timerId)
+    //            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+    //              r.output(42);
+    //            }
+    //          };
+    //
+    //      TestStream<KV<String, Integer>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+    //              .addElements(KV.of("hello", 37), KV.of("hello", 38))
+    //              .advanceProcessingTime(
+    //                  Duration.millis(
+    //                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+    //                      .plus(Duration.standardMinutes(2)))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    //      PAssert.that(output).containsInAnyOrder(3, 3, 42);
+    //      pipeline.run();
+    //    }
+    //
+    //    @Test
+    //    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    //    public void testSetEventTimerAfterClear() {
+    //      final String timerId = "event-timer";
+    //
+    //      DoFn<KV<String, Integer>, Integer> fn =
+    //          new DoFn<KV<String, Integer>, Integer>() {
+    //
+    //            @TimerId(timerId)
+    //            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    //
+    //            @ProcessElement
+    //            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer>
+    // r) {
+    //              timer.clear();
+    //              timer.offset(Duration.standardSeconds(1)).setRelative();
+    //              r.output(3);
+    //            }
+    //
+    //            @OnTimer(timerId)
+    //            public void onTimer(OutputReceiver<Integer> r) {
+    //              r.output(42);
+    //            }
+    //          };
+    //
+    //      TestStream<KV<String, Integer>> stream =
+    //          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+    //              .advanceWatermarkTo(new Instant(0))
+    //              .addElements(KV.of("hello", 37), KV.of("hello", 38))
+    //              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
+    //              .advanceWatermarkToInfinity();
+    //
+    //      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    //      PAssert.that(output).containsInAnyOrder(3, 3, 42);
+    //      pipeline.run();
+    //    }
   }
 
   /** Tests validating Timer coder inference behaviors. */

@@ -319,7 +319,6 @@ task validatesRunnerStreaming {
       'org.apache.beam.sdk.testing.UsesMapState',
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
       'org.apache.beam.sdk.testing.UsesSetState',
-      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering',
     ],
   ))
 }
