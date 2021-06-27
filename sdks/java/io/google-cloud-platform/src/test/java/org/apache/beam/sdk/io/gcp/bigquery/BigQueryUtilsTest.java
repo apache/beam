@@ -145,13 +145,19 @@ public class BigQueryUtilsTest {
       new TableFieldSchema().setName("datetime").setType(StandardSQLTypeName.DATETIME.toString());
 
   private static final TableFieldSchema DATETIME_0MS =
-          new TableFieldSchema().setName("datetime0ms").setType(StandardSQLTypeName.DATETIME.toString());
+      new TableFieldSchema()
+          .setName("datetime0ms")
+          .setType(StandardSQLTypeName.DATETIME.toString());
 
   private static final TableFieldSchema DATETIME_0S_NS =
-          new TableFieldSchema().setName("datetime0s_ns").setType(StandardSQLTypeName.DATETIME.toString());
+      new TableFieldSchema()
+          .setName("datetime0s_ns")
+          .setType(StandardSQLTypeName.DATETIME.toString());
 
   private static final TableFieldSchema DATETIME_0S_0NS =
-          new TableFieldSchema().setName("datetime0s_0ns").setType(StandardSQLTypeName.DATETIME.toString());
+      new TableFieldSchema()
+          .setName("datetime0s_0ns")
+          .setType(StandardSQLTypeName.DATETIME.toString());
 
   private static final TableFieldSchema DATE =
       new TableFieldSchema().setName("date").setType(StandardSQLTypeName.DATE.toString());
@@ -160,13 +166,13 @@ public class BigQueryUtilsTest {
       new TableFieldSchema().setName("time").setType(StandardSQLTypeName.TIME.toString());
 
   private static final TableFieldSchema TIME_0MS =
-          new TableFieldSchema().setName("time0ms").setType(StandardSQLTypeName.TIME.toString());
+      new TableFieldSchema().setName("time0ms").setType(StandardSQLTypeName.TIME.toString());
 
   private static final TableFieldSchema TIME_0S_NS =
-          new TableFieldSchema().setName("time0s_ns").setType(StandardSQLTypeName.TIME.toString());
+      new TableFieldSchema().setName("time0s_ns").setType(StandardSQLTypeName.TIME.toString());
 
   private static final TableFieldSchema TIME_0S_0NS =
-          new TableFieldSchema().setName("time0s_0ns").setType(StandardSQLTypeName.TIME.toString());
+      new TableFieldSchema().setName("time0s_0ns").setType(StandardSQLTypeName.TIME.toString());
 
   private static final TableFieldSchema VALID =
       new TableFieldSchema().setName("valid").setType(StandardSQLTypeName.BOOL.toString());
@@ -318,7 +324,9 @@ public class BigQueryUtilsTest {
 
   private static final Row NULL_FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
-          .addValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null)
+          .addValues(
+              null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+              null, null, null, null, null)
           .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
