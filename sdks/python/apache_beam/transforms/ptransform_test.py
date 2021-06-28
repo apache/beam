@@ -801,6 +801,32 @@ class PTransformTest(unittest.TestCase):
               'X': [4], 'Y': [7, 8]
           })]))
 
+  def test_co_group_by_key_on_dict_with_tuple_keys(self):
+    with TestPipeline() as pipeline:
+      key = ('a', ('b', 'c'))
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([(key, 1)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([(key, 2)])
+      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey()
+      result |= _SortLists
+      assert_that(result, equal_to([(key, {'X': [1], 'Y': [2]})]))
+
+  def test_co_group_by_key_on_empty(self):
+    with TestPipeline() as pipeline:
+      assert_that(
+          tuple() | 'EmptyTuple' >> beam.CoGroupByKey(pipeline=pipeline),
+          equal_to([]),
+          label='AssertEmptyTuple')
+      assert_that([] | 'EmptyList' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyList')
+      assert_that(
+          iter([]) | 'EmptyIterable' >> beam.CoGroupByKey(pipeline=pipeline),
+          equal_to([]),
+          label='AssertEmptyIterable')
+      assert_that({} | 'EmptyDict' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyDict')
+
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
       with TestPipeline() as pipeline:
