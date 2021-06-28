@@ -87,4 +87,3 @@ pyhamcrest<2.0,>=1.9
 pytest==4.6.11
 # TODO(BEAM-3713): Remove once nose is no longer in use.
 nose==1.3.7
-nose_xunitmp == 0.4.1
