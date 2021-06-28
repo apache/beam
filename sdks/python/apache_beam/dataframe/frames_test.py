@@ -2041,7 +2041,8 @@ class ReprTest(unittest.TestCase):
         expressions.ConstantExpression(GROUPBY_DF))
     self.assertEqual(
         repr(df),
-        "DeferredDataFrame(columns=['group', 'foo', 'bar', 'baz', 'bool', 'str'], index=<unnamed>)"
+        ("DeferredDataFrame(columns=['group', 'foo', 'bar', 'baz', 'bool', "
+         "'str'], index=<unnamed>)")
     )
 
   def test_dataframe_with_named_index(self):
@@ -2049,7 +2050,8 @@ class ReprTest(unittest.TestCase):
         expressions.ConstantExpression(GROUPBY_DF.set_index('group')))
     self.assertEqual(
         repr(df),
-        "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool', 'str'], index='group')"
+        ("DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool', 'str'], "
+         "index='group')")
     )
 
   def test_dataframe_with_partial_named_index(self):
@@ -2058,7 +2060,8 @@ class ReprTest(unittest.TestCase):
             GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])))
     self.assertEqual(
         repr(df),
-        "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool', 'str'], indexes=[<unnamed>, 'group'])"
+        ("DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool', 'str'], "
+         "indexes=[<unnamed>, 'group'])")
     )
 
   def test_dataframe_with_named_multi_index(self):
@@ -2066,7 +2069,8 @@ class ReprTest(unittest.TestCase):
         expressions.ConstantExpression(GROUPBY_DF.set_index(['str', 'group'])))
     self.assertEqual(
         repr(df),
-        "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool'], indexes=['str', 'group'])"
+        ("DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool'], "
+         "indexes=['str', 'group'])")
     )
 
   def test_dataframe_with_multiple_column_levels(self):
@@ -2081,7 +2085,9 @@ class ReprTest(unittest.TestCase):
     df = frame_base.DeferredFrame.wrap(expressions.ConstantExpression(df))
     self.assertEqual(
         repr(df),
-        "DeferredDataFrame(columns=[('bazzy', 'A'), ('bazzy', 'B'), ('bazzy', 'C'), ('zoop', 'A'), ('zoop', 'B'), ('zoop', 'C')], index='foofoofoo')"
+        ("DeferredDataFrame(columns=[('bazzy', 'A'), ('bazzy', 'B'), "
+         "('bazzy', 'C'), ('zoop', 'A'), ('zoop', 'B'), ('zoop', 'C')], "
+         "index='foofoofoo')")
     )
 
   def test_dataframe_with_multiple_column_and_multiple_index_levels(self):
@@ -2104,7 +2110,9 @@ class ReprTest(unittest.TestCase):
     df = frame_base.DeferredFrame.wrap(expressions.ConstantExpression(df))
     self.assertEqual(
         repr(df),
-        "DeferredDataFrame(columns=[('bazzy', 'A'), ('bazzy', 'B'), ('bazzy', 'C'), ('zoop', 'A'), ('zoop', 'B'), ('zoop', 'C')], indexes=[<unnamed>, 'foofoofoo'])"
+        ("DeferredDataFrame(columns=[('bazzy', 'A'), ('bazzy', 'B'), "
+         "('bazzy', 'C'), ('zoop', 'A'), ('zoop', 'B'), ('zoop', 'C')], "
+         "indexes=[<unnamed>, 'foofoofoo'])")
     )
 
   def test_basic_series(self):
@@ -2125,7 +2133,8 @@ class ReprTest(unittest.TestCase):
             GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])['bar']))
     self.assertEqual(
         repr(df),
-        "DeferredSeries(name='bar', dtype=float64, indexes=[<unnamed>, 'group'])"
+        ("DeferredSeries(name='bar', dtype=float64, "
+         "indexes=[<unnamed>, 'group'])")
     )
 
   def test_series_with_named_multi_index(self):
