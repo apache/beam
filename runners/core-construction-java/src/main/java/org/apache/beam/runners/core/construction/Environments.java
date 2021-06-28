@@ -86,7 +86,9 @@ public class Environments {
   private static final Map<String, Set<String>> allowedEnvironmentOptions =
       ImmutableMap.<String, Set<String>>builder()
           .put(ENVIRONMENT_DOCKER, ImmutableSet.of(dockerContainerImageOption))
-          .put(ENVIRONMENT_EXTERNAL, ImmutableSet.of(externalServiceAddressOption, externalServiceExecutableOption))
+          .put(
+              ENVIRONMENT_EXTERNAL,
+              ImmutableSet.of(externalServiceAddressOption, externalServiceExecutableOption))
           .put(ENVIRONMENT_PROCESS, ImmutableSet.of(processCommandOption, processVariablesOption))
           .build();
 

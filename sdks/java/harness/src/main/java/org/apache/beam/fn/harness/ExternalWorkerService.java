@@ -38,9 +38,9 @@ import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,15 +51,19 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
 
   private static final Logger LOG = LoggerFactory.getLogger(ExternalWorkerService.class);
   private static final String PIPELINE_OPTIONS_ENV_VAR = "PIPELINE_OPTIONS";
+  private static final String SDK_WORKER_NAME_PREFIX = "SDK-worker-";
 
   private final PipelineOptions options;
-  private final String processCommand;
+  private final String executable;
+  private final boolean useProcess;
   private final ProcessManager manager = ProcessManager.create();
   private final ServerFactory serverFactory = ServerFactory.createDefault();
 
   public ExternalWorkerService(PipelineOptions options) {
     this.options = options;
-    this.processCommand = Environments.getExternalServiceExecutable(options.as(PortablePipelineOptions.class));
+    this.executable =
+        Environments.getExternalServiceExecutable(options.as(PortablePipelineOptions.class));
+    this.useProcess = StringUtils.isNotBlank(executable);
   }
 
   @Override
@@ -71,7 +75,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
         request.getControlEndpoint().getUrl());
     LOG.debug("Worker request {}.", request);
 
-    if (StringUtils.isNotBlank(processCommand)) {
+    if (useProcess) {
       startWorkerProcess(request, responseObserver);
     } else {
       startWorkerThread(request, responseObserver);
@@ -81,8 +85,8 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
   @Override
   public void stopWorker(
       StopWorkerRequest request, StreamObserver<StopWorkerResponse> responseObserver) {
-    if (StringUtils.isNotBlank(processCommand)) {
-      manager.stopProcess("SDK-worker-" + request.getWorkerId());
+    if (useProcess) {
+      manager.stopProcess(SDK_WORKER_NAME_PREFIX + request.getWorkerId());
     }
 
     // Thread based workers terminate automatically
@@ -92,21 +96,24 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
 
   private void startWorkerProcess(
       StartWorkerRequest request, StreamObserver<StartWorkerResponse> responseObserver) {
-    List<String> arguments = ImmutableList.<String>builder()
-        .add(String.format("--id=%s", request.getWorkerId()))
-        .add(String.format("--logging_endpoint=%s", request.getLoggingEndpoint().getUrl()))
-        .add(String.format("--artifact_endpoint=%s", request.getArtifactEndpoint().getUrl()))
-        .add(String.format("--provision_endpoint=%s", request.getProvisionEndpoint().getUrl()))
-        .add(String.format("--control_endpoint=%s", request.getControlEndpoint().getUrl()))
-        .build();
-    Map<String, String> env = ImmutableMap.<String, String>builder()
-        .put(PIPELINE_OPTIONS_ENV_VAR, PipelineOptionsTranslation.toJson(options))
-        .build();
+    List<String> arguments =
+        ImmutableList.<String>builder()
+            .add(String.format("--id=%s", request.getWorkerId()))
+            .add(String.format("--logging_endpoint=%s", request.getLoggingEndpoint().getUrl()))
+            .add(String.format("--artifact_endpoint=%s", request.getArtifactEndpoint().getUrl()))
+            .add(String.format("--provision_endpoint=%s", request.getProvisionEndpoint().getUrl()))
+            .add(String.format("--control_endpoint=%s", request.getControlEndpoint().getUrl()))
+            .build();
+    Map<String, String> env =
+        ImmutableMap.<String, String>builder()
+            .put(PIPELINE_OPTIONS_ENV_VAR, PipelineOptionsTranslation.toJson(options))
+            .build();
 
     try {
       manager.startProcess(
-          "SDK-worker-" + request.getWorkerId(), processCommand, arguments, env);
+          SDK_WORKER_NAME_PREFIX + request.getWorkerId(), executable, arguments, env);
       LOG.info("Successfully started worker {}.", request.getWorkerId());
+
       responseObserver.onNext(StartWorkerResponse.newBuilder().build());
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -115,6 +122,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
       } catch (Exception processKillException) {
         e.addSuppressed(processKillException);
       }
+
       responseObserver.onError(e);
     }
   }

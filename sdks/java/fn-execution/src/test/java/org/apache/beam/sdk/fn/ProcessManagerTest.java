@@ -34,12 +34,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
-import org.apache.beam.sdk.fn.ProcessManager;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link ProcessManager}. */
+/** Tests for {@link org.apache.beam.sdk.fn.ProcessManager}. */
 @RunWith(JUnit4.class)
 public class ProcessManagerTest {
 
