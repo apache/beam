@@ -96,8 +96,16 @@ ReadFromKafkaSchema = typing.NamedTuple(
      ('commit_offset_in_finalize', bool), ('timestamp_policy', str)])
 
 
-def default_io_expansion_service():
-  return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
+def default_io_expansion_service(args = None):
+  extra_args = None
+  if args:
+    if type(args) != type({}):
+      raise ValueError(
+          "Invalid value, expected dictionary for default_expansion_service_args, got %s"
+          % (type(args), ))
+    extra_args = ['{{PORT}}'] + list(map(lambda i: "--%s=%s" % (i[0], i[1]), args.items()))
+  return BeamJarExpansionService(
+      'sdks:java:io:expansion-service:shadowJar', extra_args=extra_args)
 
 
 class ReadFromKafka(ExternalTransform):
@@ -131,6 +139,7 @@ class ReadFromKafka(ExternalTransform):
       commit_offset_in_finalize=False,
       timestamp_policy=processing_time_policy,
       expansion_service=None,
+      default_expansion_service_args={}
   ):
     """
     Initializes a read operation from Kafka.
@@ -155,6 +164,10 @@ class ReadFromKafka(ExternalTransform):
     :param timestamp_policy: The built-in timestamp policy which is used for
         extracting timestamp from KafkaRecord.
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param default_expansion_service_args: An optional dictionary that will be passed
+        as command-line arguments to default expansion service
+        This allows to set environment_type via
+        {"defaultEnvironmentType": "PROCESS", "defaultEnvironmentConfig": "..."}.
     """
     if timestamp_policy not in [ReadFromKafka.processing_time_policy,
                                 ReadFromKafka.create_time_policy,
@@ -162,6 +175,11 @@ class ReadFromKafka(ExternalTransform):
       raise ValueError(
           'timestamp_policy should be one of '
           '[ProcessingTime, CreateTime, LogAppendTime]')
+
+    if expansion_service and default_expansion_service_args:
+      raise ValueError(
+          "Please specify 'default_expansion_service_args' only when not using "
+          "custom 'expansion_service' (%s)" % (expansion_service, ))
 
     super(ReadFromKafka, self).__init__(
         self.URN,
@@ -176,7 +194,8 @@ class ReadFromKafka(ExternalTransform):
                 start_read_time=start_read_time,
                 commit_offset_in_finalize=commit_offset_in_finalize,
                 timestamp_policy=timestamp_policy)),
-        expansion_service or default_io_expansion_service())
+        expansion_service or default_io_expansion_service(
+            args=default_expansion_service_args))
 
 
 WriteToKafkaSchema = typing.NamedTuple(
@@ -210,7 +229,8 @@ class WriteToKafka(ExternalTransform):
       topic,
       key_serializer=byte_array_serializer,
       value_serializer=byte_array_serializer,
-      expansion_service=None):
+      expansion_service=None,
+      default_expansion_service_args={}):
     """
     Initializes a write operation to Kafka.
 
@@ -225,7 +245,17 @@ class WriteToKafka(ExternalTransform):
         'org.apache.kafka.common.serialization.LongSerializer'.
         Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param default_expansion_service_args: An optional dictionary that will be passed
+        as command-line arguments to default expansion service
+        This allows to set environment_type via
+        {"defaultEnvironmentType": "PROCESS", "defaultEnvironmentConfig": "..."}.
     """
+
+    if expansion_service and default_expansion_service_args:
+      raise ValueError(
+          "Please specify 'default_expansion_service_args' only when not using "
+          "custom 'expansion_service' (%s)" % (expansion_service, ))
+
     super(WriteToKafka, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -235,4 +265,5 @@ class WriteToKafka(ExternalTransform):
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
             )),
-        expansion_service or default_io_expansion_service())
+        expansion_service or default_io_expansion_service(
+            args=default_expansion_service_args))
