@@ -544,6 +544,7 @@ public class KafkaIO {
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
+        .setNullKeyFlag(false)
         .setTopics(new ArrayList<>())
         .setTopicPartitions(new ArrayList<>())
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
@@ -608,6 +609,9 @@ public class KafkaIO {
   @SuppressWarnings({"rawtypes"})
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
+
+    abstract boolean isNullKeyFlag();
+
     abstract Map<String, Object> getConsumerConfig();
 
     abstract @Nullable List<String> getTopics();
@@ -650,6 +654,9 @@ public class KafkaIO {
     @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V> {
+
+      abstract Builder<K, V> setNullKeyFlag(boolean nullKeyFlag);
+
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
 
       abstract Builder<K, V> setTopics(List<String> topics);
@@ -698,6 +705,8 @@ public class KafkaIO {
           listBuilder.add(topic);
         }
         builder.setTopics(listBuilder.build());
+        // setNullKeyFlag(config.nullKeyFlag);
+        setNullKeyFlag(false);
 
         Class keyDeserializer = resolveClass(config.keyDeserializer);
         builder.setKeyDeserializerProvider(LocalDeserializerProvider.of(keyDeserializer));
@@ -768,6 +777,8 @@ public class KafkaIO {
         }
         throw new RuntimeException("Couldn't resolve coder for Deserializer: " + deserializer);
       }
+
+
     }
 
     /**
@@ -799,6 +810,7 @@ public class KafkaIO {
       /** Parameters class to expose the Read transform to an external SDK. */
       public static class Configuration {
 
+        // private Boolean nullKeyFlag;
         private Map<String, String> consumerConfig;
         private List<String> topics;
         private String keyDeserializer;
@@ -808,6 +820,10 @@ public class KafkaIO {
         private Long maxReadTime;
         private Boolean commitOffsetInFinalize;
         private String timestampPolicy;
+
+        // public void setNullKeyFlag(Boolean nullKeyFlag) {
+        //   this.nullKeyFlag = nullKeyFlag;
+        // }
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -845,6 +861,16 @@ public class KafkaIO {
           this.timestampPolicy = timestampPolicy;
         }
       }
+    }
+
+    /**
+     * Update nullKeyFlag for present of null keys
+     *
+     * By default, nullKeyFlag is {@code false} and will invoke {@link KafkaRecordCoder}
+     * when nullKeyFlag is {@code true}, it invokes {@link NullableKeyKafkaRecordCoder}
+     */
+    public Read<K, V> withNullKeyFlag() {
+      return toBuilder().setNullKeyFlag(true).build();
     }
 
     /** Sets the bootstrap servers for the Kafka consumer. */
@@ -1255,6 +1281,7 @@ public class KafkaIO {
 
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
+      boolean isNullKeyFlag = isNullKeyFlag();
 
       // For read from unbounded in a bounded manner, we actually are not going through Read or SDF.
       if (ExperimentalOptions.hasExperiment(
@@ -1264,9 +1291,9 @@ public class KafkaIO {
           || getMaxNumRecords() < Long.MAX_VALUE
           || getMaxReadTime() != null
           || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
-        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
+        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder, isNullKeyFlag));
       }
-      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder, isNullKeyFlag));
     }
 
     private boolean runnerRequiresLegacyRead(PipelineOptions options) {
@@ -1307,7 +1334,8 @@ public class KafkaIO {
             new ReadFromKafkaViaUnbounded<>(
                 transform.getTransform().kafkaRead,
                 transform.getTransform().keyCoder,
-                transform.getTransform().valueCoder));
+                transform.getTransform().valueCoder,
+                transform.getTransform().isNullKeyFlag));
       }
 
       @Override
@@ -1322,24 +1350,40 @@ public class KafkaIO {
       Read<K, V> kafkaRead;
       Coder<K> keyCoder;
       Coder<V> valueCoder;
+      boolean isNullKeyFlag;
 
-      ReadFromKafkaViaUnbounded(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
+      ReadFromKafkaViaUnbounded(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder, boolean isNullKeyFlag) {
         this.kafkaRead = kafkaRead;
         this.keyCoder = keyCoder;
         this.valueCoder = valueCoder;
+        this.isNullKeyFlag = isNullKeyFlag;
       }
 
       @Override
       public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
-        Unbounded<KafkaRecord<K, V>> unbounded =
-            org.apache.beam.sdk.io.Read.from(
-                kafkaRead
-                    .toBuilder()
-                    .setKeyCoder(keyCoder)
-                    .setValueCoder(valueCoder)
-                    .build()
-                    .makeSource());
+        Unbounded<KafkaRecord<K, V>> unbounded = null;
+        if(isNullKeyFlag){
+          unbounded =
+              org.apache.beam.sdk.io.Read.from(
+                  kafkaRead
+                      .toBuilder()
+                      .setNullKeyFlag(true)
+                      .setKeyCoder(keyCoder)
+                      .setValueCoder(valueCoder)
+                      .build()
+                      .makeSource());
+        }else{
+          unbounded =
+              org.apache.beam.sdk.io.Read.from(
+                  kafkaRead
+                      .toBuilder()
+                      .setNullKeyFlag(false)
+                      .setKeyCoder(keyCoder)
+                      .setValueCoder(valueCoder)
+                      .build()
+                      .makeSource());
+        }
 
         PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
@@ -1359,11 +1403,13 @@ public class KafkaIO {
       Read<K, V> kafkaRead;
       Coder<K> keyCoder;
       Coder<V> valueCoder;
+      boolean isNullKeyFlag;
 
-      ReadFromKafkaViaSDF(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
+      ReadFromKafkaViaSDF(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder, boolean isNullKeyFlag) {
         this.kafkaRead = kafkaRead;
         this.keyCoder = keyCoder;
         this.valueCoder = valueCoder;
+        this.isNullKeyFlag = isNullKeyFlag;
       }
 
       @Override
@@ -1418,7 +1464,15 @@ public class KafkaIO {
                   .apply(Impulse.create())
                   .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
         }
-        return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+
+        if(kafkaRead.isNullKeyFlag()){
+          LOG.warn("using nullable key kafka record coder");
+          return output.apply(readTransform).setCoder(NullableKeyKafkaRecordCoder.of(keyCoder, valueCoder));
+        }else{
+          LOG.warn("using standard key kafka record coder");
+          return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+        }
+        // return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
       }
     }
 
@@ -2277,6 +2331,7 @@ public class KafkaIO {
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
+
       abstract Builder<K, V> setTopic(String topic);
 
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
@@ -2542,6 +2597,7 @@ public class KafkaIO {
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
+
       abstract Builder<K, V> setTopic(String topic);
 
       abstract Builder<K, V> setWriteRecordsTransform(WriteRecords<K, V> transform);
