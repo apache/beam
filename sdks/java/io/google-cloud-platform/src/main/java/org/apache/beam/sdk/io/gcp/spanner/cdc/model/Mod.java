@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.avro.reflect.AvroSchema;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
@@ -28,9 +29,15 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 public class Mod implements Serializable {
 
   private static final long serialVersionUID = 7362322548913179939L;
+  private static final String NULLS_ALLOWED_SCHEMA =
+      "[\"null\",{\"type\":\"map\",\"values\":[\"null\",\"string\"]}]";
 
   private Map<String, String> keys;
+
+  @AvroSchema(NULLS_ALLOWED_SCHEMA)
   private Map<String, String> oldValues;
+
+  @AvroSchema(NULLS_ALLOWED_SCHEMA)
   private Map<String, String> newValues;
 
   public static OldAndNewBuilder newOldAndNewBuilder() {

@@ -35,11 +35,11 @@ public class DonePartitionAction {
     LOG.info("Marking partition " + partition.getPartitionToken() + " as done");
 
     if (!tracker.tryClaim(PartitionPosition.done())) {
-      LOG.debug("Could not claim, stopping");
+      LOG.info("Could not claim, stopping");
       return ProcessContinuation.stop();
     }
 
-    LOG.debug("Done partition action completed successfully");
+    LOG.info("Done partition action completed successfully");
     return ProcessContinuation.stop();
   }
 }

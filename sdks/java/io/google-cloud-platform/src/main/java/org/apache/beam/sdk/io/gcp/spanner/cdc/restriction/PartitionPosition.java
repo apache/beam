@@ -62,6 +62,10 @@ public class PartitionPosition implements Serializable {
     return new PartitionPosition(Optional.empty(), PartitionMode.DONE, Optional.empty());
   }
 
+  public static PartitionPosition stop() {
+    return new PartitionPosition(Optional.empty(), PartitionMode.STOP, Optional.empty());
+  }
+
   @VisibleForTesting
   protected PartitionPosition(
       Optional<Timestamp> maybeTimestamp,

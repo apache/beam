@@ -105,7 +105,10 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   @GetInitialRestriction
   public PartitionRestriction initialRestriction(@Element PartitionMetadata element) {
     return new PartitionRestriction(
-        element.getStartTimestamp(), PartitionMode.QUERY_CHANGE_STREAM, null);
+        element.getStartTimestamp(),
+        element.getEndTimestamp(),
+        PartitionMode.QUERY_CHANGE_STREAM,
+        null);
   }
 
   @NewTracker
@@ -144,7 +147,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       OutputReceiver<DataChangesRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
     MDC.put("partitionToken", partition.getPartitionToken());
-    LOG.debug(
+    LOG.info(
         "Processing element "
             + partition.getPartitionToken()
             + " with restriction "

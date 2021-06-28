@@ -26,6 +26,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
@@ -87,14 +89,69 @@ public class ModelEncodingTest {
             "3",
             "TableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("typeCode1"), true, 1),
-                new ColumnType("column2", new TypeCode("typeCode2"), false, 2)),
+                new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
+                new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
+                new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
             Collections.singletonList(
                 new Mod(
-                    ImmutableMap.of("keyColumn1", "keyValue1"),
+                    ImmutableMap.of("keyColumn", "keyValue"),
                     ImmutableMap.of("column1", "value1", "column2", "oldValue2"),
                     ImmutableMap.of("column1", "value1", "column2", "newValue2"))),
-            ModType.INSERT,
+            ModType.UPDATE,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            1,
+            1);
+
+    assertEquals(dataChangesRecord, encodeAndDecode(dataChangesRecord));
+  }
+
+  @Test
+  public void testDataChangesRecordWithNullOldAndNewValuesCanBeEncoded() throws IOException {
+    final DataChangesRecord dataChangesRecord =
+        new DataChangesRecord(
+            "1",
+            Timestamp.now(),
+            "2",
+            true,
+            "3",
+            "TableName",
+            Arrays.asList(
+                new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
+                new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
+                new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
+            Collections.singletonList(
+                new Mod(ImmutableMap.of("keyColumn", "keyValue"), null, null)),
+            ModType.UPDATE,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            1,
+            1);
+
+    assertEquals(dataChangesRecord, encodeAndDecode(dataChangesRecord));
+  }
+
+  @Test
+  public void testDataChangesRecordWithNullValuesInsideAModCanBeEncoded() throws IOException {
+    final Map<String, String> oldValues = new HashMap<>();
+    oldValues.put("column1", "oldValue1");
+    oldValues.put("column2", null);
+    final Map<String, String> newValues = new HashMap<>();
+    newValues.put("column1", null);
+    newValues.put("column2", "newValue2");
+    final DataChangesRecord dataChangesRecord =
+        new DataChangesRecord(
+            "1",
+            Timestamp.now(),
+            "2",
+            true,
+            "3",
+            "TableName",
+            Arrays.asList(
+                new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
+                new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
+                new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
+            Collections.singletonList(
+                new Mod(ImmutableMap.of("keyColumn", "keyValue"), oldValues, newValues)),
+            ModType.UPDATE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             1,
             1);

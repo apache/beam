@@ -26,6 +26,7 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -33,7 +34,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -139,7 +140,7 @@ public class SpannerChangeStreamIT {
   }
 
   @Test
-  public void testReadSpannerChangeStream() {
+  public void testReadSpannerChangeStream() throws InterruptedException {
     final SpannerConfig spannerConfig =
         SpannerConfig.create()
             .withHost(StaticValueProvider.of(SPANNER_HOST))
@@ -147,8 +148,8 @@ public class SpannerChangeStreamIT {
             .withInstanceId(instanceId)
             .withDatabaseId(databaseId);
     final Timestamp now = Timestamp.now();
-    final Timestamp after10Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 10, now.getNanos());
+    final Timestamp after30Seconds =
+        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 30, now.getNanos());
 
     pipeline.getOptions().as(SpannerTestPipelineOptions.class).setStreaming(true);
     pipeline.getOptions().as(SpannerTestPipelineOptions.class).setBlockOnRun(false);
@@ -160,16 +161,27 @@ public class SpannerChangeStreamIT {
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
                     .withInclusiveStartAt(now)
-                    .withExclusiveEndAt(after10Seconds))
+                    .withExclusiveEndAt(after30Seconds))
             .apply(
                 MapElements.into(TypeDescriptors.strings())
-                    .via(DataChangesRecord::getPartitionToken));
+                    .via(
+                        record -> {
+                          final Mod mod = record.getMods().get(0);
+                          final Map<String, String> keys = mod.getKeys();
+                          final Map<String, String> newValues = mod.getNewValues();
+                          return String.join(
+                              ",",
+                              keys.get("SingerId"),
+                              newValues.get("FirstName"),
+                              newValues.get("LastName"));
+                        }));
+
+    PAssert.that(tokens).containsInAnyOrder("1,First Name 1,Last Name 1");
 
     final PipelineResult pipelineResult = pipeline.run();
+    Thread.sleep(5_000);
     insertRecords();
     pipelineResult.waitUntilFinish();
-
-    PAssert.that(tokens).containsInAnyOrder("token1");
   }
 
   private static Timestamp insertRecords() {

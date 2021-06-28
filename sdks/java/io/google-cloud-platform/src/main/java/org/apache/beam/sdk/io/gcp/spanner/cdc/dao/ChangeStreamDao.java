@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer.DEFAULT_PARENT_PARTITION_TOKEN;
-
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
 
 // TODO: Add java docs
 public class ChangeStreamDao {
@@ -44,29 +43,26 @@ public class ChangeStreamDao {
       long heartbeatMillis) {
     // For the initial partition we query with a null partition token
     final String partitionTokenOrNull =
-        partitionToken.equals(DEFAULT_PARENT_PARTITION_TOKEN) ? null : partitionToken;
+        InitialPartition.isInitialPartition(partitionToken) ? null : partitionToken;
     final String startTimeOptions =
         isInclusiveStart ? "'INCLUDE_START_TIME'" : "'EXCLUDE_START_TIME'";
     final String endTimeOptions = isInclusiveEnd ? "'INCLUDE_END_TIME'" : "'EXCLUDE_END_TIME'";
 
-    // FIXME: Use parameterized query when possible
+    // FIXME: Add the options when possible
+    final String query =
+        "SELECT * FROM READ_"
+            + changeStreamName
+            + "("
+            + "   start_timestamp => @startTimestamp,"
+            + "   end_timestamp => @endTimestamp,"
+            + "   partition_token => @partitionToken,"
+            + "   read_options => null,"
+            + "   heartbeat_milliseconds => @heartbeatMillis"
+            + ")";
     return databaseClient
         .singleUse()
         .executeQuery(
-            Statement.newBuilder(
-                    "SELECT *"
-                        + " FROM READ_"
-                        + changeStreamName
-                        + "("
-                        + "   start_timestamp => @startTimestamp,"
-                        + "   end_timestamp => @endTimestamp,"
-                        + "   partition_token => @partitionToken,"
-                        // FIXME: Add the options when possible
-                        + "   read_options => null,"
-                        // + "   read_options => [" + startTimeOptions + ", " + endTimeOptions +
-                        // "],"
-                        + "   heartbeat_milliseconds => @heartbeatMillis"
-                        + ")")
+            Statement.newBuilder(query)
                 .bind("startTimestamp")
                 .to(startTimestamp)
                 .bind("endTimestamp")

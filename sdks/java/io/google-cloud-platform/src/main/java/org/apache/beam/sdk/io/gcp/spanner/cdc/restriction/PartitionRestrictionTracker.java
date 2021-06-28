@@ -17,88 +17,65 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.DELETE_PARTITION;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.DONE;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.FINISH_PARTITION;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.QUERY_CHANGE_STREAM;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_CHILD_PARTITIONS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_PARENT_PARTITIONS;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.cloud.Timestamp;
-import java.util.Optional;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 // TODO: Add java docs
+// TODO: Implement duration waiting for returning false on try claim
 public class PartitionRestrictionTracker
     extends RestrictionTracker<PartitionRestriction, PartitionPosition> {
 
+  private final PartitionRestrictionSplitter splitter;
+  private final PartitionRestrictionClaimer claimer;
+  private final PartitionRestrictionSplitChecker splitChecker;
   private PartitionRestriction restriction;
-  private @Nullable Timestamp lastClaimedTimestamp;
-  private @Nullable PartitionMode lastClaimedMode;
-  private @Nullable Long lastClaimedChildPartitionsToWaitFor;
+  private PartitionPosition lastClaimedPosition;
+  private boolean isSplitAllowed;
 
   public PartitionRestrictionTracker(PartitionRestriction restriction) {
-    this.restriction = restriction;
+    this(
+        restriction,
+        new PartitionRestrictionSplitter(),
+        new PartitionRestrictionClaimer(),
+        new PartitionRestrictionSplitChecker());
   }
 
-  // TODO: Implement duration waiting for returning false on try claim
+  PartitionRestrictionTracker(
+      PartitionRestriction restriction,
+      PartitionRestrictionSplitter splitter,
+      PartitionRestrictionClaimer claimer,
+      PartitionRestrictionSplitChecker splitChecker) {
+    this.splitter = splitter;
+    this.claimer = claimer;
+    this.splitChecker = splitChecker;
+    this.restriction = restriction;
+    this.isSplitAllowed = restriction.getMode() != QUERY_CHANGE_STREAM;
+  }
+
+  @Override
+  public @Nullable SplitResult<PartitionRestriction> trySplit(double fractionOfRemainder) {
+    final SplitResult<PartitionRestriction> splitResult =
+        splitter.trySplit(fractionOfRemainder, isSplitAllowed, lastClaimedPosition, restriction);
+    if (splitResult != null) {
+      this.restriction = splitResult.getPrimary();
+    }
+    return splitResult;
+  }
+
   @Override
   public boolean tryClaim(PartitionPosition position) {
-    final Optional<Timestamp> maybeTimestamp = position.getTimestamp();
-    final PartitionMode mode = position.getMode();
-    final Optional<Long> maybeChildPartitionsToWaitFor = position.getChildPartitionsToWaitFor();
-    checkArgument(
-        lastClaimedTimestamp == null
-            || maybeTimestamp.map(t -> t.compareTo(lastClaimedTimestamp) >= 0).orElse(true),
-        "Trying to claim timestamp %s while last claimed was %s.",
-        position,
-        lastClaimedTimestamp);
-    checkArgument(
-        maybeTimestamp
-            .map(timestamp -> timestamp.compareTo(restriction.getStartTimestamp()) >= 0)
-            .orElse(true),
-        "Trying to claim timestamp %s before start timestamp %s.",
-        maybeTimestamp.orElse(null),
-        restriction.getStartTimestamp());
-    checkArgument(
-        (lastClaimedMode == null && mode == QUERY_CHANGE_STREAM)
-            || (lastClaimedMode == QUERY_CHANGE_STREAM && mode == QUERY_CHANGE_STREAM)
-            || (lastClaimedMode == QUERY_CHANGE_STREAM && mode == WAIT_FOR_CHILD_PARTITIONS)
-            || (lastClaimedMode == QUERY_CHANGE_STREAM && mode == FINISH_PARTITION)
-            || (lastClaimedMode == WAIT_FOR_CHILD_PARTITIONS && mode == FINISH_PARTITION)
-            || (lastClaimedMode == FINISH_PARTITION && mode == WAIT_FOR_PARENT_PARTITIONS)
-            || (lastClaimedMode == WAIT_FOR_PARENT_PARTITIONS && mode == DELETE_PARTITION)
-            || (lastClaimedMode == DELETE_PARTITION && mode == DONE),
-        "Invalid mode transition claim, from %s to %s",
-        lastClaimedMode,
-        mode);
-    checkArgument(
-        maybeChildPartitionsToWaitFor
-            .map(ignored -> mode == WAIT_FOR_CHILD_PARTITIONS)
-            .orElse(true),
-        "Trying to claim restriction with children to wait for, not in the %s mode.",
-        WAIT_FOR_CHILD_PARTITIONS.toString());
-    checkArgument(
-        maybeChildPartitionsToWaitFor
-            .map(childPartitionsToWaitFor -> childPartitionsToWaitFor > 0)
-            .orElse(true),
-        "Invalid number for children to wait for "
-            + maybeChildPartitionsToWaitFor.orElse(-1L)
-            + ", it must be greater than 0.");
-    maybeTimestamp.ifPresent(this::setLastClaimedTimestamp);
-    setLastClaimedMode(mode);
-    maybeChildPartitionsToWaitFor.ifPresent(this::setLastClaimedChildPartitionsToWaitFor);
-    this.restriction =
-        new PartitionRestriction(
-            maybeTimestamp.orElse(lastClaimedTimestamp),
-            mode,
-            maybeChildPartitionsToWaitFor.orElse(lastClaimedChildPartitionsToWaitFor));
-    return true;
+    final boolean canClaim = claimer.tryClaim(restriction, lastClaimedPosition, position);
+
+    if (canClaim) {
+      this.isSplitAllowed = splitChecker.isSplitAllowed(lastClaimedPosition, position);
+      this.lastClaimedPosition = position;
+    }
+
+    return canClaim;
   }
 
   @Override
@@ -107,27 +84,8 @@ public class PartitionRestrictionTracker
   }
 
   @Override
-  public @Nullable SplitResult<PartitionRestriction> trySplit(double fractionOfRemainder) {
-    // Always deny splitting
-    return null;
-  }
-
-  @Override
   public void checkDone() throws IllegalStateException {
-    checkState(
-        lastClaimedTimestamp != null,
-        "Last attempted timestamp should not be null. No work was claimed from timestamp %s.",
-        restriction.getStartTimestamp());
-    checkState(
-        lastClaimedMode != null,
-        "Last attempted position mode should not be null. No work was claimed from timestamp %s.",
-        restriction.getStartTimestamp());
-    // FIXME: What check should we do here?
-    // checkState(
-    //     lastClaimedMode == DONE,
-    //     "Last attempted position mode was %s. Position was never marked as done.",
-    //     lastClaimedMode
-    // );
+    // FIXME: Implement
   }
 
   @Override
@@ -136,17 +94,17 @@ public class PartitionRestrictionTracker
   }
 
   @VisibleForTesting
-  protected void setLastClaimedTimestamp(Timestamp timestamp) {
-    this.lastClaimedTimestamp = timestamp;
+  boolean isSplitAllowed() {
+    return isSplitAllowed;
   }
 
   @VisibleForTesting
-  protected void setLastClaimedMode(PartitionMode mode) {
-    this.lastClaimedMode = mode;
+  PartitionRestriction getRestriction() {
+    return restriction;
   }
 
   @VisibleForTesting
-  protected void setLastClaimedChildPartitionsToWaitFor(Long childPartitionsToWaitFor) {
-    this.lastClaimedChildPartitionsToWaitFor = childPartitionsToWaitFor;
+  PartitionPosition getLastClaimedPosition() {
+    return lastClaimedPosition;
   }
 }

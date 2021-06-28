@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer.DEFAULT_PARENT_PARTITION_TOKEN;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.util.TestStructMapper.recordsToStruct;
 import static org.junit.Assert.assertEquals;
 
@@ -28,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import java.util.Arrays;
 import java.util.Collections;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ColumnType;
@@ -50,7 +50,7 @@ public class ChangeStreamRecordMapperTest {
   }
 
   @Test
-  public void testMappingStructRowToDataChangesRecord() {
+  public void testMappingUpdateStructRowToDataChangesRecord() {
     final DataChangesRecord dataChangesRecord =
         new DataChangesRecord(
             "partitionToken",
@@ -68,6 +68,64 @@ public class ChangeStreamRecordMapperTest {
                     ImmutableMap.of("column2", "oldValue2"),
                     ImmutableMap.of("column2", "newValue2"))),
             ModType.UPDATE,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            10L,
+            2L);
+    final Struct struct = recordsToStruct(dataChangesRecord);
+
+    assertEquals(
+        Collections.singletonList(dataChangesRecord),
+        mapper.toChangeStreamRecords("partitionToken", struct));
+  }
+
+  @Test
+  public void testMappingInsertStructRowToDataChangesRecord() {
+    final DataChangesRecord dataChangesRecord =
+        new DataChangesRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod(
+                    ImmutableMap.of("column1", "value1"),
+                    null,
+                    ImmutableMap.of("column2", "newValue2"))),
+            ModType.INSERT,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            10L,
+            2L);
+    final Struct struct = recordsToStruct(dataChangesRecord);
+
+    assertEquals(
+        Collections.singletonList(dataChangesRecord),
+        mapper.toChangeStreamRecords("partitionToken", struct));
+  }
+
+  @Test
+  public void testMappingDeleteStructRowToDataChangesRecord() {
+    final DataChangesRecord dataChangesRecord =
+        new DataChangesRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod(
+                    ImmutableMap.of("column1", "value1"),
+                    ImmutableMap.of("column2", "oldValue2"),
+                    null)),
+            ModType.DELETE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L);
@@ -122,13 +180,14 @@ public class ChangeStreamRecordMapperTest {
             Timestamp.ofTimeSecondsAndNanos(10L, 20),
             "1",
             Arrays.asList(
-                new ChildPartition("childToken1", Sets.newHashSet(DEFAULT_PARENT_PARTITION_TOKEN)),
                 new ChildPartition(
-                    "childToken2", Sets.newHashSet(DEFAULT_PARENT_PARTITION_TOKEN))));
+                    "childToken1", Sets.newHashSet(InitialPartition.PARTITION_TOKEN)),
+                new ChildPartition(
+                    "childToken2", Sets.newHashSet(InitialPartition.PARTITION_TOKEN))));
 
     assertEquals(
         Collections.singletonList(expected),
-        mapper.toChangeStreamRecords(DEFAULT_PARENT_PARTITION_TOKEN, struct));
+        mapper.toChangeStreamRecords(InitialPartition.PARTITION_TOKEN, struct));
   }
 
   // TODO: Add test case for unknown record type

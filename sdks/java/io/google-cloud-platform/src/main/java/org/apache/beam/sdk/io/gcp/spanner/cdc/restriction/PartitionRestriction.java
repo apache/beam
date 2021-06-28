@@ -17,6 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.DELETE_PARTITION;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.DONE;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.FINISH_PARTITION;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.QUERY_CHANGE_STREAM;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.STOP;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_CHILD_PARTITIONS;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_PARENT_PARTITIONS;
+
 import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import java.util.Objects;
@@ -27,18 +35,57 @@ public class PartitionRestriction implements Serializable {
   private static final long serialVersionUID = -7009236776208644264L;
 
   private final Timestamp startTimestamp;
+  private final Timestamp endTimestamp;
   private final PartitionMode mode;
   private final Long childPartitionsToWaitFor;
 
+  public static PartitionRestriction queryChangeStream(
+      Timestamp startTimestamp, Timestamp endTimestamp) {
+    return new PartitionRestriction(startTimestamp, endTimestamp, QUERY_CHANGE_STREAM, null);
+  }
+
+  public static PartitionRestriction waitForChildPartitions(Long childPartitionsToWaitFor) {
+    return new PartitionRestriction(
+        null, null, WAIT_FOR_CHILD_PARTITIONS, childPartitionsToWaitFor);
+  }
+
+  public static PartitionRestriction finishPartition() {
+    return new PartitionRestriction(null, null, FINISH_PARTITION, null);
+  }
+
+  public static PartitionRestriction waitForParentPartitions() {
+    return new PartitionRestriction(null, null, WAIT_FOR_PARENT_PARTITIONS, null);
+  }
+
+  public static PartitionRestriction deletePartition() {
+    return new PartitionRestriction(null, null, DELETE_PARTITION, null);
+  }
+
+  public static PartitionRestriction done() {
+    return new PartitionRestriction(null, null, DONE, null);
+  }
+
+  public static PartitionRestriction stop() {
+    return new PartitionRestriction(null, null, STOP, null);
+  }
+
   public PartitionRestriction(
-      Timestamp startTimestamp, PartitionMode mode, Long childPartitionsToWaitFor) {
+      Timestamp startTimestamp,
+      Timestamp endTimestamp,
+      PartitionMode mode,
+      Long childPartitionsToWaitFor) {
     this.startTimestamp = startTimestamp;
+    this.endTimestamp = endTimestamp;
     this.mode = mode;
     this.childPartitionsToWaitFor = childPartitionsToWaitFor;
   }
 
   public Timestamp getStartTimestamp() {
     return startTimestamp;
+  }
+
+  public Timestamp getEndTimestamp() {
+    return endTimestamp;
   }
 
   public PartitionMode getMode() {
@@ -59,13 +106,14 @@ public class PartitionRestriction implements Serializable {
     }
     PartitionRestriction that = (PartitionRestriction) o;
     return Objects.equals(startTimestamp, that.startTimestamp)
+        && Objects.equals(endTimestamp, that.endTimestamp)
         && mode == that.mode
         && Objects.equals(childPartitionsToWaitFor, that.childPartitionsToWaitFor);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(startTimestamp, mode, childPartitionsToWaitFor);
+    return Objects.hash(startTimestamp, endTimestamp, mode, childPartitionsToWaitFor);
   }
 
   @Override
@@ -73,6 +121,8 @@ public class PartitionRestriction implements Serializable {
     return "PartitionRestriction{"
         + "startTimestamp="
         + startTimestamp
+        + ", endTimestamp="
+        + endTimestamp
         + ", mode="
         + mode
         + ", childPartitionsToWaitFor="

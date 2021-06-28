@@ -30,6 +30,7 @@ import org.apache.avro.reflect.CustomEncoding;
  * January 1, 1970, 00:00:00 UTC. A negative value is the number of seconds before January 1, 1970,
  * 00:00:00 UTC. The int stores the fractional seconds components, in the range 0..999999999.
  */
+// TODO: This class probably does not belong in the cdc change
 public class TimestampEncoding extends CustomEncoding<Timestamp> {
 
   {

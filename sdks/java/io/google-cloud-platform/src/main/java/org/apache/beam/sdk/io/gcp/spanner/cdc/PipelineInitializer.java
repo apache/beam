@@ -28,7 +28,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.CO
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_STATE;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_UPDATED_AT;
 
-import com.google.api.client.util.Sets;
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseAdminClient;
@@ -37,7 +36,6 @@ import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
@@ -46,9 +44,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
 
 public class PipelineInitializer {
 
-  public static final String DEFAULT_PARENT_PARTITION_TOKEN = "Parent0";
-  private static final HashSet<String> DEFAULT_PARENT_TOKENS = Sets.newHashSet();
-  private static final long DEFAULT_HEARTBEAT_MILLIS = 1000;
+  private static final long DEFAULT_HEARTBEAT_MILLIS = 5000;
 
   // TODO: See if we can get away with not passing in the database id, but the generated table name
   // instead
@@ -115,8 +111,8 @@ public class PipelineInitializer {
       @Nullable Timestamp exclusiveEndAt) {
     PartitionMetadata parentPartition =
         PartitionMetadata.newBuilder()
-            .setPartitionToken(DEFAULT_PARENT_PARTITION_TOKEN)
-            .setParentTokens(DEFAULT_PARENT_TOKENS)
+            .setPartitionToken(InitialPartition.PARTITION_TOKEN)
+            .setParentTokens(InitialPartition.PARENT_TOKENS)
             .setStartTimestamp(inclusiveStartAt)
             .setEndTimestamp(exclusiveEndAt)
             .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)

@@ -15,17 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
+package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-// TODO: Add java docs
-public enum PartitionMode {
-  QUERY_CHANGE_STREAM,
-  WAIT_FOR_CHILD_PARTITIONS,
-  FINISH_PARTITION,
-  WAIT_FOR_PARENT_PARTITIONS,
-  DELETE_PARTITION,
-  DONE,
+import com.google.api.client.util.Sets;
+import java.util.HashSet;
 
-  // Occurs when dataflow checkpoints the current restriction
-  STOP
+public class InitialPartition {
+
+  public static final String PARTITION_TOKEN = "Parent0";
+  public static final HashSet<String> PARENT_TOKENS = Sets.newHashSet();
+
+  public static boolean isInitialPartition(String partitionToken) {
+    return PARTITION_TOKEN.equals(partitionToken);
+  }
 }

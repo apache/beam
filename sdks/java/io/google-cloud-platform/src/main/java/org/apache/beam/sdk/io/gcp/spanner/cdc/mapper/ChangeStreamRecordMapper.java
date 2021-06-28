@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer.DEFAULT_PARENT_PARTITION_TOKEN;
-
 import com.google.cloud.spanner.Struct;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
@@ -27,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
@@ -135,7 +134,7 @@ public class ChangeStreamRecordMapper {
   private ChildPartition childPartitionFrom(String partitionToken, Struct struct) {
     final HashSet<String> parentTokens =
         Sets.newHashSet(struct.getStringList("parent_partition_tokens"));
-    if (partitionToken.equals(DEFAULT_PARENT_PARTITION_TOKEN)) {
+    if (InitialPartition.isInitialPartition(partitionToken)) {
       parentTokens.add(partitionToken);
     }
     return new ChildPartition(struct.getString("token"), parentTokens);

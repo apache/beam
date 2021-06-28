@@ -55,18 +55,18 @@ public class ChildPartitionsRecordAction {
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    LOG.debug("Processing child partition record " + record);
+    LOG.info("Processing child partition record " + record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))) {
-      LOG.debug("Could not claim, stopping");
+      LOG.info("Could not claim, stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     watermarkEstimator.setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
 
     for (ChildPartition childPartition : record.getChildPartitions()) {
       if (isSplit(childPartition)) {
-        LOG.debug("Processing child partition split event");
+        LOG.info("Processing child partition split event");
         final PartitionMetadata row =
             toPartitionMetadata(
                 record.getStartTimestamp(),
@@ -78,7 +78,7 @@ public class ChildPartitionsRecordAction {
         // TODO: Make sure this does not fail if the rows already exist
         partitionMetadataDao.insert(row);
       } else {
-        LOG.debug("Processing child partition merge event");
+        LOG.info("Processing child partition merge event");
         partitionMetadataDao.runInTransaction(
             transaction -> {
               final long finishedParents =
@@ -86,7 +86,7 @@ public class ChildPartitionsRecordAction {
                       childPartition.getParentTokens(), Collections.singletonList(FINISHED));
 
               if (finishedParents == childPartition.getParentTokens().size() - 1) {
-                LOG.debug("All parents are finished, inserting child partition " + childPartition);
+                LOG.info("All parents are finished, inserting child partition " + childPartition);
                 transaction.insert(
                     toPartitionMetadata(
                         record.getStartTimestamp(),
@@ -94,7 +94,7 @@ public class ChildPartitionsRecordAction {
                         partition.getHeartbeatMillis(),
                         childPartition));
               } else {
-                LOG.debug(
+                LOG.info(
                     "At least one parent is not finished ("
                         + "finishedParents = "
                         + finishedParents
@@ -109,7 +109,7 @@ public class ChildPartitionsRecordAction {
       }
     }
 
-    LOG.debug("Child partitions action completed successfully");
+    LOG.info("Child partitions action completed successfully");
     // Needs to hold the watermark until all my children have finished
     return waitForChildPartitionsAction.run(partition, tracker, record.getChildPartitions().size());
   }

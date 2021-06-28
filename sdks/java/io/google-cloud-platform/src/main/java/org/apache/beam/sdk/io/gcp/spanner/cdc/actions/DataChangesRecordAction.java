@@ -39,18 +39,18 @@ public class DataChangesRecordAction {
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangesRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    LOG.debug("Processing data record for " + record.getPartitionToken());
+    LOG.info("Processing data record for " + record.getPartitionToken());
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(commitTimestamp))) {
-      LOG.debug("Could not claim, stopping");
+      LOG.info("Could not claim, stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     // TODO: Ask about this, do we need to output with timestamp?
     outputReceiver.output(record);
     watermarkEstimator.setWatermark(new Instant(commitTimestamp.toSqlTimestamp().getTime()));
 
-    LOG.debug("Data record action completed successfully");
+    LOG.info("Data record action completed successfully");
     return Optional.empty();
   }
 }

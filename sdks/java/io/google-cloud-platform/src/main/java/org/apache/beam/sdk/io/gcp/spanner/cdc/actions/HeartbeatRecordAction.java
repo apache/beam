@@ -37,16 +37,16 @@ public class HeartbeatRecordAction {
       HeartbeatRecord record,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    LOG.debug("Processing heartbeat record " + record);
+    LOG.info("Processing heartbeat record " + record);
 
     final Timestamp timestamp = record.getTimestamp();
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))) {
-      LOG.debug("Could not claim, stopping");
+      LOG.info("Could not claim, stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     watermarkEstimator.setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
 
-    LOG.debug("Heartbeat record action completed successfully");
+    LOG.info("Heartbeat record action completed successfully");
     return Optional.empty();
   }
 }

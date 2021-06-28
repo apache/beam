@@ -1,0 +1,128 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
+
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampFromNanos;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampToNanos;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.QUERY_CHANGE_STREAM;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
+import com.google.cloud.Timestamp;
+import java.math.BigDecimal;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+// TODO: Add javadocs
+public class PartitionRestrictionSplitter {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PartitionRestrictionSplitter.class);
+
+  public SplitResult<PartitionRestriction> trySplit(
+      double fractionOfRemainder,
+      boolean isSplitAllowed,
+      PartitionPosition lastClaimedPosition,
+      PartitionRestriction restriction) {
+    // Move this check to the caller class
+    if (!isSplitAllowed) {
+      return null;
+    }
+    if (lastClaimedPosition == null) {
+      return null;
+    }
+
+    final PartitionMode positionMode = lastClaimedPosition.getMode();
+    checkArgument(
+        positionMode != QUERY_CHANGE_STREAM || lastClaimedPosition.getTimestamp().isPresent(),
+        "%s mode must specify a timestamp (no value sent)",
+        positionMode);
+
+    // TODO: Revisit and check if we need to split by staying in the same mode (we are currently
+    // advancing)
+    SplitResult<PartitionRestriction> splitResult = null;
+    switch (positionMode) {
+      case QUERY_CHANGE_STREAM:
+        splitResult = splitQueryChangeStream(fractionOfRemainder, restriction, lastClaimedPosition);
+        break;
+      case WAIT_FOR_CHILD_PARTITIONS:
+        splitResult =
+            SplitResult.of(PartitionRestriction.stop(), PartitionRestriction.finishPartition());
+        break;
+      case FINISH_PARTITION:
+        splitResult =
+            SplitResult.of(
+                PartitionRestriction.stop(), PartitionRestriction.waitForParentPartitions());
+        break;
+      case WAIT_FOR_PARENT_PARTITIONS:
+        splitResult =
+            SplitResult.of(PartitionRestriction.stop(), PartitionRestriction.deletePartition());
+        break;
+      case DELETE_PARTITION:
+        splitResult = SplitResult.of(PartitionRestriction.stop(), PartitionRestriction.done());
+        break;
+      case DONE:
+        return null;
+      case STOP:
+        splitResult = null;
+        break;
+      default:
+        // TODO: See if we need to throw or do something else
+        throw new IllegalArgumentException("Unknown mode " + positionMode);
+    }
+
+    LOG.info(
+        "Split result for ("
+            + fractionOfRemainder
+            + ", "
+            + isSplitAllowed
+            + ", "
+            + lastClaimedPosition
+            + ", "
+            + restriction
+            + ") is "
+            + splitResult);
+    return splitResult;
+  }
+
+  private SplitResult<PartitionRestriction> splitQueryChangeStream(
+      double fractionOfRemainder,
+      PartitionRestriction restriction,
+      PartitionPosition lastClaimedPosition) {
+    final Timestamp startTimestamp = restriction.getStartTimestamp();
+    final Timestamp endTimestamp = restriction.getEndTimestamp();
+
+    final BigDecimal currentNanos = timestampToNanos(lastClaimedPosition.getTimestamp().get());
+    final BigDecimal endNanos = timestampToNanos(endTimestamp);
+    final BigDecimal splitPositionNanos =
+        currentNanos.add(
+            endNanos
+                .subtract(currentNanos)
+                .multiply(BigDecimal.valueOf(fractionOfRemainder))
+                .max(BigDecimal.ONE));
+
+    final Timestamp splitPositionTimestamp = timestampFromNanos(splitPositionNanos);
+
+    if (splitPositionTimestamp.compareTo(endTimestamp) > 0) {
+      return null;
+    } else {
+      return SplitResult.of(
+          PartitionRestriction.queryChangeStream(startTimestamp, splitPositionTimestamp),
+          PartitionRestriction.queryChangeStream(splitPositionTimestamp, endTimestamp));
+    }
+  }
+}

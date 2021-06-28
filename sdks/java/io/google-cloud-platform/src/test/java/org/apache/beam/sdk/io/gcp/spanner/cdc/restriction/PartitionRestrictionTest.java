@@ -27,63 +27,53 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.W
 import static org.junit.Assert.*;
 
 import com.google.cloud.Timestamp;
-import java.util.Optional;
-import org.junit.Before;
 import org.junit.Test;
 
-public class PartitionPositionTest {
+public class PartitionRestrictionTest {
 
-  private Timestamp timestamp;
-
-  @Before
-  public void setUp() {
-    timestamp = Timestamp.now();
+  @Test
+  public void testQueryChangeStreamRestriction() {
+    assertEquals(
+        PartitionRestriction.queryChangeStream(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE),
+        new PartitionRestriction(
+            Timestamp.MIN_VALUE, Timestamp.MAX_VALUE, QUERY_CHANGE_STREAM, null));
   }
 
   @Test
-  public void testPositionQueryChangeStream() {
+  public void testWaitForChildPartitionsRestriction() {
     assertEquals(
-        new PartitionPosition(Optional.of(timestamp), QUERY_CHANGE_STREAM, Optional.empty()),
-        PartitionPosition.queryChangeStream(timestamp));
+        PartitionRestriction.waitForChildPartitions(10L),
+        new PartitionRestriction(null, null, WAIT_FOR_CHILD_PARTITIONS, 10L));
   }
 
   @Test
-  public void testPositionWaitForChildPartitions() {
+  public void testFinishPartitionRestriction() {
     assertEquals(
-        new PartitionPosition(Optional.empty(), WAIT_FOR_CHILD_PARTITIONS, Optional.of(20L)),
-        PartitionPosition.waitForChildPartitions(20L));
+        PartitionRestriction.finishPartition(),
+        new PartitionRestriction(null, null, FINISH_PARTITION, null));
   }
 
   @Test
-  public void testPositionFinishPartition() {
+  public void testWaitForParentPartitionsRestriction() {
     assertEquals(
-        new PartitionPosition(Optional.empty(), FINISH_PARTITION, Optional.empty()),
-        PartitionPosition.finishPartition());
+        PartitionRestriction.waitForParentPartitions(),
+        new PartitionRestriction(null, null, WAIT_FOR_PARENT_PARTITIONS, null));
   }
 
   @Test
-  public void testPositionWaitForParentPartitions() {
+  public void testDeletePartitionRestriction() {
     assertEquals(
-        new PartitionPosition(Optional.empty(), WAIT_FOR_PARENT_PARTITIONS, Optional.empty()),
-        PartitionPosition.waitForParentPartitions());
+        PartitionRestriction.deletePartition(),
+        new PartitionRestriction(null, null, DELETE_PARTITION, null));
   }
 
   @Test
-  public void testPositionDeletePartition() {
-    assertEquals(
-        new PartitionPosition(Optional.empty(), DELETE_PARTITION, Optional.empty()),
-        PartitionPosition.deletePartition());
+  public void testDoneRestriction() {
+    assertEquals(PartitionRestriction.done(), new PartitionRestriction(null, null, DONE, null));
   }
 
   @Test
-  public void testPositionDone() {
-    assertEquals(
-        new PartitionPosition(Optional.empty(), DONE, Optional.empty()), PartitionPosition.done());
-  }
-
-  @Test
-  public void testPositionStop() {
-    assertEquals(
-        new PartitionPosition(Optional.empty(), STOP, Optional.empty()), PartitionPosition.stop());
+  public void testStopRestriction() {
+    assertEquals(PartitionRestriction.stop(), new PartitionRestriction(null, null, STOP, null));
   }
 }

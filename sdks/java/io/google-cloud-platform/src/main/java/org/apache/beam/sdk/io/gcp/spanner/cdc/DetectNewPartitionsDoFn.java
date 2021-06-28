@@ -94,7 +94,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
   @NewTracker
   public OffsetRangeTracker restrictionTracker(
       @Element ChangeStreamSourceDescriptor inputElement, @Restriction OffsetRange restriction) {
-    return new OffsetRangeTracker(new OffsetRange(restriction.getFrom(), Long.MAX_VALUE));
+    return new OffsetRangeTracker(new OffsetRange(restriction.getFrom(), restriction.getTo()));
   }
 
   @Setup
@@ -144,7 +144,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
 
         Instant now = Instant.now();
         LOG.debug("Read watermark:" + watermarkEstimator.currentWatermark() + " now:" + now);
-        LOG.debug("Scheduling partition: " + metadata);
+        LOG.info("Scheduling partition: " + metadata);
         receiver.output(metadata);
 
         // TODO(hengfeng): investigate if we can move this to DAO.
@@ -177,7 +177,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
     query = String.format("SELECT COUNT(*) FROM `%s`", this.metadataTableName);
     try (ResultSet resultSet = this.databaseClient.singleUse().executeQuery(Statement.of(query))) {
       if (resultSet.next() && resultSet.getLong(0) == 0) {
-        if (!tracker.tryClaim(Long.MAX_VALUE)) {
+        if (!tracker.tryClaim(tracker.currentRestriction().getTo() - 1)) {
           LOG.warn("Failed to claim the end of range in DetectNewPartitionsDoFn.");
         }
         return ProcessContinuation.stop();
