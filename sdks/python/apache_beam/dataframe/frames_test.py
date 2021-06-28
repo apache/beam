@@ -804,6 +804,30 @@ class DeferredFrameTest(_AbstractFrameTest):
     # self._run_test(lambda df: df.fillna(axis='columns', value=100,
     #                                     limit=2), df)
 
+  def test_dataframe_fillna_dataframe_as_value(self):
+    df = pd.DataFrame([[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1],
+                       [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
+                      columns=list("ABCD"))
+    df2 = pd.DataFrame(np.zeros((4, 4)), columns=list("ABCE"))
+
+    self._run_test(lambda df, df2: df.fillna(df2), df, df2)
+
+  def test_dataframe_fillna_series_as_value(self):
+    df = pd.DataFrame([[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1],
+                       [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
+                      columns=list("ABCD"))
+    s = pd.Series(range(4), index=list("ABCE"))
+
+    self._run_test(lambda df, s: df.fillna(s), df, s)
+
+  def test_series_fillna_series_as_value(self):
+    df = pd.DataFrame([[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1],
+                       [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
+                      columns=list("ABCD"))
+    df2 = pd.DataFrame(np.zeros((4, 4)), columns=list("ABCE"))
+
+    self._run_test(lambda df, df2: df.A.fillna(df2.A), df, df2)
+
   def test_append_verify_integrity(self):
     df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
     df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
