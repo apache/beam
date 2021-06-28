@@ -236,10 +236,36 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             f"axis={axis!r}.",
             reason="order-sensitive")
 
-    if isinstance(value, frame_base.DeferredBase):
+    if isinstance(self, DeferredDataFrame) and isinstance(value,
+                                                          DeferredSeries):
+      # If self is a DataFrame and value is a Series we want to broadcast value
+      # to all partitions of self.
+      # This is OK, as its index must be the same size as the columns set of
+      # self, so cannot be too large.
+      class AsScalar(object):
+        def __init__(self, value):
+          self.value = value
+
+      with expressions.allow_non_parallel_operations():
+        value_expr = expressions.ComputedExpression(
+            'as_scalar',
+            lambda df: AsScalar(df), [value._expr],
+            requires_partition_by=partitionings.Singleton())
+
+      get_value = lambda x: x.value
+      requires = partitionings.Arbitrary()
+    elif isinstance(value, frame_base.DeferredBase):
+      # For other DeferredBase combinations, use Index partitioning to
+      # co-locate on the Index
       value_expr = value._expr
+      get_value = lambda x: x
+      requires = partitionings.Index()
     else:
+      # Default case, pass value through as a constant, no particular
+      # partitioning requirement
       value_expr = expressions.ConstantExpression(value)
+      get_value = lambda x: x
+      requires = partitionings.Arbitrary()
 
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
@@ -247,10 +273,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             'fillna',
             lambda df,
             value: df.fillna(
-                value, method=method, axis=axis, limit=limit, **kwargs),
-            [self._expr, value_expr],
+                get_value(value),
+                method=method,
+                axis=axis,
+                limit=limit,
+                **kwargs), [self._expr, value_expr],
             preserves_partition_by=partitionings.Arbitrary(),
-            requires_partition_by=partitionings.Arbitrary()))
+            requires_partition_by=requires))
 
   ffill = _fillna_alias('ffill')
   bfill = _fillna_alias('bfill')
