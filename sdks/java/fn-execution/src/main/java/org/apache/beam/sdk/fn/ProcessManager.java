@@ -143,7 +143,7 @@ public class ProcessManager {
       pb.redirectOutput(outputFile);
     }
 
-    LOG.info("Attempting to start process with command: {}", pb.command());
+    LOG.debug("Attempting to start process with command: {}", pb.command());
     Process newProcess = pb.start();
     Process oldProcess = processes.put(id, newProcess);
     synchronized (ALL_PROCESS_MANAGERS) {
