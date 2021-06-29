@@ -818,62 +818,6 @@ class BigQueryServicesImpl implements BigQueryServices {
           ALWAYS_RETRY);
     }
 
-    @Override
-    public <T> long insertAll(
-        TableReference ref,
-        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
-        @Nullable List<String> insertIdList,
-        InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<T>> failedInserts,
-        ErrorContainer<T> errorContainer,
-        boolean skipInvalidRows,
-        boolean ignoreUnknownValues,
-        boolean ignoreInsertIds)
-        throws IOException, InterruptedException {
-      return insertAll(
-          ref,
-          rowList,
-          insertIdList,
-          retryPolicy,
-          failedInserts,
-          errorContainer,
-          skipInvalidRows,
-          ignoreUnknownValues,
-          ignoreInsertIds,
-          null);
-    }
-
-    @VisibleForTesting
-    <T> long insertAll(
-        TableReference ref,
-        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
-        @Nullable List<String> insertIdList,
-        BackOff backoff,
-        FluentBackoff rateLimitBackoffFactory,
-        final Sleeper sleeper,
-        InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<T>> failedInserts,
-        ErrorContainer<T> errorContainer,
-        boolean skipInvalidRows,
-        boolean ignoreUnknownValues,
-        boolean ignoreInsertIds)
-        throws IOException, InterruptedException {
-      return insertAll(
-          ref,
-          rowList,
-          insertIdList,
-          backoff,
-          rateLimitBackoffFactory,
-          sleeper,
-          retryPolicy,
-          failedInserts,
-          errorContainer,
-          skipInvalidRows,
-          ignoreUnknownValues,
-          ignoreInsertIds,
-          null);
-    }
-
     @VisibleForTesting
     <T> long insertAll(
         TableReference ref,

@@ -207,8 +207,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
               ParDo.of(new BatchAndInsertElements())
                   .withOutputTags(
                       mainOutputTag, TupleTagList.of(failedOutputTag).and(SUCCESSFUL_ROWS_TAG)));
-      PCollection<ErrorT> failedInserts = result.get(failedOutputTag);
-      failedInserts.setCoder(failedOutputCoder);
+      result.get(failedOutputTag).setCoder(failedOutputCoder);
       result.get(SUCCESSFUL_ROWS_TAG).setCoder(TableRowJsonCoder.of());
       return result;
     }
@@ -314,8 +313,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
                       .withOutputTags(
                           mainOutputTag,
                           TupleTagList.of(failedOutputTag).and(SUCCESSFUL_ROWS_TAG)));
-      PCollection<ErrorT> failedInserts = result.get(failedOutputTag);
-      failedInserts.setCoder(failedOutputCoder);
+      result.get(failedOutputTag).setCoder(failedOutputCoder);
       result.get(SUCCESSFUL_ROWS_TAG).setCoder(TableRowJsonCoder.of());
       return result;
     }
