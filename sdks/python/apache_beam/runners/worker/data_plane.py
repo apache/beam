@@ -70,6 +70,7 @@ _LOGGER = logging.getLogger(__name__)
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
 
+_MAX_CLEANED_INSTRUCTIONS = 10000
 
 class ClosableOutputStream(OutputStream):
   """A Outputstream for use with CoderImpls that has a close() method."""
@@ -409,6 +410,8 @@ class _GrpcDataChannel(DataChannel):
     self._received = collections.defaultdict(
         lambda: queue.Queue(maxsize=5)
     )  # type: DefaultDict[str, queue.Queue[DataOrTimers]]
+    self._cleaned_instruction_ids = collections.OrderedDict(
+    )  # type: collections.OrderedDict[str, bool]
 
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
@@ -425,14 +428,29 @@ class _GrpcDataChannel(DataChannel):
     self._reads_finished.wait(timeout)
 
   def _receiving_queue(self, instruction_id):
-    # type: (str) -> queue.Queue[DataOrTimers]
+    # type: (str) -> Optional[queue.Queue[DataOrTimers]]
+    """
+    Gets or creates queue for a instruction_id. Or, returns None if the
+    instruction_id is already cleaned up. This is best-effort as we track
+    a limited number of cleaned-up instructions.
+    """
     with self._receive_lock:
+      if instruction_id in self._cleaned_instruction_ids:
+        return None
       return self._received[instruction_id]
 
   def _clean_receiving_queue(self, instruction_id):
     # type: (str) -> None
+    """
+    Removes the queue and adds the instruction_id to the cleaned-up list. The
+    instruction_id cannot be reused for new queue.
+    """
     with self._receive_lock:
       self._received.pop(instruction_id)
+      self._cleaned_instruction_ids[instruction_id] = True
+      while len(self._cleaned_instruction_ids) > _MAX_CLEANED_INSTRUCTIONS:
+        self._cleaned_instruction_ids.popitem(last=False)
+
 
   def input_elements(self,
       instruction_id,  # type: str
@@ -451,6 +469,8 @@ class _GrpcDataChannel(DataChannel):
       expected_inputs(collection): expected inputs, include both data and timer.
     """
     received = self._receiving_queue(instruction_id)
+    if received is None:
+      raise RuntimeError('Instruction cleaned up already %s' % instruction_id)
     done_inputs = set()  # type: Set[Union[str, Tuple[str, str]]]
     abort_callback = abort_callback or (lambda: False)
     try:
@@ -566,12 +586,46 @@ class _GrpcDataChannel(DataChannel):
 
   def _read_inputs(self, elements_iterator):
     # type: (Iterable[beam_fn_api_pb2.Elements]) -> None
+
+    next_discard_log_time = 0  # type: float
+
+    def _put_queue(instruction_id, element):
+      # type: (str, bytes) -> None
+      """
+      Puts element to the queue of the instruction_id, or discards it if the
+      instruction_id is already cleaned up.
+      """
+      nonlocal next_discard_log_time
+      start_time = time.time()
+      next_waiting_log_time = start_time + 300
+      while True:
+        input_queue = self._receiving_queue(instruction_id)
+        if input_queue is None:
+          current_time = time.time()
+          if next_discard_log_time <= current_time:
+            # Log every 10 seconds across all _put_queue calls
+            _LOGGER.info('Discard inputs for cleaned up instruction: %s',
+                         instruction_id)
+            next_discard_log_time = current_time + 10
+          return
+        try:
+          input_queue.put(element, timeout=1)
+          return
+        except queue.Full:
+          current_time = time.time()
+          if next_waiting_log_time <= current_time:
+            # Log every 5 mins in each _put_queue call
+            _LOGGER.info(
+                'Waiting on input queue of instruction: %s for %.2f seconds',
+                instruction_id, current_time - start_time)
+            next_waiting_log_time = current_time + 300
+
     try:
       for elements in elements_iterator:
         for timer in elements.timers:
-          self._receiving_queue(timer.instruction_id).put(timer)
+          _put_queue(timer.instruction_id, timer)
         for data in elements.data:
-          self._receiving_queue(data.instruction_id).put(data)
+          _put_queue(data.instruction_id, data)
     except:  # pylint: disable=bare-except
       if not self._closed:
         _LOGGER.exception('Failed to read inputs in the data plane.')
