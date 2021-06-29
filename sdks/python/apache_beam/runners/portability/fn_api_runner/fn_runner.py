@@ -37,8 +37,8 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
-from typing import Iterator
 from typing import Iterable
+from typing import Iterator
 from typing import List
 from typing import Mapping
 from typing import MutableMapping
@@ -419,13 +419,14 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_context_manager,  # type: execution.BundleContextManager
       newly_set_timers  # type: Dict[Tuple[str, str], ListBuffer]
   ):
+    # type: (...) -> Dict[(str, str), timestamp.Timestamp]
+
     """Review output buffers, and collect written timers.
 
     This function reviews a stage that has just been run. The stage will have
     written timers to its output buffers. The function then takes the timers,
     and adds them to the `newly_set_timers` dictionary.
     """
-    # type: (...) -> Dict[(str, str), timestamp.Timestamp]
     timer_watermark_data = {}
     for (transform_id, timer_family_id) in bundle_context_manager.stage.timers:
       written_timers = bundle_context_manager.get_buffer(
@@ -480,10 +481,13 @@ class FnApiRunner(runner.PipelineRunner):
             coder_impl=bundle_context_manager.get_input_coder_impl(name))
       deferred_inputs[name].append(delayed_application.application.element)
 
-      transform = bundle_context_manager.process_bundle_descriptor.transforms[
-        delayed_application.application.transform_id]
+      # transform = bundle_context_manager.process_bundle_descriptor.transforms[
+      #   delayed_application.application.transform_id]
+      # pcolls_with_delayed_apps.add(
+      #     transform.inputs[delayed_application.application.input_id])
       pcolls_with_delayed_apps.add(
-          transform.inputs[delayed_application.application.input_id])
+          bundle_context_manager.process_bundle_descriptor.transforms[name].outputs['out']
+      )
     return pcolls_with_delayed_apps
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
@@ -514,9 +518,7 @@ class FnApiRunner(runner.PipelineRunner):
               coder_impl=bundle_context_manager.get_input_coder_impl(name))
         deferred_inputs[name].append(delayed_application.application.element)
         pcolls_with_delayed_apps.add(
-            bundle_context_manager.process_bundle_descriptor.transforms[
-                delayed_application.application.transform_id].inputs[
-                    delayed_application.application.input_id])
+            bundle_context_manager.process_bundle_descriptor.transforms[name].outputs['out'])
       for channel_split in split.channel_splits:
         coder_impl = bundle_context_manager.get_input_coder_impl(
             channel_split.transform_id)
