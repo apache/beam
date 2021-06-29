@@ -1021,6 +1021,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   to_xarray = frame_base.wont_implement_method(
       pd.DataFrame, 'to_xarray', reason='non-deferred-result')
+  to_clipboard = frame_base.wont_implement_method(
+      pd.DataFrame, 'to_clipboard', reason="non-deferred-result")
 
   swapaxes = frame_base.wont_implement_method(
       pd.Series, 'swapaxes', reason="non-deferred-columns")
@@ -1699,8 +1701,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'nbytes', reason="non-deferred-result")
   to_list = frame_base.wont_implement_method(
       pd.Series, 'to_list', reason="non-deferred-result")
-  to_clipboard = frame_base.wont_implement_method(
-      pd.Series, 'to_clipboard', reason="non-deferred-result")
 
   factorize = frame_base.wont_implement_method(
       pd.Series, 'factorize', reason="non-deferred-columns")
