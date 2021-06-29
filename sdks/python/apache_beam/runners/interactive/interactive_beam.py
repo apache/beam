@@ -505,7 +505,7 @@ def show(
             stream,
             include_window_info=include_window_info,
             display_facets=visualize_data,
-            element_type=element_types[pcoll])
+            element_type=element_types[stream.pcoll])
     elif ie.current_env().is_in_ipython:
       for stream in recording.computed().values():
         visualize(
@@ -524,7 +524,7 @@ def show(
             dynamic_plotting_interval=1,
             include_window_info=include_window_info,
             display_facets=visualize_data,
-            element_type=element_types[pcoll])
+            element_type=element_types[stream.pcoll])
 
     # Invoke wait_until_finish to ensure the blocking nature of this API without
     # relying on the run to be blocking.
