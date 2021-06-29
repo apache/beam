@@ -49,7 +49,9 @@ class GrpcVendoring_1_36_0 {
       "io.grpc:grpc-netty:$grpc_version",
       "io.grpc:grpc-protobuf:$grpc_version",
       "io.grpc:grpc-stub:$grpc_version",
-      "io.netty:netty-transport-native-epoll:$netty_version",
+      // Use a classifier to ensure we get the jar containing native libraries. In the future
+      // hopefully netty releases a single jar containing native libraries for all architectures.
+      "io.netty:netty-transport-native-epoll:$netty_version:linux-x86_64",
       // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
       "io.netty:netty-tcnative-boringssl-static:2.0.34.Final",
       "com.google.auth:google-auth-library-credentials:$google_auth_version",
@@ -130,6 +132,7 @@ class GrpcVendoring_1_36_0 {
       // this includes concatenation of string literals and constants.
       'META-INF/native/libnetty': "META-INF/native/liborg_apache_beam_vendor_grpc_${version}_netty",
       'META-INF/native/netty': "META-INF/native/org_apache_beam_vendor_grpc_${version}_netty",
+      'META-INF/native/lib-netty': "META-INF/native/lib-org-apache-beam-vendor-grpc-${version}-netty",
     ]
   }
 

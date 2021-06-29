@@ -199,8 +199,10 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build python wheels on ${{ matrix.os_python.os }}
+    name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
     needs: build_source
+    env:
+      CIBW_ARCHS_LINUX: ${{matrix.arch}}
     runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
@@ -209,6 +211,10 @@ jobs:
           {"os": "macos-latest", "python": "cp36-* cp37-* cp38-*"},
           {"os": "windows-latest", "python": "cp36-* cp37-* cp38-*"},
         ]
+        arch: [auto]
+        include:
+          - os_python: {"os": "ubuntu-latest", "python": "cp36-* cp37-* cp38-*"}
+            arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v2
@@ -225,8 +231,11 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.7
+    - uses: docker/setup-qemu-action@v1
+      if: ${{matrix.arch == 'aarch64'}}
+      name: Set up QEMU
     - name: Install cibuildwheel
-      run: pip install cibuildwheel==1.4.2
+      run: pip install cibuildwheel==1.11.0
     - name: Build wheel
       working-directory: apache-beam-source
       env:

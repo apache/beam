@@ -370,6 +370,64 @@ class SetupTest(unittest.TestCase):
     errors = validator.validate()
     self.assertFalse(errors)
 
+  def test_num_workers_is_positive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--num_workers=-1',
+        '--worker_region=us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn('num_workers', errors[0])
+    self.assertIn('-1', errors[0])
+
+  def test_max_num_workers_is_positive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--max_num_workers=-1',
+        '--worker_region=us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn('max_num_workers', errors[0])
+    self.assertIn('-1', errors[0])
+
+  def test_num_workers_cannot_exceed_max_num_workers(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--num_workers=43',
+        '--max_num_workers=42',
+        '--worker_region=us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn('num_workers', errors[0])
+    self.assertIn('43', errors[0])
+    self.assertIn('max_num_workers', errors[0])
+    self.assertIn('42', errors[0])
+
+  def test_num_workers_can_equal_max_num_workers(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--num_workers=42',
+        '--max_num_workers=42',
+        '--worker_region=us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+
   def test_zone_and_worker_region_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
     options = PipelineOptions([

@@ -440,14 +440,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					if len(inputs) != 1 {
 						return nil, errors.Errorf("unexpected sideinput to combine: got %d, want 1", len(inputs))
 					}
-					ec, _, err := b.makeCoderForPCollection(inputs[0])
+					ec, wc, err := b.makeCoderForPCollection(inputs[0])
 					if err != nil {
 						return nil, err
 					}
 					if !coder.IsKV(ec) {
 						return nil, errors.Errorf("unexpected non-KV coder PCollection input to combine: %v", ec)
 					}
-					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0]}
+					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0], WindowCoder: wc}
 				case urnPerKeyCombineMerge:
 					u = &MergeAccumulators{Combine: cn}
 				case urnPerKeyCombineExtract:

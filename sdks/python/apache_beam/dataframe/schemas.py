@@ -27,35 +27,28 @@ with :mod:`apache_beam.typehints.schemas`), and common pandas dtypes::
                              \--- np.float{32,64}
   Not supported           <------ Optional[bytes]
   np.bool                 <-----> np.bool
+  np.dtype('S')           <-----> bytes
+  pd.BooleanDType()       <-----> Optional[bool]
+  pd.StringDType()        <-----> Optional[str]
+                             \--- str
+  np.object               <-----> Any
 
   * int, float, bool are treated the same as np.int64, np.float64, np.bool
 
-Any unknown or unsupported types are treated as :code:`Any` and shunted to
-:code:`np.object`::
+Note that when converting to pandas dtypes, any types not specified here are
+shunted to ``np.object``.
 
-  np.object               <-----> Any
-
-bytes, unicode strings and nullable Booleans are handled differently when using
-pandas 0.x vs. 1.x. pandas 0.x has no mapping for these types, so they are
-shunted to :code:`np.object`.
-
-pandas 1.x Only::
-
-  np.dtype('S')     <-----> bytes
-  pd.BooleanDType() <-----> Optional[bool]
-  pd.StringDType()  <-----> Optional[str]
-                       \--- str
+Similarly when converting from pandas to Python types, types that aren't
+otherwise specified here are shunted to ``Any``. Notably, this includes
+``np.datetime64``.
 
 Pandas does not support hierarchical data natively. Currently, all structured
-types (:code:`Sequence`, :code:`Mapping`, nested :code:`NamedTuple` types), are
-shunted to :code:`np.object` like all other unknown types. In the future these
+types (``Sequence``, ``Mapping``, nested ``NamedTuple`` types), are
+shunted to ``np.object`` like all other unknown types. In the future these
 types may be given special consideration.
 """
 
 # pytype: skip-file
-
-#TODO: Mapping for date/time types
-#https://pandas.pydata.org/docs/user_guide/timeseries.html#overview
 
 from typing import Any
 from typing import NamedTuple
@@ -312,7 +305,7 @@ def _dtype_to_fieldtype(dtype):
   elif dtype.kind == 'S':
     return bytes
   else:
-    raise TypeError("Unsupported dtype in proxy: '%s'" % dtype)
+    return Any
 
 
 @typehints.with_input_types(Union[pd.DataFrame, pd.Series])

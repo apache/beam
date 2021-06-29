@@ -41,6 +41,9 @@ pip_dependencies:
     notice: "https://raw.githubusercontent.com/apache/avro/master/NOTICE.txt"
   backports.weakref:
     license: "https://raw.githubusercontent.com/PiDelport/backports.weakref/master/LICENSE"
+  bs4:
+    # bs4 is a dummy PyPI package setup for beautifulsoup4.
+    license: "skip"
   chardet:
     license: "https://raw.githubusercontent.com/chardet/chardet/master/LICENSE"
   certifi:
@@ -66,6 +69,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/google/apitools/master/LICENSE"
   googledatastore:
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/google-cloud-datastore/master/LICENSE"
+  google-python-cloud-debugger:
+    license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-debug-python/master/LICENSE"
   grpcio:
     license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
     notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
@@ -81,6 +86,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  keras-nightly:
+    license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   mmh3:
     license: "https://raw.githubusercontent.com/hajimes/mmh3/master/LICENSE"
   mock:
@@ -93,6 +100,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
   oauth2client:
     license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
+  orjson:
+    license: "https://github.com/ijl/orjson/raw/master/LICENSE-APACHE"
   pandas:
     license: "https://raw.githubusercontent.com/pandas-dev/pandas/master/LICENSE"
   pathlib2:

@@ -182,7 +182,10 @@ for format in ('sas', 'spss'):
     globals()['read_%s' % format] = frame_base.with_docs_from(pd)(
         _binary_reader(format))
 
-read_clipboard = to_clipboard = frame_base.not_implemented_method('clipboard')
+read_clipboard = frame_base.not_implemented_method(
+    'read_clipboard', base_type=pd)
+to_clipboard = frame_base.not_implemented_method(
+    'to_clipboard', base_type=pd.DataFrame)
 read_msgpack = frame_base.wont_implement_method(
     pd, 'read_msgpack', reason="deprecated")
 to_msgpack = frame_base.wont_implement_method(
@@ -196,7 +199,7 @@ to_hdf = frame_base.wont_implement_method(
 
 for name in dir(pd):
   if name.startswith('read_') and name not in globals():
-    globals()[name] = frame_base.not_implemented_method(name)
+    globals()[name] = frame_base.not_implemented_method(name, base_type=pd)
 
 
 def _prefix_range_index_with(prefix, df):

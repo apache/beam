@@ -23,6 +23,8 @@
 - :mod:`apache_beam.dataframe.convert`: Conversion between
   :class:`~apache_beam.pvalue.PCollection` and
   :class:`~apache_beam.dataframe.frames.DeferredDataFrame`.
+- :mod:`apache_beam.dataframe.schemas`: Mapping from Beam Schemas to pandas
+  dtypes.
 - :mod:`apache_beam.dataframe.transforms`: Use DataFrame operations within a
   Beam pipeline with `DataframeTransform`.
 """

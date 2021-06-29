@@ -63,6 +63,16 @@ class NexmarkBuilder {
     suite(context, "NEXMARK IN ZETASQL STREAMING MODE USING ${runner} RUNNER", runner, sdk, options, jobSpecificSwitches, javaRuntimeVersion)
   }
 
+  static void nonQueryLanguageJobs(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext, List<String> jobSpecificSwitches, String javaRuntimeVersion) {
+    Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
+
+    options.put('streaming', false)
+    suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options, jobSpecificSwitches, javaRuntimeVersion)
+
+    options.put('streaming', true)
+    suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, sdk, options, jobSpecificSwitches, javaRuntimeVersion)
+  }
+
   static void batchOnlyJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
     Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
 
@@ -122,8 +132,10 @@ class NexmarkBuilder {
       // Run with Java 11
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(':sdks:java:testing:nexmark:runJava11')
+        tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
+        switches("-PcompileAndRunTestsWithJava11")
+        switches("-Pjava11Home=${commonJobProperties.JAVA_11_HOME}")
         switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
         if (jobSpecificSwitches != null) {

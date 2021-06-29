@@ -22,6 +22,8 @@ import copy
 import logging
 import math
 import unittest
+from typing import Optional
+from typing import Union
 
 from apache_beam.io import range_trackers
 
@@ -257,25 +259,26 @@ class OrderedPositionRangeTrackerTest(unittest.TestCase):
 
   def test_out_of_range(self):
     tracker = self.DoubleRangeTracker(10, 20)
+
     # Can't claim before range.
     with self.assertRaises(ValueError):
       tracker.try_claim(-5)
+
     # Can't split before range.
-    with self.assertRaises(ValueError):
-      tracker.try_split(-5)
+    self.assertFalse(tracker.try_split(-5))
+
     # Reject useless split at start position.
-    with self.assertRaises(ValueError):
-      tracker.try_split(10)
+    self.assertFalse(tracker.try_split(10))
+
     # Can't split after range.
-    with self.assertRaises(ValueError):
-      tracker.try_split(25)
+    self.assertFalse(tracker.try_split(25))
     tracker.try_split(15)
+
     # Can't split after modified range.
-    with self.assertRaises(ValueError):
-      tracker.try_split(17)
+    self.assertFalse(tracker.try_split(17))
+
     # Reject useless split at end position.
-    with self.assertRaises(ValueError):
-      tracker.try_split(15)
+    self.assertFalse(tracker.try_split(15))
     self.assertTrue(tracker.try_split(14))
 
 
@@ -303,16 +306,20 @@ class UnsplittableRangeTrackerTest(unittest.TestCase):
 
 
 class LexicographicKeyRangeTrackerTest(unittest.TestCase):
-  """
-  Tests of LexicographicKeyRangeTracker.
-  """
+  """Tests of LexicographicKeyRangeTracker."""
 
   key_to_fraction = (
       range_trackers.LexicographicKeyRangeTracker.position_to_fraction)
   fraction_to_key = (
       range_trackers.LexicographicKeyRangeTracker.fraction_to_position)
 
-  def _check(self, fraction=None, key=None, start=None, end=None, delta=0):
+  def _check(
+      self,
+      fraction: Optional[float] = None,
+      key: Union[bytes, str] = None,
+      start: Union[bytes, str] = None,
+      end: Union[bytes, str] = None,
+      delta: float = 0.0):
     assert key is not None or fraction is not None
     if fraction is None:
       fraction = self.key_to_fraction(key, start, end)
@@ -341,14 +348,42 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self._check(key=b'\x07', fraction=7 / 256.)
     self._check(key=b'\xFF', fraction=255 / 256.)
     self._check(key=b'\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
+    self._check(key=b'UUUUUUT', fraction=1 / 3)
+    self._check(key=b'3333334', fraction=1 / 5)
+    self._check(key=b'$\x92I$\x92I$', fraction=1 / 7, delta=1e-3)
+    self._check(key=b'\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
 
   def test_key_to_fraction(self):
+    # test no key, no start
+    self._check(end=b'eeeeee', fraction=0.0)
+    self._check(end='eeeeee', fraction=0.0)
+
+    # test no fraction
+    self._check(key=b'bbbbbb', start=b'aaaaaa', end=b'eeeeee')
+    self._check(key='bbbbbb', start='aaaaaa', end='eeeeee')
+
+    # test no start
+    self._check(key=b'eeeeee', end=b'eeeeee', fraction=1.0)
+    self._check(key='eeeeee', end='eeeeee', fraction=1.0)
+    self._check(key=b'\x19YYYYY@', end=b'eeeeee', fraction=0.25)
+    self._check(key=b'2\xb2\xb2\xb2\xb2\xb2\x80', end='eeeeee', fraction=0.5)
+    self._check(key=b'L\x0c\x0c\x0c\x0c\x0b\xc0', end=b'eeeeee', fraction=0.75)
+
+    # test bytes keys
     self._check(key=b'\x87', start=b'\x80', fraction=7 / 128.)
     self._check(key=b'\x07', end=b'\x10', fraction=7 / 16.)
     self._check(key=b'\x47', start=b'\x40', end=b'\x80', fraction=7 / 64.)
     self._check(key=b'\x47\x80', start=b'\x40', end=b'\x80', fraction=15 / 128.)
 
+    # test string keys
+    self._check(key='aaaaaa', start='aaaaaa', end='eeeeee', fraction=0.0)
+    self._check(key='bbbbbb', start='aaaaaa', end='eeeeee', fraction=0.25)
+    self._check(key='cccccc', start='aaaaaa', end='eeeeee', fraction=0.5)
+    self._check(key='dddddd', start='aaaaaa', end='eeeeee', fraction=0.75)
+    self._check(key='eeeeee', start='aaaaaa', end='eeeeee', fraction=1.0)
+
   def test_key_to_fraction_common_prefix(self):
+    # test bytes keys
     self._check(
         key=b'a' * 100 + b'b',
         start=b'a' * 100 + b'a',
@@ -370,7 +405,35 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
         end=b'foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
         fraction=0.5)
 
+    # test string keys
+    self._check(
+        key='a' * 100 + 'a',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=0.0)
+    self._check(
+        key='a' * 100 + 'b',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=0.25)
+    self._check(
+        key='a' * 100 + 'c',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=0.5)
+    self._check(
+        key='a' * 100 + 'd',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=0.75)
+    self._check(
+        key='a' * 100 + 'e',
+        start='a' * 100 + 'a',
+        end='a' * 100 + 'e',
+        fraction=1.0)
+
   def test_tiny(self):
+    # test bytes keys
     self._check(fraction=.5**20, key=b'\0\0\x10')
     self._check(fraction=.5**20, start=b'a', end=b'b', key=b'a\0\0\x10')
     self._check(fraction=.5**20, start=b'a', end=b'c', key=b'a\0\0\x20')
@@ -385,6 +448,11 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
         key=b'xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
         delta=1e-15)
     self._check(fraction=.5**100, key=b'\0' * 12 + b'\x10')
+
+    # test string keys
+    self._check(fraction=.5**20, start='a', end='b', key='a\0\0\x10')
+    self._check(fraction=.5**20, start='a', end='c', key='a\0\0\x20')
+    self._check(fraction=.5**20, start='xy_a', end='xy_c', key='xy_a\0\0\x20')
 
   def test_lots(self):
     for fraction in (0, 1, .5, .75, 7. / 512, 1 - 7. / 4096):
@@ -416,6 +484,12 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
   def test_good_prec(self):
     # There should be about 7 characters (~53 bits) of precision
     # (beyond the common prefix of start and end).
+    self._check(
+        1 / math.e,
+        start='AAAAAAA',
+        end='zzzzzzz',
+        key='VNg/ot\x82',
+        delta=1e-14)
     self._check(
         1 / math.e,
         start=b'abc_abc',

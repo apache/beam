@@ -166,30 +166,3 @@ task run(type: JavaExec) {
   classpath = configurations.gradleRun
   args nexmarkArgsList.toArray()
 }
-
-// Execute the Nexmark queries or suites via Gradle using Java 11.
-task runJava11(type: JavaExec) {
-  def nexmarkArgsList = getNexmarkArgs()
-  if (isDataflowRunner) {
-    if (isDataflowRunnerV2) {
-      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
-      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
-    } else {
-      dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-    }
-  }
-  javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(11)
-  }
-  main = "org.apache.beam.sdk.nexmark.Main"
-  classpath = configurations.gradleRun
-  args nexmarkArgsList.toArray()
-}
-
-if (!project.hasProperty("compileAndRunTestsWithJava11")) {
-  tasks.withType(JavaCompile).configureEach {
-    javaCompiler = javaToolchains.compilerFor {
-      languageVersion = JavaLanguageVersion.of(8)
-    }
-  }
-}
