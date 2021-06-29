@@ -166,18 +166,6 @@ public interface BigQueryServices extends Serializable {
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
         boolean ignoreUnknownValues,
-        boolean ignoreInsertIds)
-        throws IOException, InterruptedException;
-
-    <T> long insertAll(
-        TableReference ref,
-        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
-        @Nullable List<String> insertIdList,
-        InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<T>> failedInserts,
-        ErrorContainer<T> errorContainer,
-        boolean skipInvalidRows,
-        boolean ignoreUnknownValues,
         boolean ignoreInsertIds,
         List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException;
