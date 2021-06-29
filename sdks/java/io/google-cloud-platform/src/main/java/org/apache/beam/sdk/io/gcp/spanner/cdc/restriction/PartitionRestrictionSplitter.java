@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampFromNanos;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampToNanos;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampFromMicros;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampToMicros;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.QUERY_CHANGE_STREAM;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -106,16 +106,16 @@ public class PartitionRestrictionSplitter {
     final Timestamp startTimestamp = restriction.getStartTimestamp();
     final Timestamp endTimestamp = restriction.getEndTimestamp();
 
-    final BigDecimal currentNanos = timestampToNanos(lastClaimedPosition.getTimestamp().get());
-    final BigDecimal endNanos = timestampToNanos(endTimestamp);
-    final BigDecimal splitPositionNanos =
-        currentNanos.add(
-            endNanos
-                .subtract(currentNanos)
-                .multiply(BigDecimal.valueOf(fractionOfRemainder))
-                .max(BigDecimal.ONE));
+    // FIXME: The backend only supports micros precision for now. Change this to nanos whenever possible
+    final BigDecimal currentMicros = timestampToMicros(lastClaimedPosition.getTimestamp().get());
+    final BigDecimal endMicros = timestampToMicros(endTimestamp);
+    final BigDecimal splitPositionMicros = currentMicros.add(
+        endMicros
+            .subtract(currentMicros)
+            .multiply(BigDecimal.valueOf(fractionOfRemainder))
+            .max(BigDecimal.ONE));
 
-    final Timestamp splitPositionTimestamp = timestampFromNanos(splitPositionNanos);
+    final Timestamp splitPositionTimestamp = timestampFromMicros(splitPositionMicros);
 
     if (splitPositionTimestamp.compareTo(endTimestamp) > 0) {
       return null;

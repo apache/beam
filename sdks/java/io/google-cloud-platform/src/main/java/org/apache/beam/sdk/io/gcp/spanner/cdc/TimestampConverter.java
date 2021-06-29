@@ -25,19 +25,35 @@ import java.math.RoundingMode;
 // TODO: This class probably does not belong in the cdc change
 public class TimestampConverter {
 
-  private static final BigDecimal TEN_TO_THE_NINETH = BigDecimal.valueOf(1_000_000_000L);
+  private static final BigDecimal TEN_TO_THE_THIRD = BigDecimal.ONE.scaleByPowerOfTen(3);
+  private static final BigDecimal TEN_TO_THE_SIXTH = BigDecimal.ONE.scaleByPowerOfTen(6);
+  private static final BigDecimal TEN_TO_THE_NINTH = BigDecimal.ONE.scaleByPowerOfTen(9);
 
   public static BigDecimal timestampToNanos(Timestamp timestamp) {
     final BigDecimal seconds = BigDecimal.valueOf(timestamp.getSeconds());
     final BigDecimal nanos = BigDecimal.valueOf(timestamp.getNanos());
 
-    return seconds.multiply(TEN_TO_THE_NINETH).add(nanos);
+    return seconds.multiply(TEN_TO_THE_NINTH).add(nanos);
   }
 
   public static Timestamp timestampFromNanos(BigDecimal timestampAsNanos) {
-    final long seconds = timestampAsNanos.divide(TEN_TO_THE_NINETH, RoundingMode.FLOOR).longValue();
-    final int nanos = timestampAsNanos.remainder(TEN_TO_THE_NINETH).intValue();
+    final long seconds = timestampAsNanos.divide(TEN_TO_THE_NINTH, RoundingMode.FLOOR).longValue();
+    final int nanos = timestampAsNanos.remainder(TEN_TO_THE_NINTH).intValue();
 
     return Timestamp.ofTimeSecondsAndNanos(seconds, nanos);
+  }
+
+  public static BigDecimal timestampToMicros(Timestamp timestamp) {
+    final BigDecimal seconds = BigDecimal.valueOf(timestamp.getSeconds());
+    final BigDecimal nanos = BigDecimal.valueOf(timestamp.getNanos());
+    final BigDecimal micros = nanos.divide(TEN_TO_THE_THIRD, RoundingMode.FLOOR);
+
+    return seconds
+        .multiply(TEN_TO_THE_SIXTH)
+        .add(micros);
+  }
+
+  public static Timestamp timestampFromMicros(BigDecimal timestampAsMicros) {
+    return Timestamp.ofTimeMicroseconds(timestampAsMicros.longValue());
   }
 }

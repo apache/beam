@@ -61,7 +61,7 @@ public class PartitionRestrictionSplitterTest {
   @Test
   public void testQueryChangeStreamWithZeroFractionOfRemainder() {
     final PartitionPosition position =
-        PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(50L, 25));
+        PartitionPosition.queryChangeStream(Timestamp.ofTimeMicroseconds(50_000_250L));
 
     final SplitResult<PartitionRestriction> splitResult =
         splitter.trySplit(0D, true, position, restriction);
@@ -69,16 +69,16 @@ public class PartitionRestrictionSplitterTest {
     assertEquals(
         SplitResult.of(
             PartitionRestriction.queryChangeStream(
-                startTimestamp, Timestamp.ofTimeSecondsAndNanos(50L, 26)),
+                startTimestamp, Timestamp.ofTimeMicroseconds(50_000_251L)),
             PartitionRestriction.queryChangeStream(
-                Timestamp.ofTimeSecondsAndNanos(50L, 26), endTimestamp)),
+                Timestamp.ofTimeMicroseconds(50_000_251L), endTimestamp)),
         splitResult);
   }
 
   @Test
   public void testQueryChangeStreamWithNonZeroFractionOfRemainder() {
-    final PartitionPosition position =
-        PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(50L, 25));
+    final PartitionPosition position = PartitionPosition
+        .queryChangeStream(Timestamp.ofTimeMicroseconds(50_000_250L));
 
     final SplitResult<PartitionRestriction> splitResult =
         splitter.trySplit(0.5D, true, position, restriction);
@@ -86,9 +86,9 @@ public class PartitionRestrictionSplitterTest {
     assertEquals(
         SplitResult.of(
             PartitionRestriction.queryChangeStream(
-                startTimestamp, Timestamp.ofTimeSecondsAndNanos(75L, 37)),
+                startTimestamp, Timestamp.ofTimeMicroseconds(75_000_125L)),
             PartitionRestriction.queryChangeStream(
-                Timestamp.ofTimeSecondsAndNanos(75L, 37), endTimestamp)),
+                Timestamp.ofTimeMicroseconds(75_000_125L), endTimestamp)),
         splitResult);
   }
 
