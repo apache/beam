@@ -130,6 +130,7 @@ abstract class BatchSpannerRead
     }
   }
 
+  @DoFn.BoundedPerElement
   private static class ReadFromPartitionFn extends DoFn<List<Partition>, Struct> {
 
     private final SpannerConfig config;
@@ -162,7 +163,9 @@ abstract class BatchSpannerRead
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
 
       List<Partition> partitions = c.element();
-      for (int i = (int) tracker.currentRestriction().getFrom(); i < partitions.size(); i++) {
+      for (int i = (int) tracker.currentRestriction().getFrom();
+          i < (int) tracker.currentRestriction().getTo();
+          i++) {
         if (tracker.tryClaim(Long.valueOf(i))) {
           try (ResultSet resultSet = batchTx.execute(partitions.get(i))) {
             while (resultSet.next()) {
