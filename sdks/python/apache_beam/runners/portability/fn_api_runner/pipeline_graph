@@ -1,0 +1,21 @@
+digraph {
+	"STAGE_(((((ref_AppliedPTransform_ass...rt_that/Group/Flatten/Write/0)" [shape=box]
+	"PCOLL_assert_that/Create/Impulse"
+	"PCOLL_assert_that/Group/Flatten"
+	"STAGE_((((ref_AppliedPTransform_Crea...hufflePerKey/GroupByKey/Write)" [shape=box]
+	"PCOLL_Create/Impulse"
+	"PCOLL_ref_AppliedPTransform_Create/MaybeReshuffle/Reshuffle/ReshufflePerKey/GroupByKey_10"
+	"STAGE_(((((((((((Create/MaybeReshuff...rt_that/Group/Flatten/Write/1)" [shape=box]
+	"STAGE_((assert_that/Group/Flatten/Re...t_that/Group/GroupByKey/Write)" [shape=box]
+	"PCOLL_ref_AppliedPTransform_assert_that/Group/GroupByKey_32"
+	"STAGE_((((assert_that/Group/GroupByK...ransform_assert_that/Match_36)" [shape=box]
+	"PCOLL_assert_that/Create/Impulse" -> "STAGE_(((((ref_AppliedPTransform_ass...rt_that/Group/Flatten/Write/0)" [style=bold]
+	"STAGE_(((((((((((Create/MaybeReshuff...rt_that/Group/Flatten/Write/1)" -> "PCOLL_assert_that/Group/Flatten" [style=solid]
+	"STAGE_(((((ref_AppliedPTransform_ass...rt_that/Group/Flatten/Write/0)" -> "PCOLL_assert_that/Group/Flatten" [style=solid]
+	"PCOLL_Create/Impulse" -> "STAGE_((((ref_AppliedPTransform_Crea...hufflePerKey/GroupByKey/Write)" [style=bold]
+	"STAGE_((((ref_AppliedPTransform_Crea...hufflePerKey/GroupByKey/Write)" -> "PCOLL_ref_AppliedPTransform_Create/MaybeReshuffle/Reshuffle/ReshufflePerKey/GroupByKey_10" [style=solid]
+	"PCOLL_ref_AppliedPTransform_Create/MaybeReshuffle/Reshuffle/ReshufflePerKey/GroupByKey_10" -> "STAGE_(((((((((((Create/MaybeReshuff...rt_that/Group/Flatten/Write/1)" [style=bold]
+	"PCOLL_assert_that/Group/Flatten" -> "STAGE_((assert_that/Group/Flatten/Re...t_that/Group/GroupByKey/Write)" [style=bold]
+	"STAGE_((assert_that/Group/Flatten/Re...t_that/Group/GroupByKey/Write)" -> "PCOLL_ref_AppliedPTransform_assert_that/Group/GroupByKey_32" [style=solid]
+	"PCOLL_ref_AppliedPTransform_assert_that/Group/GroupByKey_32" -> "STAGE_((((assert_that/Group/GroupByK...ransform_assert_that/Match_36)" [style=bold]
+}

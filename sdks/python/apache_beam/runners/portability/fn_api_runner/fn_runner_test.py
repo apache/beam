@@ -118,12 +118,19 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
   def test_pardo(self):
+    def print_and_return(label):
+      def _par(x):
+        print(label, x)
+        return x
+      return _par
+
     with self.create_pipeline() as p:
       res = (
           p
           | beam.Create(['a', 'bc'])
           | beam.Map(lambda e: e * 2)
           | beam.Map(lambda e: e + 'x'))
+      res = res | beam.Map(print_and_return('resmes'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
 
   def test_pardo_side_outputs(self):

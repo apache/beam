@@ -59,7 +59,7 @@ class WatermarkManager(object):
   class PCollectionNode(WatermarkNode):
     def __init__(self, name):
       super(WatermarkManager.PCollectionNode, self).__init__(name)
-      self._watermark = timestamp.MIN_TIMESTAMP
+      self._watermark = None
       self.producers: Set[WatermarkManager.StageNode] = set()
 
     def __str__(self):
@@ -70,12 +70,12 @@ class WatermarkManager(object):
 
     def upstream_watermark(self):
       if self.producers:
-        return min(p.input_watermark() for p in self.producers)
+        return min(p.output_watermark() for p in self.producers)
       else:
         return timestamp.MAX_TIMESTAMP
 
     def watermark(self):
-      return self._watermark
+      return self._watermark if self._watermark else self.upstream_watermark()
 
   class StageNode(WatermarkNode):
     def __init__(self, name):
@@ -100,12 +100,12 @@ class WatermarkManager(object):
       if not self.outputs:
         return self.input_watermark()
       else:
-        return min(o.watermark() for o in self.outputs)
+        return timestamp.MAX_TIMESTAMP
 
     def input_watermark(self):
       if not self.inputs:
         return timestamp.MAX_TIMESTAMP
-      w = min(i.upstream_watermark() for i in self.inputs)
+      w = min(i.watermark() for i in self.inputs)
 
       if self.side_inputs:
         w = min(w, min(i.upstream_watermark() for i in self.side_inputs))

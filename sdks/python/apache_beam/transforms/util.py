@@ -207,11 +207,18 @@ class CoGroupByKey(PTransform):
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline
 
+    def print_and_return(label):
+      def _par(x):
+        print(label, x)
+        return x
+      return _par
+
     return ([
         pcoll | 'pair_with_%s' % tag >> Map(_pair_tag_with_value, tag) for tag,
         pcoll in pcolls
     ]
             | Flatten(pipeline=self.pipeline)
+            | Map(print_and_return('afterflatteinias'))
             | GroupByKey()
             | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
 

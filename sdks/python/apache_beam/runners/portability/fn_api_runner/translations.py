@@ -42,6 +42,7 @@ from typing import Set
 from typing import Tuple
 from typing import TypeVar
 
+from apache_beam.utils import timestamp
 from past.builtins import unicode
 
 from apache_beam import coders
@@ -57,6 +58,7 @@ from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
   from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
+  from apache_beam.runners.portability.fn_api_runner.execution import PartitionableBuffer
 
 T = TypeVar('T')
 
@@ -85,7 +87,10 @@ PAR_DO_URNS = frozenset([
 IMPULSE_BUFFER = b'impulse'
 
 # TimerFamilyId is identified by transform name + timer family
+# TODO(pabloem): Rename this type to express this name is unique per pipeline.
 TimerFamilyId = Tuple[str, str]
+
+BufferId = bytes
 
 # SideInputId is identified by a consumer ParDo + tag.
 SideInputId = Tuple[str, str]
@@ -102,8 +107,14 @@ SafeCoderMapping = Dict[str, str]
 # (MultiMap / Iterable).
 DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
 
-DataOutput = Dict[str, bytes]
-OutputTimers = Dict[Tuple[str, str], bytes]
+DataOutput = Dict[str, BufferId]
+
+# A map of [Transform ID, Timer Family ID] to [Buffer ID, Time Domain for timer]
+OutputTimers = Dict[TimerFamilyId, Tuple[BufferId, beam_runner_api_pb2.TimeDomain]]
+
+# A map of [Transform ID, Timer Family ID] to [Buffer CONTENTS, Timestamp]
+OutputTimerData = Dict[TimerFamilyId, Tuple['PartitionableBuffer', timestamp.Timestamp]]
+
 BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
                             List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
 
