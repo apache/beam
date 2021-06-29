@@ -1027,6 +1027,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   infer_object = frame_base.wont_implement_method(
       pd.Series, 'infer_objects', reason="non-deferred-columns")
 
+  ewm = frame_base.wont_implement_method(
+      pd.Series, 'ewm', reason="event-time-semantics")
+  expanding = frame_base.wont_implement_method(
+      pd.Series, 'expanding', reason="event-time-semantics")
+
   sparse = property(
       frame_base.not_implemented_method(
           'sparse', 'BEAM-12425', base_type=pd.DataFrame))
@@ -3667,6 +3672,10 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       DataFrameGroupBy, 'resample', reason='event-time-semantics')
   rolling = frame_base.wont_implement_method(
       DataFrameGroupBy, 'rolling', reason='event-time-semantics')
+  ewm = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'ewm', reason="event-time-semantics")
+  expanding = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'expanding', reason="event-time-semantics")
 
   tshift = frame_base.wont_implement_method(
       DataFrameGroupBy, 'tshift', reason="deprecated")
