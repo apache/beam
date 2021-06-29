@@ -290,6 +290,20 @@ class SchemasTest(unittest.TestCase):
       with self.assertRaisesRegex(ValueError, 'foo'):
         _ = pc | schemas.UnbatchPandas(proxy, include_indexes=True)
 
+  def test_unbatch_datetime(self):
+
+    s = pd.Series(
+        pd.date_range(
+            '1/1/2000', periods=100, freq='m', tz='America/Los_Angeles'))
+    proxy = s[:0]
+
+    with TestPipeline() as p:
+      res = (
+          p | beam.Create([s[::2], s[1::2]])
+          | schemas.UnbatchPandas(proxy, include_indexes=True))
+
+      assert_that(res, equal_to(list(s)))
+
 
 if __name__ == '__main__':
   unittest.main()
