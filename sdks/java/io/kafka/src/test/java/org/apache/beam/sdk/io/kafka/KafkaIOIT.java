@@ -307,7 +307,8 @@ public class KafkaIOIT {
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
         .withTopic(options.getKafkaTopic())
-        .withMaxNumRecords(sourceOptions.numRecords)
+        // .withMaxNumRecords(sourceOptions.numRecords)
+        .withMaxNumRecords(100)
         .withKeyDeserializer(ByteArrayDeserializer.class)
         .withValueDeserializer(StringDeserializer.class);
   }

@@ -1362,28 +1362,13 @@ public class KafkaIO {
       @Override
       public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
-        Unbounded<KafkaRecord<K, V>> unbounded = null;
-        if(isNullKeyFlag){
-          unbounded =
-              org.apache.beam.sdk.io.Read.from(
-                  kafkaRead
-                      .toBuilder()
-                      .setNullKeyFlag(true)
-                      .setKeyCoder(keyCoder)
-                      .setValueCoder(valueCoder)
-                      .build()
-                      .makeSource());
-        }else{
-          unbounded =
-              org.apache.beam.sdk.io.Read.from(
-                  kafkaRead
-                      .toBuilder()
-                      .setNullKeyFlag(false)
-                      .setKeyCoder(keyCoder)
-                      .setValueCoder(valueCoder)
-                      .build()
-                      .makeSource());
-        }
+        Unbounded<KafkaRecord<K, V>> unbounded = org.apache.beam.sdk.io.Read.from(
+            kafkaRead.toBuilder()
+                .setNullKeyFlag(isNullKeyFlag)
+                .setKeyCoder(keyCoder)
+                .setValueCoder(valueCoder)
+                .build()
+                .makeSource());
 
         PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
