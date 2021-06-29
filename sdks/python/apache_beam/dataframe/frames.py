@@ -1019,6 +1019,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   rolling = frame_base.wont_implement_method(
       pd.DataFrame, 'rolling', reason='event-time-semantics')
 
+  to_xarray = frame_base.wont_implement_method(
+      pd.DataFrame, 'to_xarray', reason='non-deferred-result')
+
   sparse = property(
       frame_base.not_implemented_method(
           'sparse', 'BEAM-12425', base_type=pd.DataFrame))
@@ -1682,6 +1685,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   memory_usage = frame_base.wont_implement_method(
       pd.Series, 'memory_usage', reason="non-deferred-result")
+  nbytes = frame_base.wont_implement_method(
+      pd.Series, 'nbytes', reason="non-deferred-result")
+  to_list = frame_base.wont_implement_method(
+      pd.Series, 'to_list', reason="non-deferred-result")
+  to_clipboard = frame_base.wont_implement_method(
+      pd.Series, 'to_clipboard', reason="non-deferred-result")
 
   # In Series __contains__ checks the index
   __contains__ = frame_base.wont_implement_method(
