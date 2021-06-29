@@ -21,23 +21,27 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.I
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
+import org.apache.beam.fn.harness.data.FnDataMultiplexer;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
@@ -111,6 +115,47 @@ public class BeamFnDataWriteRunner<InputT> {
               processBundleInstructionId,
               coders,
               beamFnDataClient,
+              beamFnStateClient);
+      startFunctionRegistry.register(pTransformId, runner::registerForOutput);
+      pCollectionConsumerRegistry.register(
+          getOnlyElement(pTransform.getInputsMap().values()),
+          pTransformId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume,
+          ((WindowedValueCoder<InputT>) runner.coder).getValueCoder());
+
+      finishFunctionRegistry.register(pTransformId, runner::close);
+      return runner;
+    }
+
+    @Override
+    public BeamFnDataWriteRunner<InputT> createRunnerForDataPTransform(
+        PipelineOptions pipelineOptions,
+        BeamFnStateClient beamFnStateClient,
+        String pTransformId,
+        PTransform pTransform,
+        Supplier<String> processBundleInstructionId,
+        Map<String, PCollection> pCollections,
+        Map<String, RunnerApi.Coder> coders,
+        Map<String, WindowingStrategy> windowingStrategies,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> addResetFunction,
+        Consumer<ThrowingRunnable> addTearDownFunction,
+        Consumer<ProgressRequestCallback> addProgressRequestCallback,
+        BundleFinalizer bundleFinalizer,
+        Supplier<List<Data>> inputSupplier,
+        Consumer<Data> outputConsumer)
+        throws IOException {
+      // TODO:
+      FnDataMultiplexer multiplexer = new FnDataMultiplexer(inputSupplier, outputConsumer);
+      BeamFnDataWriteRunner<InputT> runner =
+          new BeamFnDataWriteRunner<>(
+              pTransformId,
+              pTransform,
+              processBundleInstructionId,
+              coders,
+              multiplexer,
               beamFnStateClient);
       startFunctionRegistry.register(pTransformId, runner::registerForOutput);
       pCollectionConsumerRegistry.register(

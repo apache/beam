@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -28,10 +29,12 @@ import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
@@ -191,6 +194,47 @@ public class CombineRunners {
       finishFunctionRegistry.register(pTransformId, runner::finishBundle);
 
       return runner;
+    }
+
+    @Override
+    public PrecombineRunner<KeyT, InputT, AccumT> createRunnerForDataPTransform(
+        PipelineOptions pipelineOptions,
+        BeamFnStateClient beamFnStateClient,
+        String pTransformId,
+        PTransform pTransform,
+        Supplier<String> processBundleInstructionId,
+        Map<String, PCollection> pCollections,
+        Map<String, RunnerApi.Coder> coders,
+        Map<String, WindowingStrategy> windowingStrategies,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> addResetFunction,
+        Consumer<ThrowingRunnable> addTearDownFunction,
+        Consumer<ProgressRequestCallback> addProgressRequestCallback,
+        BundleFinalizer bundleFinalizer,
+        Supplier<List<Data>> inputSupplier,
+        Consumer<Data> outputConsumer)
+        throws IOException {
+      return createRunnerForPTransform(
+          pipelineOptions,
+          null,
+          beamFnStateClient,
+          null,
+          pTransformId,
+          pTransform,
+          processBundleInstructionId,
+          pCollections,
+          coders,
+          windowingStrategies,
+          pCollectionConsumerRegistry,
+          startFunctionRegistry,
+          finishFunctionRegistry,
+          addResetFunction,
+          addTearDownFunction,
+          addProgressRequestCallback,
+          null,
+          bundleFinalizer);
     }
   }
 

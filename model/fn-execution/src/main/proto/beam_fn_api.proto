@@ -109,6 +109,7 @@ message InstructionRequest {
     FinalizeBundleRequest finalize_bundle = 1004;
     MonitoringInfosMetadataRequest monitoring_infos = 1005;
     HarnessMonitoringInfosRequest harness_monitoring_infos = 1006;
+    ProcessDataBundleRequest process_data_bundle = 1007;
 
     // DEPRECATED
     RegisterRequest register = 1000;
@@ -137,6 +138,7 @@ message InstructionResponse {
     FinalizeBundleResponse finalize_bundle = 1004;
     MonitoringInfosMetadataResponse monitoring_infos = 1005;
     HarnessMonitoringInfosResponse harness_monitoring_infos = 1006;
+    ProcessDataBundleResponse process_data_bundle = 1007;
 
     // DEPRECATED
     RegisterResponse register = 1000;
@@ -296,6 +298,36 @@ message ProcessBundleRequest {
   // (Optional) A list of cache tokens that can be used by an SDK to reuse
   // cached data returned by the State API across multiple bundles.
   repeated CacheToken cache_tokens = 2;
+}
+
+message ProcessDataBundleRequest {
+  // (Required) A reference to the process bundle descriptor that must be
+  // instantiated and executed by the SDK harness.
+  string process_bundle_descriptor_id = 1;
+  Elements elements = 2;
+}
+
+
+message ProcessDataBundleResponse {
+  repeated DelayedBundleApplication residual_roots = 2;
+  // DEPRECATED (Required) The list of metrics or other MonitoredState
+  // collected while processing this bundle.
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
+
+  bool requires_finalization = 4;
+  // An identifier to MonitoringInfo.payload mapping.
+  //
+  // An SDK can report metrics using an identifier that only contains the
+  // associated payload. A runner who wants to receive the full metrics
+  // information can request all the monitoring metadata via a
+  // MonitoringInfosMetadataRequest providing a list of ids as necessary.
+  //
+  // The SDK is allowed to reuse the identifiers across multiple bundles as long
+  // as the MonitoringInfo could be reconstructed fully by overwriting its
+  // payload field with the bytes specified here.
+  map<string, bytes> monitoring_data = 5;
+
+  Elements elements = 6;
 }
 
 message ProcessBundleResponse {

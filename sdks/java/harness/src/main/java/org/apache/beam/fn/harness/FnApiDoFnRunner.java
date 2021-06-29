@@ -50,6 +50,7 @@ import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.TimerInfo;
 import org.apache.beam.fn.harness.state.SideInputSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -205,6 +206,46 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               bundleFinalizer);
 
       return runner;
+    }
+
+    @Override
+    public FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
+        createRunnerForDataPTransform(
+            PipelineOptions pipelineOptions,
+            BeamFnStateClient beamFnStateClient,
+            String pTransformId,
+            PTransform pTransform,
+            Supplier<String> processBundleInstructionId,
+            Map<String, PCollection> pCollections,
+            Map<String, RunnerApi.Coder> coders,
+            Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+            PCollectionConsumerRegistry pCollectionConsumerRegistry,
+            PTransformFunctionRegistry startFunctionRegistry,
+            PTransformFunctionRegistry finishFunctionRegistry,
+            Consumer<ThrowingRunnable> addResetFunction,
+            Consumer<ThrowingRunnable> addTearDownFunction,
+            Consumer<ProgressRequestCallback> addProgressRequestCallback,
+            BundleFinalizer bundleFinalizer,
+            Supplier<List<Data>> inputSupplier,
+            Consumer<Data> outputConsumer)
+            throws IOException {
+      return new FnApiDoFnRunner<>(
+          pipelineOptions,
+          beamFnStateClient,
+          null,
+          pTransformId,
+          pTransform,
+          processBundleInstructionId,
+          pCollections,
+          coders,
+          windowingStrategies,
+          pCollectionConsumerRegistry,
+          startFunctionRegistry,
+          finishFunctionRegistry,
+          addTearDownFunction,
+          addProgressRequestCallback,
+          null,
+          bundleFinalizer);
     }
   }
 

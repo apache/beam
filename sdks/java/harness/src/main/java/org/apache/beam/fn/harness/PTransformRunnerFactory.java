@@ -28,11 +28,13 @@ import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -105,6 +107,27 @@ public interface PTransformRunnerFactory<T> {
       BundleFinalizer bundleFinalizer)
       throws IOException;
 
+  default T createRunnerForDataPTransform(
+      PipelineOptions pipelineOptions,
+      BeamFnStateClient beamFnStateClient,
+      String pTransformId,
+      PTransform pTransform,
+      Supplier<String> processBundleInstructionId,
+      Map<String, PCollection> pCollections,
+      Map<String, Coder> coders,
+      Map<String, WindowingStrategy> windowingStrategies,
+      PCollectionConsumerRegistry pCollectionConsumerRegistry,
+      PTransformFunctionRegistry startFunctionRegistry,
+      PTransformFunctionRegistry finishFunctionRegistry,
+      Consumer<ThrowingRunnable> addResetFunction,
+      Consumer<ThrowingRunnable> addTearDownFunction,
+      Consumer<ProgressRequestCallback> addProgressRequestCallback,
+      BundleFinalizer bundleFinalizer,
+      Supplier<List<Data>> inputSupplier,
+      Consumer<Data> outputConsumer)
+      throws IOException {
+    return null;
+  };
   /**
    * A registrar which can return a mapping from {@link RunnerApi.FunctionSpec#getUrn()} to a
    * factory capable of instantiating an appropriate handler.

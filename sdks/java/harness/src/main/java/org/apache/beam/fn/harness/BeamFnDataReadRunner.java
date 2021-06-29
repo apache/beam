@@ -32,11 +32,13 @@ import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
+import org.apache.beam.fn.harness.data.FnDataMultiplexer;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
@@ -46,6 +48,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -131,6 +134,52 @@ public class BeamFnDataReadRunner<OutputT> {
               addProgressRequestCallback,
               consumer);
       startFunctionRegistry.register(pTransformId, runner::registerInputLocation);
+      finishFunctionRegistry.register(pTransformId, runner::blockTillReadFinishes);
+      addResetFunction.accept(runner::reset);
+      return runner;
+    }
+
+    @Override
+    public BeamFnDataReadRunner<OutputT> createRunnerForDataPTransform(
+        PipelineOptions pipelineOptions,
+        BeamFnStateClient beamFnStateClient,
+        String pTransformId,
+        PTransform pTransform,
+        Supplier<String> processBundleInstructionId,
+        Map<String, PCollection> pCollections,
+        Map<String, RunnerApi.Coder> coders,
+        Map<String, WindowingStrategy> windowingStrategies,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> addResetFunction,
+        Consumer<ThrowingRunnable> addTearDownFunction,
+        Consumer<ProgressRequestCallback> addProgressRequestCallback,
+        BundleFinalizer bundleFinalizer,
+        Supplier<List<Data>> inputSupplier,
+        Consumer<Data> outputConsumer)
+        throws IOException {
+      // TODO:
+      FnDataReceiver<WindowedValue<OutputT>> consumer =
+          (FnDataReceiver<WindowedValue<OutputT>>)
+              (FnDataReceiver)
+                  pCollectionConsumerRegistry.getMultiplexingConsumer(
+                      getOnlyElement(pTransform.getOutputsMap().values()));
+
+      FnDataMultiplexer multiplexer = new FnDataMultiplexer(inputSupplier, outputConsumer);
+
+      BeamFnDataReadRunner<OutputT> runner =
+          new BeamFnDataReadRunner<>(
+              pTransformId,
+              pTransform,
+              processBundleInstructionId,
+              coders,
+              multiplexer,
+              beamFnStateClient,
+              addProgressRequestCallback,
+              consumer);
+
+      startFunctionRegistry.register(pTransformId, multiplexer::dispatchData);
       finishFunctionRegistry.register(pTransformId, runner::blockTillReadFinishes);
       addResetFunction.accept(runner::reset);
       return runner;
