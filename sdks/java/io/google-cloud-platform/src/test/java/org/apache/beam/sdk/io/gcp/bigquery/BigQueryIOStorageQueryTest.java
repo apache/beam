@@ -39,6 +39,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.AvroRows;
 import com.google.cloud.bigquery.storage.v1.AvroSchema;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -389,7 +390,8 @@ public class BigQueryIOStorageQueryTest {
 
     ReadSession.Builder builder =
         ReadSession.newBuilder()
-            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()))
+            .setDataFormat(DataFormat.AVRO);
     for (int i = 0; i < expectedStreamCount; i++) {
       builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
@@ -482,7 +484,8 @@ public class BigQueryIOStorageQueryTest {
 
     ReadSession.Builder builder =
         ReadSession.newBuilder()
-            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()))
+            .setDataFormat(DataFormat.AVRO);
     for (int i = 0; i < 1024; i++) {
       builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
@@ -714,6 +717,7 @@ public class BigQueryIOStorageQueryTest {
             .setName("readSessionName")
             .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
             .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .setDataFormat(DataFormat.AVRO)
             .build();
 
     ReadRowsRequest expectedReadRowsRequest =

@@ -21,18 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1.ArrowSchema;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
-import com.google.protobuf.ByteString;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.channels.Channels;
 import java.util.List;
-import org.apache.arrow.vector.ipc.WriteChannel;
-import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
@@ -167,8 +161,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       org.apache.beam.sdk.schemas.Schema beamSchema =
           ArrowConversion.ArrowSchemaTranslator.toBeamSchema(schema);
       sessionSchema = AvroUtils.toAvroSchema(beamSchema);
-    } else {
+    } else if (readSession.getDataFormat() == DataFormat.AVRO) {
       sessionSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
+    } else {
+      throw new IllegalArgumentException(
+          "data is not in a supported dataFormat: " + readSession.getDataFormat());
     }
 
     TableSchema trimmedSchema =
@@ -186,24 +183,5 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   @Override
   public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
     throw new UnsupportedOperationException("BigQuery storage source must be split before reading");
-  }
-
-  /*private static org.apache.arrow.vector.types.pojo.Schema convertArrowSchema(
-          ArrowSchema arrowSchema) throws IOException {
-    CodedOutputStream codedOutputStream = CodedOutputStream.newInstance(new ByteArrayOutputStream());
-    return org.apache.arrow.vector.types.pojo.Schema.deserialize(bb);
-  }*/
-
-  private static ArrowSchema convertArrowSchema(
-      org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
-    ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
-    try {
-      MessageSerializer.serialize(
-          new WriteChannel(Channels.newChannel(byteOutputStream)), arrowSchema);
-    } catch (IOException ex) {
-      throw new RuntimeException("Failed to serialize arrow schema.", ex);
-    }
-    ByteString byteString = ByteString.copyFrom(byteOutputStream.toByteArray());
-    return ArrowSchema.newBuilder().setSerializedSchema(byteString).build();
   }
 }

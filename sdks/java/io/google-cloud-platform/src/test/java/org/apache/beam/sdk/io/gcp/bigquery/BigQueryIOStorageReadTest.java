@@ -118,14 +118,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 import org.mockito.ArgumentMatchers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests for {@link BigQueryIO#readTableRows() using {@link Method#DIRECT_READ}}. */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageReadTest {
-
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOStorageReadTest.class);
 
   private transient PipelineOptions options;
   private final transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -423,7 +419,8 @@ public class BigQueryIOStorageReadTest {
 
     ReadSession.Builder builder =
         ReadSession.newBuilder()
-            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING));
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .setDataFormat(DataFormat.AVRO);
     for (int i = 0; i < streamCount; i++) {
       builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
@@ -470,7 +467,8 @@ public class BigQueryIOStorageReadTest {
 
     ReadSession.Builder builder =
         ReadSession.newBuilder()
-            .setAvroSchema(AvroSchema.newBuilder().setSchema(TRIMMED_AVRO_SCHEMA_STRING));
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(TRIMMED_AVRO_SCHEMA_STRING))
+            .setDataFormat(DataFormat.AVRO);
     for (int i = 0; i < 10; i++) {
       builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
@@ -514,7 +512,8 @@ public class BigQueryIOStorageReadTest {
 
     ReadSession.Builder builder =
         ReadSession.newBuilder()
-            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING));
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .setDataFormat(DataFormat.AVRO);
     for (int i = 0; i < 50; i++) {
       builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
@@ -1328,6 +1327,7 @@ public class BigQueryIOStorageReadTest {
             .setName("readSessionName")
             .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
             .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .setDataFormat(DataFormat.AVRO)
             .build();
 
     ReadRowsRequest expectedReadRowsRequest =
@@ -1391,6 +1391,7 @@ public class BigQueryIOStorageReadTest {
             .setName("readSessionName")
             .setAvroSchema(AvroSchema.newBuilder().setSchema(TRIMMED_AVRO_SCHEMA_STRING))
             .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .setDataFormat(DataFormat.AVRO)
             .build();
 
     ReadRowsRequest expectedReadRowsRequest =
@@ -1438,7 +1439,6 @@ public class BigQueryIOStorageReadTest {
 
   @Test
   public void testReadFromBigQueryIOArrow() throws Exception {
-    LOG.info("Entering arrow test");
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
     Table table = new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA);
