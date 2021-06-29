@@ -59,7 +59,10 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -70,6 +73,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.deser.std.NumberDeserializers.ByteDeserializer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -182,7 +186,7 @@ public class KafkaIOIT {
         .apply(Create.of(values)).setCoder(StringUtf8Coder.of());
 
     writeInput
-        .apply(KafkaIO.<Void, String>write()
+        .apply(KafkaIO.<byte[], String>write()
             .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
             .withTopic(options.getKafkaTopic())
             .withValueSerializer(StringSerializer.class)
@@ -298,13 +302,15 @@ public class KafkaIOIT {
         .withTopic(options.getKafkaTopic());
   }
 
-  private KafkaIO.Read<Void, String> readFromKafkaNullKey() {
-    return KafkaIO.<Void, String>read()
+  private KafkaIO.Read<byte[], String> readFromKafkaNullKey() {
+    return KafkaIO.<byte[], String>read()
         .withNullKeyFlag()
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
         .withTopic(options.getKafkaTopic())
-        .withMaxNumRecords(sourceOptions.numRecords);
+        .withMaxNumRecords(sourceOptions.numRecords)
+        .withKeyDeserializer(ByteArrayDeserializer.class)
+        .withValueDeserializer(StringDeserializer.class);
   }
 
   private static class CountingFn extends DoFn<String, Void> {
@@ -371,9 +377,9 @@ public class KafkaIOIT {
   }
 
   private static class MapKafkaRecordsToStringsNullKey
-      extends SimpleFunction<KafkaRecord<Void, String>, String> {
+      extends SimpleFunction<KafkaRecord<byte[], String>, String> {
     @Override
-    public String apply(KafkaRecord<Void, String> input) {
+    public String apply(KafkaRecord<byte[], String> input) {
       // String key = Arrays.toString(input.getKV().getKey());
       String value = input.getKV().getValue();
       return value;
