@@ -1022,6 +1022,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   to_xarray = frame_base.wont_implement_method(
       pd.DataFrame, 'to_xarray', reason='non-deferred-result')
 
+  swapaxes = frame_base.wont_implement_method(
+      pd.Series, 'swapaxes', reason="non-deferred-columns")
+  infer_object = frame_base.wont_implement_method(
+      pd.Series, 'infer_objects', reason="non-deferred-columns")
+
   sparse = property(
       frame_base.not_implemented_method(
           'sparse', 'BEAM-12425', base_type=pd.DataFrame))
@@ -1691,6 +1696,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'to_list', reason="non-deferred-result")
   to_clipboard = frame_base.wont_implement_method(
       pd.Series, 'to_clipboard', reason="non-deferred-result")
+
+  factorize = frame_base.wont_implement_method(
+      pd.Series, 'factorize', reason="non-deferred-columns")
 
   # In Series __contains__ checks the index
   __contains__ = frame_base.wont_implement_method(

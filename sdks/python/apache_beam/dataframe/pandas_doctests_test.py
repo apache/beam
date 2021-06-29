@@ -88,6 +88,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.reindex': ['*'],
             'pandas.core.generic.NDFrame.pct_change': ['*'],
             'pandas.core.generic.NDFrame.asof': ['*'],
+            'pandas.core.generic.NDFrame.infer_objects': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.at_time': ['*'],
@@ -112,7 +113,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.convert_dtypes': ['*'],
             'pandas.core.generic.NDFrame.copy': ['*'],
             'pandas.core.generic.NDFrame.droplevel': ['*'],
-            'pandas.core.generic.NDFrame.infer_objects': ['*'],
             'pandas.core.generic.NDFrame.rank': [
                 # Modified dataframe
                 'df'
@@ -718,7 +718,6 @@ class DoctestTest(unittest.TestCase):
             'crosstab': ['*'],
             'cut': ['*'],
             'eval': ['*'],
-            'factorize': ['*'],
             'get_dummies': ['*'],
             'infer_freq': ['*'],
             'lreshape': ['*'],
@@ -737,6 +736,7 @@ class DoctestTest(unittest.TestCase):
             'wide_to_long': ['*'],
         },
         wont_implement_ok={
+            'factorize': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
             'melt': [
