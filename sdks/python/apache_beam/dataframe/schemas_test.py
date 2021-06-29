@@ -302,16 +302,7 @@ class SchemasTest(unittest.TestCase):
           p | beam.Create([s[::2], s[1::2]])
           | schemas.UnbatchPandas(proxy, include_indexes=True))
 
-      assert_that(
-          res,
-          equal_to(
-              list(
-                  pd.Series(
-                      pd.date_range(
-                          '1/1/2000',
-                          periods=100,
-                          freq='m',
-                          tz='America/Los_Angeles')))))
+      assert_that(res, equal_to(list(s)))
 
 
 if __name__ == '__main__':
