@@ -229,6 +229,12 @@ public class AvroUtilsTest {
             LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
             "",
             (Object) null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "timestampMicros",
+            LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
+            "",
+            (Object) null));
     fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema("row"), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
@@ -261,6 +267,7 @@ public class AvroUtilsTest {
         .addField(Field.of("bytes", FieldType.BYTES))
         .addField(Field.of("decimal", FieldType.DECIMAL))
         .addField(Field.of("timestampMillis", FieldType.DATETIME))
+        .addField(Field.of("timestampMicros", FieldType.DATETIME))
         .addField(Field.of("row", FieldType.row(subSchema)))
         .addField(Field.of("array", FieldType.array(FieldType.row(subSchema))))
         .addField(Field.of("map", FieldType.map(FieldType.STRING, FieldType.row(subSchema))))
@@ -283,6 +290,7 @@ public class AvroUtilsTest {
         .addValue("string")
         .addValue(BYTE_ARRAY)
         .addValue(BIG_DECIMAL)
+        .addValue(DATE_TIME)
         .addValue(DATE_TIME)
         .addValue(subRow)
         .addValue(ImmutableList.of(subRow, subRow))
@@ -316,6 +324,7 @@ public class AvroUtilsTest {
         .set("bytes", ByteBuffer.wrap(BYTE_ARRAY))
         .set("decimal", encodedDecimal)
         .set("timestampMillis", DATE_TIME.getMillis())
+        .set("timestampMicros", 1000 * DATE_TIME.getMillis())
         .set("row", getSubGenericRecord("row"))
         .set("array", ImmutableList.of(getSubGenericRecord("array"), getSubGenericRecord("array")))
         .set(
