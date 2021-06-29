@@ -25,7 +25,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
 
@@ -82,9 +84,17 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 		case *jobpb.ArtifactRequestWrapper_GetArtifact:
 			switch typeUrn := request.GetArtifact.Artifact.TypeUrn; typeUrn {
 			case graphx.URNArtifactGoWorker:
-				StageFile(binary, stream)
+				if err := StageFile(binary, stream); err != nil {
+					return errors.Wrap(err, "failed to stage Go worker binary")
+				}
 			case "beam:artifact:type:file:v1":
-				StageFile(binary, stream)
+				typePl := pipepb.ArtifactFilePayload{}
+				if err := proto.Unmarshal(request.GetArtifact.Artifact.TypePayload, &typePl); err != nil {
+					return errors.Wrap(err, "failed to parse artifact file payload")
+				}
+				if err := StageFile(typePl.GetPath(), stream); err != nil {
+					return errors.Wrapf(err, "failed to stage file %v", typePl.GetPath())
+				}
 			default:
 				return errors.Errorf("request has unexpected artifact type %s", typeUrn)
 			}

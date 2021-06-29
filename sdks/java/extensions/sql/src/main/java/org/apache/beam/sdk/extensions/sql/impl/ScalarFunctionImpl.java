@@ -60,10 +60,24 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     implements ScalarFunction, ImplementableFunction {
 
   private final CallImplementor implementor;
+  private final String jarPath;
 
-  protected ScalarFunctionImpl(Method method, CallImplementor implementor) {
+  protected ScalarFunctionImpl(Method method, CallImplementor implementor, String jarPath) {
     super(method);
     this.implementor = implementor;
+    this.jarPath = jarPath;
+  }
+
+  protected ScalarFunctionImpl(Method method, CallImplementor implementor) {
+    this(method, implementor, "");
+  }
+
+  /**
+   * Optional Beam filesystem path to the jar containing the bytecode for this function. Empty if
+   * the function is assumed to already be on the classpath.
+   */
+  public String getJarPath() {
+    return jarPath;
   }
 
   /**
@@ -93,9 +107,21 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
    * @return created {@link Function} or null
    */
   public static Function create(Method method) {
+    return create(method, "");
+  }
+
+  /**
+   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
+   * given method. When {@code eval} method does not suit, {@code null} is returned.
+   *
+   * @param method method that is used to implement the function
+   * @param jarPath Path to jar that contains the method.
+   * @return created {@link Function} or null
+   */
+  public static Function create(Method method, String jarPath) {
     validateMethod(method);
     CallImplementor implementor = createImplementor(method);
-    return new ScalarFunctionImpl(method, implementor);
+    return new ScalarFunctionImpl(method, implementor, jarPath);
   }
 
   protected static void validateMethod(Method method) {

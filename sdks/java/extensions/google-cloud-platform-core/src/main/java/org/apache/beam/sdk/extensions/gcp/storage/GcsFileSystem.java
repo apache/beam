@@ -275,6 +275,9 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
         Metadata.builder()
             .setIsReadSeekEfficient(true)
             .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
+    if (storageObject.getMd5Hash() != null) {
+      ret.setChecksum(storageObject.getMd5Hash());
+    }
     BigInteger size = firstNonNull(storageObject.getSize(), BigInteger.ZERO);
     ret.setSizeBytes(size.longValue());
     DateTime lastModified = firstNonNull(storageObject.getUpdated(), new DateTime(0L));

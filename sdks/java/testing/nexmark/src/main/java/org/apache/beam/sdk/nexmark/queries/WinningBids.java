@@ -283,29 +283,6 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     public WindowMappingFn<AuctionOrBidWindow> getDefaultWindowMappingFn() {
       throw new UnsupportedOperationException("AuctionWindowFn not supported for side inputs");
     }
-
-    /**
-     * Below we will GBK auctions and bids on their auction ids. Then we will reduce those per id to
-     * emit {@code (auction, winning bid)} pairs for auctions which have expired with at least one
-     * valid bid. We would like those output pairs to have a timestamp of the auction's expiry
-     * (since that's the earliest we know for sure we have the correct winner). We would also like
-     * to make that winning results are available to following stages at the auction's expiry.
-     *
-     * <p>Each result of the GBK will have a timestamp of the min of the result of this object's
-     * assignOutputTime over all records which end up in one of its iterables. Thus we get the
-     * desired behavior if we ignore each record's timestamp and always return the auction window's
-     * 'maxTimestamp', which will correspond to the auction's expiry.
-     *
-     * <p>In contrast, if this object's assignOutputTime were to return 'inputTimestamp' (the usual
-     * implementation), then each GBK record will take as its timestamp the minimum of the
-     * timestamps of all bids and auctions within it, which will always be the auction's timestamp.
-     * An auction which expires well into the future would thus hold up the watermark of the GBK
-     * results until that auction expired. That in turn would hold up all winning pairs.
-     */
-    @Override
-    public Instant getOutputTime(Instant inputTimestamp, AuctionOrBidWindow window) {
-      return window.maxTimestamp();
-    }
   }
 
   private final AuctionOrBidWindowFn auctionOrBidWindowFn;

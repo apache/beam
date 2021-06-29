@@ -43,9 +43,6 @@ import org.junit.runners.JUnit4;
  * records read is equal to the expected count.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryIOStorageReadIT {
 
   private static final Map<String, Long> EXPECTED_NUM_RECORDS =

@@ -43,9 +43,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link SyntheticBoundedSource}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SyntheticBoundedSourceTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 

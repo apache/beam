@@ -18,8 +18,6 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import decimal
 import json
@@ -32,12 +30,12 @@ import time
 import unittest
 import uuid
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 import pytz
 from nose.plugins.attrib import attr
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.internal import pickler
@@ -796,8 +794,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = \
-      bigquery.TableDataInsertAllResponse(insertErrors=[])
+    client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
@@ -811,15 +808,14 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.process(('project_id:dataset_id.table_id', {'month': 1}))
 
     # InsertRows not called as batch size is not hit yet
-    self.assertFalse(client.tabledata.InsertAll.called)
+    self.assertFalse(client.insert_rows_json.called)
 
   def test_dofn_client_process_flush_called(self):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = (
-        bigquery.TableDataInsertAllResponse(insertErrors=[]))
+    client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
@@ -834,15 +830,14 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
     fn.process(('project_id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
     # InsertRows called as batch size is hit
-    self.assertTrue(client.tabledata.InsertAll.called)
+    self.assertTrue(client.insert_rows_json.called)
 
   def test_dofn_client_finish_bundle_flush_called(self):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = \
-      bigquery.TableDataInsertAllResponse(insertErrors=[])
+    client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
@@ -861,11 +856,11 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit
-    self.assertFalse(client.tabledata.InsertAll.called)
+    self.assertFalse(client.insert_rows_json.called)
 
     fn.finish_bundle()
     # InsertRows called in finish bundle
-    self.assertTrue(client.tabledata.InsertAll.called)
+    self.assertTrue(client.insert_rows_json.called)
 
   def test_dofn_client_no_records(self):
     client = mock.Mock()
@@ -892,6 +887,40 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     # InsertRows not called in finish bundle as no records
     self.assertFalse(client.tabledata.InsertAll.called)
 
+  def test_with_batched_input(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.insert_rows_json.return_value = []
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        batch_size=10,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        kms_key=None,
+        with_batched_input=True,
+        test_client=client)
+
+    fn.start_bundle()
+
+    # Destination is a tuple of (destination, schema) to ensure the table is
+    # created.
+    fn.process((
+        'project_id:dataset_id.table_id',
+        [({
+            'month': 1
+        }, 'insertid3'), ({
+            'month': 2
+        }, 'insertid2'), ({
+            'month': 3
+        }, 'insertid1')]))
+
+    # InsertRows called since the input is already batched.
+    self.assertTrue(client.insert_rows_json.called)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
@@ -900,12 +929,9 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
     file_name_1 = os.path.join(tempdir, 'file1')
     file_name_2 = os.path.join(tempdir, 'file2')
 
-    def store_callback(arg):
-      insert_ids = [r.insertId for r in arg.tableDataInsertAllRequest.rows]
-      colA_values = [
-          r.json.additionalProperties[0].value.string_value
-          for r in arg.tableDataInsertAllRequest.rows
-      ]
+    def store_callback(table, **kwargs):
+      insert_ids = [r for r in kwargs['row_ids']]
+      colA_values = [r['columnA'] for r in kwargs['json_rows']]
       json_output = {'insertIds': insert_ids, 'colA_values': colA_values}
       # The first time we try to insert, we save those insertions in
       # file insert_calls1.
@@ -917,12 +943,10 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
         with open(file_name_2, 'w') as f:
           json.dump(json_output, f)
 
-      res = mock.Mock()
-      res.insertErrors = []
-      return res
+      return []
 
     client = mock.Mock()
-    client.tabledata.InsertAll = mock.Mock(side_effect=store_callback)
+    client.insert_rows_json = mock.Mock(side_effect=store_callback)
 
     # Using the bundle based direct runner to avoid pickling problems
     # with mocks.
@@ -937,18 +961,83 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               'columnA': 'value5', 'columnB': 'value6'
           }])
           | _StreamToBigQuery(
-              'project:dataset.table', [], [],
-              'anyschema',
-              None,
-              'CREATE_NEVER',
-              None,
-              None,
-              None, [],
+              table_reference='project:dataset.table',
+              table_side_inputs=[],
+              schema_side_inputs=[],
+              schema='anyschema',
+              batch_size=None,
+              create_disposition='CREATE_NEVER',
+              write_disposition=None,
+              kms_key=None,
+              retry_strategy=None,
+              additional_bq_parameters=[],
               ignore_insert_ids=False,
+              with_auto_sharding=False,
               test_client=client))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       self.assertEqual(json.load(f1), json.load(f2))
+
+  @parameterized.expand([
+      param(with_auto_sharding=False),
+      param(with_auto_sharding=True),
+  ])
+  def test_batch_size_with_auto_sharding(self, with_auto_sharding):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    file_name_1 = os.path.join(tempdir, 'file1')
+    file_name_2 = os.path.join(tempdir, 'file2')
+
+    def store_callback(table, **kwargs):
+      insert_ids = [r for r in kwargs['row_ids']]
+      colA_values = [r['columnA'] for r in kwargs['json_rows']]
+      json_output = {'insertIds': insert_ids, 'colA_values': colA_values}
+      # Expect two batches of rows will be inserted. Store them separately.
+      if not os.path.exists(file_name_1):
+        with open(file_name_1, 'w') as f:
+          json.dump(json_output, f)
+      else:
+        with open(file_name_2, 'w') as f:
+          json.dump(json_output, f)
+
+      return []
+
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(side_effect=store_callback)
+
+    # Using the bundle based direct runner to avoid pickling problems
+    # with mocks.
+    with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1', 'columnB': 'value2'
+          }, {
+              'columnA': 'value3', 'columnB': 'value4'
+          }, {
+              'columnA': 'value5', 'columnB': 'value6'
+          }])
+          | _StreamToBigQuery(
+              table_reference='project:dataset.table',
+              table_side_inputs=[],
+              schema_side_inputs=[],
+              schema='anyschema',
+              # Set a batch size such that the input elements will be inserted
+              # in 2 batches.
+              batch_size=2,
+              create_disposition='CREATE_NEVER',
+              write_disposition=None,
+              kms_key=None,
+              retry_strategy=None,
+              additional_bq_parameters=[],
+              ignore_insert_ids=False,
+              with_auto_sharding=with_auto_sharding,
+              test_client=client))
+
+    with open(file_name_1) as f1, open(file_name_2) as f2:
+      out1 = json.load(f1)
+      self.assertEqual(out1['colA_values'], ['value1', 'value3'])
+      out2 = json.load(f2)
+      self.assertEqual(out2['colA_values'], ['value5'])
 
 
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
@@ -1219,7 +1308,8 @@ class PubSubBigQueryIT(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*matchers),
         wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
-        streaming=True)
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     def add_schema_info(element):
       yield {'number': element}
@@ -1245,8 +1335,6 @@ class PubSubBigQueryIT(unittest.TestCase):
 
   @attr('IT')
   def test_file_loads(self):
-    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
-      self.skipTest('https://issuetracker.google.com/issues/118375066')
     self._run_pubsub_bq_pipeline(
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 

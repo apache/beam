@@ -23,11 +23,11 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getEs
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getRingFraction;
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMurmur3Partitioner;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
@@ -97,7 +97,6 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 20L;

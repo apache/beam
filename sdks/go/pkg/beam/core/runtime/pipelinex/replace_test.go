@@ -21,13 +21,16 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestEnsureUniqueName(t *testing.T) {
 	tests := []struct {
+		name    string
 		in, exp map[string]*pipepb.PTransform
 	}{
 		{
+			name: "AlreadyUnique",
 			in: map[string]*pipepb.PTransform{
 				"1": {UniqueName: "a"},
 				"2": {UniqueName: "b"},
@@ -40,6 +43,7 @@ func TestEnsureUniqueName(t *testing.T) {
 			},
 		},
 		{
+			name: "NeedsUniqueLeaves",
 			in: map[string]*pipepb.PTransform{
 				"2": {UniqueName: "a"},
 				"1": {UniqueName: "a"},
@@ -51,13 +55,118 @@ func TestEnsureUniqueName(t *testing.T) {
 				"3": {UniqueName: "a'2"},
 			},
 		},
+		{
+			name: "StripUniqueLeaves",
+			in: map[string]*pipepb.PTransform{
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "a'1"},
+				"3": {UniqueName: "a'2"},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"1": {UniqueName: "a"},
+				"2": {UniqueName: "a'1"},
+				"3": {UniqueName: "a'2"},
+			},
+		},
+		{
+			name: "NonTopologicalIdOrder",
+			in: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a", Subtransforms: []string{"s1"}},
+				"s3": {UniqueName: "a", Subtransforms: []string{"s2"}}, // root
+			},
+			exp: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a/a/a/a"},
+				"s1": {UniqueName: "a/a/a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a/a", Subtransforms: []string{"s1"}},
+				"s3": {UniqueName: "a", Subtransforms: []string{"s2"}}, // root
+			},
+		},
+		{
+			name: "UniqueComps",
+			in: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a"},
+				"e2": {UniqueName: "a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a", Subtransforms: []string{"e2"}},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
+			},
+		},
+		{
+			name: "StripComps",
+			in: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"e1": {UniqueName: "a/a"},
+				"e2": {UniqueName: "a'1/a"},
+				"s1": {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s2": {UniqueName: "a'1", Subtransforms: []string{"e2"}},
+			},
+		},
+		{
+			name: "large",
+			in: map[string]*pipepb.PTransform{
+				"e1":  {UniqueName: "a"},
+				"e2":  {UniqueName: "a"},
+				"e3":  {UniqueName: "a"},
+				"e4":  {UniqueName: "a"},
+				"e5":  {UniqueName: "a"},
+				"e6":  {UniqueName: "a"},
+				"e7":  {UniqueName: "a"},
+				"e8":  {UniqueName: "a"},
+				"e9":  {UniqueName: "a"},
+				"e10": {UniqueName: "a"},
+				"e11": {UniqueName: "a"},
+				"e12": {UniqueName: "a"},
+				"s1":  {UniqueName: "a", Subtransforms: []string{"s2", "s3"}},
+				"s2":  {UniqueName: "a", Subtransforms: []string{"s4", "s5"}},
+				"s3":  {UniqueName: "a", Subtransforms: []string{"s6", "s7"}},
+				"s4":  {UniqueName: "a", Subtransforms: []string{"e1"}},
+				"s5":  {UniqueName: "a", Subtransforms: []string{"e2", "e3"}},
+				"s6":  {UniqueName: "a", Subtransforms: []string{"e4", "e5", "e6"}},
+				"s7":  {UniqueName: "a", Subtransforms: []string{"e7", "e8", "e9", "e10", "e11", "e12"}},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"e1":  {UniqueName: "a/a/a/a"},
+				"e2":  {UniqueName: "a/a/a'1/a"},
+				"e3":  {UniqueName: "a/a/a'1/a'1"},
+				"e4":  {UniqueName: "a/a'1/a/a"},
+				"e5":  {UniqueName: "a/a'1/a/a'1"},
+				"e6":  {UniqueName: "a/a'1/a/a'2"},
+				"e7":  {UniqueName: "a/a'1/a'1/a"},
+				"e8":  {UniqueName: "a/a'1/a'1/a'1"},
+				"e9":  {UniqueName: "a/a'1/a'1/a'2"},
+				"e10": {UniqueName: "a/a'1/a'1/a'3"},
+				"e11": {UniqueName: "a/a'1/a'1/a'4"},
+				"e12": {UniqueName: "a/a'1/a'1/a'5"},
+				"s1":  {UniqueName: "a", Subtransforms: []string{"s2", "s3"}},
+				"s2":  {UniqueName: "a/a", Subtransforms: []string{"s4", "s5"}},
+				"s3":  {UniqueName: "a/a'1", Subtransforms: []string{"s6", "s7"}},
+				"s4":  {UniqueName: "a/a/a", Subtransforms: []string{"e1"}},
+				"s5":  {UniqueName: "a/a/a'1", Subtransforms: []string{"e2", "e3"}},
+				"s6":  {UniqueName: "a/a'1/a", Subtransforms: []string{"e4", "e5", "e6"}},
+				"s7":  {UniqueName: "a/a'1/a'1", Subtransforms: []string{"e7", "e8", "e9", "e10", "e11", "e12"}},
+			},
+		},
 	}
 
 	for _, test := range tests {
-		actual := ensureUniqueNames(test.in)
-		if !cmp.Equal(actual, test.exp, cmp.Comparer(proto.Equal)) {
-			t.Errorf("ensureUniqueName(%v) = %v, want %v", test.in, actual, test.exp)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			actual := ensureUniqueNames(test.in)
+			if d := cmp.Diff(test.exp, actual, protocmp.Transform()); d != "" {
+				t.Errorf("ensureUniqueName(%v) = %v, want %v\n %v", test.in, actual, test.exp, d)
+			}
+		})
 	}
 }
 
@@ -199,4 +308,96 @@ func TestComputeInputOutput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplySdkImageOverrides(t *testing.T) {
+	tests := []struct {
+		name     string
+		patterns map[string]string
+		envs     map[string]string // Environment ID to container image name.
+		want     map[string]string // Environment ID to final container image names.
+	}{
+		{
+			name:     "Basic",
+			patterns: map[string]string{".*foo.*": "foo:override"},
+			envs: map[string]string{
+				"foobar": "foo:invalid",
+				"bar":    "bar:valid",
+			},
+			want: map[string]string{
+				"foobar": "foo:override",
+				"bar":    "bar:valid",
+			},
+		},
+		{
+			name: "MultiplePatterns",
+			patterns: map[string]string{
+				".*foo.*": "foo:override",
+				".*bar.*": "bar:override",
+			},
+			envs: map[string]string{
+				"foobaz": "foo:invalid",
+				"barbaz": "bar:invalid",
+			},
+			want: map[string]string{
+				"foobaz": "foo:override",
+				"barbaz": "bar:override",
+			},
+		},
+		{
+			name:     "MultipleMatches",
+			patterns: map[string]string{".*foo.*": "foo:override"},
+			envs: map[string]string{
+				"foo1": "foo1:invalid",
+				"foo2": "foo2:invalid",
+			},
+			want: map[string]string{
+				"foo1": "foo:override",
+				"foo2": "foo:override",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			envs := make(map[string]*pipepb.Environment)
+			for id, ci := range test.envs {
+				env := buildEnvironment(t, ci)
+				envs[id] = env
+			}
+			wantEnvs := make(map[string]*pipepb.Environment)
+			for id, ci := range test.want {
+				env := buildEnvironment(t, ci)
+				wantEnvs[id] = env
+			}
+
+			p := &pipepb.Pipeline{
+				Components: &pipepb.Components{
+					Environments: envs,
+				},
+			}
+			if err := ApplySdkImageOverrides(p, test.patterns); err != nil {
+				t.Fatalf("ApplySdkImageOverrides failed: %v", err)
+			}
+			if diff := cmp.Diff(envs, wantEnvs, protocmp.Transform()); diff != "" {
+				t.Errorf("ApplySdkImageOverrides gave incorrect output: diff(-want,+got):\n %v", diff)
+			}
+		})
+	}
+}
+
+func buildEnvironment(t *testing.T, containerImg string) *pipepb.Environment {
+	t.Helper()
+	env := &pipepb.Environment{
+		Urn:          "alpha",
+		DisplayData:  []*pipepb.DisplayData{{Urn: "beta"}},
+		Capabilities: []string{"delta", "gamma"},
+	}
+	pl := pipepb.DockerPayload{ContainerImage: containerImg}
+	plb, err := proto.Marshal(&pl)
+	if err != nil {
+		t.Fatalf("Failed to marshal DockerPayload with container image %v: %v", containerImg, err)
+	}
+	env.Payload = plb
+	return env
 }

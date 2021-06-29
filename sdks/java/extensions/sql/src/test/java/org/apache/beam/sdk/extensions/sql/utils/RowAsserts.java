@@ -25,9 +25,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables;
 
 /** Contain helpers to assert {@link Row}s. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class RowAsserts {
 
   /** Asserts result contains single row with an int field. */

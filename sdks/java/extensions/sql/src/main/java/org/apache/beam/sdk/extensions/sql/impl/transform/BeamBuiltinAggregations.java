@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -62,12 +63,14 @@ public class BeamBuiltinAggregations {
               .put("$SUM0", BeamBuiltinAggregations::createSum)
               .put("AVG", BeamBuiltinAggregations::createAvg)
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
+              .put("BIT_XOR", BeamBuiltinAggregations::createBitXOr)
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
               .put("COVAR_SAMP", t -> CovarianceFn.newSample(t.getTypeName()))
+              .put("COUNTIF", typeName -> CountIf.combineFn())
               .build();
 
   private static MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
@@ -197,6 +200,14 @@ public class BeamBuiltinAggregations {
     }
     throw new UnsupportedOperationException(
         String.format("[%s] is not supported in BIT_AND", fieldType));
+  }
+
+  public static CombineFn createBitXOr(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitXOr();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_XOR", fieldType));
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
@@ -397,40 +408,91 @@ public class BeamBuiltinAggregations {
    * <p>Note: null values are ignored when mixed with non-null values.
    * (https://issues.apache.org/jira/browse/BEAM-10379)
    */
-  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
-    // Indicate if input only contains null value.
-    private boolean isEmpty = true;
-
-    @Override
-    public Long createAccumulator() {
-      return -1L;
+  static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
+    static class Accum {
+      /** True if no inputs have been seen yet. */
+      boolean isEmpty = true;
+      /**
+       * True if any null inputs have been seen. If we see a single null value, the end result is
+       * null, so if isNull is true, isEmpty and bitAnd are ignored.
+       */
+      boolean isNull = false;
+      /** The bitwise-and of the inputs seen so far. */
+      long bitAnd = -1L;
     }
 
     @Override
-    public Long addInput(Long accum, T input) {
-      if (input != null) {
-        this.isEmpty = false;
-        return accum & input.longValue();
-      } else {
-        return null;
+    public Accum createAccumulator() {
+      return new Accum();
+    }
+
+    @Override
+    public Accum addInput(Accum accum, T input) {
+      if (accum.isNull) {
+        return accum;
       }
+      if (input == null) {
+        accum.isNull = true;
+        return accum;
+      }
+      accum.isEmpty = false;
+      accum.bitAnd &= input.longValue();
+      return accum;
     }
 
     @Override
-    public Long mergeAccumulators(Iterable<Long> accums) {
-      Long merged = createAccumulator();
-      for (Long accum : accums) {
-        merged = merged & accum;
+    public Accum mergeAccumulators(Iterable<Accum> accums) {
+      Accum merged = createAccumulator();
+      for (Accum accum : accums) {
+        if (accum.isNull) {
+          return accum;
+        }
+        if (accum.isEmpty) {
+          continue;
+        }
+        merged.isEmpty = false;
+        merged.bitAnd &= accum.bitAnd;
       }
       return merged;
     }
 
     @Override
-    public Long extractOutput(Long accum) {
-      if (this.isEmpty) {
+    public Long extractOutput(Accum accum) {
+      if (accum.isEmpty || accum.isNull) {
         return null;
       }
-      return accum;
+      return accum.bitAnd;
+    }
+  }
+
+  public static class BitXOr<T extends Number> extends CombineFn<T, Long, Long> {
+
+    @Override
+    public Long createAccumulator() {
+      return 0L;
+    }
+
+    @Override
+    public Long addInput(Long mutableAccumulator, T input) {
+      if (input != null) {
+        return mutableAccumulator ^ input.longValue();
+      } else {
+        return 0L;
+      }
+    }
+
+    @Override
+    public Long mergeAccumulators(Iterable<Long> accumulators) {
+      Long merged = createAccumulator();
+      for (Long accum : accumulators) {
+        merged = merged ^ accum;
+      }
+      return merged;
+    }
+
+    @Override
+    public Long extractOutput(Long accumulator) {
+      return accumulator;
     }
   }
 }

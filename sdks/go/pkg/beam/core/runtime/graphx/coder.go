@@ -263,6 +263,11 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 
+		// No payload means this coder was length prefixed by the runner
+		// but is likely self describing - AKA a beam coder.
+		if len(sub.GetSpec().GetPayload()) == 0 {
+			return b.makeCoder(components[0], sub)
+		}
 		// TODO(lostluck) 2018/10/17: Make this strict again, once dataflow can use
 		// the portable pipeline model directly (BEAM-2885)
 		switch u := sub.GetSpec().GetUrn(); u {
@@ -364,11 +369,11 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		}
 		return coder.NewR(typex.New(t)), nil
 
-	// Special handling for window coders so they can be treated as
-	// a general coder. Generally window coders are not used outside of
-	// specific contexts, but this enables improved testing.
-	// Window types are not permitted to be fulltypes, so
-	// we use assignably equivalent anonymous struct types.
+		// Special handling for window coders so they can be treated as
+		// a general coder. Generally window coders are not used outside of
+		// specific contexts, but this enables improved testing.
+		// Window types are not permitted to be fulltypes, so
+		// we use assignably equivalent anonymous struct types.
 	case urnIntervalWindow:
 		w, err := b.WindowCoder(id)
 		if err != nil {

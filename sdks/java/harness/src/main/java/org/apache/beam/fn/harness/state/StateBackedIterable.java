@@ -23,7 +23,9 @@ import com.google.auto.service.AutoService;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectStreamException;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -37,8 +39,9 @@ import org.apache.beam.sdk.coders.IterableLikeCoder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
@@ -56,9 +59,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 @SuppressWarnings({
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
-public class StateBackedIterable<T> implements Iterable<T> {
+public class StateBackedIterable<T> implements Iterable<T>, Serializable {
 
-  private final BeamFnStateClient beamFnStateClient;
+  private final transient BeamFnStateClient beamFnStateClient;
   private final org.apache.beam.sdk.coders.Coder<T> elemCoder;
   @VisibleForTesting final StateRequest request;
   @VisibleForTesting final List<T> prefix;
@@ -90,6 +93,10 @@ public class StateBackedIterable<T> implements Iterable<T> {
             elemCoder,
             DataStreams.inbound(
                 StateFetchingIterators.readAllStartingFrom(beamFnStateClient, request))));
+  }
+
+  protected Object writeReplace() throws ObjectStreamException {
+    return ImmutableList.copyOf(this);
   }
 
   /**

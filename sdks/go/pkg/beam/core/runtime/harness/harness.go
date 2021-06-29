@@ -311,8 +311,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		// Mark the instruction as failed.
 		if err != nil {
 			c.failed[instID] = err
+		} else {
+			// Non failure plans can be re-used.
+			c.plans[bdID] = append(c.plans[bdID], plan)
 		}
-		c.plans[bdID] = append(c.plans[bdID], plan)
 		delete(c.active, instID)
 
 		if removed, ok := c.inactive.Insert(instID); ok {
@@ -442,6 +444,16 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			Response: &fnpb.InstructionResponse_MonitoringInfos{
 				MonitoringInfos: &fnpb.MonitoringInfosMetadataResponse{
 					MonitoringInfo: shortIdsToInfos(msg.GetMonitoringInfoId()),
+				},
+			},
+		}
+	case req.GetHarnessMonitoringInfos() != nil:
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_HarnessMonitoringInfos{
+				HarnessMonitoringInfos: &fnpb.HarnessMonitoringInfosResponse{
+					// TODO(BEAM-11092): Populate with non-bundle metrics data.
+					MonitoringData: map[string][]byte{},
 				},
 			},
 		}

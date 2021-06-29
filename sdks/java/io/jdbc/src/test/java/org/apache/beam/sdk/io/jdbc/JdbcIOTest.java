@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static java.sql.JDBCType.NUMERIC;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -62,7 +64,9 @@ import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
+import org.apache.beam.sdk.io.jdbc.LogicalTypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -94,9 +98,6 @@ import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JdbcIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
   private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =
@@ -272,6 +273,38 @@ public class JdbcIOTest implements Serializable {
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRowsWithNumericFields() {
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(
+                    String.format(
+                        "SELECT CAST(1 AS NUMERIC(1, 0)) AS T1 FROM %s WHERE name = ?",
+                        READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of(
+                "T1",
+                FieldType.logicalType(FixedPrecisionNumeric.of(NUMERIC.getName(), 1, 0))
+                    .withNullable(false)));
+
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("T1"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(
+                Row.withSchema(expectedSchema).addValues(BigDecimal.valueOf(1)).build()));
 
     pipeline.run();
   }
@@ -462,7 +495,7 @@ public class JdbcIOTest implements Serializable {
     pipeline.run();
     commitThread.join();
 
-    // we verify the the backoff has been called thanks to the log message
+    // we verify that the backoff has been called thanks to the log message
     expectedLogs.verifyWarn("Deadlock detected, retrying");
 
     assertRowCount(tableName, 2);
@@ -900,5 +933,13 @@ public class JdbcIOTest implements Serializable {
 
     // Since the pipeline was unable to write, only the row from insertStatement was written.
     assertRowCount(tableName, 1);
+  }
+
+  @Test
+  public void testDefaultRetryStrategy() {
+    final JdbcIO.RetryStrategy strategy = new JdbcIO.DefaultRetryStrategy();
+    assertTrue(strategy.apply(new SQLException("SQL deadlock", "40001")));
+    assertTrue(strategy.apply(new SQLException("PostgreSQL deadlock", "40P01")));
+    assertFalse(strategy.apply(new SQLException("Other code", "40X01")));
   }
 }

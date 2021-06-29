@@ -272,6 +272,8 @@ task commitWebsite {
     def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
 
     shell "git fetch --force origin +asf-site:asf-site"
+    shell "git stash"
+    shell "git checkout asf-site"
     git.checkout(branch: 'asf-site')
 
     // Delete the previous content. These are asf-site branch paths.

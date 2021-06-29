@@ -25,9 +25,6 @@ tagged PCollection.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import itertools
 import logging
 from queue import Empty as EmptyException

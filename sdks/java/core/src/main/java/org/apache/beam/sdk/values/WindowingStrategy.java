@@ -73,6 +73,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private final OnTimeBehavior onTimeBehavior;
   private final TimestampCombiner timestampCombiner;
   private final String environmentId;
+  private final boolean alreadyMerged;
   private final boolean triggerSpecified;
   private final boolean modeSpecified;
   private final boolean allowedLatenessSpecified;
@@ -90,7 +91,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
       boolean timestampCombinerSpecified,
       ClosingBehavior closingBehavior,
       OnTimeBehavior onTimeBehavior,
-      String environmentId) {
+      String environmentId,
+      boolean alreadyMerged) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.triggerSpecified = triggerSpecified;
@@ -103,6 +105,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     this.timestampCombiner = timestampCombiner;
     this.timestampCombinerSpecified = timestampCombinerSpecified;
     this.environmentId = environmentId;
+    this.alreadyMerged = alreadyMerged;
   }
 
   /** Return a fully specified, default windowing strategy. */
@@ -123,7 +126,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         false,
         ClosingBehavior.FIRE_IF_NON_EMPTY,
         OnTimeBehavior.FIRE_ALWAYS,
-        "");
+        "",
+        false);
   }
 
   public WindowFn<T, W> getWindowFn() {
@@ -152,6 +156,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   public boolean isModeSpecified() {
     return modeSpecified;
+  }
+
+  public boolean isAlreadyMerged() {
+    return alreadyMerged;
+  }
+
+  public boolean needsMerge() {
+    return !getWindowFn().isNonMerging() && !isAlreadyMerged();
   }
 
   public ClosingBehavior getClosingBehavior() {
@@ -191,7 +203,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 
   /**
@@ -211,7 +224,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 
   /**
@@ -234,7 +248,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 
   /**
@@ -254,7 +269,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 
   public WindowingStrategy<T, W> withClosingBehavior(ClosingBehavior closingBehavior) {
@@ -270,7 +286,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 
   public WindowingStrategy<T, W> withOnTimeBehavior(OnTimeBehavior onTimeBehavior) {
@@ -286,7 +303,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 
   @Experimental(Kind.OUTPUT_TIME)
@@ -304,7 +322,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         true,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 
   public WindowingStrategy<T, W> withEnvironmentId(String environmentId) {
@@ -320,7 +339,25 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
+  }
+
+  public WindowingStrategy<T, W> withAlreadyMerged(boolean alreadyMerged) {
+    return new WindowingStrategy<>(
+        windowFn,
+        trigger,
+        triggerSpecified,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        timestampCombinerSpecified,
+        closingBehavior,
+        onTimeBehavior,
+        environmentId,
+        alreadyMerged);
   }
 
   @Override
@@ -332,6 +369,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         .add("accumulationMode", mode)
         .add("timestampCombiner", timestampCombiner)
         .add("environmentId", environmentId)
+        .add("alreadyMerged", alreadyMerged)
         .toString();
   }
 
@@ -344,6 +382,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return isAllowedLatenessSpecified() == other.isAllowedLatenessSpecified()
         && isModeSpecified() == other.isModeSpecified()
         && isTimestampCombinerSpecified() == other.isTimestampCombinerSpecified()
+        && isAlreadyMerged() == other.isAlreadyMerged()
         && getMode().equals(other.getMode())
         && getAllowedLateness().equals(other.getAllowedLateness())
         && getClosingBehavior().equals(other.getClosingBehavior())
@@ -366,7 +405,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         trigger,
         timestampCombiner,
         windowFn,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 
   /**
@@ -387,6 +427,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         true,
         closingBehavior,
         onTimeBehavior,
-        environmentId);
+        environmentId,
+        alreadyMerged);
   }
 }

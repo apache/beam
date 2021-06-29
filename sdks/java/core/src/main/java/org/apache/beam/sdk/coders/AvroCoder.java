@@ -54,6 +54,9 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
@@ -286,10 +289,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
           @Override
           public DatumReader<T> initialValue() {
-            return myCoder.getType().equals(GenericRecord.class)
-                ? new GenericDatumReader<>(myCoder.getSchema())
-                : new ReflectDatumReader<>(
-                    myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
+            if (myCoder.getType().equals(GenericRecord.class)) {
+              return new GenericDatumReader<>(myCoder.getSchema());
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType())) {
+              return new SpecificDatumReader<>(myCoder.getType());
+            }
+            return new ReflectDatumReader<>(
+                myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
 
@@ -299,9 +305,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
           @Override
           public DatumWriter<T> initialValue() {
-            return myCoder.getType().equals(GenericRecord.class)
-                ? new GenericDatumWriter<>(myCoder.getSchema())
-                : new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
+            if (myCoder.getType().equals(GenericRecord.class)) {
+              return new GenericDatumWriter<>(myCoder.getSchema());
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType())) {
+              return new SpecificDatumWriter<>(myCoder.getType());
+            }
+            return new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
   }

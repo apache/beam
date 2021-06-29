@@ -17,9 +17,6 @@
 
 """Worker status api handler for reporting SDK harness debug info."""
 
-from __future__ import absolute_import
-from __future__ import division
-
 import queue
 import sys
 import threading

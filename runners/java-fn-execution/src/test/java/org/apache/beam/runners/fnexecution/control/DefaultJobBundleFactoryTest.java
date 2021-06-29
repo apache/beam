@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -30,9 +30,12 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -46,8 +49,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
@@ -62,11 +63,13 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Before;
@@ -82,9 +85,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DefaultJobBundleFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DefaultJobBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Mock private EnvironmentFactory envFactory;
@@ -458,32 +458,41 @@ public class DefaultJobBundleFactoryTest {
       final RemoteBundle b2 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
       verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
 
-      long tms = System.currentTimeMillis();
-      AtomicBoolean closed = new AtomicBoolean();
-      // close to free up environment for another bundle
-      TimerTask closeBundleTask =
-          new TimerTask() {
-            @Override
-            public void run() {
-              try {
-                b2.close();
-                closed.set(true);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            }
-          };
-      new Timer().schedule(closeBundleTask, 100);
+      AtomicBoolean b2Closing = new AtomicBoolean(false);
+      ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+      ScheduledFuture<Optional<Exception>> closingFuture =
+          executor.schedule(
+              () -> {
+                try {
+                  b2Closing.compareAndSet(false, true);
+                  b2.close();
+                  return Optional.empty();
+                } catch (Exception e) {
+                  return Optional.of(e);
+                }
+              },
+              100,
+              TimeUnit.MILLISECONDS);
 
+      assertThat(b2Closing.get(), equalTo(false));
+
+      // This call should block until closingFuture has finished closing b2 (100ms)
       RemoteBundle b3 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
 
-      // ensure we waited for close
-      Assert.assertThat(System.currentTimeMillis() - tms, greaterThanOrEqualTo(100L));
-      Assert.assertThat(closed.get(), is(true));
+      // ensure the previous call waited for close
+      assertThat(b2Closing.get(), equalTo(true));
+
+      // Join closingFuture and check if an exception occurred
+      Optional<Exception> closingException = closingFuture.get();
+      if (closingException.isPresent()) {
+        throw new AssertionError("Exception occurred while closing b2", closingException.get());
+      }
 
       verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
       b3.close();
       b1.close();
+
+      executor.shutdown();
     }
   }
 
@@ -506,7 +515,7 @@ public class DefaultJobBundleFactoryTest {
                         stageIdGenerator,
                         serverInfo)
                     .close());
-    Assert.assertThat(e.getMessage(), containsString("state_cache_size"));
+    assertThat(e.getMessage(), containsString("state_cache_size"));
   }
 
   private DefaultJobBundleFactory createDefaultJobBundleFactory(

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.thrift;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,6 +26,7 @@ import org.apache.thrift.TBase;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TIOStreamTransport;
+import org.apache.thrift.transport.TTransportException;
 
 /**
  * A {@link org.apache.beam.sdk.coders.Coder} using a Thrift {@link TProtocol} to
@@ -68,19 +68,18 @@ public class ThriftCoder<T> extends CustomCoder<T> {
    * @param value {@link org.apache.thrift.TBase} to encode.
    * @param outStream stream to output encoded value to.
    * @throws IOException if writing to the {@code OutputStream} fails for some reason
-   * @throws CoderException if the value could not be encoded for some reason
    */
   @Override
   public void encode(T value, OutputStream outStream) throws CoderException, IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
     try {
+      TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(outStream));
       TBase<?, ?> tBase = (TBase<?, ?>) value;
       tBase.write(protocol);
+    } catch (TTransportException tte) {
+      throw new CoderException("Could not transport value. Error: " + tte.getMessage());
     } catch (Exception te) {
       throw new CoderException("Could not write value. Error: " + te.getMessage());
     }
-    outStream.write(baos.toByteArray());
   }
 
   /**

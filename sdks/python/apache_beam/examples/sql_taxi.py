@@ -29,8 +29,6 @@ Docker must also be available to run this pipeline locally.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 
@@ -80,7 +78,8 @@ def run(output_topic, pipeline_args):
                 "window_end": window.end.to_rfc3339()
             })
         | "Convert to JSON" >> beam.Map(json.dumps)
-        | beam.io.WriteStringsToPubSub(topic=output_topic))
+        | "UTF-8 encode" >> beam.Map(lambda s: s.encode("utf-8"))
+        | beam.io.WriteToPubSub(topic=output_topic))
 
 
 if __name__ == '__main__':

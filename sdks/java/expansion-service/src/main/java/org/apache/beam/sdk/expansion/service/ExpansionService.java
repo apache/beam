@@ -63,9 +63,9 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Converter;
@@ -394,6 +394,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     Pipeline pipeline = Pipeline.create();
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    // TODO(BEAM-10670): Remove this when we address performance issue.
+    ExperimentalOptions.addExperiment(
+        pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
 
     ClassLoader classLoader = Environments.class.getClassLoader();
     if (classLoader == null) {

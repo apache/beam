@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -25,7 +26,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
@@ -91,9 +91,6 @@ import org.mockito.Mockito;
 
 /** Test case for {@link GcsUtil}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GcsUtilTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -500,21 +497,30 @@ public class GcsUtilTest {
             + "\n";
     thrown.expect(FileNotFoundException.class);
 
-    final LowLevelHttpResponse mockResponse = Mockito.mock(LowLevelHttpResponse.class);
-    when(mockResponse.getContentType()).thenReturn("multipart/mixed; boundary=" + contentBoundary);
+    final LowLevelHttpResponse[] mockResponses =
+        new LowLevelHttpResponse[] {
+          Mockito.mock(LowLevelHttpResponse.class), Mockito.mock(LowLevelHttpResponse.class),
+        };
+    when(mockResponses[0].getContentType()).thenReturn("text/plain");
+    when(mockResponses[1].getContentType())
+        .thenReturn("multipart/mixed; boundary=" + contentBoundary);
 
     // 429: Too many requests, then 200: OK.
-    when(mockResponse.getStatusCode()).thenReturn(429, 200);
-    when(mockResponse.getContent()).thenReturn(toStream("error"), toStream(content));
+    when(mockResponses[0].getStatusCode()).thenReturn(429);
+    when(mockResponses[1].getStatusCode()).thenReturn(200);
+    when(mockResponses[0].getContent()).thenReturn(toStream("error"));
+    when(mockResponses[1].getContent()).thenReturn(toStream(content));
 
     // A mock transport that lets us mock the API responses.
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder()
             .setLowLevelHttpRequest(
                 new MockLowLevelHttpRequest() {
+                  int index = 0;
+
                   @Override
                   public LowLevelHttpResponse execute() throws IOException {
-                    return mockResponse;
+                    return mockResponses[index++];
                   }
                 })
             .build();

@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import unittest
 
 import pandas as pd
@@ -91,6 +89,15 @@ class ConvertTest(unittest.TestCase):
       s = convert.to_dataframe(pc)
       pc_sum = convert.to_pcollection(s.sum())
       assert_that(pc_sum, equal_to([6]))
+
+  def test_convert_non_deferred(self):
+    with beam.Pipeline() as p:
+      s1 = pd.Series([1, 2, 3])
+      s2 = convert.to_dataframe(p | beam.Create([100, 200, 300]))
+
+      pc1, pc2 = convert.to_pcollection(s1, s2, pipeline=p)
+      assert_that(pc1, equal_to([1, 2, 3]), label='CheckNonDeferred')
+      assert_that(pc2, equal_to([100, 200, 300]), label='CheckDeferred')
 
   def test_convert_memoization(self):
     with beam.Pipeline() as p:

@@ -53,7 +53,6 @@ import org.junit.rules.Timeout;
 /** End-to-end submission test of Beam jobs on a Flink cluster. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class FlinkSubmissionTest {
 

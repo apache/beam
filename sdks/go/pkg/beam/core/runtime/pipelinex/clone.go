@@ -49,6 +49,7 @@ func ShallowClonePTransform(t *pipepb.PTransform) *pipepb.PTransform {
 		UniqueName:  t.UniqueName,
 		Spec:        t.Spec,
 		DisplayData: t.DisplayData,
+		Annotations: t.Annotations,
 	}
 	ret.Subtransforms, _ = reflectx.ShallowClone(t.Subtransforms).([]string)
 	ret.Inputs, _ = reflectx.ShallowClone(t.Inputs).(map[string]string)

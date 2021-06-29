@@ -26,7 +26,7 @@ project.evaluationDependsOn(":runners:portability:java")
 
 def envDir = project.project(":sdks:python").envdir
 def crossLanguageTestClasspath = project.project(":runners:portability:java").sourceSets.test.runtimeClasspath
-def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+def jobPort = BeamModulePlugin.getRandomPort()
 def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
 def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
 
@@ -34,12 +34,12 @@ def setupTask = project.tasks.create(name: "fnApiJobServerSetup", type: Exec) {
   dependsOn ':sdks:python:installGcpTest'
 
   executable 'sh'
-  args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
+  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
 }
 
 def cleanupTask = project.tasks.create(name: "fnApiJobServerCleanup", type: Exec) {
   executable 'sh'
-  args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
+  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
 }
 
 createCrossLanguageValidatesRunnerTask(

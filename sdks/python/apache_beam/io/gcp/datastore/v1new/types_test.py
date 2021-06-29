@@ -19,14 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import datetime
 import logging
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 # Protect against environments where datastore library is not available.

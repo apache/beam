@@ -24,13 +24,10 @@ application code or notebook.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import atexit
 import importlib
 import logging
 import os
-import sys
 import tempfile
 from collections.abc import Iterable
 
@@ -172,12 +169,6 @@ class InteractiveEnvironment(object):
     self._computed_pcolls = set()
     # Always watch __main__ module.
     self.watch('__main__')
-    # Do a warning level logging if current python version is below 3.6.
-    if sys.version_info < (3, 6):
-      self._is_py_version_ready = False
-      _LOGGER.warning('Interactive Beam requires Python 3.5.3+.')
-    else:
-      self._is_py_version_ready = True
     # Check if [interactive] dependencies are installed.
     try:
       import IPython  # pylint: disable=unused-import
@@ -202,7 +193,7 @@ class InteractiveEnvironment(object):
     if self._is_in_ipython and not self._is_in_notebook:
       _LOGGER.warning(
           'You have limited Interactive Beam features since your '
-          'ipython kernel is not connected any notebook frontend.')
+          'ipython kernel is not connected to any notebook frontend.')
     if self._is_in_notebook:
       self.load_jquery_with_datatable()
       register_ipython_log_handler()
@@ -221,11 +212,6 @@ class InteractiveEnvironment(object):
     """
     from apache_beam.runners.interactive.interactive_beam import options
     return options
-
-  @property
-  def is_py_version_ready(self):
-    """If Python version is above the minimum requirement."""
-    return self._is_py_version_ready
 
   @property
   def is_interactive_ready(self):
@@ -261,7 +247,9 @@ class InteractiveEnvironment(object):
       bcj.attempt_to_cancel_background_caching_job(pipeline)
       bcj.attempt_to_stop_test_stream_service(pipeline)
       cache_manager = self.get_cache_manager(pipeline)
-      if cache_manager:
+      # Recording manager performs cache manager cleanup during eviction, so we
+      # don't need to clean it up here.
+      if cache_manager and self.get_recording_manager(pipeline) is None:
         cache_manager.cleanup()
     else:
       for _, job in self._background_caching_jobs.items():
@@ -270,8 +258,10 @@ class InteractiveEnvironment(object):
       for _, controller in self._test_stream_service_controllers.items():
         if controller:
           controller.stop()
-      for _, cache_manager in self._cache_managers.items():
-        if cache_manager:
+      for pipeline_id, cache_manager in self._cache_managers.items():
+        # Recording manager performs cache manager cleanup during eviction, so
+        # we don't need to clean it up here.
+        if cache_manager and pipeline_id not in self._recording_managers:
           cache_manager.cleanup()
 
     self.evict_recording_manager(pipeline)

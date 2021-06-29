@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package xlangx contains various low-level utilities needed for adding
+// cross-language transforms to the pipeline.
 package xlangx
 
 import (
@@ -48,10 +50,11 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	extTransform := transforms[extTransformID]
 	for extTransform.UniqueName != "External" {
 		delete(transforms, extTransformID)
-		p, err := pipelinex.Normalize(p)
+		p, err = pipelinex.Normalize(p) // Update root transform IDs.
 		if err != nil {
 			return err
 		}
+		transforms = p.GetComponents().GetTransforms()
 		extTransformID = p.GetRootTransformIds()[0]
 		extTransform = transforms[extTransformID]
 	}
@@ -59,8 +62,6 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	// Scoping the ExternalTransform with respect to it's unique namespace, thus
 	// avoiding future collisions
 	addNamespace(extTransform, p.GetComponents(), ext.Namespace)
-
-	graphx.AddFakeImpulses(p) // Inputs need to have sources
 	delete(transforms, extTransformID)
 
 	// Querying the expansion service
@@ -73,7 +74,6 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 
 	// Previously added fake impulses need to be removed to avoid having
 	// multiple sources to the same pcollection in the graph
-	graphx.RemoveFakeImpulses(res.GetComponents(), res.GetTransform())
 
 	exp := &graph.ExpandedTransform{
 		Components:   res.GetComponents(),
@@ -118,6 +118,11 @@ func queryExpansionService(
 	// Handling ExpansionResponse
 	res, err := client.Expand(ctx, req)
 	if err != nil {
+		err = errors.Wrapf(err, "expansion failed")
+		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
+	}
+	if len(res.GetError()) != 0 { // ExpansionResponse includes an error.
+		err := errors.New(res.GetError())
 		err = errors.Wrapf(err, "expansion failed")
 		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}

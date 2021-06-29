@@ -872,7 +872,10 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * crash, hardware failure, etc.) or unnecessary (e.g. the pipeline is shutting down and the
    * process is about to be killed anyway, so all transient resources will be released automatically
    * by the OS). In these cases, the call may not happen. It will also not be retried, because in
-   * such situations the DoFn instance no longer exists, so there's no instance to retry it on.
+   * such situations the DoFn instance no longer exists, so there's no instance to retry it on. In
+   * portable execution(with {@code --experiments=beam_fn_api}), the exception thrown calling {@link
+   * Teardown} will not fail the bundle execution. Instead, an error message will be shown on sdk
+   * harness log.
    *
    * <p>Thus, all work that depends on input elements, and all externally important side effects,
    * must be performed in the {@link ProcessElement} or {@link FinishBundle} methods.

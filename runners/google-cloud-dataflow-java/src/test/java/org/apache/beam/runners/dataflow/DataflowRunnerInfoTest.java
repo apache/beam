@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -31,9 +31,6 @@ import org.junit.Test;
  * <p>Note that tests for checking that the Dataflow distribution correctly loads overridden
  * properties is contained within the Dataflow distribution.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowRunnerInfoTest {
 
   @Test
@@ -52,8 +49,23 @@ public class DataflowRunnerInfoTest {
         String.format("FnAPI environment major version number %s is not a number", version),
         version.matches("\\d+"));
 
-    // Validate container version does not contain a $ (indicating it was not filled in).
-    assertThat("container version invalid", info.getContainerVersion(), not(containsString("$")));
+    // Validate container versions do not contain the property name.
+    assertThat(
+        "legacy container version invalid",
+        info.getFnApiDevContainerVersion(),
+        not(containsString("dataflow.legacy_container_version")));
+
+    assertThat(
+        "FnAPI container version invalid",
+        info.getLegacyDevContainerVersion(),
+        not(containsString("dataflow.fnapi_container_version")));
+
+    // Validate container base repository does not contain the property name
+    // (indicating it was not filled in).
+    assertThat(
+        "container repository invalid",
+        info.getContainerImageBaseRepository(),
+        not(containsString("dataflow.container_base_repository")));
 
     for (String property :
         new String[] {"java.vendor", "java.version", "os.arch", "os.name", "os.version"}) {

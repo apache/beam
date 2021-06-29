@@ -77,4 +77,12 @@ message ProvisionInfo {
 
     // The set of dependencies that should be staged into this environment.
     repeated org.apache.beam.model.pipeline.v1.ArtifactInformation dependencies = 11;
+
+    // (optional) A set of capabilities that this SDK is allowed to use in its
+    // interactions with this runner.
+    repeated string runner_capabilities = 12;
+
+    // (optional) Runtime environment metadata that are static throughout the
+    // pipeline execution.
+    map<string, string> metadata = 13;
 }

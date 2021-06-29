@@ -62,9 +62,6 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 /** Test Coverage for the IO. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DynamoDBIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DynamoDBIO.class);
@@ -143,6 +140,34 @@ public class DynamoDBIOTest implements Serializable {
     final PCollection<Long> resultSetCount = writeOutput.get(outputTag).apply(Count.globally());
     // Since we don't know what item will fall into what segment, so assert 3 result set returned
     PAssert.that(resultSetCount).containsInAnyOrder(ImmutableList.of(3L));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReaderWithLimit() {
+    List<Map<String, AttributeValue>> expected =
+        DynamoDBIOTestHelper.generateTestData(tableName, numOfItems);
+
+    // Maximum number of records in scan result
+    final int limit = 5;
+
+    PCollection<Map<String, AttributeValue>> actual =
+        pipeline
+            .apply(
+                DynamoDBIO.<List<Map<String, AttributeValue>>>read()
+                    .withDynamoDbClientProvider(
+                        DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient()))
+                    .withScanRequestFn(
+                        (SerializableFunction<Void, ScanRequest>)
+                            input ->
+                                ScanRequest.builder()
+                                    .tableName(tableName)
+                                    .totalSegments(1)
+                                    .limit(limit)
+                                    .build())
+                    .items())
+            .apply(ParDo.of(new IterateListDoFn()));
+    PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish();
   }
 
@@ -393,5 +418,18 @@ public class DynamoDBIOTest implements Serializable {
           // assert no duplicate keys in each bundle
           assertEquals(new HashSet<>(requestKeys).size(), requestKeys.size());
         });
+  }
+
+  private static class IterateListDoFn
+      extends DoFn<List<Map<String, AttributeValue>>, Map<String, AttributeValue>> {
+
+    @ProcessElement
+    public void processElement(
+        @Element List<Map<String, AttributeValue>> items,
+        OutputReceiver<Map<String, AttributeValue>> out) {
+      for (Map<String, AttributeValue> item : items) {
+        out.output(item);
+      }
+    }
   }
 }

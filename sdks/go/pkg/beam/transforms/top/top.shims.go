@@ -23,13 +23,16 @@ import (
 
 	// Library imports
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
 	runtime.RegisterType(reflect.TypeOf((*accum)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*accum)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*combineFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*combineFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*combineFn)(nil)).Elem(), wrapMakerCombineFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(accum, accum) accum)(nil)).Elem(), funcMakerAccumAccumГAccum)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(accum, typex.T) accum)(nil)).Elem(), funcMakerAccumTypex۰TГAccum)

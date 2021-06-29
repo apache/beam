@@ -55,9 +55,6 @@ import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.junit.Test;
 
 /** Test config generations for {@link org.apache.beam.runners.samza.SamzaRunner}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ConfigGeneratorTest {
   private static final String APP_RUNNER_CLASS = "app.runner.class";
   private static final String JOB_FACTORY_CLASS = "job.factory.class";

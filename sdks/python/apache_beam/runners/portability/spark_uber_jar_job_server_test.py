@@ -16,13 +16,9 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import contextlib
 import logging
 import os
-import sys
 import tempfile
 import unittest
 import zipfile
@@ -60,7 +56,6 @@ def spark_job():
       pipeline_options.SparkRunnerOptions())
 
 
-@unittest.skipIf(sys.version_info < (3, 6), "Requires Python 3.6+")
 class SparkUberJarJobServerTest(unittest.TestCase):
   @requests_mock.mock()
   def test_get_server_spark_version(self, http_mock):

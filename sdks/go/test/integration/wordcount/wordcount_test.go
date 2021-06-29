@@ -20,7 +20,11 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/go/test/integration"
 )
 
 func TestWordCount(t *testing.T) {
@@ -74,6 +78,7 @@ func TestWordCount(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		integration.CheckFilters(t)
 		const filename = "memfs://input"
 		memfs.Write(filename, []byte(strings.Join(test.lines, "\n")))
 
@@ -82,4 +87,8 @@ func TestWordCount(t *testing.T) {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
 	}
+}
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
 }

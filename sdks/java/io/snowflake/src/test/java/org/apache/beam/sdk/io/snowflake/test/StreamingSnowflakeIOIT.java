@@ -70,9 +70,6 @@ import org.junit.Test;
  * -DintegrationTestRunner=direct
  * </pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StreamingSnowflakeIOIT {
   private static final int TIMEOUT = 900000;
   private static final int INTERVAL = 30000;

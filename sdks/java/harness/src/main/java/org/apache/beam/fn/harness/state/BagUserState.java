@@ -26,8 +26,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.stream.DataStreams;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
@@ -77,11 +76,7 @@ public class BagUserState<T> {
     request = requestBuilder.build();
 
     this.oldValues =
-        new LazyCachingIteratorToIterable<>(
-            new DataStreams.DataStreamDecoder(
-                valueCoder,
-                DataStreams.inbound(
-                    StateFetchingIterators.readAllStartingFrom(beamFnStateClient, request))));
+        StateFetchingIterators.readAllAndDecodeStartingFrom(beamFnStateClient, request, valueCoder);
     this.newValues = new ArrayList<>();
   }
 

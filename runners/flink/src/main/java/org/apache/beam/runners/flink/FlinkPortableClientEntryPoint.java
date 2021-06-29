@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import java.io.File;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
@@ -188,7 +188,7 @@ public class FlinkPortableClientEntryPoint {
       String msg =
           String.format(
               "Failed to start job with driver program: %s %s output: %s",
-              executable, args, new String(output, Charset.defaultCharset()));
+              executable, args, new String(output, StandardCharsets.UTF_8));
       throw new RuntimeException(msg, e);
     }
   }

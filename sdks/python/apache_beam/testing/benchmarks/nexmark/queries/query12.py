@@ -23,8 +23,6 @@ Group bids by the same user into processing time windows of window_size_sec.
 Emit the count of bids per window.
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import ResultNames
@@ -32,7 +30,7 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 
 
-def load(events, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   return (
       events
       | nexmark_query_util.JustBids()

@@ -43,20 +43,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@code PTransform}s for estimating the number of distinct elements in a {@code PCollection}, or
  * the number of distinct values associated with each key in a {@code PCollection} of {@code KV}s.
  *
- * <p>Consider using {@code HllCount} in the {@code zetasketch} extension module if you need better
- * performance or need to save intermediate aggregation result into a sketch for later processing.
- *
- * <p>For example, to estimate the number of distinct elements in a {@code PCollection<String>}:
- *
- * <pre>{@code
+ * @deprecated
+ *     <p>Consider using {@code ApproximateCountDistinct} in the {@code zetasketch} extension
+ *     module, which makes use of the {@code HllCount} implementation.
+ *     <p>If {@code ApproximateCountDistinct} does not meet your needs then you can directly use
+ *     {@code HllCount}. Direct usage will also give you access to save intermediate aggregation
+ *     result into a sketch for later processing.
+ *     <p>For example, to estimate the number of distinct elements in a {@code PCollection<String>}:
+ *     <pre>{@code
  * PCollection<String> input = ...;
  * PCollection<Long> countDistinct =
  *     input.apply(HllCount.Init.forStrings().globally()).apply(HllCount.Extract.globally());
  * }</pre>
- *
- * For more details about using {@code HllCount} and the {@code zetasketch} extension module, see
- * https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7.
+ *     For more details about using {@code HllCount} and the {@code zetasketch} extension module,
+ *     see https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7.
  */
+@Deprecated
 public class ApproximateUnique {
 
   /**

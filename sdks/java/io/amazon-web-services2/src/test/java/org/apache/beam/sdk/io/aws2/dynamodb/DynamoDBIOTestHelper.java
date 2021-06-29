@@ -55,7 +55,6 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 /** A utility to generate test table and data for {@link DynamoDBIOTest}. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class DynamoDBIOTestHelper implements Serializable {
   private static final String DYNAMODB_LOCAL_VERSION = "1.13.3";

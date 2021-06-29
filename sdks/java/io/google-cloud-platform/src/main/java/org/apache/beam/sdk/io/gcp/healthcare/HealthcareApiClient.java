@@ -182,7 +182,7 @@ public interface HealthcareApiClient {
   HttpBody searchFhirResource(
       String fhirStore,
       String resourceType,
-      @Nullable Map<String, String> parameters,
+      @Nullable Map<String, Object> parameters,
       String pageToken)
       throws IOException;
 

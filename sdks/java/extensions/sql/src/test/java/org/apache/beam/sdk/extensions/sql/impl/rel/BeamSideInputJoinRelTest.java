@@ -37,9 +37,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Unbounded + Bounded Test for {@code BeamSideInputJoinRel}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSideInputJoinRelTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   public static final DateTime FIRST_DATE = new DateTime(1);

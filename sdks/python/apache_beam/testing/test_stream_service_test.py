@@ -17,10 +17,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import sys
 import unittest
+from unittest.mock import patch
 
 import grpc
 
@@ -30,13 +28,6 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileH
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.testing.test_stream_service import TestStreamServiceController
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 # Nose automatically detects tests if they match a regex. Here, it mistakens
 # these protos as tests. For more info see the Nose docs at:
@@ -124,8 +115,6 @@ class TestStreamServiceTest(unittest.TestCase):
     self.assertEqual(events_b, expected_events)
 
 
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class TestStreamServiceStartStopTest(unittest.TestCase):
 
   # Weak internal use needs to be explicitly imported.

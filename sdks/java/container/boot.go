@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -97,7 +98,12 @@ func main() {
 	// (2) Retrieve the staged user jars. We ignore any disk limit,
 	// because the staged jars are mandatory.
 
-	dir := filepath.Join(*semiPersistDir, "staged")
+	// Using the SDK Harness ID in the artifact destination path to make sure that dependencies used by multiple
+	// SDK Harnesses in the same VM do not conflict. This is needed since some runners (for example, Dataflow)
+	// may share the artifact staging directory across multiple SDK Harnesses
+	// TODO(BEAM-9455): consider removing the SDK Harness ID from the staging path after Dataflow can properly
+	// seperate out dependencies per environment.
+	dir := filepath.Join(*semiPersistDir, *id, "staged")
 
 	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
@@ -110,6 +116,7 @@ func main() {
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}))
+	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
 
 	if info.GetStatusEndpoint() != nil {
 		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
@@ -125,25 +132,43 @@ func main() {
 	}
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
-	for _, md := range artifacts {
+	for _, a := range artifacts {
+		name, _ := artifact.MustExtractFilePayload(a)
 		if hasWorkerExperiment {
-			if strings.HasPrefix(md.Name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
+			if strings.HasPrefix(name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
 				continue
 			}
-			if md.Name == "dataflow-worker.jar" {
+			if name == "dataflow-worker.jar" {
 				continue
 			}
 		}
-		cp = append(cp, filepath.Join(dir, filepath.FromSlash(md.Name)))
+		cp = append(cp, filepath.Join(dir, filepath.FromSlash(name)))
 	}
 
 	args := []string{
 		"-Xmx" + strconv.FormatUint(heapSizeLimit(info), 10),
 		"-XX:-OmitStackTraceInFastThrow",
 		"-cp", strings.Join(cp, ":"),
-		"org.apache.beam.fn.harness.FnHarness",
 	}
 
+	enableGoogleCloudProfiler := strings.Contains(options, "enable_google_cloud_profiler")
+	if enableGoogleCloudProfiler {
+		if metadata := info.GetMetadata(); metadata != nil {
+			if jobName, nameExists := metadata["job_name"]; nameExists {
+				if jobId, idExists := metadata["job_id"]; idExists {
+					args = append(args, fmt.Sprintf("-agentpath:/opt/google_cloud_profiler/profiler_java_agent.so=-cprof_service=%s,-cprof_service_version=%s", jobName, jobId))
+				} else {
+					log.Println("Required job_id missing from metadata, profiling will not be enabled without it.")
+				}
+			} else {
+				log.Println("Required job_name missing from metadata, profiling will not be enabled without it.")
+			}
+		} else {
+			log.Println("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled.")
+		}
+	}
+
+	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	log.Printf("Executing: java %v", strings.Join(args, " "))
 
 	log.Fatalf("Java exited: %v", execx.Execute("java", args...))

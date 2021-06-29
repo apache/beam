@@ -32,6 +32,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Strings;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SchemaUtils {
 
   private static final Map<String, FieldType> FIELD_TYPES =
@@ -97,5 +101,94 @@ class SchemaUtils {
 
     throw new UnsupportedOperationException(
         "Field type '" + dcFieldType + "' is not supported (field '" + column.getColumn() + "')");
+  }
+
+  /** Convert Beam schema to DataCatalog schema. */
+  static com.google.cloud.datacatalog.v1beta1.Schema toDataCatalog(Schema schema) {
+    com.google.cloud.datacatalog.v1beta1.Schema.Builder schemaBuilder =
+        com.google.cloud.datacatalog.v1beta1.Schema.newBuilder();
+    for (Schema.Field field : schema.getFields()) {
+      schemaBuilder.addColumns(fromBeamField(field));
+    }
+    return schemaBuilder.build();
+  }
+
+  private static ColumnSchema fromBeamField(Schema.Field field) {
+    Schema.FieldType fieldType = field.getType();
+    if (fieldType.getTypeName().equals(Schema.TypeName.ARRAY)) {
+      if (fieldType.getNullable()) {
+        throw new UnsupportedOperationException(
+            "Nullable array type is not supported in DataCatalog schemas: " + fieldType);
+      } else if (fieldType.getCollectionElementType().getNullable()) {
+        throw new UnsupportedOperationException(
+            "Nullable array element type is not supported in DataCatalog schemas: " + fieldType);
+      } else if (fieldType.getCollectionElementType().getTypeName().equals(Schema.TypeName.ARRAY)) {
+        throw new UnsupportedOperationException(
+            "Array of arrays not supported in DataCatalog schemas: " + fieldType);
+      }
+      ColumnSchema column =
+          fromBeamField(Field.of(field.getName(), fieldType.getCollectionElementType()));
+      if (!column.getMode().equals("REQUIRED")) {
+        // We should have bailed out earlier for any cases that would result in mode being set.
+        throw new AssertionError(
+            "ColumnSchema for collection element type has non-empty mode: " + fieldType);
+      }
+      return column.toBuilder().setMode("REPEATED").build();
+    } else { // struct or primitive type
+      ColumnSchema.Builder colBuilder =
+          ColumnSchema.newBuilder().setType(getDataCatalogType(fieldType));
+
+      if (fieldType.getNullable()) {
+        colBuilder.setMode("NULLABLE");
+      } else {
+        colBuilder.setMode("REQUIRED");
+      }
+
+      // if this is a struct, add the child columns
+      if (fieldType.getTypeName().equals(Schema.TypeName.ROW)) {
+        for (Schema.Field subField : fieldType.getRowSchema().getFields()) {
+          colBuilder.addSubcolumns(fromBeamField(subField));
+        }
+      }
+
+      return colBuilder.setColumn(field.getName()).build();
+    }
+  }
+
+  private static String getDataCatalogType(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case INT32:
+      case INT64:
+      case BYTES:
+      case DOUBLE:
+      case STRING:
+        return fieldType.getTypeName().name();
+      case BOOLEAN:
+        return "BOOL";
+      case DATETIME:
+        return "TIMESTAMP";
+      case DECIMAL:
+        return "NUMERIC";
+      case LOGICAL_TYPE:
+        Schema.LogicalType logical = fieldType.getLogicalType();
+        if (SqlTypes.TIME.getIdentifier().equals(logical.getIdentifier())) {
+          return "TIME";
+        } else if (SqlTypes.DATE.getIdentifier().equals(logical.getIdentifier())) {
+          return "DATE";
+        } else if (SqlTypes.DATETIME.getIdentifier().equals(logical.getIdentifier())) {
+          return "DATETIME";
+        } else {
+          throw new UnsupportedOperationException("Unsupported logical type: " + logical);
+        }
+      case ROW:
+        return "STRUCT";
+      case MAP:
+        return String.format(
+            "MAP<%s,%s>",
+            getDataCatalogType(fieldType.getMapKeyType()),
+            getDataCatalogType(fieldType.getMapValueType()));
+      default:
+        throw new UnsupportedOperationException("Unsupported type: " + fieldType);
+    }
   }
 }

@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -59,8 +60,9 @@ public abstract class AppliedPTransform<
           Map<TupleTag<?>, PCollection<?>> input,
           Map<TupleTag<?>, PCollection<?>> output,
           TransformT transform,
+          ResourceHints resourceHints,
           Pipeline p) {
-    return new AutoValue_AppliedPTransform<>(fullName, input, output, transform, p);
+    return new AutoValue_AppliedPTransform<>(fullName, input, output, transform, resourceHints, p);
   }
 
   public abstract String getFullName();
@@ -70,6 +72,8 @@ public abstract class AppliedPTransform<
   public abstract Map<TupleTag<?>, PCollection<?>> getOutputs();
 
   public abstract TransformT getTransform();
+
+  public abstract ResourceHints getResourceHints();
 
   public abstract Pipeline getPipeline();
 

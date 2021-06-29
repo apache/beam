@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -28,6 +28,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -106,6 +107,7 @@ public class CreatePCollectionViewTranslationTest {
             PValues.expandInput(testPCollection),
             PValues.expandOutput(createViewTransform.getView()),
             createViewTransform,
+            ResourceHints.create(),
             p);
 
     FunctionSpec payload = PTransformTranslation.toProto(appliedPTransform, components).getSpec();
@@ -131,6 +133,7 @@ public class CreatePCollectionViewTranslationTest {
             PValues.expandInput(testPCollection),
             PValues.expandOutput(createViewTransform.getView()),
             createViewTransform,
+            ResourceHints.create(),
             p);
 
     CreatePCollectionViewTranslation.getView((AppliedPTransform) appliedPTransform);

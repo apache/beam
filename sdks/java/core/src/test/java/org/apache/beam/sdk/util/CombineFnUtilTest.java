@@ -40,9 +40,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link CombineFnUtil}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CombineFnUtilTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();

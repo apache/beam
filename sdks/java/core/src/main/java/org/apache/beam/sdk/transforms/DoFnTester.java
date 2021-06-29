@@ -723,7 +723,19 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   SerializableUtils.serializeToByteArray(origFn), origFn.toString());
     }
     fnInvoker = DoFnInvokers.invokerFor(fn);
-    fnInvoker.invokeSetup();
+    fnInvoker.invokeSetup(new TestSetupArgumentProvider());
+  }
+
+  private class TestSetupArgumentProvider extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return options;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "DoFnTester/Setup";
+    }
   }
 
   private Map getOutputs() {

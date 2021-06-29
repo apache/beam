@@ -17,8 +17,8 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.examples.complete.game.LeaderBoard.CalculateTeamScores;

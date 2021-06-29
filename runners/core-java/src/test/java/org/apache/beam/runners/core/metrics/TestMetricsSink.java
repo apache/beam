@@ -29,9 +29,6 @@ import org.apache.beam.sdk.metrics.MetricsSink;
  * This sink just stores in a static field the first counter (if it exists) attempted value. This is
  * useful for tests.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestMetricsSink implements MetricsSink {
 
   private static MetricQueryResults metricQueryResults;

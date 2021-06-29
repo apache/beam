@@ -193,7 +193,7 @@ download it on the [Downloads page](/get-started/downloads/).
 {{< paragraph class="language-py" >}}
 1. Start the JobService endpoint:
     * with Docker (preferred): `docker run --net=host apache/beam_spark_job_server:latest`
-    * or from Beam source code: `./gradlew :runners:spark:job-server:runShadow`
+    * or from Beam source code: `./gradlew :runners:spark:2:job-server:runShadow`
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -228,7 +228,7 @@ For more details on the different deployment modes see: [Standalone](https://spa
 {{< paragraph class="language-py" >}}
 2. Start JobService that will connect with the Spark master:
     * with Docker (preferred): `docker run --net=host apache/beam_spark_job_server:latest --spark-master-url=spark://localhost:7077`
-    * or from Beam source code: `./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`
+    * or from Beam source code: `./gradlew :runners:spark:2:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}3. Submit the pipeline as above.

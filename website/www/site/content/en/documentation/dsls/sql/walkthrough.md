@@ -138,9 +138,9 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
 
     // Create a PCollectionTuple containing both PCollections.
     // TupleTags IDs will be used as table names in the SQL query
-    PCollectionTuple namesAndFoods = PCollectionTuple.of(
-        new TupleTag<>("Apps"), appsRows), // appsRows from the previous example
-        new TupleTag<>("Reviews"), reviewsRows));
+    PCollectionTuple namesAndFoods = PCollectionTuple
+        .of(new TupleTag<>("Apps"), appsRows) // appsRows from the previous example
+        .and(new TupleTag<>("Reviews"), reviewsRows);
 
     // Compute the total number of reviews
     // and average rating per app

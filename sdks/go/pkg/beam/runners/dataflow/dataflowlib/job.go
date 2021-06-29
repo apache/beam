@@ -17,9 +17,11 @@ package dataflowlib
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
@@ -48,11 +50,14 @@ type JobOptions struct {
 	Subnetwork          string
 	NoUsePublicIPs      bool
 	NumWorkers          int64
+	DiskSizeGb          int64
 	MachineType         string
 	Labels              map[string]string
 	ServiceAccountEmail string
 	WorkerRegion        string
 	WorkerZone          string
+	ContainerImage      string
+	ArtifactURLs        []string // Additional packages for workers.
 
 	// Autoscaling settings
 	Algorithm     string
@@ -74,9 +79,22 @@ type JobOptions struct {
 func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
-	steps, err := translate(p)
-	if err != nil {
-		return nil, err
+	isPortableJob := false
+	for _, exp := range opts.Experiments {
+		if exp == "use_portable_job_submission" {
+			isPortableJob = true
+		}
+	}
+
+	var steps []*df.Step
+	if isPortableJob { // Portable jobs do not need to provide dataflow steps.
+		steps = make([]*df.Step, 0)
+	} else {
+		var err error
+		steps, err = translate(p)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	jobType := "JOB_TYPE_BATCH"
@@ -89,8 +107,12 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 	}
 
 	images := pipelinex.ContainerImages(p)
-	if len(images) != 1 {
-		return nil, errors.Errorf("Dataflow supports one container image only: %v", images)
+	dfImages := make([]*df.SdkHarnessContainerImage, 0, len(images))
+	for _, img := range images {
+		dfImages = append(dfImages, &df.SdkHarnessContainerImage{
+			ContainerImage:            img,
+			UseSingleCorePerContainer: false,
+		})
 	}
 
 	packages := []*df.Package{{
@@ -106,6 +128,15 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		}
 		packages = append(packages, jar)
 		experiments = append(experiments, "use_staged_dataflow_worker_jar")
+	}
+
+	for _, url := range opts.ArtifactURLs {
+		name := url[strings.LastIndexAny(url, "/")+1:]
+		pkg := &df.Package{
+			Name:     name,
+			Location: url,
+		}
+		packages = append(packages, pkg)
 	}
 
 	ipConfiguration := "WORKER_IP_UNSPECIFIED"
@@ -124,8 +155,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		Environment: &df.Environment{
 			ServiceAccountEmail: opts.ServiceAccountEmail,
 			UserAgent: newMsg(userAgent{
-				Name:    "Apache Beam SDK for Go",
-				Version: "2.27.0.dev",
+				Name:    core.SdkName,
+				Version: core.SdkVersion,
 			}),
 			Version: newMsg(version{
 				JobType: apiJobType,
@@ -144,10 +175,12 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
+				DiskSizeGb:                  opts.DiskSizeGb,
 				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
-				WorkerHarnessContainerImage: images[0],
+				WorkerHarnessContainerImage: opts.ContainerImage,
+				SdkHarnessContainerImages:   dfImages,
 				NumWorkers:                  1,
 				MachineType:                 opts.MachineType,
 				Network:                     opts.Network,
@@ -312,6 +345,18 @@ func validateWorkerSettings(ctx context.Context, opts *JobOptions) error {
 		log.Warn(ctx, "Option --zone is deprecated. Please use --workerZone instead.")
 		opts.WorkerZone = opts.Zone
 		opts.Zone = ""
+	}
+
+	numWorkers := opts.NumWorkers
+	maxNumWorkers := opts.MaxNumWorkers
+	if numWorkers < 0 {
+		return fmt.Errorf("num_workers (%d) cannot be negative", numWorkers)
+	}
+	if maxNumWorkers < 0 {
+		return fmt.Errorf("max_num_workers (%d) cannot be negative", maxNumWorkers)
+	}
+	if numWorkers > 0 && maxNumWorkers > 0 && numWorkers > maxNumWorkers {
+		return fmt.Errorf("num_workers (%d) cannot exceed max_num_workers (%d)", numWorkers, maxNumWorkers)
 	}
 	return nil
 }

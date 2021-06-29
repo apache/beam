@@ -80,6 +80,7 @@ import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
+import org.apache.beam.runners.fnexecution.wire.ByteStringCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -99,13 +100,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -133,7 +133,6 @@ import org.powermock.reflect.Whitebox;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ExecutableStageDoFnOperatorTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -510,8 +509,8 @@ public class ExecutableStageDoFnOperatorTest {
                     timestamp,
                     PaneInfo.NO_FIRING),
                 TimerInternals.TimerData.of(
-                    TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
                     "",
+                    TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
                     StateNamespaces.window(IntervalWindow.getCoder(), intervalWindow),
                     timestamp,
                     timestamp,
@@ -799,6 +798,7 @@ public class ExecutableStageDoFnOperatorTest {
     // user timer that fires after the end of the window and after state cleanup
     TimerInternals.TimerData userTimer =
         TimerInternals.TimerData.of(
+            "",
             TimerReceiverFactory.encodeToTimerDataTimerId(
                 timerInputKey.getKey(), timerInputKey.getValue()),
             stateNamespace,
@@ -834,6 +834,7 @@ public class ExecutableStageDoFnOperatorTest {
     // Cleanup timer are rescheduled if a new timer is created during the bundle
     TimerInternals.TimerData userTimer2 =
         TimerInternals.TimerData.of(
+            "",
             TimerReceiverFactory.encodeToTimerDataTimerId(
                 timerInputKey.getKey(), timerInputKey.getValue()),
             stateNamespace,

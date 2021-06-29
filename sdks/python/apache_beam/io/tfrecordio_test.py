@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import binascii
 import glob
 import gzip
@@ -28,14 +26,10 @@ import os
 import pickle
 import random
 import re
-import sys
 import unittest
 import zlib
-from builtins import range
 
 import crcmod
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 
 import apache_beam as beam
 from apache_beam import Create
@@ -105,12 +99,8 @@ class TestTFRecordUtil(unittest.TestCase):
 
   def _increment_value_at_index(self, value, index):
     l = list(value)
-    if sys.version_info[0] <= 2:
-      l[index] = bytes(ord(l[index]) + 1)
-      return b"".join(l)
-    else:
-      l[index] = l[index] + 1
-      return bytes(l)
+    l[index] = l[index] + 1
+    return bytes(l)
 
   def _test_error(self, record, error_text):
     with self.assertRaisesRegex(ValueError, re.escape(error_text)):

@@ -15,11 +15,9 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
-import sys
 import time
 import unittest
+from unittest.mock import MagicMock
 
 import apache_beam as beam
 from apache_beam import coders
@@ -42,13 +40,6 @@ from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import MagicMock
-except ImportError:
-  from mock import MagicMock  # type: ignore[misc]
 
 
 class MockPipelineResult(beam.runners.runner.PipelineResult):
@@ -191,9 +182,6 @@ class ElementStreamTest(unittest.TestCase):
 
 
 class RecordingTest(unittest.TestCase):
-  @unittest.skipIf(
-      sys.version_info < (3, 6, 0),
-      'This test requires at least Python 3.6 to work.')
   def test_computed(self):
     """Tests that a PCollection is marked as computed only in a complete state.
 
@@ -261,9 +249,6 @@ class RecordingTest(unittest.TestCase):
     self.assertTrue(recording.computed())
     self.assertFalse(recording.uncomputed())
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6, 0),
-      'This test requires at least Python 3.6 to work.')
   def test_describe(self):
     p = beam.Pipeline(InteractiveRunner())
     numbers = p | 'numbers' >> beam.Create([0, 1, 2])
@@ -309,9 +294,6 @@ class RecordingTest(unittest.TestCase):
 
 
 class RecordingManagerTest(unittest.TestCase):
-  @unittest.skipIf(
-      sys.version_info < (3, 6, 0),
-      'This test requires at least Python 3.6 to work.')
   def test_basic_execution(self):
     """A basic pipeline to be used as a smoke test."""
 
@@ -351,9 +333,6 @@ class RecordingManagerTest(unittest.TestCase):
 
     rm.cancel()
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6, 0),
-      'This test requires at least Python 3.6 to work.')
   def test_duration_parsing(self):
     p = beam.Pipeline(InteractiveRunner())
     elems = p | beam.Create([0, 1, 2])
@@ -371,9 +350,6 @@ class RecordingManagerTest(unittest.TestCase):
     # Assert that the duration was parsed correctly to integer seconds.
     self.assertEqual(recording.describe()['duration'], 500)
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6, 0),
-      'This test requires at least Python 3.6 to work.')
   def test_cancel_stops_recording(self):
     # Add the TestStream so that it can be cached.
     ib.options.recordable_sources.add(TestStream)
@@ -418,9 +394,6 @@ class RecordingManagerTest(unittest.TestCase):
     rm.cancel()
     self.assertTrue(bcj.is_done())
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6, 0),
-      'This test requires at least Python 3.6 to work.')
   def test_recording_manager_clears_cache(self):
     """Tests that the RecordingManager clears the cache before recording.
 
@@ -463,9 +436,6 @@ class RecordingManagerTest(unittest.TestCase):
         unittest.mock.ANY,
         set(pipeline_instrument.cache_key(pc) for pc in (elems, squares)))
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6, 0),
-      'This test requires at least Python 3.6 to work.')
   def test_clear(self):
     """Tests that clear can empty the cache for a specific pipeline."""
 
@@ -502,9 +472,6 @@ class RecordingManagerTest(unittest.TestCase):
     rm_2.clear()
     self.assertEqual(rm_2.describe()['size'], 0)
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6, 0),
-      'This test requires at least Python 3.6 to work.')
   def test_record_pipeline(self):
     # Add the TestStream so that it can be cached.
     ib.options.recordable_sources.add(TestStream)
@@ -532,18 +499,23 @@ class RecordingManagerTest(unittest.TestCase):
     class SizeLimiter(Limiter):
       def __init__(self, p):
         self.pipeline = p
+        self._rm = None
+
+      def set_recording_manager(self, rm):
+        self._rm = rm
 
       def is_triggered(self):
-        rm = ie.current_env().get_recording_manager(self.pipeline)
-        return rm.describe()['size'] > 0 if rm else False
+        return self._rm.describe()['size'] > 0 if self._rm else False
 
     # Do the first recording to get the timestamp of the first time the fragment
     # was run.
-    rm = RecordingManager(p, test_limiters=[SizeLimiter(p)])
+    size_limiter = SizeLimiter(p)
+    rm = RecordingManager(p, test_limiters=[size_limiter])
+    size_limiter.set_recording_manager(rm)
     self.assertEqual(rm.describe()['state'], PipelineState.STOPPED)
     self.assertTrue(rm.record_pipeline())
 
-    ie.current_env().set_recording_manager(rm, p)
+    # A recording is in progress, no need to start another one.
     self.assertFalse(rm.record_pipeline())
 
     for _ in range(60):

@@ -16,36 +16,23 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import json
 import logging
 import math
 import os
 import tempfile
 import unittest
-from builtins import range
 from typing import List
-import sys
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 
 import avro
 import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
+from avro.schema import Parse
 from fastavro.schema import parse_schema
 from fastavro import writer
-
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  from avro.schema import Parse  # avro-python3 library for python3
-except ImportError:
-  from avro.schema import parse as Parse  # avro library for python2
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 import apache_beam as beam
 from apache_beam import Create
@@ -101,12 +88,6 @@ class AvroBase(object):
            ]
           }
           '''
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
@@ -446,7 +427,7 @@ class AvroBase(object):
 
 
 @unittest.skipIf(
-    sys.version_info[0] == 3 and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
     'This test requires that Beam depends on avro-python3>=1.9 or newer. '
     'See: BEAM-6522.')
 class TestAvro(AvroBase, unittest.TestCase):

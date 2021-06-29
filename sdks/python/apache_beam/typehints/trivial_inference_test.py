@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import sys
 import types
 import unittest
 
@@ -38,6 +35,21 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertEqual(
         expected,
         trivial_inference.infer_return_type(f, inputs, debug=True, depth=depth))
+
+  def testBuildListUnpack(self):
+    # Lambda uses BUILD_LIST_UNPACK opcode in Python 3.
+    self.assertReturnType(
+        typehints.List[int],
+        lambda _list: [*_list, *_list, *_list], [typehints.List[int]])
+
+  def testBuildTupleUnpack(self):
+    # Lambda uses BUILD_TUPLE_UNPACK opcode in Python 3.
+    # yapf: disable
+    self.assertReturnType(
+        typehints.Tuple[int, str, str],
+        lambda _list1, _list2: (*_list1, *_list2, *_list2),
+        [typehints.List[int], typehints.List[str]])
+    # yapf: enable
 
   def testIdentity(self):
     self.assertReturnType(int, lambda x: x, [int])
@@ -74,11 +86,9 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(str, lambda v: v[::-1], [str])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [typehints.Any])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [object])
-    if sys.version_info >= (3, ):
-      # Test binary_subscr on a slice of a Const. On Py2.7 this will use the
-      # unsupported opcode SLICE+0.
-      test_list = ['a', 'b']
-      self.assertReturnType(typehints.List[str], lambda: test_list[:], [])
+    # Test binary_subscr on a slice of a Const.
+    test_list = ['a', 'b']
+    self.assertReturnType(typehints.List[str], lambda: test_list[:], [])
 
   def testUnpack(self):
     def reverse(a_b):
@@ -104,7 +114,6 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         any_tuple, reverse, [trivial_inference.Const((1, 2, 3))])
 
-  @unittest.skipIf(sys.version_info < (3, ), 'BUILD_MAP better in Python 3')
   def testBuildMap(self):
     self.assertReturnType(
         typehints.Dict[typehints.Any, typehints.Any],
@@ -170,11 +179,7 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.List[typehints.Union[int, float]],
         lambda xs: [x for x in xs], [typehints.Tuple[int, float]])
-    if sys.version_info[:2] == (3, 5):
-      # A better result requires implementing the MAKE_CLOSURE opcode.
-      expected = typehints.Any
-    else:
-      expected = typehints.List[typehints.Tuple[str, int]]
+    expected = typehints.List[typehints.Tuple[str, int]]
     self.assertReturnType(
         expected,
         lambda kvs: [(kvs[0], v) for v in kvs[1]],
@@ -269,11 +274,7 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testDictComprehension(self):
     fields = []
-    if sys.version_info >= (3, 6):
-      expected_type = typehints.Dict[typehints.Any, typehints.Any]
-    else:
-      # For Python 2, just ensure it doesn't crash.
-      expected_type = typehints.Any
+    expected_type = typehints.Dict[typehints.Any, typehints.Any]
     self.assertReturnType(
         expected_type, lambda row: {f: row[f]
                                     for f in fields}, [typehints.Any])
@@ -318,7 +319,6 @@ class TrivialInferenceTest(unittest.TestCase):
         x2,
         _list: fn(x1, x2, *_list), [str, typehints.List[int]])
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'CALL_FUNCTION_EX is new in 3.6')
   def testCallFunctionEx(self):
     # Test when fn arguments are built using BUiLD_LIST.
     def fn(*args):
@@ -329,7 +329,6 @@ class TrivialInferenceTest(unittest.TestCase):
         lambda x1,
         x2: fn(*[x1, x2]), [str, float])
 
-  @unittest.skipIf(sys.version_info < (3, 6), 'CALL_FUNCTION_EX is new in 3.6')
   def testCallFunctionExKwargs(self):
     def fn(x1, x2, **unused_kwargs):
       return x1, x2

@@ -21,10 +21,10 @@ import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -156,13 +155,6 @@ public class FixedWindowsTest {
     FixedWindows.of(new Duration(10)).verifyCompatibility(FixedWindows.of(new Duration(10)));
     thrown.expect(IncompatibleWindowException.class);
     FixedWindows.of(new Duration(10)).verifyCompatibility(FixedWindows.of(new Duration(20)));
-  }
-
-  @Test
-  public void testValidOutputTimes() throws Exception {
-    for (long timestamp : Arrays.asList(200, 800, 700)) {
-      WindowFnTestUtils.validateGetOutputTimestamp(FixedWindows.of(new Duration(500)), timestamp);
-    }
   }
 
   @Test

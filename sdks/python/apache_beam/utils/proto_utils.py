@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 from typing import Type
 from typing import TypeVar
 from typing import Union
@@ -36,6 +33,8 @@ from google.protobuf import timestamp_pb2
 MessageT = TypeVar('MessageT', bound=message.Message)
 TimeMessageT = TypeVar(
     'TimeMessageT', duration_pb2.Duration, timestamp_pb2.Timestamp)
+
+message_types = (message.Message, )
 
 
 @overload

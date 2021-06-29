@@ -20,23 +20,39 @@ package org.apache.beam.sdk.tpcds;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.Validation;
 
-/** Options used to configure TPC-DS test */
+/** Options used to configure TPC-DS test. */
 public interface TpcdsOptions extends PipelineOptions {
-    @Description("The size of TPC-DS data to run query on, user input should contain the unit, such as '1G', '10G'")
-    String getDataSize();
+  @Description(
+      "The size of TPC-DS data to run query on, user input should contain the unit, such as '1G', '10G'")
+  @Validation.Required
+  String getDataSize();
 
-    void setDataSize(String dataSize);
+  void setDataSize(String dataSize);
 
-    // Set the return type to be String since reading from the command line (user input will be like "1,2,55" which represent TPC-DS query1, query3, query55)
-    @Description("The queries numbers, read user input as string, numbers separated by commas")
-    String getQueries();
+  // Set the return type to be String since reading from the command line (user input will be like
+  // "1,2,55" which represent TPC-DS query1, query3, query55)
+  @Description("The queries numbers, read user input as string, numbers separated by commas")
+  String getQueries();
 
-    void setQueries(String queries);
+  void setQueries(String queries);
 
-    @Description("The number of queries to run in parallel")
-    @Default.Integer(1)
-    Integer getTpcParallel();
+  @Description("The number of queries to run in parallel")
+  @Default.Integer(1)
+  Integer getTpcParallel();
 
-    void setTpcParallel(Integer parallelism);
+  void setTpcParallel(Integer parallelism);
+
+  @Description("The path to input data directory")
+  @Validation.Required
+  String getDataDirectory();
+
+  void setDataDirectory(String path);
+
+  @Description("The path to directory with results")
+  @Validation.Required
+  String getResultsDirectory();
+
+  void setResultsDirectory(String path);
 }

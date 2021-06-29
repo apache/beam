@@ -95,9 +95,6 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link BigQueryIO#readTableRows()} using {@link Method#DIRECT_READ}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryIOStorageQueryTest {
 
   private transient BigQueryOptions options;

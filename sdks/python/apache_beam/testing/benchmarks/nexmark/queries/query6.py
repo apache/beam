@@ -28,9 +28,6 @@ over the last 10 closed auctions by the same seller. In CQL syntax::
   GROUP BY Q.seller;
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries import winning_bids
@@ -39,7 +36,7 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 
 
-def load(events, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   # find winning bids for each closed auction
   return (
       events

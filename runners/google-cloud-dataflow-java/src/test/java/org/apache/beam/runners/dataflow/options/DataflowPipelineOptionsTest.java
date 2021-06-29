@@ -43,9 +43,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link DataflowPipelineOptions}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowPipelineOptionsTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public ResetDateTimeProvider resetDateTimeProviderRule = new ResetDateTimeProvider();

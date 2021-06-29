@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import contextlib
 import threading
 from typing import TYPE_CHECKING

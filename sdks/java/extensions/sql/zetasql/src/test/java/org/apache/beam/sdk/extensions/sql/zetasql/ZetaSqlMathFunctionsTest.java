@@ -35,9 +35,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ZetaSQL Math functions (on INT64, DOUBLE, NUMERIC types). */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ZetaSqlMathFunctionsTest extends ZetaSqlTestBase {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -640,8 +637,8 @@ public class ZetaSqlMathFunctionsTest extends ZetaSqlTestBase {
                     ZetaSqlTypesUtils.bigDecimalAsNumeric("-0.54321"),
                     ZetaSqlTypesUtils.bigDecimalAsNumeric("123456"),
                     ZetaSqlTypesUtils.bigDecimalAsNumeric("-0.009876"),
-                    ZetaSqlTypesUtils.NUMERIC_MIN_VALUE,
-                    ZetaSqlTypesUtils.NUMERIC_MAX_VALUE)
+                    ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MIN_VALUE,
+                    ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MAX_VALUE)
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -892,7 +889,12 @@ public class ZetaSqlMathFunctionsTest extends ZetaSqlTestBase {
                         .addNullableField("f_numeric4", Schema.FieldType.DECIMAL)
                         .addNullableField("f_numeric5", Schema.FieldType.DECIMAL)
                         .build())
-                .addValues(null, null, null, null, ZetaSqlTypesUtils.NUMERIC_MIN_VALUE)
+                .addValues(
+                    null,
+                    null,
+                    null,
+                    null,
+                    ZetaSqlCalciteTranslationUtils.ZETASQL_NUMERIC_MIN_VALUE)
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

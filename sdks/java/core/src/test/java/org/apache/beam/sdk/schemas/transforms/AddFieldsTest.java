@@ -37,9 +37,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link AddFields}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class AddFieldsTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();

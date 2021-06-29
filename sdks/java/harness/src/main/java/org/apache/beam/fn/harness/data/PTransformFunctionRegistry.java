@@ -21,15 +21,18 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
@@ -120,6 +123,11 @@ public class PTransformFunctionRegistry {
   /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
     return executionStates.getExecutionTimeMonitoringInfos();
+  }
+
+  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
+  public Map<String, ByteString> getExecutionTimeMonitoringData(ShortIdMap shortIds) {
+    return executionStates.getExecutionTimeMonitoringData(shortIds);
   }
 
   /**

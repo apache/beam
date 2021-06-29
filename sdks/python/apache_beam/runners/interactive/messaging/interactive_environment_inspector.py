@@ -22,8 +22,6 @@ interactive_environment.current_env().inspector.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.runners.interactive.utils import as_json
 from apache_beam.runners.interactive.utils import obfuscate

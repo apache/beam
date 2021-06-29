@@ -46,9 +46,6 @@ import org.junit.runners.JUnit4;
 
 /** Test PubsubUnboundedSink. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PubsubUnboundedSinkTest implements Serializable {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private static final String DATA = "testData";

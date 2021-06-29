@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 
 import mock
@@ -29,6 +27,7 @@ import apache_beam as beam
 from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io import iobase
+from apache_beam.io import range_trackers
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.util import assert_that
@@ -182,6 +181,18 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
     self.assertEqual(
         actual_primary._source_bundle.weight,
         self.sdf_restriction_tracker.current_restriction().weight())
+
+  def test_try_split_with_any_exception(self):
+    source_bundle = SourceBundle(
+        range_trackers.OffsetRangeTracker.OFFSET_INFINITY,
+        RangeSource(0, range_trackers.OffsetRangeTracker.OFFSET_INFINITY),
+        0,
+        range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
+    self.sdf_restriction_tracker = (
+        iobase._SDFBoundedSourceRestrictionTracker(
+            iobase._SDFBoundedSourceRestriction(source_bundle)))
+    self.sdf_restriction_tracker.try_claim(0)
+    self.assertIsNone(self.sdf_restriction_tracker.try_split(0.5))
 
 
 class UseSdfBoundedSourcesTests(unittest.TestCase):

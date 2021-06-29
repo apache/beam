@@ -42,13 +42,9 @@ and an output prefix on GCS::
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import re
-
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -107,8 +103,8 @@ class CountWords(beam.PTransform):
     return (
         pcoll
         | 'split' >> (
-            beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x)).
-            with_output_types(unicode))
+            beam.FlatMap(
+                lambda x: re.findall(r'[A-Za-z\']+', x)).with_output_types(str))
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | 'group' >> beam.GroupByKey()
         | 'count' >> beam.Map(count_ones))

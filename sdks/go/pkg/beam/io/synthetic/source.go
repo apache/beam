@@ -37,6 +37,7 @@ import (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*sourceFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*SourceConfig)(nil)).Elem())
 }
 
 // Source creates a synthetic source transform that emits randomly

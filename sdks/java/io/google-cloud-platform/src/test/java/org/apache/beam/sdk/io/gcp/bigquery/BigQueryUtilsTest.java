@@ -19,13 +19,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableRow;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSchema;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -64,9 +64,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BigQueryUtils}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryUtilsTest {
   private static final Schema FLAT_TYPE =
       Schema.builder()
@@ -264,7 +261,7 @@ public class BigQueryUtilsTest {
               "timestamp_variant4",
               String.valueOf(
                   new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
-          .set("datetime", "2020-11-02 12:34:56.789876")
+          .set("datetime", "2020-11-02T12:34:56.789876")
           .set("date", "2020-11-02")
           .set("time", "12:34:56.789876")
           .set("valid", "false")
@@ -477,7 +474,7 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));
@@ -522,7 +519,7 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));
@@ -540,7 +537,7 @@ public class BigQueryUtilsTest {
     assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));

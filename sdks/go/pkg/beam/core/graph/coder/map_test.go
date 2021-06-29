@@ -27,10 +27,19 @@ import (
 )
 
 func TestEncodeDecodeMap(t *testing.T) {
-	byteEnc := containerEncoderForType(reflectx.Uint8)
-	byteDec := containerDecoderForType(reflectx.Uint8)
-	bytePtrEnc := containerEncoderForType(reflect.PtrTo(reflectx.Uint8))
-	bytePtrDec := containerDecoderForType(reflect.PtrTo(reflectx.Uint8))
+	byteEnc := func(v reflect.Value, w io.Writer) error {
+		return EncodeByte(byte(v.Uint()), w)
+	}
+	byteDec := reflectDecodeByte
+	bytePtrEnc := func(v reflect.Value, w io.Writer) error {
+		return byteEnc(v.Elem(), w)
+	}
+	bytePtrDec := func(v reflect.Value, r io.Reader) error {
+		v.Set(reflect.New(reflectx.Uint8))
+		return byteDec(v.Elem(), r)
+	}
+	byteCtnrPtrEnc := containerNilEncoder(bytePtrEnc)
+	byteCtnrPtrDec := containerNilDecoder(bytePtrDec)
 
 	ptrByte := byte(42)
 
@@ -49,18 +58,25 @@ func TestEncodeDecodeMap(t *testing.T) {
 			decV:    byteDec,
 			encoded: []byte{0, 0, 0, 1, 10, 42},
 		}, {
+			v:       map[byte]byte{10: 42, 12: 53, 15: 64},
+			encK:    byteEnc,
+			encV:    byteEnc,
+			decK:    byteDec,
+			decV:    byteDec,
+			encoded: []byte{0, 0, 0, 3, 10, 42, 12, 53, 15, 64},
+		}, {
 			v:       map[byte]*byte{10: &ptrByte},
 			encK:    byteEnc,
-			encV:    bytePtrEnc,
+			encV:    byteCtnrPtrEnc,
 			decK:    byteDec,
-			decV:    bytePtrDec,
+			decV:    byteCtnrPtrDec,
 			encoded: []byte{0, 0, 0, 1, 10, 1, 42},
 		}, {
 			v:          map[byte]*byte{10: &ptrByte, 23: nil, 53: nil},
 			encK:       byteEnc,
-			encV:       bytePtrEnc,
+			encV:       byteCtnrPtrEnc,
 			decK:       byteDec,
-			decV:       bytePtrDec,
+			decV:       byteCtnrPtrDec,
 			encoded:    []byte{0, 0, 0, 3, 10, 1, 42, 23, 0, 53, 0},
 			decodeOnly: true,
 		},

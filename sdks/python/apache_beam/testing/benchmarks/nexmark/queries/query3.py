@@ -31,8 +31,6 @@ the matching person is seen. Then all subsequent auctions for a person will use
 the stored person record.
 """
 
-from __future__ import absolute_import
-
 import logging
 
 import apache_beam as beam
@@ -45,7 +43,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.userstate import on_timer
 
 
-def load(events, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   num_events_in_pane = 30
   windowed_events = (
       events

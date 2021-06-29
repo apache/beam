@@ -19,13 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
@@ -429,6 +428,7 @@ class TestStreamTest(unittest.TestCase):
 
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
+    options.view_as(TypeOptions).allow_unsafe_triggers = True
     p = TestPipeline(options=options)
     records = (
         p

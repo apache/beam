@@ -39,9 +39,6 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 
 /** Utilities for testing schemas. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SchemaTestUtils {
   // Assert that two schemas are equivalent, ignoring field order. This tests that both schemas
   // (recursively) contain the same fields with the same names, but possibly different orders.

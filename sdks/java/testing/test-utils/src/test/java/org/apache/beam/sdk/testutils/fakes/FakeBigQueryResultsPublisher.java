@@ -25,9 +25,6 @@ import org.apache.beam.sdk.testutils.TestResult;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 
 /** A fake implementation of {@link BigQueryResultsPublisher} for testing purposes only. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FakeBigQueryResultsPublisher extends BigQueryResultsPublisher {
 
   private Map<String, List<TestResult>> recordsPerTable;

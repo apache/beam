@@ -37,10 +37,6 @@ The (novel) sequence of events when running a doctest is as follows.
      values.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import contextlib
 import doctest
@@ -73,7 +69,7 @@ class FakePandasObject(object):
   def __call__(self, *args, **kwargs):
     result = self._pandas_obj(*args, **kwargs)
     if type(result) in DeferredBase._pandas_type_map.keys():
-      placeholder = expressions.PlaceholderExpression(result[0:0])
+      placeholder = expressions.PlaceholderExpression(result.iloc[0:0])
       self._test_env._inputs[placeholder] = result
       return DeferredBase.wrap(placeholder)
     else:
@@ -193,7 +189,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
   def compute_using_session(self, to_compute):
     session = expressions.PartitioningSession(self._env._inputs)
     return {
-        name: frame._expr.evaluate_at(session)
+        name: session.evaluate(frame._expr)
         for name,
         frame in to_compute.items()
     }
@@ -237,6 +233,50 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         computed = self.compute(to_compute)
         for name, frame in computed.items():
           got = got.replace(name, repr(frame))
+
+        # If a multiindex is used, compensate for it
+        if any(isinstance(frame, pd.core.generic.NDFrame) and
+               frame.index.nlevels > 1 for frame in computed.values()):
+
+          def fill_multiindex(text):
+            """An awful hack to work around the fact that pandas omits repeated
+            elements in a multi-index.
+            For example:
+
+              Series name  Row ID
+              s1           0         a
+                           1         b
+              s2           0         c
+                           1         d
+              dtype: object
+
+            The s1 and s2 are implied for the 2nd and 4th rows. However if we
+            re-order this Series it might be printed this way:
+
+              Series name  Row ID
+              s1           0         a
+              s2           1         d
+              s2           0         c
+              s1           1         b
+              dtype: object
+
+            In our model these are equivalent, but when we sort the lines and
+            check equality they are not. This method fills in any omitted
+            multiindex values, so that we can successfully sort and compare."""
+            lines = [list(line) for line in text.split('\n')]
+            for prev, line in zip(lines[:-1], lines[1:]):
+              if all(l == ' ' for l in line):
+                continue
+
+              for i, l in enumerate(line):
+                if l != ' ':
+                  break
+                line[i] = prev[i]
+
+            return '\n'.join(''.join(line) for line in lines)
+
+          got = fill_multiindex(got)
+          want = fill_multiindex(want)
 
         def sort_and_normalize(text):
           return '\n'.join(
@@ -549,7 +589,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
       if output:
         # Strip the prompt.
         # TODO(robertwb): Figure out how to suppress this.
-        output = re.sub(r'^Out\[\d+\]:\s*', '', output)
+        output = re.sub(r'^Out\[\d+\]:[ \t]*\n?', '', output)
       examples.append(doctest.Example(src, output, lineno=lineno))
 
   finally:
@@ -619,14 +659,6 @@ def teststrings(texts, report=False, **runner_kwargs):
   return runner.summary().result()
 
 
-def testfile(*args, **kwargs):
-  return _run_patched(doctest.testfile, *args, **kwargs)
-
-
-def testmod(*args, **kwargs):
-  return _run_patched(doctest.testmod, *args, **kwargs)
-
-
 def set_pandas_options():
   # See
   # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
@@ -666,3 +698,55 @@ def _run_patched(func, *args, **kwargs):
           *args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
   finally:
     doctest.DocTestRunner = original_doc_test_runner
+
+
+def with_run_patched_docstring(target=None):
+  assert target is not None
+
+  def wrapper(fn):
+    fn.__doc__ = f"""Run all pandas doctests in the specified {target}.
+
+    Arguments `skip`, `wont_implement_ok`, `not_implemented_ok` are all in the
+    format::
+
+      {{
+         "module.Class.method": ['*'],
+         "module.Class.other_method": [
+           'instance.other_method(bad_input)',
+           'observe_result_of_bad_input()',
+         ],
+      }}
+
+    `'*'` indicates all examples should be matched, otherwise the list is a list
+    of specific input strings that should be matched.
+
+    All arguments are kwargs.
+
+    Args:
+      optionflags (int): Passed through to doctests.
+      extraglobs (Dict[str,Any]): Passed through to doctests.
+      use_beam (bool): If true, run a Beam pipeline with partitioned input to
+        verify the examples, else use PartitioningSession to simulate
+        distributed execution.
+      skip (Dict[str,str]): A set of examples to skip entirely.
+      wont_implement_ok (Dict[str,str]): A set of examples that are allowed to
+        raise WontImplementError.
+      not_implemented_ok (Dict[str,str]): A set of examples that are allowed to
+        raise NotImplementedError.
+
+    Returns:
+      ~doctest.TestResults: A doctest result describing the passed/failed tests.
+    """
+    return fn
+
+  return wrapper
+
+
+@with_run_patched_docstring(target="file")
+def testfile(*args, **kwargs):
+  return _run_patched(doctest.testfile, *args, **kwargs)
+
+
+@with_run_patched_docstring(target="module")
+def testmod(*args, **kwargs):
+  return _run_patched(doctest.testmod, *args, **kwargs)

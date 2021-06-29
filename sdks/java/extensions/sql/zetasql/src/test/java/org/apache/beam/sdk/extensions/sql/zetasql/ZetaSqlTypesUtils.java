@@ -24,11 +24,6 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 public class ZetaSqlTypesUtils {
 
-  public static final BigDecimal NUMERIC_MAX_VALUE =
-      bigDecimalAsNumeric("99999999999999999999999999999.999999999");
-  public static final BigDecimal NUMERIC_MIN_VALUE =
-      bigDecimalAsNumeric("-99999999999999999999999999999.999999999");
-
   private ZetaSqlTypesUtils() {}
 
   /**

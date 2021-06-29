@@ -200,6 +200,8 @@ python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output=path/to/write/counts \
 --runner=FlinkRunner \
+# When running batch jobs locally, we need to reuse the container.
+--environment_cache_millis=10000 \
 --environment_type="DOCKER" \
 --environment_config="${IMAGE_URL}"
 {{< /highlight >}}
@@ -214,6 +216,8 @@ python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output=path/to/write/counts \
 --runner=SparkRunner \
+# When running batch jobs locally, we need to reuse the container.
+--environment_cache_millis=10000 \
 --environment_type="DOCKER" \
 --environment_config="${IMAGE_URL}"
 {{< /highlight >}}
@@ -241,7 +245,7 @@ python -m apache_beam.examples.wordcount \
   --region $REGION \
   --temp_location "${GCS_PATH}/tmp/" \
   --experiment=use_runner_v2 \
-  --worker_harness_container_image=$IMAGE_URL
+  --sdk_container_image=$IMAGE_URL
 
 {{< /highlight >}}
 

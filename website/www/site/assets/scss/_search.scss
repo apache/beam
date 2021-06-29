@@ -1,0 +1,81 @@
+/**
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+.searchBar {
+  width: 297px;
+  margin-right: 30px;
+  display: flex;
+  align-items: center;
+  table {
+    margin: 0;
+  }
+  div {
+    padding: 0;
+    svg {
+      padding-top: 2px;
+    }
+  }
+  .gsc-search-button {
+    display: none;
+  }
+  #__gcse_1 {
+    max-width: 213px;
+  }
+  .gsib_b {
+    display: none;
+  }
+  .gsc-input-box {
+    border-radius: 100px;
+    background-color: #f1f1f2;
+    table {
+      margin: 0;
+    }
+    input {
+      background-color: #f1f1f2;
+      min-width: 213px;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.83;
+      letter-spacing: normal;
+    }
+  }
+}
+.disappear {
+  display: none !important;
+}
+.searchBar-mobile {
+  width: 100%;
+  table {
+    margin: 0;
+  }
+  .gsc-input-box {
+    border-radius: 100px;
+    max-height: 36px;
+    background-color: #f1f1f2;
+    padding-top: 2px;
+    input {
+      background-color: #f1f1f2;
+      transform: translateY(-2px);
+    }
+  }
+  .gsc-search-button {
+    background-color: #fff;
+    border: none;
+    svg {
+      fill: #ff6d00;
+    }
+    &:focus {
+      background-color: #fff;
+    }
+  }
+}

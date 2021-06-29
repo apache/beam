@@ -78,15 +78,12 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestStreamTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testLateDataAccumulating() {
     Instant instant = new Instant(0);
     TestStream<Integer> source =
@@ -154,7 +151,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
+  @Category({ValidatesRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testProcessingTimeTrigger() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
@@ -185,7 +182,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testDiscardingMode() {
     TestStream<String> stream =
         TestStream.create(StringUtf8Coder.of())
@@ -234,7 +231,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testFirstElementLate() {
     Instant lateElementTimestamp = new Instant(-1_000_000);
     TestStream<String> stream =
@@ -267,7 +264,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testElementsAtAlmostPositiveInfinity() {
     Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
     TestStream<String> stream =
@@ -293,7 +290,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testMultipleStreams() {
     TestStream<String> stream =
         TestStream.create(StringUtf8Coder.of())
@@ -352,7 +349,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
+  @Category({ValidatesRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testEarlyPanesOfWindow() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())

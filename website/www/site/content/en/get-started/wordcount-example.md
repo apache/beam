@@ -304,7 +304,9 @@ p.run().waitUntilFinish();
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_run >}}
+with beam.Pipeline(...) as p:
+  [construction]
+# p.run() automatically called
 {{< /highlight >}}
 
 {{< highlight go >}}

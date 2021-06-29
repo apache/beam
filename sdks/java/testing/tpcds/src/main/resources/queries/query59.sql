@@ -30,7 +30,7 @@ with wss as
  )
   select  s_store_name1,s_store_id1,d_week_seq1
        ,sun_sales1/sun_sales2,mon_sales1/mon_sales2
-       ,tue_sales1/tue_sales2,wed_sales1/wed_sales2,thu_sales1/thu_sales2
+       ,tue_sales1/tue_sales1,wed_sales1/wed_sales2,thu_sales1/thu_sales2
        ,fri_sales1/fri_sales2,sat_sales1/sat_sales2
  from
  (select s_store_name s_store_name1,wss.d_week_seq d_week_seq1
@@ -40,7 +40,7 @@ with wss as
         ,fri_sales fri_sales1,sat_sales sat_sales1
   from wss,store,date_dim d
   where d.d_week_seq = wss.d_week_seq and
-        ss_store_sk = s_store_sk and 
+        ss_store_sk = s_store_sk and
         d_month_seq between 1185 and 1185 + 11) y,
  (select s_store_name s_store_name2,wss.d_week_seq d_week_seq2
         ,s_store_id s_store_id2,sun_sales sun_sales2
@@ -49,7 +49,7 @@ with wss as
         ,fri_sales fri_sales2,sat_sales sat_sales2
   from wss,store,date_dim d
   where d.d_week_seq = wss.d_week_seq and
-        ss_store_sk = s_store_sk and 
+        ss_store_sk = s_store_sk and
         d_month_seq between 1185+ 12 and 1185 + 23) x
  where s_store_id1=s_store_id2
    and d_week_seq1=d_week_seq2-52

@@ -1,0 +1,155 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+@import "media";
+
+.quotes {
+  padding: $pad-l $pad;
+  background-color: $color-medium-gray;
+
+  .quotes-title {
+    @extend .component-title;
+
+    text-align: center;
+    border: none;
+  }
+
+  .quotes-desktop {
+    display: flex;
+    justify-content: center;
+
+    .quote-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+      max-width: 381px;
+      height: 474px;
+      margin: 86px 36px 0 0;
+      padding: 55px 20px 24px 20px;
+      border-radius: 16px;
+      background-color: $color-white;
+      box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
+        0 4px 4px 0 rgba(0, 0, 0, 0.06);
+      margin-right: 36px;
+
+      .quote-text {
+        @extend .component-quote;
+
+        margin: 108px 0 20px 0;
+      }
+
+      img {
+        max-height: 118px;
+        max-width: 320px;
+      }
+    }
+
+    :last-child {
+      margin-right: 0;
+    }
+  }
+
+  // Sliding feature is only displayed on mobile version
+  .keen-slider {
+    display: none;
+  }
+
+  .dots {
+    display: none;
+  }
+
+  .keen-slider {
+    width: 327px;
+    margin: 0 auto;
+    border-radius: 16px;
+    background-color: $color-white;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
+      0 4px 4px 0 rgba(0, 0, 0, 0.06);
+
+    .keen-slider__slide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+      max-width: 327px;
+      height: 468px;
+      padding: 55px 24px 24px 24px;
+
+      .quote-text {
+        @extend .component-quote;
+
+        margin: 108px 0 20px 0;
+      }
+
+      img {
+        width: 172px;
+      }
+    }
+  }
+
+  .dots {
+    display: none;
+    padding: 10px 0;
+    justify-content: center;
+    margin-top: 46px;
+  }
+
+  .dot {
+    border: none;
+    width: 13px;
+    height: 13px;
+    background: $color-smoke;
+    border-radius: 50%;
+    margin: 0 5px;
+    padding: 4px;
+    cursor: pointer;
+  }
+
+  .dot:focus {
+    outline: none;
+  }
+
+  .dot--active {
+    background: $color-sun;
+  }
+}
+
+@media (max-width: $tablet) {
+  .quotes {
+    .quotes-title {
+      margin-bottom: 64px;
+    }
+    h2 {
+      margin-bottom: 0 !important;
+    }
+    .quotes-desktop {
+      display: none;
+    }
+
+    .keen-slider {
+      display: flex;
+      width: 100%;
+    }
+
+    .dots {
+      display: flex;
+    }
+  }
+}

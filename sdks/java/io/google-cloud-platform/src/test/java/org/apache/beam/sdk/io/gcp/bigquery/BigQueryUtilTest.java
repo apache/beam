@@ -60,9 +60,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for util classes related to BigQuery. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryUtilTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -177,7 +174,7 @@ public class BigQueryUtilTest {
     onTableList(dataList);
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
+        new BigQueryServicesImpl.DatasetServiceImpl(mockClient, null, options);
 
     services.getTable(
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table"));
@@ -197,7 +194,7 @@ public class BigQueryUtilTest {
     onInsertAll(errorsIndices);
 
     TableReference ref = BigQueryHelpers.parseTableSpec("project:dataset.table");
-    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
+    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, null, options, 5);
 
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     List<String> ids = new ArrayList<>();

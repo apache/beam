@@ -21,7 +21,10 @@ import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
 import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.checkArgument;
 
 import com.google.api.gax.rpc.ApiException;
+import com.google.cloud.pubsublite.AdminClient;
+import com.google.cloud.pubsublite.AdminClientSettings;
 import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
@@ -41,8 +44,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Duration;
 
 class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage>> {
-  private static final Duration MAX_SLEEP_TIME = Duration.standardMinutes(1);
-
   private final SubscriberOptions options;
 
   SubscribeTransform(SubscriberOptions options) {
@@ -88,7 +89,7 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
         initial,
         options.getBacklogReader(subscriptionPartition.partition()),
         Stopwatch.createUnstarted(),
-        MAX_SLEEP_TIME.multipliedBy(3).dividedBy(4),
+        options.minBundleTimeout(),
         LongMath.saturatedMultiply(options.flowControlSettings().bytesOutstanding(), 10));
   }
 
@@ -102,20 +103,40 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     return options.getCommitter(subscriptionPartition.partition());
   }
 
+  private TopicPath getTopicPath() {
+    try (AdminClient admin =
+        AdminClient.create(
+            AdminClientSettings.newBuilder()
+                .setRegion(options.subscriptionPath().location().region())
+                .build())) {
+      return TopicPath.parse(admin.getSubscription(options.subscriptionPath()).get().getTopic());
+    } catch (Throwable t) {
+      throw toCanonical(t).underlying;
+    }
+  }
+
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
-    PCollection<SubscriptionPartition> partitions =
-        Create.of(
-                options.partitions().stream()
-                    .map(
-                        partition ->
-                            SubscriptionPartition.of(options.subscriptionPath(), partition))
-                    .collect(Collectors.toList()))
-            .expand(input);
-    return partitions.apply(
+    PCollection<SubscriptionPartition> subscriptionPartitions;
+    if (options.partitions().isEmpty()) {
+      subscriptionPartitions =
+          input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
+    } else {
+      subscriptionPartitions =
+          input.apply(
+              Create.of(
+                  options.partitions().stream()
+                      .map(
+                          partition ->
+                              SubscriptionPartition.of(options.subscriptionPath(), partition))
+                      .collect(Collectors.toList())));
+    }
+
+    return subscriptionPartitions.apply(
         ParDo.of(
             new PerSubscriptionPartitionSdf(
-                MAX_SLEEP_TIME,
+                // Ensure we read for at least 5 seconds more than the bundle timeout.
+                options.minBundleTimeout().plus(Duration.standardSeconds(5)),
                 this::newInitialOffsetReader,
                 this::newRestrictionTracker,
                 this::newPartitionProcessor,

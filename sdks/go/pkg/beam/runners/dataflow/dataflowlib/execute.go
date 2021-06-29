@@ -104,7 +104,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 	log.Infof(ctx, "Submitted job: %v", upd.Id)
 	if endpoint == "" {
-		log.Infof(ctx, "Console: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, opts.Project)
+		log.Infof(ctx, "Console: https://console.cloud.google.com/dataflow/jobs/%v?project=%v", upd.Id, opts.Project)
 	}
 	log.Infof(ctx, "Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", opts.Project, upd.Id)
 

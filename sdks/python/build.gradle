@@ -110,3 +110,15 @@ task startPortableRunner {
     }
   }
 }
+
+// Run this task to validate the python environment setup for contributors
+task wordCount {
+  description "Run the Python word count example"
+  dependsOn 'installGcpTest'
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt"
+    }
+  }
+}

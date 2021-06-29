@@ -52,7 +52,7 @@ query and join data. The operations supported are a subset of
             | expression [ [ AS ] alias ] } [, ...]
         [ FROM from_item  [, ...] ]
         [ WHERE bool_expression ]
-        [ GROUP BY { expression [, ...] | ROLLUP ( expression [, ...] ) } ]
+        [ GROUP BY { expression [, ...] } ]
         [ HAVING bool_expression ]
 
     set_op:
@@ -454,7 +454,7 @@ Also see [Windowing & Triggering](/documentation/dsls/sql/windowing-and-triggeri
 
 ### Syntax {#syntax_3}
 
-    GROUP BY { expression [, ...] | ROLLUP ( expression [, ...] ) }
+    GROUP BY { expression [, ...] }
 
 The `GROUP BY` clause groups together rows in a table with non-distinct values
 for the `expression` in the `GROUP BY` clause. For multiple rows in the source

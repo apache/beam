@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.extractUrn;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;

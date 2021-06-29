@@ -21,8 +21,6 @@ Beam Datastore types.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 from typing import Iterable
 from typing import List

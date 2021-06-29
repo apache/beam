@@ -41,6 +41,8 @@ type Fn struct {
 	// methods holds the public methods (or the function) by their beam
 	// names.
 	methods map[string]*funcx.Fn
+	// annotations holds the annotations of the struct.
+	annotations map[string][]byte
 }
 
 // Name returns the name of the function or struct.
@@ -104,6 +106,14 @@ func NewFn(fn interface{}) (*Fn, error) {
 
 	case reflect.Struct:
 		methods := make(map[string]*funcx.Fn)
+		annotations := make(map[string][]byte)
+		af := reflect.Indirect(val).FieldByName("Annotations")
+		if af.IsValid() {
+			a, ok := af.Interface().(map[string][]byte)
+			if ok {
+				annotations = a
+			}
+		}
 		if methodsFuncs, ok := reflectx.WrapMethods(fn); ok {
 			for name, mfn := range methodsFuncs {
 				f, err := funcx.New(mfn)
@@ -112,7 +122,7 @@ func NewFn(fn interface{}) (*Fn, error) {
 				}
 				methods[name] = f
 			}
-			return &Fn{Recv: fn, methods: methods}, nil
+			return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 		}
 		// TODO(lostluck): Consider moving this into the reflectx package.
 		for i := 0; i < val.Type().NumMethod(); i++ {
@@ -138,7 +148,7 @@ func NewFn(fn interface{}) (*Fn, error) {
 			}
 			methods[m.Name] = f
 		}
-		return &Fn{Recv: fn, methods: methods}, nil
+		return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 
 	default:
 		return nil, errors.Errorf("value %v must be function or (ptr to) struct", fn)
@@ -238,6 +248,11 @@ func (f *DoFn) FinishBundleFn() *funcx.Fn {
 // TeardownFn returns the "Teardown" function, if present.
 func (f *DoFn) TeardownFn() *funcx.Fn {
 	return f.methods[teardownName]
+}
+
+// Annotations returns the optional annotations of the DoFn, if present.
+func (f *DoFn) Annotations() map[string][]byte {
+	return f.annotations
 }
 
 // Name returns the name of the function or struct.

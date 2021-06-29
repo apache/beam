@@ -58,6 +58,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public final class ZetaSqlCalciteTranslationUtils {
+  // Maximum and minimum allowed values for the NUMERIC/DECIMAL data type.
+  // https://github.com/google/zetasql/blob/master/docs/data-types.md#decimal-type
+  public static final BigDecimal ZETASQL_NUMERIC_MAX_VALUE =
+      new BigDecimal("99999999999999999999999999999.999999999");
+  public static final BigDecimal ZETASQL_NUMERIC_MIN_VALUE =
+      new BigDecimal("-99999999999999999999999999999.999999999");
+  // Number of digits after the decimal point supported by the NUMERIC data type.
+  public static final int ZETASQL_NUMERIC_SCALE = 9;
 
   private ZetaSqlCalciteTranslationUtils() {}
 
@@ -290,7 +298,10 @@ public final class ZetaSqlCalciteTranslationUtils {
 
   private static RexNode arrayValueToRexNode(Value value, RexBuilder rexBuilder) {
     return rexBuilder.makeCall(
-        toCalciteArrayType(value.getType().asArray().getElementType(), false, rexBuilder),
+        toCalciteArrayType(
+            value.getType().asArray().getElementType(),
+            value.getElementList().stream().anyMatch(v -> v.isNull()),
+            rexBuilder),
         SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
         value.getElementList().stream()
             .map(v -> toRexNode(v, rexBuilder))

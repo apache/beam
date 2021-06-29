@@ -23,14 +23,32 @@ import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpResponseInterceptor;
 import java.io.IOException;
-import org.apache.beam.sdk.util.Histogram;
+import java.util.Map;
+import org.apache.beam.runners.core.metrics.LabeledMetrics;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.metrics.Histogram;
+import org.apache.beam.sdk.util.HistogramData;
 
 /** HttpRequestInitializer for recording request to response latency of Http-based API calls. */
 public class LatencyRecordingHttpRequestInitializer implements HttpRequestInitializer {
+  public static final HistogramData.BucketType HISTOGRAM_BUCKET_TYPE =
+      // record latency upto 60 seconds in the resolution of 20ms
+      HistogramData.LinearBuckets.of(0, 20, 3000);
   private final Histogram requestLatencies;
 
-  public LatencyRecordingHttpRequestInitializer(Histogram requestLatencies) {
-    this.requestLatencies = requestLatencies;
+  public LatencyRecordingHttpRequestInitializer(Histogram histogram) {
+    requestLatencies = histogram;
+  }
+
+  public LatencyRecordingHttpRequestInitializer(Map<String, String> labels) {
+    // record latency upto 60 seconds in the resolution of 20ms
+    this.requestLatencies =
+        LabeledMetrics.histogram(
+            MonitoringInfoMetricName.named(
+                MonitoringInfoConstants.Urns.API_REQUEST_LATENCIES, labels),
+            HISTOGRAM_BUCKET_TYPE,
+            true);
   }
 
   private static class LoggingInterceptor
@@ -45,7 +63,7 @@ public class LatencyRecordingHttpRequestInitializer implements HttpRequestInitia
     @Override
     public void interceptResponse(HttpResponse response) throws IOException {
       long timeToResponse = System.currentTimeMillis() - startTime;
-      requestLatencies.record(timeToResponse);
+      requestLatencies.update(timeToResponse);
     }
 
     @Override

@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 
 from hamcrest import assert_that as hc_assert_that

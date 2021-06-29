@@ -41,9 +41,6 @@ import org.slf4j.LoggerFactory;
 
 /** Tests for {@link ExpectedLogs}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ExpectedLogsTest {
   private static final Logger LOG = LoggerFactory.getLogger(ExpectedLogsTest.class);
   private Random random = new Random();

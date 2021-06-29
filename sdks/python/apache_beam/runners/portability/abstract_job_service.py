@@ -16,8 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import itertools
 import json
@@ -26,7 +24,6 @@ import shutil
 import tempfile
 import uuid
 import zipfile
-from builtins import object
 from concurrent import futures
 from typing import TYPE_CHECKING
 from typing import Dict

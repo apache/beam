@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static org.apache.beam.runners.dataflow.worker.util.common.worker.TestOutputReceiver.TestOutputCounter.getMeanByteCounterName;
 import static org.apache.beam.runners.dataflow.worker.util.common.worker.TestOutputReceiver.TestOutputCounter.getObjectCounterName;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -30,7 +31,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.LongCount
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -64,8 +64,7 @@ public class FlattenOperationTest {
 
     flattenOperation.finish();
 
-    Assert.assertThat(
-        receiver.outputElems, CoreMatchers.<Object>hasItems("hi", "there", "", "bob"));
+    assertThat(receiver.outputElems, CoreMatchers.<Object>hasItems("hi", "there", "", "bob"));
 
     CounterUpdateExtractor<?> updateExtractor = Mockito.mock(CounterUpdateExtractor.class);
     counterSet.extractUpdates(false, updateExtractor);

@@ -27,8 +27,6 @@ results in the pipeline.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import random
 import unittest

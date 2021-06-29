@@ -19,8 +19,8 @@ package org.apache.beam.sdk.fn.test;
 
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessChannelBuilder;
 
 /**
  * A {@link ManagedChannelFactory} that uses in-process channels.

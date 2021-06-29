@@ -67,6 +67,10 @@ var (
 	defaultRunner = "direct"
 )
 
+func DefaultRunner() string {
+	return defaultRunner
+}
+
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
@@ -88,7 +92,10 @@ func RunAndValidate(t *testing.T, p *beam.Pipeline) {
 // Main is an implementation of testing's TestMain to permit testing
 // pipelines on runners other than the direct runner.
 //
-// To enable this behavior, _ import the desired runner, and set the flag accordingly.
+// To enable this behavior, _ import the desired runner, and set the flag
+// accordingly. For example:
+//
+//	import _ "github.com/apache/beam/sdks/go/pkg/runners/flink"
 //
 //	func TestMain(m *testing.M) {
 //		ptest.Main(m)
@@ -108,4 +115,26 @@ func MainWithDefault(m *testing.M, runner string) {
 	}
 	beam.Init()
 	os.Exit(m.Run())
+}
+
+// MainRet is equivelant to Main, but returns an exit code to pass to os.Exit().
+//
+// Example:
+//
+//	func TestMain(m *testing.M) {
+//		os.Exit(ptest.Main(m))
+//	}
+func MainRet(m *testing.M) int {
+	return MainRetWithDefault(m, "direct")
+}
+
+// MainRetWithDefault is equivelant to MainWithDefault but returns an exit code
+// to pass to os.Exit().
+func MainRetWithDefault(m *testing.M, runner string) int {
+	defaultRunner = runner
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	beam.Init()
+	return m.Run()
 }

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.fn.data;
 
 import java.util.function.BiConsumer;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +71,11 @@ public class BeamFnDataInboundObserver
   @Override
   public void awaitCompletion() throws Exception {
     readFuture.awaitCompletion();
+  }
+
+  @Override
+  public void runWhenComplete(Runnable completeRunnable) {
+    readFuture.runWhenComplete(completeRunnable);
   }
 
   @Override

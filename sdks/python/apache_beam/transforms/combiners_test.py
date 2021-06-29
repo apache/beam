@@ -18,17 +18,12 @@
 """Unit tests for our libraries of combine PTransforms."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import itertools
 import random
-import sys
 import unittest
 
 import hamcrest as hc
-from future.builtins import range
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -172,46 +167,6 @@ class CombineTest(unittest.TestCase):
       assert_that(
           result_key_bot, equal_to([('a', [0, 1, 1, 1])]), label='key:bot')
 
-  @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
-  def test_top_py2(self):
-    with TestPipeline() as pipeline:
-
-      # A parameter we'll be sharing with a custom comparator.
-      names = {
-          0: 'zo',
-          1: 'one',
-          2: 'twoo',
-          3: 'three',
-          5: 'fiiive',
-          6: 'sssssix',
-          9: 'nniiinne'
-      }
-
-      # First for global combines.
-      pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
-
-      result_cmp = pcoll | 'cmp' >> combine.Top.Of(
-          6, lambda a, b, names: len(names[a]) < len(names[b]),
-          names)  # Note parameter passed to comparator.
-      result_cmp_rev = pcoll | 'cmp_rev' >> combine.Top.Of(
-          3,
-          lambda a, b, names: len(names[a]) < len(names[b]),
-          names,  # Note parameter passed to comparator.
-          reverse=True)
-      assert_that(result_cmp, equal_to([[9, 6, 6, 5, 3, 2]]), label='CheckCmp')
-      assert_that(result_cmp_rev, equal_to([[0, 1, 1]]), label='CheckCmpRev')
-
-      # Again for per-key combines.
-      pcoll = pipeline | 'start-perkye' >> Create(
-          [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
-      result_key_cmp = pcoll | 'cmp-perkey' >> combine.Top.PerKey(
-          6, lambda a, b, names: len(names[a]) < len(names[b]),
-          names)  # Note parameter passed to comparator.
-      assert_that(
-          result_key_cmp,
-          equal_to([('a', [9, 6, 6, 5, 3, 2])]),
-          label='key:cmp')
-
   def test_empty_global_top(self):
     with TestPipeline() as p:
       assert_that(p | beam.Create([]) | combine.Top.Largest(10), equal_to([[]]))
@@ -235,19 +190,6 @@ class CombineTest(unittest.TestCase):
     self.assertEqual(['aa', 'bbb', 'c', 'dddd']
                      | combine.Top.Of(3, key=len, reverse=True),
                      [['c', 'aa', 'bbb']])
-
-  @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
-  def test_top_key_py2(self):
-    # The largest elements compared by their length mod 5.
-    self.assertEqual(['aa', 'bbbb', 'c', 'ddddd', 'eee', 'ffffff']
-                     | combine.Top.Of(
-                         3,
-                         compare=lambda len_a,
-                         len_b,
-                         m: len_a % m > len_b % m,
-                         key=len,
-                         reverse=True,
-                         m=5), [['bbbb', 'eee', 'aa']])
 
   def test_sharded_top_combine_fn(self):
     def test_combine_fn(combine_fn, shards, expected):
@@ -869,7 +811,7 @@ class LatestCombineFnTest(unittest.TestCase):
 #
 # Test cases for streaming.
 #
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class TimestampCombinerTest(unittest.TestCase):
   def test_combiner_earliest(self):
     """Test TimestampCombiner with EARLIEST."""

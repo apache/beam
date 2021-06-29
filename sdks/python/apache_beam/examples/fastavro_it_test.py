@@ -45,14 +45,12 @@ Usage:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import json
 import logging
 import unittest
 import uuid
 
+from avro.schema import Parse
 from fastavro import parse_schema
 from nose.plugins.attrib import attr
 
@@ -66,13 +64,6 @@ from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.util import CoGroupByKey
-
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from avro.schema import Parse  # avro-python3 library for python3
-except ImportError:
-  from avro.schema import parse as Parse  # avro library for python2
-# pylint: enable=wrong-import-order, wrong-import-position
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
 COLORS = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'PURPLE', None]

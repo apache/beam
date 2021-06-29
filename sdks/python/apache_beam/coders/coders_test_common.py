@@ -18,13 +18,14 @@
 """Tests common to all coder implementations."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
+import collections
+import enum
 import logging
 import math
-import sys
 import unittest
-from builtins import range
+from typing import Any
+from typing import List
+from typing import NamedTuple
 
 import pytest
 
@@ -45,6 +46,41 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 from . import observable
 
+try:
+  import dataclasses
+except ImportError:
+  dataclasses = None  # type: ignore
+
+MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
+
+
+class MyEnum(enum.Enum):
+  E1 = 5
+  E2 = enum.auto()
+  E3 = 'abc'
+
+
+MyIntEnum = enum.IntEnum('MyIntEnum', 'I1 I2 I3')
+MyIntFlag = enum.IntFlag('MyIntFlag', 'F1 F2 F3')
+MyFlag = enum.Flag('MyFlag', 'F1 F2 F3')  # pylint: disable=too-many-function-args
+
+
+class DefinesGetState:
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    return self.value
+
+  def __eq__(self, other):
+    return type(other) is type(self) and other.value == self.value
+
+
+class DefinesGetAndSetState(DefinesGetState):
+  def __setstate__(self, value):
+    self.value = value
+
 
 # Defined out of line for picklability.
 class CustomCoder(coders.Coder):
@@ -55,6 +91,19 @@ class CustomCoder(coders.Coder):
     return int(encoded) - 1
 
 
+if dataclasses is not None:
+
+  @dataclasses.dataclass(frozen=True)
+  class FrozenDataClass:
+    a: Any
+    b: int
+
+  @dataclasses.dataclass
+  class UnFrozenDataClass:
+    x: int
+    y: int
+
+
 # These tests need to all be run in the same process due to the asserts
 # in tearDownClass.
 @pytest.mark.no_xdist
@@ -63,13 +112,38 @@ class CodersTest(unittest.TestCase):
   # These class methods ensure that we test each defined coder in both
   # nested and unnested context.
 
+  # Common test values representing Python's built-in types.
+  test_values_deterministic: List[Any] = [
+      None,
+      1,
+      -1,
+      1.5,
+      b'str\0str',
+      u'unicode\0\u0101',
+      (),
+      (1, 2, 3),
+      [],
+      [1, 2, 3],
+      True,
+      False,
+  ]
+  test_values = test_values_deterministic + [
+      dict(),
+      {
+          'a': 'b'
+      },
+      {
+          0: dict(), 1: len
+      },
+      set(),
+      {'a', 'b'},
+      len,
+  ]
+
   @classmethod
   def setUpClass(cls):
     cls.seen = set()
     cls.seen_nested = set()
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   @classmethod
   def tearDownClass(cls):
@@ -81,6 +155,7 @@ class CodersTest(unittest.TestCase):
         coders.AvroGenericCoder,
         coders.DeterministicProtoCoder,
         coders.FastCoder,
+        coders.ListLikeCoder,
         coders.ProtoCoder,
         coders.ToBytesCoder
     ])
@@ -129,12 +204,20 @@ class CodersTest(unittest.TestCase):
         (-10, b'b'), (5, b'c'))
 
   def test_pickle_coder(self):
-    self.check_coder(coders.PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
+    coder = coders.PickleCoder()
+    self.check_coder(coder, *self.test_values)
 
   def test_deterministic_coder(self):
     coder = coders.FastPrimitivesCoder()
     deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
-    self.check_coder(deterministic_coder, 'a', 1, 1.5, (1, 2, 3))
+    self.check_coder(deterministic_coder, *self.test_values_deterministic)
+    for v in self.test_values_deterministic:
+      self.check_coder(coders.TupleCoder((deterministic_coder, )), (v, ))
+    self.check_coder(
+        coders.TupleCoder(
+            (deterministic_coder, ) * len(self.test_values_deterministic)),
+        tuple(self.test_values_deterministic))
+
     with self.assertRaises(TypeError):
       self.check_coder(deterministic_coder, dict())
     with self.assertRaises(TypeError):
@@ -143,6 +226,37 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coders.TupleCoder((deterministic_coder, coder)), (1, dict()),
         ('a', [dict()]))
+
+    self.check_coder(deterministic_coder, test_message.MessageA(field1='value'))
+
+    self.check_coder(
+        deterministic_coder, [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
+
+    if dataclasses is not None:
+      self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
+
+      with self.assertRaises(TypeError):
+        self.check_coder(deterministic_coder, UnFrozenDataClass(1, 2))
+      with self.assertRaises(TypeError):
+        self.check_coder(
+            deterministic_coder, FrozenDataClass(UnFrozenDataClass(1, 2), 3))
+      with self.assertRaises(TypeError):
+        self.check_coder(
+            deterministic_coder, MyNamedTuple(UnFrozenDataClass(1, 2), 3))
+
+    self.check_coder(deterministic_coder, list(MyEnum))
+    self.check_coder(deterministic_coder, list(MyIntEnum))
+    self.check_coder(deterministic_coder, list(MyIntFlag))
+    self.check_coder(deterministic_coder, list(MyFlag))
+
+    self.check_coder(
+        deterministic_coder,
+        [DefinesGetAndSetState(1), DefinesGetAndSetState((1, 2, 3))])
+
+    with self.assertRaises(TypeError):
+      self.check_coder(deterministic_coder, DefinesGetState(1))
+    with self.assertRaises(TypeError):
+      self.check_coder(deterministic_coder, DefinesGetAndSetState(dict()))
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
@@ -153,18 +267,19 @@ class CodersTest(unittest.TestCase):
 
   def test_fast_primitives_coder(self):
     coder = coders.FastPrimitivesCoder(coders.SingletonCoder(len))
-    self.check_coder(coder, None, 1, -1, 1.5, b'str\0str', u'unicode\0\u0101')
-    self.check_coder(coder, (), (1, 2, 3))
-    self.check_coder(coder, [], [1, 2, 3])
-    self.check_coder(coder, dict(), {'a': 'b'}, {0: dict(), 1: len})
-    self.check_coder(coder, set(), {'a', 'b'})
-    self.check_coder(coder, True, False)
-    self.check_coder(coder, len)
-    self.check_coder(coders.TupleCoder((coder, )), ('a', ), (1, ))
+    self.check_coder(coder, *self.test_values)
+    for v in self.test_values:
+      self.check_coder(coders.TupleCoder((coder, )), (v, ))
 
   def test_fast_primitives_coder_large_int(self):
     coder = coders.FastPrimitivesCoder()
     self.check_coder(coder, 10**100)
+
+  def test_fake_deterministic_fast_primitives_coder(self):
+    coder = coders.FakeDeterministicFastPrimitivesCoder(coders.PickleCoder())
+    self.check_coder(coder, *self.test_values)
+    for v in self.test_values:
+      self.check_coder(coders.TupleCoder((coder, )), (v, ))
 
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), b'a', b'\0', b'z' * 1000)
@@ -327,6 +442,14 @@ class CodersTest(unittest.TestCase):
     self.assertCountEqual(
         list(iter_generator(count)),
         iterable_coder.decode(iterable_coder.encode(iter_generator(count))))
+
+  def test_list_coder(self):
+    list_coder = coders.ListCoder(coders.VarIntCoder())
+    # Test unnested
+    self.check_coder(list_coder, [1], [-1, 0, 100])
+    # Test nested
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), list_coder)), (1, [1, 2, 3]))
 
   def test_windowedvalue_coder_paneinfo(self):
     coder = coders.WindowedValueCoder(
@@ -590,6 +713,10 @@ class CodersTest(unittest.TestCase):
           'component_encodings': [key_coder.as_cloud_object()]
       },
                        coder.as_cloud_object())
+
+      # Test str repr
+      self.assertEqual('%s' % coder, 'ShardedKeyCoder[%s]' % key_coder)
+
       self.assertEqual(b'\x00' + bytes_repr, coder.encode(ShardedKey(key, b'')))
       self.assertEqual(
           b'\x03123' + bytes_repr, coder.encode(ShardedKey(key, b'123')))

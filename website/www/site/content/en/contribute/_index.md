@@ -1,12 +1,15 @@
 ---
 title: "Beam Contribution Guide"
+type: "contribute"
+layout: "arrow_template"
 aliases:
- - /contribution-guide/
- - /contribute/contribution-guide/
- - /docs/contribute/
- - /contribute/source-repository/
- - /contribute/design-principles/
+  - /contribution-guide/
+  - /contribute/contribution-guide/
+  - /docs/contribute/
+  - /contribute/source-repository/
+  - /contribute/design-principles/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,15 +24,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Contribution Guide
+# Contribution guide
 
-The Apache Beam community welcomes contributions from anyone!
+<a class="arrow-list-header" data-toggle="collapse" href="#collapseOverview" role="button" aria-expanded="false"        aria-controls="collapseOverview">
+   {{< figure src="/images/arrow-icon_list.svg">}}
 
-If you have questions, please [reach out to the Beam community](/contribute/get-help).
+## Overview
 
-There are lots of opportunities to contribute:
+</a>
 
- - ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
+<div class="collapse dont-collapse-sm" id="collapseOverview">
+
+There are lots of opportunities to contribute. You can for example:
+
+- ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
 [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
  - review proposed design ideas on [dev@beam.apache.org](/community/contact-us/)
  - improve the documentation
@@ -49,29 +57,47 @@ There are lots of opportunities to contribute:
  https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
  - organize local meetups of users or contributors to Apache Beam
 
-Most importantly, if you have an idea of how to contribute, then do it!
+</div>
+
+<a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
+   {{< figure src="/images/arrow-icon_list.svg">}}
 
 ## Contributing code
+
+  </a>
+
+<div class="collapse dont-collapse-sm" id="collapseContributing">
 
 Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.
 
 ### Prerequisites
 
-To contribute code, you need
-
- - a GitHub account
- - a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
+ - A GitHub account.
+ - A Linux, macOS, or Microsoft Windows development environment
+ - Java JDK 8 installed
  - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
-   changes locally
- - [Go](https://golang.org) 1.12 or later installed for Go SDK development
+   changes locally.
+ - For SDK Development:
+      - [Go](https://golang.org) 1.12 or later installed for Go SDK development
  - Python 3.6, 3.7, and 3.8. Yes, you need all three versions installed.
-    - pip, setuptools, virtualenv, and tox installed for Python development
- - for large contributions, a signed [Individual Contributor License
+      - pip, setuptools, virtualenv, and tox installed for Python development
+ - For large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
 
+
+### Configuration options
+You have two options for configuring your development environment:
+- Local:
+    - Manually installing the prerequisites listed above.
+    - Using the automated script for Linux and macOS.
+- Container: using a Docker image.
+
+#### Local: Debian-based Distribution
+##### Manual steps
 To install these in a Debian-based distribution:
+1. Execute:
 
 ```
 sudo apt-get install \
@@ -83,27 +109,52 @@ sudo apt-get install \
    docker-ce
 ```
 
-On some systems (like Ubuntu 20.04) these need to be installed also
+2. On some systems, like Ubuntu 20.04, install these:
+
 ```
 pip3 install grpcio-tools mypy-protobuf
 ```
 
-You also need to [install Go](https://golang.org/doc/install).
-
-Once Go is installed, install goavro:
+3. If you you develop in GO:
+    1. Install [Go](https://golang.org/doc/install).
+    1. Check BEAM repo is in: `$GOPATH/src/github.com/apache/`
+    1. At the end, it should look like this: `$GOPATH/src/github.com/apache/beam`
+4. Once Go is installed, install goavro:
 
 ```
 $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
 $ go get github.com/linkedin/goavro
 ```
 
-gLinux users should configure their machines for sudoless Docker.
+**Important**: gLinux users should configure their machines for sudoless Docker.
+
+##### Automated script for Linux and macOS
+
+You can install these in a Debian-based distribution for Linux or macOs using the [local-env-setup.sh](https://github.com/apache/beam/blob/master/local-env-setup.sh) script, which is part of the Beam repo. It contains:
+
+* pip3 packages
+* go packages
+* goavro
+* JDK 8
+* Python
+* Docker
+
+To istall:
+
+1. Execute:
+```
+./local-env-setup.sh
+```
+
+#### Container: Docker-based
 
 Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
 into a container meeting the requirements above.
 
 You can start this container using the [start-build-env.sh](https://github.com/apache/beam/blob/master/start-build-env.sh)
 script which is part of the Beam repo:
+
+1. Execute:
 ```
 ./start-build-env.sh
 ```
@@ -127,8 +178,7 @@ script which is part of the Beam repo:
 1. Assign the issue to yourself. To get the permission to do so, email
    the [dev@ mailing list](/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
-   ASF Jira Username. For example [this welcome email](
-   https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
+   ASF Jira Username. For example [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
 1. If your change is large or it is your first change, it is a good idea to
    [discuss it on the dev@ mailing list](/community/contact-us/).
 1. For large changes create a design doc
@@ -137,8 +187,49 @@ script which is part of the Beam repo:
 
 ### Development Setup {#development-setup}
 
-1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
-   [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
+1. Check [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips) if you need help with git forking, cloning, branching, committing, pull requests, and squashing commits.
+1. Clone the git repository. You can download it anywhere you like.
+
+       $ mkdir -p ~/go/src/github.com/apache
+       $ cd ~/go/src/github.com/apache
+       $ git clone https://github.com/apache/beam
+       $ cd beam
+
+       - For Go development:
+       We recommend putting it in your [`$GOPATH`](https://golang.org/doc/gopath_code#GOPATH) (`$HOME/go` by default on Unix systems).
+          1. Clone the repo, and update your branch as normal
+                  $ git clone https://github.com/apache/beam.git
+                  $ cd beam
+                  $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
+                  $ git fetch --all
+          1. Get or Update all the Go SDK dependencies
+                  $ go get -u ./...
+
+1. Check the environment was set up correctly.
+    - **Option 1**: validate the Go, Java, and Python environments:
+
+        **Important**: Make sure you have activated Python development.
+```
+./gradlew :checkSetup
+```
+    - **Option 2**: Run independent checks:
+        - For **Go development**:
+          1. Execute:
+```
+export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
+./gradlew :sdks:go:examples:wordCount
+```
+         - For **Python development**:
+          1. Execute:
+```
+./gradlew :sdks:python:wordCount
+```
+        - For **Java development**:
+          1. Execute:
+```
+./gradlew :examples:java:wordCount
+```
+
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
 
        $ ./gradlew projects
@@ -157,11 +248,7 @@ script which is part of the Beam repo:
 
 1. Make sure you can build and run tests
 
-    Run the entire set of tests with:
-
-       $ ./gradlew check
-
-   You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:
+   Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
 
        $ ./gradlew -p sdks/go check
        $ ./gradlew -p sdks/java/io/cassandra check
@@ -232,6 +319,8 @@ script which is part of the Beam repo:
    Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
    then the PR author should help squashing fixup commits to maintain a clean commmit history.
+
+</div>
 
 ## When will my change show up in an Apache Beam release?
 

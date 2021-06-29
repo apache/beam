@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregateProjectMergeRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcMergeRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCoGBKJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
@@ -42,13 +43,13 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamWindowRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.LogicalCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateUnionAggregateRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterJoinRule;
@@ -89,7 +90,10 @@ public class BeamRuleSets {
           BeamIOPushDownRule.INSTANCE,
           // disabled due to https://issues.apache.org/jira/browse/BEAM-6810
           // CalcRemoveRule.INSTANCE,
-          CalcMergeRule.INSTANCE,
+
+          // Rules to merge matching Calcs together.
+          LogicalCalcMergeRule.INSTANCE,
+          BeamCalcMergeRule.INSTANCE,
 
           // push a filter into a join
           FilterJoinRule.FILTER_ON_JOIN,

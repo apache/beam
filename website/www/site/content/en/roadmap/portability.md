@@ -22,11 +22,11 @@ limitations under the License.
 ## Overview
 
 Interoperability between SDKs and runners is a key aspect of Apache
-Beam. So far, however, the reality is that most runners support the
-Java SDK only, because each SDK-runner combination requires non-trivial
-work on both sides. All runners are also currently written in Java,
+Beam. Previously, the reality was that most runners supported the
+Java SDK only, because each SDK-runner combination required non-trivial
+work on both sides. Most runners are also currently written in Java,
 which makes support of non-Java SDKs far more expensive. The
-_portability framework_ aims to rectify this situation and provide
+_portability framework_ rectified this situation and provided
 full interoperability across the Beam ecosystem.
 
 The portability framework introduces well-defined, language-neutral
@@ -78,56 +78,18 @@ If you are interested in digging in to the designs, you can find
 them on the [Beam developers' wiki](https://cwiki.apache.org/confluence/display/BEAM/Design+Documents).
 Another overview can be found [here](https://docs.google.com/presentation/d/1Yg8Xm4fb-oRjiLQjwLt5153hpwwTLclZrVOKP2hQifo/edit#slide=id.g42e4c9aad6_1_3070).
 
-## Milestones
+## Status
 
-The portability framework is a substantial effort that touches every
-Beam component. In addition to the sheer magnitude, a major challenge
-is engineering an interop layer that does not significantly compromise
-performance due to the additional serialization overhead of a
-language-neutral protocol.
+All SDKs currently support the portability framework.
+There is also a Python Universal Local Runner and shared java runners library.
+Performance is good and multi-language pipelines are supported.
+Currently, the Flink and Spark runners support portable pipeline execution
+(which is used by default for SDKs other than Java),
+as does Dataflow when using the [Dataflow Runner v2](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2).
+See the
+[Portability support table](https://s.apache.org/apache-beam-portability-support-table)
+for details.
 
-The proposed project phases are roughly as follows and are not
-strictly sequential, as various components will likely move at
-different speeds. Additionally, there have been (and continues to be)
-supporting refactorings that are not always tracked as part of the
-portability effort. Work already done is not tracked here either.
-
- * **P1 [MVP]**: Implement the fundamental plumbing for portable SDKs
-   and runners for batch and streaming, including containers and the
-   ULR
-   [[BEAM-2899](https://issues.apache.org/jira/browse/BEAM-2899)]. Each
-   SDK and runner should use the portability framework at least to the
-   extent that wordcount
-   [[BEAM-2896](https://issues.apache.org/jira/browse/BEAM-2896)] and
-   windowed wordcount
-   [[BEAM-2941](https://issues.apache.org/jira/browse/BEAM-2941)] run
-   portably.
-
- * **P2 [Feature complete]**: Design and implement portability support
-   for remaining execution-side features, so that any pipeline from
-   any SDK can run portably on any runner. These features include side
-   inputs
-   [[BEAM-2863](https://issues.apache.org/jira/browse/BEAM-2863)], User state [[BEAM-2862](https://issues.apache.org/jira/browse/BEAM-2862)], User
-   timers
-   [[BEAM-2925](https://issues.apache.org/jira/browse/BEAM-2925)],
-   Splittable DoFn
-   [[BEAM-2896](https://issues.apache.org/jira/browse/BEAM-2896)] and
-   more.  Each SDK and runner should use the portability framework at
-   least to the extent that the mobile gaming examples
-   [[BEAM-2940](https://issues.apache.org/jira/browse/BEAM-2940)] run
-   portably.
-
- * **P3 [Performance]**: Measure and tune performance of portable
-   pipelines using benchmarks such as Nexmark. Features such as
-   progress reporting
-   [[BEAM-2940](https://issues.apache.org/jira/browse/BEAM-2940)],
-   combiner lifting
-   [[BEAM-2937](https://issues.apache.org/jira/browse/BEAM-2937)] and
-   fusion are expected to be needed.
-
- * **P4 [Cross language]**: Design and implement cross-language
-   pipeline support, including how the ecosystem of shared transforms
-   should work.
 
 ## Issues
 
@@ -139,17 +101,6 @@ feature is in "beam-model" with subtasks for each SDK and runner in
 their respective components.
 
 **JIRA:** [query](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20portability%20order%20by%20priority%20DESC%2Cupdated%20DESC)
-
-## Status
-
-MVP, and FeatureCompletness nearly done for
-SDKs, Python ULR, and shared java runners library.
-Performance is good and multi-language pipelines are supported.
-Currently, the Flink and Spark runners support portable pipeline execution,
-as does Dataflow when using the [Dataflow Runner v2](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2).
-See the
-[Portability support table](https://s.apache.org/apache-beam-portability-support-table)
-for details.
 
 Prerequisites: [Docker](https://docs.docker.com/compose/install/), [Python](https://docs.python-guide.org/starting/install3/linux/), [Java 8](https://openjdk.java.net/install/)
 

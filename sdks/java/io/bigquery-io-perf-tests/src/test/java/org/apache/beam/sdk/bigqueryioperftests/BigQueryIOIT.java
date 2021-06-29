@@ -78,9 +78,6 @@ import org.junit.runners.JUnit4;
  * </pre>
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryIOIT {
   private static final String NAMESPACE = BigQueryIOIT.class.getName();
   private static final String TEST_ID = UUID.randomUUID().toString();

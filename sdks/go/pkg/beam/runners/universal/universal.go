@@ -79,17 +79,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		getEnvCfg = srv.EnvironmentConfig
 	}
 
-	enviroment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
-	if err != nil {
-		return nil, errors.WithContextf(err, "generating model pipeline")
-	}
-	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
-	if err != nil {
-		return nil, errors.WithContextf(err, "generating model pipeline")
-	}
-
 	// Fetch all dependencies for cross-language transforms
-	xlangx.ResolveArtifacts(ctx, edges, pipeline)
+	xlangx.ResolveArtifacts(ctx, edges, nil)
+
+	environment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
+	if err != nil {
+		return nil, errors.WithContextf(err, "generating model pipeline")
+	}
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	if err != nil {
+		return nil, errors.WithContextf(err, "generating model pipeline")
+	}
 
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 

@@ -94,9 +94,6 @@ import software.amazon.awssdk.services.kinesis.model.UpdateShardCountRequest;
 import software.amazon.awssdk.services.kinesis.model.UpdateShardCountResponse;
 
 /** Mock implementation of {@link KinesisClient} for testing. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class AmazonKinesisMock implements KinesisClient {
 
   static class TestData implements Serializable {

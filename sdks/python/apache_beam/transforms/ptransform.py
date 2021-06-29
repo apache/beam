@@ -36,8 +36,6 @@ FlatMap processing functions.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import itertools
 import logging
@@ -45,9 +43,6 @@ import operator
 import os
 import sys
 import threading
-from builtins import hex
-from builtins import object
-from builtins import zip
 from functools import reduce
 from functools import wraps
 from typing import TYPE_CHECKING
@@ -71,8 +66,10 @@ from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.portability import python_urns
 from apache_beam.pvalue import DoOutputsTuple
+from apache_beam.transforms import resources
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import IOTypeHints
@@ -364,6 +361,9 @@ class PTransform(WithTypeHints, HasDisplayData):
     # type: () -> str
     return self.__class__.__name__
 
+  def annotations(self) -> Dict[str, Union[bytes, str, message.Message]]:
+    return {}
+
   def default_type_hints(self):
     fn_type_hints = IOTypeHints.from_callable(self.expand)
     if fn_type_hints is not None:
@@ -417,6 +417,35 @@ class PTransform(WithTypeHints, HasDisplayData):
     type_hint = native_type_compatibility.convert_to_beam_type(type_hint)
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
     return super(PTransform, self).with_output_types(type_hint)
+
+  def with_resource_hints(self, **kwargs):  # type: (...) -> PTransform
+    """Adds resource hints to the :class:`PTransform`.
+
+    Resource hints allow users to express constraints on the environment where
+    the transform should be executed.  Interpretation of the resource hints is
+    defined by Beam Runners. Runners may ignore the unsupported hints.
+
+    Args:
+      **kwargs: key-value pairs describing hints and their values.
+
+    Raises:
+      ValueError: if provided hints are unknown to the SDK. See
+        :mod:~apache_beam.transforms.resources` for a list of known hints.
+
+    Returns:
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object.
+    """
+    self.get_resource_hints().update(resources.parse_resource_hints(kwargs))
+    return self
+
+  def get_resource_hints(self):
+    # type: () -> Dict[str, bytes]
+    if '_resource_hints' not in self.__dict__:
+      # PTransform subclasses don't always call super(), so prefer lazy
+      # initialization. By default, transforms don't have any resource hints.
+      self._resource_hints = {}  # type: Dict[str, bytes]
+    return self._resource_hints
 
   def type_check_inputs(self, pvalueish):
     self.type_check_inputs_or_outputs(pvalueish, 'input')
@@ -520,8 +549,13 @@ class PTransform(WithTypeHints, HasDisplayData):
     By default most transforms just return the windowing function associated
     with the input PCollection (or the first input if several).
     """
-    # TODO(robertwb): Assert all input WindowFns compatible.
-    return inputs[0].windowing
+    if inputs:
+      return inputs[0].windowing
+    else:
+      from apache_beam.transforms.core import Windowing
+      from apache_beam.transforms.window import GlobalWindows
+      # TODO(robertwb): Return something compatible with every windowing?
+      return Windowing(GlobalWindows())
 
   def __rrshift__(self, label):
     return _NamedPTransform(self, label)
@@ -613,6 +647,35 @@ class PTransform(WithTypeHints, HasDisplayData):
       return next(iter(input_dict.values()))
     else:
       return input_dict
+
+  def _named_inputs(self, inputs, side_inputs):
+    # type: (Sequence[pvalue.PValue], Sequence[Any]) -> Dict[str, pvalue.PValue]
+
+    """Returns the dictionary of named inputs (including side inputs) as they
+    should be named in the beam proto.
+    """
+    # TODO(BEAM-1833): Push names up into the sdk construction.
+    main_inputs = {
+        str(ix): input
+        for (ix, input) in enumerate(inputs)
+        if isinstance(input, pvalue.PCollection)
+    }
+    named_side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
+                         for (ix, si) in enumerate(side_inputs)}
+    return dict(main_inputs, **named_side_inputs)
+
+  def _named_outputs(self, outputs):
+    # type: (Dict[object, pvalue.PCollection]) -> Dict[str, pvalue.PCollection]
+
+    """Returns the dictionary of named outputs as they should be named in the
+    beam proto.
+    """
+    # TODO(BEAM-1833): Push names up into the sdk construction.
+    return {
+        str(tag): output
+        for (tag, output) in outputs.items()
+        if isinstance(output, pvalue.PCollection)
+    }
 
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
 

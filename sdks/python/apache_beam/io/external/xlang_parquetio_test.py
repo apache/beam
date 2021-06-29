@@ -19,15 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import logging
 import os
 import re
 import unittest
-
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import coders
@@ -39,7 +34,8 @@ from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 
 
-@attr('UsesCrossLanguageTransforms')
+# TODO: enable test_xlang_parquetio_write after fixing BEAM-10507
+# @pytest.mark.xlang_transforms
 @unittest.skipUnless(
     os.environ.get('EXPANSION_JAR'),
     "EXPANSION_JAR environment variable is not set.")

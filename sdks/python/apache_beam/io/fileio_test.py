@@ -19,14 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import csv
 import io
 import json
 import logging
 import os
-import sys
 import unittest
 import uuid
 import warnings
@@ -57,10 +54,7 @@ warnings.filterwarnings(
 
 
 def _get_file_reader(readable_file):
-  if sys.version_info >= (3, 0):
-    return io.TextIOWrapper(readable_file.open())
-  else:
-    return readable_file.open()
+  return io.TextIOWrapper(readable_file.open())
 
 
 class MatchTest(_TestCaseWithTempDirCleanUp):

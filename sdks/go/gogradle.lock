@@ -234,6 +234,13 @@ dependencies:
     commit: "a8f279b7952b27edbcb72e5a6c69ee9be4c8ad93"
     transitive: false
   - urls:
+    - "https://github.com/google/uuid.git"
+    - "git@github.com:google/uuid.git"
+    vcs: "git"
+    name: "github.com/google/uuid"
+    commit: "bfb86fa49a73e4194d93bea18d7acfe3694438ce"
+    transitive: false
+  - urls:
     - "https://github.com/googleapis/gax-go.git"
     - "git@github.com:googleapis/gax-go.git"
     vcs: "git"

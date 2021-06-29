@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """Compiled version of the Stream objects used by CoderImpl.
 
 For internal use only; no backwards-compatibility guarantees.

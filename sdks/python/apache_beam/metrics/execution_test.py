@@ -17,10 +17,7 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
-from builtins import range
 
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer

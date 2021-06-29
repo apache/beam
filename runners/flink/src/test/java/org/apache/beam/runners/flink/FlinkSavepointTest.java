@@ -68,6 +68,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -82,7 +83,6 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class FlinkSavepointTest implements Serializable {
 
@@ -142,6 +142,7 @@ public class FlinkSavepointTest implements Serializable {
     ensureNoJobRunning();
   }
 
+  @Ignore("https://issues.apache.org/jira/projects/BEAM/issues/BEAM-10955")
   @Test
   public void testSavepointRestoreLegacy() throws Exception {
     runSavepointAndRestore(false);

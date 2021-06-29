@@ -20,21 +20,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import collections
 import contextlib
 import random
 import re
-import sys
 import threading
 import time
 import uuid
-from builtins import filter
-from builtins import object
-from builtins import range
-from builtins import zip
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterable
@@ -42,9 +34,6 @@ from typing import List
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
-
-from future.utils import itervalues
-from past.builtins import long
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -59,6 +48,7 @@ from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
+from apache_beam.transforms.core import MapTuple
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.ptransform import PTransform
@@ -154,84 +144,106 @@ class CoGroupByKey(PTransform):
       (or if there's a chance there may be none), this argument is the only way
       to provide pipeline information, and should be considered mandatory.
   """
-  def __init__(self, **kwargs):
-    super(CoGroupByKey, self).__init__()
-    self.pipeline = kwargs.pop('pipeline', None)
-    if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
+  def __init__(self, *, pipeline=None):
+    self.pipeline = pipeline
 
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
-      return pvalueish, tuple(itervalues(pvalueish))
+      return pvalueish, tuple(pvalueish.values())
     except AttributeError:
+      # Cast iterables a tuple so we can do re-iteration.
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
 
   def expand(self, pcolls):
-    """Performs CoGroupByKey on argument pcolls; see class docstring."""
+    if isinstance(pcolls, dict):
+      if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
+        # Small, string tags. Pass them as data.
+        pcolls_dict = pcolls
+        restore_tags = None
+      else:
+        # Pass the tags in the restore_tags closure.
+        tags = list(pcolls.keys())
+        pcolls_dict = {str(ix): pcolls[tag] for (ix, tag) in enumerate(tags)}
+        restore_tags = lambda vs: {
+            tag: vs[str(ix)]
+            for (ix, tag) in enumerate(tags)
+        }
+    else:
+      # Tags are tuple indices.
+      num_tags = len(pcolls)
+      pcolls_dict = {str(ix): pcolls[ix] for ix in range(num_tags)}
+      restore_tags = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
 
-    # For associating values in K-V pairs with the PCollections they came from.
-    def _pair_tag_with_value(key_value, tag):
-      (key, value) = key_value
-      return (key, (tag, value))
+    result = pcolls_dict | _CoGBKImpl(pipeline=self.pipeline)
+    if restore_tags:
+      return result | 'RestoreTags' >> MapTuple(
+          lambda k, vs: (k, restore_tags(vs)))
+    else:
+      return result
 
-    # Creates the key, value pairs for the output PCollection. Values are either
-    # lists or dicts (per the class docstring), initialized by the result of
-    # result_ctor(result_ctor_arg).
-    def _merge_tagged_vals_under_key(key_grouped, result_ctor, result_ctor_arg):
-      (key, grouped) = key_grouped
-      result_value = result_ctor(result_ctor_arg)
-      for tag, value in grouped:
-        result_value[tag].append(value)
-      return (key, result_value)
 
-    try:
-      # If pcolls is a dict, we turn it into (tag, pcoll) pairs for use in the
-      # general-purpose code below. The result value constructor creates dicts
-      # whose keys are the tags.
-      result_ctor_arg = list(pcolls)
-      result_ctor = lambda tags: dict((tag, []) for tag in tags)
-      pcolls = pcolls.items()
-    except AttributeError:
-      # Otherwise, pcolls is a list/tuple, so we turn it into (index, pcoll)
-      # pairs. The result value constructor makes tuples with len(pcolls) slots.
-      pcolls = list(enumerate(pcolls))
-      result_ctor_arg = len(pcolls)
-      result_ctor = lambda size: tuple([] for _ in range(size))
+class _CoGBKImpl(PTransform):
+  def __init__(self, *, pipeline=None):
+    self.pipeline = pipeline
 
+  def expand(self, pcolls):
     # Check input PCollections for PCollection-ness, and that they all belong
     # to the same pipeline.
-    for _, pcoll in pcolls:
+    for pcoll in pcolls.values():
       self._check_pcollection(pcoll)
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline
 
+    tags = list(pcolls.keys())
+
+    def add_tag(tag):
+      return lambda k, v: (k, (tag, v))
+
+    def collect_values(key, tagged_values):
+      grouped_values = {tag: [] for tag in tags}
+      for tag, value in tagged_values:
+        grouped_values[tag].append(value)
+      return key, grouped_values
+
     return ([
-        pcoll | 'pair_with_%s' % tag >> Map(_pair_tag_with_value, tag) for tag,
-        pcoll in pcolls
+        pcoll
+        | 'Tag[%s]' % tag >> MapTuple(add_tag(tag))
+        for (tag, pcoll) in pcolls.items()
     ]
             | Flatten(pipeline=self.pipeline)
             | GroupByKey()
-            | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
-
-
-def Keys(label='Keys'):  # pylint: disable=invalid-name
-  """Produces a PCollection of first elements of 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v: k_v[0])
-
-
-def Values(label='Values'):  # pylint: disable=invalid-name
-  """Produces a PCollection of second elements of 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v1: k_v1[1])
-
-
-def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
-  """Produces a PCollection reversing 2-tuples in a PCollection."""
-  return label >> Map(lambda k_v2: (k_v2[1], k_v2[0]))
+            | MapTuple(collect_values))
 
 
 @ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(K)
+def Keys(pcoll, label='Keys'):  # pylint: disable=invalid-name
+  """Produces a PCollection of first elements of 2-tuples in a PCollection."""
+  return pcoll | label >> MapTuple(lambda k, _: k)
+
+
+@ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(V)
+def Values(pcoll, label='Values'):  # pylint: disable=invalid-name
+  """Produces a PCollection of second elements of 2-tuples in a PCollection."""
+  return pcoll | label >> MapTuple(lambda _, v: v)
+
+
+@ptransform_fn
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[V, K])
+def KvSwap(pcoll, label='KvSwap'):  # pylint: disable=invalid-name
+  """Produces a PCollection reversing 2-tuples in a PCollection."""
+  return pcoll | label >> MapTuple(lambda k, v: (v, k))
+
+
+@ptransform_fn
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
 def Distinct(pcoll):  # pylint: disable=invalid-name
   """Produces a PCollection containing distinct elements of a PCollection."""
   return (
@@ -243,6 +255,8 @@ def Distinct(pcoll):  # pylint: disable=invalid-name
 
 @deprecated(since='2.12', current='Distinct')
 @ptransform_fn
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
 def RemoveDuplicates(pcoll):
   """Produces a PCollection containing distinct elements of a PCollection."""
   return pcoll | 'RemoveDuplicates' >> Distinct()
@@ -708,17 +722,13 @@ class Reshuffle(PTransform):
   """
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    if sys.version_info >= (3, ):
-      KeyedT = Tuple[int, T]
-    else:
-      KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
-            32), t)).with_input_types(T).with_output_types(KeyedT)
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
+        with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >>
-        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
+        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
+            Tuple[int, T]).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
@@ -811,12 +821,14 @@ class GroupIntoBatches(PTransform):
     override the default sharding to do a better load balancing during the
     execution time.
     """
-    def __init__(self, batch_size, max_buffering_duration_secs=None):
+    def __init__(
+        self, batch_size, max_buffering_duration_secs=None, clock=time.time):
       """Create a new GroupIntoBatches with sharded output.
       See ``GroupIntoBatches`` transform for a description of input parameters.
       """
       self.params = _GroupIntoBatchesParams(
           batch_size, max_buffering_duration_secs)
+      self.clock = clock
 
     _shard_id_prefix = uuid.uuid4().bytes
 
@@ -836,7 +848,9 @@ class GroupIntoBatches(PTransform):
       return (
           sharded_pcoll
           | GroupIntoBatches(
-              self.params.batch_size, self.params.max_buffering_duration_secs))
+              self.params.batch_size,
+              self.params.max_buffering_duration_secs,
+              self.clock))
 
     def to_runner_api_parameter(
         self,

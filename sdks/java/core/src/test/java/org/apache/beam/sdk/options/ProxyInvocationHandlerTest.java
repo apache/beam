@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -29,7 +30,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
@@ -72,9 +72,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ProxyInvocationHandler}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ProxyInvocationHandlerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -995,6 +992,23 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, not(hasDisplayItem("foo")));
+  }
+
+  @Test
+  public void testDisplayDataExcludesHiddenValues() {
+    HasHidden options = PipelineOptionsFactory.as(HasHidden.class);
+    options.setFoo("bar");
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, not(hasDisplayItem("foo")));
+  }
+
+  /** Test interface. */
+  public interface HasHidden extends PipelineOptions {
+    @Hidden
+    String getFoo();
+
+    void setFoo(String value);
   }
 
   @Test

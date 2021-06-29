@@ -54,9 +54,6 @@ import org.junit.runners.JUnit4;
 /** Integration test for GCS CMEK support. */
 @RunWith(JUnit4.class)
 @Category(UsesKms.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GcsKmsKeyIT {
 
   private static final String INPUT_FILE = "gs://dataflow-samples/shakespeare/kinglear.txt";

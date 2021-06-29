@@ -19,10 +19,10 @@ package org.apache.beam.runners.dataflow.worker.fn.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,7 +40,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.harness.test.TestStreams;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -48,25 +47,26 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Metadata.Key;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Metadata.Key;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -77,7 +77,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "FutureReturnValueIgnored",
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class BeamFnDataGrpcServiceTest {
   private static final String TRANSFORM_ID = "888";

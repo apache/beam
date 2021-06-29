@@ -61,7 +61,8 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 To start matching at any point instead of the beginning of the string, use
 [`Regex.find(regex)`](#example-4-regex-find).
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_matches >}}
 {{< /highlight >}}
 
@@ -72,10 +73,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_matches >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 2: Regex match with all groups
 
@@ -90,7 +87,8 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 To start matching at any point instead of the beginning of the string, use
 [`Regex.find_all(regex, group=Regex.ALL, outputEmpty=False)`](#example-5-regex-find-all).
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_all_matches >}}
 {{< /highlight >}}
 
@@ -101,10 +99,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_all_matches >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 3: Regex match into key-value pairs
 
@@ -120,7 +114,8 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 To start matching at any point instead of the beginning of the string, use
 [`Regex.find_kv(regex, keyGroup)`](#example-6-regex-find-as-key-value-pairs).
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_matches_kv >}}
 {{< /highlight >}}
 
@@ -131,10 +126,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_matches_kv >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 4: Regex find
 
@@ -150,7 +141,8 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 If you need to match from the start only, consider using
 [`Regex.matches(regex)`](#example-1-regex-match).
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_find >}}
 {{< /highlight >}}
 
@@ -161,10 +153,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_matches >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 5: Regex find all
 
@@ -180,7 +168,8 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 If you need to match all groups from the start only, consider using
 [`Regex.all_matches(regex)`](#example-2-regex-match-with-all-groups).
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_find_all >}}
 {{< /highlight >}}
 
@@ -191,10 +180,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_find_all >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 6: Regex find as key-value pairs
 
@@ -211,7 +196,8 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 If you need to match as key-value pairs from the start only, consider using
 [`Regex.matches_kv(regex)`](#example-3-regex-match-into-key-value-pairs).
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_find_kv >}}
 {{< /highlight >}}
 
@@ -223,10 +209,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_find_kv >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
-
 ### Example 7: Regex replace all
 
 `Regex.replace_all` returns the string with all the occurrences of the regular expression replaced by another string.
@@ -234,7 +216,8 @@ You can also use
 [backreferences](https://docs.python.org/3/library/re.html?highlight=backreference#re.sub)
 on the `replacement`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_replace_all >}}
 {{< /highlight >}}
 
@@ -246,10 +229,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_replace_all >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
-
 ### Example 8: Regex replace first
 
 `Regex.replace_first` returns the string with the first occurrence of the regular expression replaced by another string.
@@ -257,7 +236,8 @@ You can also use
 [backreferences](https://docs.python.org/3/library/re.html?highlight=backreference#re.sub)
 on the `replacement`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_replace_first >}}
 {{< /highlight >}}
 
@@ -269,16 +249,13 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_replace_first >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
-
 ### Example 9: Regex split
 
 `Regex.split` returns the list of strings that were delimited by the specified regular expression.
 The argument `outputEmpty` is set to `False` by default, but can be set to `True` to keep empty items in the output list.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_split >}}
 {{< /highlight >}}
 
@@ -289,10 +266,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_split >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ## Related transforms
 

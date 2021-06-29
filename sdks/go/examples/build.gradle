@@ -77,3 +77,10 @@ golang {
     continueOnFailure = true
   }
 }
+
+// Run this task to validate the Go environment setup for contributors
+task wordCount(type: com.github.blindpirate.gogradle.Go) {
+  description "Run the Go word count example"
+  dependsOn goVendor
+  go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcount github.com/apache/beam/sdks/go/examples/wordcount'
+}

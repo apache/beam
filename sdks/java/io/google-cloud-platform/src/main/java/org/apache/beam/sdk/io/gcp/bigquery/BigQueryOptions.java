@@ -72,10 +72,37 @@ public interface BigQueryOptions
   void setMaxStreamingBatchSize(Long value);
 
   @Description(
-      "The minimum duration in seconds between percentile latencies logging. The interval "
-          + "might be longer than the specified value due to each bundle processing time.")
+      "The minimum duration in seconds between streaming API statistics logging. "
+          + "The interval might be longer than the specified value due to each bundle processing time.")
   @Default.Integer(180)
-  Integer getLatencyLoggingFrequency();
+  Integer getBqStreamingApiLoggingFrequencySec();
 
-  void setLatencyLoggingFrequency(Integer value);
+  void setBqStreamingApiLoggingFrequencySec(Integer value);
+
+  @Description("If set, then BigQueryIO.Write will default to using the Storage Write API.")
+  @Default.Boolean(false)
+  Boolean getUseStorageWriteApi();
+
+  void setUseStorageWriteApi(Boolean value);
+
+  @Description(
+      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams.")
+  @Default.Integer(0)
+  Integer getNumStorageWriteApiStreams();
+
+  void setNumStorageWriteApiStreams(Integer value);
+
+  @Description(
+      "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
+  Integer getStorageWriteApiTriggeringFrequencySec();
+
+  void setStorageWriteApiTriggeringFrequencySec(Integer value);
+
+  @Description(
+      "When auto-sharding is used, the maximum duration in milliseconds the input records are"
+          + " allowed to be buffered before being written to BigQuery.")
+  @Default.Integer(0)
+  Integer getMaxBufferingDurationMilliSec();
+
+  void setMaxBufferingDurationMilliSec(Integer value);
 }

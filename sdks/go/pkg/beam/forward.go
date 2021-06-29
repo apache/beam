@@ -21,6 +21,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/genx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
@@ -43,6 +44,17 @@ import (
 // facing copy for this important concept.
 func RegisterType(t reflect.Type) {
 	runtime.RegisterType(t)
+	if EnableSchemas {
+		schema.RegisterType(t)
+	}
+}
+
+func init() {
+	runtime.RegisterInit(func() {
+		if EnableSchemas {
+			schema.Initialize()
+		}
+	})
 }
 
 // RegisterFunction allows function registration. It is beneficial for performance

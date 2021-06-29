@@ -19,10 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import sys
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam import coders
@@ -37,13 +35,6 @@ from apache_beam.runners.interactive.caching.streaming_cache import StreamingCac
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.options import capture_limiters
 from apache_beam.testing.test_stream_service import TestStreamServiceController
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 def _build_an_empty_streaming_pipeline():
@@ -71,8 +62,6 @@ def _fake_a_running_test_stream_service(pipeline):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class CaptureControlTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()

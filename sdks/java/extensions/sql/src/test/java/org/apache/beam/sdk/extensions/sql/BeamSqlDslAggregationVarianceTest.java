@@ -31,9 +31,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Integration tests for {@code VAR_POP} and {@code VAR_SAMP}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlDslAggregationVarianceTest {
 
   private static final double PRECISION = 1e-7;

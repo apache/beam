@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;

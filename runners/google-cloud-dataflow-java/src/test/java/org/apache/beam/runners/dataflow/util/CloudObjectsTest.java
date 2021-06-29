@@ -47,6 +47,7 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -82,7 +83,6 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Enclosed.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class CloudObjectsTest {
   private static final Schema TEST_SCHEMA =
@@ -179,7 +179,8 @@ public class CloudObjectsTest {
                       new RowIdentity()))
               .add(
                   SchemaCoder.of(
-                      TEST_SCHEMA, TypeDescriptors.rows(), new RowIdentity(), new RowIdentity()));
+                      TEST_SCHEMA, TypeDescriptors.rows(), new RowIdentity(), new RowIdentity()))
+              .add(RowCoder.of(TEST_SCHEMA));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());

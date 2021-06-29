@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import collections
 from typing import TYPE_CHECKING
 from typing import Any
@@ -35,6 +33,10 @@ from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import partitionings
 from apache_beam.utils import windowed_value
 
+__all__ = [
+    'DataframeTransform',
+]
+
 if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
   from apache_beam.pvalue import PCollection
@@ -52,15 +54,15 @@ class DataframeTransform(transforms.PTransform):
   """A PTransform for applying function that takes and returns dataframes
   to one or more PCollections.
 
-  DataframeTransform will accept a PCollection with a schema and batch it
-  into dataframes if necessary. In this case the proxy can be omitted:
+  :class:`DataframeTransform` will accept a PCollection with a `schema`_ and
+  batch it into :class:`~pandas.DataFrame` instances if necessary::
 
-      (pcoll | beam.Row(key=..., foo=..., bar=...)
+      (pcoll | beam.Select(key=..., foo=..., bar=...)
              | DataframeTransform(lambda df: df.group_by('key').sum()))
 
-  It is also possible to process a PCollection of dataframes directly, in this
-  case a proxy must be provided. For example, if pcoll is a PCollection of
-  dataframes, one could write::
+  It is also possible to process a PCollection of :class:`~pandas.DataFrame`
+  instances directly, in this case a "proxy" must be provided. For example, if
+  ``pcoll`` is a PCollection of DataFrames, one could write::
 
       pcoll | DataframeTransform(lambda df: df.group_by('key').sum(), proxy=...)
 
@@ -69,17 +71,28 @@ class DataframeTransform(transforms.PTransform):
   PCollections, in which case they will be passed as keyword arguments.
 
   Args:
-    yield_elements: (optional, default: "schemas") If set to "pandas", return
-        PCollections containing the raw Pandas objects (DataFrames or Series),
-        if set to "schemas", return an element-wise PCollection, where DataFrame
-        and Series instances are expanded to one element per row. DataFrames are
-        converted to schema-aware PCollections, where column values can be
-        accessed by attribute.
-    include_indexes: (optional, default: False) When yield_elements="schemas",
-        if include_indexes=True, attempt to include index columns in the output
-        schema for expanded DataFrames. Raises an error if any of the index
-        levels are unnamed (name=None), or if any of the names are not unique
-        among all column and index names.
+    yield_elements: (optional, default: "schemas") If set to ``"pandas"``,
+        return PCollection(s) containing the raw Pandas objects
+        (:class:`~pandas.DataFrame` or :class:`~pandas.Series` as appropriate).
+        If set to ``"schemas"``, return an element-wise PCollection, where
+        DataFrame and Series instances are expanded to one element per row.
+        DataFrames are converted to `schema-aware`_ PCollections, where column
+        values can be accessed by attribute.
+    include_indexes: (optional, default: False) When
+       ``yield_elements="schemas"``, if ``include_indexes=True``, attempt to
+       include index columns in the output schema for expanded DataFrames.
+       Raises an error if any of the index levels are unnamed (name=None), or if
+       any of the names are not unique among all column and index names.
+    proxy: (optional) An empty :class:`~pandas.DataFrame` or
+        :class:`~pandas.Series` instance with the same ``dtype`` and ``name``
+        as the elements of the input PCollection. Required when input
+        PCollection :class:`~pandas.DataFrame` or :class:`~pandas.Series`
+        elements. Ignored when input PCollection has a `schema`_.
+
+  .. _schema:
+    https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
+  .. _schema-aware:
+    https://beam.apache.org/documentation/programming-guide/#what-is-a-schema
   """
   def __init__(
       self, func, proxy=None, yield_elements="schemas", include_indexes=False):
@@ -173,7 +186,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         if len(tabular_inputs) == 0:
           partitioned_pcoll = next(pcolls.values()).pipeline | beam.Create([{}])
 
-        elif self.stage.partitioning != partitionings.Nothing():
+        elif self.stage.partitioning != partitionings.Arbitrary():
           # Partitioning required for these operations.
           # Compute the number of partitions to use for the inputs based on
           # the estimated size of the inputs.
@@ -257,7 +270,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       """
       def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
-        if len(self.inputs) > 1 and partitioning == partitionings.Nothing():
+        if len(self.inputs) > 1 and partitioning == partitionings.Arbitrary():
           # We have to shuffle to co-locate, might as well partition.
           self.partitioning = partitionings.Index()
         else:
@@ -282,30 +295,42 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                 self.outputs))
 
     # First define some helper functions.
-    def output_is_partitioned_by(expr, stage, partitioning):
-      if partitioning == partitionings.Nothing():
-        # Always satisfied.
-        return True
-      elif stage.partitioning == partitionings.Singleton():
-        # Within a stage, the singleton partitioning is trivially preserved.
-        return True
-      elif expr in stage.inputs:
+    def output_partitioning_in_stage(expr, stage):
+      """Return the output partitioning of expr when computed in stage,
+      or returns None if the expression cannot be computed in this stage.
+      """
+      if expr in stage.inputs or expr in inputs:
         # Inputs are all partitioned by stage.partitioning.
-        return stage.partitioning.is_subpartitioning_of(partitioning)
-      elif expr.preserves_partition_by().is_subpartitioning_of(partitioning):
-        # Here expr preserves at least the requested partitioning; its outputs
-        # will also have this partitioning iff its inputs do.
-        if expr.requires_partition_by().is_subpartitioning_of(partitioning):
-          # If expr requires at least this partitioning, we will arrange such
-          # that its inputs satisfy this.
-          return True
-        else:
-          # Otherwise, recursively check all the inputs.
-          return all(
-              output_is_partitioned_by(arg, stage, partitioning)
-              for arg in expr.args())
-      else:
-        return False
+        return stage.partitioning
+
+      # Anything that's not an input must have arguments
+      assert len(expr.args())
+
+      arg_partitionings = set(
+          output_partitioning_in_stage(arg, stage) for arg in expr.args()
+          if not is_scalar(arg))
+
+      if len(arg_partitionings) == 0:
+        # All inputs are scalars, output partitioning isn't dependent on the
+        # input.
+        return expr.preserves_partition_by()
+
+      if len(arg_partitionings) > 1:
+        # Arguments must be identically partitioned, can't compute this
+        # expression here.
+        return None
+
+      arg_partitioning = arg_partitionings.pop()
+
+      if not expr.requires_partition_by().is_subpartitioning_of(
+          arg_partitioning):
+        # Arguments aren't partitioned sufficiently for this expression
+        return None
+
+      return expressions.output_partitioning(expr, arg_partitioning)
+
+    def is_computable_in_stage(expr, stage):
+      return output_partitioning_in_stage(expr, stage) is not None
 
     def common_stages(stage_lists):
       # Set intersection, with a preference for earlier items in the list.
@@ -314,11 +339,11 @@ class _DataframeExpressionsTransform(transforms.PTransform):
           if all(stage in other for other in stage_lists[1:]):
             yield stage
 
-    @memoize
+    @_memoize
     def is_scalar(expr):
       return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
 
-    @memoize
+    @_memoize
     def expr_to_stages(expr):
       assert expr not in inputs
       # First attempt to compute this expression as part of an existing stage,
@@ -331,8 +356,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       required_partitioning = expr.requires_partition_by()
       for stage in common_stages([expr_to_stages(arg) for arg in expr.args()
                                   if arg not in inputs]):
-        if all(output_is_partitioned_by(arg, stage, required_partitioning)
-               for arg in expr.args() if not is_scalar(arg)):
+        if is_computable_in_stage(expr, stage):
           break
       else:
         # Otherwise, compute this expression as part of a new stage.
@@ -362,19 +386,19 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       if expr not in inputs:
         expr_to_stage(expr).outputs.add(expr)
 
-    @memoize
+    @_memoize
     def stage_to_result(stage):
       return {expr._id: expr_to_pcoll(expr)
               for expr in stage.inputs} | ComputeStage(stage)
 
-    @memoize
+    @_memoize
     def expr_to_pcoll(expr):
       if expr in inputs:
         return inputs[expr]
       else:
         return stage_to_result(expr_to_stage(expr))[expr._id]
 
-    @memoize
+    @_memoize
     def estimate_size(expr, same_stage_ok):
       # Returns a pcollection of ints whose sum is the estimated size of the
       # given expression.
@@ -391,7 +415,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         expr_stage = expr_to_stage(expr)
         # If the stage doesn't start with a shuffle, it's not safe to fuse
         # the computation into its parent either.
-        has_shuffle = expr_stage.partitioning != partitionings.Nothing()
+        has_shuffle = expr_stage.partitioning != partitionings.Arbitrary()
         # We assume the size of an expression is the sum of the size of its
         # inputs, which may be off by quite a bit, but the goal is to get
         # within an order of magnitude or two.
@@ -493,7 +517,7 @@ class _ReBatch(beam.DoFn):
     self.start_bundle()
 
 
-def memoize(f):
+def _memoize(f):
   cache = {}
 
   def wrapper(*args, **kwargs):

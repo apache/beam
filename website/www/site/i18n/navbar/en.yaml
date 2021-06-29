@@ -9,17 +9,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
- 
+
 - id: nav-toggle-navigation
   translation: "Toggle navigation"
 - id: nav-get-started
   translation: "Get Started"
 - id: nav-documentation
   translation: "Documentation"
+- id: nav-documentation-general
+  translation: "General"
 - id: nav-languages
   translation: "Languages"
 - id: nav-runners
-  translation: "RUNNERS"
+  translation: "Runners"
 - id: nav-roadmap
   translation: "Roadmap"
 - id: nav-contribute
@@ -40,3 +42,5 @@
   translation: "Sponsorship"
 - id: nav-code-of-conduct
   translation: "Code of Conduct"
+- id: nav-powered-by
+  translation: "Powered by"

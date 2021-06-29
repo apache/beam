@@ -18,12 +18,8 @@
 """Unit tests for the sources framework."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import unittest
-from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import iobase
@@ -86,10 +82,6 @@ class RangeSource(iobase.BoundedSource):
     return (
         type(self) == type(other) and self._start == other._start and
         self._end == other._end and self._split_freq == other._split_freq)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
 
 class ConcatSourceTest(unittest.TestCase):

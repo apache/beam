@@ -37,12 +37,14 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.thrift.TBase;
+import org.apache.thrift.TConfiguration;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.protocol.TSimpleJSONProtocol;
 import org.apache.thrift.transport.AutoExpandingBufferReadTransport;
 import org.apache.thrift.transport.TIOStreamTransport;
+import org.apache.thrift.transport.TTransportException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,7 +183,7 @@ public class ThriftIO {
           TIOStreamTransport streamTransport =
               new TIOStreamTransport(new BufferedInputStream(inputStream));
           AutoExpandingBufferReadTransport readTransport =
-              new AutoExpandingBufferReadTransport(262_144_000);
+              new AutoExpandingBufferReadTransport(new TConfiguration(), 262_144_000);
           readTransport.fill(streamTransport, inputStream.available());
           TProtocol protocol = tProtocol.getProtocol(readTransport);
           while (protocol.getTransport().getBytesRemainingInBuffer() > 0) {
@@ -264,10 +266,13 @@ public class ThriftIO {
 
     public void write(T element) throws IOException {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
 
       try {
+        TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
         element.write(protocol);
+      } catch (TTransportException tte) {
+        LOG.error("Error in transport to TIOStreamTransport: " + tte);
+        throw new RuntimeException(tte);
       } catch (TException te) {
         LOG.error("Error in writing element to TProtocol: " + te);
         throw new RuntimeException(te);
