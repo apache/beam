@@ -1247,8 +1247,7 @@ public class DataflowPipelineTranslator {
     boolean isStateful = DoFnSignatures.isStateful(fn);
     if (isStateful) {
       DataflowPipelineOptions options = context.getPipelineOptions();
-      DataflowRunner.verifyDoFnSupported(
-          fn, options.isStreaming(), DataflowRunner.useStreamingEngine(options));
+      DataflowRunner.verifyDoFnSupported(fn, options.isStreaming(), options);
       DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
     }
 

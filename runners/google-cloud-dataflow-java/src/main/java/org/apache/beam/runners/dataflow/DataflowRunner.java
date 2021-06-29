@@ -2293,27 +2293,35 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         || hasExperiment(options, GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
   }
 
-  static void verifyDoFnSupported(DoFn<?, ?> fn, boolean streaming, boolean streamingEngine) {
+  static void verifyDoFnSupported(
+      DoFn<?, ?> fn, boolean streaming, DataflowPipelineOptions options) {
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
       throw new UnsupportedOperationException(
           String.format(
               "%s does not currently support @RequiresTimeSortedInput in streaming mode.",
               DataflowRunner.class.getSimpleName()));
     }
+
+    boolean streamingEngine = useStreamingEngine(options);
+    boolean isUnifiedWorker = useUnifiedWorker(options);
     if (DoFnSignatures.usesSetState(fn)) {
-      if (streaming && streamingEngine) {
+      if (streaming && (isUnifiedWorker || streamingEngine)) {
         throw new UnsupportedOperationException(
             String.format(
-                "%s does not currently support %s when using streaming engine",
-                DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
+                "%s does not currently support %s when using %s",
+                DataflowRunner.class.getSimpleName(),
+                SetState.class.getSimpleName(),
+                isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
       }
     }
     if (DoFnSignatures.usesMapState(fn)) {
-      if (streaming && streamingEngine) {
+      if (streaming && (isUnifiedWorker || streamingEngine)) {
         throw new UnsupportedOperationException(
             String.format(
-                "%s does not currently support %s when using streaming engine",
-                DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
+                "%s does not currently support %s when using %s",
+                DataflowRunner.class.getSimpleName(),
+                MapState.class.getSimpleName(),
+                isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
       }
     }
   }
