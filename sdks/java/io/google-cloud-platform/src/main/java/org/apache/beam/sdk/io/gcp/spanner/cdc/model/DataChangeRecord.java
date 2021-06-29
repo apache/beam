@@ -19,15 +19,14 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import com.google.cloud.Timestamp;
 import java.util.List;
+import java.util.Objects;
 import org.apache.avro.reflect.AvroEncode;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 
-// TODO: Check if we can remove the setters
 @DefaultCoder(AvroCoder.class)
-public class DataChangesRecord implements ChangeStreamRecord {
+public class DataChangeRecord implements ChangeStreamRecord {
 
   private static final long serialVersionUID = 1138762498767540898L;
 
@@ -48,9 +47,9 @@ public class DataChangesRecord implements ChangeStreamRecord {
   private long numberOfPartitionsInTransaction;
 
   /** Default constructor for serialization only. */
-  private DataChangesRecord() {}
+  private DataChangeRecord() {}
 
-  public DataChangesRecord(
+  public DataChangeRecord(
       String partitionToken,
       Timestamp commitTimestamp,
       String transactionId,
@@ -81,96 +80,48 @@ public class DataChangesRecord implements ChangeStreamRecord {
     return partitionToken;
   }
 
-  public void setPartitionToken(String partitionToken) {
-    this.partitionToken = partitionToken;
-  }
-
   public Timestamp getCommitTimestamp() {
     return commitTimestamp;
-  }
-
-  public void setCommitTimestamp(Timestamp commitTimestamp) {
-    this.commitTimestamp = commitTimestamp;
   }
 
   public String getTransactionId() {
     return transactionId;
   }
 
-  public void setTransactionId(String transactionId) {
-    this.transactionId = transactionId;
-  }
-
   public boolean isLastRecordInTransactionPartition() {
     return isLastRecordInTransactionPartition;
-  }
-
-  public void setLastRecordInTransactionPartition(boolean lastRecordInTransactionPartition) {
-    isLastRecordInTransactionPartition = lastRecordInTransactionPartition;
   }
 
   public String getRecordSequence() {
     return recordSequence;
   }
 
-  public void setRecordSequence(String recordSequence) {
-    this.recordSequence = recordSequence;
-  }
-
   public String getTableName() {
     return tableName;
-  }
-
-  public void setTableName(String tableName) {
-    this.tableName = tableName;
   }
 
   public List<ColumnType> getRowType() {
     return rowType;
   }
 
-  public void setRowType(List<ColumnType> rowType) {
-    this.rowType = rowType;
-  }
-
   public List<Mod> getMods() {
     return mods;
-  }
-
-  public void setMods(List<Mod> mods) {
-    this.mods = mods;
   }
 
   public ModType getModType() {
     return modType;
   }
 
-  public void setModType(ModType modType) {
-    this.modType = modType;
-  }
-
   public ValueCaptureType getValueCaptureType() {
     return valueCaptureType;
-  }
-
-  public void setValueCaptureType(ValueCaptureType valueCaptureType) {
-    this.valueCaptureType = valueCaptureType;
   }
 
   public long getNumberOfRecordsInTransaction() {
     return numberOfRecordsInTransaction;
   }
 
-  public void setNumberOfRecordsInTransaction(long numberOfRecordsInTransaction) {
-    this.numberOfRecordsInTransaction = numberOfRecordsInTransaction;
-  }
-
   public long getNumberOfPartitionsInTransaction() {
     return numberOfPartitionsInTransaction;
-  }
-
-  public void setNumberOfPartitionsInTransaction(long numberOfPartitionsInTransaction) {
-    this.numberOfPartitionsInTransaction = numberOfPartitionsInTransaction;
   }
 
   @Override
@@ -178,44 +129,44 @@ public class DataChangesRecord implements ChangeStreamRecord {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof DataChangeRecord)) {
       return false;
     }
-    DataChangesRecord that = (DataChangesRecord) o;
-    return isLastRecordInTransactionPartition() == that.isLastRecordInTransactionPartition()
-        && getNumberOfRecordsInTransaction() == that.getNumberOfRecordsInTransaction()
-        && getNumberOfPartitionsInTransaction() == that.getNumberOfPartitionsInTransaction()
-        && Objects.equal(getPartitionToken(), that.getPartitionToken())
-        && Objects.equal(getCommitTimestamp(), that.getCommitTimestamp())
-        && Objects.equal(getTransactionId(), that.getTransactionId())
-        && Objects.equal(getRecordSequence(), that.getRecordSequence())
-        && Objects.equal(getTableName(), that.getTableName())
-        && Objects.equal(getRowType(), that.getRowType())
-        && Objects.equal(getMods(), that.getMods())
-        && getModType() == that.getModType()
-        && getValueCaptureType() == that.getValueCaptureType();
+    DataChangeRecord that = (DataChangeRecord) o;
+    return isLastRecordInTransactionPartition == that.isLastRecordInTransactionPartition
+        && numberOfRecordsInTransaction == that.numberOfRecordsInTransaction
+        && numberOfPartitionsInTransaction == that.numberOfPartitionsInTransaction
+        && Objects.equals(partitionToken, that.partitionToken)
+        && Objects.equals(commitTimestamp, that.commitTimestamp)
+        && Objects.equals(transactionId, that.transactionId)
+        && Objects.equals(recordSequence, that.recordSequence)
+        && Objects.equals(tableName, that.tableName)
+        && Objects.equals(rowType, that.rowType)
+        && Objects.equals(mods, that.mods)
+        && modType == that.modType
+        && valueCaptureType == that.valueCaptureType;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(
-        getPartitionToken(),
-        getCommitTimestamp(),
-        getTransactionId(),
-        isLastRecordInTransactionPartition(),
-        getRecordSequence(),
-        getTableName(),
-        getRowType(),
-        getMods(),
-        getModType(),
-        getValueCaptureType(),
-        getNumberOfRecordsInTransaction(),
-        getNumberOfPartitionsInTransaction());
+    return Objects.hash(
+        partitionToken,
+        commitTimestamp,
+        transactionId,
+        isLastRecordInTransactionPartition,
+        recordSequence,
+        tableName,
+        rowType,
+        mods,
+        modType,
+        valueCaptureType,
+        numberOfRecordsInTransaction,
+        numberOfPartitionsInTransaction);
   }
 
   @Override
   public String toString() {
-    return "DataChangesRecord{"
+    return "DataChangeRecord{"
         + "partitionToken='"
         + partitionToken
         + '\''

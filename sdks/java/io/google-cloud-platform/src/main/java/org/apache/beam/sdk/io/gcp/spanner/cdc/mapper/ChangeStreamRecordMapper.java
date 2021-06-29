@@ -30,7 +30,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ColumnType;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ModType;
@@ -54,7 +54,7 @@ public class ChangeStreamRecordMapper {
 
   // TODO: add validation of the internal structure / values of each record parsed
   private Stream<ChangeStreamRecord> toChangeStreamRecord(String partitionToken, Struct row) {
-    final Stream<DataChangesRecord> dataChangeRecords =
+    final Stream<DataChangeRecord> dataChangeRecords =
         row.getStructList("data_change_record").stream()
             .filter(this::isNonNullDataChangeRecord)
             .map(struct -> toDataChangeRecord(partitionToken, struct));
@@ -82,8 +82,8 @@ public class ChangeStreamRecordMapper {
     return !row.isNull("start_timestamp");
   }
 
-  private DataChangesRecord toDataChangeRecord(String partitionToken, Struct row) {
-    return new DataChangesRecord(
+  private DataChangeRecord toDataChangeRecord(String partitionToken, Struct row) {
+    return new DataChangeRecord(
         partitionToken,
         row.getTimestamp("commit_timestamp"),
         // FIXME: The spec has this as server_transaction_id

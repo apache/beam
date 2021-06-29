@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import com.google.cloud.Timestamp;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -31,13 +31,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // TODO: Add java docs
-public class DataChangesRecordAction {
-  private static final Logger LOG = LoggerFactory.getLogger(DataChangesRecordAction.class);
+public class DataChangeRecordAction {
+  private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
 
   public Optional<ProcessContinuation> run(
-      DataChangesRecord record,
+      DataChangeRecord record,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
-      OutputReceiver<DataChangesRecord> outputReceiver,
+      OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
     LOG.info("Processing data record for " + record.getPartitionToken());
 

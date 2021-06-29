@@ -34,6 +34,7 @@ public class PartitionMetadata implements Serializable {
 
   private static final long serialVersionUID = 995720273301116075L;
 
+  @DefaultCoder(AvroCoder.class)
   public enum State {
     // The partition has been discovered and is waiting to be started
     CREATED,
@@ -102,80 +103,40 @@ public class PartitionMetadata implements Serializable {
     return partitionToken;
   }
 
-  public void setPartitionToken(String partitionToken) {
-    this.partitionToken = partitionToken;
-  }
-
   public HashSet<String> getParentTokens() {
     return parentTokens;
-  }
-
-  public void setParentTokens(HashSet<String> parentTokens) {
-    this.parentTokens = parentTokens;
   }
 
   public Timestamp getStartTimestamp() {
     return startTimestamp;
   }
 
-  public void setStartTimestamp(Timestamp startTimestamp) {
-    this.startTimestamp = startTimestamp;
-  }
-
   public boolean isInclusiveStart() {
     return inclusiveStart;
-  }
-
-  public void setInclusiveStart(boolean inclusiveStart) {
-    this.inclusiveStart = inclusiveStart;
   }
 
   public Timestamp getEndTimestamp() {
     return endTimestamp;
   }
 
-  public void setEndTimestamp(Timestamp endTimestamp) {
-    this.endTimestamp = endTimestamp;
-  }
-
   public boolean isInclusiveEnd() {
     return inclusiveEnd;
-  }
-
-  public void setInclusiveEnd(boolean inclusiveEnd) {
-    this.inclusiveEnd = inclusiveEnd;
   }
 
   public long getHeartbeatMillis() {
     return heartbeatMillis;
   }
 
-  public void setHeartbeatMillis(long heartbeatMillis) {
-    this.heartbeatMillis = heartbeatMillis;
-  }
-
   public State getState() {
     return state;
-  }
-
-  public void setState(State state) {
-    this.state = state;
   }
 
   public Timestamp getCreatedAt() {
     return createdAt;
   }
 
-  public void setCreatedAt(Timestamp createdAt) {
-    this.createdAt = createdAt;
-  }
-
   public Timestamp getUpdatedAt() {
     return updatedAt;
-  }
-
-  public void setUpdatedAt(Timestamp updatedAt) {
-    this.updatedAt = updatedAt;
   }
 
   @Override
@@ -314,15 +275,19 @@ public class PartitionMetadata implements Serializable {
       Preconditions.checkState(startTimestamp != null, "startTimestamp");
       Preconditions.checkState(heartbeatMillis != null, "heartbeatMillis");
       Preconditions.checkState(state != null, "state");
+      // TODO: Add test for default inclusive start
       if (inclusiveStart == null) {
         inclusiveStart = true;
       }
+      // TODO: Add test for default inclusive end
       if (inclusiveEnd == null) {
         inclusiveEnd = false;
       }
+      // TODO: Add test for default created at
       if (createdAt == null) {
         createdAt = Value.COMMIT_TIMESTAMP;
       }
+      // TODO: Add test for default updated at
       if (updatedAt == null) {
         updatedAt = Value.COMMIT_TIMESTAMP;
       }

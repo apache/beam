@@ -115,8 +115,7 @@ public class ChildPartitionsRecordAction {
   }
 
   private boolean isSplit(ChildPartition childPartition) {
-    // FIXME: Add test for this (this is necessary for the initial partition)
-    return childPartition.getParentTokens().size() <= 1;
+    return childPartition.getParentTokens().size() == 1;
   }
 
   private PartitionMetadata toPartitionMetadata(

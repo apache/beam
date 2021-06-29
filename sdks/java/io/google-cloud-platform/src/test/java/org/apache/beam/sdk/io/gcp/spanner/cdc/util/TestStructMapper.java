@@ -29,7 +29,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ColumnType;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 
@@ -92,8 +92,8 @@ public class TestStructMapper {
   }
 
   private static Struct streamRecordStructFrom(ChangeStreamRecord record) {
-    if (record instanceof DataChangesRecord) {
-      return streamRecordStructFrom((DataChangesRecord) record);
+    if (record instanceof DataChangeRecord) {
+      return streamRecordStructFrom((DataChangeRecord) record);
     } else if (record instanceof HeartbeatRecord) {
       return streamRecordStructFrom((HeartbeatRecord) record);
     } else if (record instanceof ChildPartitionsRecord) {
@@ -151,7 +151,7 @@ public class TestStructMapper {
     return Struct.newBuilder().set("timestamp").to(record.getTimestamp()).build();
   }
 
-  private static Struct streamRecordStructFrom(DataChangesRecord record) {
+  private static Struct streamRecordStructFrom(DataChangeRecord record) {
     return Struct.newBuilder()
         .set("data_change_record")
         .to(
@@ -164,7 +164,7 @@ public class TestStructMapper {
         .build();
   }
 
-  private static Struct recordStructFrom(DataChangesRecord record) {
+  private static Struct recordStructFrom(DataChangeRecord record) {
     final Value columnTypes =
         Value.structArray(
             COLUMN_TYPE_TYPE,

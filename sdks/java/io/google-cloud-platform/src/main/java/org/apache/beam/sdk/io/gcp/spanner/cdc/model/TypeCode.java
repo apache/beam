@@ -40,10 +40,6 @@ public class TypeCode implements Serializable {
     return code;
   }
 
-  public void setCode(String code) {
-    this.code = code;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) {

@@ -31,7 +31,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ColumnType;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangesRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ModType;
@@ -50,9 +50,9 @@ public class ChangeStreamRecordMapperTest {
   }
 
   @Test
-  public void testMappingUpdateStructRowToDataChangesRecord() {
-    final DataChangesRecord dataChangesRecord =
-        new DataChangesRecord(
+  public void testMappingUpdateStructRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
             "partitionToken",
             Timestamp.ofTimeSecondsAndNanos(10L, 20),
             "transactionId",
@@ -71,17 +71,17 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L);
-    final Struct struct = recordsToStruct(dataChangesRecord);
+    final Struct struct = recordsToStruct(dataChangeRecord);
 
     assertEquals(
-        Collections.singletonList(dataChangesRecord),
+        Collections.singletonList(dataChangeRecord),
         mapper.toChangeStreamRecords("partitionToken", struct));
   }
 
   @Test
-  public void testMappingInsertStructRowToDataChangesRecord() {
-    final DataChangesRecord dataChangesRecord =
-        new DataChangesRecord(
+  public void testMappingInsertStructRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
             "partitionToken",
             Timestamp.ofTimeSecondsAndNanos(10L, 20),
             "transactionId",
@@ -100,17 +100,17 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L);
-    final Struct struct = recordsToStruct(dataChangesRecord);
+    final Struct struct = recordsToStruct(dataChangeRecord);
 
     assertEquals(
-        Collections.singletonList(dataChangesRecord),
+        Collections.singletonList(dataChangeRecord),
         mapper.toChangeStreamRecords("partitionToken", struct));
   }
 
   @Test
-  public void testMappingDeleteStructRowToDataChangesRecord() {
-    final DataChangesRecord dataChangesRecord =
-        new DataChangesRecord(
+  public void testMappingDeleteStructRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
             "partitionToken",
             Timestamp.ofTimeSecondsAndNanos(10L, 20),
             "transactionId",
@@ -129,10 +129,10 @@ public class ChangeStreamRecordMapperTest {
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
             2L);
-    final Struct struct = recordsToStruct(dataChangesRecord);
+    final Struct struct = recordsToStruct(dataChangeRecord);
 
     assertEquals(
-        Collections.singletonList(dataChangesRecord),
+        Collections.singletonList(dataChangeRecord),
         mapper.toChangeStreamRecords("partitionToken", struct));
   }
 

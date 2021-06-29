@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+
+@DefaultCoder(AvroCoder.class)
 public enum ValueCaptureType {
   OLD_AND_NEW_VALUES,
   NEW_VALUES

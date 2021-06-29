@@ -25,7 +25,7 @@ import org.joda.time.Duration;
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;
-  private static DataChangesRecordAction DATA_CHANGES_RECORD_ACTION_INSTANCE;
+  private static DataChangeRecordAction DATA_CHANGE_RECORD_ACTION_INSTANCE;
   private static HeartbeatRecordAction HEARTBEAT_RECORD_ACTION_INSTANCE;
   private static ChildPartitionsRecordAction CHILD_PARTITIONS_RECORD_ACTION_INSTANCE;
   private static FinishPartitionAction FINISH_PARTITION_ACTION_INSTANCE;
@@ -35,11 +35,11 @@ public class ActionFactory implements Serializable {
   private static DonePartitionAction DONE_PARTITION_ACTION_INSTANCE;
 
   // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized DataChangesRecordAction dataChangesRecordAction() {
-    if (DATA_CHANGES_RECORD_ACTION_INSTANCE == null) {
-      DATA_CHANGES_RECORD_ACTION_INSTANCE = new DataChangesRecordAction();
+  public synchronized DataChangeRecordAction dataChangeRecordAction() {
+    if (DATA_CHANGE_RECORD_ACTION_INSTANCE == null) {
+      DATA_CHANGE_RECORD_ACTION_INSTANCE = new DataChangeRecordAction();
     }
-    return DATA_CHANGES_RECORD_ACTION_INSTANCE;
+    return DATA_CHANGE_RECORD_ACTION_INSTANCE;
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so

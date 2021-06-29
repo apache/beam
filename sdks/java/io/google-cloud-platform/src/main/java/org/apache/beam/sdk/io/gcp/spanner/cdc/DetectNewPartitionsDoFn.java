@@ -90,10 +90,10 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
     return new OffsetRange(0, Long.MAX_VALUE);
   }
 
-  // TODO: Remove @Element parameter if it is not needed
   @NewTracker
   public OffsetRangeTracker restrictionTracker(
       @Element ChangeStreamSourceDescriptor inputElement, @Restriction OffsetRange restriction) {
+    // FIXME: The end of the range should probably be Long.MAX_VALUE
     return new OffsetRangeTracker(new OffsetRange(restriction.getFrom(), restriction.getTo()));
   }
 

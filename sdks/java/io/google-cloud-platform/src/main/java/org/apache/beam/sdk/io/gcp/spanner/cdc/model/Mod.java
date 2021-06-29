@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -40,10 +39,6 @@ public class Mod implements Serializable {
   @AvroSchema(NULLS_ALLOWED_SCHEMA)
   private Map<String, String> newValues;
 
-  public static OldAndNewBuilder newOldAndNewBuilder() {
-    return new OldAndNewBuilder();
-  }
-
   /** Default constructor for serialization only. */
   private Mod() {}
 
@@ -58,48 +53,12 @@ public class Mod implements Serializable {
     return oldValues;
   }
 
-  public void setOldValues(Map<String, String> oldValues) {
-    this.oldValues = oldValues;
-  }
-
   public Map<String, String> getNewValues() {
     return newValues;
   }
 
-  public void setNewValues(Map<String, String> newValues) {
-    this.newValues = newValues;
-  }
-
   public Map<String, String> getKeys() {
     return keys;
-  }
-
-  public void setKeys(Map<String, String> keys) {
-    this.keys = keys;
-  }
-
-  public static class OldAndNewBuilder {
-    private final Map<String, String> keys;
-    private final Map<String, String> oldValues;
-    private final Map<String, String> newValues;
-
-    public OldAndNewBuilder() {
-      this.keys = new HashMap<>();
-      this.oldValues = new HashMap<>();
-      this.newValues = new HashMap<>();
-    }
-
-    public OldAndNewBuilder addValue(
-        String keyColumn, String keyValue, String name, String oldValue, String newValue) {
-      keys.put(keyColumn, keyValue);
-      oldValues.put(name, oldValue);
-      newValues.put(name, newValue);
-      return this;
-    }
-
-    public Mod build() {
-      return new Mod(keys, oldValues, newValues);
-    }
   }
 
   @Override

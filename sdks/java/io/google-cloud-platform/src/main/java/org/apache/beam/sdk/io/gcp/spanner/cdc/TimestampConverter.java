@@ -24,18 +24,19 @@ import java.math.RoundingMode;
 // TODO: javadocs
 // TODO: This class probably does not belong in the cdc change
 public class TimestampConverter {
+
+  private static final BigDecimal TEN_TO_THE_NINETH = BigDecimal.valueOf(1_000_000_000L);
+
   public static BigDecimal timestampToNanos(Timestamp timestamp) {
-    final BigDecimal tenToTheNineth = BigDecimal.valueOf(1_000_000_000L);
     final BigDecimal seconds = BigDecimal.valueOf(timestamp.getSeconds());
     final BigDecimal nanos = BigDecimal.valueOf(timestamp.getNanos());
 
-    return seconds.multiply(tenToTheNineth).add(nanos);
+    return seconds.multiply(TEN_TO_THE_NINETH).add(nanos);
   }
 
   public static Timestamp timestampFromNanos(BigDecimal timestampAsNanos) {
-    final BigDecimal tenToTheNineth = BigDecimal.valueOf(1_000_000_000L);
-    final long seconds = timestampAsNanos.divide(tenToTheNineth, RoundingMode.FLOOR).longValue();
-    final int nanos = timestampAsNanos.remainder(tenToTheNineth).intValue();
+    final long seconds = timestampAsNanos.divide(TEN_TO_THE_NINETH, RoundingMode.FLOOR).longValue();
+    final int nanos = timestampAsNanos.remainder(TEN_TO_THE_NINETH).intValue();
 
     return Timestamp.ofTimeSecondsAndNanos(seconds, nanos);
   }

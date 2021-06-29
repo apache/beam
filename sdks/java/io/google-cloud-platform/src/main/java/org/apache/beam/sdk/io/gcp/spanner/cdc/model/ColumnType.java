@@ -48,32 +48,16 @@ public class ColumnType implements Serializable {
     return name;
   }
 
-  public void setName(String name) {
-    this.name = name;
-  }
-
   public TypeCode getType() {
     return type;
-  }
-
-  public void setType(TypeCode type) {
-    this.type = type;
   }
 
   public boolean isPrimaryKey() {
     return isPrimaryKey;
   }
 
-  public void setPrimaryKey(boolean primaryKey) {
-    isPrimaryKey = primaryKey;
-  }
-
   public long getOrdinalPosition() {
     return ordinalPosition;
-  }
-
-  public void setOrdinalPosition(int ordinalPosition) {
-    this.ordinalPosition = ordinalPosition;
   }
 
   @Override

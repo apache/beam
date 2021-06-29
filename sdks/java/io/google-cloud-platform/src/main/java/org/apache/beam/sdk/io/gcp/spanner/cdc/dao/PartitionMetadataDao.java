@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
 
-// TODO: Integration test
 // TODO: Add java docs
 public class PartitionMetadataDao {
 
@@ -50,7 +49,6 @@ public class PartitionMetadataDao {
   private final String tableName;
   private final DatabaseClient databaseClient;
 
-  // TODO: We should receive a table name in the constructor
   public PartitionMetadataDao(String tableName, DatabaseClient databaseClient) {
     this.tableName = tableName;
     this.databaseClient = databaseClient;
@@ -183,7 +181,6 @@ public class PartitionMetadataDao {
       return Mutation.newInsertBuilder(tableName)
           .set(COLUMN_PARTITION_TOKEN)
           .to(partitionMetadata.getPartitionToken())
-          // FIXME: This should be a list of parents
           .set(COLUMN_PARENT_TOKENS)
           .toStringArray(partitionMetadata.getParentTokens())
           .set(COLUMN_START_TIMESTAMP)

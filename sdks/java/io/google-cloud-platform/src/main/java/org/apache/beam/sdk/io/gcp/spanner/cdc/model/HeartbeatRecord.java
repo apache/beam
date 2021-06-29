@@ -24,7 +24,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
 
-// TODO: Check if we can remove the setters
 @DefaultCoder(AvroCoder.class)
 public class HeartbeatRecord implements ChangeStreamRecord {
 
@@ -37,10 +36,6 @@ public class HeartbeatRecord implements ChangeStreamRecord {
   private HeartbeatRecord() {}
 
   public HeartbeatRecord(Timestamp timestamp) {
-    this.timestamp = timestamp;
-  }
-
-  public void setTimestamp(Timestamp timestamp) {
     this.timestamp = timestamp;
   }
 

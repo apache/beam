@@ -79,9 +79,9 @@ public class ModelEncodingTest {
   }
 
   @Test
-  public void testDataChangesRecordCanBeEncoded() throws IOException {
-    final DataChangesRecord dataChangesRecord =
-        new DataChangesRecord(
+  public void testDataChangeRecordCanBeEncoded() throws IOException {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
             "1",
             Timestamp.now(),
             "2",
@@ -102,13 +102,13 @@ public class ModelEncodingTest {
             1,
             1);
 
-    assertEquals(dataChangesRecord, encodeAndDecode(dataChangesRecord));
+    assertEquals(dataChangeRecord, encodeAndDecode(dataChangeRecord));
   }
 
   @Test
-  public void testDataChangesRecordWithNullOldAndNewValuesCanBeEncoded() throws IOException {
-    final DataChangesRecord dataChangesRecord =
-        new DataChangesRecord(
+  public void testDataChangeRecordWithNullOldAndNewValuesCanBeEncoded() throws IOException {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
             "1",
             Timestamp.now(),
             "2",
@@ -126,19 +126,19 @@ public class ModelEncodingTest {
             1,
             1);
 
-    assertEquals(dataChangesRecord, encodeAndDecode(dataChangesRecord));
+    assertEquals(dataChangeRecord, encodeAndDecode(dataChangeRecord));
   }
 
   @Test
-  public void testDataChangesRecordWithNullValuesInsideAModCanBeEncoded() throws IOException {
+  public void testDataChangeRecordWithNullValuesInsideAModCanBeEncoded() throws IOException {
     final Map<String, String> oldValues = new HashMap<>();
     oldValues.put("column1", "oldValue1");
     oldValues.put("column2", null);
     final Map<String, String> newValues = new HashMap<>();
     newValues.put("column1", null);
     newValues.put("column2", "newValue2");
-    final DataChangesRecord dataChangesRecord =
-        new DataChangesRecord(
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
             "1",
             Timestamp.now(),
             "2",
@@ -156,7 +156,7 @@ public class ModelEncodingTest {
             1,
             1);
 
-    assertEquals(dataChangesRecord, encodeAndDecode(dataChangesRecord));
+    assertEquals(dataChangeRecord, encodeAndDecode(dataChangeRecord));
   }
 
   @Test
