@@ -2059,5 +2059,116 @@ class DocstringTest(unittest.TestCase):
         f'operations:\n{docstring_missing}')
 
 
+class ReprTest(unittest.TestCase):
+  def test_basic_dataframe(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=['group', 'foo', 'bar', 'baz', 'bool', "
+            "'str'], index=<unnamed>)"))
+
+  def test_dataframe_with_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index('group')))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool', 'str'], "
+            "index='group')"))
+
+  def test_dataframe_with_partial_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool', 'str'], "
+            "indexes=[<unnamed>, 'group'])"))
+
+  def test_dataframe_with_named_multi_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index(['str', 'group'])))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool'], "
+            "indexes=['str', 'group'])"))
+
+  def test_dataframe_with_multiple_column_levels(self):
+    df = pd.DataFrame({
+        'foofoofoo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'barbar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'bazzy': [1, 2, 3, 4, 5, 6],
+        'zoop': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+
+    df = df.pivot(index='foofoofoo', columns='barbar')
+    df = frame_base.DeferredFrame.wrap(expressions.ConstantExpression(df))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=[('bazzy', 'A'), ('bazzy', 'B'), "
+            "('bazzy', 'C'), ('zoop', 'A'), ('zoop', 'B'), ('zoop', 'C')], "
+            "index='foofoofoo')"))
+
+  def test_dataframe_with_multiple_column_and_multiple_index_levels(self):
+    df = pd.DataFrame({
+        'foofoofoo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'barbar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'bazzy': [1, 2, 3, 4, 5, 6],
+        'zoop': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+
+    df = df.pivot(index='foofoofoo', columns='barbar')
+    df.index = [['a', 'b'], df.index]
+
+    # pandas repr displays this:
+    #             bazzy       zoop
+    # barbar          A  B  C    A  B  C
+    #   foofoofoo
+    # a one           1  2  3    x  y  z
+    # b two           4  5  6    q  w  t
+    df = frame_base.DeferredFrame.wrap(expressions.ConstantExpression(df))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=[('bazzy', 'A'), ('bazzy', 'B'), "
+            "('bazzy', 'C'), ('zoop', 'A'), ('zoop', 'B'), ('zoop', 'C')], "
+            "indexes=[<unnamed>, 'foofoofoo'])"))
+
+  def test_basic_series(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF['bool']))
+    self.assertEqual(
+        repr(df), "DeferredSeries(name='bool', dtype=bool, index=<unnamed>)")
+
+  def test_series_with_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index('group')['str']))
+    self.assertEqual(
+        repr(df), "DeferredSeries(name='str', dtype=object, index='group')")
+
+  def test_series_with_partial_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])['bar']))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredSeries(name='bar', dtype=float64, "
+            "indexes=[<unnamed>, 'group'])"))
+
+  def test_series_with_named_multi_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index(['str', 'group'])['baz']))
+    self.assertEqual(
+        repr(df),
+        "DeferredSeries(name='baz', dtype=float64, indexes=['str', 'group'])")
+
+
 if __name__ == '__main__':
   unittest.main()

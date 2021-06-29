@@ -143,6 +143,14 @@ _PEEK_METHOD_EXPLANATION = (
 
 
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
+  def _render_indexes(self):
+    if self.index.nlevels == 1:
+      return 'index=' + (
+          '<unnamed>' if self.index.name is None else repr(self.index.name))
+    else:
+      return 'indexes=[' + ', '.join(
+          '<unnamed>' if ix is None else repr(ix)
+          for ix in self.index.names) + ']'
 
   __array__ = frame_base.wont_implement_method(
       pd.Series, '__array__', reason="non-deferred-result")
@@ -1036,6 +1044,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(DeferredDataFrameOrSeries):
+  def __repr__(self):
+    return (
+        f'DeferredSeries(name={self.name!r}, dtype={self.dtype}, '
+        f'{self._render_indexes()})')
+
   @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def name(self):
@@ -1942,6 +1955,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 @populate_not_implemented(pd.DataFrame)
 @frame_base.DeferredFrame._register_for(pd.DataFrame)
 class DeferredDataFrame(DeferredDataFrameOrSeries):
+  def __repr__(self):
+    return (
+        f'DeferredDataFrame(columns={list(self.columns)}, '
+        f'{self._render_indexes()})')
+
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
   def columns(self):
