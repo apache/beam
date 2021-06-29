@@ -1648,6 +1648,25 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'searchsorted', reason='order-sensitive')
   shift = frame_base.wont_implement_method(
       pd.Series, 'shift', reason='order-sensitive')
+  pct_change = frame_base.wont_implement_method(
+      pd.Series, 'pct_change', reason='order-sensitive')
+  is_monotonic = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic', reason='order-sensitive')
+  is_monotonic_increasing = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic_increasing', reason='order-sensitive')
+  is_monotonic_decreasing = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic_decreasing', reason='order-sensitive')
+  asof = frame_base.wont_implement_method(
+      pd.Series, 'asof', reason='order-sensitive')
+  first_valid_index = frame_base.wont_implement_method(
+      pd.Series, 'first_valid_index', reason='order-sensitive')
+  last_valid_index = frame_base.wont_implement_method(
+      pd.Series, 'last_valid_index', reason='order-sensitive')
+  autocorr = frame_base.wont_implement_method(
+      pd.Series, 'autocorr', reason='order-sensitive')
+  iat = property(
+      frame_base.wont_implement_method(
+          pd.Series, 'iat', reason='order-sensitive'))
 
   head = frame_base.wont_implement_method(
       pd.Series, 'head', explanation=_PEEK_METHOD_EXPLANATION)
@@ -2589,6 +2608,17 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   interpolate = frame_base.wont_implement_method(pd.DataFrame, 'interpolate',
                                                  reason='order-sensitive')
 
+  pct_change = frame_base.wont_implement_method(
+      pd.DataFrame, 'pct_change', reason='order-sensitive')
+  asof = frame_base.wont_implement_method(
+      pd.DataFrame, 'asof', reason='order-sensitive')
+  first_valid_index = frame_base.wont_implement_method(
+      pd.DataFrame, 'first_valid_index', reason='order-sensitive')
+  last_valid_index = frame_base.wont_implement_method(
+      pd.DataFrame, 'last_valid_index', reason='order-sensitive')
+  iat = property(frame_base.wont_implement_method(
+      pd.DataFrame, 'iat', reason='order-sensitive'))
+
   head = frame_base.wont_implement_method(pd.DataFrame, 'head',
       explanation=_PEEK_METHOD_EXPLANATION)
   tail = frame_base.wont_implement_method(pd.DataFrame, 'tail',
@@ -3352,7 +3382,6 @@ class DeferredGroupBy(frame_base.DeferredFrame):
           "dropna=False does not work as intended in the Beam DataFrame API "
           "when grouping on multiple columns or indexes (See BEAM-12495).")
 
-
   def __getattr__(self, name):
     return DeferredGroupBy(
         expressions.ComputedExpression(
@@ -3595,6 +3624,11 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                                           reason='order-sensitive')
   shift = frame_base.wont_implement_method(DataFrameGroupBy, 'shift',
                                            reason='order-sensitive')
+
+  pct_change = frame_base.wont_implement_method(DataFrameGroupBy, 'pct_change',
+                                                reason='order-sensitive')
+  ohlc = frame_base.wont_implement_method(DataFrameGroupBy, 'ohlc',
+                                          reason='order-sensitive')
 
   # TODO(BEAM-12169): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method(
