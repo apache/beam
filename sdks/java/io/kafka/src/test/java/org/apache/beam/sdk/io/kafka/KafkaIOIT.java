@@ -61,7 +61,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -139,41 +138,41 @@ public class KafkaIOIT {
     }
   }
 
-  // @Test
-  // public void testKafkaIOReadsAndWritesCorrectlyInStreaming() throws IOException {
-  //   // Use batch pipeline to write records.
-  //   writePipeline
-  //       .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
-  //       .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
-  //       .apply("Write to Kafka", writeToKafka());
-  //
-  //   // Use streaming pipeline to read Kafka records.
-  //   readPipeline.getOptions().as(Options.class).setStreaming(true);
-  //   readPipeline
-  //       .apply("Read from unbounded Kafka", readFromKafka())
-  //       .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-  //       .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
-  //       .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
-  //
-  //   PipelineResult writeResult = writePipeline.run();
-  //   writeResult.waitUntilFinish();
-  //
-  //   PipelineResult readResult = readPipeline.run();
-  //   PipelineResult.State readState =
-  //       readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
-  //
-  //   cancelIfTimeouted(readResult, readState);
-  //
-  //   assertEquals(
-  //       sourceOptions.numRecords,
-  //       readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
-  //
-  //   if (!options.isWithTestcontainers()) {
-  //     Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
-  //     IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
-  //     IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
-  //   }
-  // }
+  @Test
+  public void testKafkaIOReadsAndWritesCorrectlyInStreaming() throws IOException {
+    // Use batch pipeline to write records.
+    writePipeline
+        .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
+        .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply("Write to Kafka", writeToKafka());
+
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    readPipeline
+        .apply("Read from unbounded Kafka", readFromKafka())
+        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+        .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
+        .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    cancelIfTimeouted(readResult, readState);
+
+    assertEquals(
+        sourceOptions.numRecords,
+        readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+
+    if (!options.isWithTestcontainers()) {
+      Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
+      IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
+      IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
+    }
+  }
 
   @Test
   // public void testKafkaIOReadsAndWritesCorrectlyBatchNullKey() throws IOException{
