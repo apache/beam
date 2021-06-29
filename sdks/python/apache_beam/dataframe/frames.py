@@ -1197,6 +1197,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   ravel = frame_base.wont_implement_method(
       pd.Series, 'ravel', reason="non-deferred-result")
 
+  slice_shift = frame_base.wont_implement_method(
+      pd.Series, 'slice_shift', reason="deprecated")
+  tshift = frame_base.wont_implement_method(
+      pd.Series, 'tshift', reason="deprecated")
+
   rename = frame_base._elementwise_method('rename', base=pd.Series)
   between = frame_base._elementwise_method('between', base=pd.Series)
 
@@ -2619,6 +2624,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   iat = property(frame_base.wont_implement_method(
       pd.DataFrame, 'iat', reason='order-sensitive'))
 
+  lookup = frame_base.wont_implement_method(
+      pd.DataFrame, 'lookup', reason='deprecated')
+
   head = frame_base.wont_implement_method(pd.DataFrame, 'head',
       explanation=_PEEK_METHOD_EXPLANATION)
   tail = frame_base.wont_implement_method(pd.DataFrame, 'tail',
@@ -3642,6 +3650,9 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       DataFrameGroupBy, 'resample', reason='event-time-semantics')
   rolling = frame_base.wont_implement_method(
       DataFrameGroupBy, 'rolling', reason='event-time-semantics')
+
+  tshift = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'tshift', reason="deprecated")
 
 def _maybe_project_func(projection: Optional[List[str]]):
   """ Returns identity func if projection is empty or None, else returns
