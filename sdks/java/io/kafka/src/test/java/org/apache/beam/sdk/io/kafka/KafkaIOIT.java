@@ -55,6 +55,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -194,6 +195,7 @@ public class KafkaIOIT {
     PCollection<String> readOutput =
         readPipeline
             .apply("Read from bounded Kafka", readFromKafkaNullKey())
+            .apply("Materialize input", Reshuffle.viaRandomKey())
             .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStringsNullKey()));
 
     PAssert.that(readOutput).containsInAnyOrder(values);
@@ -307,7 +309,6 @@ public class KafkaIOIT {
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
         .withTopic(options.getKafkaTopic())
-        // .withMaxNumRecords(sourceOptions.numRecords)
         .withMaxNumRecords(100)
         .withKeyDeserializer(ByteArrayDeserializer.class)
         .withValueDeserializer(StringDeserializer.class);

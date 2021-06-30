@@ -1281,7 +1281,6 @@ public class KafkaIO {
 
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
-      boolean isNullKeyFlag = isNullKeyFlag();
 
       // For read from unbounded in a bounded manner, we actually are not going through Read or SDF.
       if (ExperimentalOptions.hasExperiment(
@@ -1291,9 +1290,9 @@ public class KafkaIO {
           || getMaxNumRecords() < Long.MAX_VALUE
           || getMaxReadTime() != null
           || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
-        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder, isNullKeyFlag));
+        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
-      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder, isNullKeyFlag));
+      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
     }
 
     private boolean runnerRequiresLegacyRead(PipelineOptions options) {
@@ -1334,8 +1333,7 @@ public class KafkaIO {
             new ReadFromKafkaViaUnbounded<>(
                 transform.getTransform().kafkaRead,
                 transform.getTransform().keyCoder,
-                transform.getTransform().valueCoder,
-                transform.getTransform().isNullKeyFlag));
+                transform.getTransform().valueCoder));
       }
 
       @Override
@@ -1350,13 +1348,11 @@ public class KafkaIO {
       Read<K, V> kafkaRead;
       Coder<K> keyCoder;
       Coder<V> valueCoder;
-      boolean isNullKeyFlag;
 
-      ReadFromKafkaViaUnbounded(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder, boolean isNullKeyFlag) {
+      ReadFromKafkaViaUnbounded(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
         this.kafkaRead = kafkaRead;
         this.keyCoder = keyCoder;
         this.valueCoder = valueCoder;
-        this.isNullKeyFlag = isNullKeyFlag;
       }
 
       @Override
@@ -1364,7 +1360,6 @@ public class KafkaIO {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded = org.apache.beam.sdk.io.Read.from(
             kafkaRead.toBuilder()
-                .setNullKeyFlag(isNullKeyFlag)
                 .setKeyCoder(keyCoder)
                 .setValueCoder(valueCoder)
                 .build()
@@ -1388,13 +1383,11 @@ public class KafkaIO {
       Read<K, V> kafkaRead;
       Coder<K> keyCoder;
       Coder<V> valueCoder;
-      boolean isNullKeyFlag;
 
-      ReadFromKafkaViaSDF(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder, boolean isNullKeyFlag) {
+      ReadFromKafkaViaSDF(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
         this.kafkaRead = kafkaRead;
         this.keyCoder = keyCoder;
         this.valueCoder = valueCoder;
-        this.isNullKeyFlag = isNullKeyFlag;
       }
 
       @Override
@@ -1457,7 +1450,6 @@ public class KafkaIO {
           LOG.warn("using standard key kafka record coder");
           return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
         }
-        // return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
       }
     }
 
