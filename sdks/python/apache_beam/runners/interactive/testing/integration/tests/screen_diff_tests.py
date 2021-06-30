@@ -23,7 +23,6 @@ import unittest
 import pytest
 
 from apache_beam.runners.interactive.testing.integration.screen_diff import BaseTestCase
-
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
