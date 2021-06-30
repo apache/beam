@@ -1318,7 +1318,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setDataFormat(DataFormat.AVRO))
             .setMaxStreamCount(10)
             .build();
 
@@ -1356,6 +1357,7 @@ public class BigQueryIOStorageReadTest {
             BigQueryIO.read(new ParseKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
+                .withFormat(DataFormat.AVRO)
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)
@@ -1382,7 +1384,8 @@ public class BigQueryIOStorageReadTest {
                 ReadSession.newBuilder()
                     .setTable("projects/foo.com:project/datasets/dataset/tables/table")
                     .setReadOptions(
-                        ReadSession.TableReadOptions.newBuilder().addSelectedFields("name")))
+                        ReadSession.TableReadOptions.newBuilder().addSelectedFields("name"))
+                    .setDataFormat(DataFormat.AVRO))
             .setMaxStreamCount(10)
             .build();
 
@@ -1421,6 +1424,7 @@ public class BigQueryIOStorageReadTest {
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
                 .withSelectedFields(Lists.newArrayList("name"))
+                .withFormat(DataFormat.AVRO)
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)
@@ -1449,7 +1453,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setDataFormat(DataFormat.ARROW))
             .setMaxStreamCount(10)
             .build();
 
@@ -1486,6 +1491,7 @@ public class BigQueryIOStorageReadTest {
             BigQueryIO.read(new ParseKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
+                .withFormat(DataFormat.ARROW)
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)

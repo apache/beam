@@ -591,7 +591,7 @@ public class BigQueryIO {
         .setParseFn(parseFn)
         .setMethod(Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
-        .setFormat(DataFormat.DATA_FORMAT_UNSPECIFIED)
+        .setFormat(DataFormat.AVRO)
         .build();
   }
 

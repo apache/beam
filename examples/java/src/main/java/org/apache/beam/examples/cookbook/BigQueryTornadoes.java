@@ -20,7 +20,6 @@ package org.apache.beam.examples.cookbook;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -195,14 +194,10 @@ public class BigQueryTornadoes {
           BigQueryIO.readTableRows()
               .fromQuery(options.getInputQuery())
               .usingStandardSql()
-              .withMethod(options.getReadMethod())
-              .withFormat(DataFormat.AVRO);
+              .withMethod(options.getReadMethod());
     } else {
       bigqueryIO =
-          BigQueryIO.readTableRows()
-              .from(options.getInput())
-              .withMethod(options.getReadMethod())
-              .withFormat(DataFormat.AVRO);
+          BigQueryIO.readTableRows().from(options.getInput()).withMethod(options.getReadMethod());
 
       // Selected fields only applies when using Method.DIRECT_READ and
       // when reading directly from a table.
