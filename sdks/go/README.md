@@ -132,20 +132,27 @@ in a subdirectory of your GOPATH. This permits existing gradle tools to use your
 $ mkdir -p $GOPATH/src/github.com/apache/
 $ cd $GOPATH/src/github.com/apache/
 
-
 # Clone the repo, and update your branch as normal
 $ git clone https://github.com/apache/beam.git
 $ cd beam
 $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
 $ git fetch --all
 
+# Navigate to the Go SDK root
+$ cd sdks/go
+# Set GO111MODULE to auto to allow building within a $GOPATH
+$ go env -w GO111MODULE=auto
 # Get or Update all the Go SDK dependencies
 $ go get -u ./...
-# Test that the system compiles and runs.
+# Test that the system compiles and runs
 $ go test ./...
 ```
 
 If you don’t have a GOPATH set, follow [these instructions](https://github.com/golang/go/wiki/SettingGOPATH) to create a new directory in your home directory, and use that.
+
+Developing the Go SDK doesn't support Go versions 1.17 or greater at this time.
+Once [BEAM-5379](https://issues.apache.org/jira/browse/BEAM-5379) is resolved,
+and the SDK properly supports Go Modules this should be simpler.
 
 Follow the [contribution guide](https://beam.apache.org/contribute/contribution-guide/#code) to create branches, and submit pull requests as normal.
 
