@@ -40,6 +40,19 @@ func Equals(s beam.Scope, col beam.PCollection, values ...interface{}) beam.PCol
 	return equals(subScope, col, other)
 }
 
+// EqualsList verifies that the given collection has the same values as a
+// given list, under coder equality. The values must be provided as an
+// array or slice. This is equivalent to passing a beam.CreateList PCollection
+// to Equals.
+func EqualsList(s beam.Scope, col beam.PCollection, list interface{}) beam.PCollection {
+	subScope := s.Scope("passert.EqualsList")
+	if list == nil {
+		return Empty(subScope, col)
+	}
+	listCollection := beam.CreateList(subScope, list)
+	return equals(subScope, col, listCollection)
+}
+
 // equals verifies that the actual values match the expected ones.
 func equals(s beam.Scope, actual, expected beam.PCollection) beam.PCollection {
 	unexpected, correct, missing := Diff(s, actual, expected)
@@ -100,3 +113,4 @@ func readToStrings(iter func(*beam.T) bool) []string {
 	sort.Strings(out)
 	return out
 }
+
