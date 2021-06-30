@@ -19,6 +19,7 @@ package org.apache.beam.examples.snippets.transforms.io.gcp.bigquery;
 
 // [START bigquery_read_from_table]
 
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -40,7 +41,9 @@ class BigQueryReadFromTable {
         pipeline
             .apply(
                 "Read from BigQuery query",
-                BigQueryIO.readTableRows().from(String.format("%s:%s.%s", project, dataset, table)))
+                BigQueryIO.readTableRows()
+                    .from(String.format("%s:%s.%s", project, dataset, table))
+                    .withFormat(DataFormat.AVRO))
             .apply(
                 "TableRows to MyData",
                 MapElements.into(TypeDescriptor.of(MyData.class)).via(MyData::fromTableRow));

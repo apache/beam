@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -88,7 +89,8 @@ public class BigQueryIOStorageQueryIT {
                 BigQueryIO.read(TableRowParser.INSTANCE)
                     .fromQuery("SELECT * FROM `" + options.getInputTable() + "`")
                     .usingStandardSql()
-                    .withMethod(Method.DIRECT_READ))
+                    .withMethod(Method.DIRECT_READ)
+                    .withFormat(DataFormat.AVRO))
             .apply("Count", Count.globally());
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());
     p.run().waitUntilFinish();

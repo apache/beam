@@ -20,6 +20,7 @@ package org.apache.beam.examples.cookbook;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -179,14 +180,16 @@ public class BigQueryTornadoes {
                   BigQueryIO.readTableRows()
                       .fromQuery(options.getInputQuery())
                       .usingStandardSql()
-                      .withMethod(Method.DIRECT_READ));
+                      .withMethod(Method.DIRECT_READ)
+                      .withFormat(DataFormat.AVRO));
         } else {
           rowsFromBigQuery =
               p.apply(
                   BigQueryIO.readTableRows()
                       .from(options.getInput())
                       .withMethod(Method.DIRECT_READ)
-                      .withSelectedFields(Lists.newArrayList("month", "tornado")));
+                      .withSelectedFields(Lists.newArrayList("month", "tornado"))
+                      .withFormat(DataFormat.AVRO));
         }
         break;
 
@@ -197,13 +200,15 @@ public class BigQueryTornadoes {
                   BigQueryIO.readTableRows()
                       .fromQuery(options.getInputQuery())
                       .usingStandardSql()
-                      .withMethod(options.getReadMethod()));
+                      .withMethod(options.getReadMethod())
+                      .withFormat(DataFormat.AVRO));
         } else {
           rowsFromBigQuery =
               p.apply(
                   BigQueryIO.readTableRows()
                       .from(options.getInput())
-                      .withMethod(options.getReadMethod()));
+                      .withMethod(options.getReadMethod())
+                      .withFormat(DataFormat.AVRO));
         }
         break;
     }

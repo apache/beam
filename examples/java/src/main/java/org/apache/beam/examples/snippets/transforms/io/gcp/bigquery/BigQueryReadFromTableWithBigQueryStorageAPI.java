@@ -19,6 +19,7 @@ package org.apache.beam.examples.snippets.transforms.io.gcp.bigquery;
 
 // [START bigquery_read_from_table_with_bigquery_storage_api]
 
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.Arrays;
 import org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData;
 import org.apache.beam.sdk.Pipeline;
@@ -45,6 +46,7 @@ class BigQueryReadFromTableWithBigQueryStorageAPI {
                 BigQueryIO.readTableRows()
                     .from(String.format("%s:%s.%s", project, dataset, table))
                     .withMethod(Method.DIRECT_READ)
+                    .withFormat(DataFormat.AVRO)
                     .withSelectedFields(
                         Arrays.asList(
                             "string_field",
