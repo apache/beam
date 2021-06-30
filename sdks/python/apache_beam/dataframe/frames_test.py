@@ -228,13 +228,12 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda a, b: a.subtract(2).multiply(b).divide(a), a, b)
 
   def test_dataframe_arithmetic(self):
-    df = pd.DataFrame({'a': [1, 2, 3],
-                       'b': [100, 200, 300]})
-    df2 = pd.DataFrame({'a': [3000, 1000, 2000],
-                        'b': [7, 11, 13]})
+    df = pd.DataFrame({'a': [1, 2, 3], 'b': [100, 200, 300]})
+    df2 = pd.DataFrame({'a': [3000, 1000, 2000], 'b': [7, 11, 13]})
 
-    self._run_test(lambda df, df2: df- 2 * df2, df, df2)
-    self._run_test(lambda df, df2: df.subtract(2).multiply(df2).divide(df), df, df2)
+    self._run_test(lambda df, df2: df - 2 * df2, df, df2)
+    self._run_test(
+        lambda df, df2: df.subtract(2).multiply(df2).divide(df), df, df2)
 
   def test_get_column(self):
     df = pd.DataFrame({
@@ -1038,10 +1037,12 @@ class DeferredFrameTest(_AbstractFrameTest):
             'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
         s)
 
+
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
-ALL_GROUPING_AGGREGATIONS = sorted(set(frames.ALL_AGGREGATIONS) -
-                                   set(('kurt','kurtosis')))
+ALL_GROUPING_AGGREGATIONS = sorted(
+    set(frames.ALL_AGGREGATIONS) - set(('kurt', 'kurtosis')))
+
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
@@ -1075,7 +1076,8 @@ class GroupByTest(_AbstractFrameTest):
           "fails in pandas < 1.2")
 
     self._run_test(
-        lambda df: getattr(df.groupby('group'), agg_type)(), GROUPBY_DF,
+        lambda df: getattr(df.groupby('group'), agg_type)(),
+        GROUPBY_DF,
         check_proxy=False)
 
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
@@ -1352,8 +1354,16 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg(self, agg_method):
     s = pd.Series(list(range(16)))
 
-    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median',
-                                 'sem', 'mad', 'skew', 'kurtosis', 'kurt')
+    nonparallel = agg_method in (
+        'quantile',
+        'mean',
+        'describe',
+        'median',
+        'sem',
+        'mad',
+        'skew',
+        'kurtosis',
+        'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1371,8 +1381,16 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg_method(self, agg_method):
     s = pd.Series(list(range(16)))
 
-    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median',
-                                 'sem', 'mad', 'skew', 'kurtosis', 'kurt')
+    nonparallel = agg_method in (
+        'quantile',
+        'mean',
+        'describe',
+        'median',
+        'sem',
+        'mad',
+        'skew',
+        'kurtosis',
+        'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1387,8 +1405,16 @@ class AggregationTest(_AbstractFrameTest):
   def test_dataframe_agg(self, agg_method):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
-    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median',
-                                 'sem', 'mad', 'skew', 'kurtosis', 'kurt')
+    nonparallel = agg_method in (
+        'quantile',
+        'mean',
+        'describe',
+        'median',
+        'sem',
+        'mad',
+        'skew',
+        'kurtosis',
+        'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1404,8 +1430,16 @@ class AggregationTest(_AbstractFrameTest):
   def test_dataframe_agg_method(self, agg_method):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
-    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median',
-                                 'sem', 'mad', 'skew', 'kurtosis', 'kurt')
+    nonparallel = agg_method in (
+        'quantile',
+        'mean',
+        'describe',
+        'median',
+        'sem',
+        'mad',
+        'skew',
+        'kurtosis',
+        'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')

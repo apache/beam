@@ -616,8 +616,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
-  at_time = frame_base._elementwise_method('at_time', base=pd.core.generic.NDFrame)
-  between_time = frame_base._elementwise_method('between_time', base=pd.core.generic.NDFrame)
+  at_time = frame_base._elementwise_method(
+      'at_time', base=pd.core.generic.NDFrame)
+  between_time = frame_base._elementwise_method(
+      'between_time', base=pd.core.generic.NDFrame)
   copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
 
   @frame_base.with_docs_from(pd.DataFrame)
@@ -1236,13 +1238,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   def explode(self, ignore_index):
     # ignoring the index will not preserve it
-    preserves = (partitionings.Singleton() if ignore_index
-                 else partitionings.Index())
+    preserves = (
+        partitionings.Singleton() if ignore_index else partitionings.Index())
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'explode',
-            lambda s: s.explode(ignore_index),
-            [self._expr],
+            lambda s: s.explode(ignore_index), [self._expr],
             preserves_partition_by=preserves,
             requires_partition_by=partitionings.Arbitrary()))
 
