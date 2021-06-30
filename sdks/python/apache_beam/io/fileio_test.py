@@ -331,7 +331,7 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
     # Add file name that will be created mid-pipeline
     files.append(FileSystems.join(tempdir, 'extra'))
 
-    interval = 1
+    interval = 0.2
     start = Timestamp.now()
     stop = start + interval + 0.1
 
@@ -353,7 +353,7 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
       assert_that(match_continiously, equal_to(files))
 
   def test_without_deduplication(self):
-    interval = 1
+    interval = 0.2
     start = Timestamp.now()
     stop = start + interval + 0.1
 

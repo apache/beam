@@ -267,7 +267,7 @@ class MatchContinuously(beam.PTransform):
 
     Args:
       file_pattern: The file path to read from.
-      interval: Interval at which to check for files.
+      interval: Interval at which to check for files in seconds.
       has_deduplication: Whether files already read are discarded or not.
       start_timestamp: Timestamp for start file checking.
       stop_timestamp: Timestamp after which no more files will be checked.
@@ -813,7 +813,7 @@ class _RemoveDuplicates(beam.DoFn):
 
     if not bag_content:
       file_state.add(path)
-      _LOGGER.info('Generated entry for file %s', path)
+      _LOGGER.debug('Generated entry for file %s', path)
       yield file_metadata
     else:
-      _LOGGER.info('File %s was already read', path)
+      _LOGGER.debug('File %s was already read', path)
