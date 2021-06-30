@@ -1062,8 +1062,10 @@ class GroupByTest(_AbstractFrameTest):
       self.skipTest(
           "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
           "fails in pandas < 1.2")
-      self._run_test(
-          lambda df: getattr(df.groupby('group'), agg_type)(), GROUPBY_DF)
+
+    self._run_test(
+        lambda df: getattr(df.groupby('group'), agg_type)(), GROUPBY_DF,
+        check_proxy=False)
 
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   @unittest.skip("Grouping by a series is not currently supported")
