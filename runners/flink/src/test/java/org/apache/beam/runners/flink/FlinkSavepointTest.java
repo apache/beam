@@ -68,7 +68,6 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -142,8 +141,7 @@ public class FlinkSavepointTest implements Serializable {
     ensureNoJobRunning();
   }
 
-//  @Ignore("https://issues.apache.org/jira/projects/BEAM/issues/BEAM-10955")
-  //TODO(BEAM-10955) Forcing fail
+  // TODO(BEAM-10955) Forcing fail
   @Test
   public void testSavepointRestoreLegacy() throws Exception {
     for (int i = 0; i < 15; i++) {
