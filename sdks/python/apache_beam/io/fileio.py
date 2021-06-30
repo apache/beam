@@ -266,13 +266,11 @@ class MatchContinuously(beam.PTransform):
     """Initializes a MatchContinuously transform.
 
     Args:
-      file_pattern (str, ValueProvider): The file path to read from.
-      interval (float): Interval at which to check for files.
-      has_deduplication (boolean): Whether files already read are discarded or
-        not.
-      start_timestamp (Timestamp, float): Timestamp for start file checking.
-      stop_timestamp (Timestamp, float): Timestamp after which no more files
-        will be checked.
+      file_pattern: The file path to read from.
+      interval: Interval at which to check for files.
+      has_deduplication: Whether files already read are discarded or not.
+      start_timestamp: Timestamp for start file checking.
+      stop_timestamp: Timestamp after which no more files will be checked.
     """
 
     self.file_pattern = file_pattern
@@ -802,6 +800,7 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
               timestamp=key[1].start,
               windows=[key[1]]  # TODO(pabloem) HOW DO WE GET THE PANE
           ))
+
 
 class _RemoveDuplicates(beam.DoFn):
 
