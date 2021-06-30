@@ -32,6 +32,8 @@ repositories {
     maven {
         url "https://packages.confluent.io/maven/"
     }
+    // Maven local is not needed. Just for vendored gRPC testing
+    mavenLocal()
 }
 
 dependencies {
