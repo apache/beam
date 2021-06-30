@@ -141,14 +141,9 @@ public class FlinkSavepointTest implements Serializable {
     ensureNoJobRunning();
   }
 
-  // TODO(BEAM-10955) Forcing fail
   @Test
   public void testSavepointRestoreLegacy() throws Exception {
-    for (int i = 0; i < 15; i++) {
-      FlinkSavepointTest.afterClass();
-      FlinkSavepointTest.beforeClass();
-      runSavepointAndRestore(false);
-    }
+    runSavepointAndRestore(false);
   }
 
   @Test
