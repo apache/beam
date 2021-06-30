@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
-func TestGood(t *testing.T) {
+func TestEquals_Good(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	wantC := beam.Create(s, "c", "b", "a")
 	gotC := beam.Create(s, "a", "b", "c")
@@ -34,53 +34,86 @@ func TestGood(t *testing.T) {
 	}
 }
 
-func TestBad(t *testing.T) {
-	tests := []struct {
-		name       string
-		actual     []string
-		expected   []string
-		errorParts []string
-	}{
-		{
-			"missing entry",
-			[]string{"a", "b"},
-			[]string{"a", "b", "MISSING"},
-			[]string{"2 correct entries", "0 unexpected entries", "1 missing entries", "MISSING"},
-		},
-		{
-			"unexpected entry",
-			[]string{"a", "b", "UNEXPECTED"},
-			[]string{"a", "b"},
-			[]string{"2 correct entries", "1 unexpected entries", "0 missing entries", "UNEXPECTED"},
-		},
-		{
-			"both kinds of problem",
-			[]string{"a", "b", "UNEXPECTED"},
-			[]string{"a", "b", "MISSING"},
-			[]string{"2 correct entries", "1 unexpected entries", "1 missing entries", "UNEXPECTED", "MISSING"},
-		},
-		{
-			"not enough",
-			[]string{"not enough"},
-			[]string{"not enough", "not enough"},
-			[]string{"1 correct entries", "0 unexpected entries", "1 missing entries", "not enough"},
-		},
-		{
-			"too many",
-			[]string{"too many", "too many"},
-			[]string{"too many"},
-			[]string{"1 correct entries", "1 unexpected entries", "0 missing entries", "too many"},
-		},
-		{
-			"both kinds of wrong count",
-			[]string{"too many", "too many", "not enough"},
-			[]string{"not enough", "too many", "not enough"},
-			[]string{"2 correct entries", "1 unexpected entries", "1 missing entries", "too many", "not enough"},
-		},
+func TestEqualsList_Good(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	wantL := [3]string{"c", "b", "a"}
+	gotC := beam.Create(s, "a", "b", "c")
+
+	EqualsList(s, gotC, wantL)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("Pipeline failed: %v", err)
 	}
-	for _, tc := range tests {
+}
+
+var badEqualsTests = []struct {
+	name       string
+	actual     []string
+	expected   []string
+	errorParts []string
+}{
+	{
+		"missing entry",
+		[]string{"a", "b"},
+		[]string{"a", "b", "MISSING"},
+		[]string{"2 correct entries", "0 unexpected entries", "1 missing entries", "MISSING"},
+	},
+	{
+		"unexpected entry",
+		[]string{"a", "b", "UNEXPECTED"},
+		[]string{"a", "b"},
+		[]string{"2 correct entries", "1 unexpected entries", "0 missing entries", "UNEXPECTED"},
+	},
+	{
+		"both kinds of problem",
+		[]string{"a", "b", "UNEXPECTED"},
+		[]string{"a", "b", "MISSING"},
+		[]string{"2 correct entries", "1 unexpected entries", "1 missing entries", "UNEXPECTED", "MISSING"},
+	},
+	{
+		"not enough",
+		[]string{"not enough"},
+		[]string{"not enough", "not enough"},
+		[]string{"1 correct entries", "0 unexpected entries", "1 missing entries", "not enough"},
+	},
+	{
+		"too many",
+		[]string{"too many", "too many"},
+		[]string{"too many"},
+		[]string{"1 correct entries", "1 unexpected entries", "0 missing entries", "too many"},
+	},
+	{
+		"both kinds of wrong count",
+		[]string{"too many", "too many", "not enough"},
+		[]string{"not enough", "too many", "not enough"},
+		[]string{"2 correct entries", "1 unexpected entries", "1 missing entries", "too many", "not enough"},
+	},
+}
+
+func TestEquals_Bad(t *testing.T) {
+	for _, tc := range badEqualsTests {
 		p, s := beam.NewPipelineWithRoot()
 		out := Equals(s, beam.CreateList(s, tc.actual), beam.CreateList(s, tc.expected))
+		if err := ptest.Run(p); err == nil {
+			t.Errorf("%v: pipeline SUCCEEDED but should have failed; got %v", tc.name, out)
+		} else {
+			str := err.Error()
+			missing := []string{}
+			for _, part := range tc.errorParts {
+				if !strings.Contains(str, part) {
+					missing = append(missing, part)
+				}
+			}
+			if len(missing) != 0 {
+				t.Errorf("%v: pipeline failed correctly, but substrings %#v are not present in message:\n%v", tc.name, missing, str)
+			}
+		}
+	}
+}
+
+func TestEqualsList_Bad(t *testing.T) {
+	for _, tc := range badEqualsTests {
+		p, s := beam.NewPipelineWithRoot()
+		out := EqualsList(s, beam.CreateList(s, tc.actual), tc.expected)
 		if err := ptest.Run(p); err == nil {
 			t.Errorf("%v: pipeline SUCCEEDED but should have failed; got %v", tc.name, out)
 		} else {
