@@ -104,3 +104,4 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
 }
 dockerPrepare.dependsOn copySdkHarnessLauncher
 dockerPrepare.dependsOn copyDockerfileDependencies
+dockerPrepare.dependsOn ":sdks:java:container:downloadCloudProfilerAgent"

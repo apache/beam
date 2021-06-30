@@ -20,6 +20,7 @@ from typing import Iterable
 from typing import Tuple
 from typing import TypeVar
 
+import numpy as np
 import pandas as pd
 
 Frame = TypeVar('Frame', bound=pd.core.generic.NDFrame)
@@ -113,7 +114,7 @@ class Index(Partitioning):
     else:
       levels = self._levels
     return sum(
-        pd.util.hash_array(df.index.get_level_values(level))
+        pd.util.hash_array(np.asarray(df.index.get_level_values(level)))
         for level in levels)
 
   def partition_fn(self, df, num_partitions):
@@ -151,6 +152,13 @@ class Index(Partitioning):
 class Singleton(Partitioning):
   """A partitioning of all the data into a single partition.
   """
+  def __init__(self, reason=None):
+    self._reason = reason
+
+  @property
+  def reason(self):
+    return self._reason
+
   def __eq__(self, other):
     return type(self) == type(other)
 

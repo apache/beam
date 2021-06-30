@@ -29,10 +29,12 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -305,6 +307,27 @@ import org.slf4j.LoggerFactory;
  *      // Use Confluent Schema Registry, specify schema registry URL and value subject
  *      .withValueDeserializer(
  *          ConfluentSchemaRegistryDeserializerProvider.of("http://localhost:8081", "my_topic-value"))
+ *    ...
+ * }</pre>
+ *
+ * <p>You can also pass properties to the schema registry client allowing you to configure
+ * authentication
+ *
+ * <pre>{@code
+ * ImmutableMap<String, Object> csrConfig =
+ *     ImmutableMap.<String, Object>builder()
+ *         .put(AbstractKafkaAvroSerDeConfig.BASIC_AUTH_CREDENTIALS_SOURCE,"USER_INFO")
+ *         .put(AbstractKafkaAvroSerDeConfig.USER_INFO_CONFIG,"<username>:<password>")
+ *         .build();
+ *
+ * PCollection<KafkaRecord<Long, GenericRecord>> input = pipeline
+ *   .apply(KafkaIO.<Long, GenericRecord>read()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("my_topic")
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      // Use Confluent Schema Registry, specify schema registry URL, value subject and schema registry client configuration
+ *      .withValueDeserializer(
+ *          ConfluentSchemaRegistryDeserializerProvider.of("https://localhost:8081", "my_topic-value", null, csrConfig))
  *    ...
  * }</pre>
  *
@@ -581,9 +604,9 @@ public class KafkaIO {
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
     abstract Map<String, Object> getConsumerConfig();
 
-    abstract List<String> getTopics();
+    abstract @Nullable List<String> getTopics();
 
-    abstract List<TopicPartition> getTopicPartitions();
+    abstract @Nullable List<TopicPartition> getTopicPartitions();
 
     abstract @Nullable Coder<K> getKeyCoder();
 
@@ -839,7 +862,8 @@ public class KafkaIO {
      */
     public Read<K, V> withTopics(List<String> topics) {
       checkState(
-          getTopicPartitions().isEmpty(), "Only topics or topicPartitions can be set, not both");
+          getTopicPartitions() == null || getTopicPartitions().isEmpty(),
+          "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopics(ImmutableList.copyOf(topics)).build();
     }
 
@@ -851,7 +875,9 @@ public class KafkaIO {
      * partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
-      checkState(getTopics().isEmpty(), "Only topics or topicPartitions can be set, not both");
+      checkState(
+          getTopics() == null || getTopics().isEmpty(),
+          "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
     }
 
@@ -1170,7 +1196,8 @@ public class KafkaIO {
       // construction time. But it requires enabling beam_fn_api.
       if (!isDynamicRead()) {
         checkArgument(
-            getTopics().size() > 0 || getTopicPartitions().size() > 0,
+            (getTopics() != null && getTopics().size() > 0)
+                || (getTopicPartitions() != null && getTopicPartitions().size() > 0),
             "Either withTopic(), withTopics() or withTopicPartitions() is required");
       } else {
         checkArgument(
@@ -1222,10 +1249,26 @@ public class KafkaIO {
           || ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "use_deprecated_read")
           || getMaxNumRecords() < Long.MAX_VALUE
-          || getMaxReadTime() != null) {
+          || getMaxReadTime() != null
+          || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+    }
+
+    private boolean runnerRequiresLegacyRead(PipelineOptions options) {
+      // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
+      // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
+      // TODO(BEAM-10670): Remove this special check when we address performance issue.
+      if (ExperimentalOptions.hasExperiment(options, "use_sdf_read")) {
+        return false;
+      }
+      if (options.getRunner().getName().startsWith("org.apache.beam.runners.dataflow.")) {
+        return false;
+      } else if (ExperimentalOptions.hasExperiment(options, "beam_fn_api")) {
+        return false;
+      }
+      return true;
     }
 
     /**
@@ -1327,6 +1370,15 @@ public class KafkaIO {
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
+          Set<String> topics = new HashSet<>();
+          if (kafkaRead.getTopics() != null && kafkaRead.getTopics().size() > 0) {
+            topics.addAll(kafkaRead.getTopics());
+          }
+          if (kafkaRead.getTopicPartitions() != null && kafkaRead.getTopicPartitions().size() > 0) {
+            for (TopicPartition topicPartition : kafkaRead.getTopicPartitions()) {
+              topics.add(topicPartition.topic());
+            }
+          }
           output =
               input
                   .getPipeline()
@@ -1343,7 +1395,8 @@ public class KafkaIO {
                               kafkaRead.getConsumerFactoryFn(),
                               kafkaRead.getCheckStopReadingFn(),
                               kafkaRead.getConsumerConfig(),
-                              kafkaRead.getStartReadTime())));
+                              kafkaRead.getStartReadTime(),
+                              topics.stream().collect(Collectors.toList()))));
 
         } else {
           output =
@@ -2181,10 +2234,8 @@ public class KafkaIO {
      * transform ties checkpointing semantics in compatible Beam runners and transactions in Kafka
      * (version 0.11+) to ensure a record is written only once. As the implementation relies on
      * runners checkpoint semantics, not all the runners are compatible. The sink throws an
-     * exception during initialization if the runner is not explicitly allowed. Flink runner is one
-     * of the runners whose checkpoint semantics are not compatible with current implementation
-     * (hope to provide a solution in near future). Dataflow runner and Spark runners are
-     * compatible.
+     * exception during initialization if the runner is not explicitly allowed. The Dataflow, Flink,
+     * and Spark runners are compatible.
      *
      * <p>Note on performance: Exactly-once sink involves two shuffles of the records. In addition
      * to cost of shuffling the records among workers, the records go through 2

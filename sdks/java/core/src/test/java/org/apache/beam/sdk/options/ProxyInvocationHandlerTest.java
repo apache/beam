@@ -995,6 +995,23 @@ public class ProxyInvocationHandlerTest {
   }
 
   @Test
+  public void testDisplayDataExcludesHiddenValues() {
+    HasHidden options = PipelineOptionsFactory.as(HasHidden.class);
+    options.setFoo("bar");
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, not(hasDisplayItem("foo")));
+  }
+
+  /** Test interface. */
+  public interface HasHidden extends PipelineOptions {
+    @Hidden
+    String getFoo();
+
+    void setFoo(String value);
+  }
+
+  @Test
   public void testDisplayDataIncludesExplicitlySetDefaults() {
     HasDefaults options = PipelineOptionsFactory.as(HasDefaults.class);
     String defaultValue = options.getFoo();

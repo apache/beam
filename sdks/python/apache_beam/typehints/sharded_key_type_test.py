@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import typehints
 from apache_beam.typehints.sharded_key_type import ShardedKeyType

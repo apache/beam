@@ -29,8 +29,6 @@ Currently it is possible to have following metrics types:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import time
@@ -50,7 +48,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
 try:
-  from google.cloud import bigquery
+  from google.cloud import bigquery  # type: ignore
   from google.cloud.bigquery.schema import SchemaField
   from google.cloud.exceptions import NotFound
 except ImportError:

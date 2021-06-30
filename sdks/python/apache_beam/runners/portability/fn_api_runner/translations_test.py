@@ -16,12 +16,10 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import runners
@@ -61,6 +59,9 @@ class TranslationsTest(unittest.TestCase):
 
   def test_pack_combiners(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         _ = pcoll | 'mean-perkey' >> combiners.Mean.PerKey()
         _ = pcoll | 'count-perkey' >> combiners.Count.PerKey()
@@ -74,7 +75,7 @@ class TranslationsTest(unittest.TestCase):
         pipeline_options.PortableOptions(sdk_location='container'))
     pipeline_proto = pipeline.to_runner_api(default_environment=environment)
     _, stages = translations.create_and_optimize_stages(
-        pipeline_proto, [translations.pack_all_combiners],
+        pipeline_proto, [translations.pack_combiners],
         known_runner_urns=frozenset())
     combine_per_key_stages = []
     for stage in stages:
@@ -89,6 +90,9 @@ class TranslationsTest(unittest.TestCase):
 
   def test_pack_combiners_with_missing_environment_capability(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         _ = pcoll | 'mean-perkey' >> combiners.Mean.PerKey()
         _ = pcoll | 'count-perkey' >> combiners.Count.PerKey()
@@ -100,7 +104,7 @@ class TranslationsTest(unittest.TestCase):
     environment = environments.DockerEnvironment(capabilities=())
     pipeline_proto = pipeline.to_runner_api(default_environment=environment)
     _, stages = translations.create_and_optimize_stages(
-        pipeline_proto, [translations.pack_all_combiners],
+        pipeline_proto, [translations.pack_combiners],
         known_runner_urns=frozenset())
     combine_per_key_stages = []
     for stage in stages:
@@ -117,6 +121,9 @@ class TranslationsTest(unittest.TestCase):
 
   def test_pack_global_combiners(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
         _ = pcoll | 'count-globally' >> combiners.Count.Globally()
@@ -131,7 +138,7 @@ class TranslationsTest(unittest.TestCase):
     pipeline_proto = pipeline.to_runner_api(default_environment=environment)
     _, stages = translations.create_and_optimize_stages(
         pipeline_proto, [
-            translations.pack_all_combiners,
+            translations.pack_combiners,
         ],
         known_runner_urns=frozenset())
     key_with_void_stages = [
@@ -163,13 +170,20 @@ class TranslationsTest(unittest.TestCase):
         optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
 
   def test_optimize_single_combine_globally(self):
+    class SingleCombine(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
+      def expand(self, pcoll):
+        _ = pcoll | combiners.Count.Globally()
+
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
-    _ = pipeline | Create(vals) | combiners.Count.Globally()
+    _ = pipeline | Create(vals) | SingleCombine()
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
         pipeline_proto, [
-            translations.pack_all_combiners,
+            translations.pack_combiners,
         ],
         known_runner_urns=frozenset(),
         partial=True)
@@ -179,16 +193,23 @@ class TranslationsTest(unittest.TestCase):
         optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
 
   def test_optimize_multiple_combine_globally(self):
+    class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
+      def expand(self, pcoll):
+        _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
+        _ = pcoll | 'count-globally' >> combiners.Count.Globally()
+        _ = pcoll | 'largest-globally' >> core.CombineGlobally(
+            combiners.Largest(1))
+
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
-    pcoll = pipeline | Create(vals)
-    _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
-    _ = pcoll | 'count-globally' >> combiners.Count.Globally()
-    _ = pcoll | 'largest-globally' >> core.CombineGlobally(combiners.Largest(1))
+    _ = pipeline | Create(vals) | MultipleCombines()
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
         pipeline_proto, [
-            translations.pack_all_combiners,
+            translations.pack_combiners,
         ],
         known_runner_urns=frozenset(),
         partial=True)
@@ -228,55 +249,62 @@ class TranslationsTest(unittest.TestCase):
     assert_is_topologically_sorted(
         optimized_pipeline_proto.root_transform_ids[0], set())
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_per_key(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         # These CombinePerKey stages will be packed if and only if
         # translations.pack_combiners is enabled in the TestPipeline runner.
         assert_that(
-            pcoll | 'mean-perkey' >> combiners.Mean.PerKey(),
-            equal_to([('a', 3.4)]),
-            label='assert-mean-perkey')
+            pcoll | 'min-perkey' >> core.CombinePerKey(min),
+            equal_to([('a', -1)]),
+            label='assert-min-perkey')
         assert_that(
             pcoll | 'count-perkey' >> combiners.Count.PerKey(),
             equal_to([('a', 10)]),
             label='assert-count-perkey')
         assert_that(
             pcoll
-            | 'largest-perkey' >> core.CombinePerKey(combiners.Largest(1)),
-            equal_to([('a', [9])]),
+            | 'largest-perkey' >> combiners.Top.LargestPerKey(2),
+            equal_to([('a', [9, 6])]),
             label='assert-largest-perkey')
 
     with TestPipeline() as pipeline:
-      vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
+      vals = [6, 3, 1, -1, 9, 1, 5, 2, 0, 6]
       _ = (
           pipeline
           | Create([('a', x) for x in vals])
           | 'multiple-combines' >> MultipleCombines())
 
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_globally(self):
     class MultipleCombines(beam.PTransform):
+      def annotations(self):
+        return {python_urns.APPLY_COMBINER_PACKING: b''}
+
       def expand(self, pcoll):
         # These CombineGlobally stages will be packed if and only if
         # translations.eliminate_common_key_with_void and
         # translations.pack_combiners are enabled in the TestPipeline runner.
         assert_that(
-            pcoll | 'mean-globally' >> combiners.Mean.Globally(),
-            equal_to([3.4]),
-            label='assert-mean-globally')
+            pcoll | 'min-globally' >> core.CombineGlobally(min),
+            equal_to([-1]),
+            label='assert-min-globally')
         assert_that(
             pcoll | 'count-globally' >> combiners.Count.Globally(),
             equal_to([10]),
             label='assert-count-globally')
         assert_that(
             pcoll
-            | 'largest-globally' >> core.CombineGlobally(combiners.Largest(1)),
-            equal_to([[9]]),
+            | 'largest-globally' >> combiners.Top.Largest(2),
+            equal_to([[9, 6]]),
             label='assert-largest-globally')
 
     with TestPipeline() as pipeline:
-      vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
+      vals = [6, 3, 1, -1, 9, 1, 5, 2, 0, 6]
       _ = pipeline | Create(vals) | 'multiple-combines' >> MultipleCombines()
 
   def test_conditionally_packed_combiners(self):

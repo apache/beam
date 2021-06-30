@@ -19,6 +19,7 @@ package org.apache.beam.sdk.tpcds;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Assert;
 import org.junit.Before;
@@ -34,11 +35,11 @@ public class TpcdsParametersReaderTest {
     tpcdsOptionsError = PipelineOptionsFactory.as(TpcdsOptions.class);
 
     tpcdsOptions.setDataSize("1G");
-    tpcdsOptions.setQueries("1,2,3");
+    tpcdsOptions.setQueries("1,2,3,14a");
     tpcdsOptions.setTpcParallel(2);
 
     tpcdsOptionsError.setDataSize("5G");
-    tpcdsOptionsError.setQueries("0,100");
+    tpcdsOptionsError.setQueries("0,1b,100");
     tpcdsOptionsError.setTpcParallel(0);
   }
 
@@ -55,27 +56,24 @@ public class TpcdsParametersReaderTest {
   }
 
   @Test
-  public void testGetAndCheckQueries() throws Exception {
+  public void testGetAndCheckAllQueries() throws Exception {
     TpcdsOptions tpcdsOptionsAll = PipelineOptionsFactory.as(TpcdsOptions.class);
     tpcdsOptionsAll.setQueries("all");
-    String[] queryNameArray = TpcdsParametersReader.getAndCheckQueryNameArray(tpcdsOptionsAll);
-    String[] expected = new String[99];
-    for (int i = 0; i < 99; i++) {
-      expected[i] = "query" + (i + 1);
-    }
-    Assert.assertArrayEquals(expected, queryNameArray);
+    String[] queryNames = TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptionsAll);
+    List<String> expected = TpcdsParametersReader.ALL_QUERY_NAMES;
+    Assert.assertArrayEquals(expected.toArray(new String[0]), queryNames);
   }
 
   @Test
-  public void testGetAndCheckAllQueries() throws Exception {
-    String[] queryNameArray = TpcdsParametersReader.getAndCheckQueryNameArray(tpcdsOptions);
-    String[] expected = {"query1", "query2", "query3"};
-    Assert.assertArrayEquals(expected, queryNameArray);
+  public void testGetAndCheckSpecifiedQueries() throws Exception {
+    String[] queryNames = TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptions);
+    String[] expected = {"query1", "query2", "query3", "query14a"};
+    Assert.assertArrayEquals(expected, queryNames);
   }
 
   @Test(expected = Exception.class)
   public void testGetAndCheckQueriesException() throws Exception {
-    TpcdsParametersReader.getAndCheckQueryNameArray(tpcdsOptionsError);
+    TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptionsError);
   }
 
   @Test

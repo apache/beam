@@ -21,8 +21,6 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from builtins import object
-
 
 class ObservableMixin(object):
   """For internal use only; no backwards-compatibility guarantees.

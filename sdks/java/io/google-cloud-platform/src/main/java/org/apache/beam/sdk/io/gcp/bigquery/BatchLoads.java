@@ -574,6 +574,11 @@ class BatchLoads<DestinationT, ElementT>
   // of filename, file byte size, and table destination.
   PCollection<WriteBundlesToFiles.Result<DestinationT>> writeDynamicallyShardedFilesTriggered(
       PCollection<KV<DestinationT, ElementT>> input, PCollectionView<String> tempFilePrefix) {
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    Duration maxBufferingDuration =
+        options.getMaxBufferingDurationMilliSec() > 0
+            ? Duration.millis(options.getMaxBufferingDurationMilliSec())
+            : FILE_TRIGGERING_BATCHING_DURATION;
     // In contrast to fixed sharding with user trigger, here we use a global window with default
     // trigger and rely on GroupIntoBatches transform to group, batch and at the same time
     // parallelize properly. We also ensure that the files are written if a threshold number of
@@ -582,7 +587,7 @@ class BatchLoads<DestinationT, ElementT>
     return input
         .apply(
             GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                .withMaxBufferingDuration(FILE_TRIGGERING_BATCHING_DURATION)
+                .withMaxBufferingDuration(maxBufferingDuration)
                 .withShardedKey())
         .setCoder(
             KvCoder.of(

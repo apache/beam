@@ -36,7 +36,7 @@ else
   exit 1
 fi
 
-SCRIPT_DIR=$(dirname $0)
+SCRIPT_DIR="${PWD}/$(dirname $0)"
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
@@ -58,30 +58,92 @@ PYTHON_ARTIFACTS_DIR=python
 BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
 
-echo "================Setting Up Environment Variables==========="
-echo "Which release version are you working on: "
-read RELEASE
-RELEASE_BRANCH=release-${RELEASE}
-echo "Which release candidate number(e.g. 1) are you going to create: "
-read RC_NUM
-echo "Please enter your github username(ID): "
-read USER_GITHUB_ID
+function usage() {
+  echo 'Usage: build_release_candidate.sh --release <version> --rc <rc> --github-user <username> --signing-key <sig> [--debug]'
+}
+
+RELEASE=
+RC_NUM=
+SIGNING_KEY=
+USER_GITHUB_ID=
+DEBUG=
+
+while [[ $# -gt 0 ]] ; do
+  arg="$1"
+
+  case $arg in
+      --release)
+      shift; RELEASE=$1; shift
+      ;;
+
+      --rc)
+      shift; RC_NUM=$1; shift
+      ;;
+
+      --debug)
+      DEBUG=--debug
+      set -x; shift
+      ;;
+
+      --signing-key)
+      shift; SIGNING_KEY=$1; shift
+      ;;
+
+      --github-user)
+      shift; USER_GITHUB_ID=$1; shift
+      ;;
+
+      *)
+      echo "Unrecognized argument: $1"
+      usage
+      exit 1
+      ;;
+   esac
+done
+
+if [[ -z "$RELEASE" ]] ; then
+  echo 'No release version supplied.'
+  usage
+  exit 1
+fi
+
+if [[ -z "$RC_NUM" ]] ; then
+  echo 'No RC number supplied.'
+  usage
+  exit 1
+fi
+
+if [[ -z "$RC_NUM" ]] ; then
+  echo 'No RC number supplied.'
+  usage
+  exit 1
+fi
+
+if [[ -z "$USER_GITHUB_ID" ]] ; then
+  echo 'Please provide your github username(ID)'
+  usage
+  exit 1
+fi
+
+if [[ -z "$SIGNING_KEY" ]] ; then
+  echo "=================Pre-requirements===================="
+  echo "Please make sure you have configured and started your gpg-agent by running ./preparation_before_release.sh."
+  echo "================Listing all GPG keys================="
+  echo "Please provide the public key to sign the release artifacts with. You can list them with this command:"
+  echo ""
+  echo "    gpg --list-keys --keyid-format LONG --fingerprint --fingerprint"
+  echo ""
+  usage
+  exit 1
+fi
+
 
 RC_TAG="v${RELEASE}-RC${RC_NUM}"
-USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
-
-echo "=================Pre-requirements===================="
-echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
-echo "================Listing all GPG keys================="
-gpg --list-keys --keyid-format LONG --fingerprint --fingerprint
-echo "Please copy the public key which is associated with your Apache account:"
-
-read SIGNING_KEY
+USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
 
 echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
 echo "working on release version: ${RELEASE}"
-echo "working on release branch: ${RELEASE_BRANCH}"
 echo "will create release candidate: RC${RC_NUM} from commit tagged ${RC_TAG}"
 echo "Your forked beam-site URL: ${USER_REMOTE_URL}"
 echo "Your signing key: ${SIGNING_KEY}"
@@ -97,7 +159,7 @@ echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Building and Staging Java Artifacts============="
-  echo "--------Cloning Beam Repo and Checkout Release Branch-------"
+  echo "--------Cloning Beam Repo and Checkout Release Tag-------"
   cd ~
   if [[ -d ${LOCAL_CLONE_DIR} ]]; then
     rm -rf ${LOCAL_CLONE_DIR}
@@ -133,6 +195,12 @@ if [[ $confirmation = "y" ]]; then
   cd beam/${RELEASE}
 
   echo "----------------Downloading Source Release-------------------"
+  # GitHub strips the "v" from "v2.29.0" in naming zip and the dir inside it
+  RC_DIR="beam-${RELEASE}-RC${RC_NUM}"
+  RC_ZIP="${RC_DIR}.zip"
+  # We want to strip the -RC1 suffix from the directory name inside the zip
+  RELEASE_DIR="beam-${RELEASE}"
+
   SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
   # Check whether there is an existing dist dir
   if (svn ls "${SOURCE_RELEASE_ZIP}"); then
@@ -140,8 +208,14 @@ if [[ $confirmation = "y" ]]; then
     svn delete "${SOURCE_RELEASE_ZIP}"
   fi
 
-  echo "Downloading: ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip"
-  wget ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip  -O "${SOURCE_RELEASE_ZIP}"
+  echo "Downloading: ${GIT_BEAM_ARCHIVE}/${RC_TAG}.zip"
+  wget ${GIT_BEAM_ARCHIVE}/${RC_TAG}.zip  -O "${RC_ZIP}"
+
+  unzip "$RC_ZIP"
+  rm "$RC_ZIP"
+  mv "$RC_DIR" "$RELEASE_DIR"
+  zip -r "${SOURCE_RELEASE_ZIP}" "$RELEASE_DIR"
+  rm -r "$RELEASE_DIR"
 
   echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
   gpg --local-user ${SIGNING_KEY} --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
@@ -175,10 +249,9 @@ if [[ $confirmation = "y" ]]; then
   cd "${LOCAL_PYTHON_STAGING_DIR}"
 
   echo '-------------------Cloning Beam Release Branch-----------------'
-  git clone "${GIT_REPO_URL}"
+  git clone --branch "${RC_TAG}" --depth 1 "${GIT_REPO_URL}"
   cd "${BEAM_ROOT_DIR}"
-  git checkout "${RELEASE_BRANCH}"
-  RELEASE_COMMIT=$(git rev-parse --verify HEAD)
+  RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
 
   echo '-------------------Creating Python Virtualenv-----------------'
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
@@ -189,10 +262,10 @@ if [[ $confirmation = "y" ]]; then
   SVN_ARTIFACTS_DIR="beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}"
   svn co https://dist.apache.org/repos/dist/dev/beam
   mkdir -p "${SVN_ARTIFACTS_DIR}"
-  python release/src/main/scripts/download_github_actions_artifacts.py \
+  python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
     --github-user "${USER_GITHUB_ID}" \
     --repo-url "${GIT_REPO_BASE_URL}" \
-    --release-branch "${RELEASE_BRANCH}" \
+    --rc-tag "${RC_TAG}" \
     --release-commit "${RELEASE_COMMIT}" \
     --artifacts_dir "${SVN_ARTIFACTS_DIR}"
 
@@ -239,10 +312,10 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
 
-  echo '-------------------Cloning Beam Release Branch-----------------'
-  git clone ${GIT_REPO_URL}
+  echo '-------------------Cloning Beam RC Tag-----------------'
+  git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
+  git checkout ${RC_TAG}
 
   ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
@@ -269,19 +342,17 @@ if [[ $confirmation = "y" ]]; then
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
   cd ${LOCAL_PYTHON_DOC}
   pip install tox
-  git clone ${GIT_REPO_URL}
+  git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
-  RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
+  RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
   cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 
   echo "----------------------Building Java Doc----------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
-  git clone ${GIT_REPO_URL}
+  git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
   ./gradlew :sdks:java:javadoc:aggregateJavadoc
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 

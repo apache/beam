@@ -24,8 +24,6 @@ dependencies installation in advance with the boot program in setup only mode
 to build the new image.
 """
 
-from __future__ import absolute_import
-
 import json
 import logging
 import os
@@ -38,7 +36,6 @@ import time
 import uuid
 from typing import Type
 
-from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
 
 from apache_beam import version as beam_version
@@ -261,7 +258,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     source.storageSource.object = gcs_object
     build.source = source
     # TODO(zyichi): make timeout configurable
-    build.timeout = Duration().FromSeconds(seconds=7200)
+    build.timeout = '7200s'
 
     now = time.time()
     # operation = client.create_build(project_id=project_id, build=build)

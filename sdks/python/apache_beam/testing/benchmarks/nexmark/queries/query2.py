@@ -25,8 +25,6 @@ It illustrates a simple filter.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import ResultNames

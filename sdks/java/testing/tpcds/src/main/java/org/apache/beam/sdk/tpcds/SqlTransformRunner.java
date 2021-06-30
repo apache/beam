@@ -149,7 +149,7 @@ public class SqlTransformRunner {
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcdsOptions.class);
 
     String dataSize = TpcdsParametersReader.getAndCheckDataSize(tpcdsOptions);
-    String[] queryNameArr = TpcdsParametersReader.getAndCheckQueryNameArray(tpcdsOptions);
+    String[] queryNames = TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptions);
     int nThreads = TpcdsParametersReader.getAndCheckTpcParallel(tpcdsOptions);
 
     // Using ExecutorService and CompletionService to fulfill multi-threading functionality
@@ -157,12 +157,12 @@ public class SqlTransformRunner {
     CompletionService<TpcdsRunResult> completion = new ExecutorCompletionService<>(executor);
 
     // Make an array of pipelines, each pipeline is responsible for running a corresponding query.
-    Pipeline[] pipelines = new Pipeline[queryNameArr.length];
+    Pipeline[] pipelines = new Pipeline[queryNames.length];
     CSVFormat csvFormat = CSVFormat.MYSQL.withDelimiter('|').withNullString("");
 
     // Execute all queries, transform the each result into a PCollection<String>, write them into
     // the txt file and store in a GCP directory.
-    for (int i = 0; i < queryNameArr.length; i++) {
+    for (int i = 0; i < queryNames.length; i++) {
       // For each query, get a copy of pipelineOptions from command line arguments.
       TpcdsOptions tpcdsOptionsCopy =
           PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcdsOptions.class);
@@ -179,12 +179,11 @@ public class SqlTransformRunner {
 
       // Set a unique job name using the time stamp so that multiple different pipelines can run
       // together.
-      dataflowPipelineOptionsCopy.setJobName(
-          queryNameArr[i] + "result" + System.currentTimeMillis());
+      dataflowPipelineOptionsCopy.setJobName(queryNames[i] + "result" + System.currentTimeMillis());
 
       pipelines[i] = Pipeline.create(dataflowPipelineOptionsCopy);
-      String queryString = QueryReader.readQuery(queryNameArr[i]);
-      PCollectionTuple tables = getTables(pipelines[i], csvFormat, queryNameArr[i]);
+      String queryString = QueryReader.readQuery(queryNames[i]);
+      PCollectionTuple tables = getTables(pipelines[i], csvFormat, queryNames[i]);
 
       try {
         tables
@@ -201,7 +200,7 @@ public class SqlTransformRunner {
                     .withSuffix(".txt")
                     .withNumShards(1));
       } catch (Exception e) {
-        LOG.error("{} failed to execute", queryNameArr[i]);
+        LOG.error("{} failed to execute", queryNames[i]);
         e.printStackTrace();
       }
 
@@ -210,6 +209,6 @@ public class SqlTransformRunner {
 
     executor.shutdown();
 
-    printExecutionSummary(completion, queryNameArr.length);
+    printExecutionSummary(completion, queryNames.length);
   }
 }

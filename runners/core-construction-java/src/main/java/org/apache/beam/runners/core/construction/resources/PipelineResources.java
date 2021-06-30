@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction.resources;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
@@ -122,7 +121,11 @@ public class PipelineResources {
   private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation) {
     String hash = calculateDirectoryContentHash(directoryToStage);
     String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
-    zipDirectory(directoryToStage, pathForJar);
+    try {
+      ZipFiles.zipDirectoryOverwrite(directoryToStage, new File(pathForJar));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     return pathForJar;
   }
 
@@ -142,13 +145,5 @@ public class PipelineResources {
         "Please provide temporary location for storing the jar files.");
 
     return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
-  }
-
-  private static void zipDirectory(File directoryToStage, String uniqueDirectoryPath) {
-    try {
-      ZipFiles.zipDirectory(directoryToStage, new FileOutputStream(uniqueDirectoryPath));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 }

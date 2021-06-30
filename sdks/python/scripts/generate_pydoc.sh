@@ -85,6 +85,9 @@ excluded_patterns=(
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
     "${excluded_patterns[@]}"
 
+# Include inherited memebers for the DataFrame API
+echo "    :inherited-members:" >> target/docs/source/apache_beam.dataframe.frames.rst
+
 # Create the configuration and index files
 #=== conf.py ===#
 cat > target/docs/source/conf.py <<'EOF'
@@ -119,6 +122,9 @@ autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 
+# Allow a special section for documenting DataFrame API
+napoleon_custom_sections = ['Differences from pandas']
+
 doctest_global_setup = '''
 import apache_beam as beam
 '''
@@ -127,6 +133,8 @@ intersphinx_mapping = {
   'python': ('https://docs.python.org/{}'.format(sys.version_info.major), None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
   'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
+  'numpy': ('http://docs.scipy.org/doc/numpy', None),
+  'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
@@ -250,7 +258,7 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-build.warnings.log || exit 1
-! grep -q "WARNING:" target/docs/sphinx-build.warnings.log || exit 1
+(! grep -v 'apache_beam.dataframe' target/docs/sphinx-build.warnings.log | grep -q "WARNING:") || exit 1
 
 # Run tests for code samples, these can be:
 # - Code blocks using '.. testsetup::', '.. testcode::' and '.. testoutput::'
@@ -261,7 +269,7 @@ python -msphinx -M doctest target/docs/source \
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-doctest.warnings.log || exit 1
-! grep -q "WARNING:" target/docs/sphinx-doctest.warnings.log || exit 1
+(! grep -v 'apache_beam.dataframe' target/docs/sphinx-doctest.warnings.log | grep -q "WARNING:") || exit 1
 
 # Message is useful only when this script is run locally.  In a remote
 # test environment, this path will be removed when the test completes.

@@ -55,7 +55,7 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
-  fmppTask "org.freemarker:freemarker:2.3.28"
+  fmppTask "org.freemarker:freemarker:2.3.31"
   fmppTemplates library.java.vendored_calcite_1_20_0
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:join-library")
@@ -212,6 +212,11 @@ task postCommit {
   dependsOn integrationTest
 }
 
+task emptyJar(type: Jar) {
+  archiveBaseName = "${project.archivesBaseName}-empty-jar"
+  from fileTree(dir: getTemporaryDir().createNewFile().toString())
+}
+
 task hadoopVersionsTest(group: "Verification") {
   description = "Runs SQL tests with different Hadoop versions"
   def taskNames = hadoopVersions.keySet().stream()
@@ -225,12 +230,12 @@ hadoopVersions.each { kv ->
     description = "Runs SQL tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     include '**/*Test.class'
+    dependsOn emptyJar
+    // Pass jars used by Java UDF tests via system properties.
+    evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
+    systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+    systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
   }
-}
-
-task emptyJar(type: Jar) {
-  archiveBaseName = "${project.archivesBaseName}-empty-jar"
-  from fileTree(dir: getTemporaryDir().createNewFile().toString())
 }
 
 test {

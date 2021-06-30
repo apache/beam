@@ -21,8 +21,6 @@ For internal use only; no backward-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from typing import Tuple
 
 import apache_beam as beam

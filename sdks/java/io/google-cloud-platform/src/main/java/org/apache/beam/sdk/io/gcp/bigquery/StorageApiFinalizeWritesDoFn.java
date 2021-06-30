@@ -76,6 +76,18 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
     return datasetService;
   }
 
+  @Teardown
+  public void onTeardown() {
+    try {
+      if (datasetService != null) {
+        datasetService.close();
+        datasetService = null;
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @StartBundle
   public void startBundle() throws IOException {
     commitStreams = Maps.newHashMap();

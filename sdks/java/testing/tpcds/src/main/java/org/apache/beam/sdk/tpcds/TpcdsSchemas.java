@@ -32,6 +32,7 @@ public class TpcdsSchemas {
    * @return A map of all tpcds table schemas with their table names as keys.
    * @throws Exception
    */
+  // TODO(BEAM-12160): Fix the warning.
   @SuppressWarnings("StringSplitter")
   public static Map<String, Schema> getTpcdsSchemas() throws Exception {
     Map<String, Schema> schemaMap = new HashMap<>();

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.loadtests;
 
+import java.util.Map;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -91,6 +92,12 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
   Boolean getPublishToInfluxDB();
 
   void setPublishToInfluxDB(Boolean publishToInfluxDB);
+
+  @Description("Additional tags for Influx data")
+  @Nullable
+  Map<String, String> getInfluxTags();
+
+  void setInfluxTags(Map<String, String> influxTags);
 
   static <T extends LoadTestOptions> T readFromArgs(String[] args, Class<T> optionsClass) {
     return PipelineOptionsFactory.fromArgs(args).withValidation().as(optionsClass);

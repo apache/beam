@@ -689,20 +689,6 @@ public class TextIOWriteTest {
                 .apply("Read Files", TextIO.readFiles()))
         .containsInAnyOrder(data);
 
-    PAssert.that(
-            p.apply("Create Data ReadAll", Create.of(data))
-                .apply(
-                    "Write ReadAll",
-                    FileIO.<String>write()
-                        .to(tempFolder.getRoot().toString())
-                        .withSuffix(".txt")
-                        .via(TextIO.sink())
-                        .withIgnoreWindowing())
-                .getPerDestinationOutputFilenames()
-                .apply("Extract Values ReadAll", Values.create())
-                .apply("Read All", TextIO.readAll()))
-        .containsInAnyOrder(data);
-
     p.run();
   }
 

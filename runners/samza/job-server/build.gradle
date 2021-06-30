@@ -1,3 +1,5 @@
+import org.apache.beam.gradle.BeamModulePlugin
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -23,21 +25,83 @@ mainClassName = "org.apache.beam.runners.samza.SamzaJobServerDriver"
 
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.samza.jobserver',
+    archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
     validateShadowJar: false,
-
     exportJavadoc: false,
     shadowClosure: {
       append "reference.conf"
     },
 )
 
+def samzaRunnerProject = project.parent.path
+
+description = "Apache Beam :: Runners :: Samza :: Job Server"
+
+configurations {
+    validatesPortableRunner
+}
+
 dependencies {
-  compile project(":runners:samza")
-  permitUnusedDeclared project(":runners:samza")
+  compile project(samzaRunnerProject)
+  permitUnusedDeclared project(samzaRunnerProject)
   runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  validatesPortableRunner project(path: samzaRunnerProject, configuration: "testRuntime")
+  validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
   runtime library.java.slf4j_simple
 }
 
 runShadow {
   args = []
 }
+
+def tempDir = File.createTempDir()
+def pipelineOptions = [
+        "--configOverride={\"job.non-logged.store.base.dir\":\"" + tempDir + "\"}"
+]
+createPortableValidatesRunnerTask(
+        name: "validatesPortableRunner",
+        jobServerDriver: "org.apache.beam.runners.samza.SamzaJobServerDriver",
+        jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
+        testClasspathConfiguration: configurations.validatesPortableRunner,
+        numParallelTests: 1,
+        pipelineOpts: pipelineOptions,
+        environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
+        testCategories: {
+            includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+            // TODO: BEAM-12348
+            excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+            // TODO: BEAM-12349
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+            // TODO: BEAM-12350
+            excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+
+            excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+            // Larger keys are possible, but they require more memory.
+            excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+        },
+        testFilter: {
+            excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput"
+            excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo"
+            excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty"
+        }
+)

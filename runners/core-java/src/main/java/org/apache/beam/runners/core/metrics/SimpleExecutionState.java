@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 
 import java.util.Collections;
@@ -24,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
@@ -95,6 +96,10 @@ public class SimpleExecutionState extends ExecutionState {
 
   public ByteString getTotalMillisPayload() {
     return encodeInt64Counter(getTotalMillis());
+  }
+
+  public ByteString mergeTotalMillisPayload(ByteString other) {
+    return encodeInt64Counter(getTotalMillis() + decodeInt64Counter(other));
   }
 
   private MonitoringInfo getTotalMillisMonitoringMetadata() {

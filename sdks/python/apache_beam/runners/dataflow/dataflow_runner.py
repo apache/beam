@@ -22,24 +22,19 @@ to the Dataflow Service for remote execution by a worker.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import base64
 import logging
 import os
 import threading
 import time
 import traceback
-from builtins import hex
 from collections import defaultdict
 from subprocess import DEVNULL
 from typing import TYPE_CHECKING
 from typing import List
 from urllib.parse import quote
+from urllib.parse import quote_from_bytes
 from urllib.parse import unquote_to_bytes
-
-from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam import coders
@@ -307,7 +302,7 @@ class DataflowRunner(PipelineRunner):
                     is_bounded=side_input.pvalue.is_bounded)
                 parent = transform_node.parent or pipeline._root_transform()
                 map_to_void_key = beam.pipeline.AppliedPTransform(
-                    pipeline,
+                    parent,
                     beam.Map(lambda x: (b'', x)),
                     transform_node.full_label + '/MapToVoidKey%s' % ix,
                     (side_input.pvalue, ))
@@ -450,13 +445,14 @@ class DataflowRunner(PipelineRunner):
       # instead of using the inferred default container image.
       self._default_environment = (
           environments.DockerEnvironment.from_options(options))
-      options.view_as(WorkerOptions).worker_harness_container_image = (
+      options.view_as(WorkerOptions).sdk_container_image = (
           self._default_environment.container_image)
     else:
       self._default_environment = (
           environments.DockerEnvironment.from_container_image(
               apiclient.get_container_image_from_options(options),
-              artifacts=environments.python_sdk_dependencies(options)))
+              artifacts=environments.python_sdk_dependencies(options),
+              resource_hints=environments.resource_hints_from_options(options)))
 
     # This has to be performed before pipeline proto is constructed to make sure
     # that the changes are reflected in the portable job submission path.
@@ -472,9 +468,9 @@ class DataflowRunner(PipelineRunner):
       pre_optimize = options.view_as(DebugOptions).lookup_experiment(
           'pre_optimize', 'default').lower()
       from apache_beam.runners.portability.fn_api_runner import translations
-      if pre_optimize == 'none' or pre_optimize == 'default':
+      if pre_optimize == 'none':
         phases = []
-      elif pre_optimize == 'all':
+      elif pre_optimize == 'default' or pre_optimize == 'all':
         phases = [translations.pack_combiners, translations.sort_stages]
       else:
         phases = []
@@ -706,6 +702,14 @@ class DataflowRunner(PipelineRunner):
             item.get_dict()
             for item in DisplayData.create_from(transform_node.transform).items
         ])
+
+    if transform_node.resource_hints:
+      step.add_property(
+          PropertyNames.RESOURCE_HINTS,
+          {
+              hint: quote_from_bytes(value)
+              for (hint, value) in transform_node.resource_hints.items()
+          })
 
     return step
 
@@ -951,14 +955,14 @@ class DataflowRunner(PipelineRunner):
     if (label_renames and
         transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
       # Patch PTransform proto.
-      for old, new in iteritems(label_renames):
+      for old, new in label_renames.items():
         transform_proto.inputs[new] = transform_proto.inputs[old]
         del transform_proto.inputs[old]
 
       # Patch ParDo proto.
       proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
       proto = proto_utils.parse_Bytes(transform_proto.spec.payload, proto_type)
-      for old, new in iteritems(label_renames):
+      for old, new in label_renames.items():
         proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
         del proto.side_inputs[old]
       transform_proto.spec.payload = proto.SerializeToString()

@@ -92,9 +92,10 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
                     .name("kafka")
                     .type("kafka")
                     .schema(schema)
+                    .location("localhost/mytopic")
                     .properties(
                         JSON.parseObject(
-                            "{ \"topics\": [ \"mytopic\" ], \"format\": \"proto\", \"protoClass\": \""
+                            "{ \"format\": \"proto\", \"protoClass\": \""
                                 + PayloadMessages.TestMessage.class.getName()
                                 + "\" }"))
                     .build()));

@@ -22,9 +22,6 @@ Only works with Python 3.5+.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import base64
 import datetime
 import html

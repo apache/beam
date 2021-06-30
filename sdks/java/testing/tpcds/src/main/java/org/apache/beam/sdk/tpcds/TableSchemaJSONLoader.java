@@ -43,6 +43,7 @@ public class TableSchemaJSONLoader {
    *     bigint, d_date_id varchar"
    * @throws Exception
    */
+  // TODO(BEAM-12160): Fix the warning.
   @SuppressWarnings({"rawtypes", "DefaultCharset"})
   public static String parseTableSchema(String tableName) throws Exception {
     String path = "schemas/" + tableName + ".json";

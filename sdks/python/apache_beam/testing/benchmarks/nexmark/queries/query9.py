@@ -20,8 +20,6 @@ Query 9: Winning-bids: extract the most recent of the highest bids
 See winning_bids.py for detailed documentation
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries import winning_bids

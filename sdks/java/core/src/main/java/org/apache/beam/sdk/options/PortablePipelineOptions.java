@@ -35,6 +35,17 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
   void setJobEndpoint(String endpoint);
 
   @Description(
+      "Job service request timeout in seconds. The timeout "
+          + "determines the max time the driver program will wait to "
+          + "get a response from the job server. NOTE: the timeout does not "
+          + "apply to the actual pipeline run time. The driver program will "
+          + "still wait for job completion indefinitely.")
+  @Default.Integer(60)
+  int getJobServerTimeout();
+
+  void setJobServerTimeout(int timeout);
+
+  @Description(
       "Set the default environment type for running user code. "
           + "Possible options are DOCKER and PROCESS.")
   @Nullable

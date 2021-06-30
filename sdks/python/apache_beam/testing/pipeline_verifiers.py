@@ -24,8 +24,6 @@ of test pipeline job. Customized verifier should extend
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import time
 

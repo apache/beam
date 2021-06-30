@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.greaterThanOrEqua
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,15 +42,19 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -60,6 +65,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -147,7 +153,22 @@ public class ReadTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  public void testReadBoundedPreservesTypeDescriptor() {
+    PCollection<String> input = pipeline.apply(Read.from(new SerializableBoundedSource()));
+    TypeDescriptor<String> typeDescriptor = input.getTypeDescriptor();
+    assertEquals(String.class, typeDescriptor.getType());
+
+    ListBoundedSource<Long> longs = new ListBoundedSource<>(VarLongCoder.of());
+    PCollection<List<Long>> numbers = pipeline.apply(Read.from(longs));
+    assertEquals(new TypeDescriptor<List<Long>>() {}, numbers.getTypeDescriptor());
+  }
+
+  @Test
+  @Category({
+    NeedsRunner.class,
+    UsesUnboundedPCollections.class,
+    UsesUnboundedSplittableParDo.class
+  })
   public void testUnboundedSdfWrapperCacheStartedReaders() {
     long numElements = 1000L;
     PCollection<Long> input =
@@ -155,6 +176,9 @@ public class ReadTest implements Serializable {
     PAssert.that(input)
         .containsInAnyOrder(
             LongStream.rangeClosed(1L, numElements).boxed().collect(Collectors.toList()));
+    // TODO(BEAM-10670): Remove additional experiments when SDF read is default.
+    ExperimentalOptions.addExperiment(
+        pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
     // Force the pipeline to run with one thread to ensure the reader will be reused on one DoFn
     // instance.
     // We are not able to use DirectOptions because of circular dependency.
@@ -164,7 +188,11 @@ public class ReadTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({
+    NeedsRunner.class,
+    UsesUnboundedPCollections.class,
+    UsesUnboundedSplittableParDo.class
+  })
   public void testWatermarkAdvanceOnClaimFail() {
     // NOTE: this test is supposed to run only against DirectRunner
     // as for other runners it might not be working the interception of watermark
@@ -244,6 +272,35 @@ public class ReadTest implements Serializable {
     @Override
     public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
+    }
+  }
+
+  private static class ListBoundedSource<T> extends BoundedSource<List<T>> {
+    private Coder<T> coder;
+
+    ListBoundedSource(Coder<T> coder) {
+      this.coder = coder;
+    }
+
+    @Override
+    public List<? extends BoundedSource<List<T>>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      return null;
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return 0;
+    }
+
+    @Override
+    public BoundedReader<List<T>> createReader(PipelineOptions options) throws IOException {
+      return null;
+    }
+
+    @Override
+    public Coder<List<T>> getOutputCoder() {
+      return ListCoder.of(coder);
     }
   }
 

@@ -38,18 +38,16 @@ Available classes:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import calendar
 import inspect
 import json
-from builtins import object
 from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import List
 
-from past.builtins import unicode
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 
 if TYPE_CHECKING:
   from apache_beam.options.pipeline_options import PipelineOptions
@@ -128,6 +126,51 @@ class DisplayData(object):
       self.items.append(
           DisplayDataItem(element, namespace=self.namespace, key=key))
 
+  def to_proto(self):
+    # type: (...) -> List[beam_runner_api_pb2.DisplayData]
+
+    """Returns a List of Beam proto representation of Display data."""
+    def create_payload(dd):
+      display_data_dict = None
+      try:
+        display_data_dict = dd.get_dict()
+      except ValueError:
+        # Skip if the display data is invalid.
+        return None
+
+      # We use 'label' or 'key' properties to populate the 'label' attribute of
+      # 'LabelledPayload'. 'label' is a better choice since it's expected to be
+      # more human readable but some transforms, sources, etc. may not set a
+      # 'label' property when configuring DisplayData.
+      label = (
+          display_data_dict['label']
+          if 'label' in display_data_dict else display_data_dict['key'])
+
+      value = display_data_dict['value']
+      if isinstance(value, str):
+        return beam_runner_api_pb2.LabelledPayload(
+            label=label, string_value=value)
+      elif isinstance(value, bool):
+        return beam_runner_api_pb2.LabelledPayload(
+            label=label, bool_value=value)
+      elif isinstance(value, (int, float, complex)):
+        return beam_runner_api_pb2.LabelledPayload(
+            label=label, double_value=value)
+      else:
+        raise ValueError(
+            'Unsupported type %s for value of display data %s' %
+            (type(value), label))
+
+    dd_protos = []
+    for dd in self.items:
+      dd_proto = create_payload(dd)
+      if dd_proto:
+        dd_protos.append(
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=create_payload(dd).SerializeToString()))
+    return dd_protos
+
   @classmethod
   def create_from_options(cls, pipeline_options):
     """ Creates :class:`~apache_beam.transforms.display.DisplayData` from a
@@ -189,7 +232,6 @@ class DisplayDataItem(object):
   """
   typeDict = {
       str: 'STRING',
-      unicode: 'STRING',
       int: 'INTEGER',
       float: 'FLOAT',
       bool: 'BOOLEAN',

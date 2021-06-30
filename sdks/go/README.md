@@ -156,8 +156,9 @@ are added in a PR then the lock file needs to be updated.
 From the `$GOPATH/src/github.com/apache/beam` directory run
 
 ```
+$ ./gradlew :sdks:go:goVendor
 $ ./gradlew :sdks:go:goLock
-`./gradlew :goPostcommit`
+$ ./gradlew :goPortablePrecommit
 ```
 
  to update the lock file, and test your code under the locked versions. gogradle

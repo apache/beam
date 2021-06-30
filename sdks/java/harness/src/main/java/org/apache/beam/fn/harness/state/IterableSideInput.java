@@ -19,9 +19,8 @@ package org.apache.beam.fn.harness.state;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.stream.DataStreams;
 import org.apache.beam.sdk.transforms.Materializations.IterableView;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * An implementation of a iterable side input that utilizes the Beam Fn State API to fetch values.
@@ -66,11 +65,7 @@ public class IterableSideInput<T> implements IterableView<T> {
         .setSideInputId(sideInputId)
         .setWindow(encodedWindow);
 
-    return new LazyCachingIteratorToIterable<>(
-        new DataStreams.DataStreamDecoder(
-            valueCoder,
-            DataStreams.inbound(
-                StateFetchingIterators.readAllStartingFrom(
-                    beamFnStateClient, requestBuilder.build()))));
+    return StateFetchingIterators.readAllAndDecodeStartingFrom(
+        beamFnStateClient, requestBuilder.build(), valueCoder);
   }
 }

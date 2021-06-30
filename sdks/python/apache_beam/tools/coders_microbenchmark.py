@@ -31,17 +31,12 @@ Run as:
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import argparse
 import logging
 import random
 import re
 import string
 import sys
-
-from past.builtins import unicode
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
@@ -81,10 +76,9 @@ def large_int():
 
 
 def random_string(length):
-  return unicode(
-      ''.join(
-          random.choice(string.ascii_letters + string.digits)
-          for _ in range(length)))
+  return ''.join(
+      random.choice(string.ascii_letters + string.digits)
+      for _ in range(length))
 
 
 def small_string():

@@ -97,4 +97,12 @@ public interface BigQueryOptions
   Integer getStorageWriteApiTriggeringFrequencySec();
 
   void setStorageWriteApiTriggeringFrequencySec(Integer value);
+
+  @Description(
+      "When auto-sharding is used, the maximum duration in milliseconds the input records are"
+          + " allowed to be buffered before being written to BigQuery.")
+  @Default.Integer(0)
+  Integer getMaxBufferingDurationMilliSec();
+
+  void setMaxBufferingDurationMilliSec(Integer value);
 }

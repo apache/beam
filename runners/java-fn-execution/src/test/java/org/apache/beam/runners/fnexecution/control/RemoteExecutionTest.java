@@ -70,14 +70,12 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMatchers;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
@@ -98,6 +96,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -131,7 +132,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -212,6 +213,7 @@ public class RemoteExecutionTest implements Serializable {
                 FnHarness.main(
                     "id",
                     PipelineOptionsFactory.create(),
+                    Collections.emptySet(), // Runner capabilities.
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
                     null,
@@ -563,6 +565,7 @@ public class RemoteExecutionTest implements Serializable {
     public void startBundle() throws InterruptedException {
       Metrics.counter(RemoteExecutionTest.class, START_USER_COUNTER_NAME).inc(10);
       Metrics.distribution(RemoteExecutionTest.class, START_USER_DISTRIBUTION_NAME).update(10);
+      ExecutionStateSampler.instance().doSampling(1);
     }
 
     @ProcessElement
@@ -572,6 +575,7 @@ public class RemoteExecutionTest implements Serializable {
       ctxt.output("two");
       Metrics.counter(RemoteExecutionTest.class, PROCESS_USER_COUNTER_NAME).inc();
       Metrics.distribution(RemoteExecutionTest.class, PROCESS_USER_DISTRIBUTION_NAME).update(1);
+      ExecutionStateSampler.instance().doSampling(2);
       AFTER_PROCESS.get(uuid).countDown();
       checkState(
           ALLOW_COMPLETION.get(uuid).await(60, TimeUnit.SECONDS),
@@ -582,6 +586,7 @@ public class RemoteExecutionTest implements Serializable {
     public void finishBundle() throws InterruptedException {
       Metrics.counter(RemoteExecutionTest.class, FINISH_USER_COUNTER_NAME).inc(100);
       Metrics.distribution(RemoteExecutionTest.class, FINISH_USER_DISTRIBUTION_NAME).update(100);
+      ExecutionStateSampler.instance().doSampling(3);
     }
   }
 
@@ -831,7 +836,7 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(1)));
 
             // Check for execution time metrics for the testPTransformId
             builder = new SimpleMonitoringInfoBuilder();
@@ -841,7 +846,7 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(2)));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(Urns.FINISH_BUNDLE_MSECS);
@@ -850,7 +855,7 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(3)));
 
             assertThat(
                 response.getMonitoringInfosList(),

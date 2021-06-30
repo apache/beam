@@ -57,6 +57,7 @@ class SqlOperatorMappingTable {
           .put("$divide", SqlStdOperatorTable.DIVIDE)
           .put("concat", SqlOperators.CONCAT)
           .put("substr", SqlOperators.SUBSTR)
+          .put("substring", SqlOperators.SUBSTR)
           .put("trim", SqlOperators.TRIM)
           .put("replace", SqlOperators.REPLACE)
           .put("char_length", SqlOperators.CHAR_LENGTH)

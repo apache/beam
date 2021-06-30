@@ -28,8 +28,8 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
 ext.summary = "IO to read and write with Apache Cassandra database"
 
-// compatible with all Cassandra versions up to 3.11.3
-def achilles_version = "6.0.2"
+// compatible with all Cassandra versions up to 3.11.10
+def achilles_version = "6.1.0"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre

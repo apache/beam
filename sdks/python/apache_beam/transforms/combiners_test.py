@@ -18,16 +18,12 @@
 """Unit tests for our libraries of combine PTransforms."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import itertools
 import random
 import unittest
 
 import hamcrest as hc
-from future.builtins import range
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -815,7 +811,7 @@ class LatestCombineFnTest(unittest.TestCase):
 #
 # Test cases for streaming.
 #
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class TimestampCombinerTest(unittest.TestCase):
   def test_combiner_earliest(self):
     """Test TimestampCombiner with EARLIEST."""

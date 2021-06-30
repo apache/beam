@@ -17,67 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcSplittingRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
-/** A {@code ConverterRule} to replace {@link Calc} with {@link BeamZetaSqlCalcRel}. */
-public class BeamZetaSqlCalcRule extends ConverterRule {
+/** A {@link BeamCalcSplittingRule} to replace {@link Calc} with {@link BeamZetaSqlCalcRel}. */
+public class BeamZetaSqlCalcRule extends BeamCalcSplittingRule {
   public static final BeamZetaSqlCalcRule INSTANCE = new BeamZetaSqlCalcRule();
 
   private BeamZetaSqlCalcRule() {
-    super(
-        LogicalCalc.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamZetaSqlCalcRule");
-  }
-
-  /**
-   * Returns false if the argument contains any user-defined Java functions, otherwise returns true.
-   */
-  @Override
-  public boolean matches(RelOptRuleCall x) {
-    List<RelNode> resList = x.getRelList();
-    for (RelNode relNode : resList) {
-      if (relNode instanceof LogicalCalc) {
-        LogicalCalc logicalCalc = (LogicalCalc) relNode;
-        for (RexNode rexNode : logicalCalc.getProgram().getExprList()) {
-          if (rexNode instanceof RexCall) {
-            RexCall call = (RexCall) rexNode;
-            if (call.getOperator() instanceof SqlUserDefinedFunction) {
-              SqlUserDefinedFunction udf = (SqlUserDefinedFunction) call.op;
-              if (udf.function instanceof ZetaSqlScalarFunctionImpl) {
-                ZetaSqlScalarFunctionImpl scalarFunction = (ZetaSqlScalarFunctionImpl) udf.function;
-                if (scalarFunction.functionGroup.equals(
-                    BeamZetaSqlCatalog.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
-                  return false;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    return true;
+    super("BeamZetaSqlCalcRule");
   }
 
   @Override
-  public RelNode convert(RelNode rel) {
-    final Calc calc = (Calc) rel;
-    final RelNode input = calc.getInput();
-
-    return new BeamZetaSqlCalcRel(
-        calc.getCluster(),
-        calc.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        RelOptRule.convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        calc.getProgram());
+  protected CalcRelSplitter.RelType[] getRelTypes() {
+    // "Split" the Calc between two identical RelTypes. The second one is just a placeholder; if the
+    // first isn't usable, the second one won't be usable either, and the planner will fail.
+    return new CalcRelSplitter.RelType[] {
+      new BeamZetaSqlRelType("BeamZetaSqlRelType"), new BeamZetaSqlRelType("BeamZetaSqlRelType2")
+    };
   }
 }

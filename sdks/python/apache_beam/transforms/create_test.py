@@ -18,15 +18,13 @@
 """Unit tests for the Create and _CreateSource classes."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import unittest
-from builtins import range
 
 from apache_beam import Create
+from apache_beam import coders
 from apache_beam.coders import FastPrimitivesCoder
+from apache_beam.internal import pickler
 from apache_beam.io import source_test_utils
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -124,6 +122,45 @@ class CreateTest(unittest.TestCase):
                                     for i in range(1, num_values + 1)]
 
     self.assertEqual(expected_split_points_report, split_points_report)
+
+  def test_create_uses_coder_for_pickling(self):
+    coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+    create = Create([_Unpicklable(1), _Unpicklable(2), _Unpicklable(3)])
+    unpickled_create = pickler.loads(pickler.dumps(create))
+    self.assertEqual(
+        sorted(create.values, key=lambda v: v.value),
+        sorted(unpickled_create.values, key=lambda v: v.value))
+
+    with self.assertRaises(NotImplementedError):
+      # As there is no special coder for Union types, this will fall back to
+      # FastPrimitivesCoder, which in turn falls back to pickling.
+      create_mixed_types = Create([_Unpicklable(1), 2])
+      pickler.dumps(create_mixed_types)
+
+
+class _Unpicklable(object):
+  def __init__(self, value):
+    self.value = value
+
+  def __eq__(self, other):
+    return self.value == other.value
+
+  def __getstate__(self):
+    raise NotImplementedError()
+
+  def __setstate__(self, state):
+    raise NotImplementedError()
+
+
+class _UnpicklableCoder(coders.Coder):
+  def encode(self, value):
+    return str(value.value).encode()
+
+  def decode(self, encoded):
+    return _Unpicklable(int(encoded.decode()))
+
+  def to_type_hint(self):
+    return _Unpicklable
 
 
 if __name__ == '__main__':

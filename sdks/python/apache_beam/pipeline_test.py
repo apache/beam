@@ -19,21 +19,18 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import platform
 import unittest
-from builtins import object
-from builtins import range
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
@@ -53,6 +50,9 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.environments import ProcessEnvironment
+from apache_beam.transforms.resources import ResourceHint
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
@@ -60,7 +60,6 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-# from nose.plugins.attrib import attr
 
 
 class FakeSource(NativeSource):
@@ -259,7 +258,7 @@ class PipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([[1, 2, 3]]))
 
   # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-  # @attr('ValidatesRunner')
+  # @pytest.mark.it_validatesrunner
   def test_metrics_in_fake_source(self):
     pipeline = TestPipeline()
     pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
@@ -719,7 +718,7 @@ class DoFnTest(unittest.TestCase):
           TestDoFn(), prefix, suffix=AsSingleton(suffix))
       assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_element_param(self):
     pipeline = TestPipeline()
     input = [1, 2]
@@ -730,7 +729,7 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to(input))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_key_param(self):
     pipeline = TestPipeline()
     pcoll = (
@@ -972,6 +971,291 @@ class RunnerApiTest(unittest.TestCase):
 
     for transform_id in runner_api_proto.components.transforms:
       self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
+
+  def test_display_data(self):
+    class MyParentTransform(beam.PTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def display_data(self):  # type: () -> dict
+        parent_dd = super(MyParentTransform, self).display_data()
+        parent_dd['p_dd_string'] = DisplayDataItem(
+            'p_dd_string_value', label='p_dd_string_label')
+        parent_dd['p_dd_string_2'] = DisplayDataItem('p_dd_string_value_2')
+        parent_dd['p_dd_bool'] = DisplayDataItem(True, label='p_dd_bool_label')
+        parent_dd['p_dd_int'] = DisplayDataItem(1, label='p_dd_int_label')
+        return parent_dd
+
+    class MyPTransform(MyParentTransform):
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def display_data(self):  # type: () -> dict
+        parent_dd = super(MyPTransform, self).display_data()
+        parent_dd['dd_string'] = DisplayDataItem(
+            'dd_string_value', label='dd_string_label')
+        parent_dd['dd_string_2'] = DisplayDataItem('dd_string_value_2')
+        parent_dd['dd_bool'] = DisplayDataItem(False, label='dd_bool_label')
+        parent_dd['dd_int'] = DisplayDataItem(1.1, label='dd_int_label')
+        return parent_dd
+
+    p = beam.Pipeline()
+    p | MyPTransform()  # pylint: disable=expression-not-assigned
+    from apache_beam.portability.api import beam_runner_api_pb2
+
+    proto_pipeline = Pipeline.to_runner_api(p, use_fake_coders=True)
+    my_transform, = [
+        transform
+        for transform in proto_pipeline.components.transforms.values()
+        if transform.unique_name == 'MyPTransform'
+    ]
+    self.assertIsNotNone(my_transform)
+    self.assertListEqual(
+        list(my_transform.display_data),
+        [
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_string_label',
+                    string_value='p_dd_string_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_string_2',
+                    string_value='p_dd_string_value_2').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_bool_label',
+                    bool_value=True).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='p_dd_int_label',
+                    double_value=1).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_string_label',
+                    string_value='dd_string_value').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_string_2',
+                    string_value='dd_string_value_2').SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_bool_label',
+                    bool_value=False).SerializeToString()),
+            beam_runner_api_pb2.DisplayData(
+                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                payload=beam_runner_api_pb2.LabelledPayload(
+                    label='dd_int_label',
+                    double_value=1.1).SerializeToString()),
+        ])
+
+  def test_runner_api_roundtrip_preserves_resource_hints(self):
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Create([1, 2])
+        | beam.Map(lambda x: x + 1).with_resource_hints(accelerator='gpu'))
+
+    self.assertEqual(
+        p.transforms_stack[0].parts[1].transform.get_resource_hints(),
+        {common_urns.resource_hints.ACCELERATOR.urn: b'gpu'})
+
+    for _ in range(3):
+      # Verify that DEFAULT environments are recreated during multiple RunnerAPI
+      # translation and hints don't get lost.
+      p = Pipeline.from_runner_api(Pipeline.to_runner_api(p), None, None)
+      self.assertEqual(
+          p.transforms_stack[0].parts[1].transform.get_resource_hints(),
+          {common_urns.resource_hints.ACCELERATOR.urn: b'gpu'})
+
+  def test_hints_on_composite_transforms_are_propagated_to_subtransforms(self):
+    class FooHint(ResourceHint):
+      urn = 'foo_urn'
+
+    class BarHint(ResourceHint):
+      urn = 'bar_urn'
+
+    class BazHint(ResourceHint):
+      urn = 'baz_urn'
+
+    class QuxHint(ResourceHint):
+      urn = 'qux_urn'
+
+    class UseMaxValueHint(ResourceHint):
+      urn = 'use_max_value_urn'
+
+      @classmethod
+      def get_merged_value(
+          cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+        return ResourceHint._use_max(outer_value, inner_value)
+
+    ResourceHint.register_resource_hint('foo_hint', FooHint)
+    ResourceHint.register_resource_hint('bar_hint', BarHint)
+    ResourceHint.register_resource_hint('baz_hint', BazHint)
+    ResourceHint.register_resource_hint('qux_hint', QuxHint)
+    ResourceHint.register_resource_hint('use_max_value_hint', UseMaxValueHint)
+
+    @beam.ptransform_fn
+    def SubTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x + 1).with_resource_hints(
+          foo_hint='set_on_subtransform', use_max_value_hint='10')
+
+    @beam.ptransform_fn
+    def CompositeTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x * 2) | SubTransform()
+
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Create([1, 2])
+        | CompositeTransform().with_resource_hints(
+            foo_hint='should_be_overriden_by_subtransform',
+            bar_hint='set_on_composite',
+            baz_hint='set_on_composite',
+            use_max_value_hint='100'))
+    options = PortableOptions([
+        '--resource_hint=baz_hint=should_be_overriden_by_composite',
+        '--resource_hint=qux_hint=set_via_options',
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container',
+    ])
+    environment = ProcessEnvironment.from_options(options)
+    proto = Pipeline.to_runner_api(p, default_environment=environment)
+
+    for t in proto.components.transforms.values():
+      if "CompositeTransform/SubTransform/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            environment.resource_hints.get('foo_urn'), b'set_on_subtransform')
+        self.assertEqual(
+            environment.resource_hints.get('bar_urn'), b'set_on_composite')
+        self.assertEqual(
+            environment.resource_hints.get('baz_urn'), b'set_on_composite')
+        self.assertEqual(
+            environment.resource_hints.get('qux_urn'), b'set_via_options')
+        self.assertEqual(
+            environment.resource_hints.get('use_max_value_urn'), b'100')
+        found = True
+    assert found
+
+  def test_environments_with_same_resource_hints_are_reused(self):
+    class HintX(ResourceHint):
+      urn = 'X_urn'
+
+    class HintY(ResourceHint):
+      urn = 'Y_urn'
+
+    class HintIsOdd(ResourceHint):
+      urn = 'IsOdd_urn'
+
+    ResourceHint.register_resource_hint('X', HintX)
+    ResourceHint.register_resource_hint('Y', HintY)
+    ResourceHint.register_resource_hint('IsOdd', HintIsOdd)
+
+    p = beam.Pipeline()
+    num_iter = 4
+    for i in range(num_iter):
+      _ = (
+          p
+          | f'NoHintCreate_{i}' >> beam.Create([1, 2])
+          | f'NoHint_{i}' >> beam.Map(lambda x: x + 1))
+      _ = (
+          p
+          | f'XCreate_{i}' >> beam.Create([1, 2])
+          |
+          f'HintX_{i}' >> beam.Map(lambda x: x + 1).with_resource_hints(X='X'))
+      _ = (
+          p
+          | f'XYCreate_{i}' >> beam.Create([1, 2])
+          | f'HintXY_{i}' >> beam.Map(lambda x: x + 1).with_resource_hints(
+              X='X', Y='Y'))
+      _ = (
+          p
+          | f'IsOddCreate_{i}' >> beam.Create([1, 2])
+          | f'IsOdd_{i}' >>
+          beam.Map(lambda x: x + 1).with_resource_hints(IsOdd=str(i % 2 != 0)))
+
+    proto = Pipeline.to_runner_api(p)
+    count_x = count_xy = count_is_odd = count_no_hints = 0
+    env_ids = set()
+    for _, t in proto.components.transforms.items():
+      env = proto.components.environments[t.environment_id]
+      if t.unique_name.startswith('HintX_'):
+        count_x += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {'X_urn': b'X'})
+
+      if t.unique_name.startswith('HintXY_'):
+        count_xy += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {'X_urn': b'X', 'Y_urn': b'Y'})
+
+      if t.unique_name.startswith('NoHint_'):
+        count_no_hints += 1
+        env_ids.add(t.environment_id)
+        self.assertEqual(env.resource_hints, {})
+
+      if t.unique_name.startswith('IsOdd_'):
+        count_is_odd += 1
+        env_ids.add(t.environment_id)
+        self.assertTrue(
+            env.resource_hints == {'IsOdd_urn': b'True'} or
+            env.resource_hints == {'IsOdd_urn': b'False'})
+    assert count_x == count_is_odd == count_xy == count_no_hints == num_iter
+    assert num_iter > 1
+
+    self.assertEqual(len(env_ids), 5)
+
+  def test_multiple_application_of_the_same_transform_set_different_hints(self):
+    class FooHint(ResourceHint):
+      urn = 'foo_urn'
+
+    class UseMaxValueHint(ResourceHint):
+      urn = 'use_max_value_urn'
+
+      @classmethod
+      def get_merged_value(
+          cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+        return ResourceHint._use_max(outer_value, inner_value)
+
+    ResourceHint.register_resource_hint('foo_hint', FooHint)
+    ResourceHint.register_resource_hint('use_max_value_hint', UseMaxValueHint)
+
+    @beam.ptransform_fn
+    def SubTransform(pcoll):
+      return pcoll | beam.Map(lambda x: x + 1)
+
+    @beam.ptransform_fn
+    def CompositeTransform(pcoll):
+      sub = SubTransform()
+      return (
+          pcoll
+          | 'first' >> sub.with_resource_hints(foo_hint='first_application')
+          | 'second' >> sub.with_resource_hints(foo_hint='second_application'))
+
+    p = beam.Pipeline()
+    _ = (p | beam.Create([1, 2]) | CompositeTransform())
+    proto = Pipeline.to_runner_api(p)
+    count = 0
+    for t in proto.components.transforms.values():
+      if "CompositeTransform/first/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            b'first_application', environment.resource_hints.get('foo_urn'))
+        count += 1
+      if "CompositeTransform/second/Map" in t.unique_name:
+        environment = proto.components.environments.get(t.environment_id)
+        self.assertEqual(
+            b'second_application', environment.resource_hints.get('foo_urn'))
+        count += 1
+    assert count == 2
 
 
 if __name__ == '__main__':

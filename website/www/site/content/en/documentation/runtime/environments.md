@@ -245,7 +245,7 @@ python -m apache_beam.examples.wordcount \
   --region $REGION \
   --temp_location "${GCS_PATH}/tmp/" \
   --experiment=use_runner_v2 \
-  --worker_harness_container_image=$IMAGE_URL
+  --sdk_container_image=$IMAGE_URL
 
 {{< /highlight >}}
 

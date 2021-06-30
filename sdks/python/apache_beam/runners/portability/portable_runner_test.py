@@ -16,9 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import inspect
 import logging
 import socket

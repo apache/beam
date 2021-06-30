@@ -55,6 +55,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.ViewFn;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -109,7 +110,12 @@ public class PTransformMatchersTest implements Serializable {
     output.setName("dummy output");
 
     return AppliedPTransform.of(
-        "pardo", PValues.expandInput(input), PValues.expandOutput(output), pardo, p);
+        "pardo",
+        PValues.expandInput(input),
+        PValues.expandOutput(output),
+        pardo,
+        ResourceHints.create(),
+        p);
   }
 
   @Test
@@ -439,6 +445,7 @@ public class PTransformMatchersTest implements Serializable {
                 PCollection.createPrimitiveOutputInternal(
                     p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
             Flatten.pCollections(),
+            ResourceHints.create(),
             p);
 
     assertThat(PTransformMatchers.emptyFlatten().matches(application), is(true));
@@ -458,6 +465,7 @@ public class PTransformMatchersTest implements Serializable {
                 PCollection.createPrimitiveOutputInternal(
                     p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
             Flatten.pCollections(),
+            ResourceHints.create(),
             p);
 
     assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
@@ -476,6 +484,7 @@ public class PTransformMatchersTest implements Serializable {
                         p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
                 /* This isn't actually possible to construct, but for the sake of example */
                 Flatten.iterables(),
+                ResourceHints.create(),
                 p);
 
     assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
@@ -495,6 +504,7 @@ public class PTransformMatchersTest implements Serializable {
                 PCollection.createPrimitiveOutputInternal(
                     p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
             Flatten.pCollections(),
+            ResourceHints.create(),
             p);
 
     assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(false));
@@ -517,6 +527,7 @@ public class PTransformMatchersTest implements Serializable {
                 PCollection.createPrimitiveOutputInternal(
                     p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
             Flatten.pCollections(),
+            ResourceHints.create(),
             p);
 
     assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(true));
@@ -535,6 +546,7 @@ public class PTransformMatchersTest implements Serializable {
                         p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
                 /* This isn't actually possible to construct, but for the sake of example */
                 Flatten.iterables(),
+                ResourceHints.create(),
                 p);
 
     assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(false));
@@ -578,7 +590,12 @@ public class PTransformMatchersTest implements Serializable {
 
   private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer, Void, Integer> write) {
     return AppliedPTransform.of(
-        "WriteFiles", Collections.emptyMap(), Collections.emptyMap(), write, p);
+        "WriteFiles",
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        write,
+        ResourceHints.create(),
+        p);
   }
 
   private static class FakeFilenamePolicy extends FilenamePolicy {

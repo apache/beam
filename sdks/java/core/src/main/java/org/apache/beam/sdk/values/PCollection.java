@@ -124,7 +124,13 @@ public class PCollection<T> extends PValueBase implements PValue {
    * override this to enable better {@code Coder} inference.
    */
   public @Nullable TypeDescriptor<T> getTypeDescriptor() {
-    return typeDescriptor;
+    if (typeDescriptor != null) {
+      return typeDescriptor;
+    }
+    if (coderOrFailure.coder != null) {
+      return coderOrFailure.coder.getEncodedTypeDescriptor();
+    }
+    return null;
   }
 
   /**

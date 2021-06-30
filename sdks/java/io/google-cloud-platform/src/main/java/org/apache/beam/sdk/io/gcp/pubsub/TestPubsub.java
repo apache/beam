@@ -414,7 +414,7 @@ public class TestPubsub implements TestRule {
     DateTime startTime = new DateTime();
     int sizeOfSubscriptionList = 0;
     while (sizeOfSubscriptionList == 0
-        && Seconds.secondsBetween(new DateTime(), startTime).getSeconds()
+        && Seconds.secondsBetween(startTime, new DateTime()).getSeconds()
             < timeoutDuration.toStandardSeconds().getSeconds()) {
       // Sleep 1 sec
       Thread.sleep(1000);

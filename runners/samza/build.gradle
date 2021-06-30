@@ -52,6 +52,7 @@ dependencies {
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
+  compile library.java.args4j
   compile library.java.commons_io
   runtimeOnly "org.rocksdb:rocksdbjni:6.15.2"
   runtimeOnly "org.scala-lang:scala-library:2.11.8"
@@ -59,12 +60,12 @@ dependencies {
   compile "org.apache.samza:samza-core_2.11:$samza_version"
   runtimeOnly "org.apache.samza:samza-kafka_2.11:$samza_version"
   runtimeOnly "org.apache.samza:samza-kv_2.11:$samza_version"
-  compile project(":sdks:java:expansion-service")
   compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
   compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
   compile "org.apache.samza:samza-yarn_2.11:$samza_version"
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
+  compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(path: ":model:job-management", configuration: "shadow")
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(":sdks:java:fn-execution")
@@ -77,6 +78,10 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(project.path)
+}
+
+configurations.all {
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
 task validatesRunner(type: Test) {

@@ -18,8 +18,6 @@
 """Tests for apache_beam.runners.interactive.interactive_beam."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import importlib
 import sys
 import time

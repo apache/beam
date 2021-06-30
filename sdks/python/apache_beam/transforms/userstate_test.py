@@ -18,13 +18,10 @@
 """Unit tests for the Beam State and Timer API interfaces."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import unittest
 from typing import Any
 from typing import List
 
-# patches unittest.TestCase to be python3 compatible
 import mock
 
 import apache_beam as beam

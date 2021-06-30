@@ -95,6 +95,10 @@ BIGQUERY_VIEW_LABEL = (
     common_urns.monitoring_info_labels.BIGQUERY_VIEW.label_props.name)
 BIGQUERY_QUERY_NAME_LABEL = (
     common_urns.monitoring_info_labels.BIGQUERY_QUERY_NAME.label_props.name)
+GCS_PROJECT_ID_LABEL = (
+    common_urns.monitoring_info_labels.GCS_PROJECT_ID.label_props.name)
+GCS_BUCKET_LABEL = (
+    common_urns.monitoring_info_labels.GCS_BUCKET.label_props.name)
 
 
 def extract_counter_value(monitoring_info_proto):

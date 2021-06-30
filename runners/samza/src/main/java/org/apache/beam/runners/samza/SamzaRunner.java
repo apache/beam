@@ -25,6 +25,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.runners.samza.translation.PViewToIdMapper;
@@ -36,6 +37,7 @@ import org.apache.beam.runners.samza.translation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PValue;
@@ -78,7 +80,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
         listenerReg.hasNext() ? Iterators.getOnlyElement(listenerReg).getLifeCycleListener() : null;
   }
 
-  public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
+  public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
     LOG.info("Portable pipeline to run:\n{}", dotGraph);
 
@@ -101,7 +103,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
               .withApplicationContainerContextFactory(executionContext.new Factory())
               .withMetricsReporterFactories(reporterFactories);
           SamzaPortablePipelineTranslator.translate(
-              pipeline, new PortableTranslationContext(appDescriptor, options));
+              pipeline, new PortableTranslationContext(appDescriptor, options, jobInfo));
         };
 
     ApplicationRunner runner = runSamzaApp(app, config);
@@ -110,7 +112,12 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   @Override
   public SamzaPipelineResult run(Pipeline pipeline) {
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    // TODO(BEAM-10670): Use SDF read as default for non-portable execution when we address
+    // performance issue.
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
+
     MetricsEnvironment.setMetricsSupported(true);
 
     if (LOG.isDebugEnabled()) {

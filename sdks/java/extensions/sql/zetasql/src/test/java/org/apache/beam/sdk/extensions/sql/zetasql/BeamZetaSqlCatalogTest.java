@@ -25,6 +25,7 @@ import com.google.zetasql.Analyzer;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.lang.reflect.Method;
+import java.sql.Time;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
@@ -53,14 +54,14 @@ public class BeamZetaSqlCatalogTest {
     }
   }
 
-  public static class ReturnsArrayFn implements BeamSqlUdf {
-    public List<Long> eval() {
-      return ImmutableList.of(1L, 2L, 3L);
+  public static class ReturnsArrayTimeFn implements BeamSqlUdf {
+    public List<Time> eval() {
+      return ImmutableList.of(new Time(0));
     }
   }
 
-  public static class TakesArrayFn implements BeamSqlUdf {
-    public Long eval(List<Long> ls) {
+  public static class TakesArrayTimeFn implements BeamSqlUdf {
+    public Long eval(List<Time> ls) {
       return 0L;
     }
   }
@@ -92,10 +93,10 @@ public class BeamZetaSqlCatalogTest {
   public void rejectsScalarFunctionImplWithUnsupportedReturnType() throws NoSuchMethodException {
     JdbcConnection jdbcConnection = createJdbcConnection();
     SchemaPlus calciteSchema = jdbcConnection.getCurrentSchemaPlus();
-    Method method = ReturnsArrayFn.class.getMethod("eval");
+    Method method = ReturnsArrayTimeFn.class.getMethod("eval");
     calciteSchema.add("return_array", ScalarFunctionImpl.create(method));
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Calcite type not allowed in ZetaSQL Java UDF: ARRAY");
+    thrown.expectMessage("Calcite type TIME not allowed in function return_array");
     BeamZetaSqlCatalog beamCatalog =
         BeamZetaSqlCatalog.create(
             calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
@@ -105,10 +106,10 @@ public class BeamZetaSqlCatalogTest {
   public void rejectsScalarFunctionImplWithUnsupportedParameterType() throws NoSuchMethodException {
     JdbcConnection jdbcConnection = createJdbcConnection();
     SchemaPlus calciteSchema = jdbcConnection.getCurrentSchemaPlus();
-    Method method = TakesArrayFn.class.getMethod("eval", List.class);
+    Method method = TakesArrayTimeFn.class.getMethod("eval", List.class);
     calciteSchema.add("take_array", ScalarFunctionImpl.create(method));
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Calcite type not allowed in ZetaSQL Java UDF: ARRAY");
+    thrown.expectMessage("Calcite type TIME not allowed in function take_array");
     BeamZetaSqlCatalog beamCatalog =
         BeamZetaSqlCatalog.create(
             calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
@@ -125,14 +126,14 @@ public class BeamZetaSqlCatalogTest {
             analyzerOptions);
 
     String sql =
-        "CREATE FUNCTION foo() RETURNS ARRAY<INT64> LANGUAGE java OPTIONS (path='/does/not/exist');";
+        "CREATE FUNCTION foo() RETURNS ARRAY<TIME> LANGUAGE java OPTIONS (path='/does/not/exist');";
     ResolvedNodes.ResolvedStatement resolvedStatement =
         Analyzer.analyzeStatement(sql, analyzerOptions, beamCatalog.getZetaSqlCatalog());
     ResolvedNodes.ResolvedCreateFunctionStmt createFunctionStmt =
         (ResolvedNodes.ResolvedCreateFunctionStmt) resolvedStatement;
 
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("ZetaSQL type not allowed in Java UDF: TYPE_ARRAY");
+    thrown.expectMessage("ZetaSQL type TYPE_TIME not allowed in function foo");
     beamCatalog.addFunction(createFunctionStmt);
   }
 
@@ -147,14 +148,14 @@ public class BeamZetaSqlCatalogTest {
             analyzerOptions);
 
     String sql =
-        "CREATE FUNCTION foo(a ARRAY<INT64>) RETURNS INT64 LANGUAGE java OPTIONS (path='/does/not/exist');";
+        "CREATE FUNCTION foo(a ARRAY<TIME>) RETURNS INT64 LANGUAGE java OPTIONS (path='/does/not/exist');";
     ResolvedNodes.ResolvedStatement resolvedStatement =
         Analyzer.analyzeStatement(sql, analyzerOptions, beamCatalog.getZetaSqlCatalog());
     ResolvedNodes.ResolvedCreateFunctionStmt createFunctionStmt =
         (ResolvedNodes.ResolvedCreateFunctionStmt) resolvedStatement;
 
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("ZetaSQL type not allowed in Java UDF: TYPE_ARRAY");
+    thrown.expectMessage("ZetaSQL type TYPE_TIME not allowed in function foo");
     beamCatalog.addFunction(createFunctionStmt);
   }
 

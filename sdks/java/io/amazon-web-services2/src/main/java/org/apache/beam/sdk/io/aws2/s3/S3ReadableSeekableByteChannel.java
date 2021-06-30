@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.aws2.s3;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static software.amazon.awssdk.utils.IoUtils.drainInputStream;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -165,6 +166,7 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
   @Override
   public void close() throws IOException {
     if (s3ResponseInputStream != null) {
+      drainInputStream(s3ResponseInputStream);
       s3ResponseInputStream.close();
     }
     open = false;

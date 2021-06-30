@@ -38,7 +38,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(path: ":runners:core-construction-java")
   compile project(path: ":runners:java-fn-execution")
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
   runtimeOnly library.java.slf4j_jdk14

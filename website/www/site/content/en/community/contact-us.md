@@ -38,6 +38,8 @@ The official communication channels for Apache projects are their mailing lists,
 
 Prior to sending emails to these lists, you need to subscribe. To subscribe, send a blank email to [user-subscribe@beam.apache.org](user-subscribe@beam.apache.org) or [dev-subscribe@beam.apache.org](dev-subscribe@beam.apache.org) depending on the list you want to write to.
 
+To unsubscribe, send a blank email to [user-unsubscribe@beam.apache.org](user-unsubscribe@beam.apache.org) or [dev-unsubscribe@beam.apache.org](dev-unsubscribe@beam.apache.org) depending on the list you want to unsubscribe.
+
 ### Useful Tips for Sending Emails
 
 Tip 1: Use tags in your subject line.

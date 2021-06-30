@@ -28,49 +28,47 @@ func mergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	// Adding Expanded transforms to their counterparts in the Pipeline
 
 	for _, e := range edges {
-		if e.Op == graph.External {
-			exp := e.External.Expanded
-			if exp == nil {
+		if e.Op != graph.External || e.External == nil || e.External.Expanded == nil {
+			continue
+		}
+		exp := e.External.Expanded
+		id := fmt.Sprintf("e%v", e.ID())
+
+		p.Requirements = append(p.Requirements, exp.Requirements...)
+
+		// Adding components of the Expanded Transforms to the current Pipeline
+		components, err := ExpandedComponents(exp)
+		if err != nil {
+			panic(err)
+		}
+		for k, v := range components.GetTransforms() {
+			p.Components.Transforms[k] = v
+		}
+		for k, v := range components.GetPcollections() {
+			p.Components.Pcollections[k] = v
+		}
+		for k, v := range components.GetWindowingStrategies() {
+			p.Components.WindowingStrategies[k] = v
+		}
+		for k, v := range components.GetCoders() {
+			p.Components.Coders[k] = v
+		}
+		for k, v := range components.GetEnvironments() {
+			if k == defaultEnvId {
+				// This case is not an anomaly. It is expected to be always
+				// present. Any initial ExpansionRequest will have a
+				// component which requires the default environment. Scoping
+				// using unique namespace prevents collision.
 				continue
 			}
-			id := fmt.Sprintf("e%v", e.ID())
-
-			p.Requirements = append(p.Requirements, exp.Requirements...)
-
-			// Adding components of the Expanded Transforms to the current Pipeline
-			components, err := ExpandedComponents(exp)
-			if err != nil {
-				panic(err)
-			}
-			for k, v := range components.GetTransforms() {
-				p.Components.Transforms[k] = v
-			}
-			for k, v := range components.GetPcollections() {
-				p.Components.Pcollections[k] = v
-			}
-			for k, v := range components.GetWindowingStrategies() {
-				p.Components.WindowingStrategies[k] = v
-			}
-			for k, v := range components.GetCoders() {
-				p.Components.Coders[k] = v
-			}
-			for k, v := range components.GetEnvironments() {
-				if k == defaultEnvId {
-					// This case is not an anomaly. It is expected to be always
-					// present. Any initial ExpansionRequest will have a
-					// component which requires the default environment. Scoping
-					// using unique namespace prevents collision.
-					continue
-				}
-				p.Components.Environments[k] = v
-			}
-
-			transform, err := ExpandedTransform(exp)
-			if err != nil {
-				panic(err)
-			}
-			p.Components.Transforms[id] = transform
+			p.Components.Environments[k] = v
 		}
+
+		transform, err := ExpandedTransform(exp)
+		if err != nil {
+			panic(err)
+		}
+		p.Components.Transforms[id] = transform
 	}
 }
 
@@ -83,30 +81,28 @@ func purgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 
 	// Generating map (oldID -> newID) of outputs to be purged
 	for _, e := range edges {
-		if e.Op == graph.External {
-			if e.External.Expanded == nil {
-				continue
-			}
-			for tag, n := range ExternalOutputs(e) {
-				nodeID := fmt.Sprintf("n%v", n.ID())
+		if e.Op != graph.External || e.External == nil || e.External.Expanded == nil {
+			continue
+		}
+		for tag, n := range ExternalOutputs(e) {
+			nodeID := fmt.Sprintf("n%v", n.ID())
 
-				transform, err := ExpandedTransform(e.External.Expanded)
-				if err != nil {
-					panic(err)
-				}
-				expandedOutputs := transform.GetOutputs()
-				var pcolID string
-				if tag == graph.UnnamedOutputTag {
-					for _, pcolID = range expandedOutputs {
-						// easiest way to access map with one entry (key,value)
-					}
-				} else {
-					pcolID = expandedOutputs[tag]
-				}
-
-				idxMap[nodeID] = pcolID
-				delete(components.Pcollections, nodeID)
+			transform, err := ExpandedTransform(e.External.Expanded)
+			if err != nil {
+				panic(err)
 			}
+			expandedOutputs := transform.GetOutputs()
+			var pcolID string
+			if tag == graph.UnnamedOutputTag {
+				for _, pcolID = range expandedOutputs {
+					// easiest way to access map with one entry (key,value)
+				}
+			} else {
+				pcolID = expandedOutputs[tag]
+			}
+
+			idxMap[nodeID] = pcolID
+			delete(components.Pcollections, nodeID)
 		}
 	}
 

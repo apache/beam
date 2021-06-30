@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -90,6 +91,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -102,6 +104,8 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHintsOptions;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -111,10 +115,13 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -141,10 +148,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   private SdkComponents createSdkComponents(PipelineOptions options) {
     SdkComponents sdkComponents = SdkComponents.create();
 
-    String workerHarnessContainerImageURL =
+    String containerImageURL =
         DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
     RunnerApi.Environment defaultEnvironmentForDataflow =
-        Environments.createDockerEnvironment(workerHarnessContainerImageURL);
+        Environments.createDockerEnvironment(containerImageURL);
 
     sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
     return sdkComponents;
@@ -177,7 +184,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
         .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(p);
+    runner.replaceV1Transforms(p);
 
     return p;
   }
@@ -672,7 +679,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     pipeline.apply("Jazzy", Create.of(3)).setName("foobizzle");
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
@@ -728,7 +735,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     outputs.get(tag2).setName("gonzaggle");
     outputs.get(tag3).setName("froonazzle");
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
@@ -782,7 +789,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                     })
                 .withOutputTags(mainOutputTag, TupleTagList.empty()));
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
@@ -816,6 +823,104 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         not(equalTo("true")));
   }
 
+  /** Testing just the translation of the pipeline from ViewTest#testToList. */
+  @Test
+  public void testToList() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+
+    final PCollectionView<List<Integer>> view =
+        pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
+
+    PCollection<Integer> output =
+        pipeline
+            .apply("CreateMainInput", Create.of(29, 31))
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            checkArgument(c.sideInput(view).size() == 4);
+                            checkArgument(
+                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
+                            for (Integer i : c.sideInput(view)) {
+                              c.output(i);
+                            }
+                          }
+                        })
+                    .withSideInputs(view));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    runner.replaceV1Transforms(pipeline);
+
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
+    List<Step> steps = job.getSteps();
+
+    // Change detector assertion just to make sure the test was not a noop.
+    // No need to actually check the pipeline as the ValidatesRunner tests
+    // ensure translation is correct. This is just a quick check to see that translation
+    // does not crash.
+    assertEquals(5, steps.size());
+  }
+
+  @Test
+  public void testToMap() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+
+    final PCollectionView<Map<String, Integer>> view =
+        pipeline
+            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
+            .apply(View.asMap());
+
+    PCollection<KV<String, Integer>> output =
+        pipeline
+            .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<String, KV<String, Integer>>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            c.output(
+                                KV.of(
+                                    c.element(),
+                                    c.sideInput(view).get(c.element().substring(0, 1))));
+                          }
+                        })
+                    .withSideInputs(view));
+
+    PAssert.that(output)
+        .containsInAnyOrder(KV.of("apple", 1), KV.of("banana", 3), KV.of("blackberry", 3));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    runner.replaceV1Transforms(pipeline);
+
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
+    List<Step> steps = job.getSteps();
+
+    // Change detector assertion just to make sure the test was not a noop.
+    // No need to actually check the pipeline as the ValidatesRunner tests
+    // ensure translation is correct. This is just a quick check to see that translation
+    // does not crash.
+    assertEquals(24, steps.size());
+  }
+
   /** Smoke test to fail fast if translation of a splittable ParDo in streaming breaks. */
   @Test
   public void testStreamingSplittableParDoTranslation() throws Exception {
@@ -832,7 +937,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
     windowedInput.apply(ParDo.of(new TestSplittableFn()));
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
@@ -898,7 +1003,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                     }))
             .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     File file1 = File.createTempFile("file1-", ".txt");
     file1.deleteOnExit();
@@ -945,7 +1050,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
     pipeline.apply(Create.of(1)).apply(View.asSingleton());
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     Job job =
@@ -981,7 +1086,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(Create.of(1, 2, 3)).apply(View.asIterable());
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     Job job =
@@ -1021,7 +1126,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     }
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     return translator.translate(
@@ -1189,7 +1294,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(Create.of(1, 2, 3)).apply(parDo1).apply(parDo2);
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     Job job =
@@ -1259,17 +1364,157 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
   }
 
+  @Test
+  public void testStepResourceHints() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(
+            "Has hints",
+            MapElements.into(TypeDescriptors.integers())
+                .via((Integer x) -> x + 1)
+                .setResourceHints(
+                    ResourceHints.create()
+                        .withMinRam("10.0GiB")
+                        .withAccelerator("type:nvidia-tesla-k80;count:1;install-nvidia-driver")));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceV1Transforms(pipeline);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
+
+    Step stepWithHints = job.getSteps().get(1);
+    ImmutableMap<String, Object> expectedHints =
+        ImmutableMap.<String, Object>builder()
+            .put("beam:resources:min_ram_bytes:v1", "10737418240")
+            .put(
+                "beam:resources:accelerator:v1",
+                "type:nvidia-tesla-k80;count:1;install-nvidia-driver")
+            .build();
+    assertEquals(expectedHints, stepWithHints.getProperties().get("resource_hints"));
+  }
+
+  private RunnerApi.PTransform getLeafTransform(RunnerApi.Pipeline pipelineProto, String label) {
+    for (RunnerApi.PTransform transform :
+        pipelineProto.getComponents().getTransformsMap().values()) {
+      if (transform.getUniqueName().contains(label) && transform.getSubtransformsCount() == 0) {
+        return transform;
+      }
+    }
+    throw new java.lang.IllegalArgumentException(label);
+  }
+
+  private static class IdentityDoFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    public void processElement(@Element T input, OutputReceiver<T> out) {
+      out.output(input);
+    }
+  }
+
+  private static class Inner extends PTransform<PCollection<byte[]>, PCollection<byte[]>> {
+    @Override
+    public PCollection<byte[]> expand(PCollection<byte[]> input) {
+      return input.apply(
+          "Innermost",
+          ParDo.of(new IdentityDoFn<byte[]>())
+              .setResourceHints(ResourceHints.create().withAccelerator("set_in_inner_transform")));
+    }
+  }
+
+  private static class Outer extends PTransform<PCollection<byte[]>, PCollection<byte[]>> {
+    @Override
+    public PCollection<byte[]> expand(PCollection<byte[]> input) {
+      return input.apply(new Inner());
+    }
+  }
+
+  @Test
+  public void testResourceHintsTranslationsResolvesHintsOnOptionsAndComposites() {
+    ResourceHintsOptions options = PipelineOptionsFactory.as(ResourceHintsOptions.class);
+    options.setResourceHints(Arrays.asList("accelerator=set_via_options", "minRam=1B"));
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<byte[]> root = pipeline.apply(Impulse.create());
+    root.apply(
+        new Outer()
+            .setResourceHints(
+                ResourceHints.create().withAccelerator("set_on_outer_transform").withMinRam(20)));
+    root.apply("Leaf", ParDo.of(new IdentityDoFn<byte[]>()));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Leaf").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.allOf(
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("1")),
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:accelerator:v1", ByteString.copyFromUtf8("set_via_options"))));
+    assertThat(
+        pipelineProto
+            .getComponents()
+            .getEnvironmentsMap()
+            .get(getLeafTransform(pipelineProto, "Innermost").getEnvironmentId())
+            .getResourceHintsMap(),
+        org.hamcrest.Matchers.allOf(
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:min_ram_bytes:v1", ByteString.copyFromUtf8("20")),
+            org.hamcrest.Matchers.hasEntry(
+                "beam:resources:accelerator:v1",
+                ByteString.copyFromUtf8("set_in_inner_transform"))));
+  }
+
   /**
-   * Tests that when {@link DataflowPipelineOptions#setWorkerHarnessContainerImage(String)} pipeline
-   * option is set, {@link DataflowRunner} sets that value as the {@link
-   * DockerPayload#getContainerImage()} of the default {@link Environment} used when generating the
-   * model pipeline proto.
+   * Tests that when (deprecated) {@link
+   * DataflowPipelineOptions#setWorkerHarnessContainerImage(String)} pipeline option is set, {@link
+   * DataflowRunner} sets that value as the {@link DockerPayload#getContainerImage()} of the default
+   * {@link Environment} used when generating the model pipeline proto.
    */
   @Test
   public void testSetWorkerHarnessContainerImageInPipelineProto() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String containerImage = "gcr.io/IMAGE/foo";
+    String containerImage = "gcr.io/image:foo";
     options.as(DataflowPipelineOptions.class).setWorkerHarnessContainerImage(containerImage);
+
+    Pipeline p = Pipeline.create(options);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline proto = PipelineTranslation.toProto(p, sdkComponents, true);
+    JobSpecification specification =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                proto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList());
+    RunnerApi.Pipeline pipelineProto = specification.getPipelineProto();
+
+    assertEquals(1, pipelineProto.getComponents().getEnvironmentsCount());
+    Environment defaultEnvironment =
+        Iterables.getOnlyElement(pipelineProto.getComponents().getEnvironmentsMap().values());
+
+    DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
+    assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
+  }
+
+  /**
+   * Tests that when {@link DataflowPipelineOptions#setSdkContainerImage(String)} pipeline option is
+   * set, {@link DataflowRunner} sets that value as the {@link DockerPayload#getContainerImage()} of
+   * the default {@link Environment} used when generating the model pipeline proto.
+   */
+  @Test
+  public void testSetSdkContainerImageInPipelineProto() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String containerImage = "gcr.io/image:foo";
+    options.as(DataflowPipelineOptions.class).setSdkContainerImage(containerImage);
 
     Pipeline p = Pipeline.create(options);
     SdkComponents sdkComponents = createSdkComponents(options);

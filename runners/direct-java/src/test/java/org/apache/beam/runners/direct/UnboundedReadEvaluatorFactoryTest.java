@@ -67,6 +67,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -459,6 +460,7 @@ public class UnboundedReadEvaluatorFactoryTest {
                 new HashMap<>(),
                 singletonMap(new TupleTag(), pCollection),
                 unbounded,
+                ResourceHints.create(),
                 pipeline);
     final TransformEvaluator<UnboundedSourceShard<String, TestCheckpointMark>> evaluator =
         factory.forApplication(application, null);

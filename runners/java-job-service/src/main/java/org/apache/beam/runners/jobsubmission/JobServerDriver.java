@@ -20,11 +20,11 @@ package org.apache.beam.runners.jobsubmission;
 import java.io.IOException;
 import java.nio.file.Paths;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.sdk.expansion.service.ExpansionServer;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.sdk.fn.server.GrpcFnServer;
+import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
@@ -90,7 +90,11 @@ public abstract class JobServerDriver implements Runnable {
         usage = "The Java expansion service port. 0 to use a dynamic port. (Default: 8097)")
     private int expansionPort = 8097;
 
-    @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
+    @Option(
+        name = "--artifacts-dir",
+        usage =
+            "The location to store staged artifact files. "
+                + "If artifact staging is needed, this directory must be accessible by the execution engine's workers.")
     private String artifactStagingPath =
         Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
 

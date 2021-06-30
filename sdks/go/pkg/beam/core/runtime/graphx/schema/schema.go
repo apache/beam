@@ -26,11 +26,11 @@
 package schema
 
 import (
+	"bytes"
 	"fmt"
+	"hash/fnv"
 	"reflect"
-	"strconv"
 	"strings"
-	"sync/atomic"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
@@ -38,6 +38,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/uuid"
 )
 
 // Initialize registered schemas. For use by the beam package at beam.Init time.
@@ -73,13 +74,19 @@ func RegisterType(ut reflect.Type) {
 	defaultRegistry.RegisterType(ut)
 }
 
-var lastShortID int64
-
-// TODO(BEAM-9615): Replace with UUIDs.
-func (r *Registry) getNextID() string {
-	id := atomic.AddInt64(&r.lastShortID, 1)
-	// No reason not to use the smallest string short ids possible.
-	return strconv.FormatInt(id, 36)
+// getUUID generates a UUID using the string form of the type name.
+func getUUID(ut reflect.Type) string {
+	// String produces non-empty output for pointer and slice types.
+	typename := ut.String()
+	hasher := fnv.New128a()
+	if n, err := hasher.Write([]byte(typename)); err != nil || n != len(typename) {
+		panic(fmt.Sprintf("unable to generate schema uuid for %s, wrote out %d bytes, want %d: err %v", typename, n, len(typename), err))
+	}
+	id, err := uuid.NewRandomFromReader(bytes.NewBuffer(hasher.Sum(nil)))
+	if err != nil {
+		panic(fmt.Sprintf("unable to genereate schema uuid for type %s: %v", typename, err))
+	}
+	return id.String()
 }
 
 // Registered returns whether the given type has been registered with
@@ -349,14 +356,12 @@ func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 		schm := ftype.GetRowType().GetSchema()
 		schm = proto.Clone(schm).(*pipepb.Schema)
 		if ot.Kind() == reflect.Ptr {
-			schm.Options = append(schm.Options, &pipepb.Option{
-				Name: optGoNillable,
-			})
+			schm.Options = append(schm.Options, optGoNillable())
 		}
 		if lID != "" {
 			schm.Options = append(schm.Options, logicalOption(lID))
 		}
-		schm.Id = r.getNextID()
+		schm.Id = getUUID(ot)
 		r.typeToSchema[ot] = schm
 		r.idToType[schm.GetId()] = ot
 		return schm, nil
@@ -371,10 +376,8 @@ func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 	// Cache the pointer type here with it's own id.
 	pt := reflect.PtrTo(t)
 	schm = proto.Clone(schm).(*pipepb.Schema)
-	schm.Id = r.getNextID()
-	schm.Options = append(schm.Options, &pipepb.Option{
-		Name: optGoNillable,
-	})
+	schm.Id = getUUID(pt)
+	schm.Options = append(schm.Options, optGoNillable())
 	r.idToType[schm.GetId()] = pt
 	r.typeToSchema[pt] = schm
 
@@ -385,13 +388,45 @@ func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 // Schema Option urns.
 const (
 	// optGoNillable indicates that this top level schema should be returned as a pointer type.
-	optGoNillable = "beam:schema:go:nillable:v1"
+	optGoNillableUrn = "beam:schema:go:nillable:v1"
 	// optGoEmbedded indicates that this field is an embedded type.
-	optGoEmbedded = "beam:schema:go:embedded_field:v1"
+	optGoEmbeddedUrn = "beam:schema:go:embedded_field:v1"
 	// optGoLogical indicates that this top level schema has a logical type equivalent that need to be looked up.
 	// It has a value type of String representing the URN for the logical type to look up.
-	optGoLogical = "beam:schema:go:logical:v1"
+	optGoLogicalUrn = "beam:schema:go:logical:v1"
 )
+
+func optGoNillable() *pipepb.Option {
+	return newToggleOption(optGoNillableUrn)
+}
+
+func optGoEmbedded() *pipepb.Option {
+	return newToggleOption(optGoEmbeddedUrn)
+}
+
+// newToggleOption constructs an Option whose presence is all
+// that matters, rather than other configuration. The option
+// is not set if the toggle isn't true, so the value is always
+// true.
+func newToggleOption(urn string) *pipepb.Option {
+	return &pipepb.Option{
+		Name: urn,
+		Type: &pipepb.FieldType{
+			TypeInfo: &pipepb.FieldType_AtomicType{
+				AtomicType: pipepb.AtomicType_BOOLEAN,
+			},
+		},
+		Value: &pipepb.FieldValue{
+			FieldValue: &pipepb.FieldValue_AtomicValue{
+				AtomicValue: &pipepb.AtomicTypeValue{
+					Value: &pipepb.AtomicTypeValue_Boolean{
+						Boolean: true,
+					},
+				},
+			},
+		},
+	}
+}
 
 func checkOptions(opts []*pipepb.Option, urn string) *pipepb.Option {
 	for _, opt := range opts {
@@ -405,7 +440,7 @@ func checkOptions(opts []*pipepb.Option, urn string) *pipepb.Option {
 // nillableFromOptions converts the passed in type to it's pointer version
 // if the option is present. This permits go types to be pointers.
 func nillableFromOptions(opts []*pipepb.Option, t reflect.Type) reflect.Type {
-	if checkOptions(opts, optGoNillable) != nil {
+	if checkOptions(opts, optGoNillableUrn) != nil {
 		return reflect.PtrTo(t)
 	}
 	return nil
@@ -419,7 +454,7 @@ var optGoLogicalType = &pipepb.FieldType{
 
 func logicalOption(lID string) *pipepb.Option {
 	return &pipepb.Option{
-		Name: optGoLogical,
+		Name: optGoLogicalUrn,
 		Type: optGoLogicalType,
 		Value: &pipepb.FieldValue{
 			FieldValue: &pipepb.FieldValue_AtomicValue{
@@ -436,7 +471,7 @@ func logicalOption(lID string) *pipepb.Option {
 // fromLogicalOption returns the logical type id of this top
 // level type if this schema has a logical equivalent.
 func fromLogicalOption(opts []*pipepb.Option) (string, bool) {
-	o := checkOptions(opts, optGoLogical)
+	o := checkOptions(opts, optGoLogicalUrn)
 	if o == nil {
 		return "", false
 	}
@@ -460,7 +495,7 @@ func (r *Registry) structToSchema(t reflect.Type) (*pipepb.Schema, error) {
 		schm := ftype.GetRowType().GetSchema()
 		schm = proto.Clone(schm).(*pipepb.Schema)
 		schm.Options = append(schm.Options, logicalOption(lID))
-		schm.Id = r.getNextID()
+		schm.Id = getUUID(t)
 		r.typeToSchema[t] = schm
 		r.idToType[schm.GetId()] = t
 		return schm, nil
@@ -482,14 +517,14 @@ func (r *Registry) structToSchema(t reflect.Type) (*pipepb.Schema, error) {
 		}
 		if isAnon {
 			f = proto.Clone(f).(*pipepb.Field)
-			f.Options = append(f.Options, &pipepb.Option{Name: optGoEmbedded})
+			f.Options = append(f.Options, optGoEmbedded())
 		}
 		fields = append(fields, f)
 	}
 
 	schm := &pipepb.Schema{
 		Fields: fields,
-		Id:     r.getNextID(),
+		Id:     getUUID(t),
 	}
 	r.idToType[schm.GetId()] = t
 	r.typeToSchema[t] = schm
@@ -656,7 +691,7 @@ func (r *Registry) toType(s *pipepb.Schema) (reflect.Type, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot convert schema field %v to field", sf.GetName())
 		}
-		if checkOptions(sf.Options, optGoEmbedded) != nil {
+		if checkOptions(sf.Options, optGoEmbeddedUrn) != nil {
 			rf.Anonymous = true
 		}
 		fields = append(fields, rf)

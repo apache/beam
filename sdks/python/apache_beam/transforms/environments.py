@@ -21,12 +21,11 @@ For internal use only. No backwards compatibility guarantees."""
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import logging
 import sys
 import tempfile
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -53,14 +52,17 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import stager
 from apache_beam.runners.portability.sdk_container_builder import SdkContainerImageBuilder
+from apache_beam.transforms.resources import resource_hints_from_options
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.options.pipeline_options import PortableOptions
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
     'Environment',
+    'DefaultEnvironment',
     'DockerEnvironment',
     'ProcessEnvironment',
     'ExternalEnvironment',
@@ -76,6 +78,7 @@ ConstructorFn = Callable[[
     Optional[Any],
     Iterable[str],
     Iterable[beam_runner_api_pb2.ArtifactInformation],
+    Mapping[str, bytes],
     'PipelineContext'
 ],
                          Any]
@@ -109,12 +112,29 @@ class Environment(object):
   _urn_to_env_cls = {}  # type: Dict[str, type]
 
   def __init__(self,
-               capabilities,  # type: Iterable[str]
-               artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-              ):
+      capabilities=(),  # type: Iterable[str]
+      artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
+               ):
     # type: (...) -> None
     self._capabilities = capabilities
-    self._artifacts = artifacts
+    self._artifacts = sorted(artifacts, key=lambda x: x.SerializeToString())
+    # Hints on created environments should be immutable since pipeline context
+    # stores environments in hash maps and we use hints to compute the hash.
+    self._resource_hints = MappingProxyType(
+        dict(resource_hints) if resource_hints else {})
+
+  def __eq__(self, other):
+    return (
+        self.__class__ == other.__class__ and
+        self._artifacts == other._artifacts
+        # Assuming that we don't have instances of the same Environment subclass
+        # with different set of capabilities.
+        and self._resource_hints == other._resource_hints)
+
+  def __hash__(self):
+    # type: () -> int
+    return hash((self.__class__, frozenset(self._resource_hints.items())))
 
   def artifacts(self):
     # type: () -> Iterable[beam_runner_api_pb2.ArtifactInformation]
@@ -127,6 +147,10 @@ class Environment(object):
   def capabilities(self):
     # type: () -> Iterable[str]
     return self._capabilities
+
+  def resource_hints(self):
+    # type: () -> Mapping[str, bytes]
+    return self._resource_hints
 
   @classmethod
   @overload
@@ -204,7 +228,8 @@ class Environment(object):
         (isinstance(typed_param, bytes) or
          typed_param is None) else typed_param.encode('utf-8'),
         capabilities=self.capabilities(),
-        dependencies=self.artifacts())
+        dependencies=self.artifacts(),
+        resource_hints=self.resource_hints())
 
   @classmethod
   def from_runner_api(cls,
@@ -220,6 +245,7 @@ class Environment(object):
         proto_utils.parse_Bytes(proto.payload, parameter_type),
         proto.capabilities,
         proto.dependencies,
+        proto.resource_hints,
         context)
 
   @classmethod
@@ -234,6 +260,26 @@ class Environment(object):
     raise NotImplementedError
 
 
+@Environment.register_urn(common_urns.environments.DEFAULT.urn, None)
+class DefaultEnvironment(Environment):
+  """Used as a stub when context is missing a default environment."""
+  def to_runner_api_parameter(self, context):
+    return common_urns.environments.DEFAULT.urn, None
+
+  @staticmethod
+  def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.DockerPayload
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
+    # type: (...) -> DefaultEnvironment
+    return DefaultEnvironment(
+        capabilities=capabilities,
+        artifacts=artifacts,
+        resource_hints=resource_hints)
+
+
 @Environment.register_urn(
     common_urns.environments.DOCKER.urn, beam_runner_api_pb2.DockerPayload)
 class DockerEnvironment(Environment):
@@ -242,8 +288,9 @@ class DockerEnvironment(Environment):
       container_image=None,  # type: Optional[str]
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
-    super(DockerEnvironment, self).__init__(capabilities, artifacts)
+    super().__init__(capabilities, artifacts, resource_hints)
     if container_image:
       logging.info(
           'Using provided Python SDK container image: %s' % (container_image))
@@ -257,11 +304,11 @@ class DockerEnvironment(Environment):
         (self.container_image))
 
   def __eq__(self, other):
-    return self.__class__ == other.__class__ \
-           and self.container_image == other.container_image
+    return (
+        super().__eq__(other) and self.container_image == other.container_image)
 
   def __hash__(self):
-    return hash((self.__class__, self.container_image))
+    return hash((super().__hash__(), self.container_image))
 
   def __repr__(self):
     return 'DockerEnvironment(container_image=%s)' % self.container_image
@@ -274,15 +321,17 @@ class DockerEnvironment(Environment):
 
   @staticmethod
   def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.DockerPayload
-                                capabilities,  # type: Iterable[str]
-                                artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-                                context  # type: PipelineContext
-                               ):
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
     # type: (...) -> DockerEnvironment
     return DockerEnvironment(
         container_image=payload.container_image,
         capabilities=capabilities,
-        artifacts=artifacts)
+        artifacts=artifacts,
+        resource_hints=resource_hints)
 
   @classmethod
   def from_options(cls, options):
@@ -292,19 +341,25 @@ class DockerEnvironment(Environment):
           options)
       return cls.from_container_image(
           container_image=prebuilt_container_image,
-          artifacts=python_sdk_dependencies(options))
+          artifacts=python_sdk_dependencies(options),
+          resource_hints=resource_hints_from_options(options),
+      )
     return cls.from_container_image(
         container_image=options.lookup_environment_option(
             'docker_container_image') or options.environment_config,
-        artifacts=python_sdk_dependencies(options))
+        artifacts=python_sdk_dependencies(options),
+        resource_hints=resource_hints_from_options(options),
+    )
 
   @classmethod
-  def from_container_image(cls, container_image, artifacts=()):
-    # type: (str, Iterable[beam_runner_api_pb2.ArtifactInformation]) -> DockerEnvironment
+  def from_container_image(
+      cls, container_image, artifacts=(), resource_hints=None):
+    # type: (str, Iterable[beam_runner_api_pb2.ArtifactInformation], Optional[Mapping[str, bytes]]) -> DockerEnvironment
     return cls(
         container_image=container_image,
         capabilities=python_sdk_capabilities(),
-        artifacts=artifacts)
+        artifacts=artifacts,
+        resource_hints=resource_hints)
 
   @staticmethod
   def default_docker_image():
@@ -337,23 +392,25 @@ class ProcessEnvironment(Environment):
       env=None,  # type: Optional[Mapping[str, str]]
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
     # type: (...) -> None
-    super(ProcessEnvironment, self).__init__(capabilities, artifacts)
+    super().__init__(capabilities, artifacts, resource_hints)
     self.command = command
     self.os = os
     self.arch = arch
     self.env = env or {}
 
   def __eq__(self, other):
-    return self.__class__ == other.__class__ \
-      and self.command == other.command and self.os == other.os \
-      and self.arch == other.arch and self.env == other.env
+    return (
+        super().__eq__(other) and self.command == other.command and
+        self.os == other.os and self.arch == other.arch and
+        self.env == other.env)
 
   def __hash__(self):
     # type: () -> int
     return hash((
-        self.__class__,
+        super().__hash__(),
         self.command,
         self.os,
         self.arch,
@@ -378,10 +435,11 @@ class ProcessEnvironment(Environment):
 
   @staticmethod
   def from_runner_api_parameter(payload,
-                                capabilities,  # type: Iterable[str]
-                                artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-                                context  # type: PipelineContext
-                               ):
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
     # type: (...) -> ProcessEnvironment
     return ProcessEnvironment(
         command=payload.command,
@@ -389,7 +447,9 @@ class ProcessEnvironment(Environment):
         arch=payload.arch,
         env=payload.env,
         capabilities=capabilities,
-        artifacts=artifacts)
+        artifacts=artifacts,
+        resource_hints=resource_hints,
+    )
 
   @staticmethod
   def parse_environment_variables(variables):
@@ -415,7 +475,9 @@ class ProcessEnvironment(Environment):
           arch=config.get('arch', ''),
           env=config.get('env', ''),
           capabilities=python_sdk_capabilities(),
-          artifacts=python_sdk_dependencies(options))
+          artifacts=python_sdk_dependencies(options),
+          resource_hints=resource_hints_from_options(options),
+      )
     env = cls.parse_environment_variables(
         options.lookup_environment_option('process_variables').split(',')
         if options.lookup_environment_option('process_variables') else [])
@@ -423,7 +485,9 @@ class ProcessEnvironment(Environment):
         options.lookup_environment_option('process_command'),
         env=env,
         capabilities=python_sdk_capabilities(),
-        artifacts=python_sdk_dependencies(options))
+        artifacts=python_sdk_dependencies(options),
+        resource_hints=resource_hints_from_options(options),
+    )
 
 
 @Environment.register_urn(
@@ -435,19 +499,21 @@ class ExternalEnvironment(Environment):
       params=None,  # type: Optional[Mapping[str, str]]
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
-    super(ExternalEnvironment, self).__init__(capabilities, artifacts)
+    super().__init__(capabilities, artifacts, resource_hints)
     self.url = url
     self.params = params
 
   def __eq__(self, other):
-    return self.__class__ == other.__class__ and self.url == other.url \
-      and self.params == other.params
+    return (
+        super().__eq__(other) and self.url == other.url and
+        self.params == other.params)
 
   def __hash__(self):
     # type: () -> int
     return hash((
-        self.__class__,
+        super().__hash__(),
         self.url,
         frozenset(self.params.items()) if self.params is not None else None))
 
@@ -465,16 +531,18 @@ class ExternalEnvironment(Environment):
 
   @staticmethod
   def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.ExternalPayload
-                                capabilities,  # type: Iterable[str]
-                                artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-                                context  # type: PipelineContext
-                               ):
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
     # type: (...) -> ExternalEnvironment
     return ExternalEnvironment(
         payload.endpoint.url,
         params=payload.params or None,
         capabilities=capabilities,
-        artifacts=artifacts)
+        artifacts=artifacts,
+        resource_hints=resource_hints)
 
   @classmethod
   def from_options(cls, options):
@@ -496,40 +564,39 @@ class ExternalEnvironment(Environment):
         url,
         params=params,
         capabilities=python_sdk_capabilities(),
-        artifacts=python_sdk_dependencies(options))
+        artifacts=python_sdk_dependencies(options),
+        resource_hints=resource_hints_from_options(options))
 
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedPythonEnvironment(Environment):
-  def __init__(self, capabilities=None, artifacts=()):
-    super(EmbeddedPythonEnvironment, self).__init__(capabilities, artifacts)
-
-  def __eq__(self, other):
-    return self.__class__ == other.__class__
-
-  def __hash__(self):
-    # type: () -> int
-    return hash(self.__class__)
-
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, None]
     return python_urns.EMBEDDED_PYTHON, None
 
   @staticmethod
   def from_runner_api_parameter(unused_payload,  # type: None
-                                capabilities,  # type: Iterable[str]
-                                artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-                                context  # type: PipelineContext
-                               ):
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
     # type: (...) -> EmbeddedPythonEnvironment
-    return EmbeddedPythonEnvironment(capabilities, artifacts)
+    return EmbeddedPythonEnvironment(capabilities, artifacts, resource_hints)
 
   @classmethod
   def from_options(cls, options):
     # type: (PortableOptions) -> EmbeddedPythonEnvironment
     return cls(
         capabilities=python_sdk_capabilities(),
-        artifacts=python_sdk_dependencies(options))
+        artifacts=python_sdk_dependencies(options),
+        resource_hints=resource_hints_from_options(options),
+    )
+
+  @classmethod
+  def default(cls):
+    # type: () -> EmbeddedPythonEnvironment
+    return cls(capabilities=python_sdk_capabilities(), artifacts=())
 
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
@@ -539,20 +606,25 @@ class EmbeddedPythonGrpcEnvironment(Environment):
       state_cache_size=None,
       data_buffer_time_limit_ms=None,
       capabilities=(),
-      artifacts=()):
-    super(EmbeddedPythonGrpcEnvironment, self).__init__(capabilities, artifacts)
+      artifacts=(),
+      resource_hints=None,
+  ):
+    super().__init__(capabilities, artifacts, resource_hints)
     self.state_cache_size = state_cache_size
     self.data_buffer_time_limit_ms = data_buffer_time_limit_ms
 
   def __eq__(self, other):
-    return self.__class__ == other.__class__ \
-           and self.state_cache_size == other.state_cache_size \
-           and self.data_buffer_time_limit_ms == other.data_buffer_time_limit_ms
+    return (
+        super().__eq__(other) and
+        self.state_cache_size == other.state_cache_size and
+        self.data_buffer_time_limit_ms == other.data_buffer_time_limit_ms)
 
   def __hash__(self):
     # type: () -> int
-    return hash(
-        (self.__class__, self.state_cache_size, self.data_buffer_time_limit_ms))
+    return hash((
+        super().__hash__(),
+        self.state_cache_size,
+        self.data_buffer_time_limit_ms))
 
   def __repr__(self):
     # type: () -> str
@@ -576,10 +648,11 @@ class EmbeddedPythonGrpcEnvironment(Environment):
 
   @staticmethod
   def from_runner_api_parameter(payload,  # type: bytes
-                                capabilities,  # type: Iterable[str]
-                                artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-                                context  # type: PipelineContext
-                              ):
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
     # type: (...) -> EmbeddedPythonGrpcEnvironment
     if payload:
       config = EmbeddedPythonGrpcEnvironment.parse_config(
@@ -588,7 +661,8 @@ class EmbeddedPythonGrpcEnvironment(Environment):
           state_cache_size=config.get('state_cache_size'),
           data_buffer_time_limit_ms=config.get('data_buffer_time_limit_ms'),
           capabilities=capabilities,
-          artifacts=artifacts)
+          artifacts=artifacts,
+          resource_hints=resource_hints)
     else:
       return EmbeddedPythonGrpcEnvironment()
 
@@ -600,11 +674,14 @@ class EmbeddedPythonGrpcEnvironment(Environment):
           options.environment_config)
       return cls(
           state_cache_size=config.get('state_cache_size'),
-          data_buffer_time_limit_ms=config.get('data_buffer_time_limit_ms'))
+          data_buffer_time_limit_ms=config.get('data_buffer_time_limit_ms'),
+          capabilities=python_sdk_capabilities(),
+          artifacts=python_sdk_dependencies(options))
     else:
       return cls(
           capabilities=python_sdk_capabilities(),
-          artifacts=python_sdk_dependencies(options))
+          artifacts=python_sdk_dependencies(options),
+          resource_hints=resource_hints_from_options(options))
 
   @staticmethod
   def parse_config(s):
@@ -621,6 +698,11 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     else:
       return {'state_cache_size': int(s)}
 
+  @classmethod
+  def default(cls):
+    # type: () -> EmbeddedPythonGrpcEnvironment
+    return cls(capabilities=python_sdk_capabilities(), artifacts=())
+
 
 @Environment.register_urn(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSDKEnvironment(Environment):
@@ -629,17 +711,18 @@ class SubprocessSDKEnvironment(Environment):
       command_string,  # type: str
       capabilities=(),  # type: Iterable[str]
       artifacts=(),  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints=None,  # type: Optional[Mapping[str, bytes]]
   ):
-    super(SubprocessSDKEnvironment, self).__init__(capabilities, artifacts)
+    super().__init__(capabilities, artifacts, resource_hints)
     self.command_string = command_string
 
   def __eq__(self, other):
-    return self.__class__ == other.__class__ \
-           and self.command_string == other.command_string
+    return (
+        super().__eq__(other) and self.command_string == other.command_string)
 
   def __hash__(self):
     # type: () -> int
-    return hash((self.__class__, self.command_string))
+    return hash((super().__hash__(), self.command_string))
 
   def __repr__(self):
     # type: () -> str
@@ -651,13 +734,14 @@ class SubprocessSDKEnvironment(Environment):
 
   @staticmethod
   def from_runner_api_parameter(payload,  # type: bytes
-                                capabilities,  # type: Iterable[str]
-                                artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
-                                context  # type: PipelineContext
-                               ):
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
     # type: (...) -> SubprocessSDKEnvironment
     return SubprocessSDKEnvironment(
-        payload.decode('utf-8'), capabilities, artifacts)
+        payload.decode('utf-8'), capabilities, artifacts, resource_hints)
 
   @classmethod
   def from_options(cls, options):
@@ -665,7 +749,14 @@ class SubprocessSDKEnvironment(Environment):
     return cls(
         options.environment_config,
         capabilities=python_sdk_capabilities(),
-        artifacts=python_sdk_dependencies(options))
+        artifacts=python_sdk_dependencies(options),
+        resource_hints=resource_hints_from_options(options))
+
+  @classmethod
+  def from_command_string(cls, command_string):
+    # type: (str) -> SubprocessSDKEnvironment
+    return cls(
+        command_string, capabilities=python_sdk_capabilities(), artifacts=())
 
 
 class PyPIArtifactRegistry(object):

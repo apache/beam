@@ -317,7 +317,17 @@ public class Watch {
        * calling the {@link PollFn} for the current input, the {@link PollResult} included a
        * previously unseen {@code OutputT}.
        */
-      StateT onSeenNewOutput(Instant now, StateT state);
+      default StateT onSeenNewOutput(Instant now, StateT state) {
+        return state;
+      }
+
+      /**
+       * Called by the {@link Watch} transform to compute a new termination state after every poll
+       * completion.
+       */
+      default StateT onPollComplete(StateT state) {
+        return state;
+      }
 
       /**
        * Called by the {@link Watch} transform to determine whether the given termination state
@@ -380,6 +390,14 @@ public class Watch {
     }
 
     /**
+     * Returns a {@link TerminationCondition} that holds after the given number of polling
+     * iterations have occurred per-input. Useful for deterministic testing of Watch users.
+     */
+    public static <InputT> AfterIterations<InputT> afterIterations(int iterations) {
+      return new AfterIterations<>(iterations);
+    }
+
+    /**
      * Returns a {@link TerminationCondition} that holds when at least one of the given two
      * conditions holds.
      */
@@ -410,11 +428,6 @@ public class Watch {
       @Override
       public Integer forNewInput(Instant now, InputT input) {
         return 0;
-      }
-
-      @Override
-      public Integer onSeenNewOutput(Instant now, Integer state) {
-        return state;
       }
 
       @Override
@@ -451,6 +464,11 @@ public class Watch {
       }
 
       @Override
+      public StateT onPollComplete(StateT state) {
+        return wrapped.onPollComplete(state);
+      }
+
+      @Override
       public boolean canStopPolling(Instant now, StateT state) {
         return wrapped.canStopPolling(now, state);
       }
@@ -481,12 +499,6 @@ public class Watch {
       }
 
       @Override
-      public KV<Instant, ReadableDuration> onSeenNewOutput(
-          Instant now, KV<Instant, ReadableDuration> state) {
-        return state;
-      }
-
-      @Override
       public boolean canStopPolling(Instant now, KV<Instant, ReadableDuration> state) {
         return new Duration(state.getKey(), now).isLongerThan(state.getValue());
       }
@@ -498,6 +510,44 @@ public class Watch {
             + state.getKey()
             + ", maxTimeSinceInput="
             + state.getValue()
+            + '}';
+      }
+    }
+
+    static class AfterIterations<InputT> implements TerminationCondition<InputT, Integer> {
+      private final int maxIterations;
+
+      private AfterIterations(int maxIterations) {
+        this.maxIterations = maxIterations;
+      }
+
+      @Override
+      public Coder<Integer> getStateCoder() {
+        return VarIntCoder.of();
+      }
+
+      @Override
+      public Integer forNewInput(Instant now, InputT input) {
+        return 0;
+      }
+
+      @Override
+      public Integer onPollComplete(Integer state) {
+        return state + 1;
+      }
+
+      @Override
+      public boolean canStopPolling(Instant now, Integer state) {
+        return state >= maxIterations;
+      }
+
+      @Override
+      public String toString(Integer state) {
+        return "AfterIterations{"
+            + "iterations="
+            + state
+            + ", maxIterations="
+            + maxIterations
             + '}';
       }
     }
@@ -584,6 +634,11 @@ public class Watch {
         return KV.of(
             first.onSeenNewOutput(now, state.getKey()),
             second.onSeenNewOutput(now, state.getValue()));
+      }
+
+      @Override
+      public KV<FirstStateT, SecondStateT> onPollComplete(KV<FirstStateT, SecondStateT> state) {
+        return KV.of(first.onPollComplete(state.getKey()), second.onPollComplete(state.getValue()));
       }
 
       @Override
@@ -785,7 +840,8 @@ public class Watch {
   }
 
   @UnboundedPerElement
-  private static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
+  @VisibleForTesting
+  protected static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
       extends DoFn<InputT, KV<InputT, List<TimestampedValue<OutputT>>>> {
     private final Watch.Growth<InputT, OutputT, KeyT> spec;
     private final Coder<OutputT> outputCoder;
@@ -793,7 +849,7 @@ public class Watch {
     private final Coder<KeyT> outputKeyCoder;
     private final Funnel<OutputT> coderFunnel;
 
-    private WatchGrowthFn(
+    WatchGrowthFn(
         Growth<InputT, OutputT, KeyT> spec,
         Coder<OutputT> outputCoder,
         SerializableFunction<OutputT, KeyT> outputKeyFn,
@@ -844,7 +900,6 @@ public class Watch {
                 priorPoll.getOutputs().size());
             c.output(KV.of(c.element(), priorPoll.getOutputs()));
           }
-          watermarkEstimator.setWatermark(priorPoll.getWatermark());
         }
         return stop();
       }
@@ -856,7 +911,8 @@ public class Watch {
 
       PollingGrowthState<TerminationStateT> pollingRestriction =
           (PollingGrowthState<TerminationStateT>) currentRestriction;
-      // Produce a poll result that only contains never seen before results.
+      // Produce a poll result that only contains never seen before results in timestamp
+      // sorted order.
       Growth.PollResult<OutputT> newResults =
           computeNeverSeenBeforeResults(pollingRestriction, res);
 
@@ -875,6 +931,7 @@ public class Watch {
         terminationState =
             getTerminationCondition().onSeenNewOutput(Instant.now(), terminationState);
       }
+      terminationState = getTerminationCondition().onPollComplete(terminationState);
 
       if (!tracker.tryClaim(KV.of(newResults, terminationState))) {
         LOG.info("{} - will not emit poll result tryClaim failed.", c.element());
@@ -885,8 +942,13 @@ public class Watch {
         c.output(KV.of(c.element(), newResults.getOutputs()));
       }
 
+      Instant computedWatermark = null;
       if (newResults.getWatermark() != null) {
-        watermarkEstimator.setWatermark(newResults.getWatermark());
+        computedWatermark = newResults.getWatermark();
+      } else if (!newResults.getOutputs().isEmpty()) {
+        // computeNeverSeenBeforeResults returns the elements in timestamp sorted order so
+        // we can get the timestamp from the first element.
+        computedWatermark = newResults.getOutputs().get(0).getTimestamp();
       }
 
       Instant currentTime = Instant.now();
@@ -899,9 +961,13 @@ public class Watch {
         return stop();
       }
 
-      if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(newResults.getWatermark())) {
+      if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(computedWatermark)) {
         LOG.info("{} - will stop polling, reached max timestamp.", c.element());
         return stop();
+      }
+
+      if (computedWatermark != null) {
+        watermarkEstimator.setWatermark(computedWatermark);
       }
 
       LOG.info(
