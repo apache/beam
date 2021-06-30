@@ -125,7 +125,7 @@ __all__ = [
     'EmptyMatchTreatment',
     'MatchFiles',
     'MatchAll',
-    'MatchContinuously'
+    'MatchContinuously',
     'ReadableFile',
     'ReadMatches'
 ]
@@ -289,15 +289,15 @@ class MatchContinuously(beam.PTransform):
 
     match_files = (
         impulse
-        | beam.Map(lambda x: self.file_pattern)
+        | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
         | MatchAll())
 
     if self.has_deduplication:
       match_files = (
           match_files
           # Making a Key Value so each file has its own state.
-          | "To KV" >> beam.Map(lambda x: (x.path, x))
-          | "Remove Already Read" >> beam.ParDo(_RemoveDuplicates()))
+          | 'ToKV' >> beam.Map(lambda x: (x.path, x))
+          | 'RemoveAlreadyRead' >> beam.ParDo(_RemoveDuplicates()))
 
     return match_files
 
@@ -814,7 +814,7 @@ class _RemoveDuplicates(beam.DoFn):
 
     if not bag_content:
       file_state.add(path)
-      _LOGGER.info("Generated entry for file %s", path)
+      _LOGGER.info('Generated entry for file %s', path)
       yield file_metadata
     else:
-      _LOGGER.info("File %s was already read", path)
+      _LOGGER.info('File %s was already read', path)
