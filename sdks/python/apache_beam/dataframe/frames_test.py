@@ -1068,11 +1068,16 @@ class GroupByTest(_AbstractFrameTest):
         check_proxy=False)
 
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
-  @unittest.skip("Grouping by a series is not currently supported")
   def test_groupby_series(self, agg_type):
+    if agg_type == 'describe' and PD_VERSION < (1, 2):
+      self.skipTest(
+          "BEAM-12366: proxy generation of DataFrameGroupBy.describe "
+          "fails in pandas < 1.2")
+
     self._run_test(
         lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)(),
-        GROUPBY_DF)
+        GROUPBY_DF,
+        check_proxy=False)
 
   def test_groupby_user_guide(self):
     # Example from https://pandas.pydata.org/docs/user_guide/groupby.html
