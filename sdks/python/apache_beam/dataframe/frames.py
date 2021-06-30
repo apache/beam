@@ -1662,6 +1662,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   sum = _agg_method(pd.Series, 'sum')
   mean = _agg_method(pd.Series, 'mean')
   median = _agg_method(pd.Series, 'median')
+  sem = _agg_method(pd.Series, 'sem')
+  mad = _agg_method(pd.Series, 'mad')
+  skew = _agg_method(pd.Series, 'skew')
+  kurt = _agg_method(pd.Series, 'kurt')
+  kurtosis = _agg_method(pd.Series, 'kurtosis')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')
@@ -3247,6 +3252,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   nunique = _agg_method(pd.DataFrame, 'nunique')
   std = _agg_method(pd.DataFrame, 'std')
   var = _agg_method(pd.DataFrame, 'var')
+  sem = _agg_method(pd.DataFrame, 'sem')
+  mad = _agg_method(pd.DataFrame, 'mad')
+  skew = _agg_method(pd.DataFrame, 'skew')
+  kurt = _agg_method(pd.DataFrame, 'kurt')
+  kurtosis = _agg_method(pd.DataFrame, 'kurtosis')
 
   take = frame_base.wont_implement_method(pd.DataFrame, 'take',
                                           reason='deprecated')

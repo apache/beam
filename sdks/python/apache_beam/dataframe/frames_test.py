@@ -1353,6 +1353,25 @@ class AggregationTest(_AbstractFrameTest):
         nonparallel=nonparallel,
         check_proxy=check_proxy)
 
+  # corr, cov on Series require an other argument
+  # Series.size is a property
+  @parameterized.expand(
+      sorted(set(frames.ALL_AGGREGATIONS) - set(['corr', 'cov', 'size'])))
+  def test_series_agg_method(self, agg_method):
+    s = pd.Series(list(range(16)))
+
+    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median',
+                                 'sem', 'mad', 'skew', 'kurtosis', 'kurt')
+
+    # TODO(BEAM-12379): max and min produce the wrong proxy
+    check_proxy = agg_method not in ('max', 'min')
+
+    self._run_test(
+        lambda s: getattr(s, agg_method)(),
+        s,
+        nonparallel=nonparallel,
+        check_proxy=check_proxy)
+
   @parameterized.expand(frames.ALL_AGGREGATIONS)
   def test_dataframe_agg(self, agg_method):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
@@ -1365,6 +1384,23 @@ class AggregationTest(_AbstractFrameTest):
 
     self._run_test(
         lambda df: df.agg(agg_method),
+        df,
+        nonparallel=nonparallel,
+        check_proxy=check_proxy)
+
+  # DataFrame.size is a property
+  @parameterized.expand(sorted(set(frames.ALL_AGGREGATIONS) - set(['size'])))
+  def test_dataframe_agg_method(self, agg_method):
+    df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
+
+    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median',
+                                 'sem', 'mad', 'skew', 'kurtosis', 'kurt')
+
+    # TODO(BEAM-12379): max and min produce the wrong proxy
+    check_proxy = agg_method not in ('max', 'min')
+
+    self._run_test(
+        lambda df: getattr(df, agg_method)(),
         df,
         nonparallel=nonparallel,
         check_proxy=check_proxy)
