@@ -1027,10 +1027,14 @@ class DeferredFrameTest(_AbstractFrameTest):
             'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
         s)
 
+# pandas doesn't support kurtosis on GroupBys:
+# https://github.com/pandas-dev/pandas/issues/40139
+ALL_GROUPING_AGGREGATIONS = sorted(set(frames.ALL_AGGREGATIONS) -
+                                   set(('kurt','kurtosis')))
 
 class GroupByTest(_AbstractFrameTest):
   """Tests for DataFrame/Series GroupBy operations."""
-  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_agg(self, agg_type):
     if agg_type == 'describe' and PD_VERSION < (1, 2):
       self.skipTest(
@@ -1041,7 +1045,7 @@ class GroupByTest(_AbstractFrameTest):
         GROUPBY_DF,
         check_proxy=False)
 
-  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_with_filter(self, agg_type):
     if agg_type == 'describe' and PD_VERSION < (1, 2):
       self.skipTest(
@@ -1052,7 +1056,7 @@ class GroupByTest(_AbstractFrameTest):
         GROUPBY_DF,
         check_proxy=False)
 
-  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby(self, agg_type):
     if agg_type == 'describe' and PD_VERSION < (1, 2):
       self.skipTest(
@@ -1061,7 +1065,7 @@ class GroupByTest(_AbstractFrameTest):
       self._run_test(
           lambda df: getattr(df.groupby('group'), agg_type)(), GROUPBY_DF)
 
-  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   @unittest.skip("Grouping by a series is not currently supported")
   def test_groupby_series(self, agg_type):
     self._run_test(
@@ -1082,7 +1086,7 @@ class GroupByTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
 
-  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_project_series(self, agg_type):
     df = GROUPBY_DF
 
@@ -1102,7 +1106,7 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(
         lambda df: getattr(df.groupby('group')['bar'], agg_type)(), df)
 
-  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_project_dataframe(self, agg_type):
     if agg_type == 'describe' and PD_VERSION < (1, 2):
       self.skipTest(
@@ -1266,7 +1270,7 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.groupby(level=0).dtypes, GROUPBY_DF, check_proxy=False)
 
-  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_dataframe_groupby_series(self, agg_type):
     if agg_type == 'describe' and PD_VERSION < (1, 2):
       self.skipTest(
@@ -1281,7 +1285,7 @@ class GroupByTest(_AbstractFrameTest):
         GROUPBY_DF,
         check_proxy=False)
 
-  @parameterized.expand(frames.ALL_AGGREGATIONS)
+  @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_series_groupby_series(self, agg_type):
     if agg_type == 'describe':
       self.skipTest(
@@ -1330,7 +1334,8 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg(self, agg_method):
     s = pd.Series(list(range(16)))
 
-    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median')
+    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median',
+                                 'sem', 'mad', 'skew', 'kurtosis', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1345,7 +1350,8 @@ class AggregationTest(_AbstractFrameTest):
   def test_dataframe_agg(self, agg_method):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
-    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median')
+    nonparallel = agg_method in ('quantile', 'mean', 'describe', 'median',
+                                 'sem', 'mad', 'skew', 'kurtosis', 'kurt')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')

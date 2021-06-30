@@ -103,6 +103,11 @@ UNLIFTABLE_AGGREGATIONS = [
     'median',
     'quantile',
     'describe',
+    'sem',
+    'mad',
+    'skew',
+    'kurt',
+    'kurtosis',
     # TODO: The below all have specialized distributed
     # implementations, but they require tracking
     # multiple intermediate series, which is difficult
@@ -111,7 +116,7 @@ UNLIFTABLE_AGGREGATIONS = [
     'var',
     'corr',
     'cov',
-    'nunique'
+    'nunique',
 ]
 ALL_AGGREGATIONS = (
     LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
@@ -3749,6 +3754,10 @@ for meth in LIFTABLE_AGGREGATIONS:
 for meth in LIFTABLE_WITH_SUM_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth, postagg_meth='sum'))
 for meth in UNLIFTABLE_AGGREGATIONS:
+  if meth in ('kurt', 'kurtosis'):
+    # pandas doesn't currently allow kurtosis on GroupBy:
+    # https://github.com/pandas-dev/pandas/issues/40139
+    continue
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
 def _check_str_or_np_builtin(agg_func, func_list):
@@ -3767,7 +3776,7 @@ def _is_unliftable(agg_func):
   return _check_str_or_np_builtin(agg_func, UNLIFTABLE_AGGREGATIONS)
 
 NUMERIC_AGGREGATIONS = ['max', 'min', 'prod', 'sum', 'mean', 'median', 'std',
-                        'var']
+                        'var', 'sem', 'mad', 'skew', 'kurt', 'kurtosis']
 
 def _is_numeric(agg_func):
   return _check_str_or_np_builtin(agg_func, NUMERIC_AGGREGATIONS)
