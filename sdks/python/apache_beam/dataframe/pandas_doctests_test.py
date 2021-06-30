@@ -89,8 +89,6 @@ class DoctestTest(unittest.TestCase):
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
-            'pandas.core.generic.NDFrame.at_time': ['*'],
-            'pandas.core.generic.NDFrame.between_time': ['*'],
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
@@ -468,7 +466,6 @@ class DoctestTest(unittest.TestCase):
                 "s1.cov(s2)",
             ],
             'pandas.core.series.Series.duplicated': ['*'],
-            'pandas.core.series.Series.explode': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
