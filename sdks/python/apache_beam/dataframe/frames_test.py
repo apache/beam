@@ -223,7 +223,18 @@ class DeferredFrameTest(_AbstractFrameTest):
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
     b = pd.Series([100, 200, 300])
+
     self._run_test(lambda a, b: a - 2 * b, a, b)
+    self._run_test(lambda a, b: a.subtract(2).multiply(b).divide(a), a, b)
+
+  def test_dataframe_arithmetic(self):
+    df = pd.DataFrame({'a': [1, 2, 3],
+                       'b': [100, 200, 300]})
+    df2 = pd.DataFrame({'a': [3000, 1000, 2000],
+                        'b': [7, 11, 13]})
+
+    self._run_test(lambda df, df2: df- 2 * df2, df, df2)
+    self._run_test(lambda df, df2: df.subtract(2).multiply(df2).divide(df), df, df2)
 
   def test_get_column(self):
     df = pd.DataFrame({

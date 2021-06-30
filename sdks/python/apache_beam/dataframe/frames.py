@@ -4412,6 +4412,10 @@ for name in ['__neg__', '__pos__', '__invert__']:
 
 DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
 DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
+DeferredSeries.subtract = DeferredSeries.sub  # type: ignore
+DeferredDataFrame.subtract = DeferredDataFrame.sub  # type: ignore
+DeferredSeries.divide = DeferredSeries.div  # type: ignore
+DeferredDataFrame.divide = DeferredDataFrame.div  # type: ignore
 
 
 def _slice_parts(s):
