@@ -188,7 +188,7 @@ public class BigQueryTornadoes {
     fields.add(new TableFieldSchema().setName("month").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("tornado_count").setType("INTEGER"));
     TableSchema schema = new TableSchema().setFields(fields);
-    
+
     TypedRead<TableRow> bigqueryIO;
     if (!options.getInputQuery().isEmpty()) {
       bigqueryIO =
@@ -199,7 +199,10 @@ public class BigQueryTornadoes {
               .withFormat(DataFormat.AVRO);
     } else {
       bigqueryIO =
-          BigQueryIO.readTableRows().from(options.getInput()).withMethod(options.getReadMethod()).withFormat(DataFormat.AVRO);
+          BigQueryIO.readTableRows()
+              .from(options.getInput())
+              .withMethod(options.getReadMethod())
+              .withFormat(DataFormat.AVRO);
 
       // Selected fields only applies when using Method.DIRECT_READ and
       // when reading directly from a table.
