@@ -44,6 +44,11 @@ except ImportError:
   pass
 
 try:
+  from apache_beam.io.hadoopfilesystem_pyarrow import HadoopFileSystem as Hdfs
+except ImportError:
+  pass
+
+try:
   from apache_beam.io.localfilesystem import LocalFileSystem
 except ImportError:
   pass
