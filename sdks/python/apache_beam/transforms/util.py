@@ -40,6 +40,7 @@ from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.pvalue import AsSideInput
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
@@ -750,10 +751,20 @@ def WithKeys(pcoll, k, *args, **kwargs):
   callable, and returns a PCollection of (K, V), where each of the values in
   the input PCollection has been paired with either the constant key or a key
   computed from the value.  The callable may optionally accept positional or
-  keyword arguments, which should be passed to WithKeys directly.
+  keyword arguments, which should be passed to WithKeys directly.  These may
+  be either SideInputs or static (non-PCollection) values, such as ints.
   """
   if callable(k):
     if fn_takes_side_inputs(k):
+      if all([isinstance(arg, AsSideInput)
+              for arg in args]) and all([isinstance(kwarg, AsSideInput)
+                                         for kwarg in kwargs.values()]):
+        return pcoll | Map(
+            lambda v,
+            *args,
+            **kwargs: (k(v, *args, **kwargs), v),
+            *args,
+            **kwargs)
       return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
     return pcoll | Map(lambda v: (k(v), v))
   return pcoll | Map(lambda v: (k, v))
