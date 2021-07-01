@@ -42,6 +42,7 @@ import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
@@ -205,7 +206,8 @@ public class GcsUtil {
             .setAppName("Beam")
             .setGrpcEnabled(shouldUseGrpc)
             .build();
-    googleCloudStorage = new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient, credentials);
+    googleCloudStorage =
+        new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient, credentials);
   }
 
   // Use this only for testing purposes.
@@ -401,6 +403,22 @@ public class GcsUtil {
   }
 
   /**
+   * Opens an object in GCS.
+   *
+   * <p>Returns a SeekableByteChannel that provides access to data in the bucket.
+   *
+   * @param path the GCS filename to read from
+   * @param readOptions Fine-grained options for behaviors of retries, buffering, etc.
+   * @return a SeekableByteChannel that can read the object data
+   */
+  @VisibleForTesting
+  SeekableByteChannel open(GcsPath path, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    return googleCloudStorage.open(
+        new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
+  }
+
+  /**
    * Creates an object in GCS.
    *
    * <p>Returns a WritableByteChannel that can be used to write data to the object.
@@ -427,7 +445,8 @@ public class GcsUtil {
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
     GoogleCloudStorage gcpStorage =
-        new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient, this.credentials);
+        new GoogleCloudStorageImpl(
+            newGoogleCloudStorageOptions, this.storageClient, this.credentials);
     return gcpStorage.create(
         new StorageResourceId(path.getBucket(), path.getObject()),
         CreateObjectOptions.builder().setOverwriteExisting(true).setContentType(type).build());
