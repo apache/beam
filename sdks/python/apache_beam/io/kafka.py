@@ -131,7 +131,7 @@ class ReadFromKafka(ExternalTransform):
       max_read_time=None,
       commit_offset_in_finalize=False,
       timestamp_policy=processing_time_policy,
-      with_metadata=True,
+      with_metadata=False,
       expansion_service=None,
   ):
     """
