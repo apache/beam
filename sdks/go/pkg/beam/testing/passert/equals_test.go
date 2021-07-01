@@ -16,6 +16,7 @@
 package passert
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -129,4 +130,70 @@ func TestEqualsList_Bad(t *testing.T) {
 			}
 		}
 	}
+}
+
+func ExampleEquals() {
+	p, s := beam.NewPipelineWithRoot()
+	col := beam.Create(s, "some", "example", "strings")
+
+	Equals(s, col, "example", "some", "strings")
+	err := ptest.Run(p)
+	fmt.Println(err == nil)
+
+	// Output: true
+}
+
+func ExampleEquals_pcollection() {
+	p, s := beam.NewPipelineWithRoot()
+	col := beam.Create(s, "some", "example", "strings")
+	exp := beam.Create(s, "example", "some", "strings")
+
+	Equals(s, col, exp)
+	err := ptest.Run(p)
+	fmt.Println(err == nil)
+
+	// Output: true
+}
+
+func ExampleEqualsList() {
+	p, s := beam.NewPipelineWithRoot()
+	col := beam.Create(s, "example", "inputs", "here")
+	list := [3]string{"here", "example", "inputs"}
+
+	EqualsList(s, col, list)
+	err := ptest.Run(p)
+	fmt.Println(err == nil)
+
+	// Output: true
+}
+
+func unwrapError(err error) error {
+	if wrapper, ok := err.(interface{ Unwrap() error}); ok {
+		return wrapper.Unwrap()
+	}
+	return err
+}
+
+func ExampleEqualsList_mismatch() {
+	p, s := beam.NewPipelineWithRoot()
+	col := beam.Create(s, "example", "inputs", "here")
+	list := [3]string{"wrong", "inputs", "here"}
+
+	EqualsList(s, col, list)
+	err := ptest.Run(p)
+	err = unwrapError(err)
+	fmt.Println(err)
+
+	// Output:
+	// actual PCollection does not match expected values
+	// =========
+	// 2 correct entries (present in both)
+	// =========
+	// 1 unexpected entries (present in actual, missing in expected)
+	// +++
+	// example
+	// =========
+	// 1 missing entries (missing in actual, present in expected)
+	// ---
+	// wrong
 }
