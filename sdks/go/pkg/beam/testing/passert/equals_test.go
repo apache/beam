@@ -167,6 +167,13 @@ func ExampleEqualsList() {
 	// Output: true
 }
 
+func unwrapError(err error) error {
+	if wrapper, ok := err.(interface{ Unwrap() error}); ok {
+		err = wrapper.Unwrap()
+	}
+	return err
+}
+
 func ExampleEqualsList_mismatch() {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "example", "inputs", "here")
@@ -174,9 +181,7 @@ func ExampleEqualsList_mismatch() {
 
 	EqualsList(s, col, list)
 	err := ptest.Run(p)
-	if wrapper, ok := err.(interface{ Unwrap() error }); ok {
-		err = wrapper.Unwrap()
-	}
+	err = unwrapError(err)
 	fmt.Println(err.Error())
 
 	// Output:
