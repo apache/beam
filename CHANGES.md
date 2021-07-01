@@ -49,9 +49,27 @@
 # [2.32.X] - Unreleased
 
 ## Highlights
-
 * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* The [Beam DataFrame
+  API](https://beam.apache.org/documentation/dsls/dataframes/overview/) is no
+  longer experimental! We've spent the time since the [2.32.0 preview
+  announcement](https://beam.apache.org/blog/dataframe-api-preview-available/)
+  implementing the most frequently used pandas operations
+  ([BEAM-9547](https://issues.apache.org/jira/browse/BEAM-9547)), improving
+  [documentation](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.html)
+  and [error messages](https://issues.apache.org/jira/browse/BEAM-12028),
+  adding
+  [examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/dataframe),
+  integrating DataFrames with [interactive
+  Beam](https://beam.apache.org/releases/pydoc/current/apache_beam.runners.interactive.interactive_beam.html),
+  and of course finding and fixing
+  [bugs](https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20issuetype%3DBug%20AND%20status%3DResolved%20AND%20component%3Ddsl-dataframe).
+  Leaving experimental just means that we now have high confidence in the API
+  and recommend its use for production workloads. We will continue to improve
+  the API, guided by your
+  [feedback](https://beam.apache.org/community/contact-us/).
+
 
 ## I/Os
 
@@ -118,22 +136,15 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.30.0] - Unreleased
-
-## Highlights
-
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+# [2.30.0] - 2021-06-09
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Allow splitting apart document serialization and IO for ElasticsearchIO
 * Support Bulk API request size optimization through addition of ElasticsearchIO.Write.withStatefulBatches
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Added capability to declare resource hints in Java and Python SDKs ([BEAM-2085](https://issues.apache.org/jira/browse/BEAM-2085)).
 * Added Spanner IO Performance tests for read and write. (Python) ([BEAM-10029](https://issues.apache.org/jira/browse/BEAM-10029)).
 * Added support for accessing GCP PubSub Message ordering keys, message IDs and message publish timestamp (Python) ([BEAM-7819](https://issues.apache.org/jira/browse/BEAM-7819)).
@@ -144,7 +155,6 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Drop support for Flink 1.8 and 1.9 ([BEAM-11948](https://issues.apache.org/jira/browse/BEAM-11948)).
 * MongoDbIO: Read.withFilter() and Read.withProjection() are removed since they are deprecated since
   Beam 2.12.0 ([BEAM-12217](https://issues.apache.org/jira/browse/BEAM-12217)).
@@ -153,14 +163,6 @@
   ([BEAM-12214](https://issues.apache.org/jira/browse/BEAM-12214)).
 * MqttIO.create() with clientId constructor removed because it was deprecated since Beam
   2.13.0 ([BEAM-12216](https://issues.apache.org/jira/browse/BEAM-12216)).
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-## Known Issues
-
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 # [2.29.0] - 2021-04-29
 

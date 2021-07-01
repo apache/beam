@@ -235,6 +235,25 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.get('Animal'), df)
     self._run_test(lambda df: df.get('FOO', df.Animal), df)
 
+  def test_series_xs(self):
+    # pandas doctests only verify DataFrame.xs, here we verify Series.xs as well
+    d = {
+        'num_legs': [4, 4, 2, 2],
+        'num_wings': [0, 0, 2, 2],
+        'class': ['mammal', 'mammal', 'mammal', 'bird'],
+        'animal': ['cat', 'dog', 'bat', 'penguin'],
+        'locomotion': ['walks', 'walks', 'flies', 'walks']
+    }
+    df = pd.DataFrame(data=d)
+    df = df.set_index(['class', 'animal', 'locomotion'])
+
+    self._run_test(lambda df: df.num_legs.xs('mammal'), df)
+    self._run_test(lambda df: df.num_legs.xs(('mammal', 'dog')), df)
+    self._run_test(lambda df: df.num_legs.xs('cat', level=1), df)
+    self._run_test(
+        lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
+        df)
+
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
@@ -785,6 +804,30 @@ class DeferredFrameTest(_AbstractFrameTest):
     # self._run_test(lambda df: df.fillna(axis='columns', value=100,
     #                                     limit=2), df)
 
+  def test_dataframe_fillna_dataframe_as_value(self):
+    df = pd.DataFrame([[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1],
+                       [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
+                      columns=list("ABCD"))
+    df2 = pd.DataFrame(np.zeros((4, 4)), columns=list("ABCE"))
+
+    self._run_test(lambda df, df2: df.fillna(df2), df, df2)
+
+  def test_dataframe_fillna_series_as_value(self):
+    df = pd.DataFrame([[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1],
+                       [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
+                      columns=list("ABCD"))
+    s = pd.Series(range(4), index=list("ABCE"))
+
+    self._run_test(lambda df, s: df.fillna(s), df, s)
+
+  def test_series_fillna_series_as_value(self):
+    df = pd.DataFrame([[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1],
+                       [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
+                      columns=list("ABCD"))
+    df2 = pd.DataFrame(np.zeros((4, 4)), columns=list("ABCE"))
+
+    self._run_test(lambda df, df2: df.A.fillna(df2.A), df, df2)
+
   def test_append_verify_integrity(self):
     df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
     df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
@@ -853,6 +896,29 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.drop_duplicates(subset=['brand', 'style'], keep=False),
         df)
 
+  @parameterized.expand([
+      (
+          lambda base: base.from_dict({
+              'col_1': [3, 2, 1, 0], 'col_2': ['a', 'b', 'c', 'd']
+          }), ),
+      (
+          lambda base: base.from_dict({
+              'row_1': [3, 2, 1, 0], 'row_2': ['a', 'b', 'c', 'd']
+          },
+                                      orient='index'), ),
+      (
+          lambda base: base.from_records(
+              np.array([(3, 'a'), (2, 'b'), (1, 'c'), (0, 'd')],
+                       dtype=[('col_1', 'i4'), ('col_2', 'U1')])), ),
+  ])
+  def test_create_methods(self, func):
+    expected = func(pd.DataFrame)
+
+    deferred_df = func(frames.DeferredDataFrame)
+    actual = expressions.Session({}).evaluate(deferred_df._expr)
+
+    pd.testing.assert_frame_equal(actual, expected)
+
   def test_replace(self):
     # verify a replace() doctest case that doesn't quite work in Beam as it uses
     # the default method='pad'
@@ -892,6 +958,74 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.cat.as_ordered(), s)
     self._run_test(lambda s: s.cat.as_unordered(), s)
     self._run_test(lambda s: s.cat.codes, s)
+
+  @parameterized.expand(frames.ELEMENTWISE_DATETIME_PROPERTIES)
+  def test_dt_property(self, prop_name):
+    # Generate a series with a lot of unique timestamps
+    s = pd.Series(
+        pd.date_range('1/1/2000', periods=100, freq='m') +
+        pd.timedelta_range(start='0 days', end='70 days', periods=100))
+    self._run_test(lambda s: getattr(s.dt, prop_name), s)
+
+  @parameterized.expand([
+      ('month_name', {}),
+      ('day_name', {}),
+      ('normalize', {}),
+      (
+          'strftime',
+          {
+              'date_format': '%B %d, %Y, %r'
+          },
+      ),
+      ('tz_convert', {
+          'tz': 'Europe/Berlin'
+      }),
+  ])
+  def test_dt_method(self, op, kwargs):
+    # Generate a series with a lot of unique timestamps
+    s = pd.Series(
+        pd.date_range(
+            '1/1/2000', periods=100, freq='m', tz='America/Los_Angeles') +
+        pd.timedelta_range(start='0 days', end='70 days', periods=100))
+
+    self._run_test(lambda s: getattr(s.dt, op)(**kwargs), s)
+
+  def test_dt_tz_localize_ambiguous_series(self):
+    # This replicates a dt.tz_localize doctest:
+    #   s.tz_localize('CET', ambiguous=np.array([True, True, False]))
+    # But using a DeferredSeries instead of a np array
+
+    s = pd.to_datetime(
+        pd.Series([
+            '2018-10-28 01:20:00', '2018-10-28 02:36:00', '2018-10-28 03:46:00'
+        ]))
+    ambiguous = pd.Series([True, True, False], index=s.index)
+
+    self._run_test(
+        lambda s,
+        ambiguous: s.dt.tz_localize('CET', ambiguous=ambiguous),
+        s,
+        ambiguous)
+
+  def test_dt_tz_localize_nonexistent(self):
+    # This replicates dt.tz_localize doctests that exercise `nonexistent`.
+    # However they specify ambiguous='NaT' because the default,
+    # ambiguous='infer', is not supported.
+    s = pd.to_datetime(
+        pd.Series(['2015-03-29 02:30:00', '2015-03-29 03:30:00']))
+
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent='shift_forward'),
+        s)
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent='shift_backward'),
+        s)
+    self._run_test(
+        lambda s: s.dt.tz_localize(
+            'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
+        s)
 
 
 class GroupByTest(_AbstractFrameTest):
@@ -1830,6 +1964,9 @@ class ConstructionTimeTest(unittest.TestCase):
       'int_col': [1, 2] * 3,
       'flt_col': [1.1, 2.2] * 3,
       'cat_col': pd.Series(list('aabbca'), dtype="category"),
+      'datetime_col': pd.Series(
+          pd.date_range(
+              '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
   })
   DEFERRED_DF = frame_base.DeferredFrame.wrap(
       expressions.PlaceholderExpression(DF.iloc[:0]))
@@ -1881,6 +2018,9 @@ class ConstructionTimeTest(unittest.TestCase):
     # doesn't exist
     self._run_test(lambda df: df.get('FOO'))
 
+  def test_datetime_tz(self):
+    self._run_test(lambda df: df.datetime_col.dt.tz)
+
 
 class DocstringTest(unittest.TestCase):
   @parameterized.expand([
@@ -1893,6 +2033,9 @@ class DocstringTest(unittest.TestCase):
           pd.core.arrays.categorical.CategoricalAccessor),
       (frames.DeferredGroupBy, pd.core.groupby.generic.DataFrameGroupBy),
       (frames._DeferredGroupByCols, pd.core.groupby.generic.DataFrameGroupBy),
+      (
+          frames._DeferredDatetimeMethods,
+          pd.core.indexes.accessors.DatetimeProperties),
   ])
   def test_docs_defined(self, beam_type, pd_type):
     beam_attrs = set(dir(beam_type))
@@ -1914,6 +2057,117 @@ class DocstringTest(unittest.TestCase):
         f'{len(docstring_missing)}/{len(docstring_required)} '
         f'({len(docstring_missing)/len(docstring_required):%}) '
         f'operations:\n{docstring_missing}')
+
+
+class ReprTest(unittest.TestCase):
+  def test_basic_dataframe(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=['group', 'foo', 'bar', 'baz', 'bool', "
+            "'str'], index=<unnamed>)"))
+
+  def test_dataframe_with_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index('group')))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool', 'str'], "
+            "index='group')"))
+
+  def test_dataframe_with_partial_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool', 'str'], "
+            "indexes=[<unnamed>, 'group'])"))
+
+  def test_dataframe_with_named_multi_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index(['str', 'group'])))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=['foo', 'bar', 'baz', 'bool'], "
+            "indexes=['str', 'group'])"))
+
+  def test_dataframe_with_multiple_column_levels(self):
+    df = pd.DataFrame({
+        'foofoofoo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'barbar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'bazzy': [1, 2, 3, 4, 5, 6],
+        'zoop': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+
+    df = df.pivot(index='foofoofoo', columns='barbar')
+    df = frame_base.DeferredFrame.wrap(expressions.ConstantExpression(df))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=[('bazzy', 'A'), ('bazzy', 'B'), "
+            "('bazzy', 'C'), ('zoop', 'A'), ('zoop', 'B'), ('zoop', 'C')], "
+            "index='foofoofoo')"))
+
+  def test_dataframe_with_multiple_column_and_multiple_index_levels(self):
+    df = pd.DataFrame({
+        'foofoofoo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'barbar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'bazzy': [1, 2, 3, 4, 5, 6],
+        'zoop': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+
+    df = df.pivot(index='foofoofoo', columns='barbar')
+    df.index = [['a', 'b'], df.index]
+
+    # pandas repr displays this:
+    #             bazzy       zoop
+    # barbar          A  B  C    A  B  C
+    #   foofoofoo
+    # a one           1  2  3    x  y  z
+    # b two           4  5  6    q  w  t
+    df = frame_base.DeferredFrame.wrap(expressions.ConstantExpression(df))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredDataFrame(columns=[('bazzy', 'A'), ('bazzy', 'B'), "
+            "('bazzy', 'C'), ('zoop', 'A'), ('zoop', 'B'), ('zoop', 'C')], "
+            "indexes=[<unnamed>, 'foofoofoo'])"))
+
+  def test_basic_series(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF['bool']))
+    self.assertEqual(
+        repr(df), "DeferredSeries(name='bool', dtype=bool, index=<unnamed>)")
+
+  def test_series_with_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(GROUPBY_DF.set_index('group')['str']))
+    self.assertEqual(
+        repr(df), "DeferredSeries(name='str', dtype=object, index='group')")
+
+  def test_series_with_partial_named_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index([GROUPBY_DF.index, 'group'])['bar']))
+    self.assertEqual(
+        repr(df),
+        (
+            "DeferredSeries(name='bar', dtype=float64, "
+            "indexes=[<unnamed>, 'group'])"))
+
+  def test_series_with_named_multi_index(self):
+    df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(
+            GROUPBY_DF.set_index(['str', 'group'])['baz']))
+    self.assertEqual(
+        repr(df),
+        "DeferredSeries(name='baz', dtype=float64, indexes=['str', 'group'])")
 
 
 if __name__ == '__main__':

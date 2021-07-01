@@ -25,20 +25,21 @@ ARG pull_licenses
 # Install native bindings required for dependencies.
 RUN apt-get update && \
     apt-get install -y \
-       # These packages are needed for "pip install python-snappy" below.
+       # Required by python-snappy
        libsnappy-dev \
-       # This package is needed for "pip install pyyaml" below to have c bindings.
+       # Required by pyyaml (for c bindings)
        libyaml-dev \
        # This is used to speed up the re-installation of the sdk.
        ccache \
        && \
     rm -rf /var/lib/apt/lists/*
 
-# Install packages required by the Python SDK and common dependencies of the user code.
+####
+# Install required packages for Beam Python SDK and common dependencies used by users.
+####
 
-# SDK dependencies not listed in base_image_requirements.txt will be installed when we install SDK
-# in the next RUN statement.
-
+# SDK dependencies not listed in base_image_requirements.txt will be installed
+# when we install SDK with pip below.
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
     pip install -r /tmp/base_image_requirements.txt && \
@@ -48,11 +49,24 @@ RUN \
     rm -rf /root/.cache/pip && \
     rm -rf /tmp/base_image_requirements.txt
 
-# Configure ccache prior to installing the SDK.
+# Install Google Cloud SDK.
+ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
+ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
+RUN mkdir -p /usr/local/gcloud && \
+    cd /usr/local/gcloud && \
+    curl -s -O https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz && \
+    tar -xf google-cloud-sdk.tar.gz && \
+    /usr/local/gcloud/google-cloud-sdk/install.sh && \
+    rm google-cloud-sdk.tar.gz
+
+# Configure ccache prior to installing Beam SDK.
 RUN ln -s /usr/bin/ccache /usr/local/bin/gcc
 # These parameters are needed as pip compiles artifacts in random temporary directories.
 RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=false
 
+####
+# Install Apache Beam SDK
+####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
 

@@ -21,7 +21,8 @@
 // should be placed in smaller sub-packages for organizational purposes and
 // parallelism (tests are only run in parallel across different packages).
 // Integration tests should always begin with a call to CheckFilters to ensure
-// test filters can be applied.
+// test filters can be applied, and each package containing integration tests
+// should call ptest.Main in a TestMain function if it uses ptest.
 //
 // Running integration tests can be done with a go test call with any flags that
 // are required by the test pipelines, such as --runner or --endpoint.
