@@ -99,18 +99,14 @@ public class TimestampConverterTest {
   public void testConvertTimestampToMicros() {
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(2_000_360L);
 
-    assertEquals(
-        BigDecimal.valueOf(2_000_360L), TimestampConverter.timestampToMicros(timestamp)
-    );
+    assertEquals(BigDecimal.valueOf(2_000_360L), TimestampConverter.timestampToMicros(timestamp));
   }
 
   @Test
   public void testConvertTimestampZeroToMicros() {
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(0);
 
-    assertEquals(
-        BigDecimal.valueOf(0), TimestampConverter.timestampToMicros(timestamp)
-    );
+    assertEquals(BigDecimal.valueOf(0), TimestampConverter.timestampToMicros(timestamp));
   }
 
   @Test
@@ -118,8 +114,7 @@ public class TimestampConverterTest {
     final Timestamp timestamp = Timestamp.MIN_VALUE;
 
     assertEquals(
-        new BigDecimal("-62135596800000000"), TimestampConverter.timestampToMicros(timestamp)
-    );
+        new BigDecimal("-62135596800000000"), TimestampConverter.timestampToMicros(timestamp));
   }
 
   @Test
@@ -127,34 +122,28 @@ public class TimestampConverterTest {
     final Timestamp timestamp = Timestamp.MAX_VALUE;
 
     assertEquals(
-        new BigDecimal("253402300799999999"), TimestampConverter.timestampToMicros(timestamp)
-    );
+        new BigDecimal("253402300799999999"), TimestampConverter.timestampToMicros(timestamp));
   }
 
   @Test
   public void testConvertMicrosToTimestamp() {
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(2_000_360L);
 
-    assertEquals(
-        timestamp, TimestampConverter.timestampFromMicros(BigDecimal.valueOf(2_000_360L))
-    );
+    assertEquals(timestamp, TimestampConverter.timestampFromMicros(BigDecimal.valueOf(2_000_360L)));
   }
 
   @Test
   public void testConvertZeroMicrosToTimestamp() {
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(0);
 
-    assertEquals(
-        timestamp, TimestampConverter.timestampFromMicros(BigDecimal.valueOf(0))
-    );
+    assertEquals(timestamp, TimestampConverter.timestampFromMicros(BigDecimal.valueOf(0)));
   }
 
   @Test
   public void testConvertMicrosToMinTimestamp() {
     assertEquals(
         Timestamp.MIN_VALUE,
-        TimestampConverter.timestampFromMicros(new BigDecimal("-62135596800000000"))
-    );
+        TimestampConverter.timestampFromMicros(new BigDecimal("-62135596800000000")));
   }
 
   @Test(expected = IllegalArgumentException.class)

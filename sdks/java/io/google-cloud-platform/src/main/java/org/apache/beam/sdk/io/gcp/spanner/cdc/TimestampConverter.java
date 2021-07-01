@@ -48,9 +48,7 @@ public class TimestampConverter {
     final BigDecimal nanos = BigDecimal.valueOf(timestamp.getNanos());
     final BigDecimal micros = nanos.divide(TEN_TO_THE_THIRD, RoundingMode.FLOOR);
 
-    return seconds
-        .multiply(TEN_TO_THE_SIXTH)
-        .add(micros);
+    return seconds.multiply(TEN_TO_THE_SIXTH).add(micros);
   }
 
   public static Timestamp timestampFromMicros(BigDecimal timestampAsMicros) {
