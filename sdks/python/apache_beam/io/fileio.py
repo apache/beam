@@ -104,14 +104,19 @@ from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
+from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.annotations import experimental
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
@@ -120,6 +125,7 @@ __all__ = [
     'EmptyMatchTreatment',
     'MatchFiles',
     'MatchAll',
+    'MatchContinuously',
     'ReadableFile',
     'ReadMatches'
 ]
@@ -241,6 +247,57 @@ class _ReadMatchesFn(beam.DoFn):
 
     # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
     yield ReadableFile(metadata, self._compression)
+
+
+@experimental()
+class MatchContinuously(beam.PTransform):
+  """Checks for new files for a given pattern every interval.
+
+  This ``PTransform`` returns a ``PCollection`` of matching files in the form
+  of ``FileMetadata`` objects.
+  """
+  def __init__(
+      self,
+      file_pattern,
+      interval=360.0,
+      has_deduplication=True,
+      start_timestamp=Timestamp.now(),
+      stop_timestamp=MAX_TIMESTAMP):
+    """Initializes a MatchContinuously transform.
+
+    Args:
+      file_pattern: The file path to read from.
+      interval: Interval at which to check for files in seconds.
+      has_deduplication: Whether files already read are discarded or not.
+      start_timestamp: Timestamp for start file checking.
+      stop_timestamp: Timestamp after which no more files will be checked.
+    """
+
+    self.file_pattern = file_pattern
+    self.interval = interval
+    self.has_deduplication = has_deduplication
+    self.start_ts = start_timestamp
+    self.stop_ts = stop_timestamp
+
+  def expand(self, pcol):
+    impulse = pcol | PeriodicImpulse(
+        start_timestamp=self.start_ts,
+        stop_timestamp=self.stop_ts,
+        fire_interval=self.interval)
+
+    match_files = (
+        impulse
+        | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
+        | MatchAll())
+
+    if self.has_deduplication:
+      match_files = (
+          match_files
+          # Making a Key Value so each file has its own state.
+          | 'ToKV' >> beam.Map(lambda x: (x.path, x))
+          | 'RemoveAlreadyRead' >> beam.ParDo(_RemoveDuplicates()))
+
+    return match_files
 
 
 class ReadMatches(beam.PTransform):
@@ -743,3 +800,20 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
               timestamp=key[1].start,
               windows=[key[1]]  # TODO(pabloem) HOW DO WE GET THE PANE
           ))
+
+
+class _RemoveDuplicates(beam.DoFn):
+
+  FILES_STATE = BagStateSpec('files', StrUtf8Coder())
+
+  def process(self, element, file_state=beam.DoFn.StateParam(FILES_STATE)):
+    path = element[0]
+    file_metadata = element[1]
+    bag_content = [x for x in file_state.read()]
+
+    if not bag_content:
+      file_state.add(path)
+      _LOGGER.debug('Generated entry for file %s', path)
+      yield file_metadata
+    else:
+      _LOGGER.debug('File %s was already read', path)
