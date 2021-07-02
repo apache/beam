@@ -24,7 +24,8 @@ the Beam SDK classes to build and test your pipeline. It is not intended as an
 exhaustive reference, but as a language-agnostic, high-level guide to
 programmatically building your Beam pipeline. As the programming guide is filled
 out, the text will include code samples in multiple languages to help illustrate
-how to implement Beam concepts in your pipelines.</p><nav class=language-switcher><strong>Adapt for:</strong><ul><li data-type=language-java class=active>Java SDK</li><li data-type=language-py>Python SDK</li></ul></nav><p class=language-py>The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.</p><h2 id=overview>1. Overview</h2><p>To use Beam, you need to first create a driver program using the classes in one
+how to implement Beam concepts in your pipelines.</p><nav class=language-switcher><strong>Adapt for:</strong><ul><li data-type=language-java class=active>Java SDK</li><li data-type=language-py>Python SDK</li><li data-type=language-go>Go SDK</li></ul></nav><p class=language-py>The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.</p><p class=language-go>The Go SDK is presently considered experimental, but removing that designation is
+<a href=https://lists.apache.org/thread.html/re3589c797d2dc6c5a9c1015683b4a8b48a097bacfa6f12bb1e48aa45%40%3Cdev.beam.apache.org%3E>under discussion</a>.</p><h2 id=overview>1. Overview</h2><p>To use Beam, you need to first create a driver program using the classes in one
 of the Beam SDKs. Your driver program <em>defines</em> your pipeline, including all of
 the inputs, transforms, and outputs; it also sets execution options for your
 pipeline (typically passed in using command-line options). These include the
@@ -47,8 +48,11 @@ data within your driver program. From there, <code>PCollection</code>s are the i
 outputs for each step in your pipeline.</p></li><li><p><code>PTransform</code>: A <code>PTransform</code> represents a data processing operation, or a step,
 in your pipeline. Every <code>PTransform</code> takes one or more <code>PCollection</code> objects as
 input, performs a processing function that you provide on the elements of that
-<code>PCollection</code>, and produces zero or more output <code>PCollection</code> objects.</p></li><li><p>I/O transforms: Beam comes with a number of &ldquo;IOs&rdquo; - library <code>PTransform</code>s that
-read or write data to various external storage systems.</p></li></ul><p>A typical Beam driver program works as follows:</p><ul><li><strong>Create</strong> a <code>Pipeline</code> object and set the pipeline execution options, including
+<code>PCollection</code>, and produces zero or more output <code>PCollection</code> objects.</p></li></ul><span class=language-go><ul><li><code>Scope</code>: The Go SDK has an explicit scope variable used to build a <code>Pipeline</code>.
+A <code>Pipeline</code> can return it&rsquo;s root scope with the <code>Root()</code> method. The scope
+variable is passed to <code>PTransform</code> functions to place them in the <code>Pipeline</code>
+that owns the <code>Scope</code>.</li></ul></span><ul><li>I/O transforms: Beam comes with a number of &ldquo;IOs&rdquo; - library <code>PTransform</code>s that
+read or write data to various external storage systems.</li></ul><p>A typical Beam driver program works as follows:</p><ul><li><strong>Create</strong> a <code>Pipeline</code> object and set the pipeline execution options, including
 the Pipeline Runner.</li><li>Create an initial <code>PCollection</code> for pipeline data, either using the IOs
 to read data from an external storage system, or using a <code>Create</code> transform to
 build a <code>PCollection</code> from in-memory data.</li><li><strong>Apply</strong> <code>PTransform</code>s to each <code>PCollection</code>. Transforms can change, filter,
@@ -67,6 +71,7 @@ asynchronous &ldquo;job&rdquo; (or equivalent) on that back-end.</p><h2 id=creat
 processing task. Your Beam driver program typically starts by constructing a
 <span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/Pipeline.html>Pipeline</a></span>
 <span class=language-py><a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py>Pipeline</a></span>
+<span class=language-go><a href=https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pipeline.go#L62>Pipeline</a></span>
 object, and then using that object as the basis for creating the pipeline&rsquo;s data
 sets as <code>PCollection</code>s and its operations as <code>Transform</code>s.</p><p>To use Beam, your driver program must first create an instance of the Beam SDK
 class <code>Pipeline</code> (typically in the <code>main()</code> function). When you create your
@@ -80,25 +85,31 @@ to the <code>Pipeline</code> object when you create the object.</p><div class="l
 </span><span class=c1></span><span class=n>Pipeline</span> <span class=n>p</span> <span class=o>=</span> <span class=n>Pipeline</span><span class=o>.</span><span class=na>create</span><span class=o>(</span><span class=n>options</span><span class=o>);</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 
 <span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>pipeline</span><span class=p>:</span>
-  <span class=k>pass</span>  <span class=c1># build your pipeline here</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.
-</span><span class=c1></span><span class=nx>p</span><span class=p>,</span> <span class=nx>s</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>NewPipelineWithRoot</span><span class=p>()</span></code></pre></div></div></div><h3 id=configuring-pipeline-options>2.1. Configuring pipeline options</h3><p>Use the pipeline options to configure different aspects of your pipeline, such
+  <span class=k>pass</span>  <span class=c1># build your pipeline here</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// beam.Init() is an initialization hook that must be called
+</span><span class=c1>// near the beginning of main(), before creating a pipeline.
+</span><span class=c1></span><span class=nx>beam</span><span class=p>.</span><span class=nf>Init</span><span class=p>()</span>
+
+<span class=c1>// Create the Pipeline object and root scope.
+</span><span class=c1></span><span class=nx>pipeline</span><span class=p>,</span> <span class=nx>scope</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>NewPipelineWithRoot</span><span class=p>()</span></code></pre></div></div></div><h3 id=configuring-pipeline-options>2.1. Configuring pipeline options</h3><p>Use the pipeline options to configure different aspects of your pipeline, such
 as the pipeline runner that will execute your pipeline and any runner-specific
 configuration required by the chosen runner. Your pipeline options will
 potentially include information such as your project ID or a location for
-storing files.</p><p>When you run the pipeline on a runner of your choice, a copy of the
+storing files.</p><p class=language-java>When you run the pipeline on a runner of your choice, a copy of the
 PipelineOptions will be available to your code. For example, if you add a PipelineOptions parameter
-to a DoFn&rsquo;s <code>@ProcessElement</code> method, it will be populated by the system.</p><h4 id=pipeline-options-cli>2.1.1. Setting PipelineOptions from command-line arguments</h4><p>While you can configure your pipeline by creating a <code>PipelineOptions</code> object and
+to a DoFn&rsquo;s <code>@ProcessElement</code> method, it will be populated by the system.</p><h4 id=pipeline-options-cli>2.1.1. Setting PipelineOptions from command-line arguments</h4><p class="language-java language-py">While you can configure your pipeline by creating a <code>PipelineOptions</code> object and
 setting the fields directly, the Beam SDKs include a command-line parser that
-you can use to set fields in <code>PipelineOptions</code> using command-line arguments.</p><p>To read options from the command-line, construct your <code>PipelineOptions</code> object
-as demonstrated in the following example code:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PipelineOptions</span> <span class=n>options</span> <span class=o>=</span>
+you can use to set fields in <code>PipelineOptions</code> using command-line arguments.</p><p class="language-java language-py">To read options from the command-line, construct your <code>PipelineOptions</code> object
+as demonstrated in the following example code:</p><p class=language-go>Use Go flags to parse command line arguments to configure your pipeline. Flags must be parsed
+before <code>beam.Init()</code> is called.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PipelineOptions</span> <span class=n>options</span> <span class=o>=</span>
     <span class=n>PipelineOptionsFactory</span><span class=o>.</span><span class=na>fromArgs</span><span class=o>(</span><span class=n>args</span><span class=o>).</span><span class=na>withValidation</span><span class=o>().</span><span class=na>create</span><span class=o>();</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 
 <span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>pipeline</span><span class=p>:</span>
-  <span class=k>pass</span>  <span class=c1># build your pipeline here</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// If beamx or Go flags are used, flags must be parsed first.
+  <span class=k>pass</span>  <span class=c1># build your pipeline here</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// If beamx or Go flags are used, flags must be parsed first,
+</span><span class=c1>// before beam.Init() is called.
 </span><span class=c1></span><span class=nx>flag</span><span class=p>.</span><span class=nf>Parse</span><span class=p>()</span></code></pre></div></div></div><p>This interprets command-line arguments that follow the format:</p><pre><code>--&lt;option&gt;=&lt;value&gt;
-</code></pre><blockquote><p><strong>Note:</strong> Appending the method <code>.withValidation</code> will check for required
-command-line arguments and validate argument values.</p></blockquote><p>Building your <code>PipelineOptions</code> this way lets you specify any of the options as
-a command-line argument.</p><blockquote><p><strong>Note:</strong> The <a href=/get-started/wordcount-example>WordCount example pipeline</a>
+</code></pre><span class=language-java><blockquote><p>Appending the method <code>.withValidation</code> will check for required
+command-line arguments and validate argument values.</p></blockquote></span><p class="language-java language-py">Building your <code>PipelineOptions</code> this way lets you specify any of the options as
+a command-line argument.</p><p class=language-go>Defining flag variables this way lets you specify any of the options as a command-line argument.</p><blockquote><p><strong>Note:</strong> The <a href=/get-started/wordcount-example>WordCount example pipeline</a>
 demonstrates how to set pipeline options at runtime by using command-line
 options.</p></blockquote><h4 id=creating-custom-options>2.1.2. Creating custom options</h4><p>You can add your own custom options in addition to the standard
 <code>PipelineOptions</code>. To add your own options, define an interface with getter and
@@ -115,9 +126,10 @@ adding <code>input</code> and <code>output</code> custom options:</p><div class=
   <span class=nd>@classmethod</span>
   <span class=k>def</span> <span class=nf>_add_argparse_args</span><span class=p>(</span><span class=bp>cls</span><span class=p>,</span> <span class=n>parser</span><span class=p>):</span>
     <span class=n>parser</span><span class=o>.</span><span class=n>add_argument</span><span class=p>(</span><span class=s1>&#39;--input-file&#39;</span><span class=p>)</span>
-    <span class=n>parser</span><span class=o>.</span><span class=n>add_argument</span><span class=p>(</span><span class=s1>&#39;--output-path&#39;</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>var</span> <span class=p>(</span>
-  <span class=nx>input</span> <span class=p>=</span> <span class=nx>flag</span><span class=p>.</span><span class=nf>String</span><span class=p>(</span><span class=s>&#34;input&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>)</span>
-  <span class=nx>output</span> <span class=p>=</span> <span class=nx>flag</span><span class=p>.</span><span class=nf>String</span><span class=p>(</span><span class=s>&#34;output&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>)</span>
+    <span class=n>parser</span><span class=o>.</span><span class=n>add_argument</span><span class=p>(</span><span class=s1>&#39;--output-path&#39;</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// Use standard Go flags to define pipeline options.
+</span><span class=c1></span><span class=kd>var</span> <span class=p>(</span>
+	<span class=nx>input</span>  <span class=p>=</span> <span class=nx>flag</span><span class=p>.</span><span class=nf>String</span><span class=p>(</span><span class=s>&#34;input&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>)</span>
+	<span class=nx>output</span> <span class=p>=</span> <span class=nx>flag</span><span class=p>.</span><span class=nf>String</span><span class=p>(</span><span class=s>&#34;output&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>)</span>
 <span class=p>)</span></code></pre></div></div></div><p>You can also specify a description, which appears when a user passes <code>--help</code> as
 a command-line argument, and a default value.</p><p>You set the description and default value using annotations, as follows:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>public</span> <span class=kd>interface</span> <span class=nc>MyOptions</span> <span class=kd>extends</span> <span class=n>PipelineOptions</span> <span class=o>{</span>
     <span class=nd>@Description</span><span class=o>(</span><span class=s>&#34;Input for the pipeline&#34;</span><span class=o>)</span>
@@ -142,8 +154,8 @@ a command-line argument, and a default value.</p><p>You set the description and 
         <span class=s1>&#39;--output-path&#39;</span><span class=p>,</span>
         <span class=n>required</span><span class=o>=</span><span class=bp>True</span><span class=p>,</span>
         <span class=n>help</span><span class=o>=</span><span class=s1>&#39;The path prefix for output files.&#39;</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>var</span> <span class=p>(</span>
-  <span class=nx>input</span> <span class=p>=</span> <span class=nx>flag</span><span class=p>.</span><span class=nf>String</span><span class=p>(</span><span class=s>&#34;input&#34;</span><span class=p>,</span> <span class=s>&#34;gs://my-bucket/input&#34;</span><span class=p>,</span> <span class=s>&#34;Input for the pipeline&#34;</span><span class=p>)</span>
-  <span class=nx>output</span> <span class=p>=</span> <span class=nx>flag</span><span class=p>.</span><span class=nf>String</span><span class=p>(</span><span class=s>&#34;output&#34;</span><span class=p>,</span> <span class=s>&#34;gs://my-bucket/output&#34;</span><span class=p>,</span> <span class=s>&#34;Output for the pipeline&#34;</span><span class=p>)</span>
+	<span class=nx>input</span>  <span class=p>=</span> <span class=nx>flag</span><span class=p>.</span><span class=nf>String</span><span class=p>(</span><span class=s>&#34;input&#34;</span><span class=p>,</span> <span class=s>&#34;gs://my-bucket/input&#34;</span><span class=p>,</span> <span class=s>&#34;Input for the pipeline&#34;</span><span class=p>)</span>
+	<span class=nx>output</span> <span class=p>=</span> <span class=nx>flag</span><span class=p>.</span><span class=nf>String</span><span class=p>(</span><span class=s>&#34;output&#34;</span><span class=p>,</span> <span class=s>&#34;gs://my-bucket/output&#34;</span><span class=p>,</span> <span class=s>&#34;Output for the pipeline&#34;</span><span class=p>)</span>
 <span class=p>)</span></code></pre></div></div></div><p class=language-java>It&rsquo;s recommended that you register your interface with <code>PipelineOptionsFactory</code>
 and then pass the interface when creating the <code>PipelineOptions</code> object. When you
 register your interface with <code>PipelineOptionsFactory</code>, the <code>--help</code> can find
@@ -154,7 +166,9 @@ with <code>PipelineOptionsFactory</code>:</p><div class="language-java snippet">
 <span class=n>MyOptions</span> <span class=n>options</span> <span class=o>=</span> <span class=n>PipelineOptionsFactory</span><span class=o>.</span><span class=na>fromArgs</span><span class=o>(</span><span class=n>args</span><span class=o>)</span>
                                                 <span class=o>.</span><span class=na>withValidation</span><span class=o>()</span>
                                                 <span class=o>.</span><span class=na>as</span><span class=o>(</span><span class=n>MyOptions</span><span class=o>.</span><span class=na>class</span><span class=o>);</span></code></pre></div></div></div><p>Now your pipeline can accept <code>--input=value</code> and <code>--output=value</code> as command-line arguments.</p><h2 id=pcollections>3. PCollections</h2><p>The <span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/values/PCollection.html>PCollection</a></span>
-<span class=language-py><code>PCollection</code></span> abstraction represents a
+<span class=language-py><code>PCollection</code></span>
+<span class=language-go><a href=https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pcollection.go#L39>PCollection</a></span>
+abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 <code>PCollection</code> as &ldquo;pipeline&rdquo; data; Beam transforms use <code>PCollection</code> objects as
 inputs and outputs. As such, if you want to work with data in your pipeline, it
@@ -172,11 +186,13 @@ read from some external data source and return a <code>PCollection</code> whose 
 represent the data records in that source.</p><p>Each data source adapter has a <code>Read</code> transform; to read, you must apply that
 transform to the <code>Pipeline</code> object itself.
 <span class=language-java><code>TextIO.Read</code></span>
-<span class=language-py><code>io.TextFileSource</code></span>, for example, reads from an
+<span class=language-py><code>io.TextFileSource</code></span>
+<span class=language-go><code>textio.Read</code></span>, for example, reads from an
 external text file and returns a <code>PCollection</code> whose elements are of type
 <code>String</code>, each <code>String</code> represents one line from the text file. Here&rsquo;s how you
 would apply <span class=language-java><code>TextIO.Read</code></span>
-<span class=language-py><code>io.TextFileSource</code></span> to your <code>Pipeline</code> to create
+<span class=language-py><code>io.TextFileSource</code></span>
+<span class=language-go><code>textio.Read</code></span> to your <code>Pipeline</code> to create
 a <code>PCollection</code>:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>public</span> <span class=kd>static</span> <span class=kt>void</span> <span class=nf>main</span><span class=o>(</span><span class=n>String</span><span class=o>[]</span> <span class=n>args</span><span class=o>)</span> <span class=o>{</span>
     <span class=c1>// Create the pipeline.
 </span><span class=c1></span>    <span class=n>PipelineOptions</span> <span class=n>options</span> <span class=o>=</span>
@@ -187,15 +203,20 @@ a <code>PCollection</code>:</p><div class="language-java snippet"><div class="no
 </span><span class=c1></span>    <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>lines</span> <span class=o>=</span> <span class=n>p</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span>
       <span class=s>&#34;ReadMyFile&#34;</span><span class=o>,</span> <span class=n>TextIO</span><span class=o>.</span><span class=na>read</span><span class=o>().</span><span class=na>from</span><span class=o>(</span><span class=s>&#34;gs://some/inputData.txt&#34;</span><span class=o>));</span>
 <span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>lines</span> <span class=o>=</span> <span class=n>pipeline</span> <span class=o>|</span> <span class=s1>&#39;ReadMyFile&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>ReadFromText</span><span class=p>(</span>
-    <span class=s1>&#39;gs://some/inputData.txt&#39;</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=nx>lines</span> <span class=o>:=</span> <span class=nx>textio</span><span class=p>.</span><span class=nf>Read</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=s>&#34;gs://some/inputData.txt&#34;</span><span class=p>)</span></code></pre></div></div></div><p>See the <a href=#pipeline-io>section on I/O</a> to learn more about how to read from the
+    <span class=s1>&#39;gs://some/inputData.txt&#39;</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// Read the file at the URI &#39;gs://some/inputData.txt&#39; and return
+</span><span class=c1>// the lines as a PCollection&lt;string&gt;.
+</span><span class=c1>// Notice the scope as the first variable when calling
+</span><span class=c1>// the method as is needed when calling all transforms.
+</span><span class=c1></span><span class=nx>lines</span> <span class=o>:=</span> <span class=nx>textio</span><span class=p>.</span><span class=nf>Read</span><span class=p>(</span><span class=nx>scope</span><span class=p>,</span> <span class=s>&#34;gs://some/inputData.txt&#34;</span><span class=p>)</span></code></pre></div></div></div><p>See the <a href=#pipeline-io>section on I/O</a> to learn more about how to read from the
 various data sources supported by the Beam SDK.</p><h4 id=creating-pcollection-in-memory>3.1.2. Creating a PCollection from in-memory data</h4><p class=language-java>To create a <code>PCollection</code> from an in-memory Java <code>Collection</code>, you use the
 Beam-provided <code>Create</code> transform. Much like a data adapter&rsquo;s <code>Read</code>, you apply
 <code>Create</code> directly to your <code>Pipeline</code> object itself.</p><p class=language-java>As parameters, <code>Create</code> accepts the Java <code>Collection</code> and a <code>Coder</code> object. The
 <code>Coder</code> specifies how the elements in the <code>Collection</code> should be
 <a href=#element-type>encoded</a>.</p><p class=language-py>To create a <code>PCollection</code> from an in-memory <code>list</code>, you use the Beam-provided
 <code>Create</code> transform. Apply this transform directly to your <code>Pipeline</code> object
-itself.</p><p>The following example code shows how to create a <code>PCollection</code> from an in-memory
-<span class=language-java><code>List</code></span><span class=language-py><code>list</code></span>:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>public</span> <span class=kd>static</span> <span class=kt>void</span> <span class=nf>main</span><span class=o>(</span><span class=n>String</span><span class=o>[]</span> <span class=n>args</span><span class=o>)</span> <span class=o>{</span>
+itself.</p><p class=language-go>To create a <code>PCollection</code> from an in-memory <code>slice</code>, you use the Beam-provided
+<code>beam.CreateList</code> transform. Pass the pipeline <code>scope</code>, and the <code>slice</code> to this transform.</p><p>The following example code shows how to create a <code>PCollection</code> from an in-memory
+<span class=language-java><code>List</code></span><span class=language-py><code>list</code></span><span class=language-go><code>slice</code></span>:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>public</span> <span class=kd>static</span> <span class=kt>void</span> <span class=nf>main</span><span class=o>(</span><span class=n>String</span><span class=o>[]</span> <span class=n>args</span><span class=o>)</span> <span class=o>{</span>
     <span class=c1>// Create a Java Collection, in this case a List of Strings.
 </span><span class=c1></span>    <span class=kd>final</span> <span class=n>List</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>LINES</span> <span class=o>=</span> <span class=n>Arrays</span><span class=o>.</span><span class=na>asList</span><span class=o>(</span>
       <span class=s>&#34;To be, or not to be: that is the question: &#34;</span><span class=o>,</span>
@@ -220,14 +241,32 @@ itself.</p><p>The following example code shows how to create a <code>PCollection
           <span class=s2>&#34;Whether &#39;tis nobler in the mind to suffer &#34;</span><span class=p>,</span>
           <span class=s1>&#39;The slings and arrows of outrageous fortune, &#39;</span><span class=p>,</span>
           <span class=s1>&#39;Or to take arms against a sea of troubles, &#39;</span><span class=p>,</span>
-      <span class=p>]))</span></code></pre></div></div></div><h3 id=pcollection-characteristics>3.2. PCollection characteristics</h3><p>A <code>PCollection</code> is owned by the specific <code>Pipeline</code> object for which it is
-created; multiple pipelines cannot share a <code>PCollection</code>. <span language=java>In some respects, a <code>PCollection</code> functions like a <code>Collection</code> class. However,
-a <code>PCollection</code> can differ in a few key ways:</span></p><h4 id=element-type>3.2.1. Element type</h4><p>The elements of a <code>PCollection</code> may be of any type, but must all be of the same
+      <span class=p>]))</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=nx>lines</span> <span class=o>:=</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span>
+	<span class=s>&#34;To be, or not to be: that is the question: &#34;</span><span class=p>,</span>
+	<span class=s>&#34;Whether &#39;tis nobler in the mind to suffer &#34;</span><span class=p>,</span>
+	<span class=s>&#34;The slings and arrows of outrageous fortune, &#34;</span><span class=p>,</span>
+	<span class=s>&#34;Or to take arms against a sea of troubles, &#34;</span><span class=p>,</span>
+<span class=p>}</span>
+
+<span class=c1>// Create the Pipeline object and root scope.
+</span><span class=c1>// It&#39;s conventional to use p as the Pipeline variable and
+</span><span class=c1>// s as the scope variable.
+</span><span class=c1></span><span class=nx>p</span><span class=p>,</span> <span class=nx>s</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>NewPipelineWithRoot</span><span class=p>()</span>
+
+<span class=c1>// Pass the slice to beam.CreateList, to create the pcollection.
+</span><span class=c1>// The scope variable s is used to add the CreateList transform
+</span><span class=c1>// to the pipeline.
+</span><span class=c1></span><span class=nx>linesPCol</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>CreateList</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>lines</span><span class=p>)</span></code></pre></div></div></div><h3 id=pcollection-characteristics>3.2. PCollection characteristics</h3><p>A <code>PCollection</code> is owned by the specific <code>Pipeline</code> object for which it is
+created; multiple pipelines cannot share a <code>PCollection</code>.
+<span class=language-java>In some respects, a <code>PCollection</code> functions like
+a <code>Collection</code> class. However, a <code>PCollection</code> can differ in a few key ways:</span></p><h4 id=element-type>3.2.1. Element type</h4><p>The elements of a <code>PCollection</code> may be of any type, but must all be of the same
 type. However, to support distributed processing, Beam needs to be able to
 encode each individual element as a byte string (so elements can be passed
 around to distributed workers). The Beam SDKs provide a data encoding mechanism
 that includes built-in encoding for commonly-used types as well as support for
-specifying custom encodings as needed.</p><h4 id=element-schema>3.2.2. Element schema</h4><p>In many cases, the element type in a <code>PCollection</code> has a structure that can introspected.
+specifying custom encodings as needed.</p><p class=language-go>Custom struct types should be registered with beam using <code>beam.RegisterType</code>.
+Among other things, this allows the Go SDK to infer an encoding from their
+exported fields. Unexported fields in struct types are ignored.</p><h4 id=element-schema>3.2.2. Element schema</h4><p>In many cases, the element type in a <code>PCollection</code> has a structure that can introspected.
 Examples are JSON, Protocol Buffer, Avro, and database records. Schemas provide a way to
 express types as a set of named fields, allowing for more-expressive aggregations.</p><h4 id=immutability>3.2.3. Immutability</h4><p>A <code>PCollection</code> is immutable. Once created, you cannot add, remove, or change
 individual elements. A Beam Transform might process each element of a
@@ -287,25 +326,33 @@ transform in the Beam SDKs has a generic <code>apply</code> method <span class=l
 Invoking multiple Beam transforms is similar to <em>method chaining</em>, but with one
 slight difference: You apply the transform to the input <code>PCollection</code>, passing
 the transform itself as an argument, and the operation returns the output
-<code>PCollection</code>. This takes the general form:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=o>[</span><span class=n>Output</span> <span class=n>PCollection</span><span class=o>]</span> <span class=o>=</span> <span class=o>[</span><span class=n>Input</span> <span class=n>PCollection</span><span class=o>].</span><span class=na>apply</span><span class=o>([</span><span class=n>Transform</span><span class=o>])</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=p>[</span><span class=n>Output</span> <span class=n>PCollection</span><span class=p>]</span> <span class=o>=</span> <span class=p>[</span><span class=n>Input</span> <span class=n>PCollection</span><span class=p>]</span> <span class=o>|</span> <span class=p>[</span><span class=n>Transform</span><span class=p>]</span></code></pre></div></div></div><p>Because Beam uses a generic <code>apply</code> method for <code>PCollection</code>, you can both chain
+<code>PCollection</code>. This takes the general form:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=o>[</span><span class=n>Output</span> <span class=n>PCollection</span><span class=o>]</span> <span class=o>=</span> <span class=o>[</span><span class=n>Input</span> <span class=n>PCollection</span><span class=o>].</span><span class=na>apply</span><span class=o>([</span><span class=n>Transform</span><span class=o>])</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=p>[</span><span class=n>Output</span> <span class=n>PCollection</span><span class=p>]</span> <span class=o>=</span> <span class=p>[</span><span class=n>Input</span> <span class=n>PCollection</span><span class=p>]</span> <span class=o>|</span> <span class=p>[</span><span class=n>Transform</span><span class=p>]</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=p>[</span><span class=nx>Output</span> <span class=nx>PCollection</span><span class=p>]</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>scope</span><span class=p>,</span> <span class=p>[</span><span class=nx>Transform</span><span class=p>],</span> <span class=p>[</span><span class=nx>Input</span> <span class=nx>PCollection</span><span class=p>])</span></code></pre></div></div></div><p class="language-java language-py">Because Beam uses a generic <code>apply</code> method for <code>PCollection</code>, you can both chain
 transforms sequentially and also apply transforms that contain other transforms
 nested within (called <a href=#composite-transforms>composite transforms</a> in the Beam
-SDKs).</p><p>How you apply your pipeline&rsquo;s transforms determines the structure of your
+SDKs).</p><p class=language-go>It&rsquo;s recommended to create a new variable for each new <code>PCollection</code> to
+sequentially transform input data. <code>Scope</code>s can be used to create functions
+that contain other transforms
+(called <a href=#composite-transforms>composite transforms</a> in the Beam SDKs).</p><p>How you apply your pipeline&rsquo;s transforms determines the structure of your
 pipeline. The best way to think of your pipeline is as a directed acyclic graph,
 where <code>PTransform</code> nodes are subroutines that accept <code>PCollection</code> nodes as
-inputs and emit <code>PCollection</code> nodes as outputs. For example, you can chain
-together transforms to create a pipeline that successively modifies input data:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=o>[</span><span class=n>Final</span> <span class=n>Output</span> <span class=n>PCollection</span><span class=o>]</span> <span class=o>=</span> <span class=o>[</span><span class=n>Initial</span> <span class=n>Input</span> <span class=n>PCollection</span><span class=o>].</span><span class=na>apply</span><span class=o>([</span><span class=n>First</span> <span class=n>Transform</span><span class=o>])</span>
+inputs and emit <code>PCollection</code> nodes as outputs.
+<span class="language-java language-py">For example, you can chain together transforms to create a pipeline that successively modifies input data:</span>
+<span class=language-go>For example, you can successively call transforms on PCollections to modify the input data:</span></p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=o>[</span><span class=n>Final</span> <span class=n>Output</span> <span class=n>PCollection</span><span class=o>]</span> <span class=o>=</span> <span class=o>[</span><span class=n>Initial</span> <span class=n>Input</span> <span class=n>PCollection</span><span class=o>].</span><span class=na>apply</span><span class=o>([</span><span class=n>First</span> <span class=n>Transform</span><span class=o>])</span>
 <span class=o>.</span><span class=na>apply</span><span class=o>([</span><span class=n>Second</span> <span class=n>Transform</span><span class=o>])</span>
 <span class=o>.</span><span class=na>apply</span><span class=o>([</span><span class=n>Third</span> <span class=n>Transform</span><span class=o>])</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=p>[</span><span class=n>Final</span> <span class=n>Output</span> <span class=n>PCollection</span><span class=p>]</span> <span class=o>=</span> <span class=p>([</span><span class=n>Initial</span> <span class=n>Input</span> <span class=n>PCollection</span><span class=p>]</span> <span class=o>|</span> <span class=p>[</span><span class=n>First</span> <span class=n>Transform</span><span class=p>]</span>
               <span class=o>|</span> <span class=p>[</span><span class=n>Second</span> <span class=n>Transform</span><span class=p>]</span>
-              <span class=o>|</span> <span class=p>[</span><span class=n>Third</span> <span class=n>Transform</span><span class=p>])</span></code></pre></div></div></div><p>The graph of this pipeline looks like the following:</p><p><img src=/images/design-your-pipeline-linear.svg alt="This linear pipeline starts with one input collection, sequentially appliesthree transforms, and ends with one output collection."></p><p><em>Figure 1: A linear pipeline with three sequential transforms.</em></p><p>However, note that a transform <em>does not consume or otherwise alter</em> the input
+              <span class=o>|</span> <span class=p>[</span><span class=n>Third</span> <span class=n>Transform</span><span class=p>])</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=p>[</span><span class=nx>Second</span> <span class=nx>PCollection</span><span class=p>]</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>scope</span><span class=p>,</span> <span class=p>[</span><span class=nx>First</span> <span class=nx>Transform</span><span class=p>],</span> <span class=p>[</span><span class=nx>Initial</span> <span class=nx>Input</span> <span class=nx>PCollection</span><span class=p>])</span>
+<span class=p>[</span><span class=nx>Third</span> <span class=nx>PCollection</span><span class=p>]</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>scope</span><span class=p>,</span> <span class=p>[</span><span class=nx>Second</span> <span class=nx>Transform</span><span class=p>],</span> <span class=p>[</span><span class=nx>Second</span> <span class=nx>PCollection</span><span class=p>])</span>
+<span class=p>[</span><span class=nx>Final</span> <span class=nx>Output</span> <span class=nx>PCollection</span><span class=p>]</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>scope</span><span class=p>,</span> <span class=p>[</span><span class=nx>Third</span> <span class=nx>Transform</span><span class=p>],</span> <span class=p>[</span><span class=nx>Third</span> <span class=nx>PCollection</span><span class=p>])</span></code></pre></div></div></div><p>The graph of this pipeline looks like the following:</p><p><img src=/images/design-your-pipeline-linear.svg alt="This linear pipeline starts with one input collection, sequentially appliesthree transforms, and ends with one output collection."></p><p><em>Figure 1: A linear pipeline with three sequential transforms.</em></p><p>However, note that a transform <em>does not consume or otherwise alter</em> the input
 collection — remember that a <code>PCollection</code> is immutable by definition. This means
 that you can apply multiple transforms to the same input <code>PCollection</code> to create
 a branching pipeline, like so:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=o>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=n>database</span> <span class=n>table</span> <span class=n>rows</span><span class=o>]</span> <span class=o>=</span> <span class=o>[</span><span class=n>Database</span> <span class=n>Table</span> <span class=n>Reader</span><span class=o>].</span><span class=na>apply</span><span class=o>([</span><span class=n>Read</span> <span class=n>Transform</span><span class=o>])</span>
 <span class=o>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=sc>&#39;A&#39;</span> <span class=n>names</span><span class=o>]</span> <span class=o>=</span> <span class=o>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=n>database</span> <span class=n>table</span> <span class=n>rows</span><span class=o>].</span><span class=na>apply</span><span class=o>([</span><span class=n>Transform</span> <span class=n>A</span><span class=o>])</span>
 <span class=o>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=sc>&#39;B&#39;</span> <span class=n>names</span><span class=o>]</span> <span class=o>=</span> <span class=o>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=n>database</span> <span class=n>table</span> <span class=n>rows</span><span class=o>].</span><span class=na>apply</span><span class=o>([</span><span class=n>Transform</span> <span class=n>B</span><span class=o>])</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=p>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=n>database</span> <span class=n>table</span> <span class=n>rows</span><span class=p>]</span> <span class=o>=</span> <span class=p>[</span><span class=n>Database</span> <span class=n>Table</span> <span class=n>Reader</span><span class=p>]</span> <span class=o>|</span> <span class=p>[</span><span class=n>Read</span> <span class=n>Transform</span><span class=p>]</span>
 <span class=p>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=s1>&#39;A&#39;</span> <span class=n>names</span><span class=p>]</span> <span class=o>=</span> <span class=p>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=n>database</span> <span class=n>table</span> <span class=n>rows</span><span class=p>]</span> <span class=o>|</span> <span class=p>[</span><span class=n>Transform</span> <span class=n>A</span><span class=p>]</span>
-<span class=p>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=s1>&#39;B&#39;</span> <span class=n>names</span><span class=p>]</span> <span class=o>=</span> <span class=p>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=n>database</span> <span class=n>table</span> <span class=n>rows</span><span class=p>]</span> <span class=o>|</span> <span class=p>[</span><span class=n>Transform</span> <span class=n>B</span><span class=p>]</span></code></pre></div></div></div><p>The graph of this branching pipeline looks like the following:</p><p><img src=/images/design-your-pipeline-multiple-pcollections.svg alt="This pipeline applies two transforms to a single input collection. Eachtransform produces an output collection."></p><p><em>Figure 2: A branching pipeline. Two transforms are applied to a single
+<span class=p>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=s1>&#39;B&#39;</span> <span class=n>names</span><span class=p>]</span> <span class=o>=</span> <span class=p>[</span><span class=n>PCollection</span> <span class=n>of</span> <span class=n>database</span> <span class=n>table</span> <span class=n>rows</span><span class=p>]</span> <span class=o>|</span> <span class=p>[</span><span class=n>Transform</span> <span class=n>B</span><span class=p>]</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=p>[</span><span class=nx>PCollection</span> <span class=nx>of</span> <span class=nx>database</span> <span class=nx>table</span> <span class=nx>rows</span><span class=p>]</span> <span class=p>=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>scope</span><span class=p>,</span> <span class=p>[</span><span class=nx>Read</span> <span class=nx>Transform</span><span class=p>],</span> <span class=p>[</span><span class=nx>Database</span> <span class=nx>Table</span> <span class=nx>Reader</span><span class=p>])</span>
+<span class=p>[</span><span class=nx>PCollection</span> <span class=nx>of</span> <span class=sc>&#39;A&#39;</span> <span class=nx>names</span><span class=p>]</span> <span class=p>=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>scope</span><span class=p>,</span> <span class=p>[</span><span class=nx>Transform</span> <span class=nx>A</span><span class=p>],</span> <span class=p>[</span><span class=nx>PCollection</span> <span class=nx>of</span> <span class=nx>database</span> <span class=nx>table</span> <span class=nx>rows</span><span class=p>])</span>
+<span class=p>[</span><span class=nx>PCollection</span> <span class=nx>of</span> <span class=sc>&#39;B&#39;</span> <span class=nx>names</span><span class=p>]</span> <span class=p>=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>scope</span><span class=p>,</span> <span class=p>[</span><span class=nx>Transform</span> <span class=nx>B</span><span class=p>],</span> <span class=p>[</span><span class=nx>PCollection</span> <span class=nx>of</span> <span class=nx>database</span> <span class=nx>table</span> <span class=nx>rows</span><span class=p>])</span></code></pre></div></div></div><p>The graph of this branching pipeline looks like the following:</p><p><img src=/images/design-your-pipeline-multiple-pcollections.svg alt="This pipeline applies two transforms to a single input collection. Eachtransform produces an output collection."></p><p><em>Figure 2: A branching pipeline. Two transforms are applied to a single
 PCollection of database table rows.</em></p><p>You can also build your own <a href=#composite-transforms>composite transforms</a> that
 nest multiple transforms inside a single, larger transform. Composite transforms
 are particularly useful for building a reusable sequence of simple steps that
@@ -331,10 +378,11 @@ input into a different format; you might also use <code>ParDo</code> to convert 
 data into a format suitable for output, like database table rows or printable
 strings.</p><p>When you apply a <code>ParDo</code> transform, you&rsquo;ll need to provide user code in the form
 of a <code>DoFn</code> object. <code>DoFn</code> is a Beam SDK class that defines a distributed
-processing function.</p><blockquote><p>When you create a subclass of <code>DoFn</code>, note that your subclass should adhere to
-the <a href=#requirements-for-writing-user-code-for-beam-transforms>Requirements for writing user code for Beam transforms</a>.</p></blockquote><h5 id=applying-pardo>4.2.1.1. Applying ParDo</h5><p>Like all Beam transforms, you apply <code>ParDo</code> by calling the <code>apply</code> method on the
+processing function.</p><span class="language-java language-py"><blockquote><p>When you create a subclass of <code>DoFn</code>, note that your subclass should adhere to
+the <a href=#requirements-for-writing-user-code-for-beam-transforms>Requirements for writing user code for Beam transforms</a>.</p></blockquote></span><h5 id=applying-pardo>4.2.1.1. Applying ParDo</h5><p class="language-java language-py">Like all Beam transforms, you apply <code>ParDo</code> by calling the <code>apply</code> method on the
 input <code>PCollection</code> and passing <code>ParDo</code> as an argument, as shown in the
-following example code:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// The input PCollection of Strings.
+following example code:</p><p class=language-go><code>beam.ParDo</code> applies the passed in <code>DoFn</code> argument to the input <code>PCollection</code>,
+as shown in the following example code:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// The input PCollection of Strings.
 </span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>words</span> <span class=o>=</span> <span class=o>...;</span>
 
 <span class=c1>// The DoFn to perform on each element in the input PCollection.
@@ -356,17 +404,29 @@ following example code:</p><div class="language-java snippet"><div class="notebo
 
 
 <span class=c1># Apply a ParDo to the PCollection &#34;words&#34; to compute lengths for each word.</span>
-<span class=n>word_lengths</span> <span class=o>=</span> <span class=n>words</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>ComputeWordLengthFn</span><span class=p>())</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// words is the input PCollection of strings
-</span><span class=c1></span><span class=kd>var</span> <span class=nx>words</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>=</span> <span class=o>...</span>
+<span class=n>word_lengths</span> <span class=o>=</span> <span class=n>words</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>ComputeWordLengthFn</span><span class=p>())</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// ComputeWordLengthFn is the DoFn to perform on each element in the input PCollection.
+</span><span class=c1></span><span class=kd>type</span> <span class=nx>ComputeWordLengthFn</span> <span class=kd>struct</span><span class=p>{}</span>
 
-<span class=kd>func</span> <span class=nf>computeWordLengthFn</span><span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
-      <span class=k>return</span> <span class=nb>len</span><span class=p>(</span><span class=nx>word</span><span class=p>)</span>
+<span class=c1>// ProcessElement is the method to execute for each element.
+</span><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)</span> <span class=nf>ProcessElement</span><span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>emit</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>))</span> <span class=p>{</span>
+	<span class=nf>emit</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>word</span><span class=p>))</span>
 <span class=p>}</span>
 
-<span class=nx>wordLengths</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>computeWordLengthFn</span><span class=p>,</span> <span class=nx>words</span><span class=p>)</span></code></pre></div></div></div><p>In the example, our input <code>PCollection</code> contains <code>String</code> values. We apply a
+<span class=c1>// DoFns must be registered with beam.
+</span><span class=c1></span><span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+<span class=p>}</span>
+
+
+<span class=c1>// words is an input PCollection of strings
+</span><span class=c1></span><span class=kd>var</span> <span class=nx>words</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>=</span> <span class=o>...</span>
+
+<span class=nx>wordLengths</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>ComputeWordLengthFn</span><span class=p>{},</span> <span class=nx>words</span><span class=p>)</span></code></pre></div></div></div><p>In the example, our input <code>PCollection</code> contains <span class="language-java language-py"><code>String</code></span>
+<span class=language-go><code>string</code></span> values. We apply a
 <code>ParDo</code> transform that specifies a function (<code>ComputeWordLengthFn</code>) to compute
 the length of each string, and outputs the result to a new <code>PCollection</code> of
-<code>Integer</code> values that stores the length of each word.</p><h5 id=4212-creating-a-dofn>4.2.1.2. Creating a DoFn</h5><p>The <code>DoFn</code> object that you pass to <code>ParDo</code> contains the processing logic that
+<span class="language-java language-py"><code>Integer</code></span>
+<span class=language-go><code>int</code></span> values that stores the length of each word.</p><h5 id=4212-creating-a-dofn>4.2.1.2. Creating a DoFn</h5><p>The <code>DoFn</code> object that you pass to <code>ParDo</code> contains the processing logic that
 gets applied to the elements in the input collection. When you use Beam, often
 the most important pieces of code you&rsquo;ll write are these <code>DoFn</code>s - they&rsquo;re what
 define your pipeline&rsquo;s exact data processing tasks.</p><blockquote><p><strong>Note:</strong> When you create your <code>DoFn</code>, be mindful of the <a href=#requirements-for-writing-user-code-for-beam-transforms>Requirements
@@ -376,7 +436,24 @@ create a subclass of <code>DoFn</code>, you&rsquo;ll need to provide type parame
 the types of the input and output elements. If your <code>DoFn</code> processes incoming
 <code>String</code> elements and produces <code>Integer</code> elements for the output collection
 (like our previous example, <code>ComputeWordLengthFn</code>), your class declaration would
-look like this:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>static</span> <span class=kd>class</span> <span class=nc>ComputeWordLengthFn</span> <span class=kd>extends</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Integer</span><span class=o>&gt;</span> <span class=o>{</span> <span class=o>...</span> <span class=o>}</span></code></pre></div></div></div><p class=language-java>Inside your <code>DoFn</code> subclass, you&rsquo;ll write a method annotated with
+look like this:</p><p class=language-go>A <code>DoFn</code> processes one element at a time from the input <code>PCollection</code>. When you
+create a <code>DoFn</code> struct, you&rsquo;ll need to provide type parameters that match
+the types of the input and output elements in a ProcessElement method.
+If your <code>DoFn</code> processes incoming <code>string</code> elements and produces <code>int</code> elements
+for the output collection (like our previous example, <code>ComputeWordLengthFn</code>), your dofn could
+look like this:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>static</span> <span class=kd>class</span> <span class=nc>ComputeWordLengthFn</span> <span class=kd>extends</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Integer</span><span class=o>&gt;</span> <span class=o>{</span> <span class=o>...</span> <span class=o>}</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// ComputeWordLengthFn is a DoFn that computes the word length of string elements.
+</span><span class=c1></span><span class=kd>type</span> <span class=nx>ComputeWordLengthFn</span> <span class=kd>struct</span><span class=p>{}</span>
+
+<span class=c1>// ProcessElement computes the length of word and emits the result.
+</span><span class=c1>// When creating structs as a DoFn, the ProcessElement method performs the
+</span><span class=c1>// work of this step in the pipeline.
+</span><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)</span> <span class=nf>ProcessElement</span><span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>emit</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>))</span> <span class=p>{</span>
+   <span class=o>...</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+<span class=p>}</span></code></pre></div></div></div><p class=language-java>Inside your <code>DoFn</code> subclass, you&rsquo;ll write a method annotated with
 <code>@ProcessElement</code> where you provide the actual processing logic. You don&rsquo;t need
 to manually extract the elements from the input collection; the Beam SDKs handle
 that for you. Your <code>@ProcessElement</code> method should accept a parameter tagged with
@@ -391,7 +468,13 @@ from the input collection; the Beam SDKs handle that for you. Your <code>process
 should accept an argument <code>element</code>, which is the input element, and return an
 iterable with its output values. You can accomplish this by emitting individual
 elements with <code>yield</code> statements. You can also use a <code>return</code> statement
-with an iterable, like a list or a generator.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>static</span> <span class=kd>class</span> <span class=nc>ComputeWordLengthFn</span> <span class=kd>extends</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Integer</span><span class=o>&gt;</span> <span class=o>{</span>
+with an iterable, like a list or a generator.</p><p class=language-go>For your <code>DoFn</code> type, you&rsquo;ll write a method <code>ProcessElement</code> where you provide
+the actual processing logic. You don&rsquo;t need to manually extract the elements
+from the input collection; the Beam SDKs handle that for you. Your <code>ProcessElement</code> method
+should accept a parameter <code>element</code>, which is the input element. In order to output elements,
+the method can also take a function parameter, which can be called to emit elements.
+The parameter types must match the input and output types of your <code>DoFn</code>
+or the framework will raise an error.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>static</span> <span class=kd>class</span> <span class=nc>ComputeWordLengthFn</span> <span class=kd>extends</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Integer</span><span class=o>&gt;</span> <span class=o>{</span>
   <span class=nd>@ProcessElement</span>
   <span class=kd>public</span> <span class=kt>void</span> <span class=nf>processElement</span><span class=o>(</span><span class=nd>@Element</span> <span class=n>String</span> <span class=n>word</span><span class=o>,</span> <span class=n>OutputReceiver</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>out</span><span class=o>)</span> <span class=o>{</span>
     <span class=c1>// Use OutputReceiver.output to emit the output element.
@@ -399,9 +482,28 @@ with an iterable, like a list or a generator.</p><div class="language-java snipp
   <span class=o>}</span>
 <span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>class</span> <span class=nc>ComputeWordLengthFn</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
   <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>element</span><span class=p>):</span>
-    <span class=k>return</span> <span class=p>[</span><span class=nb>len</span><span class=p>(</span><span class=n>element</span><span class=p>)]</span></code></pre></div></div></div><p class=language-java><blockquote><p><strong>Note:</strong> If the elements in your input <code>PCollection</code> are key/value pairs, you
+    <span class=k>return</span> <span class=p>[</span><span class=nb>len</span><span class=p>(</span><span class=n>element</span><span class=p>)]</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// ComputeWordLengthFn is the DoFn to perform on each element in the input PCollection.
+</span><span class=c1></span><span class=kd>type</span> <span class=nx>ComputeWordLengthFn</span> <span class=kd>struct</span><span class=p>{}</span>
+
+<span class=c1>// ProcessElement is the method to execute for each element.
+</span><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)</span> <span class=nf>ProcessElement</span><span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>emit</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>))</span> <span class=p>{</span>
+	<span class=nf>emit</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>word</span><span class=p>))</span>
+<span class=p>}</span>
+
+<span class=c1>// DoFns must be registered with beam.
+</span><span class=c1></span><span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>ComputeWordLengthFn</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+<span class=p>}</span></code></pre></div></div></div><p class=language-go>Simple DoFns can also be written as functions.</p><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>func</span> <span class=nf>ComputeWordLengthFn</span><span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>emit</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>))</span> <span class=p>{</span> <span class=o>...</span> <span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>ComputeWordLengthFn</span><span class=p>)</span>
+<span class=p>}</span></code></pre></div></div></div><p><span class=language-go></p><blockquote><p><strong>Note:</strong> Whether using a structural <code>DoFn</code> type or a functional <code>DoFn</code>, they should be registered with
+beam in an <code>init</code> block. Otherwise they may not execute on distributed runners.</p></blockquote></span><span class=language-java><blockquote><p><strong>Note:</strong> If the elements in your input <code>PCollection</code> are key/value pairs, you
 can access the key or value by using <code>element.getKey()</code> or
-<code>element.getValue()</code>, respectively.</p></blockquote></p><p>A given <code>DoFn</code> instance generally gets invoked one or more times to process some
+<code>element.getValue()</code>, respectively.</p></blockquote></span><span class=language-go><blockquote><p><strong>Note:</strong> If the elements in your input <code>PCollection</code> are key/value pairs, your
+process element method must have two parameters, for each of the key and value,
+respectively. Similarly, key/value pairs are also output as separate
+parameters to a single <code>emitter function</code>.</p></blockquote></span><p>A given <code>DoFn</code> instance generally gets invoked one or more times to process some
 arbitrary bundle of elements. However, Beam doesn&rsquo;t guarantee an exact number of
 invocations; it may be invoked multiple times on a given worker node to account
 for failures and retries. As such, you can cache information across multiple
@@ -409,18 +511,22 @@ calls to your processing method, but if you do so, make sure the implementation
 <strong>does not depend on the number of invocations</strong>.</p><p>In your processing method, you&rsquo;ll also need to meet some immutability
 requirements to ensure that Beam and the processing back-end can safely
 serialize and cache the values in your pipeline. Your method should meet the
-following requirements:</p><p class=language-java><ul><li>You should not in any way modify an element returned by
+following requirements:</p><span class=language-java><ul><li>You should not in any way modify an element returned by
 the <code>@Element</code> annotation or <code>ProcessContext.sideInput()</code> (the incoming
 elements from the input collection).</li><li>Once you output a value using <code>OutputReceiver.output()</code> you should not modify
-that value in any way.</li></ul></p><p class=language-py><ul><li>You should not in any way modify the <code>element</code> argument provided to the
+that value in any way.</li></ul></span><span class=language-py><ul><li>You should not in any way modify the <code>element</code> argument provided to the
 <code>process</code> method, or any side inputs.</li><li>Once you output a value using <code>yield</code> or <code>return</code>, you should not modify
-that value in any way.</li></ul></p><h5 id=lightweight-dofns>4.2.1.3. Lightweight DoFns and other abstractions</h5><p>If your function is relatively straightforward, you can simplify your use of
+that value in any way.</li></ul></span><span class=language-go><ul><li>You should not in any way modify the parameters provided to the
+<code>ProcessElement</code> method, or any side inputs.</li><li>Once you output a value using an <code>emitter function</code>, you should not modify
+that value in any way.</li></ul></span><h5 id=lightweight-dofns>4.2.1.3. Lightweight DoFns and other abstractions</h5><p>If your function is relatively straightforward, you can simplify your use of
 <code>ParDo</code> by providing a lightweight <code>DoFn</code> in-line, as
 <span class=language-java>an anonymous inner class instance</span>
-<span class=language-py>a lambda function</span>.</p><p>Here&rsquo;s the previous example, <code>ParDo</code> with <code>ComputeLengthWordsFn</code>, with the
+<span class=language-py>a lambda function</span>
+<span class=language-go>an anonymous function</span>.</p><p>Here&rsquo;s the previous example, <code>ParDo</code> with <code>ComputeLengthWordsFn</code>, with the
 <code>DoFn</code> specified as
 <span class=language-java>an anonymous inner class instance</span>
-<span class=language-py>a lambda function</span>:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// The input PCollection.
+<span class=language-py>a lambda function</span>
+<span class=language-go>an anonymous function</span>:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// The input PCollection.
 </span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>words</span> <span class=o>=</span> <span class=o>...;</span>
 
 <span class=c1>// Apply a ParDo with an anonymous DoFn to the PCollection words.
@@ -441,15 +547,16 @@ that value in any way.</li></ul></p><h5 id=lightweight-dofns>4.2.1.3. Lightweigh
 <span class=n>word_lengths</span> <span class=o>=</span> <span class=n>words</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>FlatMap</span><span class=p>(</span><span class=k>lambda</span> <span class=n>word</span><span class=p>:</span> <span class=p>[</span><span class=nb>len</span><span class=p>(</span><span class=n>word</span><span class=p>)])</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// words is the input PCollection of strings
 </span><span class=c1></span><span class=kd>var</span> <span class=nx>words</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>=</span> <span class=o>...</span>
 
-<span class=nx>lengths</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=kd>func</span> <span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
-      <span class=k>return</span> <span class=nb>len</span><span class=p>(</span><span class=nx>word</span><span class=p>)</span>
+<span class=nx>lengths</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=kd>func</span> <span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>emit</span> <span class=kd>func</span><span class=p>(</span><span class=kt>int</span><span class=p>))</span> <span class=p>{</span>
+      <span class=nf>emit</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>word</span><span class=p>))</span>
 <span class=p>},</span> <span class=nx>words</span><span class=p>)</span></code></pre></div></div></div><p>If your <code>ParDo</code> performs a one-to-one mapping of input elements to output
 elements&ndash;that is, for each input element, it applies a function that produces
-<em>exactly one</em> output element, you can use the higher-level
+<em>exactly one</em> output element, <span class=language-go>you can return that
+element directly.</span><span class="language-java language-py">you can use the higher-level
 <span class=language-java><code>MapElements</code></span><span class=language-py><code>Map</code></span>
-transform. <span class=language-java><code>MapElements</code> can accept an anonymous
+transform.</span><span class=language-java><code>MapElements</code> can accept an anonymous
 Java 8 lambda function for additional brevity.</span></p><p>Here&rsquo;s the previous example using <span class=language-java><code>MapElements</code></span>
-<span class=language-py><code>Map</code></span>:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// The input PCollection.
+<span class=language-py><code>Map</code></span><span class=language-go>a direct return</span>:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// The input PCollection.
 </span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>words</span> <span class=o>=</span> <span class=o>...;</span>
 
 <span class=c1>// Apply a MapElements with an anonymous lambda function to the PCollection words.
@@ -462,8 +569,18 @@ Java 8 lambda function for additional brevity.</span></p><p>Here&rsquo;s the pre
 <span class=c1># Apply a Map with a lambda function to the PCollection words.</span>
 <span class=c1># Save the result as the PCollection word_lengths.</span>
 
-<span class=n>word_lengths</span> <span class=o>=</span> <span class=n>words</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=nb>len</span><span class=p>)</span></code></pre></div></div></div><p class=language-java><blockquote><p><strong>Note:</strong> You can use Java 8 lambda functions with several other Beam
-transforms, including <code>Filter</code>, <code>FlatMapElements</code>, and <code>Partition</code>.</p></blockquote></p><h5 id=dofn>4.2.1.4. DoFn lifecycle</h5><p>Here is a sequence diagram that shows the lifecycle of the DoFn during
+<span class=n>word_lengths</span> <span class=o>=</span> <span class=n>words</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=nb>len</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// words is the input PCollection of strings
+</span><span class=c1></span><span class=kd>var</span> <span class=nx>words</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>=</span> <span class=o>...</span>
+
+
+<span class=c1>// Apply an anonymous function as a DoFn PCollection words.
+</span><span class=c1>// Save the result as the PCollection wordLengths.
+</span><span class=c1></span><span class=nx>wordLengths</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=kd>func</span><span class=p>(</span><span class=nx>word</span> <span class=kt>string</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nb>len</span><span class=p>(</span><span class=nx>word</span><span class=p>)</span>
+<span class=p>},</span> <span class=nx>words</span><span class=p>)</span></code></pre></div></div></div><p><span class=language-java></p><blockquote><p><strong>Note:</strong> You can use Java 8 lambda functions with several other Beam
+transforms, including <code>Filter</code>, <code>FlatMapElements</code>, and <code>Partition</code>.</p></blockquote></span><p><span class=language-go></p><blockquote><p><strong>Note:</strong> Anonymous function DoFns may not work on distributed runners.
+It&rsquo;s recommended to use named functions and register them with <code>beam.RegisterFunction</code> in
+an <code>init()</code> block.</p></blockquote></span><h5 id=dofn>4.2.1.4. DoFn lifecycle</h5><p>Here is a sequence diagram that shows the lifecycle of the DoFn during
 the execution of the ParDo transform. The comments give useful
 information to pipeline developers such as the constraints that
 apply to the objects or particular cases such as failover or
@@ -533,26 +650,28 @@ addresses and phone numbers) associated with each name.</p><p>If you are using u
 windowing</a> or an
 <a href=#triggers>aggregation trigger</a> in order to perform a <code>CoGroupByKey</code>. See
 <a href=#groupbykey-and-unbounded-pcollections>GroupByKey and unbounded PCollections</a>
-for more details.</p><span class=language-java>In the Beam SDK for Java, `CoGroupByKey` accepts a tuple of keyed
-`PCollection`s (`PCollection<kv<k, v>>`) as input. For type safety, the SDK
-requires you to pass each `PCollection` as part of a `KeyedPCollectionTuple`.
-You must declare a `TupleTag` for each input `PCollection` in the
-`KeyedPCollectionTuple` that you want to pass to `CoGroupByKey`. As output,
-`CoGroupByKey` returns a `PCollection<kv<k, cogbkresult>>`, which groups values
-from all the input `PCollection`s by their common keys. Each key (all of type
-`K`) will have a different `CoGbkResult`, which is a map from `TupleTag<t>` to
-`Iterable<t>`. You can access a specific collection in an `CoGbkResult` object
-by using the `TupleTag` that you supplied with the initial collection.</span>
-<span class=language-py>In the Beam SDK for Python, `CoGroupByKey` accepts a dictionary of keyed
-`PCollection`s as input. As output, `CoGroupByKey` creates a single output
-`PCollection` that contains one key/value tuple for each key in the input
-`PCollection`s. Each key's value is a dictionary that maps each tag to an
-iterable of the values under they key in the corresponding `PCollection`.</span><p>The following conceptual examples use two input collections to show the mechanics of
-<code>CoGroupByKey</code>.</p><span class=language-java>The first set of data has a `TupleTag<string>` called `emailsTag` and contains names
-and email addresses. The second set of data has a `TupleTag<string>` called
-`phonesTag` and contains names and phone numbers.</span>
-<span class=language-py>The first set of data contains names and email addresses. The second set of
-data contains names and phone numbers.</span><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>final</span> <span class=n>List</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>String</span><span class=o>&gt;&gt;</span> <span class=n>emailsList</span> <span class=o>=</span>
+for more details.</p><p class=language-java>In the Beam SDK for Java, <code>CoGroupByKey</code> accepts a tuple of keyed
+<code>PCollection</code>s (<code>PCollection&lt;KV&lt;K, V>></code>) as input. For type safety, the SDK
+requires you to pass each <code>PCollection</code> as part of a <code>KeyedPCollectionTuple</code>.
+You must declare a <code>TupleTag</code> for each input <code>PCollection</code> in the
+<code>KeyedPCollectionTuple</code> that you want to pass to <code>CoGroupByKey</code>. As output,
+<code>CoGroupByKey</code> returns a <code>PCollection&lt;KV&lt;K, CoGbkResult>></code>, which groups values
+from all the input <code>PCollection</code>s by their common keys. Each key (all of type
+<code>K</code>) will have a different <code>CoGbkResult</code>, which is a map from <code>TupleTag&lt;T></code> to
+<code>Iterable&lt;T></code>. You can access a specific collection in an <code>CoGbkResult</code> object
+by using the <code>TupleTag</code> that you supplied with the initial collection.</p><p class=language-py>In the Beam SDK for Python, <code>CoGroupByKey</code> accepts a dictionary of keyed
+<code>PCollection</code>s as input. As output, <code>CoGroupByKey</code> creates a single output
+<code>PCollection</code> that contains one key/value tuple for each key in the input
+<code>PCollection</code>s. Each key&rsquo;s value is a dictionary that maps each tag to an
+iterable of the values under they key in the corresponding <code>PCollection</code>.</p><p class=language-go>In the Beam Go SDK, <code>CoGroupByKey</code> accepts an arbitrary number of
+<code>PCollection</code>s as input. As output, <code>CoGroupByKey</code> creates a single output
+<code>PCollection</code> that groups each key with value iterator functions for each
+input <code>PCollection</code>. The iterator functions map to input <code>PCollections</code> in
+the same order they were provided to the <code>CoGroupByKey</code>.</p><p>The following conceptual examples use two input collections to show the mechanics of
+<code>CoGroupByKey</code>.</p><p class=language-java>The first set of data has a <code>TupleTag&lt;String></code> called <code>emailsTag</code> and contains names
+and email addresses. The second set of data has a <code>TupleTag&lt;String></code> called
+<code>phonesTag</code> and contains names and phone numbers.</p><p class="language-py language-go">The first set of data contains names and email addresses. The second set of
+data contains names and phone numbers.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>final</span> <span class=n>List</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>String</span><span class=o>&gt;&gt;</span> <span class=n>emailsList</span> <span class=o>=</span>
     <span class=n>Arrays</span><span class=o>.</span><span class=na>asList</span><span class=o>(</span>
         <span class=n>KV</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=s>&#34;amy&#34;</span><span class=o>,</span> <span class=s>&#34;amy@example.com&#34;</span><span class=o>),</span>
         <span class=n>KV</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=s>&#34;carl&#34;</span><span class=o>,</span> <span class=s>&#34;carl@example.com&#34;</span><span class=o>),</span>
@@ -581,7 +700,43 @@ data contains names and phone numbers.</span><div class="language-java snippet">
 <span class=p>]</span>
 
 <span class=n>emails</span> <span class=o>=</span> <span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;CreateEmails&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>emails_list</span><span class=p>)</span>
-<span class=n>phones</span> <span class=o>=</span> <span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;CreatePhones&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>phones_list</span><span class=p>)</span></code></pre></div></div></div><p>After <code>CoGroupByKey</code>, the resulting data contains all data associated with each
+<span class=n>phones</span> <span class=o>=</span> <span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;CreatePhones&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>(</span><span class=n>phones_list</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>type</span> <span class=nx>stringPair</span> <span class=kd>struct</span> <span class=p>{</span>
+	<span class=nx>K</span><span class=p>,</span> <span class=nx>V</span> <span class=kt>string</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>splitStringPair</span><span class=p>(</span><span class=nx>e</span> <span class=nx>stringPair</span><span class=p>)</span> <span class=p>(</span><span class=kt>string</span><span class=p>,</span> <span class=kt>string</span><span class=p>)</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nx>e</span><span class=p>.</span><span class=nx>K</span><span class=p>,</span> <span class=nx>e</span><span class=p>.</span><span class=nx>V</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=c1>// Register element types and DoFns.
+</span><span class=c1></span>	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>stringPair</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)).</span><span class=nf>Elem</span><span class=p>())</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>splitStringPair</span><span class=p>)</span>
+<span class=p>}</span>
+
+<span class=c1>// CreateAndSplit is a helper function that creates
+</span><span class=c1></span><span class=kd>func</span> <span class=nf>CreateAndSplit</span><span class=p>(</span><span class=nx>s</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>Scope</span><span class=p>,</span> <span class=nx>input</span> <span class=p>[]</span><span class=nx>stringPair</span><span class=p>)</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>{</span>
+	<span class=nx>initial</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>CreateList</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>input</span><span class=p>)</span>
+	<span class=k>return</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>splitStringPair</span><span class=p>,</span> <span class=nx>initial</span><span class=p>)</span>
+<span class=p>}</span>
+
+
+
+<span class=kd>var</span> <span class=nx>emailSlice</span> <span class=p>=</span> <span class=p>[]</span><span class=nx>stringPair</span><span class=p>{</span>
+	<span class=p>{</span><span class=s>&#34;amy&#34;</span><span class=p>,</span> <span class=s>&#34;amy@example.com&#34;</span><span class=p>},</span>
+	<span class=p>{</span><span class=s>&#34;carl&#34;</span><span class=p>,</span> <span class=s>&#34;carl@example.com&#34;</span><span class=p>},</span>
+	<span class=p>{</span><span class=s>&#34;julia&#34;</span><span class=p>,</span> <span class=s>&#34;julia@example.com&#34;</span><span class=p>},</span>
+	<span class=p>{</span><span class=s>&#34;carl&#34;</span><span class=p>,</span> <span class=s>&#34;carl@email.com&#34;</span><span class=p>},</span>
+<span class=p>}</span>
+
+<span class=kd>var</span> <span class=nx>phoneSlice</span> <span class=p>=</span> <span class=p>[]</span><span class=nx>stringPair</span><span class=p>{</span>
+	<span class=p>{</span><span class=s>&#34;amy&#34;</span><span class=p>,</span> <span class=s>&#34;111-222-3333&#34;</span><span class=p>},</span>
+	<span class=p>{</span><span class=s>&#34;james&#34;</span><span class=p>,</span> <span class=s>&#34;222-333-4444&#34;</span><span class=p>},</span>
+	<span class=p>{</span><span class=s>&#34;amy&#34;</span><span class=p>,</span> <span class=s>&#34;333-444-5555&#34;</span><span class=p>},</span>
+	<span class=p>{</span><span class=s>&#34;carl&#34;</span><span class=p>,</span> <span class=s>&#34;444-555-6666&#34;</span><span class=p>},</span>
+<span class=p>}</span>
+<span class=nx>emails</span> <span class=o>:=</span> <span class=nf>CreateAndSplit</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nf>Scope</span><span class=p>(</span><span class=s>&#34;CreateEmails&#34;</span><span class=p>),</span> <span class=nx>emailSlice</span><span class=p>)</span>
+<span class=nx>phones</span> <span class=o>:=</span> <span class=nf>CreateAndSplit</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nf>Scope</span><span class=p>(</span><span class=s>&#34;CreatePhones&#34;</span><span class=p>),</span> <span class=nx>phoneSlice</span><span class=p>)</span></code></pre></div></div></div><p>After <code>CoGroupByKey</code>, the resulting data contains all data associated with each
 unique key from any of the input collections.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>final</span> <span class=n>TupleTag</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>emailsTag</span> <span class=o>=</span> <span class=k>new</span> <span class=n>TupleTag</span><span class=o>&lt;&gt;();</span>
 <span class=kd>final</span> <span class=n>TupleTag</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>phonesTag</span> <span class=o>=</span> <span class=k>new</span> <span class=n>TupleTag</span><span class=o>&lt;&gt;();</span>
 
@@ -621,9 +776,38 @@ unique key from any of the input collections.</p><div class="language-java snipp
     <span class=p>(</span><span class=s1>&#39;julia&#39;</span><span class=p>,</span> <span class=p>{</span>
         <span class=s1>&#39;emails&#39;</span><span class=p>:</span> <span class=p>[</span><span class=s1>&#39;julia@example.com&#39;</span><span class=p>],</span> <span class=s1>&#39;phones&#39;</span><span class=p>:</span> <span class=p>[]</span>
     <span class=p>}),</span>
-<span class=p>]</span></code></pre></div></div></div><p>The following code example joins the two <code>PCollection</code>s with <code>CoGroupByKey</code>,
+<span class=p>]</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=nx>results</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>CoGroupByKey</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>emails</span><span class=p>,</span> <span class=nx>phones</span><span class=p>)</span>
+
+<span class=nx>contactLines</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>formatCoGBKResults</span><span class=p>,</span> <span class=nx>results</span><span class=p>)</span>
+
+
+<span class=c1>// Synthetic example results of a cogbk.
+</span><span class=c1></span><span class=nx>results</span> <span class=o>:=</span> <span class=p>[]</span><span class=kd>struct</span> <span class=p>{</span>
+	<span class=nx>Key</span>            <span class=kt>string</span>
+	<span class=nx>Emails</span><span class=p>,</span> <span class=nx>Phones</span> <span class=p>[]</span><span class=kt>string</span>
+<span class=p>}{</span>
+	<span class=p>{</span>
+		<span class=nx>Key</span><span class=p>:</span>    <span class=s>&#34;amy&#34;</span><span class=p>,</span>
+		<span class=nx>Emails</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;amy@example.com&#34;</span><span class=p>},</span>
+		<span class=nx>Phones</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;111-222-3333&#34;</span><span class=p>,</span> <span class=s>&#34;333-444-5555&#34;</span><span class=p>},</span>
+	<span class=p>},</span> <span class=p>{</span>
+		<span class=nx>Key</span><span class=p>:</span>    <span class=s>&#34;carl&#34;</span><span class=p>,</span>
+		<span class=nx>Emails</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;carl@email.com&#34;</span><span class=p>,</span> <span class=s>&#34;carl@example.com&#34;</span><span class=p>},</span>
+		<span class=nx>Phones</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;444-555-6666&#34;</span><span class=p>},</span>
+	<span class=p>},</span> <span class=p>{</span>
+		<span class=nx>Key</span><span class=p>:</span>    <span class=s>&#34;james&#34;</span><span class=p>,</span>
+		<span class=nx>Emails</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{},</span>
+		<span class=nx>Phones</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;222-333-4444&#34;</span><span class=p>},</span>
+	<span class=p>},</span> <span class=p>{</span>
+		<span class=nx>Key</span><span class=p>:</span>    <span class=s>&#34;julia&#34;</span><span class=p>,</span>
+		<span class=nx>Emails</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;julia@example.com&#34;</span><span class=p>},</span>
+		<span class=nx>Phones</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{},</span>
+	<span class=p>},</span>
+<span class=p>}</span></code></pre></div></div></div><p class="language-java language-py">The following code example joins the two <code>PCollection</code>s with <code>CoGroupByKey</code>,
 followed by a <code>ParDo</code> to consume the result. Then, the code uses tags to look up
-and format data from each collection.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>CoGbkResult</span><span class=o>&gt;&gt;</span> <span class=n>results</span> <span class=o>=</span>
+and format data from each collection.</p><p class=language-go>The following code example joins the two <code>PCollection</code>s with <code>CoGroupByKey</code>,
+followed by a <code>ParDo</code> to consume the result. The ordering of the <code>DoFn</code> iterator
+parameters maps to the ordering of the <code>CoGroupByKey</code> inputs.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>CoGbkResult</span><span class=o>&gt;&gt;</span> <span class=n>results</span> <span class=o>=</span>
     <span class=n>KeyedPCollectionTuple</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>emailsTag</span><span class=o>,</span> <span class=n>emails</span><span class=o>)</span>
         <span class=o>.</span><span class=na>and</span><span class=o>(</span><span class=n>phonesTag</span><span class=o>,</span> <span class=n>phones</span><span class=o>)</span>
         <span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>CoGroupByKey</span><span class=o>.</span><span class=na>create</span><span class=o>());</span>
@@ -654,7 +838,50 @@ and format data from each collection.</p><div class="language-java snippet"><div
   <span class=k>return</span> <span class=s1>&#39;</span><span class=si>%s</span><span class=s1>; </span><span class=si>%s</span><span class=s1>; </span><span class=si>%s</span><span class=s1>&#39;</span> <span class=o>%</span>\
       <span class=p>(</span><span class=n>name</span><span class=p>,</span> <span class=nb>sorted</span><span class=p>(</span><span class=n>info</span><span class=p>[</span><span class=s1>&#39;emails&#39;</span><span class=p>]),</span> <span class=nb>sorted</span><span class=p>(</span><span class=n>info</span><span class=p>[</span><span class=s1>&#39;phones&#39;</span><span class=p>]))</span>
 
-<span class=n>contact_lines</span> <span class=o>=</span> <span class=n>results</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=n>join_info</span><span class=p>)</span></code></pre></div></div></div><p>The formatted data looks like this:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>final</span> <span class=n>List</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>formattedResults</span> <span class=o>=</span>
+<span class=n>contact_lines</span> <span class=o>=</span> <span class=n>results</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=n>join_info</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>func</span> <span class=nf>formatCoGBKResults</span><span class=p>(</span><span class=nx>key</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>emailIter</span><span class=p>,</span> <span class=nx>phoneIter</span> <span class=kd>func</span><span class=p>(</span><span class=o>*</span><span class=kt>string</span><span class=p>)</span> <span class=kt>bool</span><span class=p>)</span> <span class=kt>string</span> <span class=p>{</span>
+	<span class=kd>var</span> <span class=nx>s</span> <span class=kt>string</span>
+	<span class=kd>var</span> <span class=nx>emails</span><span class=p>,</span> <span class=nx>phones</span> <span class=p>[]</span><span class=kt>string</span>
+	<span class=k>for</span> <span class=nf>emailIter</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>s</span><span class=p>)</span> <span class=p>{</span>
+		<span class=nx>emails</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>emails</span><span class=p>,</span> <span class=nx>s</span><span class=p>)</span>
+	<span class=p>}</span>
+	<span class=k>for</span> <span class=nf>phoneIter</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>s</span><span class=p>)</span> <span class=p>{</span>
+		<span class=nx>phones</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>phones</span><span class=p>,</span> <span class=nx>s</span><span class=p>)</span>
+	<span class=p>}</span>
+	<span class=c1>// Values have no guaranteed order, sort for deterministic output.
+</span><span class=c1></span>	<span class=nx>sort</span><span class=p>.</span><span class=nf>Strings</span><span class=p>(</span><span class=nx>emails</span><span class=p>)</span>
+	<span class=nx>sort</span><span class=p>.</span><span class=nf>Strings</span><span class=p>(</span><span class=nx>phones</span><span class=p>)</span>
+	<span class=k>return</span> <span class=nx>fmt</span><span class=p>.</span><span class=nf>Sprintf</span><span class=p>(</span><span class=s>&#34;%s; %s; %s&#34;</span><span class=p>,</span> <span class=nx>key</span><span class=p>,</span> <span class=nf>formatStringIter</span><span class=p>(</span><span class=nx>emails</span><span class=p>),</span> <span class=nf>formatStringIter</span><span class=p>(</span><span class=nx>phones</span><span class=p>))</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>formatCoGBKResults</span><span class=p>)</span>
+<span class=p>}</span>
+
+
+
+<span class=c1>// Synthetic example results of a cogbk.
+</span><span class=c1></span><span class=nx>results</span> <span class=o>:=</span> <span class=p>[]</span><span class=kd>struct</span> <span class=p>{</span>
+	<span class=nx>Key</span>            <span class=kt>string</span>
+	<span class=nx>Emails</span><span class=p>,</span> <span class=nx>Phones</span> <span class=p>[]</span><span class=kt>string</span>
+<span class=p>}{</span>
+	<span class=p>{</span>
+		<span class=nx>Key</span><span class=p>:</span>    <span class=s>&#34;amy&#34;</span><span class=p>,</span>
+		<span class=nx>Emails</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;amy@example.com&#34;</span><span class=p>},</span>
+		<span class=nx>Phones</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;111-222-3333&#34;</span><span class=p>,</span> <span class=s>&#34;333-444-5555&#34;</span><span class=p>},</span>
+	<span class=p>},</span> <span class=p>{</span>
+		<span class=nx>Key</span><span class=p>:</span>    <span class=s>&#34;carl&#34;</span><span class=p>,</span>
+		<span class=nx>Emails</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;carl@email.com&#34;</span><span class=p>,</span> <span class=s>&#34;carl@example.com&#34;</span><span class=p>},</span>
+		<span class=nx>Phones</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;444-555-6666&#34;</span><span class=p>},</span>
+	<span class=p>},</span> <span class=p>{</span>
+		<span class=nx>Key</span><span class=p>:</span>    <span class=s>&#34;james&#34;</span><span class=p>,</span>
+		<span class=nx>Emails</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{},</span>
+		<span class=nx>Phones</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;222-333-4444&#34;</span><span class=p>},</span>
+	<span class=p>},</span> <span class=p>{</span>
+		<span class=nx>Key</span><span class=p>:</span>    <span class=s>&#34;julia&#34;</span><span class=p>,</span>
+		<span class=nx>Emails</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span><span class=s>&#34;julia@example.com&#34;</span><span class=p>},</span>
+		<span class=nx>Phones</span><span class=p>:</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{},</span>
+	<span class=p>},</span>
+<span class=p>}</span></code></pre></div></div></div><p>The formatted data looks like this:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>final</span> <span class=n>List</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>formattedResults</span> <span class=o>=</span>
     <span class=n>Arrays</span><span class=o>.</span><span class=na>asList</span><span class=o>(</span>
         <span class=s>&#34;amy; [&#39;amy@example.com&#39;]; [&#39;111-222-3333&#39;, &#39;333-444-5555&#39;]&#34;</span><span class=o>,</span>
         <span class=s>&#34;carl; [&#39;carl@email.com&#39;, &#39;carl@example.com&#39;]; [&#39;444-555-6666&#39;]&#34;</span><span class=o>,</span>
@@ -664,8 +891,14 @@ and format data from each collection.</p><div class="language-java snippet"><div
     <span class=s2>&#34;carl; [&#39;carl@email.com&#39;, &#39;carl@example.com&#39;]; [&#39;444-555-6666&#39;]&#34;</span><span class=p>,</span>
     <span class=s2>&#34;james; []; [&#39;222-333-4444&#39;]&#34;</span><span class=p>,</span>
     <span class=s2>&#34;julia; [&#39;julia@example.com&#39;]; []&#34;</span><span class=p>,</span>
-<span class=p>]</span></code></pre></div></div></div><h4 id=combine>4.2.4. Combine</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/Combine.html><code>Combine</code></a></span>
+<span class=p>]</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=nx>formattedResults</span> <span class=o>:=</span> <span class=p>[]</span><span class=kt>string</span><span class=p>{</span>
+	<span class=s>&#34;amy; [&#39;amy@example.com&#39;]; [&#39;111-222-3333&#39;, &#39;333-444-5555&#39;]&#34;</span><span class=p>,</span>
+	<span class=s>&#34;carl; [&#39;carl@email.com&#39;, &#39;carl@example.com&#39;]; [&#39;444-555-6666&#39;]&#34;</span><span class=p>,</span>
+	<span class=s>&#34;james; []; [&#39;222-333-4444&#39;]&#34;</span><span class=p>,</span>
+	<span class=s>&#34;julia; [&#39;julia@example.com&#39;]; []&#34;</span><span class=p>,</span>
+<span class=p>}</span></code></pre></div></div></div><h4 id=combine>4.2.4. Combine</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/Combine.html><code>Combine</code></a></span>
 <span class=language-py><a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py><code>Combine</code></a></span>
+<span class=language-go><a href=https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/combine.go#L27><code>Combine</code></a></span>
 is a Beam transform for combining collections of elements or values in your
 data. <code>Combine</code> has variants that work on entire <code>PCollection</code>s, and some that
 combine the values for each key in <code>PCollection</code>s of key/value pairs.</p><p>When you apply a <code>Combine</code> transform, you must provide the function that
@@ -678,8 +911,8 @@ on subsets of the value collection. The Beam SDK also provides some pre-built
 combine functions for common numeric combination operations such as sum, min,
 and max.</p><p>Simple combine operations, such as sums, can usually be implemented as a simple
 function. More complex combination operations might require you to create a
-subclass of <code>CombineFn</code> that has an accumulation type distinct from the
-input/output type.</p><h5 id=simple-combines>4.2.4.1. Simple combinations using simple functions</h5><p>The following example code shows a simple combine function.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// Sum a collection of Integer values. The function SumInts implements the interface SerializableFunction.
+<span class="language-java language-py">subclass of</span> <code>CombineFn</code>
+that has an accumulation type distinct from the input/output type.</p><h5 id=simple-combines>4.2.4.1. Simple combinations using simple functions</h5><p>The following example code shows a simple combine function.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// Sum a collection of Integer values. The function SumInts implements the interface SerializableFunction.
 </span><span class=c1></span><span class=kd>public</span> <span class=kd>static</span> <span class=kd>class</span> <span class=nc>SumInts</span> <span class=kd>implements</span> <span class=n>SerializableFunction</span><span class=o>&lt;</span><span class=n>Iterable</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;,</span> <span class=n>Integer</span><span class=o>&gt;</span> <span class=o>{</span>
   <span class=nd>@Override</span>
   <span class=kd>public</span> <span class=n>Integer</span> <span class=nf>apply</span><span class=o>(</span><span class=n>Iterable</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>input</span><span class=o>)</span> <span class=o>{</span>
@@ -695,11 +928,43 @@ input/output type.</p><h5 id=simple-combines>4.2.4.1. Simple combinations using 
   <span class=k>return</span> <span class=nb>min</span><span class=p>(</span><span class=nb>sum</span><span class=p>(</span><span class=n>values</span><span class=p>),</span> <span class=n>bound</span><span class=p>)</span>
 
 <span class=n>small_sum</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=n>bounded_sum</span><span class=p>)</span>  <span class=c1># [500]</span>
-<span class=n>large_sum</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=n>bounded_sum</span><span class=p>,</span> <span class=n>bound</span><span class=o>=</span><span class=mi>5000</span><span class=p>)</span>  <span class=c1># [1111]</span></code></pre></div></div></div><h5 id=advanced-combines>4.2.4.2. Advanced combinations using CombineFn</h5><p>For more complex combine functions, you can define a subclass of <code>CombineFn</code>.
-You should use <code>CombineFn</code> if the combine function requires a more sophisticated
+<span class=n>large_sum</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=n>bounded_sum</span><span class=p>,</span> <span class=n>bound</span><span class=o>=</span><span class=mi>5000</span><span class=p>)</span>  <span class=c1># [1111]</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>func</span> <span class=nf>sumInts</span><span class=p>(</span><span class=nx>a</span><span class=p>,</span> <span class=nx>v</span> <span class=kt>int</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nx>a</span> <span class=o>+</span> <span class=nx>v</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>sumInts</span><span class=p>)</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>globallySumInts</span><span class=p>(</span><span class=nx>s</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>Scope</span><span class=p>,</span> <span class=nx>ints</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span><span class=p>)</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Combine</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>sumInts</span><span class=p>,</span> <span class=nx>ints</span><span class=p>)</span>
+<span class=p>}</span>
+
+<span class=kd>type</span> <span class=nx>boundedSum</span> <span class=kd>struct</span> <span class=p>{</span>
+	<span class=nx>Bound</span> <span class=kt>int</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>boundedSum</span><span class=p>)</span> <span class=nf>MergeAccumulators</span><span class=p>(</span><span class=nx>a</span><span class=p>,</span> <span class=nx>v</span> <span class=kt>int</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
+	<span class=nx>sum</span> <span class=o>:=</span> <span class=nx>a</span> <span class=o>+</span> <span class=nx>v</span>
+	<span class=k>if</span> <span class=nx>fn</span><span class=p>.</span><span class=nx>Bound</span> <span class=p>&gt;</span> <span class=mi>0</span> <span class=o>&amp;&amp;</span> <span class=nx>sum</span> <span class=p>&gt;</span> <span class=nx>fn</span><span class=p>.</span><span class=nx>Bound</span> <span class=p>{</span>
+		<span class=k>return</span> <span class=nx>fn</span><span class=p>.</span><span class=nx>Bound</span>
+	<span class=p>}</span>
+	<span class=k>return</span> <span class=nx>sum</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>boundedSum</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>globallyBoundedSumInts</span><span class=p>(</span><span class=nx>s</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>Scope</span><span class=p>,</span> <span class=nx>bound</span> <span class=kt>int</span><span class=p>,</span> <span class=nx>ints</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span><span class=p>)</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>PCollection</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Combine</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>boundedSum</span><span class=p>{</span><span class=nx>Bound</span><span class=p>:</span> <span class=nx>bound</span><span class=p>},</span> <span class=nx>ints</span><span class=p>)</span>
+<span class=p>}</span></code></pre></div></div></div><h5 id=advanced-combines>4.2.4.2. Advanced combinations using CombineFn</h5><p>For more complex combine functions, you can define a
+<span class="language-java language-py">subclass of</span><code>CombineFn</code>.
+You should use a <code>CombineFn</code> if the combine function requires a more sophisticated
 accumulator, must perform additional pre- or post-processing, might change the
 output type, or takes the key into account.</p><p>A general combining operation consists of four operations. When you create a
-subclass of <code>CombineFn</code>, you must provide four operations by overriding the
+<span class="language-java language-py">subclass of</span>
+<code>CombineFn</code>, you must provide four operations by overriding the
 corresponding methods:</p><ol><li><p><strong>Create Accumulator</strong> creates a new &ldquo;local&rdquo; accumulator. In the example
 case, taking a mean average, a local accumulator tracks the running sum of
 values (the numerator value for our final average division) and the number of
@@ -759,7 +1024,35 @@ mean average:</p><div class="language-java snippet"><div class="notebook-skip co
 
   <span class=k>def</span> <span class=nf>extract_output</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>sum_count</span><span class=p>):</span>
     <span class=p>(</span><span class=nb>sum</span><span class=p>,</span> <span class=n>count</span><span class=p>)</span> <span class=o>=</span> <span class=n>sum_count</span>
-    <span class=k>return</span> <span class=nb>sum</span> <span class=o>/</span> <span class=n>count</span> <span class=k>if</span> <span class=n>count</span> <span class=k>else</span> <span class=nb>float</span><span class=p>(</span><span class=s1>&#39;NaN&#39;</span><span class=p>)</span></code></pre></div></div></div><h5 id=combining-pcollection>4.2.4.3. Combining a PCollection into a single value</h5><p>Use the global combine to transform all of the elements in a given <code>PCollection</code>
+    <span class=k>return</span> <span class=nb>sum</span> <span class=o>/</span> <span class=n>count</span> <span class=k>if</span> <span class=n>count</span> <span class=k>else</span> <span class=nb>float</span><span class=p>(</span><span class=s1>&#39;NaN&#39;</span><span class=p>)</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>type</span> <span class=nx>averageFn</span> <span class=kd>struct</span><span class=p>{}</span>
+
+<span class=kd>type</span> <span class=nx>averageAccum</span> <span class=kd>struct</span> <span class=p>{</span>
+	<span class=nx>Count</span><span class=p>,</span> <span class=nx>Sum</span> <span class=kt>int</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>averageFn</span><span class=p>)</span> <span class=nf>CreateAccumulator</span><span class=p>()</span> <span class=nx>averageAccum</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nx>averageAccum</span><span class=p>{</span><span class=mi>0</span><span class=p>,</span> <span class=mi>0</span><span class=p>}</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>averageFn</span><span class=p>)</span> <span class=nf>AddInput</span><span class=p>(</span><span class=nx>a</span> <span class=nx>averageAccum</span><span class=p>,</span> <span class=nx>v</span> <span class=kt>int</span><span class=p>)</span> <span class=nx>averageAccum</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nx>averageAccum</span><span class=p>{</span><span class=nx>Count</span><span class=p>:</span> <span class=nx>a</span><span class=p>.</span><span class=nx>Count</span> <span class=o>+</span> <span class=mi>1</span><span class=p>,</span> <span class=nx>Sum</span><span class=p>:</span> <span class=nx>a</span><span class=p>.</span><span class=nx>Sum</span> <span class=o>+</span> <span class=nx>v</span><span class=p>}</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>averageFn</span><span class=p>)</span> <span class=nf>MergeAccumulators</span><span class=p>(</span><span class=nx>a</span><span class=p>,</span> <span class=nx>v</span> <span class=nx>averageAccum</span><span class=p>)</span> <span class=nx>averageAccum</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nx>averageAccum</span><span class=p>{</span><span class=nx>Count</span><span class=p>:</span> <span class=nx>a</span><span class=p>.</span><span class=nx>Count</span> <span class=o>+</span> <span class=nx>v</span><span class=p>.</span><span class=nx>Count</span><span class=p>,</span> <span class=nx>Sum</span><span class=p>:</span> <span class=nx>a</span><span class=p>.</span><span class=nx>Sum</span> <span class=o>+</span> <span class=nx>v</span><span class=p>.</span><span class=nx>Sum</span><span class=p>}</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=p>(</span><span class=nx>fn</span> <span class=o>*</span><span class=nx>averageFn</span><span class=p>)</span> <span class=nf>ExtractOutput</span><span class=p>(</span><span class=nx>a</span> <span class=nx>averageAccum</span><span class=p>)</span> <span class=kt>float64</span> <span class=p>{</span>
+	<span class=k>if</span> <span class=nx>a</span><span class=p>.</span><span class=nx>Count</span> <span class=o>==</span> <span class=mi>0</span> <span class=p>{</span>
+		<span class=k>return</span> <span class=nx>math</span><span class=p>.</span><span class=nf>NaN</span><span class=p>()</span>
+	<span class=p>}</span>
+	<span class=k>return</span> <span class=nb>float64</span><span class=p>(</span><span class=nx>a</span><span class=p>.</span><span class=nx>Sum</span><span class=p>)</span> <span class=o>/</span> <span class=nb>float64</span><span class=p>(</span><span class=nx>a</span><span class=p>.</span><span class=nx>Count</span><span class=p>)</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterType</span><span class=p>(</span><span class=nx>reflect</span><span class=p>.</span><span class=nf>TypeOf</span><span class=p>((</span><span class=o>*</span><span class=nx>averageFn</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)))</span>
+<span class=p>}</span></code></pre></div></div></div><span class=language-go><blockquote><p><strong>Note</strong>: Only <code>MergeAccumulators</code> is a required method. The others will have a default interpretation
+based on the accumulator type.</p></blockquote></span><h5 id=combining-pcollection>4.2.4.3. Combining a PCollection into a single value</h5><p>Use the global combine to transform all of the elements in a given <code>PCollection</code>
 into a single value, represented in your pipeline as a new <code>PCollection</code>
 containing one element. The following example code shows how to apply the Beam
 provided sum combine function to produce a single sum value for a <code>PCollection</code>
@@ -772,7 +1065,7 @@ of integers.</p><div class="language-java snippet"><div class="notebook-skip cod
 <span class=c1># the elements in the input PCollection.</span>
 <span class=n>pc</span> <span class=o>=</span> <span class=o>...</span>
 
-<span class=n>average</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=n>AverageFn</span><span class=p>())</span></code></pre></div></div></div><h5 id=combine-global-windowing>4.2.4.4. Combine and global windowing</h5><p>If your input <code>PCollection</code> uses the default global windowing, the default
+<span class=n>average</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=n>AverageFn</span><span class=p>())</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=nx>average</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Combine</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>averageFn</span><span class=p>{},</span> <span class=nx>ints</span><span class=p>)</span></code></pre></div></div></div><h5 id=combine-global-windowing>4.2.4.4. Combine and global windowing</h5><p>If your input <code>PCollection</code> uses the default global windowing, the default
 behavior is to return a <code>PCollection</code> containing one item. That item&rsquo;s value
 comes from the accumulator in the combine function that you specified when
 applying <code>Combine</code>. For example, the Beam provided sum combine function returns
@@ -782,14 +1075,28 @@ specify <code>.withoutDefaults</code> when you apply your <code>Combine</code> t
 following code example:</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>pc</span> <span class=o>=</span> <span class=o>...;</span>
 <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>sum</span> <span class=o>=</span> <span class=n>pc</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span>
   <span class=n>Combine</span><span class=o>.</span><span class=na>globally</span><span class=o>(</span><span class=k>new</span> <span class=n>Sum</span><span class=o>.</span><span class=na>SumIntegerFn</span><span class=o>()).</span><span class=na>withoutDefaults</span><span class=o>());</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>pc</span> <span class=o>=</span> <span class=o>...</span>
-<span class=nb>sum</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=nb>sum</span><span class=p>)</span><span class=o>.</span><span class=n>without_defaults</span><span class=p>()</span></code></pre></div></div></div><h5 id=combine-non-global-windowing>4.2.4.5. Combine and non-global windowing</h5><p>If your <code>PCollection</code> uses any non-global windowing function, Beam does not
+<span class=nb>sum</span> <span class=o>=</span> <span class=n>pc</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombineGlobally</span><span class=p>(</span><span class=nb>sum</span><span class=p>)</span><span class=o>.</span><span class=n>without_defaults</span><span class=p>()</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// Setting combine defaults has requires no helper function in the Go SDK.
+</span><span class=c1></span><span class=nx>average</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Combine</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>averageFn</span><span class=p>{},</span> <span class=nx>ints</span><span class=p>)</span>
+
+<span class=c1>// To add a default value:
+</span><span class=c1></span><span class=nx>defaultValue</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Create</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nb>float64</span><span class=p>(</span><span class=mi>0</span><span class=p>))</span>
+<span class=nx>avgWithDefault</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>ParDo</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=kd>func</span><span class=p>(</span><span class=nx>d</span> <span class=kt>float64</span><span class=p>,</span> <span class=nx>iter</span> <span class=kd>func</span><span class=p>(</span><span class=o>*</span><span class=kt>float64</span><span class=p>)</span> <span class=kt>bool</span><span class=p>)</span> <span class=kt>float64</span> <span class=p>{</span>
+	<span class=kd>var</span> <span class=nx>c</span> <span class=kt>float64</span>
+	<span class=k>if</span> <span class=nf>iter</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>c</span><span class=p>)</span> <span class=p>{</span>
+		<span class=c1>// Side input has a value, so return it.
+</span><span class=c1></span>		<span class=k>return</span> <span class=nx>c</span>
+	<span class=p>}</span>
+	<span class=c1>// Otherwise, return the default
+</span><span class=c1></span>	<span class=k>return</span> <span class=nx>d</span>
+<span class=p>},</span> <span class=nx>defaultValue</span><span class=p>,</span> <span class=nx>beam</span><span class=p>.</span><span class=nx>SideInput</span><span class=p>{</span><span class=nx>Input</span><span class=p>:</span> <span class=nx>average</span><span class=p>})</span></code></pre></div></div></div><h5 id=combine-non-global-windowing>4.2.4.5. Combine and non-global windowing</h5><span class="language-java language-py"><p>If your <code>PCollection</code> uses any non-global windowing function, Beam does not
 provide the default behavior. You must specify one of the following options when
 applying <code>Combine</code>:</p><ul><li>Specify <code>.withoutDefaults</code>, where windows that are empty in the input
 <code>PCollection</code> will likewise be empty in the output collection.</li><li>Specify <code>.asSingletonView</code>, in which the output is immediately converted to a
 <code>PCollectionView</code>, which will provide a default value for each empty window
 when used as a side input. You&rsquo;ll generally only need to use this option if
 the result of your pipeline&rsquo;s <code>Combine</code> is to be used as a side input later in
-the pipeline.</li></ul><h5 id=combining-values-in-a-keyed-pcollection>4.2.4.6. Combining values in a keyed PCollection</h5><p>After creating a keyed PCollection (for example, by using a <code>GroupByKey</code>
+the pipeline.</li></ul></span><p class=language-go>If your <code>PCollection</code> uses any non-global windowing function, the Beam Go SDK
+behaves the same way as with global windowing.</p><h5 id=combining-values-in-a-keyed-pcollection>4.2.4.6. Combining values in a keyed PCollection</h5><p>After creating a keyed PCollection (for example, by using a <code>GroupByKey</code>
 transform), a common pattern is to combine the collection of values associated
 with each key into a single, merged value. Drawing on the previous example from
 <code>GroupByKey</code>, a key-grouped <code>PCollection</code> called <code>groupedWords</code> looks like this:</p><pre><code>  cat, [1,5,9]
@@ -805,7 +1112,8 @@ considering them individually), you can combine the iterable of integers to
 create a single, merged value to be paired with each key. This pattern of a
 <code>GroupByKey</code> followed by merging the collection of values is equivalent to
 Beam&rsquo;s Combine PerKey transform. The combine function you supply to Combine
-PerKey must be an associative reduction function or a subclass of <code>CombineFn</code>.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// PCollection is grouped by key and the Double values associated with each key are combined into a Double.
+PerKey must be an associative reduction function or a
+<span class="language-java language-py">subclass of</span> <code>CombineFn</code>.</p><div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// PCollection is grouped by key and the Double values associated with each key are combined into a Double.
 </span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Double</span><span class=o>&gt;&gt;</span> <span class=n>salesRecords</span> <span class=o>=</span> <span class=o>...;</span>
 <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Double</span><span class=o>&gt;&gt;</span> <span class=n>totalSalesPerPerson</span> <span class=o>=</span>
   <span class=n>salesRecords</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>Combine</span><span class=o>.&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Double</span><span class=o>,</span> <span class=n>Double</span><span class=o>&gt;</span><span class=n>perKey</span><span class=o>(</span>
@@ -822,8 +1130,15 @@ PerKey must be an associative reduction function or a subclass of <code>CombineF
 
 <span class=n>avg_accuracy_per_player</span> <span class=o>=</span> <span class=p>(</span>
     <span class=n>player_accuracies</span>
-    <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombinePerKey</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>combiners</span><span class=o>.</span><span class=n>MeanCombineFn</span><span class=p>()))</span></code></pre></div></div></div><h4 id=flatten>4.2.5. Flatten</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/Flatten.html><code>Flatten</code></a></span>
+    <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombinePerKey</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>combiners</span><span class=o>.</span><span class=n>MeanCombineFn</span><span class=p>()))</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// PCollection is grouped by key and the numeric values associated with each key
+</span><span class=c1>// are averaged into a float64.
+</span><span class=c1></span><span class=nx>playerAccuracies</span> <span class=o>:=</span> <span class=o>...</span> <span class=c1>// PCollection&lt;string,int&gt;
+</span><span class=c1></span>
+<span class=nx>avgAccuracyPerPlayer</span> <span class=o>:=</span> <span class=nx>stats</span><span class=p>.</span><span class=nf>MeanPerKey</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>playerAccuracies</span><span class=p>)</span>
+
+<span class=o>//</span> <span class=nx>avgAccuracyPerPlayer</span> <span class=nx>is</span> <span class=nx>a</span> <span class=nx>PCollection</span><span class=p>&lt;</span><span class=kt>string</span><span class=p>,</span><span class=kt>float64</span><span class=p>&gt;</span></code></pre></div></div></div><h4 id=flatten>4.2.5. Flatten</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/Flatten.html><code>Flatten</code></a></span>
 <span class=language-py><a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py><code>Flatten</code></a></span>
+<span class=language-go><a href=https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go><code>Flatten</code></a></span>
 is a Beam transform for <code>PCollection</code> objects that store the same data type.
 <code>Flatten</code> merges multiple <code>PCollection</code> objects into a single logical
 <code>PCollection</code>.</p><p>The following example shows how to apply a <code>Flatten</code> transform to merge multiple
@@ -840,7 +1155,10 @@ is a Beam transform for <code>PCollection</code> objects that store the same dat
 <span class=n>merged</span> <span class=o>=</span> <span class=p>(</span>
     <span class=p>(</span><span class=n>pcoll1</span><span class=p>,</span> <span class=n>pcoll2</span><span class=p>,</span> <span class=n>pcoll3</span><span class=p>)</span>
     <span class=c1># A list of tuples can be &#34;piped&#34; directly into a Flatten transform.</span>
-    <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Flatten</span><span class=p>())</span></code></pre></div></div></div><h5 id=data-encoding-merged-collections>4.2.5.1. Data encoding in merged collections</h5><p>By default, the coder for the output <code>PCollection</code> is the same as the coder for
+    <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Flatten</span><span class=p>())</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=c1>// Flatten accepts any number of PCollections of the same element type.
+</span><span class=c1>// Returns a single PCollection that contains all of the elements in input PCollections.
+</span><span class=c1></span>
+<span class=nx>merged</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Flatten</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=nx>pcol1</span><span class=p>,</span> <span class=nx>pcol2</span><span class=p>,</span> <span class=nx>pcol3</span><span class=p>)</span></code></pre></div></div></div><h5 id=data-encoding-merged-collections>4.2.5.1. Data encoding in merged collections</h5><p>By default, the coder for the output <code>PCollection</code> is the same as the coder for
 the first <code>PCollection</code> in the input <code>PCollectionList</code>. However, the input
 <code>PCollection</code> objects can each use different coders, as long as they all contain
 the same data type in your chosen language.</p><h5 id=merging-windowed-collections>4.2.5.2. Merging windowed collections</h5><p>When using <code>Flatten</code> to merge <code>PCollection</code> objects that have a windowing
@@ -851,6 +1169,7 @@ fixed windows or 4-minute sliding windows starting every 30 seconds.</p><p>If yo
 incompatible windows, Beam generates an <code>IllegalStateException</code> error when your
 pipeline is constructed.</p><h4 id=partition>4.2.6. Partition</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/Partition.html><code>Partition</code></a></span>
 <span class=language-py><a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py><code>Partition</code></a></span>
+<span class=language-go><a href=https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/partition.go><code>Partition</code></a></span>
 is a Beam transform for <code>PCollection</code> objects that store the same data
 type. <code>Partition</code> splits a single <code>PCollection</code> into a fixed number of smaller
 collections.</p><p><code>Partition</code> divides the elements of a <code>PCollection</code> according to a partitioning
@@ -886,7 +1205,20 @@ for instance).</p><p>The following example divides a <code>PCollection</code> in
 
 <span class=c1># You can extract each partition from the tuple of PCollection objects as follows:</span>
 
-<span class=n>fortieth_percentile</span> <span class=o>=</span> <span class=n>by_decile</span><span class=p>[</span><span class=mi>4</span><span class=p>]</span></code></pre></div></div></div><h3 id=requirements-for-writing-user-code-for-beam-transforms>4.3. Requirements for writing user code for Beam transforms</h3><p>When you build user code for a Beam transform, you should keep in mind the
+<span class=n>fortieth_percentile</span> <span class=o>=</span> <span class=n>by_decile</span><span class=p>[</span><span class=mi>4</span><span class=p>]</span></code></pre></div></div></div><div class="language-go snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-go data-lang=go><span class=kd>func</span> <span class=nf>decileFn</span><span class=p>(</span><span class=nx>student</span> <span class=nx>Student</span><span class=p>)</span> <span class=kt>int</span> <span class=p>{</span>
+	<span class=k>return</span> <span class=nb>int</span><span class=p>(</span><span class=nb>float64</span><span class=p>(</span><span class=nx>student</span><span class=p>.</span><span class=nx>Percentile</span><span class=p>)</span> <span class=o>/</span> <span class=nb>float64</span><span class=p>(</span><span class=mi>10</span><span class=p>))</span>
+<span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>init</span><span class=p>()</span> <span class=p>{</span>
+	<span class=nx>beam</span><span class=p>.</span><span class=nf>RegisterFunction</span><span class=p>(</span><span class=nx>decileFn</span><span class=p>)</span>
+<span class=p>}</span>
+
+
+
+<span class=c1>// Partition returns a slice of PCollections
+</span><span class=c1></span><span class=nx>studentsByPercentile</span> <span class=o>:=</span> <span class=nx>beam</span><span class=p>.</span><span class=nf>Partition</span><span class=p>(</span><span class=nx>s</span><span class=p>,</span> <span class=mi>10</span><span class=p>,</span> <span class=nx>decileFn</span><span class=p>,</span> <span class=nx>students</span><span class=p>)</span>
+<span class=c1>// Each partition can be extracted by indexing into the slice.
+</span><span class=c1></span><span class=nx>fortiethPercentile</span> <span class=o>:=</span> <span class=nx>studentsByPercentile</span><span class=p>[</span><span class=mi>4</span><span class=p>]</span></code></pre></div></div></div><h3 id=requirements-for-writing-user-code-for-beam-transforms>4.3. Requirements for writing user code for Beam transforms</h3><p>When you build user code for a Beam transform, you should keep in mind the
 distributed nature of execution. For example, there might be many copies of your
 function running on a lot of different machines in parallel, and those copies
 function independently, without communicating or sharing state with any of the
@@ -896,14 +1228,22 @@ run multiple times. As such, you should be cautious about including things like
 state dependency in your user code.</p><p>In general, your user code must fulfill at least these requirements:</p><ul><li>Your function object must be <strong>serializable</strong>.</li><li>Your function object must be <strong>thread-compatible</strong>, and be aware that <em>the
 Beam SDKs are not thread-safe</em>.</li></ul><p>In addition, it&rsquo;s recommended that you make your function object <strong>idempotent</strong>.
 Non-idempotent functions are supported by Beam, but require additional
-thought to ensure correctness when there are external side effects.</p><blockquote><p><strong>Note:</strong> These requirements apply to subclasses of <code>DoFn</code> (a function object
+thought to ensure correctness when there are external side effects.</p><span class="language-java language-py"><blockquote><p><strong>Note:</strong> These requirements apply to subclasses of <code>DoFn</code></span> (a function object
 used with the <a href=#pardo>ParDo</a> transform), <code>CombineFn</code> (a function object used
 with the <a href=#combine>Combine</a> transform), and <code>WindowFn</code> (a function object
-used with the <a href=#windowing>Window</a> transform).</p></blockquote><h4 id=user-code-serializability>4.3.1. Serializability</h4><p>Any function object you provide to a transform must be <strong>fully serializable</strong>.
+used with the <a href=#windowing>Window</a> transform).</p></blockquote></span><span class=language-go><blockquote><p><strong>Note:</strong> These requirements apply to <code>DoFn</code>s</span> (a function object
+used with the <a href=#pardo>ParDo</a> transform), <code>CombineFn</code>s (a function object used
+with the <a href=#combine>Combine</a> transform), and <code>WindowFn</code>s (a function object
+used with the <a href=#windowing>Window</a> transform).</p></blockquote></span><h4 id=user-code-serializability>4.3.1. Serializability</h4><p>Any function object you provide to a transform must be <strong>fully serializable</strong>.
 This is because a copy of the function needs to be serialized and transmitted to
-a remote worker in your processing cluster. The base classes for user code, such
+a remote worker in your processing cluster.
+<span class="language-java language-py">The base classes for user code, such
 as <code>DoFn</code>, <code>CombineFn</code>, and <code>WindowFn</code>, already implement <code>Serializable</code>;
-however, your subclass must not add any non-serializable members.</p><p>Some other serializability factors you should keep in mind are:</p><ul><li>Transient fields in your function object are <em>not</em> transmitted to worker
+however, your subclass must not add any non-serializable members.</span>
+<span class=language-go>Funcs are serializable as long as
+they are registered with <code>beam.RegisterFunction</code>, and are not
+closures. Structural <code>DoFn</code>s will have all exported fields serialized.
+Unexported fields are unable to be serialized, and will be silently ignored.</span></p><p>Some other serializability factors you should keep in mind are:</p><ul><li>Transient fields in your function object are <em>not</em> transmitted to worker
 instances, because they are not automatically serialized.</li><li>Avoid loading a field with a large amount of data before serialization.</li><li>Individual instances of your function object cannot share data.</li><li>Mutating a function object after it gets applied will have no effect.</li><li>Take care when declaring your function object inline by using an anonymous
 inner class instance. In a non-static context, your inner class instance will
 implicitly contain a pointer to the enclosing class and that class&rsquo; state.
@@ -3408,7 +3748,7 @@ kafka_records = (
             ImplicitSchemaPayloadBuilder({&#39;data&#39;: u&#39;0&#39;}),
             &lt;Address of expansion service&gt;))
     assert_that(res, equal_to([&#39;0a&#39;, &#39;0b&#39;]))
-    </code></pre></div></div></li><li><p>After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.</p></li></ol><h3 id=x-lang-transform-runner-support>13.3. Runner Support</h3><p>Currently, portable runners such as Flink, Spark, and the Direct runner can be used with multi-language pipelines.</p><p>Google Cloud Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.</p><div class=feedback><p class=update>Last updated on 2021/04/27</p><h3>Have you found everything you were looking for?</h3><p class=description>Was it all useful and clear? Is there anything that you would like to change? Let us know!</p><button class=load-button><a href="mailto:dev@beam.apache.org?subject=Beam Website Feedback">SEND FEEDBACK</a></button></div></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
+    </code></pre></div></div></li><li><p>After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.</p></li></ol><h3 id=x-lang-transform-runner-support>13.3. Runner Support</h3><p>Currently, portable runners such as Flink, Spark, and the Direct runner can be used with multi-language pipelines.</p><p>Google Cloud Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.</p><div class=feedback><p class=update>Last updated on 2021/07/02</p><h3>Have you found everything you were looking for?</h3><p class=description>Was it all useful and clear? Is there anything that you would like to change? Let us know!</p><button class=load-button><a href="mailto:dev@beam.apache.org?subject=Beam Website Feedback">SEND FEEDBACK</a></button></div></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
 <a href=http://www.apache.org>The Apache Software Foundation</a>
 | <a href=/privacy_policy>Privacy Policy</a>
 | <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></div></div></div></footer></body></html>
