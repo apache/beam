@@ -266,11 +266,9 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
       if ((self._stop_position is not None and position >= self._stop_position)
           or (self._start_position is not None and
               position <= self._start_position)):
-        _LOGGER.debug(
-            'Refusing to split %r at %d: proposed split position out of range',
-            self,
-            position)
-        return
+        raise ValueError(
+            "Split at '%s' not in range %s" %
+            (position, [self._start_position, self._stop_position]))
 
       if self._last_claim is self.UNSTARTED or self._last_claim < position:
         fraction = self.position_to_fraction(
