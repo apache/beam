@@ -33,8 +33,8 @@ func PipelineConstruction() {
 	// [END pipeline_options]
 
 	// [START pipelines_constructing_creating]
-	// beam.Init() is an initialization hook that must be called near
-	// the beginging of main().
+	// beam.Init() is an initialization hook that must be called
+	// near the beginning of main(), before creating a pipeline.
 	beam.Init()
 
 	// Create the Pipeline object and root scope.
@@ -42,7 +42,12 @@ func PipelineConstruction() {
 	// [END pipelines_constructing_creating]
 
 	// [START pipelines_constructing_reading]
+	// Read the file at the URI 'gs://some/inputData.txt' and return
+	// the lines as a PCollection<string>.
+	// Notice the scope as the first variable when calling
+	// the method as is needed when calling all transforms.
 	lines := textio.Read(scope, "gs://some/inputData.txt")
+
 	// [END pipelines_constructing_reading]
 
 	_ = []interface{}{pipeline, scope, lines}
@@ -59,9 +64,13 @@ func Create() {
 	}
 
 	// Create the Pipeline object and root scope.
+	// It's conventional to use p as the Pipeline variable and
+	// s as the scope variable.
 	p, s := beam.NewPipelineWithRoot()
 
 	// Pass the slice to beam.CreateList, to create the pcollection.
+	// The scope variable s is used to add the CreateList transform
+	// to the pipeline.
 	linesPCol := beam.CreateList(s, lines)
 	// [END model_pcollection]
 	_ = []interface{}{p, linesPCol}

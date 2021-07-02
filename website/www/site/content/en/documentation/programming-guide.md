@@ -74,6 +74,15 @@ include:
   input, performs a processing function that you provide on the elements of that
   `PCollection`, and produces zero or more output `PCollection` objects.
 
+<span class="language-go">
+
+* `Scope`: The Go SDK has an explicit scope variable used to build a `Pipeline`.
+  A `Pipeline` can return it's root scope with the `Root()` method. The scope
+  variable is passed to `PTransform` functions to place them in the `Pipeline`
+  that owns the `Scope`.
+
+</span>
+
 * I/O transforms: Beam comes with a number of "IOs" - library `PTransform`s that
   read or write data to various external storage systems.
 
@@ -193,8 +202,14 @@ This interprets command-line arguments that follow the format:
 
 </span>
 
+{{< paragraph class="language-java language-py" >}}
 Building your `PipelineOptions` this way lets you specify any of the options as
 a command-line argument.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Defining flag variables this way lets you specify any of the options as a command-line argument.
+{{< /paragraph >}}
 
 > **Note:** The [WordCount example pipeline](/get-started/wordcount-example)
 > demonstrates how to set pipeline options at runtime by using command-line
@@ -532,7 +547,7 @@ the transform itself as an argument, and the operation returns the output
 {{< /highlight >}}
 
 {{< highlight go >}}
-[Output PCollection] := beam.ParDo(s, [Transform], [Input PCollection])
+[Output PCollection] := beam.ParDo(scope, [Transform], [Input PCollection])
 {{< /highlight >}}
 
 {{< paragraph class="language-java language-py" >}}
@@ -543,10 +558,10 @@ SDKs).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-Because Go doesn't support function overloading, it's recommended to
-create a new variable for each new `PCollection` to sequentially transform input data.
-`Scope`s can be used to create functions that contain other other transforms
- (called [composite transforms](#composite-transforms) in the Beam SDKs).
+It's recommended to create a new variable for each new `PCollection` to 
+sequentially transform input data. `Scope`s can be used to create functions
+that contain other other transforms 
+(called [composite transforms](#composite-transforms) in the Beam SDKs).
 {{< /paragraph >}}
 
 How you apply your pipeline's transforms determines the structure of your
@@ -573,9 +588,9 @@ For example, you can successively call transforms on PCollections to modify the 
 {{< /highlight >}}
 
 {{< highlight go >}}
-[Second PCollection] := beam.ParDo(s, [First Transform], [Initial Input PCollection])
-[Third PCollection] := beam.ParDo(s, [Second Transform], [Second PCollection])
-[Final Output PCollection] := beam.ParDo(s, [Third Transform], [Third PCollection])
+[Second PCollection] := beam.ParDo(scope, [First Transform], [Initial Input PCollection])
+[Third PCollection] := beam.ParDo(scope, [Second Transform], [Second PCollection])
+[Final Output PCollection] := beam.ParDo(scope, [Third Transform], [Third PCollection])
 {{< /highlight >}}
 
 The graph of this pipeline looks like the following:
@@ -603,9 +618,9 @@ a branching pipeline, like so:
 {{< /highlight >}}
 
 {{< highlight go >}}
-[PCollection of database table rows] = beam.ParDo(s, [Read Transform], [Database Table Reader])
-[PCollection of 'A' names] = beam.ParDo(s, [Transform A], [PCollection of database table rows])
-[PCollection of 'B' names] = beam.ParDo(s, [Transform B], [PCollection of database table rows])
+[PCollection of database table rows] = beam.ParDo(scope, [Read Transform], [Database Table Reader])
+[PCollection of 'A' names] = beam.ParDo(scope, [Transform A], [PCollection of database table rows])
+[PCollection of 'B' names] = beam.ParDo(scope, [Transform B], [PCollection of database table rows])
 {{< /highlight >}}
 
 The graph of this branching pipeline looks like the following:
@@ -760,8 +775,12 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 {{< /highlight >}}
 
 {{< highlight go >}}
+// ComputeWordLengthFn is a DoFn that computes the word length of string elements.
 type ComputeWordLengthFn struct{}
 
+// ProcessElement computes the length of word and emits the result.
+// When creating structs as a DoFn, the ProcessElement method performs the
+// work of this step in the pipeline.
 func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
    ...
 }
@@ -853,7 +872,7 @@ func init() {
 
 > **Note:** If the elements in your input `PCollection` are key/value pairs, your
 > process element method must have two parameters, for each of the key and value,
-> respectively. Similarly, key/value pairs are also output as spearate
+> respectively. Similarly, key/value pairs are also output as separate
 > parameters to a single `emitter function`.
 
 </span>
