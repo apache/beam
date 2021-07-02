@@ -106,7 +106,10 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
             "Project ID not set in {}. Using default project from {}.",
             TableReference.class.getSimpleName(),
             BigQueryOptions.class.getSimpleName());
-        tableReference.setProjectId(options.getProject());
+        tableReference.setProjectId(
+            options.getBigQueryProject() == null
+                ? options.getProject()
+                : options.getBigQueryProject());
       }
       Table table = bqServices.getDatasetService(options).getTable(tableReference);
       cachedTable.compareAndSet(null, table);
