@@ -357,7 +357,10 @@ class DynamicDestinationsHelpers {
           try {
             BigQueryOptions bqOptions = getPipelineOptions().as(BigQueryOptions.class);
             if (tableReference.getProjectId() == null) {
-              tableReference.setProjectId(bqOptions.getProject());
+              tableReference.setProjectId(
+                  bqOptions.getBigQueryProject() == null
+                      ? bqOptions.getProject()
+                      : bqOptions.getBigQueryProject());
             }
             try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
               return datasetService.getTable(tableReference);
