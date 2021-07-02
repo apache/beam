@@ -125,8 +125,8 @@ public class BigQueryIOStorageReadTest {
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
                   options.as(BigQueryOptions.class).setProject("project-id");
-                  if (description.getAnnotations().stream().anyMatch(
-                          a -> a.annotationType().equals(ProjectOverride.class))) {
+                  if (description.getAnnotations().stream()
+                      .anyMatch(a -> a.annotationType().equals(ProjectOverride.class))) {
                     options.as(BigQueryOptions.class).setBigQueryProject("bigquery-project-id");
                   }
                   options
@@ -318,13 +318,13 @@ public class BigQueryIOStorageReadTest {
     fakeDatasetService.createTable(table);
 
     BigQueryStorageTableSource<TableRow> tableSource =
-            BigQueryStorageTableSource.create(
-                    ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
-                    null,
-                    null,
-                    new TableRowParser(),
-                    TableRowJsonCoder.of(),
-                    new FakeBigQueryServices().withDatasetService(fakeDatasetService));
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
+            null,
+            null,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
     assertEquals(100, tableSource.getEstimatedSizeBytes(options));
   }

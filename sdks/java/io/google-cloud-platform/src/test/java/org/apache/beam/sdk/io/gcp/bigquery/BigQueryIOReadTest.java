@@ -39,7 +39,6 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -106,8 +105,8 @@ public class BigQueryIOReadTest implements Serializable {
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
                   options.as(BigQueryOptions.class).setProject("project-id");
-                  if (description.getAnnotations().stream().anyMatch(
-                          a -> a.annotationType().equals(ProjectOverride.class))) {
+                  if (description.getAnnotations().stream()
+                      .anyMatch(a -> a.annotationType().equals(ProjectOverride.class))) {
                     options.as(BigQueryOptions.class).setBigQueryProject("bigquery-project-id");
                   }
                   options
@@ -134,60 +133,57 @@ public class BigQueryIOReadTest implements Serializable {
     fakeDatasetService.createDataset(projectId, "dataset-id", "", "", null);
     String tableId = "sometable";
     TableReference tableReference =
-            new TableReference()
-                    .setProjectId(projectId)
-                    .setDatasetId("dataset-id")
-                    .setTableId(tableId);
+        new TableReference().setProjectId(projectId).setDatasetId("dataset-id").setTableId(tableId);
 
     fakeDatasetService.createTable(
-            new Table()
-                    .setTableReference(tableReference)
-                    .setSchema(
-                            new TableSchema()
-                                    .setFields(
-                                            ImmutableList.of(
-                                                    new TableFieldSchema().setName("name").setType("STRING"),
-                                                    new TableFieldSchema().setName("number").setType("INTEGER")))));
+        new Table()
+            .setTableReference(tableReference)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER")))));
 
     FakeBigQueryServices fakeBqServices =
-            new FakeBigQueryServices()
-                    .withJobService(new FakeJobService())
-                    .withDatasetService(fakeDatasetService);
+        new FakeBigQueryServices()
+            .withJobService(new FakeJobService())
+            .withDatasetService(fakeDatasetService);
 
     List<TableRow> expected =
-            ImmutableList.of(
-                    new TableRow().set("name", "a").set("number", 1L),
-                    new TableRow().set("name", "b").set("number", 2L),
-                    new TableRow().set("name", "c").set("number", 3L),
-                    new TableRow().set("name", "d").set("number", 4L),
-                    new TableRow().set("name", "e").set("number", 5L),
-                    new TableRow().set("name", "f").set("number", 6L));
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
     fakeDatasetService.insertAll(tableReference, expected, null);
 
     TableReference tableRef = new TableReference().setDatasetId("dataset-id").setTableId(tableId);
 
     PCollection<KV<String, Long>> output =
-            p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
-                    .apply(
-                            ParDo.of(
-                                    new DoFn<TableRow, KV<String, Long>>() {
-                                      @ProcessElement
-                                      public void processElement(ProcessContext c) throws Exception {
-                                        c.output(
-                                                KV.of(
-                                                        (String) c.element().get("name"),
-                                                        Long.valueOf((String) c.element().get("number"))));
-                                      }
-                                    }));
+        p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
+            .apply(
+                ParDo.of(
+                    new DoFn<TableRow, KV<String, Long>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        c.output(
+                            KV.of(
+                                (String) c.element().get("name"),
+                                Long.valueOf((String) c.element().get("number"))));
+                      }
+                    }));
     PAssert.that(output)
-            .containsInAnyOrder(
-                    ImmutableList.of(
-                            KV.of("a", 1L),
-                            KV.of("b", 2L),
-                            KV.of("c", 3L),
-                            KV.of("d", 4L),
-                            KV.of("e", 5L),
-                            KV.of("f", 6L)));
+        .containsInAnyOrder(
+            ImmutableList.of(
+                KV.of("a", 1L),
+                KV.of("b", 2L),
+                KV.of("c", 3L),
+                KV.of("d", 4L),
+                KV.of("e", 5L),
+                KV.of("f", 6L)));
     p.run();
   }
 

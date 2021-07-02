@@ -181,8 +181,8 @@ public class BigQueryIOWriteTest implements Serializable {
                   options = TestPipeline.testingPipelineOptions();
                   BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
                   bqOptions.setProject("project-id");
-                  if (description.getAnnotations().stream().anyMatch(
-                          a -> a.annotationType().equals(ProjectOverride.class))) {
+                  if (description.getAnnotations().stream()
+                      .anyMatch(a -> a.annotationType().equals(ProjectOverride.class))) {
                     options.as(BigQueryOptions.class).setBigQueryProject("bigquery-project-id");
                   }
                   bqOptions.setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -633,7 +633,8 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     final int projectIdSplitter = tableRef.indexOf(':');
-    final String projectId = projectIdSplitter == -1 ? "project-id" : tableRef.substring(0, projectIdSplitter);
+    final String projectId =
+        projectIdSplitter == -1 ? "project-id" : tableRef.substring(0, projectIdSplitter);
 
     assertThat(
         fakeDatasetService.getAllRows(projectId, "dataset-id", "table-id"),
