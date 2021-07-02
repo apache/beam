@@ -371,6 +371,94 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadWithPartitions() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(READ_TABLE_NAME)
+                .withNumPartitions(1)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsBySubqery() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(String.format("(select * from %s) as subq", READ_TABLE_NAME))
+                .withNumPartitions(10)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testIfNumPartitionsIsZero() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("numPartitions can not be less than 1");
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(READ_TABLE_NAME)
+                .withNumPartitions(0)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    pipeline.run();
+  }
+
+  @Test
+  public void testNumPartitionsMoreThanTotalRows() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "The specified number of partitions is more than the difference between upper bound and lower bound");
+    pipeline.apply(
+        JdbcIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+            .withCoder(SerializableCoder.of(TestRow.class))
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(200)
+            .withPartitionColumn("id")
+            .withLowerBound(0)
+            .withUpperBound(100));
+    pipeline.run();
+  }
+
+  @Test
+  public void testLowerBoundIsMoreThanUpperBound() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "The lower bound of partitioning column is larger or equal than the upper bound");
+    pipeline.apply(
+        JdbcIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+            .withCoder(SerializableCoder.of(TestRow.class))
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(5)
+            .withPartitionColumn("id")
+            .withLowerBound(100)
+            .withUpperBound(100));
+    pipeline.run();
+  }
+
+  @Test
   public void testWrite() throws Exception {
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
     DatabaseTestHelper.createTable(DATA_SOURCE, tableName);

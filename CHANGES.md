@@ -81,6 +81,7 @@
 * Add support to convert Beam Schema to Avro Schema for JDBC LogicalTypes:
   `VARCHAR`, `NVARCHAR`, `LONGVARCHAR`, `LONGNVARCHAR`, `DATE`, `TIME`
   (Java)([BEAM-12385](https://issues.apache.org/jira/browse/BEAM-12385)).
+* Reading from JDBC source by partitions (Java) ([BEAM-12456](https://issues.apache.org/jira/browse/BEAM-12456)).
 
 ## Breaking Changes
 
