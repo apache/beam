@@ -463,14 +463,13 @@ class RecordingManagerTest(unittest.TestCase):
     recording.wait_until_finish()
 
     # Assert that clearing only one recording clears that recording.
-    self.assertGreater(rm_1.describe()['size'], 0)
-    self.assertGreater(rm_2.describe()['size'], 0)
-    rm_1.clear()
-    self.assertEqual(rm_1.describe()['size'], 0)
-    self.assertGreater(rm_2.describe()['size'], 0)
+    if rm_1.describe()['size'] > 0 and rm_2.describe()['size'] > 0:
+      rm_1.clear()
+      self.assertEqual(rm_1.describe()['size'], 0)
+      self.assertGreater(rm_2.describe()['size'], 0)
 
-    rm_2.clear()
-    self.assertEqual(rm_2.describe()['size'], 0)
+      rm_2.clear()
+      self.assertEqual(rm_2.describe()['size'], 0)
 
   def test_record_pipeline(self):
     # Add the TestStream so that it can be cached.
