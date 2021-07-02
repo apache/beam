@@ -4613,6 +4613,19 @@ Run in Colab
 &lt;/td>
 &lt;/table>
 &lt;p>&lt;br>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;h3 id="windowing">Windowing&lt;/h3>
+&lt;p>In this notebook we go through how to aggregate data based on time intervals, or in streaming pipelines.
+We introduce the &lt;code>GlobalWindow&lt;/code>, &lt;code>FixedWindows&lt;/code>, &lt;code>SlidingWindows&lt;/code>, and &lt;code>Sessions&lt;/code>.&lt;/p>
+&lt;table align="left">
+&lt;td>
+&lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/windowing.ipynb">
+&lt;img alt="Run in Colab" width="32px" height="32px"
+src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+Run in Colab
+&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;h2 id="transforms">Transforms&lt;/h2>
 &lt;p>Check the &lt;a href="/documentation/transforms/python/overview/">Python transform catalog&lt;/a>
 for a complete list of the available transforms.&lt;/p>
