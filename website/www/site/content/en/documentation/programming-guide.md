@@ -558,9 +558,9 @@ SDKs).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-It's recommended to create a new variable for each new `PCollection` to 
+It's recommended to create a new variable for each new `PCollection` to
 sequentially transform input data. `Scope`s can be used to create functions
-that contain other other transforms 
+that contain other transforms
 (called [composite transforms](#composite-transforms) in the Beam SDKs).
 {{< /paragraph >}}
 
