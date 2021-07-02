@@ -191,7 +191,11 @@ class WriteTables<DestinationT>
           dynamicDestinations);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-        tableReference.setProjectId(c.getPipelineOptions().as(BigQueryOptions.class).getProject());
+        BigQueryOptions options = c.getPipelineOptions().as(BigQueryOptions.class);
+        tableReference.setProjectId(
+            options.getBigQueryProject() == null
+                ? options.getProject()
+                : options.getBigQueryProject());
         tableDestination = tableDestination.withTableReference(tableReference);
       }
 
