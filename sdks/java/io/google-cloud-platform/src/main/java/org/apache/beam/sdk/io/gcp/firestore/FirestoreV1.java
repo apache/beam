@@ -122,10 +122,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   </tbody>
  * </table>
  *
- * <p>PartitionQuery should be preferred over other options if at all possible, it has the ability
- * to parallelize execution of multiple queries for specific sub-ranges of the full results.
+ * <p>PartitionQuery should be preferred over other options if at all possible, becuase it has the
+ * ability to parallelize execution of multiple queries for specific sub-ranges of the full results.
  *
- * <p>ListDocuments should only ever be used if the use of <a target="_blank" rel="noopener
+ * <p>You should only ever use ListDocuments if the use of <a target="_blank" rel="noopener
  * noreferrer"
  * href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsRequest">{@code
  * show_missing}</a> is needed to access a document. RunQuery and PartitionQuery will always be

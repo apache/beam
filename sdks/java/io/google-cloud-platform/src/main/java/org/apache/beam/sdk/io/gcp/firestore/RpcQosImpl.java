@@ -139,7 +139,7 @@ final class RpcQosImpl implements RpcQos {
   public RpcReadAttemptImpl newReadAttempt(Context context) {
     Set<Integer> graceStatusCodeNumbers = Collections.emptySet();
     // When reading results from a RunQuery or BatchGet the stream returning the results has a
-    //   maximum lifetime of 60 seconds at which point it will be broken with a n UNAVAILABLE
+    //   maximum lifetime of 60 seconds at which point it will be broken with an UNAVAILABLE
     //   status code. Since this is expected for semi-large query result set sizes we specify
     //   it as a grace value for backoff evaluation.
     if (V1FnRpcAttemptContext.RunQuery.equals(context)
@@ -725,7 +725,7 @@ final class RpcQosImpl implements RpcQos {
 
   /**
    * This class implements a backoff algorithm similar to that of {@link
-   * org.apache.beam.sdk.util.FluentBackoff} with a key differences:
+   * org.apache.beam.sdk.util.FluentBackoff} with some key differences:
    *
    * <ol>
    *   <li>A set of status code numbers may be specified to have a graceful evaluation
@@ -739,8 +739,8 @@ final class RpcQosImpl implements RpcQos {
    * The primary motivation for creating this implementation is to support streamed responses from
    * Firestore. In the case of RunQuery and BatchGet the results are returned via stream. The result
    * stream has a maximum lifetime of 60 seconds before it will be broken and an UNAVAILABLE status
-   * code will be raised. Give this UNAVAILABLE is expected for streams this class allows for
-   * defining a set of status code numbers which are give a grace count of 1 before backoff kicks
+   * code will be raised. Give that UNAVAILABLE is expected for streams, this class allows for
+   * defining a set of status code numbers which are given a grace count of 1 before backoff kicks
    * in. When backoff does kick in, it is implemented using the same calculations as {@link
    * org.apache.beam.sdk.util.FluentBackoff}.
    */
