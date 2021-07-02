@@ -855,7 +855,7 @@ func init() {
 
 <span class="language-go" >
 
-> **Note:** Wether using a structural `DoFn` type or a functional `DoFn`, they should be registered with
+> **Note:** Whether using a structural `DoFn` type or a functional `DoFn`, they should be registered with
 > beam in an `init` block. Otherwise they may not execute on distributed runners.
 
 </span>
