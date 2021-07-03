@@ -40,6 +40,7 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -410,11 +411,18 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
     Pipeline pipeline = createPipeline();
-    ExperimentalOptions.addExperiment(
-        pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
-    // TODO(BEAM-10670): Remove this when we address performance issue.
-    ExperimentalOptions.addExperiment(
-        pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
+    if (!ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")) {
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+      // TODO(BEAM-10670): Remove this when we address performance issue.
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
+    } else {
+      LOG.warn(
+          "Using use_depreacted_read in portable runners is runner-dependent. The "
+              + "ExpansionService will respect that, but if your runner does not have support for "
+              + "native Read transform, your Pipeline will fail during Pipeline submission.");
+    }
 
     ClassLoader classLoader = Environments.class.getClassLoader();
     if (classLoader == null) {
@@ -480,6 +488,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                         throw new RuntimeException(exn);
                       }
                     }));
+
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents);
     String expandedTransformId =
         Iterables.getOnlyElement(
