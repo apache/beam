@@ -77,7 +77,9 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
+  gcp_bigquery = None
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
