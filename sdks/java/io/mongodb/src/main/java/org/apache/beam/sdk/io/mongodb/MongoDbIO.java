@@ -35,10 +35,13 @@ import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.InsertManyOptions;
 import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -123,12 +126,11 @@ import org.slf4j.LoggerFactory;
  * *     .withUri("mongodb://localhost:27017")
  * *     .withDatabase("my-database")
  * *     .withCollection("my-collection")
- * *     .withIsUpdate(true)
- * *     .withUpdateKey("key-to-match")
- * *     .withUpdateField("field-to-update")
- * *     .withUpdateOperator("$set")
- * *     .withNumSplits(30))
- * *
+ * *     .withUpdateConfiguration(UpdateConfiguration.create().withUpdateKey("key1")
+ * *     .withUpdateFields(UpdateField.of("$set", "source-field1", "dest-field1"),
+ * *                       UpdateField.of("$set","source-field2", "dest-field2"),
+ * *                       //pushes entire input doc to the dest field
+ * *                        UpdateField.of("$push", "dest-field3") )));
  * *
  * }</pre>
  */
@@ -162,7 +164,6 @@ public class MongoDbIO {
         .setIgnoreSSLCertificate(false)
         .setSslInvalidHostNameAllowed(false)
         .setOrdered(true)
-        .setIsUpdate(false)
         .build();
   }
 
@@ -516,7 +517,6 @@ public class MongoDbIO {
               .anyMatch(s -> s.keySet().contains("$limit"))) {
             return Collections.singletonList(this);
           }
-
           splitKeys = buildAutoBuckets(mongoDatabase, spec);
 
           for (BsonDocument shardFilter : splitKeysToMatch(splitKeys)) {
@@ -770,13 +770,7 @@ public class MongoDbIO {
 
     abstract long batchSize();
 
-    abstract boolean isUpdate();
-
-    abstract @Nullable String updateKey();
-
-    abstract @Nullable String updateOperator();
-
-    abstract @Nullable String updateField();
+    abstract @Nullable UpdateConfiguration updateConfiguration();
 
     abstract Builder builder();
 
@@ -800,13 +794,7 @@ public class MongoDbIO {
 
       abstract Builder setBatchSize(long batchSize);
 
-      abstract Builder setIsUpdate(boolean isUpdate);
-
-      abstract Builder setUpdateKey(String updateKey);
-
-      abstract Builder setUpdateOperator(String operator);
-
-      abstract Builder setUpdateField(String updateField);
+      abstract Builder setUpdateConfiguration(UpdateConfiguration updateConfiguration);
 
       abstract Write build();
     }
@@ -898,20 +886,8 @@ public class MongoDbIO {
       return builder().setBatchSize(batchSize).build();
     }
 
-    public Write withIsUpdate(boolean isUpdate) {
-      return builder().setIsUpdate(isUpdate).build();
-    }
-
-    public Write withUpdateKey(String updateKey) {
-      return builder().setUpdateKey(updateKey).build();
-    }
-
-    public Write withUpdateOperator(String updateOperator) {
-      return builder().setUpdateOperator(updateOperator).build();
-    }
-
-    public Write withUpdateField(String updateField) {
-      return builder().setUpdateField(updateField).build();
+    public Write withUpdateConfiguration(UpdateConfiguration updateConfiguration) {
+      return builder().setUpdateConfiguration(updateConfiguration).build();
     }
 
     @Override
@@ -935,11 +911,6 @@ public class MongoDbIO {
       builder.add(DisplayData.item("database", database()));
       builder.add(DisplayData.item("collection", collection()));
       builder.add(DisplayData.item("batchSize", batchSize()));
-      // builder.add(DisplayData.item("isUpdate", isUpdate()));
-      // builder.add(DisplayData.item("updateKey", updateKey()));
-      // builder.add(DisplayData.item("updateOperator", updateOperator()));
-      // builder.add(Data.item("updateOptions", updateOptions()));
-      // builder.add(DisplayData.item("updateField", updateField()));
     }
 
     static class WriteFn extends DoFn<Document, Void> {
@@ -976,21 +947,13 @@ public class MongoDbIO {
 
         batch.add(new Document(ctx.element()));
         if (batch.size() >= spec.batchSize()) {
-          if (spec.isUpdate()) {
-            flushUpdate();
-          } else {
-            flush();
-          }
+          flush();
         }
       }
 
       @FinishBundle
       public void finishBundle() {
-        if (spec.isUpdate()) {
-          flushUpdate();
-        } else {
-          flush();
-        }
+        flush();
       }
 
       private void flush() {
@@ -999,7 +962,15 @@ public class MongoDbIO {
         }
         MongoDatabase mongoDatabase = client.getDatabase(spec.database());
         MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
+        if (spec.updateConfiguration() == null) {
+          insertDocuments(mongoCollection);
+        } else {
+          updateDocuments(mongoCollection);
+        }
+        batch.clear();
+      }
 
+      private void insertDocuments(MongoCollection<Document> mongoCollection) {
         try {
           mongoCollection.insertMany(batch, new InsertManyOptions().ordered(spec.ordered()));
         } catch (MongoBulkWriteException e) {
@@ -1007,23 +978,32 @@ public class MongoDbIO {
             throw e;
           }
         }
-
-        batch.clear();
       }
 
-      private void flushUpdate() {
+      private void updateDocuments(MongoCollection<Document> mongoCollection) {
         if (batch.isEmpty()) {
           return;
         }
-        MongoDatabase mongoDatabase = client.getDatabase(spec.database());
-        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
         List<WriteModel<Document>> actions = new ArrayList<>();
+        @Nullable List<UpdateField> updateFields = spec.updateConfiguration().updateFields();
+        Map<String, List<UpdateField>> operatorFieldsMap = getOperatorFieldsMap(updateFields);
         try {
           for (Document doc : batch) {
-            actions.add(
-                new UpdateOneModel<>(
-                    new Document("_id", doc.get(spec.updateKey())),
-                    new Document(spec.updateOperator(), new Document(spec.updateField(), doc))));
+            Document updateDocument = new Document();
+            for (Map.Entry<String, List<UpdateField>> entry : operatorFieldsMap.entrySet()) {
+              Document updateSubDocument = new Document();
+              for (UpdateField field : entry.getValue()) {
+                updateSubDocument.append(
+                    field.getDestField(),
+                    field.getSourceField() == null ? doc : doc.get(field.getSourceField()));
+              }
+              updateDocument.append(entry.getKey(), updateSubDocument);
+            }
+            Document findCriteria =
+                new Document("_id", doc.get(spec.updateConfiguration().updateKey()));
+            UpdateOptions updateOptions =
+                new UpdateOptions().upsert(spec.updateConfiguration().isUpsert());
+            actions.add(new UpdateOneModel<>(findCriteria, updateDocument, updateOptions));
           }
           mongoCollection.bulkWrite(actions, new BulkWriteOptions().ordered(spec.ordered()));
         } catch (MongoBulkWriteException e) {
@@ -1031,8 +1011,24 @@ public class MongoDbIO {
             throw e;
           }
         }
+      }
 
-        batch.clear();
+      private static Map<String, List<UpdateField>> getOperatorFieldsMap(
+          List<UpdateField> updateFields) {
+        Map<String, List<UpdateField>> operatorFieldsMap = new HashMap<>();
+        for (UpdateField field : updateFields) {
+          String updateOperator = field.getUpdateOperator();
+          if (operatorFieldsMap.containsKey(updateOperator)) {
+            List<UpdateField> fields = operatorFieldsMap.get(updateOperator);
+            fields.add(field);
+            operatorFieldsMap.put(updateOperator, fields);
+          } else {
+            List<UpdateField> fields = new ArrayList<>();
+            fields.add(field);
+            operatorFieldsMap.put(updateOperator, fields);
+          }
+        }
+        return operatorFieldsMap;
       }
 
       @Teardown
