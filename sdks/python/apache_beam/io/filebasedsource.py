@@ -361,9 +361,10 @@ class _ExpandIntoRanges(DoFn):
 
 
 class _ReadRange(DoFn):
-  def __init__(self, source_from_file):
+  def __init__(self, source_from_file, with_context=False):
     # type: (Callable[[str], iobase.BoundedSource]) -> None
     self._source_from_file = source_from_file
+    self._with_context = with_context
 
   def process(self, element, *args, **kwargs):
     metadata, range = element
@@ -378,7 +379,10 @@ class _ReadRange(DoFn):
       return
     source = source_list[0].source
     for record in source.read(range.new_tracker()):
-      yield record
+      if self._with_context:
+        yield (metadata.path, record)
+      else:
+        yield record
 
 
 class ReadAllFiles(PTransform):
@@ -395,6 +399,7 @@ class ReadAllFiles(PTransform):
                desired_bundle_size,  # type: int
                min_bundle_size,  # type: int
                source_from_file,  # type: Callable[[str], iobase.BoundedSource]
+               with_context=False  # type: bool
               ):
     """
     Args:
@@ -415,12 +420,16 @@ class ReadAllFiles(PTransform):
                         paths passed to this will be for individual files, not
                         for file patterns even if the ``PCollection`` of files
                         processed by the transform consist of file patterns.
+      with_context: If True, returns a Key Value with the key being the file
+                  path and the value being the actual read. If False, it only
+                  returns the read.
     """
     self._splittable = splittable
     self._compression_type = compression_type
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._source_from_file = source_from_file
+    self._with_context = with_context
 
   def expand(self, pvalue):
     return (
@@ -432,4 +441,6 @@ class ReadAllFiles(PTransform):
                 self._desired_bundle_size,
                 self._min_bundle_size))
         | 'Reshard' >> Reshuffle()
-        | 'ReadRange' >> ParDo(_ReadRange(self._source_from_file)))
+        | 'ReadRange' >> ParDo(
+            _ReadRange(self._source_from_file, with_context=self._with_context))
+    )
