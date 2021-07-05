@@ -17,55 +17,34 @@
  */
 package org.apache.beam.sdk.io.aws.sqs;
 
-import static org.junit.Assert.assertEquals;
-
 import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.model.Message;
-import com.amazonaws.services.sqs.model.ReceiveMessageResult;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
-import java.util.ArrayList;
-import java.util.List;
+import org.apache.beam.sdk.io.aws.options.AwsOptions;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests on {@link SqsIO}. */
+/** Tests on {@link SqsUnboundedSource}. */
 @RunWith(JUnit4.class)
-public class SqsIOTest {
+public class SqsUnboundedSourceTest {
+
+  private static final String DATA = "testData";
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Rule public EmbeddedSqsServer embeddedSqsRestServer = new EmbeddedSqsServer();
 
   @Test
-  public void testWrite() {
+  public void testCheckpointCoderIsSane() {
     final AmazonSQS client = embeddedSqsRestServer.getClient();
     final String queueUrl = embeddedSqsRestServer.getQueueUrl();
-
-    List<SendMessageRequest> messages = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
-      final SendMessageRequest request = new SendMessageRequest(queueUrl, "This is a test " + i);
-      messages.add(request);
-    }
-    pipeline.apply(Create.of(messages)).apply(SqsIO.write());
-    pipeline.run().waitUntilFinish();
-
-    List<String> received = new ArrayList<>();
-    while (received.size() < 100) {
-      final ReceiveMessageResult receiveMessageResult = client.receiveMessage(queueUrl);
-
-      if (receiveMessageResult.getMessages() != null) {
-        for (Message message : receiveMessageResult.getMessages()) {
-          received.add(message.getBody());
-        }
-      }
-    }
-    assertEquals(100, received.size());
-    for (int i = 0; i < 100; i++) {
-      received.contains("This is a test " + i);
-    }
+    client.sendMessage(queueUrl, DATA);
+    SqsUnboundedSource source =
+        new SqsUnboundedSource(
+            SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(1),
+            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)));
+    CoderProperties.coderSerializable(source.getCheckpointMarkCoder());
   }
 }
