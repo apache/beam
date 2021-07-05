@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampFromMicros;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampToMicros;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.QUERY_CHANGE_STREAM;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_CHILD_PARTITIONS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.Timestamp;
@@ -51,6 +52,11 @@ public class PartitionRestrictionSplitter {
         positionMode != QUERY_CHANGE_STREAM || lastClaimedPosition.getTimestamp().isPresent(),
         "%s mode must specify a timestamp (no value sent)",
         positionMode);
+    checkArgument(
+        positionMode != WAIT_FOR_CHILD_PARTITIONS
+            || lastClaimedPosition.getChildPartitionsToWaitFor().isPresent(),
+        "%s mode must specify the number of child partitions to wait for (no value sent)",
+        positionMode);
 
     // TODO: Revisit and check if we need to split by staying in the same mode (we are currently
     // advancing)
@@ -60,8 +66,15 @@ public class PartitionRestrictionSplitter {
         splitResult = splitQueryChangeStream(fractionOfRemainder, restriction, lastClaimedPosition);
         break;
       case WAIT_FOR_CHILD_PARTITIONS:
+        final Long childPartitionsToWaitFor =
+            lastClaimedPosition.getChildPartitionsToWaitFor().get();
+        // If we need to split the wait for child partitions, we remain at the same mode. That is
+        // because the primary restriction might resume and it might so happen that the residual
+        // restriction gets scheduled before the primary.
         splitResult =
-            SplitResult.of(PartitionRestriction.stop(), PartitionRestriction.finishPartition());
+            SplitResult.of(
+                PartitionRestriction.stop(),
+                PartitionRestriction.waitForChildPartitions(childPartitionsToWaitFor));
         break;
       case FINISH_PARTITION:
         splitResult =
@@ -69,8 +82,12 @@ public class PartitionRestrictionSplitter {
                 PartitionRestriction.stop(), PartitionRestriction.waitForParentPartitions());
         break;
       case WAIT_FOR_PARENT_PARTITIONS:
+        // If we need to split the wait for parent partitions, we remain at the same mode. That is
+        // because the primary restriction might resume and it might so happen that the residual
+        // restriction gets scheduled before the primary.
         splitResult =
-            SplitResult.of(PartitionRestriction.stop(), PartitionRestriction.deletePartition());
+            SplitResult.of(
+                PartitionRestriction.stop(), PartitionRestriction.waitForParentPartitions());
         break;
       case DELETE_PARTITION:
         splitResult = SplitResult.of(PartitionRestriction.stop(), PartitionRestriction.done());
@@ -106,14 +123,16 @@ public class PartitionRestrictionSplitter {
     final Timestamp startTimestamp = restriction.getStartTimestamp();
     final Timestamp endTimestamp = restriction.getEndTimestamp();
 
-    // FIXME: The backend only supports micros precision for now. Change this to nanos whenever possible
+    // FIXME: The backend only supports micros precision for now. Change this to nanos whenever
+    // possible
     final BigDecimal currentMicros = timestampToMicros(lastClaimedPosition.getTimestamp().get());
     final BigDecimal endMicros = timestampToMicros(endTimestamp);
-    final BigDecimal splitPositionMicros = currentMicros.add(
-        endMicros
-            .subtract(currentMicros)
-            .multiply(BigDecimal.valueOf(fractionOfRemainder))
-            .max(BigDecimal.ONE));
+    final BigDecimal splitPositionMicros =
+        currentMicros.add(
+            endMicros
+                .subtract(currentMicros)
+                .multiply(BigDecimal.valueOf(fractionOfRemainder))
+                .max(BigDecimal.ONE));
 
     final Timestamp splitPositionTimestamp = timestampFromMicros(splitPositionMicros);
 
