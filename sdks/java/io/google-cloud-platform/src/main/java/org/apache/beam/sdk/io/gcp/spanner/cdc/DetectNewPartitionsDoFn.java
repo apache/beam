@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.PARTITIONS_DETECTED_COUNTER;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.PARTITION_CREATED_TO_SCHEDULED_MS;
+
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
@@ -132,10 +135,16 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
       while (resultSet.next()) {
         // TODO(hengfeng): change the log level in this file.
         LOG.debug("Reading record currentIndex:" + currentIndex);
+        PARTITIONS_DETECTED_COUNTER.inc();
+
         if (!tracker.tryClaim(currentIndex)) {
           return ProcessContinuation.stop();
         }
         PartitionMetadata metadata = buildPartitionMetadata(resultSet);
+        PARTITION_CREATED_TO_SCHEDULED_MS
+            .update(new Duration(metadata.getCreatedAt().toDate().getTime(),
+                Instant.now().getMillis()).getMillis());
+
         LOG.debug(
             String.format(
                 "Get partition metadata currentIndex:%d meta:%s", currentIndex, metadata));

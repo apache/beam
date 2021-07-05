@@ -152,6 +152,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             + partition.getPartitionToken()
             + " with restriction "
             + tracker.currentRestriction());
+
     switch (tracker.currentRestriction().getMode()) {
       case QUERY_CHANGE_STREAM:
         return queryChangeStream(partition, tracker, receiver, watermarkEstimator);

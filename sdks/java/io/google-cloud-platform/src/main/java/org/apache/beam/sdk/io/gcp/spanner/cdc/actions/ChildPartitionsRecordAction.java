@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.PARTITION_MERGE_COUNTER;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.PARTITION_SPLIT_COUNTER;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
 
@@ -67,6 +69,8 @@ public class ChildPartitionsRecordAction {
     for (ChildPartition childPartition : record.getChildPartitions()) {
       if (isSplit(childPartition)) {
         LOG.info("Processing child partition split event");
+        PARTITION_SPLIT_COUNTER.inc();
+
         final PartitionMetadata row =
             toPartitionMetadata(
                 record.getStartTimestamp(),
@@ -79,6 +83,8 @@ public class ChildPartitionsRecordAction {
         partitionMetadataDao.insert(row);
       } else {
         LOG.info("Processing child partition merge event");
+        PARTITION_MERGE_COUNTER.inc();
+
         partitionMetadataDao.runInTransaction(
             transaction -> {
               final long finishedParents =
