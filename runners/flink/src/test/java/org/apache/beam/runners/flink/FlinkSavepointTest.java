@@ -157,6 +157,8 @@ public class FlinkSavepointTest implements Serializable {
     // Initial parallelism
     options.setParallelism(2);
     options.setRunner(FlinkRunner.class);
+    // Enable checkpointing interval for streaming job to avoid checkpointCoordinator shutdown
+    options.setCheckpointingInterval(1000 * 10L);
     // Avoid any task from shutting down which would prevent savepointing
     options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
 
@@ -191,7 +193,7 @@ public class FlinkSavepointTest implements Serializable {
   private JobID executeLegacy(Pipeline pipeline) throws Exception {
     JobGraph jobGraph = getJobGraph(pipeline);
     flinkCluster.submitJob(jobGraph).get();
-    return waitForJobToBeReady();
+    return jobGraph.getJobID();
   }
 
   private JobID executePortable(Pipeline pipeline) throws Exception {
