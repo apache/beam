@@ -29,6 +29,7 @@ For an example implementation of :class:`FileBasedSource` see
 # pytype: skip-file
 
 from typing import Callable
+from typing import Union
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
@@ -361,8 +362,11 @@ class _ExpandIntoRanges(DoFn):
 
 
 class _ReadRange(DoFn):
-  def __init__(self, source_from_file, with_context=False):
-    # type: (Callable[[str], iobase.BoundedSource]) -> None
+  def __init__(
+      self,
+      source_from_file,  # type: Union[str, iobase.BoundedSource]
+      with_context=False  # type: bool
+    ) -> None:
     self._source_from_file = source_from_file
     self._with_context = with_context
 
