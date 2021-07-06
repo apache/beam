@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static java.sql.JDBCType.NUMERIC;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
@@ -63,7 +64,9 @@ import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
+import org.apache.beam.sdk.io.jdbc.LogicalTypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -275,6 +278,38 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadRowsWithNumericFields() {
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(
+                    String.format(
+                        "SELECT CAST(1 AS NUMERIC(1, 0)) AS T1 FROM %s WHERE name = ?",
+                        READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of(
+                "T1",
+                FieldType.logicalType(FixedPrecisionNumeric.of(NUMERIC.getName(), 1, 0))
+                    .withNullable(false)));
+
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("T1"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(
+                Row.withSchema(expectedSchema).addValues(BigDecimal.valueOf(1)).build()));
+
+    pipeline.run();
+  }
+
+  @Test
   public void testReadRowsWithoutStatementPreparator() {
     SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> DATA_SOURCE;
     String name = TestRow.getNameForSeed(1);
@@ -332,6 +367,94 @@ public class JdbcIOTest implements Serializable {
         .containsInAnyOrder(
             ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
 
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitions() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(READ_TABLE_NAME)
+                .withNumPartitions(1)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsBySubqery() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(String.format("(select * from %s) as subq", READ_TABLE_NAME))
+                .withNumPartitions(10)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testIfNumPartitionsIsZero() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("numPartitions can not be less than 1");
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(READ_TABLE_NAME)
+                .withNumPartitions(0)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    pipeline.run();
+  }
+
+  @Test
+  public void testNumPartitionsMoreThanTotalRows() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "The specified number of partitions is more than the difference between upper bound and lower bound");
+    pipeline.apply(
+        JdbcIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+            .withCoder(SerializableCoder.of(TestRow.class))
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(200)
+            .withPartitionColumn("id")
+            .withLowerBound(0)
+            .withUpperBound(100));
+    pipeline.run();
+  }
+
+  @Test
+  public void testLowerBoundIsMoreThanUpperBound() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "The lower bound of partitioning column is larger or equal than the upper bound");
+    pipeline.apply(
+        JdbcIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+            .withCoder(SerializableCoder.of(TestRow.class))
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(5)
+            .withPartitionColumn("id")
+            .withLowerBound(100)
+            .withUpperBound(100));
     pipeline.run();
   }
 

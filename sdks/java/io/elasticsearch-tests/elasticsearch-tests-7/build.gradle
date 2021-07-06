@@ -27,11 +27,6 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 7.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 7.x"
 
-test {
-  // needed for ESIntegTestCase
-  systemProperty "tests.security.manager", "false"
-}
-
 def log4j_version = "2.14.1"
 def elastic_search_version = "7.9.2"
 
@@ -48,10 +43,8 @@ dependencies {
   testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
   testCompile "org.elasticsearch.test:framework:$elastic_search_version"
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  // TODO(egalpin): Remove painless plugin in favour of containerized tests
-  testImplementation group: 'org.codelibs.elasticsearch.module', name: 'lang-painless', version: "$elastic_search_version"
   testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.5"
-  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testImplementation "org.testcontainers:elasticsearch:1.15.3"
 
   testCompile project(path: ":sdks:java:core", configuration: "shadow")
   testCompile project(":sdks:java:io:elasticsearch")
@@ -66,3 +59,7 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
+
+//test {
+//  systemProperty 'elasticsearchVersion', elasticsearchVersion
+//}

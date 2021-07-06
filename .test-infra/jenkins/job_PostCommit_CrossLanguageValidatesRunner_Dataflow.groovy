@@ -32,7 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Dataflow',
 
       // Publish all test results to Jenkins
       publishers {
-        archiveJunit('**/nosetests*.xml')
+        archiveJunit('**/pytest*.xml')
       }
 
       // Gradle goals for this job.

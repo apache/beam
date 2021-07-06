@@ -25,17 +25,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.SinkMetrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -81,6 +85,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
   private final Set<String> allowedMetricUrns;
+  private @Nullable DatasetService datasetService;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
@@ -344,6 +349,18 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     }
   }
 
+  @Teardown
+  public void onTeardown() {
+    try {
+      if (datasetService != null) {
+        datasetService.close();
+        datasetService = null;
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   /** Writes the accumulated rows into BigQuery with streaming API. */
   private void flushRows(
       TableReference tableReference,
@@ -355,8 +372,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     if (!tableRows.isEmpty()) {
       try {
         long totalBytes =
-            bqServices
-                .getDatasetService(options)
+            getDatasetService(options)
                 .insertAll(
                     tableReference,
                     tableRows,
@@ -372,6 +388,13 @@ class BatchedStreamingWrite<ErrorT, ElementT>
         throw new RuntimeException(e);
       }
     }
+  }
+
+  private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+    if (datasetService == null) {
+      datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+    }
+    return datasetService;
   }
 
   private void reportStreamingApiLogging(BigQueryOptions options) {

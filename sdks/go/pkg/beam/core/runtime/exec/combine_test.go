@@ -84,6 +84,8 @@ func TestCombine(t *testing.T) {
 // ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
 	withCoder := func(t *testing.T, suffix string, key interface{}, keyCoder *coder.Coder) {
+		// The test values are all single global window.
+		wc := coder.NewGlobalWindow()
 		for _, test := range tests {
 			t.Run(fnName(test.Fn)+"_"+suffix, func(t *testing.T) {
 				edge := getCombineEdge(t, test.Fn, reflectx.Int, test.AccumCoder)
@@ -91,8 +93,8 @@ func TestLiftedCombine(t *testing.T) {
 				out := &CaptureNode{UID: 1}
 				extract := &ExtractOutput{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
 				merge := &MergeAccumulators{Combine: &Combine{UID: 3, Fn: edge.CombineFn, Out: extract}}
-				gbk := &simpleGBK{UID: 4, KeyCoder: keyCoder, Out: merge}
-				precombine := &LiftedCombine{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}, KeyCoder: keyCoder}
+				gbk := &simpleGBK{UID: 4, KeyCoder: keyCoder, WindowCoder: wc, Out: merge}
+				precombine := &LiftedCombine{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}, KeyCoder: keyCoder, WindowCoder: wc}
 				n := &FixedRoot{UID: 6, Elements: makeKVInput(key, test.Input...), Out: precombine}
 
 				constructAndExecutePlan(t, []Unit{n, precombine, gbk, merge, extract, out})
@@ -360,9 +362,10 @@ func intCoder(t reflect.Type) *coder.Coder {
 
 // simpleGBK buffers all input and continues on FinishBundle. Use with small single-bundle data only.
 type simpleGBK struct {
-	UID      UnitID
-	Out      Node
-	KeyCoder *coder.Coder
+	UID         UnitID
+	Out         Node
+	KeyCoder    *coder.Coder
+	WindowCoder *coder.WindowCoder
 
 	hasher elementHasher
 	m      map[uint64]*group
@@ -379,7 +382,7 @@ func (n *simpleGBK) ID() UnitID {
 
 func (n *simpleGBK) Up(ctx context.Context) error {
 	n.m = make(map[uint64]*group)
-	n.hasher = makeElementHasher(n.KeyCoder)
+	n.hasher = makeElementHasher(n.KeyCoder, n.WindowCoder)
 	return nil
 }
 
@@ -390,7 +393,10 @@ func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataContext
 func (n *simpleGBK) ProcessElement(ctx context.Context, elm *FullValue, _ ...ReStream) error {
 	key := elm.Elm
 	value := elm.Elm2
-	keyHash, err := n.hasher.Hash(key)
+
+	// Consider generalizing this to multiple windows.
+	// The test values are all single global window.
+	keyHash, err := n.hasher.Hash(key, elm.Windows[0])
 	if err != nil {
 		return err
 	}

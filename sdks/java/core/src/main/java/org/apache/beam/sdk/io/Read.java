@@ -552,12 +552,6 @@ public class Read {
       UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction =
           tracker.currentRestriction();
 
-      // Advance the watermark even if zero elements may have been output, if we have not
-      // split the restriction
-      if (!currentRestriction.isSplit()) {
-        watermarkEstimator.setWatermark(currentRestriction.getWatermark());
-      }
-
       // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial and is not
       // the initial restriction. The initial restriction would have been finalized as part of
       // a prior bundle being executed.
@@ -577,6 +571,10 @@ public class Read {
       if (currentRestriction.getSource() instanceof EmptyUnboundedSource) {
         return ProcessContinuation.stop();
       }
+
+      // Advance the watermark even if zero elements may have been output. Only report it if we
+      // are resuming.
+      watermarkEstimator.setWatermark(currentRestriction.getWatermark());
       return ProcessContinuation.resume();
     }
 
@@ -614,7 +612,6 @@ public class Read {
      */
     @AutoValue
     abstract static class UnboundedSourceValue<T> {
-
       public static <T> UnboundedSourceValue<T> create(
           byte[] id, T value, Instant timestamp, Instant watermark) {
 
@@ -653,10 +650,6 @@ public class Read {
       public abstract @Nullable CheckpointT getCheckpoint();
 
       public abstract Instant getWatermark();
-
-      public boolean isSplit() {
-        return getSource() instanceof EmptyUnboundedSource;
-      }
     }
 
     /** A {@link Coder} for {@link UnboundedSourceRestriction}s. */

@@ -24,7 +24,7 @@
 import math
 
 # Constants used in batched mutation RPCs:
-WRITE_BATCH_INITIAL_SIZE = 200
+WRITE_BATCH_INITIAL_SIZE = 50
 # Max allowed Datastore writes per batch, and max bytes per batch.
 # Note that the max bytes per batch set here is lower than the 10MB limit
 # actually enforced by the API, to leave space for the CommitRequest wrapper
@@ -32,8 +32,8 @@ WRITE_BATCH_INITIAL_SIZE = 200
 # https://cloud.google.com/datastore/docs/concepts/limits
 WRITE_BATCH_MAX_SIZE = 500
 WRITE_BATCH_MAX_BYTES_SIZE = 9000000
-WRITE_BATCH_MIN_SIZE = 10
-WRITE_BATCH_TARGET_LATENCY_MS = 5000
+WRITE_BATCH_MIN_SIZE = 5
+WRITE_BATCH_TARGET_LATENCY_MS = 6000
 
 
 class MovingSum(object):
@@ -47,8 +47,8 @@ class MovingSum(object):
   moving average tracker.
   """
   def __init__(self, window_ms, bucket_ms):
-    if window_ms <= bucket_ms or bucket_ms <= 0:
-      raise ValueError("window_ms > bucket_ms > 0 please")
+    if window_ms < bucket_ms or bucket_ms <= 0:
+      raise ValueError("window_ms >= bucket_ms > 0 please")
     self._num_buckets = int(math.ceil(window_ms / bucket_ms))
     self._bucket_ms = bucket_ms
     self._Reset(now=0)  # initialize the moving window members

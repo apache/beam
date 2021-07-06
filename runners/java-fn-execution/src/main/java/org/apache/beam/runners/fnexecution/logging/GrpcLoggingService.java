@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
-import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;

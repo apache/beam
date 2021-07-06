@@ -61,7 +61,7 @@ task dataflowValidatesRunner() {
     def options = [
             "--runner dataflow",
             "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
@@ -84,7 +84,7 @@ task flinkValidatesRunner {
     def options = [
             "--runner flink",
             "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
@@ -106,7 +106,7 @@ task sparkValidatesRunner {
     def options = [
             "--runner spark",
             "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
@@ -135,7 +135,7 @@ task ulrValidatesRunner {
   doLast {
     def options = [
             "--runner portable",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")

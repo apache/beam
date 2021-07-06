@@ -19,6 +19,7 @@ import random
 import threading
 from typing import Any
 from typing import Callable
+from typing import Generic
 from typing import Iterable
 from typing import Optional
 from typing import TypeVar
@@ -152,7 +153,7 @@ def output_partitioning(expr, input_partitioning):
     return partitionings.Arbitrary()
 
 
-class Expression(object):
+class Expression(Generic[T]):
   """An expression is an operation bound to a set of arguments.
 
   An expression represents a deferred tree of operations, which can be
@@ -203,18 +204,13 @@ class Expression(object):
   expression. However, unless the inputs are Singleton-partitioned, the
   expression makes no guarantees about the partitioning of the output.
   """
-  def __init__(
-      self,
-      name,  # type: str
-      proxy,  # type: T
-      _id=None  # type: Optional[str]
-  ):
+  def __init__(self, name: str, proxy: T, _id: Optional[str] = None):
     self._name = name
     self._proxy = proxy
     # Store for preservation through pickling.
     self._id = _id or '%s_%s_%s' % (name, type(proxy).__name__, id(self))
 
-  def proxy(self):  # type: () -> T
+  def proxy(self) -> T:
     return self._proxy
 
   def __hash__(self):
@@ -230,18 +226,18 @@ class Expression(object):
     """Returns all the placeholders that self depends on."""
     raise NotImplementedError(type(self))
 
-  def evaluate_at(self, session):  # type: (Session) -> T
+  def evaluate_at(self, session: Session) -> T:
     """Returns the result of self with the bindings given in session."""
     raise NotImplementedError(type(self))
 
-  def requires_partition_by(self):  # type: () -> partitionings.Partitioning
+  def requires_partition_by(self) -> partitionings.Partitioning:
     """Returns the partitioning, if any, require to evaluate this expression.
 
     Returns partitioning.Arbitrary() to require no partitioning is required.
     """
     raise NotImplementedError(type(self))
 
-  def preserves_partition_by(self):  # type: () -> partitionings.Partitioning
+  def preserves_partition_by(self) -> partitionings.Partitioning:
     """Returns the partitioning, if any, preserved by this expression.
 
     This gives an upper bound on the partitioning of its ouput.  The actual

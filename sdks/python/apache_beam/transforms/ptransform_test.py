@@ -477,16 +477,20 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
 
   def test_group_by_key_unbounded_global_default_trigger(self):
+    test_options = PipelineOptions()
+    test_options.view_as(TypeOptions).allow_unsafe_triggers = False
     with self.assertRaisesRegex(
         ValueError,
         'GroupByKey cannot be applied to an unbounded PCollection with ' +
         'global windowing and a default trigger'):
-      with TestPipeline() as pipeline:
+      with TestPipeline(options=test_options) as pipeline:
         pipeline | TestStream() | beam.GroupByKey()
 
   def test_group_by_key_unsafe_trigger(self):
+    test_options = PipelineOptions()
+    test_options.view_as(TypeOptions).allow_unsafe_triggers = False
     with self.assertRaisesRegex(ValueError, 'Unsafe trigger'):
-      with TestPipeline() as pipeline:
+      with TestPipeline(options=test_options) as pipeline:
         _ = (
             pipeline
             | beam.Create([(None, None)])
@@ -796,6 +800,32 @@ class PTransformTest(unittest.TestCase):
           }), ('c', {
               'X': [4], 'Y': [7, 8]
           })]))
+
+  def test_co_group_by_key_on_dict_with_tuple_keys(self):
+    with TestPipeline() as pipeline:
+      key = ('a', ('b', 'c'))
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([(key, 1)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([(key, 2)])
+      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey()
+      result |= _SortLists
+      assert_that(result, equal_to([(key, {'X': [1], 'Y': [2]})]))
+
+  def test_co_group_by_key_on_empty(self):
+    with TestPipeline() as pipeline:
+      assert_that(
+          tuple() | 'EmptyTuple' >> beam.CoGroupByKey(pipeline=pipeline),
+          equal_to([]),
+          label='AssertEmptyTuple')
+      assert_that([] | 'EmptyList' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyList')
+      assert_that(
+          iter([]) | 'EmptyIterable' >> beam.CoGroupByKey(pipeline=pipeline),
+          equal_to([]),
+          label='AssertEmptyIterable')
+      assert_that({} | 'EmptyDict' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyDict')
 
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:

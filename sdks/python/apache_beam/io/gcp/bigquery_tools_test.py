@@ -51,6 +51,7 @@ from apache_beam.options.value_provider import StaticValueProvider
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   HttpError = None
   HttpForbiddenError = None
@@ -850,9 +851,7 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.return_value = table
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
-    insert_response = mock.Mock()
-    insert_response.insertErrors = []
-    client.tabledata.InsertAll.return_value = insert_response
+    client.insert_rows_json.return_value = []
 
     with beam.io.BigQuerySink(
         'project:dataset.table',
@@ -860,24 +859,12 @@ class TestBigQueryWriter(unittest.TestCase):
       writer.Write({'i': 1, 'b': True, 's': 'abc', 'f': 3.14})
 
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
-    expected_rows = []
-    json_object = bigquery.JsonObject()
-    for k, v in sample_row.items():
-      json_object.additionalProperties.append(
-          bigquery.JsonObject.AdditionalProperty(key=k, value=to_json_value(v)))
-    expected_rows.append(
-        bigquery.TableDataInsertAllRequest.RowsValueListEntry(
-            insertId='_1',  # First row ID generated with prefix ''
-            json=json_object))
-    client.tabledata.InsertAll.assert_called_with(
-        bigquery.BigqueryTabledataInsertAllRequest(
-            projectId='project',
-            datasetId='dataset',
-            tableId='table',
-            tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
-                rows=expected_rows,
-                skipInvalidRows=False,
-            )))
+    client.insert_rows_json.assert_called_with(
+        gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference('project', 'dataset'), 'table'),
+        json_rows=[sample_row],
+        row_ids=['_1'],
+        skip_invalid_rows=True)
 
   def test_table_schema_without_project(self):
     # Writer should pick executing project by default.
