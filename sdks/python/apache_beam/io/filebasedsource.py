@@ -382,10 +382,12 @@ class _ReadRange(DoFn):
     if not source_list:
       return
     source = source_list[0].source
-    for record in source.read(range.new_tracker()):
-      if self._with_context:
+
+    if self._with_context:
+      for record in source.read(range.new_tracker()):
         yield (metadata.path, record)
-      else:
+    else:
+      for record in source.read(range.new_tracker()):
         yield record
 
 
