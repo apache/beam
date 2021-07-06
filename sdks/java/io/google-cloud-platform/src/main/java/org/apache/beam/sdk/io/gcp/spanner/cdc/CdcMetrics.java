@@ -38,7 +38,8 @@ public class CdcMetrics {
 
   // TODO(zoc): add this correctly
   public static final Distribution WATERMARK_TO_LATEST_RECORD_COMMIT_TIMESTAMP_MS =
-      Metrics.distribution(ReadChangeStream.class, "watermark_to_latest_record_commit_timestamp_ms");
+      Metrics.distribution(
+          ReadChangeStream.class, "watermark_to_latest_record_commit_timestamp_ms");
 
   public static final Distribution RECORD_COMMIT_TIMESTAMP_TO_EMITTED_MS =
       Metrics.distribution(ReadChangeStream.class, "record_commit_timestamp_to_emitted_ms");

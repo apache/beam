@@ -141,9 +141,9 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
           return ProcessContinuation.stop();
         }
         PartitionMetadata metadata = buildPartitionMetadata(resultSet);
-        PARTITION_CREATED_TO_SCHEDULED_MS
-            .update(new Duration(metadata.getCreatedAt().toDate().getTime(),
-                Instant.now().getMillis()).getMillis());
+        PARTITION_CREATED_TO_SCHEDULED_MS.update(
+            new Duration(metadata.getCreatedAt().toDate().getTime(), Instant.now().getMillis())
+                .getMillis());
 
         LOG.debug(
             String.format(

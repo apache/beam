@@ -29,11 +29,13 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
     implements Serializable {
 
   @ProcessElement
-  public void processElement(@Element DataChangeRecord dataChangeRecord,
-      OutputReceiver<DataChangeRecord> receiver) {
+  public void processElement(
+      @Element DataChangeRecord dataChangeRecord, OutputReceiver<DataChangeRecord> receiver) {
     RECORD_COMMIT_TIMESTAMP_TO_EMITTED_MS.update(
-        new Duration(new Instant(dataChangeRecord.getCommitTimestamp().toSqlTimestamp().getTime()),
-            new Instant()).getMillis());
+        new Duration(
+                new Instant(dataChangeRecord.getCommitTimestamp().toSqlTimestamp().getTime()),
+                new Instant())
+            .getMillis());
     receiver.output(dataChangeRecord);
   }
 }
