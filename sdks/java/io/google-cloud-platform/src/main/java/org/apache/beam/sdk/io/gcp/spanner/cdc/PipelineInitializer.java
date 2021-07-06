@@ -54,9 +54,9 @@ public class PipelineInitializer {
       DatabaseId id,
       String partitionMetadataTableName,
       Timestamp inclusiveStartAt,
-      @Nullable Timestamp exclusiveEndAt) {
+      @Nullable Timestamp inclusiveEndAt) {
     createMetadataTable(databaseAdminClient, id, partitionMetadataTableName);
-    createFakeParentPartition(partitionMetadataDao, inclusiveStartAt, exclusiveEndAt);
+    createFakeParentPartition(partitionMetadataDao, inclusiveStartAt, inclusiveEndAt);
   }
 
   private static void createMetadataTable(
@@ -108,13 +108,15 @@ public class PipelineInitializer {
   private static void createFakeParentPartition(
       PartitionMetadataDao partitionMetadataDao,
       Timestamp inclusiveStartAt,
-      @Nullable Timestamp exclusiveEndAt) {
+      @Nullable Timestamp inclusiveEndAt) {
     PartitionMetadata parentPartition =
         PartitionMetadata.newBuilder()
             .setPartitionToken(InitialPartition.PARTITION_TOKEN)
             .setParentTokens(InitialPartition.PARENT_TOKENS)
             .setStartTimestamp(inclusiveStartAt)
-            .setEndTimestamp(exclusiveEndAt)
+            .setInclusiveStart(true)
+            .setEndTimestamp(inclusiveEndAt)
+            .setInclusiveEnd(true)
             .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
             .setState(State.CREATED)
             .build();

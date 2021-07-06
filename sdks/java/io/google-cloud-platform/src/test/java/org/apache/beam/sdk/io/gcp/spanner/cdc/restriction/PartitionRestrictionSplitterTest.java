@@ -72,7 +72,7 @@ public class PartitionRestrictionSplitterTest {
             PartitionRestriction.queryChangeStream(
                 startTimestamp, Timestamp.ofTimeMicroseconds(50_000_251L)),
             PartitionRestriction.queryChangeStream(
-                Timestamp.ofTimeMicroseconds(50_000_251L), endTimestamp)),
+                Timestamp.ofTimeMicroseconds(50_000_252L), endTimestamp)),
         splitResult);
   }
 
@@ -89,7 +89,7 @@ public class PartitionRestrictionSplitterTest {
             PartitionRestriction.queryChangeStream(
                 startTimestamp, Timestamp.ofTimeMicroseconds(75_000_125L)),
             PartitionRestriction.queryChangeStream(
-                Timestamp.ofTimeMicroseconds(75_000_125L), endTimestamp)),
+                Timestamp.ofTimeMicroseconds(75_000_126L), endTimestamp)),
         splitResult);
   }
 

@@ -58,8 +58,6 @@ public class PartitionRestrictionSplitter {
         "%s mode must specify the number of child partitions to wait for (no value sent)",
         positionMode);
 
-    // TODO: Revisit and check if we need to split by staying in the same mode (we are currently
-    // advancing)
     SplitResult<PartitionRestriction> splitResult = null;
     switch (positionMode) {
       case QUERY_CHANGE_STREAM:
@@ -134,14 +132,16 @@ public class PartitionRestrictionSplitter {
                 .multiply(BigDecimal.valueOf(fractionOfRemainder))
                 .max(BigDecimal.ONE));
 
-    final Timestamp splitPositionTimestamp = timestampFromMicros(splitPositionMicros);
+    final Timestamp primaryEndTimestamp = timestampFromMicros(splitPositionMicros);
+    final Timestamp residualStartTimestamp =
+        timestampFromMicros(splitPositionMicros.add(BigDecimal.ONE));
 
-    if (splitPositionTimestamp.compareTo(endTimestamp) > 0) {
+    if (residualStartTimestamp.compareTo(endTimestamp) > 0) {
       return null;
     } else {
       return SplitResult.of(
-          PartitionRestriction.queryChangeStream(startTimestamp, splitPositionTimestamp),
-          PartitionRestriction.queryChangeStream(splitPositionTimestamp, endTimestamp));
+          PartitionRestriction.queryChangeStream(startTimestamp, primaryEndTimestamp),
+          PartitionRestriction.queryChangeStream(residualStartTimestamp, endTimestamp));
     }
   }
 }

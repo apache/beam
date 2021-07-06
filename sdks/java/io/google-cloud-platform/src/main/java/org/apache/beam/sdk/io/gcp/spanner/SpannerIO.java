@@ -1284,7 +1284,7 @@ public class SpannerIO {
 
     abstract Timestamp getInclusiveStartAt();
 
-    abstract @Nullable Timestamp getExclusiveEndAt();
+    abstract @Nullable Timestamp getInclusiveEndAt();
 
     abstract @Nullable Deserializer getDeserializer();
 
@@ -1299,7 +1299,7 @@ public class SpannerIO {
 
       abstract Builder setInclusiveStartAt(Timestamp inclusiveStartAt);
 
-      abstract Builder setExclusiveEndAt(Timestamp exclusiveEndAt);
+      abstract Builder setInclusiveEndAt(Timestamp inclusiveEndAt);
 
       abstract Builder setDeserializer(Deserializer deserializer);
 
@@ -1356,7 +1356,7 @@ public class SpannerIO {
 
     /** Specifies the end time of the change stream. */
     public ReadChangeStream withExclusiveEndAt(Timestamp timestamp) {
-      return toBuilder().setExclusiveEndAt(timestamp).build();
+      return toBuilder().setInclusiveEndAt(timestamp).build();
     }
 
     /**
@@ -1389,8 +1389,8 @@ public class SpannerIO {
           "SpannerIO.readChangeStream() requires the start time to be set.");
 
       // Start time must be before end time
-      if (getExclusiveEndAt() != null
-          && getInclusiveStartAt().toSqlTimestamp().after(getExclusiveEndAt().toSqlTimestamp())) {
+      if (getInclusiveEndAt() != null
+          && getInclusiveStartAt().toSqlTimestamp().after(getInclusiveEndAt().toSqlTimestamp())) {
         throw new IllegalArgumentException("Start time cannot be after end time.");
       }
 
@@ -1416,7 +1416,7 @@ public class SpannerIO {
               getChangeStreamName(),
               partitionMetadataTableName,
               getInclusiveStartAt(),
-              getExclusiveEndAt()));
+              getInclusiveEndAt()));
       // FIXME: This should come from the generated table name
       final DaoFactory daoFactory =
           new DaoFactory(getChangeStreamName(), partitionMetadataTableName);
@@ -1438,7 +1438,7 @@ public class SpannerIO {
           databaseId,
           partitionMetadataTableName,
           getInclusiveStartAt(),
-          getExclusiveEndAt());
+          getInclusiveEndAt());
       return input
           .apply("Generate change stream sources", Create.of(sources))
           .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
