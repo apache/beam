@@ -81,7 +81,7 @@ public interface Timer {
    */
   void setRelative();
 
-  /** Clears a timer. */
+  /** Clears a timer. Previous set timers will become unset. */
   void clear();
 
   /** Offsets the target timestamp used by {@link #setRelative()} by the given duration. */

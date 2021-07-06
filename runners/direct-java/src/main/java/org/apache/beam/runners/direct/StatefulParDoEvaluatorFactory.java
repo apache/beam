@@ -202,7 +202,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         TimerData timer = toBeFiredTimers.poll();
         checkState(
             timer.getNamespace() instanceof WindowNamespace,
-            "Expected Timer %s to be in a        %s, but got %s",
+            "Expected Timer %s to be in a %s, but got %s",
             timer,
             WindowNamespace.class.getSimpleName(),
             timer.getNamespace().getClass().getName());

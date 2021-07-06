@@ -670,8 +670,6 @@ class WatermarkManager<ExecutableT, CollectionT> {
             existingTimersForKey.get(
                 deletedTimer.getNamespace(),
                 deletedTimer.getTimerId() + '+' + deletedTimer.getTimerFamilyId());
-        System.err.println(
-            "DELETING EXISTING TIMER " + existingTimer + " FOR DELETED " + deletedTimer);
         if (existingTimer != null) {
           pendingTimers.remove(deletedTimer);
           timerQueue.remove(deletedTimer);
