@@ -585,7 +585,6 @@ class TextSourceTest(unittest.TestCase):
   def test_read_all_with_context(self):
     pattern, expected_data = write_pattern([5, 3], return_filenames=True)
     assert len(expected_data) == 8
-    print(pattern, expected_data)
 
     with TestPipeline() as pipeline:
       pcoll = pipeline \
