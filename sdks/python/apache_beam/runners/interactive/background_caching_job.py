@@ -230,11 +230,13 @@ def has_source_to_cache(user_pipeline):
                                                          create_if_absent=True),
                       streaming_cache.StreamingCache):
 
+      file_based_cm = ie.current_env().get_cache_manager(user_pipeline)
       ie.current_env().set_cache_manager(
           streaming_cache.StreamingCache(
-              ie.current_env().get_cache_manager(user_pipeline)._cache_dir,
+              file_based_cm._cache_dir,
               is_cache_complete=is_cache_complete,
-              sample_resolution_sec=1.0),
+              sample_resolution_sec=1.0,
+              saved_pcoders=file_based_cm._saved_pcoders),
           user_pipeline)
   return has_cache
 

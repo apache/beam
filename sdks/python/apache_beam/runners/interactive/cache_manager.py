@@ -165,7 +165,7 @@ class FileBasedCacheManager(CacheManager):
       self._cache_dir = cache_dir
     else:
       self._cache_dir = tempfile.mkdtemp(
-          prefix='it-', dir=os.environ.get('TEST_TMPDIR', None))
+          prefix='ib-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
     self.cache_format = cache_format
 
@@ -207,9 +207,13 @@ class FileBasedCacheManager(CacheManager):
     self._saved_pcoders[self._path(*labels)] = pcoder
 
   def load_pcoder(self, *labels):
-    return (
-        self._default_pcoder if self._default_pcoder is not None else
-        self._saved_pcoders[self._path(*labels)])
+    saved_pcoder = self._saved_pcoders.get(self._path(*labels), None)
+    # TODO(BEAM-12506): Get rid of the SafeFastPrimitivesCoder for
+    # WindowedValueHolder.
+    if saved_pcoder is None or isinstance(saved_pcoder,
+                                          coders.FastPrimitivesCoder):
+      return self._default_pcoder
+    return saved_pcoder
 
   def read(self, *labels, **args):
     # Return an iterator to an empty list if it doesn't exist.
@@ -225,11 +229,22 @@ class FileBasedCacheManager(CacheManager):
     return reader, version
 
   def write(self, values, *labels):
-    sink = self.sink(labels)._sink
-    path = self._path(*labels)
+    """Imitates how a WriteCache tranform works without running a pipeline.
 
-    init_result = sink.initialize_write()
-    writer = sink.open_writer(init_result, path)
+    For testing and cache manager development, not for production usage because
+    the write is not sharded and does not use Beam execution model.
+    """
+    pcoder = coders.registry.get_coder(type(values[0]))
+    # Save the pcoder for the actual labels.
+    self.save_pcoder(pcoder, *labels)
+    single_shard_labels = [*labels[:-1], '-00000-of-00001']
+    # Save the pcoder for the labels that imitates the sharded cache file name
+    # suffix.
+    self.save_pcoder(pcoder, *single_shard_labels)
+    # Put a '-%05d-of-%05d' suffix to the cache file.
+    sink = self.sink(single_shard_labels)._sink
+    path = self._path(*labels[:-1])
+    writer = sink.open_writer(path, labels[-1])
     for v in values:
       writer.write(v)
     writer.close()
@@ -254,7 +269,7 @@ class FileBasedCacheManager(CacheManager):
     self._saved_pcoders = {}
 
   def _glob_path(self, *labels):
-    return self._path(*labels) + '-*-of-*'
+    return self._path(*labels) + '*-*-of-*'
 
   def _path(self, *labels):
     return filesystems.FileSystems.join(self._cache_dir, *labels)

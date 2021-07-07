@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static java.lang.Integer.MAX_VALUE;
 import static org.apache.beam.sdk.io.jdbc.SchemaUtil.checkNullabilityForFields;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -31,6 +33,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -45,6 +48,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -52,6 +56,7 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -65,6 +70,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -175,6 +181,53 @@ import org.slf4j.LoggerFactory;
  * );
  * }</code></pre>
  *
+ * <p>3. To read all data from a table in parallel with partitioning can be done with {@link
+ * ReadWithPartitions}:
+ *
+ * <pre>{@code
+ * pipeline.apply(JdbcIO.<KV<Integer, String>>readWithPartitions()
+ *  .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+ *         "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
+ *       .withUsername("username")
+ *       .withPassword("password"))
+ *  .withTable("Person")
+ *  .withPartitionColumn("id")
+ *  .withLowerBound(0)
+ *  .withUpperBound(1000)
+ *  .withNumPartitions(5)
+ *  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
+ *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
+ *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
+ *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
+ *    }
+ *  })
+ * );
+ * }</pre>
+ *
+ * <p>Instead of a full table you could also use a subquery in parentheses. The subquery can be
+ * specified using Table option instead and partition columns can be qualified using the subquery
+ * alias provided as part of Table.
+ *
+ * <pre>{@code
+ * pipeline.apply(JdbcIO.<KV<Integer, String>>readWithPartitions()
+ *  .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+ *         "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
+ *       .withUsername("username")
+ *       .withPassword("password"))
+ *  .withTable("(select id, name from Person) as subq")
+ *  .withPartitionColumn("id")
+ *  .withLowerBound(0)
+ *  .withUpperBound(1000)
+ *  .withNumPartitions(5)
+ *  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
+ *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
+ *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
+ *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
+ *    }
+ *  })
+ * );
+ * }</pre>
+ *
  * <h3>Writing to JDBC datasource</h3>
  *
  * <p>JDBC sink supports writing records into a database. It writes a {@link PCollection} to the
@@ -253,11 +306,29 @@ public class JdbcIO {
         .build();
   }
 
+  /**
+   * Like {@link #readAll}, but executes multiple instances of the query on the same table
+   * (subquery) using ranges.
+   *
+   * @param <T> Type of the data to be read.
+   */
+  public static <T> ReadWithPartitions<T> readWithPartitions() {
+    return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T>()
+        .setLowerBound(DEFAULT_LOWER_BOUND)
+        .setUpperBound(DEFAULT_UPPER_BOUND)
+        .setNumPartitions(DEFAULT_NUM_PARTITIONS)
+        .build();
+  }
+
   private static final long DEFAULT_BATCH_SIZE = 1000L;
   private static final int DEFAULT_FETCH_SIZE = 50_000;
   // Default values used from fluent backoff.
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
+  // Default values used for partitioning a table
+  private static final int DEFAULT_LOWER_BOUND = 0;
+  private static final int DEFAULT_UPPER_BOUND = MAX_VALUE;
+  private static final int DEFAULT_NUM_PARTITIONS = 200;
 
   /**
    * Write data to a JDBC datasource.
@@ -873,8 +944,182 @@ public class JdbcIO {
     }
   }
 
+  /** Implementation of {@link #readWithPartitions}. */
+  @AutoValue
+  public abstract static class ReadWithPartitions<T> extends PTransform<PBegin, PCollection<T>> {
+
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    abstract @Nullable RowMapper<T> getRowMapper();
+
+    abstract @Nullable Coder<T> getCoder();
+
+    abstract int getNumPartitions();
+
+    abstract @Nullable String getPartitionColumn();
+
+    abstract int getLowerBound();
+
+    abstract int getUpperBound();
+
+    abstract @Nullable String getTable();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+
+      abstract Builder<T> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Builder<T> setNumPartitions(int numPartitions);
+
+      abstract Builder<T> setPartitionColumn(String partitionColumn);
+
+      abstract Builder<T> setLowerBound(int lowerBound);
+
+      abstract Builder<T> setUpperBound(int upperBound);
+
+      abstract Builder<T> setTable(String tableName);
+
+      abstract ReadWithPartitions<T> build();
+    }
+
+    public ReadWithPartitions<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
+    }
+
+    public ReadWithPartitions<T> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
+    }
+
+    public ReadWithPartitions<T> withRowMapper(RowMapper<T> rowMapper) {
+      checkNotNull(rowMapper, "rowMapper can not be null");
+      return toBuilder().setRowMapper(rowMapper).build();
+    }
+
+    public ReadWithPartitions<T> withCoder(Coder<T> coder) {
+      checkNotNull(coder, "coder can not be null");
+      return toBuilder().setCoder(coder).build();
+    }
+
+    /**
+     * The number of partitions. This, along with withLowerBound and withUpperBound, form partitions
+     * strides for generated WHERE clause expressions used to split the column withPartitionColumn
+     * evenly. When the input is less than 1, the number is set to 1.
+     */
+    public ReadWithPartitions<T> withNumPartitions(int numPartitions) {
+      checkArgument(numPartitions > 0, "numPartitions can not be less than 1");
+      return toBuilder().setNumPartitions(numPartitions).build();
+    }
+
+    /** The name of a column of numeric type that will be used for partitioning. */
+    public ReadWithPartitions<T> withPartitionColumn(String partitionColumn) {
+      checkNotNull(partitionColumn, "partitionColumn can not be null");
+      return toBuilder().setPartitionColumn(partitionColumn).build();
+    }
+
+    public ReadWithPartitions<T> withLowerBound(int lowerBound) {
+      return toBuilder().setLowerBound(lowerBound).build();
+    }
+
+    public ReadWithPartitions<T> withUpperBound(int upperBound) {
+      return toBuilder().setUpperBound(upperBound).build();
+    }
+
+    /** Name of the table in the external database. Can be used to pass a user-defined subqery. */
+    public ReadWithPartitions<T> withTable(String tableName) {
+      checkNotNull(tableName, "table can not be null");
+      return toBuilder().setTable(tableName).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      checkNotNull(getRowMapper(), "withRowMapper() is required");
+      checkNotNull(getCoder(), "withCoder() is required");
+      checkNotNull(
+          getDataSourceProviderFn(),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+      checkNotNull(getPartitionColumn(), "withPartitionColumn() is required");
+      checkNotNull(getTable(), "withTable() is required");
+      checkArgument(
+          getLowerBound() < getUpperBound(),
+          "The lower bound of partitioning column is larger or equal than the upper bound");
+      checkArgument(
+          getUpperBound() - getLowerBound() >= getNumPartitions(),
+          "The specified number of partitions is more than the difference between upper bound and lower bound");
+
+      if (getUpperBound() == MAX_VALUE || getLowerBound() == 0) {
+        refineBounds(input);
+      }
+
+      int stride = (getUpperBound() - getLowerBound()) / getNumPartitions();
+      PCollection<List<Integer>> params =
+          input.apply(
+              Create.of(
+                  Collections.singletonList(
+                      Arrays.asList(getLowerBound(), getUpperBound(), getNumPartitions()))));
+      PCollection<KV<String, Iterable<Integer>>> ranges =
+          params
+              .apply("Partitioning", ParDo.of(new PartitioningFn()))
+              .apply("Group partitions", GroupByKey.create());
+
+      return ranges.apply(
+          "Read ranges",
+          JdbcIO.<KV<String, Iterable<Integer>>, T>readAll()
+              .withDataSourceProviderFn(getDataSourceProviderFn())
+              .withFetchSize(stride)
+              .withQuery(
+                  String.format(
+                      "select * from %1$s where %2$s >= ? and %2$s < ?",
+                      getTable(), getPartitionColumn()))
+              .withCoder(getCoder())
+              .withRowMapper(getRowMapper())
+              .withParameterSetter(
+                  (PreparedStatementSetter<KV<String, Iterable<Integer>>>)
+                      (element, preparedStatement) -> {
+                        String[] range = element.getKey().split(",", -1);
+                        preparedStatement.setInt(1, Integer.parseInt(range[0]));
+                        preparedStatement.setInt(2, Integer.parseInt(range[1]));
+                      })
+              .withOutputParallelization(false));
+    }
+
+    private void refineBounds(PBegin input) {
+      Integer[] bounds =
+          JdbcUtil.getBounds(input, getTable(), getDataSourceProviderFn(), getPartitionColumn());
+      if (getLowerBound() == 0) {
+        withLowerBound(bounds[0]);
+      }
+      if (getUpperBound() == MAX_VALUE) {
+        withUpperBound(bounds[1]);
+      }
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
+      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
+      builder.add(DisplayData.item("table", getTable()));
+      builder.add(DisplayData.item("numPartitions", getNumPartitions()));
+      builder.add(DisplayData.item("lowerBound", getLowerBound()));
+      builder.add(DisplayData.item("upperBound", getUpperBound()));
+      if (getDataSourceProviderFn() instanceof HasDisplayData) {
+        ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
+      }
+    }
+  }
+
   /** A {@link DoFn} executing the SQL query to read from the database. */
   private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
+
     private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
     private final ValueProvider<String> query;
     private final PreparedStatementSetter<ParameterT> parameterSetter;

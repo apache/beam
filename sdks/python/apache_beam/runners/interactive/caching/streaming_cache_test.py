@@ -427,6 +427,25 @@ class StreamingCacheTest(unittest.TestCase):
 
     self.assertListEqual(actual_events, expected_events)
 
+  def test_always_default_coder_for_test_stream_records(self):
+    CACHED_NUMBERS = repr(CacheKey('numbers', '', '', ''))
+    numbers = (FileRecordsBuilder(CACHED_NUMBERS)
+               .advance_processing_time(2)
+               .add_element(element=1, event_time_secs=0)
+               .advance_processing_time(1)
+               .add_element(element=2, event_time_secs=0)
+               .advance_processing_time(1)
+               .add_element(element=2, event_time_secs=0)
+               .build()) # yapf: disable
+    cache = StreamingCache(cache_dir=None)
+    cache.write(numbers, CACHED_NUMBERS)
+    self.assertIs(
+        type(cache.load_pcoder(CACHED_NUMBERS)), type(cache._default_pcoder))
+
+  def test_streaming_cache_does_not_write_non_record_or_header_types(self):
+    cache = StreamingCache(cache_dir=None)
+    self.assertRaises(TypeError, cache.write, 'some value', 'a key')
+
 
 if __name__ == '__main__':
   unittest.main()

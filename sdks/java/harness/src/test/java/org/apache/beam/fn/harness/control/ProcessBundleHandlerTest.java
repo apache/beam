@@ -22,10 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.argThat;
@@ -99,9 +101,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -118,8 +118,6 @@ import org.mockito.MockitoAnnotations;
 public class ProcessBundleHandlerTest {
   private static final String DATA_INPUT_URN = "beam:runner:source:v1";
   private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
-
-  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private BeamFnDataClient beamFnDataClient;
   @Captor private ArgumentCaptor<ThrowingConsumer<Exception, WindowedValue<String>>> consumerCaptor;
@@ -644,6 +642,14 @@ public class ProcessBundleHandlerTest {
     // After it is released, ensure the bundle processor is no longer found
     cache.release("descriptorId", bundleProcessor);
     assertNull(cache.find("known"));
+
+    // Once it is active, ensure the bundle processor is found
+    cache.get("descriptorId", "known", () -> bundleProcessor);
+    assertSame(bundleProcessor, cache.find("known"));
+
+    // After it is discarded, ensure the bundle processor is no longer found
+    cache.discard(bundleProcessor);
+    assertNull(cache.find("known"));
   }
 
   @Test
@@ -676,6 +682,7 @@ public class ProcessBundleHandlerTest {
             bundleFinalizationCallbacks);
 
     bundleProcessor.reset();
+    assertNull(bundleProcessor.getInstructionId());
     verify(startFunctionRegistry, times(1)).reset();
     verify(finishFunctionRegistry, times(1)).reset();
     verify(splitListener, times(1)).clear();
@@ -727,16 +734,19 @@ public class ProcessBundleHandlerTest {
                     addProgressRequestCallback,
                     splitListener,
                     bundleFinalizer) -> {
-                  thrown.expect(IllegalStateException.class);
-                  thrown.expectMessage("TestException");
                   throw new IllegalStateException("TestException");
                 }),
             new BundleProcessorCache());
-    handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder()
-            .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
-            .build());
+    assertThrows(
+        "TestException",
+        IllegalStateException.class,
+        () ->
+            handler.processBundle(
+                BeamFnApi.InstructionRequest.newBuilder()
+                    .setProcessBundle(
+                        BeamFnApi.ProcessBundleRequest.newBuilder()
+                            .setProcessBundleDescriptorId("1L"))
+                    .build()));
   }
 
   @Test
@@ -813,7 +823,7 @@ public class ProcessBundleHandlerTest {
   }
 
   @Test
-  public void testPTransformStartExceptionsArePropagated() throws Exception {
+  public void testPTransformStartExceptionsArePropagated() {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
             .putTransforms(
@@ -854,23 +864,24 @@ public class ProcessBundleHandlerTest {
                         addProgressRequestCallback,
                         splitListener,
                         bundleFinalizer) -> {
-                      thrown.expect(IllegalStateException.class);
-                      thrown.expectMessage("TestException");
                       startFunctionRegistry.register(
                           pTransformId, ProcessBundleHandlerTest::throwException);
                       return null;
                     }),
             new BundleProcessorCache());
-    handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder()
-            .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
-            .build());
-
+    assertThrows(
+        "TestException",
+        IllegalStateException.class,
+        () ->
+            handler.processBundle(
+                BeamFnApi.InstructionRequest.newBuilder()
+                    .setProcessBundle(
+                        BeamFnApi.ProcessBundleRequest.newBuilder()
+                            .setProcessBundleDescriptorId("1L"))
+                    .build()));
     // BundleProcessor is not re-added back to the BundleProcessorCache in case of an exception
     // during bundle processing
-    assertThat(
-        handler.bundleProcessorCache.getCachedBundleProcessors(), equalTo(Collections.EMPTY_MAP));
+    assertThat(handler.bundleProcessorCache.getCachedBundleProcessors().get("1L"), empty());
   }
 
   @Test
@@ -915,23 +926,25 @@ public class ProcessBundleHandlerTest {
                         addProgressRequestCallback,
                         splitListener,
                         bundleFinalizer) -> {
-                      thrown.expect(IllegalStateException.class);
-                      thrown.expectMessage("TestException");
                       finishFunctionRegistry.register(
                           pTransformId, ProcessBundleHandlerTest::throwException);
                       return null;
                     }),
             new BundleProcessorCache());
-    handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder()
-            .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
-            .build());
+    assertThrows(
+        "TestException",
+        IllegalStateException.class,
+        () ->
+            handler.processBundle(
+                BeamFnApi.InstructionRequest.newBuilder()
+                    .setProcessBundle(
+                        BeamFnApi.ProcessBundleRequest.newBuilder()
+                            .setProcessBundleDescriptorId("1L"))
+                    .build()));
 
     // BundleProcessor is not re-added back to the BundleProcessorCache in case of an exception
     // during bundle processing
-    assertThat(
-        handler.bundleProcessorCache.getCachedBundleProcessors(), equalTo(Collections.EMPTY_MAP));
+    assertThat(handler.bundleProcessorCache.getCachedBundleProcessors().get("1L"), empty());
   }
 
   @Test
@@ -1089,19 +1102,22 @@ public class ProcessBundleHandlerTest {
                   }
 
                   private void doStateCalls(BeamFnStateClient beamFnStateClient) {
-                    thrown.expect(IllegalStateException.class);
-                    thrown.expectMessage("State API calls are unsupported");
                     beamFnStateClient.handle(
                         StateRequest.newBuilder().setInstructionId("SUCCESS"),
                         new CompletableFuture<>());
                   }
                 }),
             new BundleProcessorCache());
-    handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder()
-            .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
-            .build());
+    assertThrows(
+        "State API calls are unsupported",
+        IllegalStateException.class,
+        () ->
+            handler.processBundle(
+                BeamFnApi.InstructionRequest.newBuilder()
+                    .setProcessBundle(
+                        BeamFnApi.ProcessBundleRequest.newBuilder()
+                            .setProcessBundleDescriptorId("1L"))
+                    .build()));
   }
 
   @Test
@@ -1155,8 +1171,6 @@ public class ProcessBundleHandlerTest {
                   }
 
                   private void doTimerRegistrations(BeamFnTimerClient beamFnTimerClient) {
-                    thrown.expect(IllegalStateException.class);
-                    thrown.expectMessage("Timers are unsupported");
                     beamFnTimerClient.register(
                         LogicalEndpoint.timer("1L", "2L", "Timer"),
                         Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
@@ -1164,11 +1178,16 @@ public class ProcessBundleHandlerTest {
                   }
                 }),
             new BundleProcessorCache());
-    handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder()
-            .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
-            .build());
+    assertThrows(
+        "Timers are unsupported",
+        IllegalStateException.class,
+        () ->
+            handler.processBundle(
+                BeamFnApi.InstructionRequest.newBuilder()
+                    .setProcessBundle(
+                        BeamFnApi.ProcessBundleRequest.newBuilder()
+                            .setProcessBundleDescriptorId("1L"))
+                    .build()));
   }
 
   private static void throwException() {
