@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -71,16 +71,8 @@ class DirectTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void deleteTimer(
-      StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
-    deleteTimer(
-        TimerData.of(
-            timerId,
-            timerFamilyId,
-            namespace,
-            BoundedWindow.TIMESTAMP_MIN_VALUE,
-            BoundedWindow.TIMESTAMP_MAX_VALUE,
-            timeDomain));
+  public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+    throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
   }
 
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
@@ -101,19 +93,10 @@ class DirectTimerInternals implements TimerInternals {
     return timerUpdateBuilder.build();
   }
 
-  public boolean containsUpdateForTimeBefore(
-      Instant maxWatermarkTime, Instant maxProcessingTime, Instant maxSynchronizedProcessingTime) {
+  public boolean containsUpdateForTimeBefore(Instant time) {
     TimerUpdate update = timerUpdateBuilder.build();
-    return hasTimeBefore(
-            update.getSetTimers(),
-            maxWatermarkTime,
-            maxProcessingTime,
-            maxSynchronizedProcessingTime)
-        || hasTimeBefore(
-            update.getDeletedTimers(),
-            maxWatermarkTime,
-            maxProcessingTime,
-            maxSynchronizedProcessingTime);
+    return hasTimeBefore(update.getSetTimers(), time)
+        || hasTimeBefore(update.getDeletedTimers(), time);
   }
 
   @Override
@@ -136,31 +119,8 @@ class DirectTimerInternals implements TimerInternals {
     return watermarks.getOutputWatermark();
   }
 
-  private boolean hasTimeBefore(
-      Iterable<? extends TimerData> timers,
-      Instant maxWatermarkTime,
-      Instant maxProcessingTime,
-      Instant maxSynchronizedProcessingTime) {
-    for (TimerData timerData : timers) {
-      Instant currentTime;
-      switch (timerData.getDomain()) {
-        case EVENT_TIME:
-          currentTime = maxWatermarkTime;
-          break;
-        case PROCESSING_TIME:
-          currentTime = maxProcessingTime;
-          break;
-        case SYNCHRONIZED_PROCESSING_TIME:
-          currentTime = maxSynchronizedProcessingTime;
-          break;
-        default:
-          throw new RuntimeException("Unexpected timeDomain " + timerData.getDomain());
-      }
-      if (timerData.getTimestamp().isBefore(currentTime)
-          || timerData.getTimestamp().isEqual(currentTime)) {
-        return true;
-      }
-    }
-    return false;
+  private boolean hasTimeBefore(Iterable<? extends TimerData> timers, Instant time) {
+    return StreamSupport.stream(timers.spliterator(), false)
+        .anyMatch(td -> td.getTimestamp().isBefore(time));
   }
 }

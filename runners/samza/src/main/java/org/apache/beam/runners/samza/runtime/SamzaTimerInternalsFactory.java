@@ -318,8 +318,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     }
 
     @Override
-    public void deleteTimer(
-        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
       Instant now = Instant.now();
       deleteTimer(TimerData.of(timerId, namespace, now, now, timeDomain));
     }
