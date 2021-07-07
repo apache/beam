@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -144,6 +145,7 @@ public class CloudObjectsTest {
               .add(new ObjectCoder())
               .add(GlobalWindow.Coder.INSTANCE)
               .add(IntervalWindow.getCoder())
+              .add(TimestampPrefixingWindowCoder.of(IntervalWindow.getCoder()))
               .add(LengthPrefixCoder.of(VarLongCoder.of()))
               .add(IterableCoder.of(VarLongCoder.of()))
               .add(KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))

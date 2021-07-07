@@ -939,6 +939,15 @@ message StandardCoders {
     // Experimental.
     STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
 
+
+    // Encodes an arbitrary user defined window, the coder extracts the required
+    // maxTimestamp(inclusive) parameter for the window and prefix it to the
+    // bytes encoded from the window by using user defined and registered window
+    // coder.
+    //
+    // Components: Coder for the custom window type.
+    CUSTOM_WINDOW = 16 [(beam_urn) = "beam:coder:custom_window:v1"];
+
     // Additional Standard Coders
     // --------------------------
     // The following coders are not required to be implemented for an SDK or
