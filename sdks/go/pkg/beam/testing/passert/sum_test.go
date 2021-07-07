@@ -16,11 +16,11 @@
 package passert
 
 import (
-        "strings"
+	"strings"
 	"testing"
 
-        "github.com/apache/beam/sdks/go/pkg/beam"
-        "github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
 func TestSum_good(t *testing.T) {
@@ -92,20 +92,19 @@ func TestSum_bad(t *testing.T) {
 		p, s := beam.NewPipelineWithRoot()
 		col := beam.CreateList(s, tc.col)
 		Sum(s, col, tc.name, tc.size, tc.total)
-		if err := ptest.Run(p); err == nil {
-			t.Errorf("Pipeline succeeded but should have failed: %v", tc.name)
-		} else {
-			str := err.Error()
-			missing := []string{}
-			for _, part := range tc.errorParts {
-				if !strings.Contains(str, part) {
-					missing = append(missing, part)
-				}
+		err := ptest.Run(p)
+		if err == nil {
+			t.Fatalf("Pipeline succeeded but should have failed: %v", tc.name)
+		}
+		str := err.Error()
+		missing := []string{}
+		for _, part := range tc.errorParts {
+			if !strings.Contains(str, part) {
+				missing = append(missing, part)
 			}
-			if len(missing) != 0 {
-				t.Errorf("%v: pipeline failed correctly, but substrings %#v are not present in message:\n%v", tc.name, missing, str)
-			}
+		}
+		if len(missing) != 0 {
+			t.Errorf("%v: pipeline failed correctly, but substrings %#v are not present in message:\n%v", tc.name, missing, str)
 		}
 	}
 }
-
