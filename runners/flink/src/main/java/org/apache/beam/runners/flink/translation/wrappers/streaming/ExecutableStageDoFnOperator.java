@@ -596,8 +596,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     @Override
-    public void deleteTimer(
-        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
       throw new UnsupportedOperationException(
           "It is not expected to use SdfFlinkTimerInternals to delete a timer");
     }
