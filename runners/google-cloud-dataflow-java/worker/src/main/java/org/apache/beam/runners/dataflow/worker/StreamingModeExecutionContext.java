@@ -29,11 +29,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -61,6 +63,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table.Cell;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -540,7 +545,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               synchronizedProcessingTime);
 
       this.cachedFiredTimers = null;
-      this.cachedFiredUserTimers = null;
+      this.orderedUserTimers = null;
     }
 
     public void flushState() {
@@ -581,30 +586,81 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
 
     // Lazily initialized
-    private Iterator<TimerData> cachedFiredUserTimers = null;
+    private NavigableSet<TimerData> orderedUserTimers = null;
+    private Set<String> deletedTimers = null;
 
     public <W extends BoundedWindow> TimerData getNextFiredUserTimer(Coder<W> windowCoder) {
-      if (cachedFiredUserTimers == null) {
-        cachedFiredUserTimers =
-            FluentIterable.<Timer>from(StreamingModeExecutionContext.this.getFiredTimers())
-                .filter(
-                    timer ->
-                        WindmillTimerInternals.isUserTimer(timer)
-                            && timer.getStateFamily().equals(stateFamily))
-                .transform(
-                    timer ->
-                        WindmillTimerInternals.windmillTimerToTimerData(
-                            WindmillNamespacePrefix.USER_NAMESPACE_PREFIX, timer, windowCoder))
-                .iterator();
+      if (orderedUserTimers == null) {
+        orderedUserTimers = Sets.newTreeSet();
+        deletedTimers = Sets.newHashSet();
+        FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
+            .filter(
+                timer ->
+                    WindmillTimerInternals.isUserTimer(timer)
+                        && timer.getStateFamily().equals(stateFamily))
+            .transform(
+                timer ->
+                    WindmillTimerInternals.windmillTimerToTimerData(
+                        WindmillNamespacePrefix.USER_NAMESPACE_PREFIX, timer, windowCoder))
+            .iterator()
+            .forEachRemaining(
+                timer -> {
+                  orderedUserTimers.add(timer);
+                });
       }
 
-      if (!cachedFiredUserTimers.hasNext()) {
-        return null;
+      // Extract recently set or deleted timers. This operation is destructive, meaning that each
+      // call returns the modifications since the last call.
+      Table<String, StateNamespace, TimerData> justModifiedTimers =
+          userTimerInternals.extractJustModifiedTimers();
+      for (Cell<String, StateNamespace, TimerData> cell : justModifiedTimers.cellSet()) {
+        Instant currentMaxTime;
+        switch (cell.getValue().getDomain()) {
+          case EVENT_TIME:
+            currentMaxTime = userTimerInternals.currentInputWatermarkTime();
+            break;
+          case PROCESSING_TIME:
+            currentMaxTime = userTimerInternals.currentProcessingTime();
+            break;
+          case SYNCHRONIZED_PROCESSING_TIME:
+            currentMaxTime = userTimerInternals.currentSynchronizedProcessingTime();
+            break;
+          default:
+            throw new RuntimeException("Unexpected domain " + cell.getValue().getDomain());
+        }
+        // If the the modified timer falls within the range of timers eligible to fire, insert
+        // it into the priority queue. If it falls outside the range, then don't: If it's a
+        // brand-new timer, it won't
+        // affect order in the current bundle. If it's a reset or clear of an existing timer, we
+        // will detect this below
+        // before we fire the timer.
+        if (cell.getValue().getTimestamp().isBefore(currentMaxTime)
+            || cell.getValue().getTimestamp().isEqual(currentMaxTime)) {
+          if (!cell.getValue().getDeleted()) {
+            orderedUserTimers.add(cell.getValue());
+          }
+        }
       }
-      TimerData nextTimer = cachedFiredUserTimers.next();
-      // User timers must be explicitly deleted when delivered, to release the implied hold
-      userTimerInternals.deleteTimer(nextTimer);
-      return nextTimer;
+
+      while (!orderedUserTimers.isEmpty()) {
+        TimerData nextTimer = orderedUserTimers.pollFirst();
+        // If the timer for this key is in justModifiedTimers, ignore the old value. The new value
+        // for this timer will be elsewhere in the priority queue.
+        @Nullable
+        TimerData updatedTimer =
+            justModifiedTimers.get(
+                WindmillTimerInternals.getTimerDataKey(nextTimer), nextTimer.getNamespace());
+        if (updatedTimer == null || updatedTimer.equals(nextTimer)) {
+          // User timers must be explicitly deleted when delivered, to release the implied hold.
+          // This will also add the deletion to the next call to
+          // WindmillTimerInternals.extractJustModifiedTimers,
+          // which will prevent the timer from firing if an old value for the timer was in the input
+          // bundle.
+          userTimerInternals.deleteTimer(nextTimer);
+          return nextTimer;
+        }
+      }
+      return null;
     }
 
     @Override

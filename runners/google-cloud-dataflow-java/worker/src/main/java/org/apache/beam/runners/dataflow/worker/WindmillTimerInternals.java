@@ -59,6 +59,8 @@ class WindmillTimerInternals implements TimerInternals {
   // across namespaces.
   private Table<String, StateNamespace, TimerData> timers = HashBasedTable.create();
 
+  private Table<String, StateNamespace, TimerData> recentlyModifiedTimers = HashBasedTable.create();
+
   // Map from timer id to whether it is to be deleted or set
   private Table<String, StateNamespace, Boolean> timerStillPresent = HashBasedTable.create();
 
@@ -94,9 +96,19 @@ class WindmillTimerInternals implements TimerInternals {
         synchronizedProcessingTime);
   }
 
+  public Table<String, StateNamespace, TimerData> extractJustModifiedTimers() {
+    Table<String, StateNamespace, TimerData> justModified = recentlyModifiedTimers;
+    recentlyModifiedTimers = HashBasedTable.create();
+    return justModified;
+  }
+
   @Override
   public void setTimer(TimerData timerKey) {
     timers.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        timerKey);
+    recentlyModifiedTimers.put(
         getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
         timerKey.getNamespace(),
         timerKey);
@@ -118,10 +130,18 @@ class WindmillTimerInternals implements TimerInternals {
         getTimerDataKey(timerId, timerFamilyId),
         namespace,
         TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain));
+    recentlyModifiedTimers.put(
+        getTimerDataKey(timerId, timerFamilyId),
+        namespace,
+        TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain));
     timerStillPresent.put(getTimerDataKey(timerId, timerFamilyId), namespace, true);
   }
 
-  private String getTimerDataKey(String timerId, String timerFamilyId) {
+  public static String getTimerDataKey(TimerData timerData) {
+    return getTimerDataKey(timerData.getTimerId(), timerData.getTimerFamilyId());
+  }
+
+  private static String getTimerDataKey(String timerId, String timerFamilyId) {
     // Identifies timer uniquely with timerFamilyId
     return timerId + '+' + timerFamilyId;
   }
@@ -132,6 +152,11 @@ class WindmillTimerInternals implements TimerInternals {
         getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
         timerKey.getNamespace(),
         timerKey);
+    recentlyModifiedTimers.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        timerKey.deleted());
+
     timerStillPresent.put(
         getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
         timerKey.getNamespace(),
@@ -144,8 +169,16 @@ class WindmillTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-    throw new UnsupportedOperationException("Deletion of timers by ID is not supported.");
+  public void deleteTimer(
+      StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+    deleteTimer(
+        TimerData.of(
+            timerId,
+            timerFamilyId,
+            namespace,
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            timeDomain));
   }
 
   @Override

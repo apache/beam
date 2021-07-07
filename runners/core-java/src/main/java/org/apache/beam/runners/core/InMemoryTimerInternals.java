@@ -153,7 +153,8 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+  public void deleteTimer(
+      StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
   }
 
