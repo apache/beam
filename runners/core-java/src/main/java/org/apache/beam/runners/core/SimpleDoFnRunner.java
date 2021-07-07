@@ -1145,11 +1145,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public void clear() {
-      timerInternals.deleteTimer(namespace, timerId, timerFamilyId, spec.getTimeDomain());
-    }
-
-    @Override
     public Timer offset(Duration offset) {
       this.offset = offset;
       return this;
