@@ -18,7 +18,7 @@
 package org.apache.beam.fn.harness.control;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -43,11 +43,9 @@ public class HarnessMonitoringInfosInstructionHandler {
     BeamFnApi.HarnessMonitoringInfosResponse.Builder response =
         BeamFnApi.HarnessMonitoringInfosResponse.newBuilder();
     MetricsContainer container = MetricsEnvironment.getProcessWideContainer();
-    if (container != null) {
-      for (MetricsApi.MonitoringInfo info : container.getMonitoringInfos()) {
-        response.putMonitoringData(
-            this.metricsShortIds.getOrCreateShortId(info), info.getPayload());
-      }
+    if (container != null && container instanceof MetricsContainerImpl) {
+      response.putAllMonitoringData(
+          ((MetricsContainerImpl) container).getMonitoringData(this.metricsShortIds));
     }
     return BeamFnApi.InstructionResponse.newBuilder().setHarnessMonitoringInfos(response);
   }
