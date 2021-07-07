@@ -320,16 +320,6 @@ class Stager(object):
     # sequence in a setup mode and hence should not be skipped even if a
     # prebuilt sdk container image is used.
 
-    # TODO(heejong): remove jar_packages experimental flag when cross-language
-    #   dependency management is implemented for all runners.
-    # Handle jar packages that should be staged for Java SDK Harness.
-    jar_packages = options.view_as(DebugOptions).lookup_experiment(
-        'jar_packages')
-    if jar_packages is not None:
-      resources.extend(
-          Stager._create_jar_packages(
-              jar_packages.split(','), temp_dir=temp_dir))
-
     # Pickle the main session if requested.
     # We will create the pickled main session locally and then copy it to the
     # staging location because the staging location is a remote path and the
@@ -476,25 +466,71 @@ class Stager(object):
     return path.find('://') != -1
 
   @staticmethod
-  def _create_jar_packages(jar_packages, temp_dir):
-    # type: (...) -> List[beam_runner_api_pb2.ArtifactInformation]
+  def append_jar_packages_to_java_env(proto_pipeline, options, temp_dir=None):
+    """Append a list of jar packages to Docker Java SDK Environment.
 
-    """Creates a list of local jar packages for Java SDK Harness.
+    Args:
+      proto_pipeline: Pipeline proto for updating jar package dependencies.
+      options: Pipeline options with --jar_packages experimental flag.
+        --jar_packages specifies a comma-separated ordered list of local and
+        remote paths to jar packages to be staged. Only packages on localfile
+        system and GCS are supported.
+      temp_dir: Temporary directory for staging jar packages.
 
-    :param jar_packages: Ordered list of local paths to jar packages to be
-      staged. Only packages on localfile system and GCS are supported.
-    :param temp_dir: Temporary folder where the resource building can happen.
-    :return: A list of tuples of local file paths and file names (no paths) for
-      the resource staged. All the files are assumed to be staged in
-      staging_location.
-    :raises:
+    Returns:
+      A pipeline proto updated for jar package dependencies.
+
+    Raises:
       RuntimeError: If files specified are not found or do not have expected
         name patterns.
     """
+    from apache_beam.transforms.environments import APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX
+
+    jar_resources = Stager.create_jar_packages(options, temp_dir)
+    if not jar_resources:
+      return
+
+    for _, env in proto_pipeline.components.environments.items():
+      if env.urn == common_urns.environments.DOCKER.urn:
+        docker_payload = beam_runner_api_pb2.DockerPayload.FromString(
+            env.payload)
+        if (APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX in
+            docker_payload.container_image):
+          env.dependencies.extend(jar_resources)
+
+  @staticmethod
+  def create_jar_packages(options, temp_dir=None):
+    # type: (...) -> List[beam_runner_api_pb2.ArtifactInformation]
+
+    """Creates a list of jar packages for Java SDK Harness.
+
+    Args:
+      options: Pipeline options with --jar_packages experimental flag.
+        --jar_packages specifies a comma-separated ordered list of local and
+        remote paths to jar packages to be staged. Only packages on localfile
+        system and GCS are supported.
+      temp_dir: Temporary directory for staging jar packages.
+
+    Returns:
+      A list of ArtifactInformation of jar packages. All the files are assumed
+      to be staged in staging_location.
+
+    Raises:
+      RuntimeError: If files specified are not found or do not have expected
+        name patterns.
+    """
+    # TODO(heejong): remove jar_packages experimental flag when cross-language
+    #   dependency management is implemented for all runners.
+    # Handle jar packages that should be staged for Java SDK Harness.
+    jar_packages = options.view_as(DebugOptions).lookup_experiment(
+        'jar_packages')
+    if jar_packages is None:
+      return []
+
+    staging_temp_dir = temp_dir or tempfile.mkdtemp()
     resources = []  # type: List[beam_runner_api_pb2.ArtifactInformation]
-    staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
     local_packages = []  # type: List[str]
-    for package in jar_packages:
+    for package in jar_packages.split(','):
       if not os.path.basename(package).endswith('.jar'):
         raise RuntimeError(
             'The --experiment=\'jar_packages=\' option expects a full path '

@@ -57,6 +57,7 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.internal.names import TransformNames
+from apache_beam.runners.portability.stager import Stager
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -461,6 +462,9 @@ class DataflowRunner(PipelineRunner):
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True, default_environment=self._default_environment)
+
+    # Update dependencies for Java docker environment.
+    Stager.append_jar_packages_to_java_env(self.proto_pipeline, options)
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.

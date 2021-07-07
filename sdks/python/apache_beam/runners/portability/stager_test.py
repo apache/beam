@@ -34,6 +34,8 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.portability import stager
 
@@ -565,16 +567,14 @@ class StagerTest(unittest.TestCase):
         'instead of %s' % os.path.join(source_dir, 'abc.tgz'))
 
   def test_with_jar_packages_missing_files(self):
-    staging_dir = self.make_temp_dir()
+    temp_dir = self.make_temp_dir()
     with self.assertRaises(RuntimeError) as cm:
-
       options = PipelineOptions()
       self.update_options(options)
       options.view_as(DebugOptions).experiments = [
           'jar_packages=nosuchfile.jar'
       ]
-      self.stager.create_and_stage_job_resources(
-          options, staging_location=staging_dir)
+      self.stager.create_jar_packages(options, temp_dir=temp_dir)
     self.assertEqual(
         cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
@@ -582,8 +582,8 @@ class StagerTest(unittest.TestCase):
         'nosuchfile.jar')
 
   def test_with_jar_packages_invalid_file_name(self):
-    staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
+    temp_dir = self.make_temp_dir()
     self.create_temp_file(os.path.join(source_dir, 'abc.tgz'), 'nothing')
     with self.assertRaises(RuntimeError) as cm:
       options = PipelineOptions()
@@ -591,8 +591,7 @@ class StagerTest(unittest.TestCase):
       options.view_as(DebugOptions).experiments = [
           'jar_packages=' + os.path.join(source_dir, 'abc.tgz')
       ]
-      self.stager.create_and_stage_job_resources(
-          options, staging_location=staging_dir)
+      self.stager.create_jar_packages(options, temp_dir=temp_dir)
     self.assertEqual(
         cm.exception.args[0],
         'The --experiment=\'jar_packages=\' option expects a full path ending '
@@ -601,6 +600,7 @@ class StagerTest(unittest.TestCase):
   def test_with_jar_packages(self):
     staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
+    temp_dir = self.make_temp_dir()
     self.create_temp_file(os.path.join(source_dir, 'abc.jar'), 'nothing')
     self.create_temp_file(os.path.join(source_dir, 'xyz.jar'), 'nothing')
     self.create_temp_file(os.path.join(source_dir, 'ijk.jar'), 'nothing')
@@ -623,10 +623,89 @@ class StagerTest(unittest.TestCase):
       with mock.patch('apache_beam.runners.portability.stager_test'
                       '.stager.Stager._is_remote_path',
                       staticmethod(self.is_remote_path)):
+        resources = self.stager.create_jar_packages(options, temp_dir=temp_dir)
+        staged = self.stager.stage_job_resources(
+            list(self.stager.extract_staging_tuple_iter(resources)),
+            staging_dir)
         self.assertEqual(['abc.jar', 'xyz.jar', 'ijk.jar', 'remote.jar'],
-                         self.stager.create_and_stage_job_resources(
-                             options, staging_location=staging_dir)[1])
+                         staged)
     self.assertEqual(['/tmp/remote/remote.jar'], self.remote_copied_files)
+
+  def test_append_jar_packages_to_java_env(self):
+    source_dir = self.make_temp_dir()
+    temp_dir = self.make_temp_dir()
+    self.create_temp_file(os.path.join(source_dir, 'abc.jar'), 'nothing')
+    self.create_temp_file(os.path.join(source_dir, 'xyz.jar'), 'nothing')
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(DebugOptions).experiments = [
+        'jar_packages=%s,%s' % (
+            os.path.join(source_dir, 'abc.jar'),
+            os.path.join(source_dir, 'xyz.jar'))
+    ]
+
+    from apache_beam.transforms.environments import APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX
+    from apache_beam.transforms.environments import DockerEnvironment
+    pipeline = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            environments={
+                'env1': beam_runner_api_pb2.Environment(
+                    urn=common_urns.environments.DOCKER.urn,
+                    payload=beam_runner_api_pb2.DockerPayload(
+                        container_image=(
+                            'gcr.io/dummy/' +
+                            APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX
+                        )).SerializeToString()),
+                'env2': beam_runner_api_pb2.Environment(
+                    urn=common_urns.environments.DOCKER.urn,
+                    payload=beam_runner_api_pb2.DockerPayload(
+                        container_image=DockerEnvironment.default_docker_image(
+                        )).SerializeToString())
+            }))
+
+    self.stager.append_jar_packages_to_java_env(pipeline, options, temp_dir)
+
+    pipeline_expected = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            environments={
+                'env1': beam_runner_api_pb2.Environment(
+                    urn=common_urns.environments.DOCKER.urn,
+                    payload=beam_runner_api_pb2.DockerPayload(
+                        container_image=(
+                            'gcr.io/dummy/' +
+                            APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX
+                        )).SerializeToString(),
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path=os.path.join(
+                                    source_dir, 'abc.jar')).SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='abc.jar').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path=os.path.join(
+                                    source_dir, 'xyz.jar')).SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='xyz.jar').SerializeToString())
+                    ]),
+                'env2': beam_runner_api_pb2.Environment(
+                    urn=common_urns.environments.DOCKER.urn,
+                    payload=beam_runner_api_pb2.DockerPayload(
+                        container_image=DockerEnvironment.default_docker_image(
+                        )).SerializeToString())
+            }))
+
+    self.assertEqual(pipeline, pipeline_expected)
 
 
 class TestStager(stager.Stager):
