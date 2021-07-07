@@ -73,7 +73,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.deser.std.NumberDeserializers.ByteDeserializer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -176,17 +175,16 @@ public class KafkaIOIT {
   }
 
   @Test
-  // public void testKafkaIOReadsAndWritesCorrectlyBatchNullKey() throws IOException{
-  public void testKafkaIOReadsAndWritesCorrectlyInBatch() throws IOException{
+  public void testKafkaIOReadsAndWritesCorrectlyBatchNullKey() throws IOException {
     List<String> values = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
-      values.add("value"+Integer.toString(i));
+      values.add("value" + Integer.toString(i));
     }
-    PCollection<String> writeInput = writePipeline
-        .apply(Create.of(values)).setCoder(StringUtf8Coder.of());
+    PCollection<String> writeInput =
+        writePipeline.apply(Create.of(values)).setCoder(StringUtf8Coder.of());
 
-    writeInput
-        .apply(KafkaIO.<byte[], String>write()
+    writeInput.apply(
+        KafkaIO.<byte[], String>write()
             .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
             .withTopic(options.getKafkaTopic())
             .withValueSerializer(StringSerializer.class)
@@ -196,7 +194,8 @@ public class KafkaIOIT {
         readPipeline
             .apply("Read from bounded Kafka", readFromKafkaNullKey())
             .apply("Materialize input", Reshuffle.viaRandomKey())
-            .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStringsNullKey()));
+            .apply(
+                "Map records to strings", MapElements.via(new MapKafkaRecordsToStringsNullKey()));
 
     PAssert.that(readOutput).containsInAnyOrder(values);
 
@@ -208,47 +207,46 @@ public class KafkaIOIT {
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
     cancelIfTimeouted(readResult, readState);
-
   }
 
-  // @Test
-  // public void testKafkaIOReadsAndWritesCorrectlyInBatch() throws IOException {
-  //   // Map of hashes of set size collections with 100b records - 10b key, 90b values.
-  //   Map<Long, String> expectedHashes =
-  //       ImmutableMap.of(
-  //           1000L, "4507649971ee7c51abbb446e65a5c660",
-  //           100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
-  //   expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
-  //   writePipeline
-  //       .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
-  //       .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
-  //       .apply("Write to Kafka", writeToKafka());
-  //
-  //   PCollection<String> hashcode =
-  //       readPipeline
-  //           .apply("Read from bounded Kafka", readFromBoundedKafka())
-  //           .apply(
-  //               "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-  //           .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
-  //           .apply("Calculate hashcode", Combine.globally(new HashingFn()).withoutDefaults());
-  //
-  //   PAssert.thatSingleton(hashcode).isEqualTo(expectedHashcode);
-  //
-  //   PipelineResult writeResult = writePipeline.run();
-  //   writeResult.waitUntilFinish();
-  //
-  //   PipelineResult readResult = readPipeline.run();
-  //   PipelineResult.State readState =
-  //       readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
-  //
-  //   cancelIfTimeouted(readResult, readState);
-  //
-  //   if (!options.isWithTestcontainers()) {
-  //     Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
-  //     IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
-  //     IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
-  //   }
-  // }
+  @Test
+  public void testKafkaIOReadsAndWritesCorrectlyInBatch() throws IOException {
+    // Map of hashes of set size collections with 100b records - 10b key, 90b values.
+    Map<Long, String> expectedHashes =
+        ImmutableMap.of(
+            1000L, "4507649971ee7c51abbb446e65a5c660",
+            100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
+    expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
+    writePipeline
+        .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
+        .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply("Write to Kafka", writeToKafka());
+
+    PCollection<String> hashcode =
+        readPipeline
+            .apply("Read from bounded Kafka", readFromBoundedKafka())
+            .apply(
+                "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+            .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()).withoutDefaults());
+
+    PAssert.thatSingleton(hashcode).isEqualTo(expectedHashcode);
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    cancelIfTimeouted(readResult, readState);
+
+    if (!options.isWithTestcontainers()) {
+      Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
+      IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
+      IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
+    }
+  }
 
   private long readElementMetric(PipelineResult result, String namespace, String name) {
     MetricsReader metricsReader = new MetricsReader(result, namespace);
