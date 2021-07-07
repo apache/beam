@@ -24,7 +24,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.Q
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.STOP;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_CHILD_PARTITIONS;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_PARENT_PARTITIONS;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import org.junit.Test;

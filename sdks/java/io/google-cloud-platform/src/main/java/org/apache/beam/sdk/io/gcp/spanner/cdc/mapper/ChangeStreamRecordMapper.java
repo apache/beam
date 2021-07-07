@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
 import com.google.cloud.spanner.Struct;
-import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ModType;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ValueCaptureType;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 // TODO: Add java docs
 public class ChangeStreamRecordMapper {

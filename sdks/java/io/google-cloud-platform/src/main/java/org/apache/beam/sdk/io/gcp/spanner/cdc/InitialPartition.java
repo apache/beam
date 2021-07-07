@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import com.google.api.client.util.Sets;
 import java.util.HashSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 public class InitialPartition {
 

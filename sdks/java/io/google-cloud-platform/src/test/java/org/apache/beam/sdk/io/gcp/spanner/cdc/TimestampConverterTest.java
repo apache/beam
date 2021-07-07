@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;

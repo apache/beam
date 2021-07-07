@@ -30,9 +30,9 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.Timestamp;
-import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 

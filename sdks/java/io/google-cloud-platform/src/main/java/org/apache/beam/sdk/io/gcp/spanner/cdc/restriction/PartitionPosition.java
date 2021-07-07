@@ -21,7 +21,7 @@ import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 // TODO: Add java docs
 public class PartitionPosition implements Serializable {
