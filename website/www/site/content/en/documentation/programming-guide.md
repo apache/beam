@@ -182,7 +182,7 @@ PipelineOptions options =
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_create >}}
 {{< /highlight >}}
 
 {{< highlight go >}}

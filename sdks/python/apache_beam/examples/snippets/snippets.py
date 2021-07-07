@@ -192,7 +192,7 @@ def pipeline_options_remote():
   # [START pipeline_options_create]
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  beam_options = PipelineOptions()
+  beam_options = PipelineOptions(flags=argv)
   # [END pipeline_options_create]
 
   # [START pipeline_options_define_custom]
