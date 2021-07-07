@@ -29,13 +29,11 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class HarnessMonitoringInfosInstructionHandlerTest {
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-12583")
   public void testReturnsProcessWideMonitoringInfos() {
     MetricsEnvironment.setProcessWideContainer(MetricsContainerImpl.createProcessWideContainer());
 
