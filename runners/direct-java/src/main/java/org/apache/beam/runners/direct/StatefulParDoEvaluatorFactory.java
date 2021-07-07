@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.joda.time.Instant;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
@@ -173,14 +174,31 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       for (WindowedValue<KV<K, InputT>> windowedValue : gbkResult.getValue().elementsIterable()) {
         delegateEvaluator.processElement(windowedValue);
       }
-
-      final Instant inputWatermarkTime = timerInternals.currentInputWatermarkTime();
       PriorityQueue<TimerData> toBeFiredTimers =
           new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
-      gbkResult.getValue().timersIterable().forEach(toBeFiredTimers::add);
 
-      while (!timerInternals.containsUpdateForTimeBefore(inputWatermarkTime)
+      Instant maxWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      Instant maxProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      Instant maxSynchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      for (TimerData timerData : gbkResult.getValue().timersIterable()) {
+        toBeFiredTimers.add(timerData);
+        switch (timerData.getDomain()) {
+          case EVENT_TIME:
+            maxWatermarkTime = Ordering.natural().max(maxWatermarkTime, timerData.getTimestamp());
+            break;
+          case PROCESSING_TIME:
+            maxProcessingTime = Ordering.natural().max(maxProcessingTime, timerData.getTimestamp());
+            break;
+          case SYNCHRONIZED_PROCESSING_TIME:
+            maxSynchronizedProcessingTime =
+                Ordering.natural().max(maxSynchronizedProcessingTime, timerData.getTimestamp());
+        }
+      }
+
+      while (!timerInternals.containsUpdateForTimeBefore(
+              maxWatermarkTime, maxProcessingTime, maxSynchronizedProcessingTime)
           && !toBeFiredTimers.isEmpty()) {
+
         TimerData timer = toBeFiredTimers.poll();
         checkState(
             timer.getNamespace() instanceof WindowNamespace,
@@ -192,13 +210,23 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         BoundedWindow timerWindow = windowNamespace.getWindow();
 
         delegateEvaluator.onTimer(timer, gbkResult.getValue().key(), timerWindow);
-
-        StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timer);
-
-        stepContext.stateInternals().state(timer.getNamespace(), timerWatermarkHoldTag).clear();
-        stepContext.stateInternals().commit();
+        clearWatermarkHold(timer);
       }
       pushedBackTimers.addAll(toBeFiredTimers);
+    }
+
+    private void clearWatermarkHold(TimerData timer) {
+      StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timer);
+      stepContext.stateInternals().state(timer.getNamespace(), timerWatermarkHoldTag).clear();
+      stepContext.stateInternals().commit();
+    }
+
+    private void setWatermarkHold(TimerData timer) {
+      StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timer);
+      stepContext
+          .stateInternals()
+          .state(timer.getNamespace(), timerWatermarkHoldTag)
+          .add(timer.getOutputTimestamp());
     }
 
     @Override
@@ -207,13 +235,11 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       TransformResult<KV<K, InputT>> delegateResult = delegateEvaluator.finishBundle();
       boolean isTimerDeclared = false;
       for (TimerData timerData : delegateResult.getTimerUpdate().getSetTimers()) {
-        StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timerData);
-
-        stepContext
-            .stateInternals()
-            .state(timerData.getNamespace(), timerWatermarkHoldTag)
-            .add(timerData.getOutputTimestamp());
+        setWatermarkHold(timerData);
         isTimerDeclared = true;
+      }
+      for (TimerData timerData : delegateResult.getTimerUpdate().getDeletedTimers()) {
+        clearWatermarkHold(timerData);
       }
 
       CopyOnAccessInMemoryStateInternals state;
