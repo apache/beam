@@ -42,7 +42,7 @@ from apache_beam.dataframe.io import read_csv
 
 with beam.Pipeline() as p:
   df = p | read_csv("gs://apache-beam-samples/nyc_taxi/2019/*.csv",
-                    use_ncols=['passenger_count' , 'DOLocationID'])
+                    usecols=['passenger_count' , 'DOLocationID'])
   # Count the number of passengers dropped off per LocationID
   agg = df.groupby('DOLocationID').sum()
   agg.to_csv(output)
