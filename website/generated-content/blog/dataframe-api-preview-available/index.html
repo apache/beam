@@ -34,7 +34,7 @@ aggregation, and writes the output to CSV, can be expressed very concisely:</p><
 
 with beam.Pipeline() as p:
   df = p | read_csv(&quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&quot;,
-                    use_ncols=['passenger_count' , 'DOLocationID'])
+                    usecols=['passenger_count' , 'DOLocationID'])
   # Count the number of passengers dropped off per LocationID
   agg = df.groupby('DOLocationID').sum()
   agg.to_csv(output)
