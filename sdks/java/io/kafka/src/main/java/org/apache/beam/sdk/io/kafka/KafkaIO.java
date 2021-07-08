@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -544,7 +545,7 @@ public class KafkaIO {
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
-        .setNullKeyFlag(false)
+        .setSupportsNullKeys(false)
         .setTopics(new ArrayList<>())
         .setTopicPartitions(new ArrayList<>())
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
@@ -610,7 +611,7 @@ public class KafkaIO {
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
 
-    abstract boolean isNullKeyFlag();
+    abstract boolean isSupportsNullKeys();
 
     abstract Map<String, Object> getConsumerConfig();
 
@@ -655,7 +656,7 @@ public class KafkaIO {
     @AutoValue.Builder
     abstract static class Builder<K, V> {
 
-      abstract Builder<K, V> setNullKeyFlag(boolean nullKeyFlag);
+      abstract Builder<K, V> setSupportsNullKeys(boolean supportsNullKey);
 
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
 
@@ -705,8 +706,8 @@ public class KafkaIO {
           listBuilder.add(topic);
         }
         builder.setTopics(listBuilder.build());
-        // setNullKeyFlag(config.nullKeyFlag);
-        setNullKeyFlag(false);
+
+        builder.setSupportsNullKeys(false);
 
         Class keyDeserializer = resolveClass(config.keyDeserializer);
         builder.setKeyDeserializerProvider(LocalDeserializerProvider.of(keyDeserializer));
@@ -809,8 +810,6 @@ public class KafkaIO {
 
       /** Parameters class to expose the Read transform to an external SDK. */
       public static class Configuration {
-
-        // private Boolean nullKeyFlag;
         private Map<String, String> consumerConfig;
         private List<String> topics;
         private String keyDeserializer;
@@ -820,10 +819,6 @@ public class KafkaIO {
         private Long maxReadTime;
         private Boolean commitOffsetInFinalize;
         private String timestampPolicy;
-
-        // public void setNullKeyFlag(Boolean nullKeyFlag) {
-        //   this.nullKeyFlag = nullKeyFlag;
-        // }
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -864,13 +859,15 @@ public class KafkaIO {
     }
 
     /**
-     * Update nullKeyFlag for present of null keys
+     * Update SupportsNullKeys for present of null keys
      *
-     * By default, nullKeyFlag is {@code false} and will invoke {@link KafkaRecordCoder}
-     * when nullKeyFlag is {@code true}, it invokes {@link NullableKeyKafkaRecordCoder}
+     * <p>By default, withSupportsNullKeys is {@code false} and will invoke {@link KafkaRecordCoder}
+     * as normal. In this case, {@link KafkaRecordCoder} will not be able to handle null keys.
+     * When nullKeyFlag is {@code true}, it wraps the key coder with a {@link NullableCoder} before
+     * invoking {@link KafkaRecordCoder}. In this case, it can handle null keys.
      */
-    public Read<K, V> withNullKeyFlag() {
-      return toBuilder().setNullKeyFlag(true).build();
+    public Read<K, V> withSupportsNullKeys() {
+      return toBuilder().setSupportsNullKeys(true).build();
     }
 
     /** Sets the bootstrap servers for the Kafka consumer. */
@@ -1443,11 +1440,9 @@ public class KafkaIO {
                   .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
         }
 
-        if(kafkaRead.isNullKeyFlag()){
-          LOG.warn("using nullable key kafka record coder");
-          return output.apply(readTransform).setCoder(NullableKeyKafkaRecordCoder.of(keyCoder, valueCoder));
+        if(kafkaRead.isSupportsNullKeys()){
+          return output.apply(readTransform).setCoder(KafkaRecordCoder.of(NullableCoder.of(keyCoder), valueCoder));
         }else{
-          LOG.warn("using standard key kafka record coder");
           return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
         }
       }

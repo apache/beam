@@ -303,7 +303,7 @@ public class KafkaIOIT {
 
   private KafkaIO.Read<byte[], String> readFromKafkaNullKey() {
     return KafkaIO.<byte[], String>read()
-        .withNullKeyFlag()
+        .withSupportsNullKeys()
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
         .withTopic(options.getKafkaTopic())
