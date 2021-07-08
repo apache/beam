@@ -30,6 +30,7 @@ parser.add_argument('DB_USER_NAME', help='User with permission to connect, creat
 parser.add_argument('DB_PASSWORD', help='Password for the given user.')
 parser.parse_args()
 
+MAXIMUM_CONN_ATTEMPTS = 5
 
 # Keeping this as reference for localhost debug
 # Fetching docker host machine ip for testing purposes.
@@ -66,15 +67,19 @@ def initDBConnection():
   DB_PASSWORD = sys.argv[8]
 
   conn = None
-  while not conn:
+  conn_attempts = 0
+  while conn_attempts < MAXIMUM_CONN_ATTEMPTS:
     try:
       conn = psycopg2.connect(
           f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
           f" port='{DB_PORT}' password='{DB_PASSWORD}'")
     except:
-      print('Failed to connect to DB; retrying in one minute')
+      remaining_attempts = MAXIMUM_CONN_ATTEMPTS - conn_attempts
+      print('Failed to connect to DB; retrying in one minute. Will cease after %s attempt(s)' % remaining_attempts)
+      conn_attempts += 1
       sys.stdout.flush()
       time.sleep(60)
+
   return conn
 
 def tableExists(cursor, tableName):
@@ -86,6 +91,11 @@ def tableExists(cursor, tableName):
 def initDbTablesIfNeeded():
   '''Creates and initializes DB tables required for script to work.'''
   connection = initDBConnection()
+
+  if connection is None:
+    print('Connection to DB not established successfully. Terminating script.')
+    sys.exit()
+
   cursor = connection.cursor()
 
   buildsTableExists = tableExists(cursor, GH_PRS_TABLE_NAME)
@@ -97,7 +107,6 @@ def initDbTablesIfNeeded():
       raise Exception(f"Failed to create table {GH_PRS_TABLE_NAME}")
   cursor.close()
   connection.commit()
-
   connection.close()
 
 def insertIntoTable(cursor, values):
