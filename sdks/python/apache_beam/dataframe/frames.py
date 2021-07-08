@@ -103,6 +103,11 @@ UNLIFTABLE_AGGREGATIONS = [
     'median',
     'quantile',
     'describe',
+    'sem',
+    'mad',
+    'skew',
+    'kurt',
+    'kurtosis',
     # TODO: The below all have specialized distributed
     # implementations, but they require tracking
     # multiple intermediate series, which is difficult
@@ -111,7 +116,7 @@ UNLIFTABLE_AGGREGATIONS = [
     'var',
     'corr',
     'cov',
-    'nunique'
+    'nunique',
 ]
 ALL_AGGREGATIONS = (
     LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
@@ -611,6 +616,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
+  at_time = frame_base._elementwise_method(
+      'at_time', base=pd.core.generic.NDFrame)
+  between_time = frame_base._elementwise_method(
+      'between_time', base=pd.core.generic.NDFrame)
   copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
 
   @frame_base.with_docs_from(pd.DataFrame)
@@ -1224,6 +1233,20 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def explode(self, ignore_index):
+    # ignoring the index will not preserve it
+    preserves = (
+        partitionings.Singleton() if ignore_index else partitionings.Index())
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'explode',
+            lambda s: s.explode(ignore_index), [self._expr],
+            preserves_partition_by=preserves,
+            requires_partition_by=partitionings.Arbitrary()))
+
   @frame_base.with_docs_from(pd.DataFrame)
   def dot(self, other):
     """``other`` must be a :class:`DeferredDataFrame` or :class:`DeferredSeries`
@@ -1640,6 +1663,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   sum = _agg_method(pd.Series, 'sum')
   mean = _agg_method(pd.Series, 'mean')
   median = _agg_method(pd.Series, 'median')
+  sem = _agg_method(pd.Series, 'sem')
+  mad = _agg_method(pd.Series, 'mad')
+  skew = _agg_method(pd.Series, 'skew')
+  kurt = _agg_method(pd.Series, 'kurt')
+  kurtosis = _agg_method(pd.Series, 'kurtosis')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')
@@ -3225,6 +3253,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   nunique = _agg_method(pd.DataFrame, 'nunique')
   std = _agg_method(pd.DataFrame, 'std')
   var = _agg_method(pd.DataFrame, 'var')
+  sem = _agg_method(pd.DataFrame, 'sem')
+  mad = _agg_method(pd.DataFrame, 'mad')
+  skew = _agg_method(pd.DataFrame, 'skew')
+  kurt = _agg_method(pd.DataFrame, 'kurt')
+  kurtosis = _agg_method(pd.DataFrame, 'kurtosis')
 
   take = frame_base.wont_implement_method(pd.DataFrame, 'take',
                                           reason='deprecated')
@@ -3732,6 +3765,10 @@ for meth in LIFTABLE_AGGREGATIONS:
 for meth in LIFTABLE_WITH_SUM_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth, postagg_meth='sum'))
 for meth in UNLIFTABLE_AGGREGATIONS:
+  if meth in ('kurt', 'kurtosis'):
+    # pandas doesn't currently allow kurtosis on GroupBy:
+    # https://github.com/pandas-dev/pandas/issues/40139
+    continue
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
 def _check_str_or_np_builtin(agg_func, func_list):
@@ -3750,7 +3787,7 @@ def _is_unliftable(agg_func):
   return _check_str_or_np_builtin(agg_func, UNLIFTABLE_AGGREGATIONS)
 
 NUMERIC_AGGREGATIONS = ['max', 'min', 'prod', 'sum', 'mean', 'median', 'std',
-                        'var']
+                        'var', 'sem', 'mad', 'skew', 'kurt', 'kurtosis']
 
 def _is_numeric(agg_func):
   return _check_str_or_np_builtin(agg_func, NUMERIC_AGGREGATIONS)
@@ -4376,6 +4413,10 @@ for name in ['__neg__', '__pos__', '__invert__']:
 
 DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
 DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
+DeferredSeries.subtract = DeferredSeries.sub  # type: ignore
+DeferredDataFrame.subtract = DeferredDataFrame.sub  # type: ignore
+DeferredSeries.divide = DeferredSeries.div  # type: ignore
+DeferredDataFrame.divide = DeferredDataFrame.div  # type: ignore
 
 
 def _slice_parts(s):
