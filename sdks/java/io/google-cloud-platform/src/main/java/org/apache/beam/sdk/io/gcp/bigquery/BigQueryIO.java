@@ -979,7 +979,9 @@ public class BigQueryIO {
           JobService jobService = getBigQueryServices().getJobService(bqOptions);
           try {
             jobService.dryRunQuery(
-                bqOptions.getProject(),
+                bqOptions.getBigQueryProject() == null
+                    ? bqOptions.getProject()
+                    : bqOptions.getBigQueryProject(),
                 new JobConfigurationQuery()
                     .setQuery(getQuery().get())
                     .setFlattenResults(getFlattenResults())
@@ -998,7 +1000,10 @@ public class BigQueryIO {
             // validation
             TableReference tempTable =
                 new TableReference()
-                    .setProjectId(bqOptions.getProject())
+                    .setProjectId(
+                        bqOptions.getBigQueryProject() == null
+                            ? bqOptions.getProject()
+                            : bqOptions.getBigQueryProject())
                     .setDatasetId(getQueryTempDataset())
                     .setTableId("dummy table");
             BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
@@ -1170,7 +1175,10 @@ public class BigQueryIO {
               String jobUuid = c.getJobId();
               final String extractDestinationDir =
                   resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", jobUuid);
-              final String executingProject = bqOptions.getProject();
+              final String executingProject =
+                  bqOptions.getBigQueryProject() == null
+                      ? bqOptions.getProject()
+                      : bqOptions.getBigQueryProject();
               JobReference jobRef =
                   new JobReference()
                       .setProjectId(executingProject)
@@ -1296,7 +1304,10 @@ public class BigQueryIO {
                             CreateReadSessionRequest request =
                                 CreateReadSessionRequest.newBuilder()
                                     .setParent(
-                                        BigQueryHelpers.toProjectResourceName(options.getProject()))
+                                        BigQueryHelpers.toProjectResourceName(
+                                            options.getBigQueryProject() == null
+                                                ? options.getProject()
+                                                : options.getBigQueryProject()))
                                     .setReadSession(
                                         ReadSession.newBuilder()
                                             .setTable(
@@ -1383,7 +1394,9 @@ public class BigQueryIO {
 
               TableReference tempTable =
                   createTempTableReference(
-                      options.getProject(),
+                      options.getBigQueryProject() == null
+                          ? options.getProject()
+                          : options.getBigQueryProject(),
                       BigQueryResourceNaming.createJobIdPrefix(
                           options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
@@ -2931,7 +2944,10 @@ public class BigQueryIO {
         // If user does not specify a project we assume the table to be located in
         // the default project.
         TableReference tableRef = table.get();
-        tableRef.setProjectId(bqOptions.getProject());
+        tableRef.setProjectId(
+            bqOptions.getBigQueryProject() == null
+                ? bqOptions.getProject()
+                : bqOptions.getBigQueryProject());
         return NestedValueProvider.of(
             StaticValueProvider.of(BigQueryHelpers.toJsonString(tableRef)),
             new JsonTableRefToTableRef());

@@ -128,7 +128,10 @@ public class TestBigQuery implements TestRule {
   private Table createTable(Description description) throws IOException, InterruptedException {
     TableReference tableReference =
         new TableReference()
-            .setProjectId(pipelineOptions.getProject())
+            .setProjectId(
+                pipelineOptions.getBigQueryProject() == null
+                    ? pipelineOptions.getProject()
+                    : pipelineOptions.getBigQueryProject())
             .setDatasetId(pipelineOptions.getTargetDataset())
             .setTableId(createRandomizedName(description));
 
@@ -213,7 +216,9 @@ public class TestBigQuery implements TestRule {
 
     return bq.tabledata()
         .insertAll(
-            pipelineOptions.getProject(),
+            pipelineOptions.getBigQueryProject() == null
+                ? pipelineOptions.getProject()
+                : pipelineOptions.getBigQueryProject(),
             pipelineOptions.getTargetDataset(),
             table.getTableReference().getTableId(),
             new TableDataInsertAllRequest().setRows(bqRows))
@@ -282,7 +287,9 @@ public class TestBigQuery implements TestRule {
     try {
       return bq.tables()
           .get(
-              pipelineOptions.getProject(),
+              pipelineOptions.getBigQueryProject() == null
+                  ? pipelineOptions.getProject()
+                  : pipelineOptions.getBigQueryProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
           .setPrettyPrint(false)
@@ -297,7 +304,9 @@ public class TestBigQuery implements TestRule {
     try {
       return bq.tabledata()
           .list(
-              pipelineOptions.getProject(),
+              pipelineOptions.getBigQueryProject() == null
+                  ? pipelineOptions.getProject()
+                  : pipelineOptions.getBigQueryProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
           .setPrettyPrint(false)

@@ -35,7 +35,7 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 
-__all__ = ['ReadFromTFRecord', 'WriteToTFRecord']
+__all__ = ['ReadFromTFRecord', 'ReadAllFromTFRecord', 'WriteToTFRecord']
 
 _LOGGER = logging.getLogger(__name__)
 
