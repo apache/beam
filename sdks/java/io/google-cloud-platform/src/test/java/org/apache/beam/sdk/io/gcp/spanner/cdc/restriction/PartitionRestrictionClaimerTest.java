@@ -98,15 +98,7 @@ public class PartitionRestrictionClaimerTest {
     claimer.tryClaim(
         PartitionRestriction.queryChangeStream(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE),
         PartitionPosition.queryChangeStream(Timestamp.MIN_VALUE),
-        new PartitionPosition(Optional.empty(), QUERY_CHANGE_STREAM, Optional.empty()));
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testWaitForChildPartitionsWithoutChildPartitionsToWaitFor() {
-    claimer.tryClaim(
-        PartitionRestriction.queryChangeStream(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE),
-        PartitionPosition.queryChangeStream(Timestamp.MIN_VALUE),
-        new PartitionPosition(Optional.empty(), WAIT_FOR_CHILD_PARTITIONS, Optional.empty()));
+        new PartitionPosition(Optional.empty(), QUERY_CHANGE_STREAM));
   }
 
   @Test
@@ -219,7 +211,7 @@ public class PartitionRestrictionClaimerTest {
         case QUERY_CHANGE_STREAM:
           return PartitionRestriction.queryChangeStream(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE);
         case WAIT_FOR_CHILD_PARTITIONS:
-          return PartitionRestriction.waitForChildPartitions(10L);
+          return PartitionRestriction.waitForChildPartitions();
         case FINISH_PARTITION:
           return PartitionRestriction.finishPartition();
         case WAIT_FOR_PARENT_PARTITIONS:
@@ -240,7 +232,7 @@ public class PartitionRestrictionClaimerTest {
         case QUERY_CHANGE_STREAM:
           return PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(1L, 0));
         case WAIT_FOR_CHILD_PARTITIONS:
-          return PartitionPosition.waitForChildPartitions(10L);
+          return PartitionPosition.waitForChildPartitions();
         case FINISH_PARTITION:
           return PartitionPosition.finishPartition();
         case WAIT_FOR_PARENT_PARTITIONS:

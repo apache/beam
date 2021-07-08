@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampFromMicros;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter.timestampToMicros;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.QUERY_CHANGE_STREAM;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_CHILD_PARTITIONS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.Timestamp;
@@ -52,11 +51,6 @@ public class PartitionRestrictionSplitter {
         positionMode != QUERY_CHANGE_STREAM || lastClaimedPosition.getTimestamp().isPresent(),
         "%s mode must specify a timestamp (no value sent)",
         positionMode);
-    checkArgument(
-        positionMode != WAIT_FOR_CHILD_PARTITIONS
-            || lastClaimedPosition.getChildPartitionsToWaitFor().isPresent(),
-        "%s mode must specify the number of child partitions to wait for (no value sent)",
-        positionMode);
 
     SplitResult<PartitionRestriction> splitResult = null;
     switch (positionMode) {
@@ -64,15 +58,12 @@ public class PartitionRestrictionSplitter {
         splitResult = splitQueryChangeStream(fractionOfRemainder, restriction, lastClaimedPosition);
         break;
       case WAIT_FOR_CHILD_PARTITIONS:
-        final Long childPartitionsToWaitFor =
-            lastClaimedPosition.getChildPartitionsToWaitFor().get();
         // If we need to split the wait for child partitions, we remain at the same mode. That is
         // because the primary restriction might resume and it might so happen that the residual
         // restriction gets scheduled before the primary.
         splitResult =
             SplitResult.of(
-                PartitionRestriction.stop(),
-                PartitionRestriction.waitForChildPartitions(childPartitionsToWaitFor));
+                PartitionRestriction.stop(), PartitionRestriction.waitForChildPartitions());
         break;
       case FINISH_PARTITION:
         splitResult =

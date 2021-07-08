@@ -35,45 +35,44 @@ public class PartitionRestrictionTest {
   public void testQueryChangeStreamRestriction() {
     assertEquals(
         PartitionRestriction.queryChangeStream(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE),
-        new PartitionRestriction(
-            Timestamp.MIN_VALUE, Timestamp.MAX_VALUE, QUERY_CHANGE_STREAM, null));
+        new PartitionRestriction(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE, QUERY_CHANGE_STREAM));
   }
 
   @Test
   public void testWaitForChildPartitionsRestriction() {
     assertEquals(
-        PartitionRestriction.waitForChildPartitions(10L),
-        new PartitionRestriction(null, null, WAIT_FOR_CHILD_PARTITIONS, 10L));
+        PartitionRestriction.waitForChildPartitions(),
+        new PartitionRestriction(null, null, WAIT_FOR_CHILD_PARTITIONS));
   }
 
   @Test
   public void testFinishPartitionRestriction() {
     assertEquals(
         PartitionRestriction.finishPartition(),
-        new PartitionRestriction(null, null, FINISH_PARTITION, null));
+        new PartitionRestriction(null, null, FINISH_PARTITION));
   }
 
   @Test
   public void testWaitForParentPartitionsRestriction() {
     assertEquals(
         PartitionRestriction.waitForParentPartitions(),
-        new PartitionRestriction(null, null, WAIT_FOR_PARENT_PARTITIONS, null));
+        new PartitionRestriction(null, null, WAIT_FOR_PARENT_PARTITIONS));
   }
 
   @Test
   public void testDeletePartitionRestriction() {
     assertEquals(
         PartitionRestriction.deletePartition(),
-        new PartitionRestriction(null, null, DELETE_PARTITION, null));
+        new PartitionRestriction(null, null, DELETE_PARTITION));
   }
 
   @Test
   public void testDoneRestriction() {
-    assertEquals(PartitionRestriction.done(), new PartitionRestriction(null, null, DONE, null));
+    assertEquals(PartitionRestriction.done(), new PartitionRestriction(null, null, DONE));
   }
 
   @Test
   public void testStopRestriction() {
-    assertEquals(PartitionRestriction.stop(), new PartitionRestriction(null, null, STOP, null));
+    assertEquals(PartitionRestriction.stop(), new PartitionRestriction(null, null, STOP));
   }
 }

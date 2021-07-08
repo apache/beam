@@ -105,10 +105,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   @GetInitialRestriction
   public PartitionRestriction initialRestriction(@Element PartitionMetadata element) {
     return new PartitionRestriction(
-        element.getStartTimestamp(),
-        element.getEndTimestamp(),
-        PartitionMode.QUERY_CHANGE_STREAM,
-        null);
+        element.getStartTimestamp(), element.getEndTimestamp(), PartitionMode.QUERY_CHANGE_STREAM);
   }
 
   @NewTracker
@@ -134,8 +131,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     this.dataChangeRecordAction = actionFactory.dataChangeRecordAction();
     this.heartbeatRecordAction = actionFactory.heartbeatRecordAction();
     this.childPartitionsRecordAction =
-        actionFactory.childPartitionsRecordAction(
-            partitionMetadataDao, waitForChildPartitionsAction);
+        actionFactory.childPartitionsRecordAction(partitionMetadataDao);
   }
 
   // TODO: Close DAOs on teardown
@@ -179,33 +175,35 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * The states will be stored in the {@link PartitionRestriction} and claimed through the
    * {@link PartitionPosition}.
    *
-   *                                               HEARTBEAT RECORD
-   *                                             DATA CHANGE RECORD
-   *                                         |---------------------|
-   *                                         v                     |
-   *                              +---------------------+          |
-   *                              | QUERY_CHANGE_STREAM |----------|
-   *                              +---------------------+
-   *                                         |
-   *                 CHILD_PARTITION_RECORD  |      NO MORE RECORDS
-   *                |----------------------------------------------|
-   *                v                                              v
-   * +---------------------------+                       +------------------+
-   * | WAIT_FOR_CHILD_PARTITIONS |---------------------->| FINISH_PARTITION |
-   * +---------------------------+                       +------------------+
-   *                                          |--------------------|
-   *                                          v
-   *                           +----------------------------+
-   *                           | WAIT_FOR_PARENT_PARTITIONS |
-   *                           +----------------------------+
-   *                                          v
-   *                                +------------------+
-   *                                | DELETE_PARTITION |
-   *                                +------------------+
-   *                                          v
-   *                                      +------+
-   *                                      | DONE |
-   *                                      +------+
+   *                             HEARTBEAT RECORD
+   *                           DATA CHANGE RECORD
+   *                       CHILD PARTITION RECORD
+   *                      |---------------------|
+   *                      v                     |
+   *           +---------------------+          |
+   *           | QUERY_CHANGE_STREAM |----------|
+   *           +---------------------+
+   *                      | NO MORE RECORDS
+   *                      v
+   *         +---------------------------+
+   *         | WAIT_FOR_CHILD_PARTITIONS |
+   *         +---------------------------+
+   *                      v
+   *             +------------------+
+   *             | FINISH_PARTITION |
+   *             +------------------+
+   *                      v
+   *        +----------------------------+
+   *        | WAIT_FOR_PARENT_PARTITIONS |
+   *        +----------------------------+
+   *                      v
+   *             +------------------+
+   *             | DELETE_PARTITION |
+   *             +------------------+
+   *                      v
+   *                   +------+
+   *                   | DONE |
+   *                   +------+
    *
    */
   // spotless:on
@@ -252,17 +250,15 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
         }
       }
 
-      return finishPartition(partition, tracker);
+      return waitForChildPartitions(partition, tracker);
     }
   }
 
   private ProcessContinuation waitForChildPartitions(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    final Long childPartitionsToWaitFor =
-        tracker.currentRestriction().getChildPartitionsToWaitFor();
     return waitForChildPartitionsAction
-        .run(partition, tracker, childPartitionsToWaitFor)
+        .run(partition, tracker)
         .orElseGet(() -> finishPartition(partition, tracker));
   }
 

@@ -69,7 +69,7 @@ public class PartitionRestrictionSplitCheckerTest {
   public void testQueryChangeStreamNoPreviousTimestampOnLastAttemptedPosition() {
     final boolean isSplitAllowed =
         splitChecker.isSplitAllowed(
-            new PartitionPosition(Optional.empty(), QUERY_CHANGE_STREAM, Optional.empty()),
+            new PartitionPosition(Optional.empty(), QUERY_CHANGE_STREAM),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(11L, 29)));
 
     assertFalse(
@@ -81,7 +81,7 @@ public class PartitionRestrictionSplitCheckerTest {
     final boolean isSplitAllowed =
         splitChecker.isSplitAllowed(
             PartitionPosition.queryChangeStream(Timestamp.MAX_VALUE),
-            PartitionPosition.waitForChildPartitions(10L));
+            PartitionPosition.waitForChildPartitions());
 
     assertTrue(isSplitAllowed);
   }
@@ -90,7 +90,7 @@ public class PartitionRestrictionSplitCheckerTest {
   public void testFinishPartition() {
     final boolean isSplitAllowed =
         splitChecker.isSplitAllowed(
-            PartitionPosition.waitForChildPartitions(10L), PartitionPosition.finishPartition());
+            PartitionPosition.waitForChildPartitions(), PartitionPosition.finishPartition());
 
     assertTrue(isSplitAllowed);
   }

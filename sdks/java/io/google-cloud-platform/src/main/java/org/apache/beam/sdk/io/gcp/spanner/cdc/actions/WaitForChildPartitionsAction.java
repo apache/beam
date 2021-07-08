@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.SCHEDULED;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -47,29 +46,23 @@ public class WaitForChildPartitionsAction {
 
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
-      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
-      long childPartitionsToWaitFor) {
+      RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
     LOG.info("Waiting for child partitions for " + partition.getPartitionToken());
 
-    if (!tracker.tryClaim(PartitionPosition.waitForChildPartitions(childPartitionsToWaitFor))) {
+    if (!tracker.tryClaim(PartitionPosition.waitForChildPartitions())) {
       LOG.info("Could not claim, stopping");
       return Optional.of(ProcessContinuation.stop());
     }
-    long numberOfFinishedChildren =
+    long numberOfUnscheduledChildren =
         partitionMetadataDao.countChildPartitionsInStates(
-            partition.getPartitionToken(), Arrays.asList(SCHEDULED, FINISHED));
-    LOG.info(
-        "Number of finished children is "
-            + numberOfFinishedChildren
-            + " and expected children to wait for is "
-            + childPartitionsToWaitFor);
-    if (numberOfFinishedChildren < childPartitionsToWaitFor) {
+            partition.getPartitionToken(), Collections.singletonList(CREATED));
+    LOG.info("Number of unscheduled children is " + numberOfUnscheduledChildren);
+    if (numberOfUnscheduledChildren > 0) {
       LOG.info(
-          "Resuming, not all children are scheduled / finished (only "
-              + numberOfFinishedChildren
-              + " of "
-              + childPartitionsToWaitFor
-              + ")");
+          "Resuming, there are "
+              + numberOfUnscheduledChildren
+              + " unscheduled / not finished children");
+
       return Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration));
     }
 

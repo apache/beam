@@ -43,47 +43,45 @@ public class PartitionPositionTest {
   @Test
   public void testPositionQueryChangeStream() {
     assertEquals(
-        new PartitionPosition(Optional.of(timestamp), QUERY_CHANGE_STREAM, Optional.empty()),
+        new PartitionPosition(Optional.of(timestamp), QUERY_CHANGE_STREAM),
         PartitionPosition.queryChangeStream(timestamp));
   }
 
   @Test
   public void testPositionWaitForChildPartitions() {
     assertEquals(
-        new PartitionPosition(Optional.empty(), WAIT_FOR_CHILD_PARTITIONS, Optional.of(20L)),
-        PartitionPosition.waitForChildPartitions(20L));
+        new PartitionPosition(Optional.empty(), WAIT_FOR_CHILD_PARTITIONS),
+        PartitionPosition.waitForChildPartitions());
   }
 
   @Test
   public void testPositionFinishPartition() {
     assertEquals(
-        new PartitionPosition(Optional.empty(), FINISH_PARTITION, Optional.empty()),
+        new PartitionPosition(Optional.empty(), FINISH_PARTITION),
         PartitionPosition.finishPartition());
   }
 
   @Test
   public void testPositionWaitForParentPartitions() {
     assertEquals(
-        new PartitionPosition(Optional.empty(), WAIT_FOR_PARENT_PARTITIONS, Optional.empty()),
+        new PartitionPosition(Optional.empty(), WAIT_FOR_PARENT_PARTITIONS),
         PartitionPosition.waitForParentPartitions());
   }
 
   @Test
   public void testPositionDeletePartition() {
     assertEquals(
-        new PartitionPosition(Optional.empty(), DELETE_PARTITION, Optional.empty()),
+        new PartitionPosition(Optional.empty(), DELETE_PARTITION),
         PartitionPosition.deletePartition());
   }
 
   @Test
   public void testPositionDone() {
-    assertEquals(
-        new PartitionPosition(Optional.empty(), DONE, Optional.empty()), PartitionPosition.done());
+    assertEquals(new PartitionPosition(Optional.empty(), DONE), PartitionPosition.done());
   }
 
   @Test
   public void testPositionStop() {
-    assertEquals(
-        new PartitionPosition(Optional.empty(), STOP, Optional.empty()), PartitionPosition.stop());
+    assertEquals(new PartitionPosition(Optional.empty(), STOP), PartitionPosition.stop());
   }
 }

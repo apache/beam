@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.SCHEDULED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -152,8 +151,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(actionFactory.donePartitionAction()).thenReturn(donePartitionAction);
     when(actionFactory.dataChangeRecordAction()).thenReturn(dataChangeRecordAction);
     when(actionFactory.heartbeatRecordAction()).thenReturn(heartbeatRecordAction);
-    when(actionFactory.childPartitionsRecordAction(
-            partitionMetadataDao, waitForChildPartitionsAction))
+    when(actionFactory.childPartitionsRecordAction(partitionMetadataDao))
         .thenReturn(childPartitionsRecordAction);
 
     doFn.setup();
@@ -196,7 +194,7 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     verify(heartbeatRecordAction, never()).run(any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any(), anyLong());
+    verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
     verify(deletePartitionAction, never()).run(any(), any());
@@ -237,7 +235,7 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any(), anyLong());
+    verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
     verify(deletePartitionAction, never()).run(any(), any());
@@ -282,7 +280,7 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any(), anyLong());
+    verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
     verify(deletePartitionAction, never()).run(any(), any());
@@ -309,6 +307,7 @@ public class ReadChangeStreamPartitionDoFnTest {
         doFn.processElement(partition, restrictionTracker, outputReceiver, watermarkEstimator);
 
     assertEquals(ProcessContinuation.stop(), result);
+    verify(waitForChildPartitionsAction).run(partition, restrictionTracker);
     verify(finishPartitionAction).run(partition, restrictionTracker);
     verify(waitForParentPartitionsAction).run(partition, restrictionTracker);
     verify(deletePartitionAction).run(partition, restrictionTracker);
@@ -317,23 +316,19 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any(), anyLong());
   }
 
   @Test
   public void testWaitForChildPartitionsMode() {
-    final long childPartitionsToWaitFor = 10L;
     when(restriction.getMode()).thenReturn(PartitionMode.WAIT_FOR_CHILD_PARTITIONS);
-    when(restriction.getChildPartitionsToWaitFor()).thenReturn(childPartitionsToWaitFor);
-    when(waitForChildPartitionsAction.run(any(), any(), anyLong()))
+    when(waitForChildPartitionsAction.run(any(), any()))
         .thenReturn(Optional.of(ProcessContinuation.stop()));
 
     final ProcessContinuation result =
         doFn.processElement(partition, restrictionTracker, outputReceiver, watermarkEstimator);
 
     assertEquals(ProcessContinuation.stop(), result);
-    verify(waitForChildPartitionsAction)
-        .run(partition, restrictionTracker, childPartitionsToWaitFor);
+    verify(waitForChildPartitionsAction).run(partition, restrictionTracker);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any());
@@ -360,7 +355,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any(), anyLong());
+    verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
     verify(deletePartitionAction, never()).run(any(), any());
     verify(donePartitionAction, never()).run(any(), any());
@@ -382,7 +377,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any(), anyLong());
+    verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
     verify(deletePartitionAction, never()).run(any(), any());
     verify(donePartitionAction, never()).run(any(), any());
@@ -404,7 +399,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any(), anyLong());
+    verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
     verify(donePartitionAction, never()).run(any(), any());
@@ -425,7 +420,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any(), anyLong());
+    verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
     verify(deletePartitionAction, never()).run(any(), any());

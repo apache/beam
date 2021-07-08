@@ -52,11 +52,9 @@ public class ActionFactory implements Serializable {
 
   // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized ChildPartitionsRecordAction childPartitionsRecordAction(
-      PartitionMetadataDao partitionMetadataDao,
-      WaitForChildPartitionsAction waitForChildPartitionsAction) {
+      PartitionMetadataDao partitionMetadataDao) {
     if (childPartitionsRecordActionInstance == null) {
-      childPartitionsRecordActionInstance =
-          new ChildPartitionsRecordAction(partitionMetadataDao, waitForChildPartitionsAction);
+      childPartitionsRecordActionInstance = new ChildPartitionsRecordAction(partitionMetadataDao);
     }
     return childPartitionsRecordActionInstance;
   }

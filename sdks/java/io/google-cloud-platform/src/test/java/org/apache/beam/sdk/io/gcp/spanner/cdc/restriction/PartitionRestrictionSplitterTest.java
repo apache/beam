@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.QUERY_CHANGE_STREAM;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.WAIT_FOR_CHILD_PARTITIONS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -106,31 +105,21 @@ public class PartitionRestrictionSplitterTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testQueryChangeStreamWithoutTimestamp() {
-    final PartitionPosition position =
-        new PartitionPosition(Optional.empty(), QUERY_CHANGE_STREAM, Optional.empty());
+    final PartitionPosition position = new PartitionPosition(Optional.empty(), QUERY_CHANGE_STREAM);
 
     splitter.trySplit(0D, true, position, restriction);
   }
 
   @Test
   public void testWaitForChildPartitions() {
-    final PartitionPosition position = PartitionPosition.waitForChildPartitions(10L);
+    final PartitionPosition position = PartitionPosition.waitForChildPartitions();
 
     final SplitResult<PartitionRestriction> splitResult =
         splitter.trySplit(0D, true, position, restriction);
 
     assertEquals(
-        SplitResult.of(
-            PartitionRestriction.stop(), PartitionRestriction.waitForChildPartitions(10L)),
+        SplitResult.of(PartitionRestriction.stop(), PartitionRestriction.waitForChildPartitions()),
         splitResult);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testWaitForChildPartitionsWithoutTimestamp() {
-    final PartitionPosition position =
-        new PartitionPosition(Optional.empty(), WAIT_FOR_CHILD_PARTITIONS, Optional.empty());
-
-    splitter.trySplit(0D, true, position, restriction);
   }
 
   @Test

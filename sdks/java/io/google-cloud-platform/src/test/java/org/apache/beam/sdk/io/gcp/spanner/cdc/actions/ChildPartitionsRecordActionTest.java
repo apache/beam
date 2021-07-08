@@ -51,7 +51,6 @@ import org.junit.Test;
 public class ChildPartitionsRecordActionTest {
 
   private PartitionMetadataDao dao;
-  private WaitForChildPartitionsAction waitForChildPartitionsAction;
   private ChildPartitionsRecordAction action;
   private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
@@ -59,8 +58,7 @@ public class ChildPartitionsRecordActionTest {
   @Before
   public void setUp() {
     dao = mock(PartitionMetadataDao.class);
-    waitForChildPartitionsAction = mock(WaitForChildPartitionsAction.class);
-    action = new ChildPartitionsRecordAction(dao, waitForChildPartitionsAction);
+    action = new ChildPartitionsRecordAction(dao);
     tracker = mock(RestrictionTracker.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
   }
@@ -82,7 +80,6 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
-    when(waitForChildPartitionsAction.run(partition, tracker, 2)).thenReturn(Optional.empty());
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(record, partition, tracker, watermarkEstimator);
@@ -137,7 +134,6 @@ public class ChildPartitionsRecordActionTest {
         .thenAnswer(new TestTransactionAnswer(transaction));
     when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
         .thenReturn(1L);
-    when(waitForChildPartitionsAction.run(partition, tracker, 1)).thenReturn(Optional.empty());
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(record, partition, tracker, watermarkEstimator);
@@ -180,7 +176,6 @@ public class ChildPartitionsRecordActionTest {
         .thenAnswer(new TestTransactionAnswer(transaction));
     when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
         .thenReturn(0L);
-    when(waitForChildPartitionsAction.run(partition, tracker, 1)).thenReturn(Optional.empty());
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(record, partition, tracker, watermarkEstimator);

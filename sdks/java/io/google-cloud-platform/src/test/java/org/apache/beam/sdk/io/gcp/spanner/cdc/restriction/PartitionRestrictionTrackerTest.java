@@ -65,9 +65,7 @@ public class PartitionRestrictionTrackerTest {
   public void testIsSplitAllowedNonQueryChangeStreamInitialization() {
     Arrays.stream(PartitionMode.values())
         .filter(mode -> mode != QUERY_CHANGE_STREAM)
-        .map(
-            mode ->
-                new PartitionRestrictionTracker(new PartitionRestriction(null, null, mode, null)))
+        .map(mode -> new PartitionRestrictionTracker(new PartitionRestriction(null, null, mode)))
         .forEach(
             tracker ->
                 assertTrue(

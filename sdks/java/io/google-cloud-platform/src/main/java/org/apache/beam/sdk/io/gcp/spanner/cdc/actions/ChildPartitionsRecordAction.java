@@ -43,13 +43,9 @@ public class ChildPartitionsRecordAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(ChildPartitionsRecordAction.class);
   private final PartitionMetadataDao partitionMetadataDao;
-  private final WaitForChildPartitionsAction waitForChildPartitionsAction;
 
-  public ChildPartitionsRecordAction(
-      PartitionMetadataDao partitionMetadataDao,
-      WaitForChildPartitionsAction waitForChildPartitionsAction) {
+  public ChildPartitionsRecordAction(PartitionMetadataDao partitionMetadataDao) {
     this.partitionMetadataDao = partitionMetadataDao;
-    this.waitForChildPartitionsAction = waitForChildPartitionsAction;
   }
 
   public Optional<ProcessContinuation> run(
@@ -116,8 +112,7 @@ public class ChildPartitionsRecordAction {
     }
 
     LOG.info("Child partitions action completed successfully");
-    // Needs to hold the watermark until all my children have finished
-    return waitForChildPartitionsAction.run(partition, tracker, record.getChildPartitions().size());
+    return Optional.empty();
   }
 
   private boolean isSplit(ChildPartition childPartition) {

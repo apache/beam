@@ -88,14 +88,6 @@ public class PartitionRestrictionClaimer {
         toMode != QUERY_CHANGE_STREAM || position.getTimestamp().isPresent(),
         "%s mode must specify a timestamp (no value sent)",
         toMode);
-    checkArgument(
-        toMode != WAIT_FOR_CHILD_PARTITIONS
-            || position.getChildPartitionsToWaitFor().orElse(0L) > 0,
-        "%s mode must specify positive child partitions to wait for (value sent was %s)",
-        toMode,
-        position.getChildPartitionsToWaitFor());
-    // TODO: Check if the position wait child partitions to wait for == lastClaimedPosition wait
-    // child partitions to wait for
 
     boolean tryClaimResult;
     switch (toMode) {

@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.SCHEDULED;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -41,7 +40,6 @@ public class WaitForChildPartitionsActionTest {
   private PartitionMetadataDao dao;
   private Duration resumeDuration;
   private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
-  private Long childPartitionsToWaitFor;
 
   @Before
   public void setUp() {
@@ -49,21 +47,18 @@ public class WaitForChildPartitionsActionTest {
     resumeDuration = Duration.millis(100L);
     action = new WaitForChildPartitionsAction(dao, resumeDuration);
     tracker = mock(RestrictionTracker.class);
-    childPartitionsToWaitFor = 10L;
   }
 
   @Test
   public void testRestrictionClaimedAndChildrenFinished() {
     final String partitionToken = "partitionToken";
     final PartitionMetadata partition = mock(PartitionMetadata.class);
-    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions(childPartitionsToWaitFor)))
-        .thenReturn(true);
+    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(dao.countChildPartitionsInStates(partitionToken, Arrays.asList(SCHEDULED, FINISHED)))
-        .thenReturn(10L);
+    when(dao.countChildPartitionsInStates(partitionToken, Collections.singletonList(CREATED)))
+        .thenReturn(0L);
 
-    final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, tracker, childPartitionsToWaitFor);
+    final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
     assertEquals(Optional.empty(), maybeContinuation);
   }
@@ -72,14 +67,12 @@ public class WaitForChildPartitionsActionTest {
   public void testRestrictionClaimedAndChildrenNotFinished() {
     final String partitionToken = "partitionToken";
     final PartitionMetadata partition = mock(PartitionMetadata.class);
-    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions(childPartitionsToWaitFor)))
-        .thenReturn(true);
+    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(dao.countChildPartitionsInStates(partitionToken, Arrays.asList(SCHEDULED, FINISHED)))
-        .thenReturn(9L);
+    when(dao.countChildPartitionsInStates(partitionToken, Collections.singletonList(CREATED)))
+        .thenReturn(1L);
 
-    final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, tracker, childPartitionsToWaitFor);
+    final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
     assertEquals(
         Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration)),
@@ -89,11 +82,9 @@ public class WaitForChildPartitionsActionTest {
   @Test
   public void testRestrictionNotClaimed() {
     final PartitionMetadata partition = mock(PartitionMetadata.class);
-    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions(childPartitionsToWaitFor)))
-        .thenReturn(false);
+    when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(false);
 
-    final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, tracker, childPartitionsToWaitFor);
+    final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
   }
