@@ -2124,7 +2124,7 @@ class ProcessRecord(beam.DoFn):
 
 {{< highlight go >}}
 // PaneInfo and triggers are not yet implemented in the Go SDK.
-// See https://issues.apache.org/jira/browse/BEAM-3304 for info 
+// See https://issues.apache.org/jira/browse/BEAM-3304 for info
 // on contributing triggers and panes.
 {{< /highlight >}}
 
@@ -2220,7 +2220,7 @@ class StatefulDoFn(beam.DoFn):
 
 {{< highlight go >}}
 // State and Timers are yet implemented in the Go SDK.
-// See https://issues.apache.org/jira/browse/BEAM-10660 for info 
+// See https://issues.apache.org/jira/browse/BEAM-10660 for info
 // on contributing State and Timers.
 {{< /highlight >}}
 
