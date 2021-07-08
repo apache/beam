@@ -125,6 +125,10 @@ public class BigQueryIOStorageReadTest {
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
                   options.as(BigQueryOptions.class).setProject("project-id");
+                  if (description.getAnnotations().stream()
+                      .anyMatch(a -> a.annotationType().equals(ProjectOverride.class))) {
+                    options.as(BigQueryOptions.class).setBigQueryProject("bigquery-project-id");
+                  }
                   options
                       .as(BigQueryOptions.class)
                       .setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -296,6 +300,26 @@ public class BigQueryIOStorageReadTest {
     BigQueryStorageTableSource<TableRow> tableSource =
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            null,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withDatasetService(fakeDatasetService));
+
+    assertEquals(100, tableSource.getEstimatedSizeBytes(options));
+  }
+
+  @Test
+  @ProjectOverride
+  public void testTableSourceEstimatedSize_WithBigQueryProject() throws Exception {
+    fakeDatasetService.createDataset("bigquery-project-id", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("bigquery-project-id:dataset.table");
+    Table table = new Table().setTableReference(tableRef).setNumBytes(100L);
+    fakeDatasetService.createTable(table);
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
             null,
             new TableRowParser(),

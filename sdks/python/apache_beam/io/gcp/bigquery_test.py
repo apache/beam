@@ -77,14 +77,18 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
+  gcp_bigquery = None
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestTableRowJsonCoder(unittest.TestCase):
   def test_row_as_table_row(self):
     schema_definition = [('s', 'STRING'), ('i', 'INTEGER'), ('f', 'FLOAT'),

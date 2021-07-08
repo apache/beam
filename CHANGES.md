@@ -74,6 +74,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Added ability to use JdbcIO.Write.withResults without statement and preparedStatementSetter. ([BEAM-12511](https://issues.apache.org/jira/browse/BEAM-12511))
 
 ## New Features / Improvements
 
@@ -81,6 +82,7 @@
 * Add support to convert Beam Schema to Avro Schema for JDBC LogicalTypes:
   `VARCHAR`, `NVARCHAR`, `LONGVARCHAR`, `LONGNVARCHAR`, `DATE`, `TIME`
   (Java)([BEAM-12385](https://issues.apache.org/jira/browse/BEAM-12385)).
+* Reading from JDBC source by partitions (Java) ([BEAM-12456](https://issues.apache.org/jira/browse/BEAM-12456)).
 
 ## Breaking Changes
 
