@@ -36,5 +36,6 @@ dependencies {
   provided library.java.junit
   testCompile library.java.junit
   testCompile library.java.mockito_core
+  testCompile library.java.commons_lang3
   testRuntimeOnly library.java.slf4j_jdk14
 }
