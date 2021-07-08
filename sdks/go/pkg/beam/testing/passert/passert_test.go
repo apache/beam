@@ -26,10 +26,9 @@ import (
 func TestTrue_string(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "a", "a", "a")
-	pred := func(input string) bool {
+	True(s, col, func(input string) bool {
 		return input == "a"
-	}
-	True(s, col, pred)
+	})
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
@@ -38,10 +37,9 @@ func TestTrue_string(t *testing.T) {
 func TestTrue_numeric(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, 3, 3, 6)
-	pred := func(input int) bool {
+	True(s, col, func(input int) bool {
 		return input < 13
-	}
-	True(s, col, pred)
+	})
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
@@ -50,10 +48,9 @@ func TestTrue_numeric(t *testing.T) {
 func TestTrue_bad(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "a", "a", "b")
-	pred := func(input string) bool {
+	True(s, col, func(input string) bool {
 		return input == "a"
-	}
-	True(s, col, pred)
+	})
 	err := ptest.Run(p)
 	if err == nil {
 		t.Fatalf("Pipeline succeeded when it should haved failed, got %v", err)
@@ -66,10 +63,9 @@ func TestTrue_bad(t *testing.T) {
 func TestFalse_string(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "a", "a", "a")
-	pred := func(input string) bool {
+	False(s, col, func(input string) bool {
 		return input == "b"
-	}
-	False(s, col, pred)
+	})
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
@@ -78,10 +74,9 @@ func TestFalse_string(t *testing.T) {
 func TestFalse_numeric(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, 3, 3, 6)
-	pred := func(input int) bool {
+	False(s, col, func(input int) bool {
 		return input > 13
-	}
-	False(s, col, pred)
+	})
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
@@ -90,10 +85,9 @@ func TestFalse_numeric(t *testing.T) {
 func TestFalse_bad(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "a", "a", "b")
-	pred := func(input string) bool {
+	False(s, col, func(input string) bool {
 		return input == "b"
-	}
-	False(s, col, pred)
+	})
 	err := ptest.Run(p)
 	if err == nil {
 		t.Fatalf("Pipeline succeeded when it should haved failed, got %v", err)
