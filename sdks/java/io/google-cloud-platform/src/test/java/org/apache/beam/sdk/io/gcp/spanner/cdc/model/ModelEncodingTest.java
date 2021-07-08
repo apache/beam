@@ -44,11 +44,27 @@ public class ModelEncodingTest {
 
   @Test
   public void testModCanBeEncoded() throws IOException {
-    final Mod mod =
-        new Mod(
-            ImmutableMap.of("keyColumn1", "keyValue1"),
-            ImmutableMap.of("column1", "value1", "column2", "oldValue2"),
-            ImmutableMap.of("column1", "value1", "column2", "newValue2"));
+    final ImmutableMap<String, String> keys = ImmutableMap.of("keyColumn1", "keyValue1");
+    final Map<String, Object> oldValues = new HashMap<>();
+    oldValues.put("column1", null);
+    oldValues.put("column2", true);
+    oldValues.put("column3", 1);
+    oldValues.put("column4", 10L);
+    oldValues.put("column5", 20F);
+    oldValues.put("column6", 30D);
+    oldValues.put("column7", "\u0000");
+    oldValues.put("column8", "stringValue");
+    final Map<String, Object> newValues = new HashMap<>();
+    newValues.put("column1", null);
+    newValues.put("column2", false);
+    newValues.put("column3", 2);
+    newValues.put("column4", 20L);
+    newValues.put("column5", 30F);
+    newValues.put("column6", 40D);
+    newValues.put("column7", "\u0001");
+    newValues.put("column8", "newStringValue");
+
+    final Mod mod = new Mod(keys, oldValues, newValues);
 
     assertEquals(mod, encodeAndDecode(mod));
   }
@@ -121,36 +137,6 @@ public class ModelEncodingTest {
                 new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
             Collections.singletonList(
                 new Mod(ImmutableMap.of("keyColumn", "keyValue"), null, null)),
-            ModType.UPDATE,
-            ValueCaptureType.OLD_AND_NEW_VALUES,
-            1,
-            1);
-
-    assertEquals(dataChangeRecord, encodeAndDecode(dataChangeRecord));
-  }
-
-  @Test
-  public void testDataChangeRecordWithNullValuesInsideAModCanBeEncoded() throws IOException {
-    final Map<String, String> oldValues = new HashMap<>();
-    oldValues.put("column1", "oldValue1");
-    oldValues.put("column2", null);
-    final Map<String, String> newValues = new HashMap<>();
-    newValues.put("column1", null);
-    newValues.put("column2", "newValue2");
-    final DataChangeRecord dataChangeRecord =
-        new DataChangeRecord(
-            "1",
-            Timestamp.now(),
-            "2",
-            true,
-            "3",
-            "TableName",
-            Arrays.asList(
-                new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
-                new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
-                new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
-            Collections.singletonList(
-                new Mod(ImmutableMap.of("keyColumn", "keyValue"), oldValues, newValues)),
             ModType.UPDATE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             1,

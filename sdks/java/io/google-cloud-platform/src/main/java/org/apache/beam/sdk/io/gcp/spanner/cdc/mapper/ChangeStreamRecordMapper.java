@@ -126,8 +126,8 @@ public class ChangeStreamRecordMapper {
 
   private Mod modFrom(Struct struct) {
     final Map<String, String> keys = gson.fromJson(struct.getString("keys"), Map.class);
-    final Map<String, String> oldValues = gson.fromJson(struct.getString("old_values"), Map.class);
-    final Map<String, String> newValues = gson.fromJson(struct.getString("new_values"), Map.class);
+    final Map<String, Object> oldValues = gson.fromJson(struct.getString("old_values"), Map.class);
+    final Map<String, Object> newValues = gson.fromJson(struct.getString("new_values"), Map.class);
     return new Mod(keys, oldValues, newValues);
   }
 

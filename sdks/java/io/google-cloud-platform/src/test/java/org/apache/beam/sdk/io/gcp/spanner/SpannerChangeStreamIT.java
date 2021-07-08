@@ -168,12 +168,12 @@ public class SpannerChangeStreamIT {
                         record -> {
                           final Mod mod = record.getMods().get(0);
                           final Map<String, String> keys = mod.getKeys();
-                          final Map<String, String> newValues = mod.getNewValues();
+                          final Map<String, Object> newValues = mod.getNewValues();
                           return String.join(
                               ",",
                               keys.get("SingerId"),
-                              newValues.get("FirstName"),
-                              newValues.get("LastName"));
+                              newValues.get("FirstName").toString(),
+                              newValues.get("LastName").toString());
                         }));
 
     PAssert.that(tokens).containsInAnyOrder("1,First Name 1,Last Name 1");

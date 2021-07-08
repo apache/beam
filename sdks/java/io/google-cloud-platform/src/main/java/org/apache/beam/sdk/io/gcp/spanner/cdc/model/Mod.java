@@ -29,31 +29,31 @@ public class Mod implements Serializable {
 
   private static final long serialVersionUID = 7362322548913179939L;
   private static final String NULLS_ALLOWED_SCHEMA =
-      "[\"null\",{\"type\":\"map\",\"values\":[\"null\",\"string\"]}]";
+      "[\"null\",{\"type\":\"map\",\"values\":[\"null\",\"boolean\",\"int\",\"long\",\"float\",\"double\",\"string\"]}]";
 
   private Map<String, String> keys;
 
   @AvroSchema(NULLS_ALLOWED_SCHEMA)
-  private Map<String, String> oldValues;
+  private Map<String, Object> oldValues;
 
   @AvroSchema(NULLS_ALLOWED_SCHEMA)
-  private Map<String, String> newValues;
+  private Map<String, Object> newValues;
 
   /** Default constructor for serialization only. */
   private Mod() {}
 
   public Mod(
-      Map<String, String> keys, Map<String, String> oldValues, Map<String, String> newValues) {
+      Map<String, String> keys, Map<String, Object> oldValues, Map<String, Object> newValues) {
     this.keys = keys;
     this.oldValues = oldValues;
     this.newValues = newValues;
   }
 
-  public Map<String, String> getOldValues() {
+  public Map<String, Object> getOldValues() {
     return oldValues;
   }
 
-  public Map<String, String> getNewValues() {
+  public Map<String, Object> getNewValues() {
     return newValues;
   }
 
