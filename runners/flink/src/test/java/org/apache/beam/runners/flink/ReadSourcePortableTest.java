@@ -81,6 +81,11 @@ public class ReadSourcePortableTest implements Serializable {
 
   @Test(timeout = 120_000)
   public void testExecution() throws Exception {
+    for (int i = 0; i < 15; i++) {
+      testExecutionLoop(); //TODO(BEAM-12291) Remove this loop, used for testing
+    }
+  }
+  private void testExecutionLoop() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
     options.setRunner(CrashingRunner.class);
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
