@@ -70,13 +70,17 @@ class _ArrowTableToRowDictionaries(DoFn):
       table = table[1]
     num_rows = table.num_rows
     data_items = table.to_pydict().items()
-    for n in range(num_rows):
-      row = {}
-      for column, values in data_items:
-        row[column] = values[n]
-      if with_context:
+    if with_context:
+      for n in range(num_rows):
+        row = {}
+        for column, values in data_items:
+          row[column] = values[n]
         yield (path, row)
-      else:
+    else:
+      for n in range(num_rows):
+        row = {}
+        for column, values in data_items:
+          row[column] = values[n]
         yield row
 
 
