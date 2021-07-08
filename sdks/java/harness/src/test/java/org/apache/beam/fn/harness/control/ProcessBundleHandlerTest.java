@@ -1102,6 +1102,7 @@ public class ProcessBundleHandlerTest {
                     return null;
                   }
 
+                  @SuppressWarnings("FutureReturnValueIgnored")
                   private void doStateCalls(BeamFnStateClient beamFnStateClient) {
                     beamFnStateClient.handle(StateRequest.newBuilder().setInstructionId("SUCCESS"));
                   }
