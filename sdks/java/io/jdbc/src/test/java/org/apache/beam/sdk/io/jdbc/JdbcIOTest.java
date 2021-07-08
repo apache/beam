@@ -509,6 +509,13 @@ public class JdbcIOTest implements Serializable {
             });
   }
 
+  private static JdbcIO.Write<Row> getJdbcWriteWithoutStatement(String tableName) {
+    return JdbcIO.<Row>write()
+        .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+        .withBatchSize(10L)
+        .withTable(tableName);
+  }
+
   private static ArrayList<KV<Integer, String>> getDataToWrite(long rowsToAdd) {
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
     for (int i = 0; i < rowsToAdd; i++) {
@@ -1029,5 +1036,39 @@ public class JdbcIOTest implements Serializable {
     assertTrue(strategy.apply(new SQLException("SQL deadlock", "40001")));
     assertTrue(strategy.apply(new SQLException("PostgreSQL deadlock", "40P01")));
     assertFalse(strategy.apply(new SQLException("Other code", "40X01")));
+  }
+
+  @Test
+  public void testWriteRowsResultsAndWaitOn() throws Exception {
+    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ROWS_PS");
+    String secondTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ROWS_PS_AFTER_WAIT");
+    DatabaseTestHelper.createTable(DATA_SOURCE, firstTableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, secondTableName);
+
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addField(Schema.Field.of("id", Schema.FieldType.INT32));
+    schemaBuilder.addField(Schema.Field.of("name", Schema.FieldType.STRING));
+    Schema schema = schemaBuilder.build();
+    try {
+      ArrayList<Row> data = getRowsToWrite(EXPECTED_ROW_COUNT, schema);
+
+      PCollection<Row> dataCollection = pipeline.apply(Create.of(data));
+      PCollection<Void> rowsWritten =
+          dataCollection
+              .setRowSchema(schema)
+              .apply(getJdbcWriteWithoutStatement(firstTableName).withResults());
+      dataCollection
+          .apply(Wait.on(rowsWritten))
+          .setRowSchema(schema) // setRowSchema must be after .apply(Wait.on())
+          .apply(getJdbcWriteWithoutStatement(secondTableName));
+
+      pipeline.run();
+
+      assertRowCount(firstTableName, EXPECTED_ROW_COUNT);
+      assertRowCount(secondTableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, firstTableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, secondTableName);
+    }
   }
 }
