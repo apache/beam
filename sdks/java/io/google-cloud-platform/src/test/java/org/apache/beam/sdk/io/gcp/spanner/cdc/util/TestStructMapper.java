@@ -21,7 +21,6 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Type.StructField;
 import com.google.cloud.spanner.Value;
-import com.google.gson.Gson;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
@@ -78,7 +77,6 @@ public class TestStructMapper {
           StructField.of("data_change_record", Type.array(DATA_CHANGE_RECORD_TYPE)),
           StructField.of("heartbeat_record", Type.array(HEARTBEAT_RECORD_TYPE)),
           StructField.of("child_partitions_record", Type.array(CHILD_PARTITIONS_RECORD_TYPE)));
-  private static final Gson gson = new Gson();
 
   public static Struct recordsToStruct(ChangeStreamRecord... records) {
     return Struct.newBuilder()
@@ -219,16 +217,13 @@ public class TestStructMapper {
   }
 
   private static Struct modStructFrom(Mod mod) {
-    final String keys = gson.toJson(mod.getKeys());
-    final String newValues = gson.toJson(mod.getNewValues());
-    final String oldValues = gson.toJson(mod.getOldValues());
     return Struct.newBuilder()
         .set("keys")
-        .to(keys)
+        .to(mod.getKeysJson())
         .set("new_values")
-        .to(newValues)
+        .to(mod.getNewValuesJson())
         .set("old_values")
-        .to(oldValues)
+        .to(mod.getOldValuesJson())
         .build();
   }
 

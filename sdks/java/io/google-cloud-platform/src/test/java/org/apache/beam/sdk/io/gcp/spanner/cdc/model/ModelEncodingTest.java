@@ -25,8 +25,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
@@ -36,7 +34,6 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Test;
 
@@ -44,27 +41,11 @@ public class ModelEncodingTest {
 
   @Test
   public void testModCanBeEncoded() throws IOException {
-    final ImmutableMap<String, String> keys = ImmutableMap.of("keyColumn1", "keyValue1");
-    final Map<String, Object> oldValues = new HashMap<>();
-    oldValues.put("column1", null);
-    oldValues.put("column2", true);
-    oldValues.put("column3", 1);
-    oldValues.put("column4", 10L);
-    oldValues.put("column5", 20F);
-    oldValues.put("column6", 30D);
-    oldValues.put("column7", "\u0000");
-    oldValues.put("column8", "stringValue");
-    final Map<String, Object> newValues = new HashMap<>();
-    newValues.put("column1", null);
-    newValues.put("column2", false);
-    newValues.put("column3", 2);
-    newValues.put("column4", 20L);
-    newValues.put("column5", 30F);
-    newValues.put("column6", 40D);
-    newValues.put("column7", "\u0001");
-    newValues.put("column8", "newStringValue");
-
-    final Mod mod = new Mod(keys, oldValues, newValues);
+    final Mod mod =
+        new Mod(
+            "{\"column1\": \"value1\"}",
+            "{\"column2\": \"oldValue2\"}",
+            "{\"column2\": \"newValue2\"}");
 
     assertEquals(mod, encodeAndDecode(mod));
   }
@@ -110,9 +91,9 @@ public class ModelEncodingTest {
                 new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
             Collections.singletonList(
                 new Mod(
-                    ImmutableMap.of("keyColumn", "keyValue"),
-                    ImmutableMap.of("column1", "value1", "column2", "oldValue2"),
-                    ImmutableMap.of("column1", "value1", "column2", "newValue2"))),
+                    "{\"keyColumn\": \"keyValue\"}",
+                    "{\"column1\": \"value1\", \"column2\": \"oldValue2\"}",
+                    "{\"column1\": \"value1\", \"column2\": \"newValue2\"}")),
             ModType.UPDATE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             1,
@@ -135,8 +116,7 @@ public class ModelEncodingTest {
                 new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
                 new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
                 new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
-            Collections.singletonList(
-                new Mod(ImmutableMap.of("keyColumn", "keyValue"), null, null)),
+            Collections.singletonList(new Mod("{\"keyColumn\": \"keyValue\"}", null, null)),
             ModType.UPDATE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             1,

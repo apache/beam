@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
 import com.google.cloud.spanner.Struct;
-import com.google.gson.Gson;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
@@ -39,12 +37,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 // TODO: Add java docs
 public class ChangeStreamRecordMapper {
-
-  private final Gson gson;
-
-  public ChangeStreamRecordMapper(Gson gson) {
-    this.gson = gson;
-  }
 
   public List<ChangeStreamRecord> toChangeStreamRecords(String partitionToken, Struct row) {
     return row.getStructList(0).stream()
@@ -125,10 +117,12 @@ public class ChangeStreamRecordMapper {
   }
 
   private Mod modFrom(Struct struct) {
-    final Map<String, String> keys = gson.fromJson(struct.getString("keys"), Map.class);
-    final Map<String, Object> oldValues = gson.fromJson(struct.getString("old_values"), Map.class);
-    final Map<String, Object> newValues = gson.fromJson(struct.getString("new_values"), Map.class);
-    return new Mod(keys, oldValues, newValues);
+    final String keysJson = struct.getString("keys");
+    final String oldValuesJson =
+        struct.isNull("old_values") ? null : struct.getString("old_values");
+    final String newValuesJson =
+        struct.isNull("new_values") ? null : struct.getString("new_values");
+    return new Mod(keysJson, oldValuesJson, newValuesJson);
   }
 
   private ChildPartition childPartitionFrom(String partitionToken, Struct struct) {

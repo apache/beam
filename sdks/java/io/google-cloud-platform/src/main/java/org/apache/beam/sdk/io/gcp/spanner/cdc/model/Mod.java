@@ -18,47 +18,41 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 
 import java.io.Serializable;
-import java.util.Map;
-import org.apache.avro.reflect.AvroSchema;
+import java.util.Objects;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 
 @DefaultCoder(AvroCoder.class)
 public class Mod implements Serializable {
 
   private static final long serialVersionUID = 7362322548913179939L;
-  private static final String NULLS_ALLOWED_SCHEMA =
-      "[\"null\",{\"type\":\"map\",\"values\":[\"null\",\"boolean\",\"int\",\"long\",\"float\",\"double\",\"string\"]}]";
 
-  private Map<String, String> keys;
+  private String keysJson;
 
-  @AvroSchema(NULLS_ALLOWED_SCHEMA)
-  private Map<String, Object> oldValues;
+  @Nullable private String oldValuesJson;
 
-  @AvroSchema(NULLS_ALLOWED_SCHEMA)
-  private Map<String, Object> newValues;
+  @Nullable private String newValuesJson;
 
   /** Default constructor for serialization only. */
   private Mod() {}
 
-  public Mod(
-      Map<String, String> keys, Map<String, Object> oldValues, Map<String, Object> newValues) {
-    this.keys = keys;
-    this.oldValues = oldValues;
-    this.newValues = newValues;
+  public Mod(String keysJson, String oldValuesJson, String newValuesJson) {
+    this.keysJson = keysJson;
+    this.oldValuesJson = oldValuesJson;
+    this.newValuesJson = newValuesJson;
   }
 
-  public Map<String, Object> getOldValues() {
-    return oldValues;
+  public String getOldValuesJson() {
+    return oldValuesJson;
   }
 
-  public Map<String, Object> getNewValues() {
-    return newValues;
+  public String getNewValuesJson() {
+    return newValuesJson;
   }
 
-  public Map<String, String> getKeys() {
-    return keys;
+  public String getKeysJson() {
+    return keysJson;
   }
 
   @Override
@@ -66,22 +60,31 @@ public class Mod implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Mod)) {
       return false;
     }
     Mod mod = (Mod) o;
-    return Objects.equal(getKeys(), mod.getKeys())
-        && Objects.equal(getOldValues(), mod.getOldValues())
-        && Objects.equal(getNewValues(), mod.getNewValues());
+    return Objects.equals(keysJson, mod.keysJson)
+        && Objects.equals(oldValuesJson, mod.oldValuesJson)
+        && Objects.equals(newValuesJson, mod.newValuesJson);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(getKeys(), getOldValues(), getNewValues());
+    return Objects.hash(keysJson, oldValuesJson, newValuesJson);
   }
 
   @Override
   public String toString() {
-    return "Mod{" + "keys=" + keys + ", oldValues=" + oldValues + ", newValues=" + newValues + '}';
+    return "Mod{"
+        + "keysJson="
+        + keysJson
+        + ", oldValuesJson='"
+        + oldValuesJson
+        + '\''
+        + ", newValuesJson='"
+        + newValuesJson
+        + '\''
+        + '}';
   }
 }

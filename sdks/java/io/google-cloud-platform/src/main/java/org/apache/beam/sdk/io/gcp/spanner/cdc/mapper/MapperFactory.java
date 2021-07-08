@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
-import com.google.gson.Gson;
 import java.io.Serializable;
 
 // TODO: Add java docs
@@ -29,7 +28,7 @@ public class MapperFactory implements Serializable {
   // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
     if (changeStreamRecordMapperInstance == null) {
-      changeStreamRecordMapperInstance = new ChangeStreamRecordMapper(new Gson());
+      changeStreamRecordMapperInstance = new ChangeStreamRecordMapper();
     }
     return changeStreamRecordMapperInstance;
   }

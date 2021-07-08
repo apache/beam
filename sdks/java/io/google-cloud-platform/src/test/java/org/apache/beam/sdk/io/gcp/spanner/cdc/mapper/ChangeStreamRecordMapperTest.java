@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
-import com.google.gson.Gson;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
@@ -35,7 +34,6 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ModType;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ValueCaptureType;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,7 +44,7 @@ public class ChangeStreamRecordMapperTest {
 
   @Before
   public void setUp() {
-    this.mapper = new ChangeStreamRecordMapper(new Gson());
+    this.mapper = new ChangeStreamRecordMapper();
   }
 
   @Test
@@ -64,9 +62,9 @@ public class ChangeStreamRecordMapperTest {
                 new ColumnType("column2", new TypeCode("type2"), false, 2L)),
             Collections.singletonList(
                 new Mod(
-                    ImmutableMap.of("column1", "value1"),
-                    ImmutableMap.of("column2", "oldValue2"),
-                    ImmutableMap.of("column2", "newValue2"))),
+                    "{\"column1\": \"value1\"}",
+                    "{\"column2\": \"oldValue2\"}",
+                    "{\"column2\": \"newValue2\"}")),
             ModType.UPDATE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
@@ -92,10 +90,7 @@ public class ChangeStreamRecordMapperTest {
                 new ColumnType("column1", new TypeCode("type1"), true, 1L),
                 new ColumnType("column2", new TypeCode("type2"), false, 2L)),
             Collections.singletonList(
-                new Mod(
-                    ImmutableMap.of("column1", "value1"),
-                    null,
-                    ImmutableMap.of("column2", "newValue2"))),
+                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
             ModType.INSERT,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
@@ -121,10 +116,7 @@ public class ChangeStreamRecordMapperTest {
                 new ColumnType("column1", new TypeCode("type1"), true, 1L),
                 new ColumnType("column2", new TypeCode("type2"), false, 2L)),
             Collections.singletonList(
-                new Mod(
-                    ImmutableMap.of("column1", "value1"),
-                    ImmutableMap.of("column2", "oldValue2"),
-                    null)),
+                new Mod("{\"column1\": \"value1\"}", "{\"column2\": \"oldValue2\"}", null)),
             ModType.DELETE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,

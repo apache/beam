@@ -24,6 +24,7 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.gson.Gson;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -166,14 +167,17 @@ public class SpannerChangeStreamIT {
                 MapElements.into(TypeDescriptors.strings())
                     .via(
                         record -> {
+                          final Gson gson = new Gson();
                           final Mod mod = record.getMods().get(0);
-                          final Map<String, String> keys = mod.getKeys();
-                          final Map<String, Object> newValues = mod.getNewValues();
+                          final Map<String, String> keys =
+                              gson.fromJson(mod.getKeysJson(), Map.class);
+                          final Map<String, String> newValues =
+                              gson.fromJson(mod.getNewValuesJson(), Map.class);
                           return String.join(
                               ",",
                               keys.get("SingerId"),
-                              newValues.get("FirstName").toString(),
-                              newValues.get("LastName").toString());
+                              newValues.get("FirstName"),
+                              newValues.get("LastName"));
                         }));
 
     PAssert.that(tokens).containsInAnyOrder("1,First Name 1,Last Name 1");
