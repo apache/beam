@@ -650,18 +650,19 @@ It is created by `build_release_candidate.sh` (see above).
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/11727)).
+This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/15068)).
 
+* Update `CHANGES.md` to update release date and remove template.
 * Update release version in `website/www/site/config.toml`.
 * Add new release in `website/www/site/content/en/get-started/downloads.md`.
   * Download links will not work until the release is finalized.
 * Update `website/www/site/static/.htaccess` to redirect to the new version.
+* Create the Blog post:
 
-
-### Blog post
+#### Blog post
 
 Use the template below to write a blog post for the release.
-See [beam-2.23.0.md](https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d) as an example.
+See [beam-2.31.0.md](https://github.com/apache/beam/commit/a32a75ed0657c122c6625aee1ace27994e7df195#diff-1e2b83a4f61dce8014a1989869b6d31eb3f80cb0d6dade42fb8df5d9407b4748) as an example.
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
 - Be sure to add yourself to [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml) if necessary.
 
