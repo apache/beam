@@ -372,7 +372,7 @@ class TestReadAllFromTFRecord(unittest.TestCase):
         files.append(path)
       content = [b'foo', b'bar']
       expected = [(file, line) for file in files for line in content]
-      pattern = "%s/*" % (temp_dir.get_path())
+      pattern = temp_dir.get_path() + os.path.sep + '*'
 
       with TestPipeline() as p:
         result = (
