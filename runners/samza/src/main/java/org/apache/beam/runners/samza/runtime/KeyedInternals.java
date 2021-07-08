@@ -138,8 +138,9 @@ class KeyedInternals<K> {
     }
 
     @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      getInternals().deleteTimer(namespace, timerId, timeDomain);
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+      getInternals().deleteTimer(namespace, timerId, timerFamilyId, timeDomain);
     }
 
     @Override
