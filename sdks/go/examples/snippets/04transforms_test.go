@@ -183,3 +183,43 @@ func TestPartition(t *testing.T) {
 	passert.Equals(s, avg, Student{42})
 	ptest.RunAndValidate(t, p)
 }
+
+func TestMultipleOutputs(t *testing.T) {
+	p, s, words := ptest.CreateList([]string{"a", "the", "pjamas", "art", "candy", "MARKERmarked"})
+	below, above, marked, lengths, mixedMarked := applyMultipleOut(s, words)
+
+	passert.Equals(s, below, "a", "the", "art")
+	passert.Equals(s, above, "pjamas", "candy", "MARKERmarked")
+	passert.Equals(s, marked, "MARKERmarked")
+	passert.Equals(s, lengths, 1, 3, 6, 3, 5, 12)
+	passert.Equals(s, mixedMarked, "MARKERmarked")
+
+	ptest.RunAndValidate(t, p)
+}
+
+func TestSideInputs(t *testing.T) {
+	p, s, words := ptest.CreateList([]string{"a", "the", "pjamas", "art", "candy", "garbage"})
+	above, below := addSideInput(s, words)
+	passert.Equals(s, above, "pjamas", "candy", "garbage")
+	passert.Equals(s, below, "a", "the", "art")
+	ptest.RunAndValidate(t, p)
+}
+
+func TestComposite(t *testing.T) {
+	p, s, lines := ptest.CreateList([]string{
+		"this test dataset has the word test",
+		"at least twice, because to test the Composite",
+		"CountWords, one needs test data to run it with",
+	})
+	// [START countwords_composite_call]
+	// A Composite PTransform function is called like any other function.
+	wordCounts := CountWords(s, lines) // returns a PCollection<KV<string,int>>
+	// [END countwords_composite_call]
+	testCount := beam.ParDo(s, func(k string, v int, emit func(int)) {
+		if k == "test" {
+			emit(v)
+		}
+	}, wordCounts)
+	passert.Equals(s, testCount, 4)
+	ptest.RunAndValidate(t, p)
+}
