@@ -351,8 +351,8 @@ func isMarkedWord(word string) bool {
 // processWords is a DoFn that has 3 output PCollections. The emitter functions
 // are matched in positional order to the PCollections returned by beam.ParDo3.
 func processWords(word string, emitBelowCutoff, emitAboveCutoff, emitMarked func(string)) {
-	const cutOff = 10
-	if len(word) <= cutOff {
+	const cutOff = 5
+	if len(word) < cutOff {
 		emitBelowCutoff(word)
 	} else {
 		emitAboveCutoff(word)
@@ -379,7 +379,7 @@ func init() {
 
 // [END model_multiple_output_dofn]
 
-func applyMultipleOut(s beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection, beam.PCollection, beam.PCollection, beam.PCollection) {
+func applyMultipleOut(s beam.Scope, words beam.PCollection) (belows, aboves, markeds, lengths, mixedMarkeds beam.PCollection) {
 	// [START model_multiple_output]
 	// beam.ParDo3 returns PCollections in the same order as
 	// the emit function parameters in processWords.

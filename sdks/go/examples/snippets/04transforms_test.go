@@ -184,6 +184,19 @@ func TestPartition(t *testing.T) {
 	ptest.RunAndValidate(t, p)
 }
 
+func TestMultipleOutputs(t *testing.T) {
+	p, s, words := ptest.CreateList([]string{"a", "the", "pjamas", "art", "candy", "MARKERmarked"})
+	below, above, marked, lengths, mixedMarked := applyMultipleOut(s, words)
+
+	passert.Equals(s, below, "a", "the", "art")
+	passert.Equals(s, above, "pjamas", "candy", "MARKERmarked")
+	passert.Equals(s, marked, "MARKERmarked")
+	passert.Equals(s, lengths, 1, 3, 6, 3, 5, 12)
+	passert.Equals(s, mixedMarked, "MARKERmarked")
+
+	ptest.RunAndValidate(t, p)
+}
+
 func TestSideInputs(t *testing.T) {
 	p, s, words := ptest.CreateList([]string{"a", "the", "pjamas", "art", "candy", "garbage"})
 	above, below := addSideInput(s, words)
