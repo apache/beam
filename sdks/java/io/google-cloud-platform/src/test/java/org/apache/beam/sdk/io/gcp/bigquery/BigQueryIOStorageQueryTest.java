@@ -648,6 +648,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            DataFormat.AVRO,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
