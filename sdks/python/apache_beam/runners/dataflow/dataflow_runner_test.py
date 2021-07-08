@@ -839,7 +839,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'Runner determined sharding not available in Dataflow for '
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
-          True, ['--enable_streaming_engine', '--experiments=disable_runner_v2'])
+          True,
+          ['--enable_streaming_engine', '--experiments=disable_runner_v2'])
 
     # JRH
     with self.assertRaisesRegex(
@@ -847,7 +848,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'Runner determined sharding not available in Dataflow for '
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
-          True, ['--enable_streaming_engine', '--experiments=beam_fn_api', '--experiments=disable_runner_v2'])
+          True,
+          [
+              '--enable_streaming_engine',
+              '--experiments=beam_fn_api',
+              '--experiments=disable_runner_v2'
+          ])
 
   def test_pack_combiners(self):
     class PackableCombines(beam.PTransform):
