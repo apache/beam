@@ -1355,7 +1355,7 @@ public class SpannerIO {
     }
 
     /** Specifies the end time of the change stream. */
-    public ReadChangeStream withExclusiveEndAt(Timestamp timestamp) {
+    public ReadChangeStream withInclusiveEndAt(Timestamp timestamp) {
       return toBuilder().setInclusiveEndAt(timestamp).build();
     }
 

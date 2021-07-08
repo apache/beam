@@ -161,7 +161,7 @@ public class SpannerChangeStreamIT {
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
                     .withInclusiveStartAt(now)
-                    .withExclusiveEndAt(after30Seconds))
+                    .withInclusiveEndAt(after30Seconds))
             .apply(
                 MapElements.into(TypeDescriptors.strings())
                     .via(
