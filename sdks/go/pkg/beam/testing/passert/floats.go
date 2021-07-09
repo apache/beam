@@ -56,17 +56,17 @@ func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
 			tooHigh = append(tooHigh, val)
 		}
 	}
-	if len(tooLow)+len(tooHigh) != 0 {
-		errorStrings := []string{}
-		if len(tooLow) != 0 {
-			sort.Float64s(tooLow)
-			errorStrings = append(errorStrings, fmt.Sprintf("values below minimum value %v: %v", f.lo, tooLow))
-		}
-		if len(tooHigh) != 0 {
-			sort.Float64s(tooHigh)
-			errorStrings = append(errorStrings, fmt.Sprintf("values above maximum value %v: %v", f.hi, tooHigh))
-		}
-		return errors.New(strings.Join(errorStrings, "\n"))
+	if len(tooLow)+len(tooHigh) == 0 {
+		return nil
 	}
-	return nil
+	errorStrings := []string{}
+	if len(tooLow) != 0 {
+		sort.Float64s(tooLow)
+		errorStrings = append(errorStrings, fmt.Sprintf("values below minimum value %v: %v", f.lo, tooLow))
+	}
+	if len(tooHigh) != 0 {
+		sort.Float64s(tooHigh)
+		errorStrings = append(errorStrings, fmt.Sprintf("values above maximum value %v: %v", f.hi, tooHigh))
+	}
+	return errors.New(strings.Join(errorStrings, "\n"))
 }
