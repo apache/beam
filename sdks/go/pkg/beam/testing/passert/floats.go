@@ -18,6 +18,7 @@ package passert
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
@@ -36,17 +37,27 @@ func AllWithinBounds(s beam.Scope, col beam.PCollection, lo, hi float64) {
 		lo, hi = hi, lo
 	}
 	s = s.Scope(fmt.Sprintf("passert.AllWithinBounds([%v, %v])", lo, hi))
-	beam.ParDo0(s, &boundsFn{lo: lo, hi: hi}, col)
+	beam.ParDo0(s, &boundsFn{lo: lo, hi: hi}, beam.Impulse(s), beam.SideInput{Input: col})
 }
 
 type boundsFn struct {
 	lo, hi float64
 }
 
-func (f *boundsFn) ProcessElement(input beam.T) error {
-	val := reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
-	if val < f.lo || val > f.hi {
-		return errors.Errorf("passert.AllWithinBounds([%v, %v]) failed, got %v", f.lo, f.hi, input)
+func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
+	errorStrings := []string{}
+	var input beam.T
+	for col(&input) {
+		val := reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+		if val < f.lo {
+			errorStrings = append(errorStrings, fmt.Sprintf("value %v too low", input))
+		} else if val > f.hi {
+			errorStrings = append(errorStrings, fmt.Sprintf("value %v too high", input))
+		}
+	}
+	if len(errorStrings) != 0 {
+		errorStrings = append([]string{fmt.Sprintf("passert.AllWithinBounds([%v, %v]) failed", f.lo, f.hi)}, errorStrings...)
+		return errors.New(strings.Join(errorStrings, "\n"))
 	}
 	return nil
 }
