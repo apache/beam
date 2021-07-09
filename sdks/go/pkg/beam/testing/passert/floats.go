@@ -18,6 +18,7 @@ package passert
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -45,18 +46,26 @@ type boundsFn struct {
 }
 
 func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
-	errorStrings := []string{}
+	var tooLow, tooHigh []float64
 	var input beam.T
 	for col(&input) {
 		val := reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
 		if val < f.lo {
-			errorStrings = append(errorStrings, fmt.Sprintf("value %v too low", input))
+			tooLow = append(tooLow, val)
 		} else if val > f.hi {
-			errorStrings = append(errorStrings, fmt.Sprintf("value %v too high", input))
+			tooHigh = append(tooHigh, val)
 		}
 	}
-	if len(errorStrings) != 0 {
-		errorStrings = append([]string{fmt.Sprintf("passert.AllWithinBounds([%v, %v]) failed", f.lo, f.hi)}, errorStrings...)
+	if len(tooLow)+len(tooHigh) != 0 {
+		errorStrings := []string{}
+		if len(tooLow) != 0 {
+			sort.Float64s(tooLow)
+			errorStrings = append(errorStrings, fmt.Sprintf("values below minimum value %v: %v", f.lo, tooLow))
+		}
+		if len(tooHigh) != 0 {
+			sort.Float64s(tooHigh)
+			errorStrings = append(errorStrings, fmt.Sprintf("values above maximum value %v: %v", f.hi, tooHigh))
+		}
 		return errors.New(strings.Join(errorStrings, "\n"))
 	}
 	return nil
