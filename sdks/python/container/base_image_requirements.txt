@@ -52,7 +52,6 @@ google-cloud-core==1.4.1
 google-cloud-datastore==1.15.3
 google-cloud-dlp==0.13.0
 google-cloud-language==1.3.0
-google-cloud-profiler==3.0.4
 google-cloud-spanner==1.13.0
 google-cloud-videointelligence==1.13.0
 google-cloud-vision==0.42.0
