@@ -122,7 +122,7 @@ $ mvn package -Pflink-runner
 
 {{< paragraph class="language-java" >}}
 Look for the output JAR of this command in the
-install apache_beam``target` folder.
+`target` folder.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
@@ -500,4 +500,3 @@ capabilities of the classic Flink Runner.
 The [Portable Capability
 Matrix](https://s.apache.org/apache-beam-portability-support-table) documents
 the capabilities of the portable Flink Runner.
-
