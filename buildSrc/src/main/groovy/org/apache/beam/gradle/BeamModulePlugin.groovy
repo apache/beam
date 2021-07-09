@@ -461,6 +461,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark_version = "2.4.8"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
+    def arrow_version = "4.0.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -653,6 +654,9 @@ class BeamModulePlugin implements Plugin<Project> {
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.4.5-2",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
+        arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
+        arrow_memory_core                           : "org.apache.arrow:arrow-memory-core:$arrow_version",
+        arrow_memory_netty                          : "org.apache.arrow:arrow-memory-netty:$arrow_version",
       ],
       groovy: [
         groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
