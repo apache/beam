@@ -38,6 +38,19 @@ job(jobName) {
 
   (0..2).each { k8s.loadBalancerIP("outside-$it", "KAFKA_BROKER_$it") }
 
+
+  // Get 3 random available ports.
+  Integer[] ports = new Integer[3]()
+  ServerSocket ss1 = new ServerSocket(0)
+  ServerSocket ss2 = new ServerSocket(0)
+  ServerSocket ss3 = new ServerSocket(0)
+  ports[0] = ss1.getLocalPort()
+  ports[1] = ss2.getLocalPort()
+  ports[2] = ss3.getLocalPort()
+  ss1.close()
+  ss2.close()
+  ss3.close()
+
   Map pipelineOptions = [
     tempRoot                     : 'gs://temp-storage-for-perf-tests',
     project                      : 'apache-beam-testing',
@@ -54,7 +67,7 @@ job(jobName) {
     influxMeasurement            : 'kafkaioit_results',
     influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:32400,\$KAFKA_BROKER_1:32401,\$KAFKA_BROKER_2:32402",
+    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:\$ports[0],\$KAFKA_BROKER_1:\$ports[1],\$KAFKA_BROKER_2:\$ports[2]",
     kafkaTopic                   : 'beam',
     readTimeout                  : '900',
     numWorkers                   : '5',
