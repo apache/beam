@@ -716,7 +716,7 @@ the implementation of your custom I/O depends on your use case. Before you
 start, read the &lt;a href="/documentation/io/developing-io-overview/">new I/O connector overview&lt;/a>
 for an overview of developing a new I/O connector, the available implementation
 options, and how to choose the right option for your use case.&lt;/p>
-&lt;p>This guide covers using the &lt;a href="https://beam.apache.org/releases/pydoc/2.30.0/apache_beam.io.iobase.html">Source and FileBasedSink interfaces&lt;/a>
+&lt;p>This guide covers using the &lt;a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.io.iobase.html">Source and FileBasedSink interfaces&lt;/a>
 for Python. The Java SDK offers the same functionality, but uses a slightly
 different API. See &lt;a href="/documentation/io/developing-io-java/">Developing I/O connectors for Java&lt;/a>
 for information specific to the Java SDK.&lt;/p>
@@ -769,7 +769,7 @@ why you should avoid exposing your sources, and walks through how to create
 a wrapper.&lt;/li>
 &lt;/ul>
 &lt;p>You can find these classes in the
-&lt;a href="https://beam.apache.org/releases/pydoc/2.30.0/apache_beam.io.iobase.html">apache_beam.io.iobase module&lt;/a>.&lt;/p>
+&lt;a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.io.iobase.html">apache_beam.io.iobase module&lt;/a>.&lt;/p>
 &lt;h3 id="implementing-the-boundedsource-subclass">Implementing the BoundedSource subclass&lt;/h3>
 &lt;p>&lt;code>BoundedSource&lt;/code> represents a finite data set from which the service reads, possibly in parallel. &lt;code>BoundedSource&lt;/code> contains a set of methods that the service uses to split the data set for reading by multiple remote workers.&lt;/p>
 &lt;p>To implement a &lt;code>BoundedSource&lt;/code>, your subclass must override the following methods:&lt;/p>
@@ -916,7 +916,7 @@ demonstrated in the example above. Use a wrapping &lt;code>PTransform&lt;/code> 
 &lt;a href="#ptransform-wrappers">PTransform wrappers&lt;/a> discusses why you should avoid
 exposing your sources, and walks through how to create a wrapper.&lt;/p>
 &lt;h2 id="using-the-filebasedsink-abstraction">Using the FileBasedSink abstraction&lt;/h2>
-&lt;p>If your data source uses files, you can implement the &lt;a href="https://beam.apache.org/releases/pydoc/2.30.0/apache_beam.io.filebasedsink.html">FileBasedSink&lt;/a>
+&lt;p>If your data source uses files, you can implement the &lt;a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.io.filebasedsink.html">FileBasedSink&lt;/a>
 abstraction to create a file-based sink. For other sinks, use &lt;code>ParDo&lt;/code>,
 &lt;code>GroupByKey&lt;/code>, and other transforms offered by the Beam SDK for Python. See the
 &lt;a href="/documentation/io/developing-io-overview/">developing I/O connectors overview&lt;/a>
@@ -1759,21 +1759,21 @@ to &lt;a href="https://parquet.apache.org">Apache Parquet&lt;/a> files.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">parquet&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">30&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">31&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">Additional resources:&lt;/p>
 &lt;span class="language-java">&lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java">ParquetIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">ParquetIO Javadoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">ParquetIO Javadoc&lt;/a>&lt;/li>
 &lt;/ul>&lt;/span>
 &lt;!-- Python specific -->
-&lt;p class="language-py">ParquetIO comes preinstalled with the Apache Beam python sdk..2.30.0&lt;/p>
+&lt;p class="language-py">ParquetIO comes preinstalled with the Apache Beam python sdk..2.31.0&lt;/p>
 &lt;p class="language-py">Additional resources:&lt;/p>
 &lt;span class="language-py">&lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/parquetio.py">ParquetIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.30.0/apache_beam.io.parquetio.html">ParquetIO Pydoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.io.parquetio.html">ParquetIO Pydoc&lt;/a>&lt;/li>
 &lt;/ul>&lt;/span>
 &lt;p class="language-java">&lt;h4 id="using-parquetio-with-spark-before-24">Using ParquetIO with Spark before 2.4&lt;/h4>&lt;/p>
 &lt;p class="language-java">&lt;code>ParquetIO&lt;/code> depends on an API introduced in Apache Parquet 1.10.0. &lt;strong>Spark 2.4.x is compatible and no additional steps are necessary&lt;/strong>. Older versions of Spark will not work out of the box since a pre-installed version of Parquet libraries will take precedence during execution. The following workaround should be applied.&lt;/p>
@@ -3769,7 +3769,7 @@ asynchronous &amp;ldquo;job&amp;rdquo; (or equivalent) on that back-end.&lt;/p>
 &lt;h2 id="creating-a-pipeline">2. Creating a pipeline&lt;/h2>
 &lt;p>The &lt;code>Pipeline&lt;/code> abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline&lt;/a>&lt;/span>
+&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py">Pipeline&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pipeline.go#L62">Pipeline&lt;/a>&lt;/span>
 object, and then using that object as the basis for creating the pipeline&amp;rsquo;s data
@@ -3988,7 +3988,7 @@ with &lt;code>PipelineOptionsFactory&lt;/code>:&lt;/p>
 &lt;/div>
 &lt;p>Now your pipeline can accept &lt;code>--input=value&lt;/code> and &lt;code>--output=value&lt;/code> as command-line arguments.&lt;/p>
 &lt;h2 id="pcollections">3. PCollections&lt;/h2>
-&lt;p>The &lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a>&lt;/span>
+&lt;p>The &lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;code>PCollection&lt;/code>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pcollection.go#L39">PCollection&lt;/a>&lt;/span>
 abstraction represents a
@@ -5181,7 +5181,7 @@ parameters maps to the ordering of the &lt;code>CoGroupByKey&lt;/code> inputs.&l
 &lt;/div>
 &lt;/div>
 &lt;h4 id="combine">4.2.4. Combine&lt;/h4>
-&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/Combine.html">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
+&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/index.html?org/apache/beam/sdk/transforms/Combine.html">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/combine.go#L27">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 is a Beam transform for combining collections of elements or values in your
@@ -5560,7 +5560,7 @@ PerKey must be an associative reduction function or a
 &lt;/div>
 &lt;/div>
 &lt;h4 id="flatten">4.2.5. Flatten&lt;/h4>
-&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/Flatten.html">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
+&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/index.html?org/apache/beam/sdk/transforms/Flatten.html">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the same data type.
@@ -5621,7 +5621,7 @@ fixed windows or 4-minute sliding windows starting every 30 seconds.&lt;/p>
 incompatible windows, Beam generates an &lt;code>IllegalStateException&lt;/code> error when your
 pipeline is constructed.&lt;/p>
 &lt;h4 id="partition">4.2.6. Partition&lt;/h4>
-&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/Partition.html">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
+&lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/index.html?org/apache/beam/sdk/transforms/Partition.html">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/partition.go">&lt;code>Partition&lt;/code>&lt;/a>&lt;/span>
 is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the same data
@@ -5736,25 +5736,36 @@ closures. Structural &lt;code>DoFn&lt;/code>s will have all exported fields seri
 Unexported fields are unable to be serialized, and will be silently ignored.&lt;/span>&lt;/p>
 &lt;p>Some other serializability factors you should keep in mind are:&lt;/p>
 &lt;ul>
-&lt;li>Transient fields in your function object are &lt;em>not&lt;/em> transmitted to worker
+&lt;li>&lt;span class="language-java language-py">Transient&lt;/span>&lt;span class="langauage-go">Unexported&lt;/span>
+fields in your function object are &lt;em>not&lt;/em> transmitted to worker
 instances, because they are not automatically serialized.&lt;/li>
 &lt;li>Avoid loading a field with a large amount of data before serialization.&lt;/li>
 &lt;li>Individual instances of your function object cannot share data.&lt;/li>
 &lt;li>Mutating a function object after it gets applied will have no effect.&lt;/li>
-&lt;li>Take care when declaring your function object inline by using an anonymous
+&lt;/ul>
+&lt;span class="language-java">
+&lt;blockquote>
+&lt;p>&lt;strong>Note:&lt;/strong> Take care when declaring your function object inline by using an anonymous
 inner class instance. In a non-static context, your inner class instance will
 implicitly contain a pointer to the enclosing class and that class&amp;rsquo; state.
 That enclosing class will also be serialized, and thus the same considerations
-that apply to the function object itself also apply to this outer class.&lt;/li>
-&lt;/ul>
+that apply to the function object itself also apply to this outer class.&lt;/p>
+&lt;/blockquote>
+&lt;/span>
+&lt;span class="language-go">
+&lt;blockquote>
+&lt;p>&lt;strong>Note:&lt;/strong> There&amp;rsquo;s no way to detect if a function is a closure. Closures will cause
+runtime errors and pipeline failures. Avoid using anonymous functions when possible.&lt;/p>
+&lt;/blockquote>
+&lt;/span>
 &lt;h4 id="user-code-thread-compatibility">4.3.2. Thread-compatibility&lt;/h4>
 &lt;p>Your function object should be thread-compatible. Each instance of your function
 object is accessed by a single thread at a time on a worker instance, unless you
 explicitly create your own threads. Note, however, that &lt;strong>the Beam SDKs are not
 thread-safe&lt;/strong>. If you create your own threads in your user code, you must
-provide your own synchronization. Note that static members in your function
+provide your own synchronization. &lt;span class="language-java"> Note that static members in your function
 object are not passed to worker instances and that multiple instances of your
-function may be accessed from different threads.&lt;/p>
+function may be accessed from different threads.&lt;/span>&lt;/p>
 &lt;h4 id="user-code-idempotence">4.3.3. Idempotence&lt;/h4>
 &lt;p>It&amp;rsquo;s recommended that you make your function object idempotent&amp;ndash;that is, that it
 can be repeated or retried as often as necessary without causing unintended side
@@ -5848,6 +5859,56 @@ determined by the input data, or depend on a different branch of your pipeline.&
 &lt;span class="o">...&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// Side inputs are provided using `beam.SideInput` in the DoFn&amp;#39;s ProcessElement method.
+&lt;/span>&lt;span class="c1">// Side inputs can be arbitrary PCollections, which can then be iterated over per element
+&lt;/span>&lt;span class="c1">// in a DoFn.
+&lt;/span>&lt;span class="c1">// Side input parameters appear after main input elements, and before any output emitters.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">words&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="o">...&lt;/span>
+&lt;span class="c1">// avgWordLength is a PCollection containing a single element, a singleton.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">avgWordLength&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">stats&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Mean&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">wordLengths&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Side inputs are added as with the beam.SideInput option to beam.ParDo.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">wordsAboveCutOff&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">filterWordsAbove&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">SideInput&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">Input&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">avgWordLength&lt;/span>&lt;span class="p">})&lt;/span>
+&lt;span class="nx">wordsBelowCutOff&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">filterWordsBelow&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">SideInput&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">Input&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">avgWordLength&lt;/span>&lt;span class="p">})&lt;/span>
+&lt;span class="c1">// filterWordsAbove is a DoFn that takes in a word,
+&lt;/span>&lt;span class="c1">// and a singleton side input iterator as of a length cut off
+&lt;/span>&lt;span class="c1">// and only emits words that are beneath that cut off.
+&lt;/span>&lt;span class="c1">//
+&lt;/span>&lt;span class="c1">// If the iterator has no elements, an error is returned, aborting processing.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">filterWordsAbove&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">lengthCutOffIter&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="kt">float64&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">bool&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitAboveCutoff&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="kd">var&lt;/span> &lt;span class="nx">cutOff&lt;/span> &lt;span class="kt">float64&lt;/span>
+&lt;span class="nx">ok&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">lengthCutOffIter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">cutOff&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nx">ok&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Errorf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;No length cutoff provided.&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nb">float64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nx">cutOff&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitAboveCutoff&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// filterWordsBelow is a DoFn that takes in a word,
+&lt;/span>&lt;span class="c1">// and a singleton side input of a length cut off
+&lt;/span>&lt;span class="c1">// and only emits words that are beneath that cut off.
+&lt;/span>&lt;span class="c1">//
+&lt;/span>&lt;span class="c1">// If the side input isn&amp;#39;t a singleton, a runtime panic will occur.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">filterWordsBelow&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">lengthCutOff&lt;/span> &lt;span class="kt">float64&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitBelowCutoff&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nb">float64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="nx">lengthCutOff&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitBelowCutoff&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filterWordsAbove&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filterWordsBelow&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// The Go SDK doesn&amp;#39;t support custom ViewFns.
+&lt;/span>&lt;span class="c1">// See https://issues.apache.org/jira/browse/BEAM-3305 for details
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">how&lt;/span> &lt;span class="nx">to&lt;/span> &lt;span class="nx">contribute&lt;/span> &lt;span class="nx">them&lt;/span>&lt;span class="p">!&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="side-inputs-windowing">4.4.2. Side inputs and windowing&lt;/h4>
 &lt;p>A windowed &lt;code>PCollection&lt;/code> may be infinite and thus cannot be compressed into a
 single value (or single collection class). When you create a &lt;code>PCollectionView&lt;/code>
@@ -5872,12 +5933,20 @@ a different view of the side input each time.&lt;/p>
 latest trigger firing. This is particularly useful if you use a side input with
 a single global window and specify a trigger.&lt;/p>
 &lt;h3 id="additional-outputs">4.5. Additional outputs&lt;/h3>
-&lt;p>While &lt;code>ParDo&lt;/code> always produces a main output &lt;code>PCollection&lt;/code> (as the return value
+&lt;p class="language-java language-python">While &lt;code>ParDo&lt;/code> always produces a main output &lt;code>PCollection&lt;/code> (as the return value
 from &lt;code>apply&lt;/code>), you can also have your &lt;code>ParDo&lt;/code> produce any number of additional
 output &lt;code>PCollection&lt;/code>s. If you choose to have multiple outputs, your &lt;code>ParDo&lt;/code>
 returns all of the output &lt;code>PCollection&lt;/code>s (including the main output) bundled
 together.&lt;/p>
+&lt;p class="language-go">While &lt;code>beam.ParDo&lt;/code> always produces an output &lt;code>PCollection&lt;/code>, your &lt;code>DoFn&lt;/code> can produce any
+number of additional output &lt;code>PCollections&lt;/code>s, or even none at all.
+If you choose to have multiple outputs, your &lt;code>DoFn&lt;/code> needs to be called with the &lt;code>ParDo&lt;/code>
+function that matches the number of outputs. &lt;code>beam.ParDo2&lt;/code> for two output &lt;code>PCollection&lt;/code>s,
+&lt;code>beam.ParDo3&lt;/code> for three and so on until &lt;code>beam.ParDo7&lt;/code>. If you need more, you can
+use &lt;code>beam.ParDoN&lt;/code> which will return a &lt;code>[]beam.PCollection&lt;/code>.&lt;/p>
 &lt;h4 id="output-tags">4.5.1. Tags for multiple outputs&lt;/h4>
+&lt;p class="language-go">The Go SDK doesn&amp;rsquo;t use output tags, and instead uses positional ordering for
+multiple output PCollections.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5955,7 +6024,27 @@ together.&lt;/p>
 &lt;span class="n">main&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;below_cutoff_strings&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// beam.ParDo3 returns PCollections in the same order as
+&lt;/span>&lt;span class="c1">// the emit function parameters in processWords.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">below&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">above&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">marked&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo3&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">processWords&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// processWordsMixed uses both a standard return and an emitter function.
+&lt;/span>&lt;span class="c1">// The standard return produces the first PCollection from beam.ParDo2,
+&lt;/span>&lt;span class="c1">// and the emitter produces the second PCollection.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mixedMarked&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo2&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">processWordsMixed&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="multiple-outputs-dofn">4.5.2. Emitting to multiple outputs in your DoFn&lt;/h4>
+&lt;p class="language-go">Call emitter functions as needed to produce 0 or more elements for its matching
+&lt;code>PCollection&lt;/code>. The same value can be emitted with multiple emitters.
+As normal, do not mutate values after emitting them from any emitter.&lt;/p>
+&lt;p class="language-go">DoFns can also return a single element via the standard return.
+The standard return is always the first PCollection returned from beam.ParDo.
+Other emitters output to their own PCollections in their defined parameter order.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6014,15 +6103,63 @@ together.&lt;/p>
 &lt;span class="n">tens&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">results&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="bp">None&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="c1"># the undeclared main output&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// processWords is a DoFn that has 3 output PCollections. The emitter functions
+&lt;/span>&lt;span class="c1">// are matched in positional order to the PCollections returned by beam.ParDo3.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">processWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitBelowCutoff&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitAboveCutoff&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitMarked&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="kd">const&lt;/span> &lt;span class="nx">cutOff&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="mi">5&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">&amp;lt;&lt;/span> &lt;span class="nx">cutOff&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitBelowCutoff&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitAboveCutoff&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nf">isMarkedWord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitMarked&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// processWordsMixed demonstrates mixing an emitter, with a standard return.
+&lt;/span>&lt;span class="c1">// If a standard return is used, it will always be the first returned PCollection,
+&lt;/span>&lt;span class="c1">// followed in positional order by the emitter functions.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">processWordsMixed&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitMarked&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nf">isMarkedWord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitMarked&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processWords&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RegisterFunction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">processWordsMixed&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="other-dofn-parameters">4.5.3. Accessing additional parameters in your DoFn&lt;/h4>
 &lt;p class="language-java">In addition to the element and the &lt;code>OutputReceiver&lt;/code>, Beam will populate other parameters to your DoFn&amp;rsquo;s &lt;code>@ProcessElement&lt;/code> method.
 Any combination of these parameters can be added to your process method in any order.&lt;/p>
 &lt;p class="language-py">In addition to the element, Beam will populate other parameters to your DoFn&amp;rsquo;s &lt;code>process&lt;/code> method.
 Any combination of these parameters can be added to your process method in any order.&lt;/p>
+&lt;p class="language-go">In addition to the element, Beam will populate other parameters to your DoFn&amp;rsquo;s &lt;code>ProcessElement&lt;/code> method.
+Any combination of these parameters can be added to your process method in a standard order.&lt;/p>
+&lt;p class="language-go">&lt;strong>context.Context:&lt;/strong>
+To support consolidated logging and user defined metrics, a &lt;code>context.Context&lt;/code> parameter can be requested.
+Per Go conventions, if present it&amp;rsquo;s required to be the first parameter of the &lt;code>DoFn&lt;/code> method.&lt;/p>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">MyDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p class="language-java">&lt;strong>Timestamp:&lt;/strong>
 To access the timestamp of an input element, add a parameter annotated with &lt;code>@Timestamp&lt;/code> of type &lt;code>Instant&lt;/code>. For example:&lt;/p>
 &lt;p class="language-py">&lt;strong>Timestamp:&lt;/strong>
 To access the timestamp of an input element, add a keyword parameter default to &lt;code>DoFn.TimestampParam&lt;/code>. For example:&lt;/p>
+&lt;p class="language-go">&lt;strong>Timestamp:&lt;/strong>
+To access the timestamp of an input element, add a &lt;code>beam.EventTime&lt;/code> parameter before the element. For example:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6045,6 +6182,14 @@ To access the timestamp of an input element, add a keyword parameter default to 
 &lt;span class="k">pass&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">MyDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ts&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">EventTime&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p class="language-java">&lt;strong>Window:&lt;/strong>
 To access the window an input element falls into, add a parameter of the type of the window used for the input &lt;code>PCollection&lt;/code>.
 If the parameter is a window type (a subclass of &lt;code>BoundedWindow&lt;/code>) that does not match the input &lt;code>PCollection&lt;/code>, then an error
@@ -6055,6 +6200,12 @@ are being used, the window is of type &lt;code>IntervalWindow&lt;/code>.&lt;/p>
 To access the window an input element falls into, add a keyword parameter default to &lt;code>DoFn.WindowParam&lt;/code>.
 If an element falls in multiple windows (for example, this will happen when using &lt;code>SlidingWindows&lt;/code>), then the
 &lt;code>process&lt;/code> method will be invoked multiple time for the element, once for each window.&lt;/p>
+&lt;p class="language-go">&lt;strong>Window:&lt;/strong>
+To access the timestamp of an input element, add a &lt;code>beam.Window&lt;/code> parameter before the element.
+If an element falls in multiple windows (for example, this will happen when using SlidingWindows),
+then the &lt;code>ProcessElement&lt;/code> method will be invoked multiple time for the element, once for each window.
+Since &lt;code>beam.Window&lt;/code> is an interface it&amp;rsquo;s possible to type assert to the concrete implementation of the window.
+For example, when fixed windows are being used, the window is of type &lt;code>window.IntervalWindow&lt;/code>.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6077,6 +6228,17 @@ If an element falls in multiple windows (for example, this will happen when usin
 &lt;span class="k">pass&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">MyDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">w&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Window&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">iw&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">w&lt;/span>&lt;span class="p">.(&lt;/span>&lt;span class="nx">window&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">IntervalWindow&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p class="language-java">&lt;strong>PaneInfo:&lt;/strong>
 When triggers are used, Beam provides a &lt;code>PaneInfo&lt;/code> object that contains information about the current firing. Using &lt;code>PaneInfo&lt;/code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.&lt;/p>
@@ -6084,6 +6246,10 @@ you can determine whether this is an early or a late firing, and how many times 
 When triggers are used, Beam provides a &lt;code>DoFn.PaneInfoParam&lt;/code> object that contains information about the current firing. Using &lt;code>DoFn.PaneInfoParam&lt;/code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
 This feature implementation in Python SDK is not fully completed; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-3759">BEAM-3759&lt;/a>.&lt;/p>
+&lt;p class="language-go">&lt;strong>PaneInfo:&lt;/strong>
+This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-3304">BEAM-3304&lt;/a>. However, once implemented, when triggers are used, Beam provides
+information about the current firing. The pane lets you determine whether this
+is an early or a late firing, and how many times this window has already fired for this key.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6104,6 +6270,16 @@ This feature implementation in Python SDK is not fully completed; see more at &l
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pane_info&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PaneInfoParam&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="c1"># access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing&lt;/span>
 &lt;span class="k">pass&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// PaneInfo and triggers are not yet implemented in the Go SDK.
+&lt;/span>&lt;span class="c1">// See https://issues.apache.org/jira/browse/BEAM-3304 for info
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">contributing&lt;/span> &lt;span class="nx">triggers&lt;/span> &lt;span class="nx">and&lt;/span> &lt;span class="nx">panes&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">&lt;strong>PipelineOptions:&lt;/strong>
@@ -6128,6 +6304,8 @@ Timers are explained in more detail in the
 In addition to aforementioned parameters, user defined Timer and State parameters can be used in a stateful DoFn.
 Timers and States are explained in more detail in the
 &lt;a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam&lt;/a> blog post.&lt;/p>
+&lt;p class="language-go">&lt;strong>Timer and State:&lt;/strong>
+This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-10660">BEAM-10660&lt;/a>. Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6178,6 +6356,16 @@ Timers and States are explained in more detail in the
 &lt;span class="k">return&lt;/span> &lt;span class="bp">True&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// State and Timers are yet implemented in the Go SDK.
+&lt;/span>&lt;span class="c1">// See https://issues.apache.org/jira/browse/BEAM-10660 for info
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">contributing&lt;/span> &lt;span class="nx">State&lt;/span> &lt;span class="nx">and&lt;/span> &lt;span class="nx">Timers&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h3 id="composite-transforms">4.6. Composite transforms&lt;/h3>
 &lt;p>Transforms can have a nested structure, where a complex transform performs
 multiple simpler transforms (such as more than one &lt;code>ParDo&lt;/code>, &lt;code>Combine&lt;/code>,
@@ -6187,14 +6375,17 @@ transform can make your code more modular and easier to understand.&lt;/p>
 &lt;p>The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:&lt;/p>
 &lt;ul>
-&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.30.0/apache_beam.transforms.html">Pre-written Beam transforms for Python&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.transforms.html">Pre-written Beam transforms for Python&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/transforms">Pre-written Beam transforms for Go&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h4 id="composite-transform-example">4.6.1. An example composite transform&lt;/h4>
 &lt;p>The &lt;code>CountWords&lt;/code> transform in the &lt;a href="/get-started/wordcount-example/">WordCount example program&lt;/a>
-is an example of a composite transform. &lt;code>CountWords&lt;/code> is a &lt;code>PTransform&lt;/code> subclass
-that consists of multiple nested transforms.&lt;/p>
-&lt;p>In its &lt;code>expand&lt;/code> method, the &lt;code>CountWords&lt;/code> transform applies the following
+is an example of a composite transform. &lt;code>CountWords&lt;/code> is a &lt;code>PTransform&lt;/code>
+&lt;span class="language-java language-py">subclass&lt;/span> that consists
+of multiple nested transforms.&lt;/p>
+&lt;p>&lt;span class="language-java language-py">In its &lt;code>expand&lt;/code> method, the&lt;/span>
+&lt;span class="language-go">The&lt;/span> &lt;code>CountWords&lt;/code> transform applies the following
 transform operations:&lt;/p>
 &lt;ol>
 &lt;li>It applies a &lt;code>ParDo&lt;/code> on the input &lt;code>PCollection&lt;/code> of text lines, producing
@@ -6242,12 +6433,37 @@ appeared in the original data.&lt;/li>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;FormatCounts&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">FormatCountsFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// CountWords is a function that builds a composite PTransform
+&lt;/span>&lt;span class="c1">// to count the number of times each word appears.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">CountWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">lines&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// A subscope is required for a function to become a composite transform.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// We assign it to the original scope variable s to shadow the original
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// for the rest of the CountWords function.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">s&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Scope&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;CountWords&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Since the same subscope is used for the following transforms,
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// they are in the same composite PTransform.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Convert lines of text into individual words.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">words&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">extractWordsFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">lines&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Count the number of times each word occurs.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">wordCounts&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">stats&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Count&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Return any PCollections that should be available after
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// the composite transform.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">wordCounts&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> Because &lt;code>Count&lt;/code> is itself a composite transform,
 &lt;code>CountWords&lt;/code> is also a nested composite transform.&lt;/p>
 &lt;/blockquote>
 &lt;h4 id="composite-transform-creation">4.6.2. Creating a composite transform&lt;/h4>
-&lt;p>To create your own composite transform, create a subclass of the &lt;code>PTransform&lt;/code>
+&lt;p class="language-java language-py">To create your own composite transform, create a subclass of the &lt;code>PTransform&lt;/code>
 class and override the &lt;code>expand&lt;/code> method to specify the actual processing logic.
 You can then use this transform just as you would a built-in transform from the
 Beam SDK.&lt;/p>
@@ -6255,7 +6471,14 @@ Beam SDK.&lt;/p>
 that your transform takes as input, and produces as output. To take multiple
 &lt;code>PCollection&lt;/code>s as input, or produce multiple &lt;code>PCollection&lt;/code>s as output, use one
 of the multi-collection types for the relevant type parameter.&lt;/p>
-&lt;p>The following code sample shows how to declare a &lt;code>PTransform&lt;/code> that accepts a
+&lt;p class="language-go">To create your own composite &lt;code>PTransform&lt;/code> call the &lt;code>Scope&lt;/code> method on the current
+pipeline scope variable. Transforms passed this new sub-&lt;code>Scope&lt;/code> will be a part of
+the same composite &lt;code>PTransform&lt;/code>.&lt;/p>
+&lt;p class="language-go">To be able to re-use your Composite, build it inside a normal Go function or method.
+This function is passed a scope and input PCollections, and returns any
+output PCollections it produces. &lt;strong>Note:&lt;/strong> Such functions cannot be passed directly to
+&lt;code>ParDo&lt;/code> functions.&lt;/p>
+&lt;p class="language-java language-py">The following code sample shows how to declare a &lt;code>PTransform&lt;/code> that accepts a
 &lt;code>PCollection&lt;/code> of &lt;code>String&lt;/code>s for input, and outputs a &lt;code>PCollection&lt;/code> of &lt;code>Integer&lt;/code>s:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -6279,13 +6502,40 @@ of the multi-collection types for the relevant type parameter.&lt;/p>
 &lt;span class="k">return&lt;/span> &lt;span class="n">pcoll&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>Within your &lt;code>PTransform&lt;/code> subclass, you&amp;rsquo;ll need to override the &lt;code>expand&lt;/code> method.
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// CountWords is a function that builds a composite PTransform
+&lt;/span>&lt;span class="c1">// to count the number of times each word appears.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="nf">CountWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">lines&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// A subscope is required for a function to become a composite transform.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// We assign it to the original scope variable s to shadow the original
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// for the rest of the CountWords function.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">s&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">s&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Scope&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;CountWords&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Since the same subscope is used for the following transforms,
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// they are in the same composite PTransform.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Convert lines of text into individual words.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">words&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">extractWordsFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">lines&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Count the number of times each word occurs.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">wordCounts&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">stats&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Count&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">words&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Return any PCollections that should be available after
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// the composite transform.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">wordCounts&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-java language-py">Within your &lt;code>PTransform&lt;/code> subclass, you&amp;rsquo;ll need to override the &lt;code>expand&lt;/code> method.
 The &lt;code>expand&lt;/code> method is where you add the processing logic for the &lt;code>PTransform&lt;/code>.
 Your override of &lt;code>expand&lt;/code> must accept the appropriate type of input
 &lt;code>PCollection&lt;/code> as a parameter, and specify the output &lt;code>PCollection&lt;/code> as the return
 value.&lt;/p>
-&lt;p>The following code sample shows how to override &lt;code>expand&lt;/code> for the
+&lt;p class="language-java language-py">The following code sample shows how to override &lt;code>expand&lt;/code> for the
 &lt;code>ComputeWordLengths&lt;/code> class declared in the previous example:&lt;/p>
+&lt;p class="language-go">The following code sample shows how to call the &lt;code>CountWords&lt;/code> composite PTransform,
+adding it to your pipeline:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6312,15 +6562,30 @@ value.&lt;/p>
 &lt;span class="k">return&lt;/span> &lt;span class="n">pcoll&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>As long as you override the &lt;code>expand&lt;/code> method in your &lt;code>PTransform&lt;/code> subclass to
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">lines&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1">// a PCollection of strings.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// A Composite PTransform function is called like any other function.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">wordCounts&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">CountWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">lines&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="nx">returns&lt;/span> &lt;span class="nx">a&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nx">KV&lt;/span>&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-java language-py">As long as you override the &lt;code>expand&lt;/code> method in your &lt;code>PTransform&lt;/code> subclass to
 accept the appropriate input &lt;code>PCollection&lt;/code>(s) and return the corresponding
 output &lt;code>PCollection&lt;/code>(s), you can include as many transforms as you want. These
 transforms can include core transforms, composite transforms, or the transforms
 included in the Beam SDK libraries.&lt;/p>
-&lt;p>Your composite transform&amp;rsquo;s parameters and return value must match the initial
+&lt;p class="language-go">Your composite &lt;code>PTransform&lt;/code>s can include as many transforms as you want. These
+transforms can include core transforms, other composite transforms, or the transforms
+included in the Beam SDK libraries. They can also consume and return as many
+&lt;code>PCollection&lt;/code>s as are necessary.&lt;/p>
+&lt;p class="language-java language-py">Your composite transform&amp;rsquo;s parameters and return value must match the initial
 input type and final return type for the entire transform, even if the
 transform&amp;rsquo;s intermediate data changes type multiple times.&lt;/p>
-&lt;p>&lt;strong>Note:&lt;/strong> The &lt;code>expand&lt;/code> method of a &lt;code>PTransform&lt;/code> is not meant to be invoked
+&lt;p class="language-java language-py">&lt;strong>Note:&lt;/strong> The &lt;code>expand&lt;/code> method of a &lt;code>PTransform&lt;/code> is not meant to be invoked
 directly by the user of a transform. Instead, you should call the &lt;code>apply&lt;/code> method
 on the &lt;code>PCollection&lt;/code> itself, with the transform as an argument. This allows
 transforms to be nested within the structure of your pipeline.&lt;/p>
@@ -7993,7 +8258,7 @@ all the elements are by default part of a single, global window.&lt;/p>
 &lt;p>To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a &lt;code>ParDo&lt;/code> transform with a
 &lt;code>DoFn&lt;/code> that outputs each element with a new timestamp (for example, the
-&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps&lt;/a>
+&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps&lt;/a>
 transform in the Beam SDK for Java).&lt;/p>
 &lt;p>To illustrate how windowing with a bounded &lt;code>PCollection&lt;/code> can affect how your
 pipeline processes data, consider the following pipeline:&lt;/p>
@@ -15270,14 +15535,14 @@ to &lt;a href="https://cloud.google.com/bigquery">Google BigQuery&lt;/a> tables.
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">google&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">cloud&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">platform&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">30&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">31&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">Additional resources:&lt;/p>
 &lt;span class="language-java">&lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">BigQueryIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO Javadoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO Javadoc&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://cloud.google.com/bigquery/docs">Google BigQuery documentation&lt;/a>&lt;/li>
 &lt;/ul>&lt;/span>
 &lt;!-- Python specific -->
@@ -15286,7 +15551,7 @@ running &lt;code>pip install apache-beam[gcp]&lt;/code>.&lt;/p>
 &lt;p class="language-py">Additional resources:&lt;/p>
 &lt;span class="language-py">&lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">BigQueryIO source code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.30.0/apache_beam.io.gcp.bigquery.html">BigQueryIO Pydoc&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.io.gcp.bigquery.html">BigQueryIO Pydoc&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://cloud.google.com/bigquery/docs">Google BigQuery documentation&lt;/a>&lt;/li>
 &lt;/ul>&lt;/span>
 &lt;h2 id="bigquery-basics">BigQuery basics&lt;/h2>
@@ -15336,10 +15601,10 @@ table name.&lt;/p>
 &lt;p>You can also omit &lt;code>project_id&lt;/code> and use the &lt;code>[dataset_id].[table_id]&lt;/code> format. If
 you omit the project ID, Beam uses the default project ID from your
 &lt;span class="language-java">
-&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html">pipeline options&lt;/a>.
+&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html">pipeline options&lt;/a>.
 &lt;/span>
 &lt;span class="language-py">
-&lt;a href="https://beam.apache.org/releases/pydoc/2.30.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions">pipeline options&lt;/a>.
+&lt;a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions">pipeline options&lt;/a>.
 &lt;/span>&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -15386,7 +15651,7 @@ the three parts of the BigQuery table name.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;!-- Java specific -->
-&lt;p class="language-java">The Beam SDK for Java also provides the &lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html">&lt;code>parseTableSpec&lt;/code>&lt;/a>
+&lt;p class="language-java">The Beam SDK for Java also provides the &lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html">&lt;code>parseTableSpec&lt;/code>&lt;/a>
 helper method, which constructs a &lt;code>TableReference&lt;/code> object from a String that
 contains the fully-qualified BigQuery table name. However, the static factory
 methods for BigQueryIO transforms accept the table name as a String and
@@ -16133,11 +16398,11 @@ and &lt;a href="https://cloud.google.com/bigquery/streaming-data-into-bigquery">
 for more information about these tradeoffs.&lt;/p>
 &lt;p class="language-java">BigQueryIO chooses a default insertion method based on the input &lt;code>PCollection&lt;/code>.
 You can use &lt;code>withMethod&lt;/code> to specify the desired insertion method. See
-&lt;a href="https://beam.apache.org/releases/javadoc/2.30.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">&lt;code>Write.Method&lt;/code>&lt;/a>
+&lt;a href="https://beam.apache.org/releases/javadoc/2.31.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">&lt;code>Write.Method&lt;/code>&lt;/a>
 for the list of the available methods and their restrictions.&lt;/p>
 &lt;p class="language-py">BigQueryIO chooses a default insertion method based on the input &lt;code>PCollection&lt;/code>.
 You can use &lt;code>method&lt;/code> to specify the desired insertion method. See
-&lt;a href="https://beam.apache.org/releases/pydoc/2.30.0/apache_beam.io.gcp.bigquery.html#apache_beam.io.gcp.bigquery.WriteToBigQuery">&lt;code>WriteToBigQuery&lt;/code>&lt;/a>
+&lt;a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.io.gcp.bigquery.html#apache_beam.io.gcp.bigquery.WriteToBigQuery">&lt;code>WriteToBigQuery&lt;/code>&lt;/a>
 for the list of the available methods and their restrictions.&lt;/p>
 &lt;p>BigQueryIO uses load jobs in the following situations:&lt;/p>
 &lt;span class="language-java">&lt;ul>
