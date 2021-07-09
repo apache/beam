@@ -591,6 +591,7 @@ public class BigQueryIO {
         .setParseFn(parseFn)
         .setMethod(Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
+        .setFormat(DataFormat.AVRO)
         .build();
   }
 
@@ -780,6 +781,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setMethod(Method method);
 
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setFormat(DataFormat method);
+
       abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
 
       abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
@@ -827,6 +831,9 @@ public class BigQueryIO {
     abstract @Nullable String getQueryTempDataset();
 
     abstract Method getMethod();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    abstract DataFormat getFormat();
 
     abstract @Nullable ValueProvider<List<String>> getSelectedFields();
 
@@ -917,6 +924,7 @@ public class BigQueryIO {
           getQueryLocation(),
           getQueryTempDataset(),
           getKmsKey(),
+          getFormat(),
           getParseFn(),
           outputCoder,
           getBigQueryServices());
@@ -1213,6 +1221,7 @@ public class BigQueryIO {
             org.apache.beam.sdk.io.Read.from(
                 BigQueryStorageTableSource.create(
                     tableProvider,
+                    getFormat(),
                     getSelectedFields(),
                     getRowRestriction(),
                     getParseFn(),
@@ -1557,6 +1566,12 @@ public class BigQueryIO {
     /** See {@link Method}. */
     public TypedRead<T> withMethod(Method method) {
       return toBuilder().setMethod(method).build();
+    }
+
+    /** See {@link DataFormat}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withFormat(DataFormat format) {
+      return toBuilder().setFormat(format).build();
     }
 
     /** See {@link #withSelectedFields(ValueProvider)}. */
