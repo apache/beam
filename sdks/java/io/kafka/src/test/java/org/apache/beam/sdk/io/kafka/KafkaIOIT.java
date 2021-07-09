@@ -175,7 +175,7 @@ public class KafkaIOIT {
   }
 
   @Test
-  public void testKafkaIOReadsAndWritesCorrectlyBatchNullKey() throws IOException {
+  public void testKafkaIOReadsAndWritesCorrectlyInBatchNullKey() throws IOException {
     List<String> values = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       values.add("value" + Integer.toString(i));
