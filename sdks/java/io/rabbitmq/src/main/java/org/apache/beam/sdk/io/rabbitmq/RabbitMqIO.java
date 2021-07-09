@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -416,7 +417,7 @@ public class RabbitMqIO {
       implements UnboundedSource.CheckpointMark, Serializable {
     transient Channel channel;
     Instant latestTimestamp = Instant.now();
-    final List<Long> sessionIds = new ArrayList<>();
+    final ConcurrentLinkedQueue<Long> sessionIds = new ConcurrentLinkedQueue<>();
 
     /**
      * Advances the watermark to the provided time, provided said time is after the current
@@ -432,12 +433,13 @@ public class RabbitMqIO {
 
     @Override
     public void finalizeCheckpoint() throws IOException {
-      for (Long sessionId : sessionIds) {
+      Long sessionId = sessionIds.poll();
+      while (sessionId != null) {
         channel.basicAck(sessionId, false);
+        sessionId = sessionIds.poll();
       }
       channel.txCommit();
       latestTimestamp = Instant.now();
-      sessionIds.clear();
     }
   }
 
