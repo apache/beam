@@ -516,7 +516,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   protected Pipeline createPipeline() {
-    pipelineOptions.setRunner(NoOpRunner.class);
+    pipelineOptions.setRunner(NotRunnableRunner.class);
     return Pipeline.create(pipelineOptions);
   }
 
@@ -560,9 +560,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     server.awaitTermination();
   }
 
-  private static class NoOpRunner extends PipelineRunner<PipelineResult> {
-    public static NoOpRunner fromOptions(PipelineOptions opts) {
-      return new NoOpRunner();
+  private static class NotRunnableRunner extends PipelineRunner<PipelineResult> {
+    public static NotRunnableRunner fromOptions(PipelineOptions opts) {
+      return new NotRunnableRunner();
     }
 
     @Override
