@@ -122,7 +122,7 @@ $ mvn package -Pflink-runner
 
 {{< paragraph class="language-java" >}}
 Look for the output JAR of this command in the
-install apache_beam``target` folder.
+install apache_beam `target` folder.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
