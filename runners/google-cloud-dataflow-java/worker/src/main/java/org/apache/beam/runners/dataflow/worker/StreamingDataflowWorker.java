@@ -1143,7 +1143,7 @@ public class StreamingDataflowWorker {
     @Override
     public String toString() {
       ByteString keyToDisplay = key();
-      if (keyToDisplay.length() > 100) {
+      if (keyToDisplay.size() > 100) {
         keyToDisplay = keyToDisplay.substring(0, 100);
       }
       return String.format("%016x-%s", shardingKey(), TextFormat.escapeBytes(keyToDisplay));
