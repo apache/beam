@@ -1605,6 +1605,10 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
       beam.MapTuple(fn)
 
+  is equivalent to
+
+      beam.Map(lambda element, ...: fn(\*element, ...))
+
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).
 
