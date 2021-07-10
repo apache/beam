@@ -516,8 +516,16 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   protected Pipeline createPipeline() {
-    pipelineOptions.setRunner(NotRunnableRunner.class);
-    return Pipeline.create(pipelineOptions);
+    PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
+    PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
+    PortablePipelineOptions specifiedOptions = pipelineOptions.as(PortablePipelineOptions.class);
+    portableOptions.setDefaultEnvironmentType(specifiedOptions.getDefaultEnvironmentType());
+    portableOptions.setDefaultEnvironmentConfig(specifiedOptions.getDefaultEnvironmentConfig());
+    effectiveOpts
+        .as(ExperimentalOptions.class)
+        .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
+    effectiveOpts.setRunner(NotRunnableRunner.class);
+    return Pipeline.create(effectiveOpts);
   }
 
   @Override
