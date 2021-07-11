@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -411,7 +412,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
     Pipeline pipeline = createPipeline();
-    if (!ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")) {
+    boolean isUseDeprecatedRead =
+        ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")
+            || ExperimentalOptions.hasExperiment(
+                pipelineOptions, "beam_fn_api_use_deprecated_read");
+    if (!isUseDeprecatedRead) {
       ExperimentalOptions.addExperiment(
           pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
       // TODO(BEAM-10670): Remove this when we address performance issue.
@@ -489,7 +494,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                       }
                     }));
 
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    if (isUseDeprecatedRead) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents);
     String expandedTransformId =
@@ -516,11 +523,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   protected Pipeline createPipeline() {
+    // TODO: [BEAM-12599]: implement proper validation
     PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
     PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
     PortablePipelineOptions specifiedOptions = pipelineOptions.as(PortablePipelineOptions.class);
-    portableOptions.setDefaultEnvironmentType(specifiedOptions.getDefaultEnvironmentType());
-    portableOptions.setDefaultEnvironmentConfig(specifiedOptions.getDefaultEnvironmentConfig());
+    Optional.ofNullable(specifiedOptions.getDefaultEnvironmentType())
+        .ifPresent(portableOptions::setDefaultEnvironmentType);
+    Optional.ofNullable(specifiedOptions.getDefaultEnvironmentConfig())
+        .ifPresent(portableOptions::setDefaultEnvironmentConfig);
     effectiveOpts
         .as(ExperimentalOptions.class)
         .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
