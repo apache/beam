@@ -28,6 +28,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.HttpStatusCodes;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
@@ -35,11 +36,13 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
@@ -107,6 +110,7 @@ public class GcsUtil {
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
           hasExperiment(options, "use_grpc_for_gcs"),
+          gcsOptions.getGcpCredential(),
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
 
@@ -116,12 +120,14 @@ public class GcsUtil {
         Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
+        Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes) {
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
           executorService,
           hasExperiment(options, "use_grpc_for_gcs"),
+          credentials,
           uploadBufferSizeBytes);
     }
   }
@@ -159,9 +165,10 @@ public class GcsUtil {
   // Exposed for testing.
   final ExecutorService executorService;
 
+  private Credentials credentials;
+
   private GoogleCloudStorage googleCloudStorage;
   private GoogleCloudStorageOptions googleCloudStorageOptions;
-  private final boolean shouldUseGrpc;
 
   /** Rewrite operation setting. For testing purposes only. */
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
@@ -185,20 +192,22 @@ public class GcsUtil {
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
       Boolean shouldUseGrpc,
+      Credentials credentials,
       @Nullable Integer uploadBufferSizeBytes) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
+    this.credentials = credentials;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
-    this.shouldUseGrpc = shouldUseGrpc;
     googleCloudStorageOptions =
-        GoogleCloudStorageOptions.newBuilder()
+        GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setGrpcEnabled(shouldUseGrpc)
             .build();
-    googleCloudStorage = new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient);
+    googleCloudStorage =
+        new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient, credentials);
   }
 
   // Use this only for testing purposes.
@@ -288,11 +297,7 @@ public class GcsUtil {
         storageClient.objects().get(gcsPath.getBucket(), gcsPath.getObject());
     try {
       return ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(getObject),
-          backoff,
-          RetryDeterminer.SOCKET_ERRORS,
-          IOException.class,
-          sleeper);
+          getObject::execute, backoff, RetryDeterminer.SOCKET_ERRORS, IOException.class, sleeper);
     } catch (IOException | InterruptedException e) {
       if (e instanceof InterruptedException) {
         Thread.currentThread().interrupt();
@@ -344,10 +349,7 @@ public class GcsUtil {
 
     try {
       return ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(listObject),
-          createBackOff(),
-          RetryDeterminer.SOCKET_ERRORS,
-          IOException.class);
+          listObject::execute, createBackOff(), RetryDeterminer.SOCKET_ERRORS, IOException.class);
     } catch (Exception e) {
       throw new IOException(
           String.format("Unable to match files in bucket %s, prefix %s.", bucket, prefix), e);
@@ -401,6 +403,22 @@ public class GcsUtil {
   }
 
   /**
+   * Opens an object in GCS.
+   *
+   * <p>Returns a SeekableByteChannel that provides access to data in the bucket.
+   *
+   * @param path the GCS filename to read from
+   * @param readOptions Fine-grained options for behaviors of retries, buffering, etc.
+   * @return a SeekableByteChannel that can read the object data
+   */
+  @VisibleForTesting
+  SeekableByteChannel open(GcsPath path, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    return googleCloudStorage.open(
+        new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
+  }
+
+  /**
    * Creates an object in GCS.
    *
    * <p>Returns a WritableByteChannel that can be used to write data to the object.
@@ -419,30 +437,19 @@ public class GcsUtil {
    */
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    // When AsyncWriteChannelOptions has toBuilder() method, the following can be changed to:
-    //       AsyncWriteChannelOptions newOptions =
-    //            wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
     int uploadChunkSize =
         (uploadBufferSizeBytes == null) ? wcOptions.getUploadChunkSize() : uploadBufferSizeBytes;
     AsyncWriteChannelOptions newOptions =
-        AsyncWriteChannelOptions.builder()
-            .setBufferSize(wcOptions.getBufferSize())
-            .setPipeBufferSize(wcOptions.getPipeBufferSize())
-            .setUploadChunkSize(uploadChunkSize)
-            .setDirectUploadEnabled(wcOptions.isDirectUploadEnabled())
-            .build();
+        wcOptions.toBuilder().setUploadChunkSize(uploadChunkSize).build();
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
-        googleCloudStorageOptions
-            .toBuilder()
-            .setWriteChannelOptions(newOptions)
-            .setGrpcEnabled(this.shouldUseGrpc)
-            .build();
+        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
     GoogleCloudStorage gcpStorage =
-        new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
+        new GoogleCloudStorageImpl(
+            newGoogleCloudStorageOptions, this.storageClient, this.credentials);
     return gcpStorage.create(
         new StorageResourceId(path.getBucket(), path.getObject()),
-        new CreateObjectOptions(true, type, CreateObjectOptions.EMPTY_METADATA));
+        CreateObjectOptions.builder().setOverwriteExisting(true).setContentType(type).build());
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
@@ -487,7 +494,7 @@ public class GcsUtil {
 
     try {
       return ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(getBucket),
+          getBucket::execute,
           backoff,
           new RetryDeterminer<IOException>() {
             @Override
@@ -526,7 +533,7 @@ public class GcsUtil {
 
     try {
       ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(insertBucket),
+          insertBucket::execute,
           backoff,
           new RetryDeterminer<IOException>() {
             @Override
@@ -763,7 +770,7 @@ public class GcsUtil {
           @Override
           public void onFailure(GoogleJsonError e, HttpHeaders httpHeaders) throws IOException {
             IOException ioException;
-            if (errorExtractor.itemNotFound(e)) {
+            if (e.getCode() == HttpStatusCodes.STATUS_CODE_NOT_FOUND) {
               ioException = new FileNotFoundException(path.toString());
             } else {
               ioException = new IOException(String.format("Error trying to get %s: %s", path, e));
