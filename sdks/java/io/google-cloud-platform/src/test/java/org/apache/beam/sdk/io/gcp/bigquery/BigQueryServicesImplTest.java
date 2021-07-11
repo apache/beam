@@ -1164,7 +1164,7 @@ public class BigQueryServicesImplTest {
             bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 0), Sleeper.DEFAULT);
     assertEquals(testTable, ret);
     verifyAllResponsesAreRead();
   }
@@ -1198,7 +1198,7 @@ public class BigQueryServicesImplTest {
             bigquery, null, PipelineOptionsFactory.create());
     try {
       services.tryCreateTable(
-          testTable, new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+          testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 3), Sleeper.DEFAULT);
       fail();
     } catch (IOException e) {
       verify(responses[0], atLeastOnce()).getStatusCode();
@@ -1235,7 +1235,7 @@ public class BigQueryServicesImplTest {
             bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 0), Sleeper.DEFAULT);
 
     assertNull(ret);
     verifyAllResponsesAreRead();
@@ -1267,7 +1267,7 @@ public class BigQueryServicesImplTest {
             bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 3), Sleeper.DEFAULT);
     assertEquals(testTable, ret);
     verifyAllResponsesAreRead();
 
