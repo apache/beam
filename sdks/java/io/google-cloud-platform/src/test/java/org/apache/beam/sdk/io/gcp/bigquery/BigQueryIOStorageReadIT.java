@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -70,12 +71,19 @@ public class BigQueryIOStorageReadIT {
     long getNumRecords();
 
     void setNumRecords(long numRecords);
+
+    @Description("The data format to use")
+    @Validation.Required
+    DataFormat getDataFormat();
+
+    void setDataFormat(DataFormat dataFormat);
   }
 
-  private void setUpTestEnvironment(String tableSize) {
+  private void setUpTestEnvironment(String tableSize, DataFormat format) {
     PipelineOptionsFactory.register(BigQueryIOStorageReadOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOStorageReadOptions.class);
     options.setNumRecords(EXPECTED_NUM_RECORDS.get(tableSize));
+    options.setDataFormat(format);
     String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     options.setInputTable(project + ":" + DATASET_ID + "." + TABLE_PREFIX + tableSize);
   }
@@ -87,15 +95,22 @@ public class BigQueryIOStorageReadIT {
                 "Read",
                 BigQueryIO.read(TableRowParser.INSTANCE)
                     .from(options.getInputTable())
-                    .withMethod(Method.DIRECT_READ))
+                    .withMethod(Method.DIRECT_READ)
+                    .withFormat(options.getDataFormat()))
             .apply("Count", Count.globally());
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());
     p.run().waitUntilFinish();
   }
 
   @Test
-  public void testBigQueryStorageRead1G() throws Exception {
-    setUpTestEnvironment("1G");
+  public void testBigQueryStorageRead1GAvro() throws Exception {
+    setUpTestEnvironment("1G", DataFormat.AVRO);
+    runBigQueryIOStorageReadPipeline();
+  }
+
+  @Test
+  public void testBigQueryStorageRead1GArrow() throws Exception {
+    setUpTestEnvironment("1G", DataFormat.ARROW);
     runBigQueryIOStorageReadPipeline();
   }
 }

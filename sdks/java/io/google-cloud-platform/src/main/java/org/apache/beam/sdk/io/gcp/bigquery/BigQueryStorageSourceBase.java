@@ -29,10 +29,12 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -64,6 +66,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
    */
   private static final int MIN_SPLIT_COUNT = 10;
 
+  protected final DataFormat format;
   protected final ValueProvider<List<String>> selectedFieldsProvider;
   protected final ValueProvider<String> rowRestrictionProvider;
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
@@ -71,11 +74,13 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final BigQueryServices bqServices;
 
   BigQueryStorageSourceBase(
+      DataFormat format,
       @Nullable ValueProvider<List<String>> selectedFieldsProvider,
       @Nullable ValueProvider<String> rowRestrictionProvider,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
+    this.format = format;
     this.selectedFieldsProvider = selectedFieldsProvider;
     this.rowRestrictionProvider = rowRestrictionProvider;
     this.parseFn = checkNotNull(parseFn, "parseFn");
@@ -102,8 +107,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
     ReadSession.Builder readSessionBuilder =
         ReadSession.newBuilder()
-            .setTable(BigQueryHelpers.toTableResourceName(targetTable.getTableReference()))
-            .setDataFormat(DataFormat.AVRO);
+            .setTable(BigQueryHelpers.toTableResourceName(targetTable.getTableReference()));
 
     if (selectedFieldsProvider != null || rowRestrictionProvider != null) {
       ReadSession.TableReadOptions.Builder tableReadOptionsBuilder =
@@ -115,6 +119,9 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         tableReadOptionsBuilder.setRowRestriction(rowRestrictionProvider.get());
       }
       readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
+    }
+    if (format != null) {
+      readSessionBuilder.setDataFormat(format);
     }
 
     int streamCount = 0;
@@ -150,7 +157,21 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       return ImmutableList.of();
     }
 
-    Schema sessionSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
+    Schema sessionSchema;
+    if (readSession.getDataFormat() == DataFormat.ARROW) {
+      org.apache.arrow.vector.types.pojo.Schema schema =
+          ArrowConversion.arrowSchemaFromInput(
+              readSession.getArrowSchema().getSerializedSchema().newInput());
+      org.apache.beam.sdk.schemas.Schema beamSchema =
+          ArrowConversion.ArrowSchemaTranslator.toBeamSchema(schema);
+      sessionSchema = AvroUtils.toAvroSchema(beamSchema);
+    } else if (readSession.getDataFormat() == DataFormat.AVRO) {
+      sessionSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
+    } else {
+      throw new IllegalArgumentException(
+          "data is not in a supported dataFormat: " + readSession.getDataFormat());
+    }
+
     TableSchema trimmedSchema =
         BigQueryAvroUtils.trimBigQueryTableSchema(targetTable.getSchema(), sessionSchema);
     List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();

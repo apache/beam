@@ -278,6 +278,7 @@ func init() {
 
 // [END model_multiple_pcollections_partition_fn]
 
+// applyPartition returns the 40th percentile of students.
 func applyPartition(s beam.Scope, students beam.PCollection) beam.PCollection {
 	// [START model_multiple_pcollections_partition]
 	// Partition returns a slice of PCollections
@@ -287,3 +288,143 @@ func applyPartition(s beam.Scope, students beam.PCollection) beam.PCollection {
 	// [END model_multiple_pcollections_partition]
 	return fortiethPercentile
 }
+
+// [START model_pardo_side_input_dofn]
+
+// filterWordsAbove is a DoFn that takes in a word,
+// and a singleton side input iterator as of a length cut off
+// and only emits words that are beneath that cut off.
+//
+// If the iterator has no elements, an error is returned, aborting processing.
+func filterWordsAbove(word string, lengthCutOffIter func(*float64) bool, emitAboveCutoff func(string)) error {
+	var cutOff float64
+	ok := lengthCutOffIter(&cutOff)
+	if !ok {
+		return fmt.Errorf("No length cutoff provided.")
+	}
+	if float64(len(word)) > cutOff {
+		emitAboveCutoff(word)
+	}
+	return nil
+}
+
+// filterWordsBelow is a DoFn that takes in a word,
+// and a singleton side input of a length cut off
+// and only emits words that are beneath that cut off.
+//
+// If the side input isn't a singleton, a runtime panic will occur.
+func filterWordsBelow(word string, lengthCutOff float64, emitBelowCutoff func(string)) {
+	if float64(len(word)) <= lengthCutOff {
+		emitBelowCutoff(word)
+	}
+}
+
+func init() {
+	beam.RegisterFunction(filterWordsAbove)
+	beam.RegisterFunction(filterWordsBelow)
+}
+
+// [END model_pardo_side_input_dofn]
+
+// addSideInput demonstrates passing a side input to a DoFn.
+func addSideInput(s beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection) {
+	wordLengths := applyWordLen(s, words)
+
+	// [START model_pardo_side_input]
+	// avgWordLength is a PCollection containing a single element, a singleton.
+	avgWordLength := stats.Mean(s, wordLengths)
+
+	// Side inputs are added as with the beam.SideInput option to beam.ParDo.
+	wordsAboveCutOff := beam.ParDo(s, filterWordsAbove, words, beam.SideInput{Input: avgWordLength})
+	wordsBelowCutOff := beam.ParDo(s, filterWordsBelow, words, beam.SideInput{Input: avgWordLength})
+	// [END model_pardo_side_input]
+	return wordsAboveCutOff, wordsBelowCutOff
+}
+
+// isMarkedWord is a dummy function.
+func isMarkedWord(word string) bool {
+	return strings.HasPrefix(word, "MARKER")
+}
+
+// [START model_multiple_output_dofn]
+
+// processWords is a DoFn that has 3 output PCollections. The emitter functions
+// are matched in positional order to the PCollections returned by beam.ParDo3.
+func processWords(word string, emitBelowCutoff, emitAboveCutoff, emitMarked func(string)) {
+	const cutOff = 5
+	if len(word) < cutOff {
+		emitBelowCutoff(word)
+	} else {
+		emitAboveCutoff(word)
+	}
+	if isMarkedWord(word) {
+		emitMarked(word)
+	}
+}
+
+// processWordsMixed demonstrates mixing an emitter, with a standard return.
+// If a standard return is used, it will always be the first returned PCollection,
+// followed in positional order by the emitter functions.
+func processWordsMixed(word string, emitMarked func(string)) int {
+	if isMarkedWord(word) {
+		emitMarked(word)
+	}
+	return len(word)
+}
+
+func init() {
+	beam.RegisterFunction(processWords)
+	beam.RegisterFunction(processWordsMixed)
+}
+
+// [END model_multiple_output_dofn]
+
+func applyMultipleOut(s beam.Scope, words beam.PCollection) (belows, aboves, markeds, lengths, mixedMarkeds beam.PCollection) {
+	// [START model_multiple_output]
+	// beam.ParDo3 returns PCollections in the same order as
+	// the emit function parameters in processWords.
+	below, above, marked := beam.ParDo3(s, processWords, words)
+
+	// processWordsMixed uses both a standard return and an emitter function.
+	// The standard return produces the first PCollection from beam.ParDo2,
+	// and the emitter produces the second PCollection.
+	length, mixedMarked := beam.ParDo2(s, processWordsMixed, words)
+	// [END model_multiple_output]
+	return below, above, marked, length, mixedMarked
+}
+
+func extractWordsFn(line string, emitWords func(string)) {
+	words := strings.Split(line, " ")
+	for _, w := range words {
+		emitWords(w)
+	}
+}
+
+func init() {
+	beam.RegisterFunction(extractWordsFn)
+}
+
+// [START countwords_composite]
+// CountWords is a function that builds a composite PTransform
+// to count the number of times each word appears.
+func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
+	// A subscope is required for a function to become a composite transform.
+	// We assign it to the original scope variable s to shadow the original
+	// for the rest of the CountWords function.
+	s = s.Scope("CountWords")
+
+	// Since the same subscope is used for the following transforms,
+	// they are in the same composite PTransform.
+
+	// Convert lines of text into individual words.
+	words := beam.ParDo(s, extractWordsFn, lines)
+
+	// Count the number of times each word occurs.
+	wordCounts := stats.Count(s, words)
+
+	// Return any PCollections that should be available after
+	// the composite transform.
+	return wordCounts
+}
+
+// [END countwords_composite]
