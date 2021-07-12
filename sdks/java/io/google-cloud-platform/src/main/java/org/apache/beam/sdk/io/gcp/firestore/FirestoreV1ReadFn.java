@@ -55,7 +55,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.ImplicitlyWindowedFirestoreDoFn;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.HasRpcAttemptContext;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.HasRpcAttemptContext;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -97,7 +97,7 @@ final class FirestoreV1ReadFn {
 
     @Override
     public Context getRpcAttemptContext() {
-      return FirestoreV1Fn.V1FnRpcAttemptContext.RunQuery;
+      return FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.RunQuery;
     }
 
     @Override
@@ -177,7 +177,7 @@ final class FirestoreV1ReadFn {
 
     @Override
     public Context getRpcAttemptContext() {
-      return FirestoreV1Fn.V1FnRpcAttemptContext.PartitionQuery;
+      return FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.PartitionQuery;
     }
 
     @Override
@@ -262,7 +262,7 @@ final class FirestoreV1ReadFn {
 
     @Override
     public Context getRpcAttemptContext() {
-      return FirestoreV1Fn.V1FnRpcAttemptContext.ListDocuments;
+      return FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.ListDocuments;
     }
 
     @Override
@@ -303,7 +303,7 @@ final class FirestoreV1ReadFn {
 
     @Override
     public Context getRpcAttemptContext() {
-      return FirestoreV1Fn.V1FnRpcAttemptContext.ListCollectionIds;
+      return FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.ListCollectionIds;
     }
 
     @Override
@@ -341,7 +341,7 @@ final class FirestoreV1ReadFn {
 
     @Override
     public Context getRpcAttemptContext() {
-      return FirestoreV1Fn.V1FnRpcAttemptContext.BatchGetDocuments;
+      return FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.BatchGetDocuments;
     }
 
     @Override

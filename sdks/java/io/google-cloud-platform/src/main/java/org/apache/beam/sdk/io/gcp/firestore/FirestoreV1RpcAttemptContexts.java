@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.firestore;
 
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 
-final class FirestoreV1Fn {
+final class FirestoreV1RpcAttemptContexts {
 
   /**
    * The base namespace used for {@link Context RpcAttempt.Context} values in {@link

@@ -59,7 +59,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.HasRpcAttemptContext;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.HasRpcAttemptContext;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.BaseBatchWriteFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.WriteElement;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt;
@@ -131,7 +131,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
 
     when(ff.getFirestoreStub(any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
-    when(rpcQos.newWriteAttempt(FirestoreV1Fn.V1FnRpcAttemptContext.BatchWrite))
+    when(rpcQos.newWriteAttempt(FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.BatchWrite))
         .thenReturn(attempt);
     when(stub.batchWriteCallable()).thenReturn(callable);
 
@@ -177,7 +177,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
   public final void noRequestIsSentIfNotSafeToProceed() throws Exception {
     when(ff.getFirestoreStub(any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
-    when(rpcQos.newWriteAttempt(FirestoreV1Fn.V1FnRpcAttemptContext.BatchWrite))
+    when(rpcQos.newWriteAttempt(FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.BatchWrite))
         .thenReturn(attempt);
 
     InterruptedException interruptedException = new InterruptedException();

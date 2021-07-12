@@ -40,8 +40,8 @@ import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.ExplicitlyWindowedFire
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.FailedWritesException;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.WriteFailure;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.WriteSuccessSummary;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.HasRpcAttemptContext;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.V1FnRpcAttemptContext;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.HasRpcAttemptContext;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.Element;
@@ -140,7 +140,8 @@ final class FirestoreV1WriteFn {
   abstract static class BaseBatchWriteFn<OutT> extends ExplicitlyWindowedFirestoreDoFn<Write, OutT>
       implements HasRpcAttemptContext {
     private static final Logger LOG =
-        LoggerFactory.getLogger(FirestoreV1Fn.V1FnRpcAttemptContext.BatchWrite.getNamespace());
+        LoggerFactory.getLogger(
+            FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.BatchWrite.getNamespace());
     private final JodaClock clock;
     private final FirestoreStatefulComponentFactory firestoreStatefulComponentFactory;
     private final RpcQosOptions rpcQosOptions;
