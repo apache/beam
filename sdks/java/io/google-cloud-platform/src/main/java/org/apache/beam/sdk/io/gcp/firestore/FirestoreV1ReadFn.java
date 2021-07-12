@@ -54,7 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.NonWindowAwareDoFn;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.ImplicitlyWindowedFirestoreDoFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.HasRpcAttemptContext;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -522,13 +522,13 @@ final class FirestoreV1ReadFn {
    *
    * <p>This class takes care of common lifecycle elements and transient state management for
    * subclasses allowing subclasses to provide the minimal implementation for {@link
-   * NonWindowAwareDoFn#processElement(DoFn.ProcessContext)}}
+   * ImplicitlyWindowedFirestoreDoFn#processElement(DoFn.ProcessContext)}}
    *
    * @param <InT> The type of element coming into this {@link DoFn}
    * @param <OutT> The type of element output from this {@link DoFn}
    */
-  abstract static class BaseFirestoreV1ReadFn<InT, OutT> extends NonWindowAwareDoFn<InT, OutT>
-      implements HasRpcAttemptContext {
+  abstract static class BaseFirestoreV1ReadFn<InT, OutT>
+      extends ImplicitlyWindowedFirestoreDoFn<InT, OutT> implements HasRpcAttemptContext {
 
     protected final JodaClock clock;
     protected final FirestoreStatefulComponentFactory firestoreStatefulComponentFactory;

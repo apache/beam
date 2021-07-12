@@ -36,7 +36,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.WindowAwareDoFn;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.ExplicitlyWindowedFirestoreDoFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.FailedWritesException;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.WriteFailure;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.WriteSuccessSummary;
@@ -137,7 +137,7 @@ final class FirestoreV1WriteFn {
    * <p>All request quality-of-service is managed via the instance of {@link RpcQos} associated with
    * the lifecycle of this Fn.
    */
-  abstract static class BaseBatchWriteFn<OutT> extends WindowAwareDoFn<Write, OutT>
+  abstract static class BaseBatchWriteFn<OutT> extends ExplicitlyWindowedFirestoreDoFn<Write, OutT>
       implements HasRpcAttemptContext {
     private static final Logger LOG =
         LoggerFactory.getLogger(FirestoreV1Fn.V1FnRpcAttemptContext.BatchWrite.getNamespace());
