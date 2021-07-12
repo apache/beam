@@ -98,70 +98,81 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     <tr>
  *       <th>RPC</th>
  *       <th>Execution Behavior</th>
+ *       <th>Example Usage</th>
  *     </tr>
  *     <tr>
- *       <td>PartitionQuery</td>
+ *       <td>{@link PartitionQuery}</td>
  *       <td>Parallel Streaming</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link PartitionQueryRequest}> partitionQueryRequests = ...;
+ * PCollection<{@link RunQueryRequest}> runQueryRequests = partitionQueryRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#partitionQuery() partitionQuery()}.build());
+ * PCollection<{@link RunQueryResponse}> runQueryResponses = runQueryRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#runQuery() runQuery()}.build());
+ * </pre>
+ *       </td>
  *     </tr>
  *     <tr>
- *       <td>RunQuery</td>
+ *       <td>{@link RunQuery}</td>
  *       <td>Sequential Streaming</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link RunQueryRequest}> runQueryRequests = ...;
+ * PCollection<{@link RunQueryResponse}> runQueryResponses = runQueryRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#runQuery() runQuery()}.build());
+ * </pre>
+ *       </td>
  *     </tr>
  *     <tr>
- *       <td>BatchGet</td>
+ *       <td>{@link BatchGetDocuments}</td>
  *       <td>Sequential Streaming</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link BatchGetDocumentsRequest}> batchGetDocumentsRequests = ...;
+ * PCollection<{@link BatchGetDocumentsResponse}> batchGetDocumentsResponses = batchGetDocumentsRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#batchGetDocuments() batchGetDocuments()}.build());
+ * </pre>
+ *       </td>
  *     </tr>
  *     <tr>
- *       <td>ListCollectionIds</td>
+ *       <td>{@link ListCollectionIds}</td>
  *       <td>Sequential Paginated</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link ListCollectionIdsRequest}> listCollectionIdsRequests = ...;
+ * PCollection<{@link ListCollectionIdsResponse}> listCollectionIdsResponses = listCollectionIdsRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#listCollectionIds() listCollectionIds()}.build());
+ * </pre>
+ *       </td>
  *     </tr>
  *     <tr>
- *       <td>ListDocuments</td>
+ *       <td>{@link ListDocuments}</td>
  *       <td>Sequential Paginated</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link ListDocumentsRequest}> listDocumentsRequests = ...;
+ * PCollection<{@link ListDocumentsResponse}> listDocumentsResponses = listDocumentsRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#listDocuments() listDocuments()}.build());
+ * </pre>
+ *       </td>
  *     </tr>
  *   </tbody>
  * </table>
  *
  * <p>PartitionQuery should be preferred over other options if at all possible, becuase it has the
  * ability to parallelize execution of multiple queries for specific sub-ranges of the full results.
+ * When choosing the value to set for {@link PartitionQueryRequest.Builder#setPartitionCount(long)},
+ * ensure you are picking a value this makes sense for your data set and your max number of workers.
+ * <i>If you find that a partition query is taking a unexpectedly long time, try increasing the
+ * number of partitions.</i> Depending on how large your dataset is increasing as much as 10x can
+ * significantly reduce total partition query wall time.
  *
  * <p>You should only ever use ListDocuments if the use of <a target="_blank" rel="noopener
  * noreferrer"
  * href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsRequest">{@code
  * show_missing}</a> is needed to access a document. RunQuery and PartitionQuery will always be
  * faster if the use of {@code show_missing} is not needed.
- *
- * <p><b>Example Usage</b>
- *
- * <pre>{@code
- * PCollection<PartitionQueryRequest> partitionQueryRequests = ...;
- * PCollection<RunQueryResponse> partitionQueryResponses = partitionQueryRequests
- *     .apply(FirestoreIO.v1().read().partitionQuery().build());
- * }</pre>
- *
- * <pre>{@code
- * PCollection<RunQueryRequest> runQueryRequests = ...;
- * PCollection<RunQueryResponse> runQueryResponses = runQueryRequests
- *     .apply(FirestoreIO.v1().read().runQuery().build());
- * }</pre>
- *
- * <pre>{@code
- * PCollection<BatchGetDocumentsRequest> batchGetDocumentsRequests = ...;
- * PCollection<BatchGetDocumentsResponse> batchGetDocumentsResponses = batchGetDocumentsRequests
- *     .apply(FirestoreIO.v1().read().batchGetDocuments().build());
- * }</pre>
- *
- * <pre>{@code
- * PCollection<ListCollectionIdsRequest> listCollectionIdsRequests = ...;
- * PCollection<ListCollectionIdsResponse> listCollectionIdsResponses = listCollectionIdsRequests
- *     .apply(FirestoreIO.v1().read().listCollectionIds().build());
- * }</pre>
- *
- * <pre>{@code
- * PCollection<ListDocumentsRequest> listDocumentsRequests = ...;
- * PCollection<ListDocumentsResponse> listDocumentsResponses = listDocumentsRequests
- *     .apply(FirestoreIO.v1().read().listDocuments().build());
- * }</pre>
  *
  * <h4>Write</h4>
  *
@@ -172,21 +183,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The default behavior is to fail a bundle if any single write fails with a non-retryable error.
  *
- * <pre>{@code
- * PCollection<Write> writes = ...;
- * PCollection<WriteSummary> sink = writes
- *     .apply(FirestoreIO.v1().write().batchWrite().build());
- * }</pre>
+ * <pre>
+ * PCollection<{@link com.google.firestore.v1.Write}> writes = ...;
+ * PCollection<{@link WriteSuccessSummary}> sink = writes
+ *     .apply(FirestoreIO.v1().write().{@link Write#batchWrite() batchWrite()}.build());
+ * </pre>
  *
  * Alternatively, if you'd rather output write failures to a Dead Letter Queue add {@link
  * BatchWriteWithSummary.Builder#withDeadLetterQueue() withDeadLetterQueue} when building your
  * writer.
  *
- * <pre>{@code
- * PCollection<Write> writes = ...;
- * PCollection<WriteFailure> writeFailures = writes
- *     .apply(FirestoreIO.v1().write().batchWrite().withDeadLetterQueue().build());
- * }</pre>
+ * <pre>
+ * PCollection<{@link com.google.firestore.v1.Write}> writes = ...;
+ * PCollection<{@link WriteFailure}> writeFailures = writes
+ *     .apply(FirestoreIO.v1().write().{@link Write#batchWrite() batchWrite()}.withDeadLetterQueue().build());
+ * </pre>
  *
  * <h3>Permissions</h3>
  *
