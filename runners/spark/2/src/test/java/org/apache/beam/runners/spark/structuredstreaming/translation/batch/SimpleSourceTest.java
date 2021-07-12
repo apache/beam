@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.BEAM_SOURCE_OPTION;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.DEFAULT_PARALLELISM;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.PIPELINE_OPTIONS;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -27,6 +31,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DatasetSourceBatch;
 import org.apache.beam.runners.spark.structuredstreaming.utils.SerializationDebugger;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -82,11 +87,10 @@ public class SimpleSourceTest implements Serializable {
         };
     String serializedSource = Base64Serializer.serializeUnchecked(source);
     Map<String, String> dataSourceOptions = new HashMap<>();
-    dataSourceOptions.put(DatasetSourceBatch.BEAM_SOURCE_OPTION, serializedSource);
-    dataSourceOptions.put(DatasetSourceBatch.DEFAULT_PARALLELISM, "4");
-    dataSourceOptions.put(
-        DatasetSourceBatch.PIPELINE_OPTIONS,
-        new SerializablePipelineOptions(pipeline.getOptions()).toString());
+    dataSourceOptions.put(BEAM_SOURCE_OPTION, serializedSource);
+    dataSourceOptions.put(DEFAULT_PARALLELISM, "4");
+    dataSourceOptions
+      .put(PIPELINE_OPTIONS, new SerializablePipelineOptions(pipeline.getOptions()).toString());
     DataSourceReader objectToTest =
         new DatasetSourceBatch().createReader(new DataSourceOptions(dataSourceOptions));
     SerializationDebugger.testSerialization(objectToTest, TEMPORARY_FOLDER.newFile());

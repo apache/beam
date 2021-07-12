@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.BEAM_SOURCE_OPTION;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.DEFAULT_PARALLELISM;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.PIPELINE_OPTIONS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -68,10 +71,6 @@ import org.apache.spark.sql.types.StructType;
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
-
-  static final String BEAM_SOURCE_OPTION = "beam-source";
-  static final String DEFAULT_PARALLELISM = "default-parallelism";
-  static final String PIPELINE_OPTIONS = "pipeline-options";
 
   @Override
   public MicroBatchReader createMicroBatchReader(
