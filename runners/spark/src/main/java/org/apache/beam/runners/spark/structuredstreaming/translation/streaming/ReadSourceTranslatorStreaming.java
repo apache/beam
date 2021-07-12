@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.BEAM_SOURCE_OPTION;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.DEFAULT_PARALLELISM;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.PIPELINE_OPTIONS;
+
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
@@ -61,12 +65,12 @@ class ReadSourceTranslatorStreaming<T>
         sparkSession
             .readStream()
             .format(sourceProviderClass)
-            .option(DatasetSourceStreaming.BEAM_SOURCE_OPTION, serializedSource)
+            .option(BEAM_SOURCE_OPTION, serializedSource)
             .option(
-                DatasetSourceStreaming.DEFAULT_PARALLELISM,
+                DEFAULT_PARALLELISM,
                 String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
             .option(
-                DatasetSourceStreaming.PIPELINE_OPTIONS,
+                PIPELINE_OPTIONS,
                 context.getSerializableOptions().toString())
             .load();
 

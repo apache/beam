@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.BEAM_SOURCE_OPTION;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.DEFAULT_PARALLELISM;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.PIPELINE_OPTIONS;
+
 import java.io.Serializable;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
