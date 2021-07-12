@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.GetSize;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
@@ -430,6 +431,14 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         return 1.0;
       }
     }
+
+    public static double validateSize(double size) {
+      if (size < 0) {
+        throw new IllegalArgumentException(
+            String.format("Expected size >= 0 but received %s.", size));
+      }
+      return size;
+    }
   }
 
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
@@ -600,7 +609,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     if (signature == null) {
       return MethodDelegation.to(DefaultGetSize.class);
     } else {
-      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+      return new GetSizeDelegation(doFnType, signature);
     }
   }
 
@@ -1131,6 +1140,35 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       } else {
         return MethodReturn.of(targetMethod.getReturnType().asErasure());
       }
+    }
+  }
+
+  /**
+   * Implements the invoker's {@link DoFnInvoker#invokeGetSize} method by delegating to the {@link
+   * GetSize} method.
+   */
+  private static final class GetSizeDelegation extends DoFnMethodWithExtraParametersDelegation {
+    private static final MethodDescription VALIDATE_SIZE_METHOD;
+
+    static {
+      try {
+        VALIDATE_SIZE_METHOD =
+            new MethodDescription.ForLoadedMethod(
+                DefaultGetSize.class.getMethod("validateSize", double.class));
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException("Failed to locate DefaultGetSize.validateSize()");
+      }
+    }
+
+    /** Implementation of {@link MethodDelegation} for the {@link GetSize} method. */
+    private GetSizeDelegation(TypeDescription doFnType, DoFnSignature.GetSizeMethod signature) {
+      super(doFnType, signature);
+    }
+
+    @Override
+    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
+      return new StackManipulation.Compound(
+          MethodInvocation.invoke(VALIDATE_SIZE_METHOD), MethodReturn.DOUBLE);
     }
   }
 
