@@ -199,7 +199,6 @@ class ExternalTransformTest(unittest.TestCase):
         '--dry_run=True',
         '--sdk_location=container',
         '--runner=DataflowRunner',
-        '--experiments=use_runner_v2',
         '--streaming'
     ]
 
