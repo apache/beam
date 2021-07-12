@@ -225,6 +225,7 @@ abstract class BaseFirestoreIT {
             .apply(Create.of(collectionGroupId))
             .apply(getPartitionQueryPTransform(testName.getMethodName(), partitionCount))
             .apply(FirestoreIO.v1().read().partitionQuery().withNameOnlyQuery().build())
+            .apply(FirestoreIO.v1().read().runQuery().build())
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 

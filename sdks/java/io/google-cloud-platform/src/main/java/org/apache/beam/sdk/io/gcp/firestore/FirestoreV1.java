@@ -981,8 +981,11 @@ public final class FirestoreV1 {
 
   /**
    * Concrete class representing a {@link PTransform}{@code <}{@link PCollection}{@code <}{@link
-   * PartitionQueryRequest}{@code >, }{@link PTransform}{@code <}{@link RunQueryResponse}{@code >>}
+   * PartitionQueryRequest}{@code >, }{@link PTransform}{@code <}{@link RunQueryRequest}{@code >>}
    * which will read from Firestore.
+   *
+   * Perform the necessary operations and handling of {@link PartitionQueryResponse}s to yield a
+   * number of {@link RunQueryRequest} which are friendly to being executed in parallel.
    *
    * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible via
    * {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
@@ -995,6 +998,9 @@ public final class FirestoreV1 {
    * @see FirestoreV1#read()
    * @see FirestoreV1.Read#partitionQuery()
    * @see FirestoreV1.PartitionQuery.Builder
+   * @see FirestoreV1.Read#runQuery()
+   * @see FirestoreV1.RunQuery
+   * @see FirestoreV1.RunQuery.Builder
    * @see PartitionQueryRequest
    * @see RunQueryResponse
    * @see <a target="_blank" rel="noopener noreferrer"
@@ -1007,7 +1013,7 @@ public final class FirestoreV1 {
   public static final class PartitionQuery
       extends Transform<
           PCollection<PartitionQueryRequest>,
-          PCollection<RunQueryResponse>,
+          PCollection<RunQueryRequest>,
           PartitionQuery,
           PartitionQuery.Builder> {
 
@@ -1023,7 +1029,7 @@ public final class FirestoreV1 {
     }
 
     @Override
-    public PCollection<RunQueryResponse> expand(PCollection<PartitionQueryRequest> input) {
+    public PCollection<RunQueryRequest> expand(PCollection<PartitionQueryRequest> input) {
       PCollection<RunQueryRequest> queries =
           input
               .apply(
@@ -1055,8 +1061,7 @@ public final class FirestoreV1 {
                     }));
       }
       return queries
-          .apply(Reshuffle.viaRandomKey())
-          .apply(new RunQuery(clock, firestoreStatefulComponentFactory, rpcQosOptions));
+          .apply(Reshuffle.viaRandomKey());
     }
 
     @Override
@@ -1089,7 +1094,7 @@ public final class FirestoreV1 {
     public static final class Builder
         extends Transform.Builder<
             PCollection<PartitionQueryRequest>,
-            PCollection<RunQueryResponse>,
+            PCollection<RunQueryRequest>,
             PartitionQuery,
             FirestoreV1.PartitionQuery.Builder> {
 
