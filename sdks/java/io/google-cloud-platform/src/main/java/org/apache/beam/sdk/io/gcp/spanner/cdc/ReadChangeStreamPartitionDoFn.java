@@ -54,7 +54,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 // TODO: Add java docs
 @UnboundedPerElement
@@ -92,24 +91,33 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   }
 
   @GetInitialWatermarkEstimatorState
-  public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+  public Instant getInitialWatermarkEstimatorState(
+      @Element PartitionMetadata partition, @Timestamp Instant currentElementTimestamp) {
+    LOG.info("[" + partition.getPartitionToken() + "] Get initial watermark estimator");
     return currentElementTimestamp;
   }
 
   @NewWatermarkEstimator
   public ManualWatermarkEstimator<Instant> newWatermarkEstimator(
+      @Element PartitionMetadata partition,
       @WatermarkEstimatorState Instant watermarkEstimatorState) {
+    LOG.info("[" + partition.getPartitionToken() + "] New watermark estimator");
     return new Manual(watermarkEstimatorState);
   }
 
   @GetInitialRestriction
-  public PartitionRestriction initialRestriction(@Element PartitionMetadata element) {
+  public PartitionRestriction initialRestriction(@Element PartitionMetadata partition) {
+    LOG.info("[" + partition.getPartitionToken() + "] Initial restriction");
     return new PartitionRestriction(
-        element.getStartTimestamp(), element.getEndTimestamp(), PartitionMode.QUERY_CHANGE_STREAM);
+        partition.getStartTimestamp(),
+        partition.getEndTimestamp(),
+        PartitionMode.QUERY_CHANGE_STREAM);
   }
 
   @NewTracker
-  public PartitionRestrictionTracker newTracker(@Restriction PartitionRestriction restriction) {
+  public PartitionRestrictionTracker newTracker(
+      @Element PartitionMetadata partition, @Restriction PartitionRestriction restriction) {
+    LOG.info("[" + partition.getPartitionToken() + "] New tracker");
     return new PartitionRestrictionTracker(restriction);
   }
 
@@ -142,14 +150,11 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    MDC.put("partitionToken", partition.getPartitionToken());
-    LOG.info(
-        "Processing element "
-            + partition.getPartitionToken()
-            + " with restriction "
-            + tracker.currentRestriction());
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Processing element with restriction " + tracker.currentRestriction());
 
-    switch (tracker.currentRestriction().getMode()) {
+    final PartitionMode mode = tracker.currentRestriction().getMode();
+    switch (mode) {
       case QUERY_CHANGE_STREAM:
         return queryChangeStream(partition, tracker, receiver, watermarkEstimator);
       case WAIT_FOR_CHILD_PARTITIONS:
@@ -164,8 +169,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
         return done(partition, tracker);
       default:
         // TODO: Verify what to do here
-        throw new IllegalArgumentException(
-            "Unknown mode " + tracker.currentRestriction().getMode());
+        LOG.error("[" + token + "] Unknown mode " + mode);
+        throw new IllegalArgumentException("Unknown mode " + mode);
     }
   }
 
@@ -212,9 +217,10 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
+    final String token = partition.getPartitionToken();
     try (ResultSet resultSet =
         changeStreamDao.changeStreamQuery(
-            partition.getPartitionToken(),
+            token,
             tracker.currentRestriction().getStartTimestamp(),
             partition.isInclusiveStart(),
             partition.getEndTimestamp(),
@@ -224,7 +230,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
         // TODO: Check what should we do if there is an error here
         final List<ChangeStreamRecord> records =
             changeStreamRecordMapper.toChangeStreamRecords(
-                partition.getPartitionToken(), resultSet.getCurrentRowAsStruct());
+                token, resultSet.getCurrentRowAsStruct());
         LOG.debug("Mapped records: " + records);
 
         Optional<ProcessContinuation> maybeContinuation;
@@ -232,19 +238,22 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
           if (record instanceof DataChangeRecord) {
             maybeContinuation =
                 dataChangeRecordAction.run(
-                    (DataChangeRecord) record, tracker, receiver, watermarkEstimator);
+                    partition, (DataChangeRecord) record, tracker, receiver, watermarkEstimator);
           } else if (record instanceof HeartbeatRecord) {
             maybeContinuation =
-                heartbeatRecordAction.run((HeartbeatRecord) record, tracker, watermarkEstimator);
+                heartbeatRecordAction.run(
+                    partition, (HeartbeatRecord) record, tracker, watermarkEstimator);
           } else if (record instanceof ChildPartitionsRecord) {
             maybeContinuation =
                 childPartitionsRecordAction.run(
-                    (ChildPartitionsRecord) record, partition, tracker, watermarkEstimator);
+                    partition, (ChildPartitionsRecord) record, tracker, watermarkEstimator);
           } else {
+            LOG.error("[" + token + "] Unknown record type " + record.getClass());
             // FIXME: Check what should we do if the record is unknown
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
           }
           if (maybeContinuation.isPresent()) {
+            LOG.info("[" + token + "] Continuation present, returning " + maybeContinuation);
             return maybeContinuation.get();
           }
         }

@@ -49,22 +49,24 @@ public class ChildPartitionsRecordAction {
   }
 
   public Optional<ProcessContinuation> run(
-      ChildPartitionsRecord record,
       PartitionMetadata partition,
+      ChildPartitionsRecord record,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    LOG.info("Processing child partition record " + record);
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Processing child partition record " + record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))) {
-      LOG.info("Could not claim, stopping");
+      LOG.info(
+          "[" + token + "] Could not claim queryChangeStream(" + startTimestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     watermarkEstimator.setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
 
     for (ChildPartition childPartition : record.getChildPartitions()) {
       if (isSplit(childPartition)) {
-        LOG.info("Processing child partition split event");
+        LOG.info("[" + token + "] Processing child partition split event");
         PARTITION_SPLIT_COUNTER.inc();
 
         final PartitionMetadata row =
@@ -78,7 +80,7 @@ public class ChildPartitionsRecordAction {
         // TODO: Make sure this does not fail if the rows already exist
         partitionMetadataDao.insert(row);
       } else {
-        LOG.info("Processing child partition merge event");
+        LOG.info("[" + token + "] Processing child partition merge event");
         PARTITION_MERGE_COUNTER.inc();
 
         partitionMetadataDao.runInTransaction(
@@ -88,7 +90,11 @@ public class ChildPartitionsRecordAction {
                       childPartition.getParentTokens(), Collections.singletonList(FINISHED));
 
               if (finishedParents == childPartition.getParentTokens().size() - 1) {
-                LOG.info("All parents are finished, inserting child partition " + childPartition);
+                LOG.info(
+                    "["
+                        + token
+                        + "] All parents are finished, inserting child partition "
+                        + childPartition);
                 transaction.insert(
                     toPartitionMetadata(
                         record.getStartTimestamp(),
@@ -97,7 +103,9 @@ public class ChildPartitionsRecordAction {
                         childPartition));
               } else {
                 LOG.info(
-                    "At least one parent is not finished ("
+                    "["
+                        + token
+                        + "] At least one parent is not finished ("
                         + "finishedParents = "
                         + finishedParents
                         + ", "
@@ -111,7 +119,7 @@ public class ChildPartitionsRecordAction {
       }
     }
 
-    LOG.info("Child partitions action completed successfully");
+    LOG.info("[" + token + "] Child partitions action completed successfully");
     return Optional.empty();
   }
 

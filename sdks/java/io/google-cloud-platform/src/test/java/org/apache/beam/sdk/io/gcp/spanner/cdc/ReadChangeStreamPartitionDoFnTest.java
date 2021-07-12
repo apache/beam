@@ -177,10 +177,10 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(changeStreamRecordMapper.toChangeStreamRecords(PARTITION_TOKEN, rowAsStruct))
         .thenReturn(Arrays.asList(record1, record2));
     when(dataChangeRecordAction.run(
-            record1, restrictionTracker, outputReceiver, watermarkEstimator))
+            partition, record1, restrictionTracker, outputReceiver, watermarkEstimator))
         .thenReturn(Optional.empty());
     when(dataChangeRecordAction.run(
-            record2, restrictionTracker, outputReceiver, watermarkEstimator))
+            partition, record2, restrictionTracker, outputReceiver, watermarkEstimator))
         .thenReturn(Optional.of(ProcessContinuation.stop()));
 
     final ProcessContinuation result =
@@ -188,11 +188,11 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     assertEquals(ProcessContinuation.stop(), result);
     verify(dataChangeRecordAction)
-        .run(record1, restrictionTracker, outputReceiver, watermarkEstimator);
+        .run(partition, record1, restrictionTracker, outputReceiver, watermarkEstimator);
     verify(dataChangeRecordAction)
-        .run(record2, restrictionTracker, outputReceiver, watermarkEstimator);
+        .run(partition, record2, restrictionTracker, outputReceiver, watermarkEstimator);
 
-    verify(heartbeatRecordAction, never()).run(any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
@@ -221,19 +221,19 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
     when(changeStreamRecordMapper.toChangeStreamRecords(PARTITION_TOKEN, rowAsStruct))
         .thenReturn(Arrays.asList(record1, record2));
-    when(heartbeatRecordAction.run(record1, restrictionTracker, watermarkEstimator))
+    when(heartbeatRecordAction.run(partition, record1, restrictionTracker, watermarkEstimator))
         .thenReturn(Optional.empty());
-    when(heartbeatRecordAction.run(record2, restrictionTracker, watermarkEstimator))
+    when(heartbeatRecordAction.run(partition, record2, restrictionTracker, watermarkEstimator))
         .thenReturn(Optional.of(ProcessContinuation.stop()));
 
     final ProcessContinuation result =
         doFn.processElement(partition, restrictionTracker, outputReceiver, watermarkEstimator);
 
     assertEquals(ProcessContinuation.stop(), result);
-    verify(heartbeatRecordAction).run(record1, restrictionTracker, watermarkEstimator);
-    verify(heartbeatRecordAction).run(record2, restrictionTracker, watermarkEstimator);
+    verify(heartbeatRecordAction).run(partition, record1, restrictionTracker, watermarkEstimator);
+    verify(heartbeatRecordAction).run(partition, record2, restrictionTracker, watermarkEstimator);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
@@ -263,10 +263,10 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(changeStreamRecordMapper.toChangeStreamRecords(PARTITION_TOKEN, rowAsStruct))
         .thenReturn(Arrays.asList(record1, record2));
     when(childPartitionsRecordAction.run(
-            record1, partition, restrictionTracker, watermarkEstimator))
+            partition, record1, restrictionTracker, watermarkEstimator))
         .thenReturn(Optional.empty());
     when(childPartitionsRecordAction.run(
-            record2, partition, restrictionTracker, watermarkEstimator))
+            partition, record2, restrictionTracker, watermarkEstimator))
         .thenReturn(Optional.of(ProcessContinuation.resume()));
 
     final ProcessContinuation result =
@@ -274,12 +274,12 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     assertEquals(ProcessContinuation.resume(), result);
     verify(childPartitionsRecordAction)
-        .run(record1, partition, restrictionTracker, watermarkEstimator);
+        .run(partition, record1, restrictionTracker, watermarkEstimator);
     verify(childPartitionsRecordAction)
-        .run(record2, partition, restrictionTracker, watermarkEstimator);
+        .run(partition, record2, restrictionTracker, watermarkEstimator);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
@@ -313,8 +313,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(deletePartitionAction).run(partition, restrictionTracker);
     verify(donePartitionAction).run(partition, restrictionTracker);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
   }
 
@@ -330,8 +330,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     assertEquals(ProcessContinuation.stop(), result);
     verify(waitForChildPartitionsAction).run(partition, restrictionTracker);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
@@ -352,8 +352,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     assertEquals(ProcessContinuation.stop(), result);
     verify(finishPartitionAction).run(partition, restrictionTracker);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(waitForParentPartitionsAction, never()).run(any(), any());
@@ -374,8 +374,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     assertEquals(ProcessContinuation.stop(), result);
     verify(waitForParentPartitionsAction).run(partition, restrictionTracker);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
@@ -396,8 +396,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     assertEquals(ProcessContinuation.stop(), result);
     verify(deletePartitionAction).run(partition, restrictionTracker);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());
@@ -417,8 +417,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     assertEquals(ProcessContinuation.stop(), result);
     verify(donePartitionAction).run(partition, restrictionTracker);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(waitForChildPartitionsAction, never()).run(any(), any());
     verify(finishPartitionAction, never()).run(any(), any());

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -40,6 +41,7 @@ import org.junit.Test;
 public class DataChangeRecordActionTest {
 
   private DataChangeRecordAction action;
+  private PartitionMetadata partition;
   private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
@@ -47,6 +49,7 @@ public class DataChangeRecordActionTest {
   @Before
   public void setUp() {
     action = new DataChangeRecordAction();
+    partition = mock(PartitionMetadata.class);
     tracker = mock(RestrictionTracker.class);
     outputReceiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
@@ -60,7 +63,7 @@ public class DataChangeRecordActionTest {
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(true);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(record, tracker, outputReceiver, watermarkEstimator);
+        action.run(partition, record, tracker, outputReceiver, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(outputReceiver).output(record);
@@ -75,7 +78,7 @@ public class DataChangeRecordActionTest {
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(record, tracker, outputReceiver, watermarkEstimator);
+        action.run(partition, record, tracker, outputReceiver, watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
     verify(outputReceiver, never()).output(any());

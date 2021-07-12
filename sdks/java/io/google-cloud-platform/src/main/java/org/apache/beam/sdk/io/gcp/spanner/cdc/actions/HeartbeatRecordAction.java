@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 import com.google.cloud.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -34,19 +35,21 @@ public class HeartbeatRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(HeartbeatRecordAction.class);
 
   public Optional<ProcessContinuation> run(
+      PartitionMetadata partition,
       HeartbeatRecord record,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    LOG.info("Processing heartbeat record " + record);
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Processing heartbeat record " + record);
 
     final Timestamp timestamp = record.getTimestamp();
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))) {
-      LOG.info("Could not claim, stopping");
+      LOG.info("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     watermarkEstimator.setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
 
-    LOG.info("Heartbeat record action completed successfully");
+    LOG.info("[" + token + "] Heartbeat record action completed successfully");
     return Optional.empty();
   }
 }

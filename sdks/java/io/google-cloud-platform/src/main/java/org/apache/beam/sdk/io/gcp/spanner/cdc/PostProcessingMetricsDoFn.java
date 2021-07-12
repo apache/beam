@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.DATA_RECORD_COUNTER;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.RECORD_COMMIT_TIMESTAMP_TO_EMITTED_MS;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.RECORD_COMMIT_TIMESTAMP_TO_READ_MS;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.RECORD_READ_TO_EMITTED_MS;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord.Metadata;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -31,11 +35,17 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
   @ProcessElement
   public void processElement(
       @Element DataChangeRecord dataChangeRecord, OutputReceiver<DataChangeRecord> receiver) {
-    RECORD_COMMIT_TIMESTAMP_TO_EMITTED_MS.update(
-        new Duration(
-                new Instant(dataChangeRecord.getCommitTimestamp().toSqlTimestamp().getTime()),
-                new Instant())
-            .getMillis());
-    receiver.output(dataChangeRecord);
+    final Instant now = new Instant();
+    final Metadata metadata = dataChangeRecord.getMetadata();
+    final Instant readInstant = new Instant(metadata.getReadAt().toSqlTimestamp().getTime());
+    final Instant commitInstant =
+        new Instant(dataChangeRecord.getCommitTimestamp().toSqlTimestamp().getTime());
+
+    RECORD_COMMIT_TIMESTAMP_TO_READ_MS.update(new Duration(commitInstant, readInstant).getMillis());
+    RECORD_READ_TO_EMITTED_MS.update(new Duration(readInstant, now).getMillis());
+    RECORD_COMMIT_TIMESTAMP_TO_EMITTED_MS.update(new Duration(commitInstant, now).getMillis());
+    DATA_RECORD_COUNTER.inc();
+
+    receiver.outputWithTimestamp(dataChangeRecord, commitInstant);
   }
 }

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -39,12 +40,14 @@ import org.junit.Test;
 public class HeartbeatRecordActionTest {
 
   private HeartbeatRecordAction action;
-  private ManualWatermarkEstimator<Instant> watermarkEstimator;
+  private PartitionMetadata partition;
   private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
+  private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
   @Before
   public void setUp() {
     action = new HeartbeatRecordAction();
+    partition = mock(PartitionMetadata.class);
     tracker = mock(RestrictionTracker.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
   }
@@ -56,7 +59,7 @@ public class HeartbeatRecordActionTest {
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(true);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(new HeartbeatRecord(timestamp), tracker, watermarkEstimator);
+        action.run(partition, new HeartbeatRecord(timestamp), tracker, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
@@ -69,7 +72,7 @@ public class HeartbeatRecordActionTest {
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(new HeartbeatRecord(timestamp), tracker, watermarkEstimator);
+        action.run(partition, new HeartbeatRecord(timestamp), tracker, watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());

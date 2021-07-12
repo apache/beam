@@ -42,16 +42,17 @@ public class FinishPartitionAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    LOG.info("Finishing partition " + partition.getPartitionToken());
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Finishing partition");
 
     if (!tracker.tryClaim(PartitionPosition.finishPartition())) {
-      LOG.info("Could not claim, stopping");
+      LOG.info("[" + token + "] Could not claim finishPartition(), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
 
-    partitionMetadataDao.updateState(partition.getPartitionToken(), FINISHED);
+    partitionMetadataDao.updateState(token, FINISHED);
 
-    LOG.info("Finish partition action completed successfully");
+    LOG.info("[" + token + "] Finish partition action completed successfully");
     return Optional.empty();
   }
 }

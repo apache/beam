@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 import com.google.cloud.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -35,22 +36,25 @@ public class DataChangeRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
 
   public Optional<ProcessContinuation> run(
+      PartitionMetadata partition,
       DataChangeRecord record,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    LOG.info("Processing data record for " + record.getPartitionToken());
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Processing data record " + record.getCommitTimestamp());
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(commitTimestamp))) {
-      LOG.info("Could not claim, stopping");
+      LOG.info(
+          "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     // TODO: Ask about this, do we need to output with timestamp?
     outputReceiver.output(record);
     watermarkEstimator.setWatermark(new Instant(commitTimestamp.toSqlTimestamp().getTime()));
 
-    LOG.info("Data record action completed successfully");
+    LOG.info("[" + token + "] Data record action completed successfully");
     return Optional.empty();
   }
 }

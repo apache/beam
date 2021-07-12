@@ -40,15 +40,16 @@ public class DeletePartitionAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    LOG.info("Deleting partition " + partition.getPartitionToken());
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Deleting partition");
 
     if (!tracker.tryClaim(PartitionPosition.deletePartition())) {
-      LOG.info("Could not claim, stopping");
+      LOG.info("[" + token + "] Could not claim deletePartition(), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
-    partitionMetadataDao.delete(partition.getPartitionToken());
+    partitionMetadataDao.delete(token);
 
-    LOG.info("Delete partition action completed successfully");
+    LOG.info("[" + token + "] Delete partition action completed successfully");
     return Optional.empty();
   }
 }

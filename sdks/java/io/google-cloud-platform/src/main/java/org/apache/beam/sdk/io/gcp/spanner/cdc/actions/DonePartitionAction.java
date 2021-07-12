@@ -32,14 +32,15 @@ public class DonePartitionAction {
   public ProcessContinuation run(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    LOG.info("Marking partition " + partition.getPartitionToken() + " as done");
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Marking partition as done");
 
     if (!tracker.tryClaim(PartitionPosition.done())) {
-      LOG.info("Could not claim, stopping");
+      LOG.info("[" + token + "] Could not claim done(), stopping");
       return ProcessContinuation.stop();
     }
 
-    LOG.info("Done partition action completed successfully");
+    LOG.info("[" + token + "] Done partition action completed successfully");
     return ProcessContinuation.stop();
   }
 }

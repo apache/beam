@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.INITIAL_PARTITION_CREATED_TO_SCHEDULED_MS;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.PARTITIONS_DETECTED_COUNTER;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.PARTITION_CREATED_TO_SCHEDULED_MS;
 
@@ -141,9 +142,15 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
           return ProcessContinuation.stop();
         }
         PartitionMetadata metadata = buildPartitionMetadata(resultSet);
-        PARTITION_CREATED_TO_SCHEDULED_MS.update(
-            new Duration(metadata.getCreatedAt().toDate().getTime(), Instant.now().getMillis())
-                .getMillis());
+        if (InitialPartition.isInitialPartition(metadata.getPartitionToken())) {
+          INITIAL_PARTITION_CREATED_TO_SCHEDULED_MS.update(
+              new Duration(metadata.getCreatedAt().toDate().getTime(), Instant.now().getMillis())
+                  .getMillis());
+        } else {
+          PARTITION_CREATED_TO_SCHEDULED_MS.update(
+              new Duration(metadata.getCreatedAt().toDate().getTime(), Instant.now().getMillis())
+                  .getMillis());
+        }
 
         LOG.debug(
             String.format(

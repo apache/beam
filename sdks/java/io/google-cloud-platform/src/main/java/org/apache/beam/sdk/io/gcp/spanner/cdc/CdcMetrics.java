@@ -25,13 +25,16 @@ import org.apache.beam.sdk.metrics.Metrics;
 public class CdcMetrics {
 
   public static final Counter PARTITIONS_DETECTED_COUNTER =
-      Metrics.counter(ReadChangeStream.class, "partitions_detected");
+      Metrics.counter(ReadChangeStream.class, "partitions_detected_count");
 
   public static final Counter PARTITION_SPLIT_COUNTER =
       Metrics.counter(ReadChangeStream.class, "partition_split_count");
 
   public static final Counter PARTITION_MERGE_COUNTER =
       Metrics.counter(ReadChangeStream.class, "partition_merge_count");
+
+  public static final Distribution INITIAL_PARTITION_CREATED_TO_SCHEDULED_MS =
+      Metrics.distribution(ReadChangeStream.class, "initial_partition_created_to_scheduled_ms");
 
   public static final Distribution PARTITION_CREATED_TO_SCHEDULED_MS =
       Metrics.distribution(ReadChangeStream.class, "partition_created_to_scheduled_ms");
@@ -41,6 +44,15 @@ public class CdcMetrics {
       Metrics.distribution(
           ReadChangeStream.class, "watermark_to_latest_record_commit_timestamp_ms");
 
+  public static final Distribution RECORD_COMMIT_TIMESTAMP_TO_READ_MS =
+      Metrics.distribution(ReadChangeStream.class, "record_commit_timestamp_to_read_ms");
+
+  public static final Distribution RECORD_READ_TO_EMITTED_MS =
+      Metrics.distribution(ReadChangeStream.class, "record_read_to_emitted_ms");
+
   public static final Distribution RECORD_COMMIT_TIMESTAMP_TO_EMITTED_MS =
       Metrics.distribution(ReadChangeStream.class, "record_commit_timestamp_to_emitted_ms");
+
+  public static final Counter DATA_RECORD_COUNTER =
+      Metrics.counter(ReadChangeStream.class, "data_record_count");
 }

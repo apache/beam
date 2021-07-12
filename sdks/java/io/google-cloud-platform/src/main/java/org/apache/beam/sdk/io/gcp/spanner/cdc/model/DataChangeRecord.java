@@ -45,6 +45,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
   private ValueCaptureType valueCaptureType;
   private long numberOfRecordsInTransaction;
   private long numberOfPartitionsInTransaction;
+  private Metadata metadata;
 
   /** Default constructor for serialization only. */
   private DataChangeRecord() {}
@@ -74,6 +75,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
     this.valueCaptureType = valueCaptureType;
     this.numberOfRecordsInTransaction = numberOfRecordsInTransaction;
     this.numberOfPartitionsInTransaction = numberOfPartitionsInTransaction;
+    this.metadata = new Metadata(Timestamp.now());
   }
 
   public String getPartitionToken() {
@@ -122,6 +124,10 @@ public class DataChangeRecord implements ChangeStreamRecord {
 
   public long getNumberOfPartitionsInTransaction() {
     return numberOfPartitionsInTransaction;
+  }
+
+  public Metadata getMetadata() {
+    return metadata;
   }
 
   @Override
@@ -195,6 +201,31 @@ public class DataChangeRecord implements ChangeStreamRecord {
         + numberOfRecordsInTransaction
         + ", numberOfPartitionsInTransaction="
         + numberOfPartitionsInTransaction
+        + ", metadata="
+        + metadata
         + '}';
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  public static class Metadata {
+
+    @AvroEncode(using = TimestampEncoding.class)
+    private Timestamp readAt;
+
+    /** Default constructor for serialization only. */
+    private Metadata() {}
+
+    public Metadata(Timestamp readAt) {
+      this.readAt = readAt;
+    }
+
+    public Timestamp getReadAt() {
+      return readAt;
+    }
+
+    @Override
+    public String toString() {
+      return "Metadata{" + "readAt=" + readAt + '}';
+    }
   }
 }

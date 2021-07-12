@@ -47,26 +47,29 @@ public class WaitForChildPartitionsAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    LOG.info("Waiting for child partitions for " + partition.getPartitionToken());
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Waiting for child partitions");
 
     if (!tracker.tryClaim(PartitionPosition.waitForChildPartitions())) {
-      LOG.info("Could not claim, stopping");
+      LOG.info("[" + token + "] Could not claim waitForChildPartitions(), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     long numberOfUnscheduledChildren =
         partitionMetadataDao.countChildPartitionsInStates(
-            partition.getPartitionToken(), Collections.singletonList(CREATED));
-    LOG.info("Number of unscheduled children is " + numberOfUnscheduledChildren);
+            token, Collections.singletonList(CREATED));
+    LOG.info("[" + token + "] Number of unscheduled children is " + numberOfUnscheduledChildren);
     if (numberOfUnscheduledChildren > 0) {
       LOG.info(
-          "Resuming, there are "
+          "["
+              + token
+              + " ] Resuming, there are "
               + numberOfUnscheduledChildren
               + " unscheduled / not finished children");
 
       return Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration));
     }
 
-    LOG.info("Wait for child partitions action completed successfully");
+    LOG.info("[" + token + "] Wait for child partitions action completed successfully");
     return Optional.empty();
   }
 }

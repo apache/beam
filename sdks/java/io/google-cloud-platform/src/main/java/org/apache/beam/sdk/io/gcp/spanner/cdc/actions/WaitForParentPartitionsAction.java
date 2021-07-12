@@ -44,21 +44,26 @@ public class WaitForParentPartitionsAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    LOG.info("Waiting for parent partitions of " + partition.getPartitionToken());
+    final String token = partition.getPartitionToken();
+    LOG.info("[" + token + "] Waiting for parent partitions");
 
     if (!tracker.tryClaim(PartitionPosition.waitForParentPartitions())) {
-      LOG.info("Could not claim, stopping");
+      LOG.info("[" + token + "] Could not claim waitForParentPartitions(), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
-    long numberOfExistingParents =
-        partitionMetadataDao.countExistingParents(partition.getPartitionToken());
-    LOG.info("Number of existing parents is " + numberOfExistingParents);
+    long numberOfExistingParents = partitionMetadataDao.countExistingParents(token);
+    LOG.info("[" + token + "] Number of existing parents is " + numberOfExistingParents);
     if (numberOfExistingParents > 0) {
-      LOG.info("Parents still exist (" + numberOfExistingParents + " parents), resuming");
+      LOG.info(
+          "["
+              + token
+              + "] Parents still exist ("
+              + numberOfExistingParents
+              + " parents), resuming");
       return Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration));
     }
 
-    LOG.info("Wait for parent partitions action completed successfully");
+    LOG.info("[" + token + "] Wait for parent partitions action completed successfully");
     return Optional.empty();
   }
 }
