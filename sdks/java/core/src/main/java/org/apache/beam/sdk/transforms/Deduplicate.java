@@ -27,6 +27,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -304,13 +305,17 @@ public final class Deduplicate {
     @ProcessElement
     public void processElement(
         @Element KV<K, V> element,
+        BoundedWindow window,
         OutputReceiver<KV<K, V>> receiver,
         @StateId(SEEN_STATE) ValueState<Boolean> seenState,
         @TimerId(EXPIRY_TIMER) Timer expiryTimer) {
       Boolean seen = seenState.read();
       // Seen state is either set or not set so if it has been set then it must be true.
       if (seen == null) {
-        expiryTimer.offset(duration).setRelative();
+        // We don't want the expiry timer to hold up watermarks, so we set its output timestamp to
+        // the end of the
+        // window.
+        expiryTimer.offset(duration).withOutputTimestamp(window.maxTimestamp()).setRelative();
         seenState.write(true);
         receiver.output(element);
       }
