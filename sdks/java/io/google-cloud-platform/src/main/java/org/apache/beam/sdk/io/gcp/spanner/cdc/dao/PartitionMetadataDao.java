@@ -105,6 +105,23 @@ public class PartitionMetadataDao {
     }
   }
 
+  public long countPartitions() {
+    Statement statement = Statement.newBuilder("SELECT COUNT(*) FROM " + tableName).build();
+    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+      resultSet.next();
+      return resultSet.getLong(0);
+    }
+  }
+
+  public ResultSet getPartitionsInState(State state) {
+    Statement statement =
+        Statement.newBuilder("SELECT * FROM " + tableName + " WHERE State = @state")
+            .bind("state")
+            .to(state.toString())
+            .build();
+    return databaseClient.singleUse().executeQuery(statement);
+  }
+
   public void insert(PartitionMetadata row) {
     runInTransaction(transaction -> transaction.insert(row));
   }

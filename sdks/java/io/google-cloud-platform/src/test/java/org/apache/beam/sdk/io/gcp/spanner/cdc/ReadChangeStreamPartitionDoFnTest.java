@@ -116,8 +116,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
     changeStreamRecordMapper = mock(ChangeStreamRecordMapper.class);
 
-    doFn =
-        new ReadChangeStreamPartitionDoFn(spannerConfig, daoFactory, mapperFactory, actionFactory);
+    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory);
 
     partition =
         PartitionMetadata.newBuilder()
@@ -137,8 +136,8 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     when(restrictionTracker.currentRestriction()).thenReturn(restriction);
     when(restriction.getStartTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
-    when(daoFactory.partitionMetadataDaoFrom(spannerConfig)).thenReturn(partitionMetadataDao);
-    when(daoFactory.changeStreamDaoFrom(spannerConfig)).thenReturn(changeStreamDao);
+    when(daoFactory.getPartitionMetadataDao()).thenReturn(partitionMetadataDao);
+    when(daoFactory.getChangeStreamDao()).thenReturn(changeStreamDao);
     when(mapperFactory.changeStreamRecordMapper()).thenReturn(changeStreamRecordMapper);
     when(actionFactory.waitForChildPartitionsAction(partitionMetadataDao, resumeDuration))
         .thenReturn(waitForChildPartitionsAction);

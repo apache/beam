@@ -25,7 +25,7 @@ public class NameGenerator {
   private static final String METADATA_TABLE_NAME_FORMAT = "CDC_Partitions_%s_%s";
 
   // TODO: Add java docs
-  public static String generateMetadataTableName(String databaseId) {
+  public static String generatePartitionMetadataTableName(String databaseId) {
     // Maximum Spanner table name length is 128 characters.
     // There are 16 characters in the name format.
     // Maximum Spanner database ID length is 30 characters.

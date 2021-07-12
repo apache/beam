@@ -21,7 +21,6 @@ import com.google.cloud.spanner.ResultSet;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ChildPartitionsRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.DataChangeRecordAction;
@@ -63,7 +62,6 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
 
-  private final SpannerConfig spannerConfig;
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
@@ -80,11 +78,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private transient DonePartitionAction donePartitionAction;
 
   public ReadChangeStreamPartitionDoFn(
-      SpannerConfig spannerConfig,
-      DaoFactory daoFactory,
-      MapperFactory mapperFactory,
-      ActionFactory actionFactory) {
-    this.spannerConfig = spannerConfig;
+      DaoFactory daoFactory, MapperFactory mapperFactory, ActionFactory actionFactory) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
@@ -123,9 +117,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   @Setup
   public void setup() {
-    final PartitionMetadataDao partitionMetadataDao =
-        daoFactory.partitionMetadataDaoFrom(spannerConfig);
-    this.changeStreamDao = daoFactory.changeStreamDaoFrom(spannerConfig);
+    final PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
+    this.changeStreamDao = daoFactory.getChangeStreamDao();
     this.changeStreamRecordMapper = mapperFactory.changeStreamRecordMapper();
 
     this.waitForChildPartitionsAction =

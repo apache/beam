@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
+import com.google.cloud.spanner.DatabaseAdminClient;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
@@ -25,20 +26,46 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 public class DaoFactory implements Serializable {
 
   private static final long serialVersionUID = 7929063669009832487L;
+  private static PartitionMetadataAdminDao partitionMetadataAdminDao;
   private static PartitionMetadataDao partitionMetadataDaoInstance;
   private static ChangeStreamDao changeStreamDaoInstance;
+
+  private final SpannerConfig changeStreamSpannerConfig;
+  private final SpannerConfig partitionMetadataSpannerConfig;
 
   private final String changeStreamName;
   private final String partitionMetadataTableName;
 
-  public DaoFactory(String changeStreamName, String partitionMetadataTableName) {
+  public DaoFactory(
+      SpannerConfig changeStreamSpannerConfig,
+      String changeStreamName,
+      SpannerConfig partitionMetadataSpannerConfig,
+      String partitionMetadataTableName) {
+    this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
+    this.partitionMetadataSpannerConfig = partitionMetadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized PartitionMetadataDao partitionMetadataDaoFrom(SpannerConfig spannerConfig) {
-    final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig);
+  public synchronized PartitionMetadataAdminDao getPartitionMetadataAdminDao() {
+    if (partitionMetadataAdminDao == null) {
+      DatabaseAdminClient databaseAdminClient =
+          SpannerAccessor.getOrCreate(partitionMetadataSpannerConfig).getDatabaseAdminClient();
+      partitionMetadataAdminDao =
+          new PartitionMetadataAdminDao(
+              databaseAdminClient,
+              partitionMetadataSpannerConfig.getInstanceId().get(),
+              partitionMetadataSpannerConfig.getDatabaseId().get(),
+              partitionMetadataTableName);
+    }
+    return partitionMetadataAdminDao;
+  }
+
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized PartitionMetadataDao getPartitionMetadataDao() {
+    final SpannerAccessor spannerAccessor =
+        SpannerAccessor.getOrCreate(partitionMetadataSpannerConfig);
     if (partitionMetadataDaoInstance == null) {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
@@ -48,8 +75,8 @@ public class DaoFactory implements Serializable {
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized ChangeStreamDao changeStreamDaoFrom(SpannerConfig spannerConfig) {
-    final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig);
+  public synchronized ChangeStreamDao getChangeStreamDao() {
+    final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
     if (changeStreamDaoInstance == null) {
       changeStreamDaoInstance =
           new ChangeStreamDao(this.changeStreamName, spannerAccessor.getDatabaseClient());

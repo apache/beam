@@ -28,17 +28,15 @@ import javax.annotation.Nullable;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public abstract class ChangeStreamSourceDescriptor implements Serializable {
-  abstract String getChangeStreamName();
 
-  abstract String getMetadataTableName();
+  abstract String getChangeStreamName();
 
   abstract @Nullable Timestamp getStartAt();
 
   abstract @Nullable Timestamp getEndAt();
 
   public static ChangeStreamSourceDescriptor of(
-      String changeStreamName, String metadataTableName, Timestamp startAt, Timestamp endAt) {
-    return new AutoValue_ChangeStreamSourceDescriptor(
-        changeStreamName, metadataTableName, startAt, endAt);
+      String changeStreamName, Timestamp startAt, Timestamp endAt) {
+    return new AutoValue_ChangeStreamSourceDescriptor(changeStreamName, startAt, endAt);
   }
 }
