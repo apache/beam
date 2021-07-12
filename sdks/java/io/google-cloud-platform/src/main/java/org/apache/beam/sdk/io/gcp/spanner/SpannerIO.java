@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.NameGenerator.generateParti
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import avro.shaded.com.google.common.base.Objects;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
@@ -97,6 +96,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -1407,7 +1407,7 @@ public class SpannerIO {
               getSpannerConfig().getInstanceId().get(),
               getSpannerConfig().getDatabaseId().get());
       final String partitionMetadataDatabaseId =
-          Objects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
+          MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
       final String partitionMetadataTableName =
           generatePartitionMetadataTableName(partitionMetadataDatabaseId);
 
