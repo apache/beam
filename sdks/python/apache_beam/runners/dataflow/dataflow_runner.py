@@ -408,6 +408,18 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    debug_options = options.view_as(DebugOptions)
+    if pipeline.contains_external_transforms:
+      if not apiclient._use_unified_worker(options):
+        _LOGGER.info(
+            'Automatically enabling Dataflow Runner v2 since the '
+            'pipeline used cross-language transforms.')
+        # This has to be done before any Fn API specific setup.
+        debug_options.add_experiment("use_runner_v2")
+      # Dataflow multi-language pipelines require portable job submission.
+      if not debug_options.lookup_experiment('use_portable_job_submission'):
+        debug_options.add_experiment("use_portable_job_submission")
+
     self._maybe_add_unified_worker_missing_options(options)
 
     use_fnapi = apiclient._use_fnapi(options)
@@ -510,12 +522,6 @@ class DataflowRunner(PipelineRunner):
     if worker_options.min_cpu_platform:
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
-
-    if (apiclient._use_unified_worker(options) and
-        pipeline.contains_external_transforms):
-      # All Dataflow multi-language pipelines (supported by Runner v2 only) use
-      # portable job submission by default.
-      debug_options.add_experiment("use_portable_job_submission")
 
     # Elevate "enable_streaming_engine" to pipeline option, but using the
     # existing experiment.
