@@ -23,6 +23,7 @@ import codecs
 import logging
 import math
 import threading
+from typing import Union
 
 from apache_beam.io import iobase
 
@@ -265,16 +266,17 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
       if ((self._stop_position is not None and position >= self._stop_position)
           or (self._start_position is not None and
               position <= self._start_position)):
-        raise ValueError(
-            "Split at '%s' not in range %s" %
-            (position, [self._start_position, self._stop_position]))
+        _LOGGER.debug(
+            'Refusing to split %r at %d: proposed split position out of range',
+            self,
+            position)
+        return
+
       if self._last_claim is self.UNSTARTED or self._last_claim < position:
         fraction = self.position_to_fraction(
             position, start=self._start_position, end=self._stop_position)
         self._stop_position = position
         return position, fraction
-      else:
-        return None
 
   def fraction_consumed(self):
     if self._last_claim is self.UNSTARTED:
@@ -286,6 +288,12 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
   def fraction_to_position(self, fraction, start, end):
     """
     Converts a fraction between 0 and 1 to a position between start and end.
+    """
+    raise NotImplementedError
+
+  def position_to_fraction(self, position, start, end):
+    """Returns the fraction of keys in the range [start, end) that
+    are less than the given key.
     """
     raise NotImplementedError
 
@@ -339,87 +347,112 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
 
 
 class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
-  """
-  A range tracker that tracks progress through a lexicographically
+  """A range tracker that tracks progress through a lexicographically
   ordered keyspace of strings.
   """
   @classmethod
-  def fraction_to_position(cls, fraction, start=None, end=None):
-    """
-    Linearly interpolates a key that is lexicographically
+  def fraction_to_position(
+      cls,
+      fraction: float,
+      start: Union[bytes, str] = None,
+      end: Union[bytes, str] = None,
+  ) -> Union[bytes, str]:
+    """Linearly interpolates a key that is lexicographically
     fraction of the way between start and end.
     """
     assert 0 <= fraction <= 1, fraction
+
     if start is None:
       start = b''
+
+    if fraction == 0:
+      return start
+
     if fraction == 1:
       return end
-    elif fraction == 0:
-      return start
+
+    if not end:
+      common_prefix_len = len(start) - len(start.lstrip(b'\xFF'))
     else:
-      if not end:
-        common_prefix_len = len(start) - len(start.lstrip(b'\xFF'))
+      for ix, (s, e) in enumerate(zip(start, end)):
+        if s != e:
+          common_prefix_len = ix
+          break
       else:
-        for ix, (s, e) in enumerate(zip(start, end)):
-          if s != e:
-            common_prefix_len = ix
-            break
-        else:
-          common_prefix_len = min(len(start), len(end))
-      # Convert the relative precision of fraction (~53 bits) to an absolute
-      # precision needed to represent values between start and end distinctly.
-      prec = common_prefix_len + int(-math.log(fraction, 256)) + 7
-      istart = cls._bytestring_to_int(start, prec)
-      iend = cls._bytestring_to_int(end, prec) if end else 1 << (prec * 8)
-      ikey = istart + int((iend - istart) * fraction)
-      # Could be equal due to rounding.
-      # Adjust to ensure we never return the actual start and end
-      # unless fraction is exatly 0 or 1.
-      if ikey == istart:
-        ikey += 1
-      elif ikey == iend:
-        ikey -= 1
-      return cls._bytestring_from_int(ikey, prec).rstrip(b'\0')
+        common_prefix_len = min(len(start), len(end))
+
+    # Convert the relative precision of fraction (~53 bits) to an absolute
+    # precision needed to represent values between start and end distinctly.
+    prec = common_prefix_len + int(-math.log(fraction, 256)) + 7
+    istart = cls._bytestring_to_int(start, prec)
+    iend = cls._bytestring_to_int(end, prec) if end else 1 << (prec * 8)
+    ikey = istart + int((iend - istart) * fraction)
+
+    # Could be equal due to rounding.
+    # Adjust to ensure we never return the actual start and end
+    # unless fraction is exatly 0 or 1.
+    if ikey == istart:
+      ikey += 1
+    elif ikey == iend:
+      ikey -= 1
+
+    position: bytes = cls._bytestring_from_int(ikey, prec).rstrip(b'\0')
+
+    if isinstance(start, bytes):
+      return position
+
+    return position.decode(encoding='unicode_escape', errors='replace')
 
   @classmethod
-  def position_to_fraction(cls, key, start=None, end=None):
-    """
-    Returns the fraction of keys in the range [start, end) that
+  def position_to_fraction(
+      cls,
+      key: Union[bytes, str] = None,
+      start: Union[bytes, str] = None,
+      end: Union[bytes, str] = None,
+  ) -> float:
+    """Returns the fraction of keys in the range [start, end) that
     are less than the given key.
     """
     if not key:
       return 0
+
     if start is None:
-      start = b''
+      start = '' if isinstance(key, str) else b''
+
     prec = len(start) + 7
     if key.startswith(start):
       # Higher absolute precision needed for very small values of fixed
       # relative position.
-      prec = max(prec, len(key) - len(key[len(start):].strip(b'\0')) + 7)
+      trailing_symbol = '\0' if isinstance(key, str) else b'\0'
+      prec = max(
+          prec, len(key) - len(key[len(start):].strip(trailing_symbol)) + 7)
     istart = cls._bytestring_to_int(start, prec)
     ikey = cls._bytestring_to_int(key, prec)
     iend = cls._bytestring_to_int(end, prec) if end else 1 << (prec * 8)
     return float(ikey - istart) / (iend - istart)
 
   @staticmethod
-  def _bytestring_to_int(s, prec):
-    """
-    Returns int(256**prec * f) where f is the fraction
+  def _bytestring_to_int(s: Union[bytes, str], prec: int) -> int:
+    """Returns int(256**prec * f) where f is the fraction
     represented by interpreting '.' + s as a base-256
     floating point number.
     """
     if not s:
       return 0
-    elif len(s) < prec:
+
+    if isinstance(s, str):
+      s = s.encode()  # str -> bytes
+
+    if len(s) < prec:
       s += b'\0' * (prec - len(s))
     else:
       s = s[:prec]
-    return int(codecs.encode(s, 'hex'), 16)
+
+    h = codecs.encode(s, encoding='hex')
+    return int(h, base=16)
 
   @staticmethod
-  def _bytestring_from_int(i, prec):
-    """
-    Inverse of _bytestring_to_int.
-    """
+  def _bytestring_from_int(i: int, prec: int) -> bytes:
+    """Inverse of _bytestring_to_int."""
     h = '%x' % i
-    return codecs.decode('0' * (2 * prec - len(h)) + h, 'hex')
+    return codecs.decode('0' * (2 * prec - len(h)) + h, encoding='hex')
