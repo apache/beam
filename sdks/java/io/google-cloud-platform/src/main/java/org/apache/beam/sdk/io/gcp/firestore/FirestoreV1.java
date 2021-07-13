@@ -986,7 +986,7 @@ public final class FirestoreV1 {
    * PartitionQueryRequest}{@code >, }{@link PTransform}{@code <}{@link RunQueryRequest}{@code >>}
    * which will read from Firestore.
    *
-   * Perform the necessary operations and handling of {@link PartitionQueryResponse}s to yield a
+   * <p>Perform the necessary operations and handling of {@link PartitionQueryResponse}s to yield a
    * number of {@link RunQueryRequest} which are friendly to being executed in parallel.
    *
    * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible via
@@ -1062,8 +1062,7 @@ public final class FirestoreV1 {
                       }
                     }));
       }
-      return queries
-          .apply(Reshuffle.viaRandomKey());
+      return queries.apply(Reshuffle.viaRandomKey());
     }
 
     @Override
