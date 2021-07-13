@@ -418,6 +418,7 @@ public class SpannerIO {
         // TODO(hengfeng): revisit this to find a better way to create an uninitialized instance.
         .setChangeStreamName("")
         .setInclusiveStartAt(Timestamp.MIN_VALUE)
+        .setMetadataDatabase("")
         .build();
   }
 
@@ -1416,6 +1417,7 @@ public class SpannerIO {
           SpannerConfig.create()
               .withProjectId(changeStreamSpannerConfig.getProjectId())
               .withInstanceId(changeStreamSpannerConfig.getInstanceId())
+              .withHost(changeStreamSpannerConfig.getHost())
               .withDatabaseId(partitionMetadataDatabaseId)
               .withCommitDeadline(changeStreamSpannerConfig.getCommitDeadline())
               .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
