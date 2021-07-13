@@ -18,22 +18,28 @@
 
 FROM ubuntu:20.04
 
-ENV RUNNER_VERSION=2.278.0
+ARG RUNNER_VERSION=2.278.0
 
-RUN useradd -m actions
-RUN apt-get -yqq update && apt-get install -yqq curl jq wget
+ENV GITHUB_PERSONAL_TOKEN ""
+ENV GITHUB_OWNER ""
+ENV GITHUB_REPOSITORY ""
 
-RUN \
-  LABEL="$(curl -s -X GET 'https://api.github.com/repos/actions/runner/releases/latest' | jq -r '.tag_name')" \
-  RUNNER_VERSION="$(echo ${latest_version_label:1})" \
-  cd /home/actions && mkdir actions-runner && cd actions-runner \
-    && wget https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz \
-    && tar xzf ./actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
-
-WORKDIR /home/actions/actions-runner
-RUN chown -R actions ~actions && /home/actions/actions-runner/bin/installdependencies.sh
-
+RUN apt-get -yqq update && apt-get install -yqq curl sudo git jq tar gnupg2 apt-transport-https ca-certificates
+RUN apt-get install -yqq liblttng-ust0 libkrb5-3 zlib1g libssl1.1
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yqq libicu66
+RUN apt-get clean
+RUN rm -rf /var/lib/apt/lists/*
+RUN useradd -m actions && usermod -aG sudo actions && echo "%sudo ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 USER actions
-COPY entrypoint.sh .
-ENTRYPOINT ["./entrypoint.sh"]
+WORKDIR /home/actions
+
+RUN curl -O -L https://github.com/actions/runner/releases/download/v$RUNNER_VERSION/actions-runner-linux-x64-$RUNNER_VERSION.tar.gz
+RUN tar xzf ./actions-runner-linux-x64-$RUNNER_VERSION.tar.gz
+
+COPY --chown=actions:actions entrypoint.sh ./entrypoint.sh
+
+RUN sudo chmod u+x ./entrypoint.sh
+
+ENTRYPOINT ["/home/actions/entrypoint.sh"]
+
 

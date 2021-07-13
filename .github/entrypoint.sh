@@ -15,21 +15,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -eEuo pipefail
+registration_url="https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPOSITORY}/actions/runners/registration-token"
+echo "Requesting registration URL at '${registration_url}'"
 
-TOKEN=$(curl -s -X POST -H "authorization: token ${TOKEN}" "https://api.github.com/repos/apache/beam/actions/runners/registration-token" | jq -r .token)
+payload=$(curl -sX POST -H "Authorization: token ${GITHUB_PAT}" ${registration_url})
 
-cleanup() {
-  ./config.sh remove --token "${TOKEN}"
-}
+export RUNNER_TOKEN=$(echo $payload | jq .token --raw-output)
 
 ./config.sh \
-  --url "https://github.com/apache/beam" \
-  --token "${TOKEN}" \
-  --name "k8s-runner" \
-  --unattended \
-  --work _work
+    --name $(hostname) \
+    --token ${RUNNER_TOKEN} \
+    --url https://github.com/${GITHUB_OWNER}/${GITHUB_REPOSITORY} \
+    --work ${RUNNER_WORKDIR} \
+    --unattended \
+    --replace
 
-./runsvc.sh
-
-cleanup
+remove() {
+    ./config.sh remove --unattended --token "${RUNNER_TOKEN}"
+}
+trap 'remove; exit 130' INT
+trap 'remove; exit 143' TERM
+./run.sh "$*" &
+wait $!
