@@ -96,6 +96,29 @@ task flinkValidatesRunner {
   }
 }
 
+// ValidatesRunner tests for Samza. Runs tests in the integration directory
+// with Samza to validate that the runner behaves as expected.
+task samzaValidatesRunner {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:go:container:docker"
+  dependsOn ":runners:samza:job-server:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doLast {
+    def options = [
+            "--runner samza",
+            "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
+      options.add("--jenkins")
+    }
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
 // ValidatesRunner tests for Spark. Runs tests in the integration directory
 // with Spark to validate that the runner behaves as expected.
 task sparkValidatesRunner {

@@ -150,6 +150,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --samza_job_server_jar)
+        SAMZA_JOB_SERVER_JAR="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --spark_job_server_jar)
         SPARK_JOB_SERVER_JAR="$2"
         shift # past argument
@@ -238,7 +243,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
     java -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
     IO_EXPANSION_PID=$!
   fi
-elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]; then
+elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
@@ -250,6 +255,13 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
+    elif [[ "$RUNNER" == "samza" ]]; then
+      java \
+          -jar $SAMZA_JOB_SERVER_JAR \
+          --job-port $JOB_PORT \
+          --expansion-port 0 \
+          --artifact-port 0 &
+      ARGS="-p 1"
     elif [[ "$RUNNER" == "spark" ]]; then
       java \
           -jar $SPARK_JOB_SERVER_JAR \
