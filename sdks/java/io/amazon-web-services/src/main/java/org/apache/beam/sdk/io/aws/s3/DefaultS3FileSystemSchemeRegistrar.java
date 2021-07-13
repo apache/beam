@@ -20,39 +20,22 @@ package org.apache.beam.sdk.io.aws.s3;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
-import java.util.Map;
-import java.util.ServiceLoader;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.io.FileSystem;
-import org.apache.beam.sdk.io.FileSystemRegistrar;
+import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-/**
- * {@link AutoService} registrar for the {@link S3FileSystem}.
- *
- * <p>Creates instances of {@link S3FileSystem} for each scheme registered with a {@link
- * S3FileSystemSchemeRegistrar}.
- */
-@AutoService(FileSystemRegistrar.class)
+/** Registers the "s3" uri schema to be handled by {@link S3FileSystem}. */
+@AutoService(S3FileSystemSchemeRegistrar.class)
 @Experimental(Kind.FILESYSTEM)
-public class S3FileSystemRegistrar implements FileSystemRegistrar {
+public class DefaultS3FileSystemSchemeRegistrar implements S3FileSystemSchemeRegistrar {
 
   @Override
-  public Iterable<FileSystem<?>> fromOptions(@Nonnull PipelineOptions options) {
+  public Iterable<S3FileSystemConfiguration> fromOptions(@Nonnull PipelineOptions options) {
     checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
-    Map<String, FileSystem<?>> fileSystems =
-        Streams.stream(
-                ServiceLoader.load(
-                    S3FileSystemSchemeRegistrar.class, ReflectHelpers.findClassLoader()))
-            .flatMap(r -> Streams.stream(r.fromOptions(options)))
-            .map(S3FileSystem::new)
-            // Throws IllegalStateException if any duplicate schemes exist.
-            .collect(Collectors.toMap(S3FileSystem::getScheme, f -> (FileSystem<?>) f));
-    return fileSystems.values();
+    return ImmutableList.of(
+        S3FileSystemConfiguration.fromS3Options(options.as(S3Options.class)).build());
   }
 }
