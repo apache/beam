@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.ChangeStreamRecordMapper;
 import org.joda.time.Duration;
 
 // TODO: Add java docs
@@ -29,6 +31,7 @@ public class ActionFactory implements Serializable {
   private static HeartbeatRecordAction heartbeatRecordActionInstance;
   private static ChildPartitionsRecordAction childPartitionsRecordActionInstance;
   private static FinishPartitionAction finishPartitionActionInstance;
+  private static QueryChangeStreamAction queryChangeStreamActionInstance;
   private static WaitForChildPartitionsAction waitForChildPartitionsActionInstance;
   private static WaitForParentPartitionsAction waitForParentPartitionsActionInstance;
   private static DeletePartitionAction deletePartitionActionInstance;
@@ -76,6 +79,25 @@ public class ActionFactory implements Serializable {
           new WaitForChildPartitionsAction(partitionMetadataDao, resumeDuration);
     }
     return waitForChildPartitionsActionInstance;
+  }
+
+  // TODO: See if synchronized is a bottleneck and refactor if so
+  public synchronized QueryChangeStreamAction queryChangeStreamAction(
+      ChangeStreamDao changeStreamDao,
+      ChangeStreamRecordMapper changeStreamRecordMapper,
+      DataChangeRecordAction dataChangeRecordAction,
+      HeartbeatRecordAction heartbeatRecordAction,
+      ChildPartitionsRecordAction childPartitionsRecordAction) {
+    if (queryChangeStreamActionInstance == null) {
+      queryChangeStreamActionInstance =
+          new QueryChangeStreamAction(
+              changeStreamDao,
+              changeStreamRecordMapper,
+              dataChangeRecordAction,
+              heartbeatRecordAction,
+              childPartitionsRecordAction);
+    }
+    return queryChangeStreamActionInstance;
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
