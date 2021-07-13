@@ -56,6 +56,7 @@ if TYPE_CHECKING:
 __all__ = [
     'PCollection',
     'TaggedOutput',
+    'AsSideInput',
     'AsSingleton',
     'AsIter',
     'AsList',
