@@ -73,6 +73,10 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 			ret = append(ret, window.IntervalWindow{Start: start, End: start.Add(wfn.Size)})
 		}
 		return ret
+	case window.Sessions:
+		start := ts.Subtract(wfn.Gap / 2)
+		end := ts.Add(wfn.Gap / 2)
+		return []typex.Window{window.IntervalWindow{Start: start, End: end}}
 
 	default:
 		panic(fmt.Sprintf("Unexpected window fn: %v", wfn))

@@ -1036,7 +1036,7 @@ func makeWindowCoder(w *window.Fn) (*coder.WindowCoder, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
 		return coder.NewGlobalWindow(), nil
-	case window.FixedWindows, window.SlidingWindows, URNSlidingWindowsWindowFn:
+	case window.FixedWindows, window.SlidingWindows, window.Sessions, URNSlidingWindowsWindowFn:
 		return coder.NewIntervalWindow(), nil
 	default:
 		return nil, errors.Errorf("unexpected windowing strategy for coder: %v", w)
