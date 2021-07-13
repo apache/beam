@@ -21,18 +21,18 @@ import PostcommitJobBuilder
 
 // This job runs the suite of Go integration tests against the Samza runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_VR_Samza',
-        'Run Go Samza ValidatesRunner', 'Go Samza ValidatesRunner Tests', this) {
-    description('Runs Go integration tests on the Samza runner.')
+    'Run Go Samza ValidatesRunner', 'Go Samza ValidatesRunner Tests', this) {
+      description('Runs Go integration tests on the Samza runner.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-    // Gradle goals for this job.
-    steps {
+      // Gradle goals for this job.
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:go:test:samzaValidatesRunner')
-            commonJobProperties.setGradleSwitches(delegate)
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:go:test:samzaValidatesRunner')
+          commonJobProperties.setGradleSwitches(delegate)
         }
+      }
     }
-}
