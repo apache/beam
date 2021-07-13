@@ -121,8 +121,8 @@ func CheckFilters(t *testing.T) {
 		filters = portableFilters
 	case "flink", "FlinkRunner":
 		filters = flinkFilters
-        case "samza", "SamzaRunner":
-                filters = samzaFilters
+	case "samza", "SamzaRunner":
+		filters = samzaFilters
 	case "spark", "SparkRunner":
 		filters = sparkFilters
 	case "dataflow", "DataflowRunner":
