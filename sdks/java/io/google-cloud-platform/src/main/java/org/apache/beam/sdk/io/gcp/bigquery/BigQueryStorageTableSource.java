@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
@@ -46,13 +47,25 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
 
   public static <T> BigQueryStorageTableSource<T> create(
       ValueProvider<TableReference> tableRefProvider,
+      DataFormat format,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageTableSource<>(
-        tableRefProvider, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+        tableRefProvider, format, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+  }
+
+  public static <T> BigQueryStorageTableSource<T> create(
+      ValueProvider<TableReference> tableRefProvider,
+      @Nullable ValueProvider<List<String>> selectedFields,
+      @Nullable ValueProvider<String> rowRestriction,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
+      BigQueryServices bqServices) {
+    return new BigQueryStorageTableSource<>(
+        tableRefProvider, null, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
   }
 
   private final ValueProvider<TableReference> tableReferenceProvider;
@@ -61,12 +74,13 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
 
   private BigQueryStorageTableSource(
       ValueProvider<TableReference> tableRefProvider,
+      DataFormat format,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+    super(format, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
     this.tableReferenceProvider = checkNotNull(tableRefProvider, "tableRefProvider");
     cachedTable = new AtomicReference<>();
   }

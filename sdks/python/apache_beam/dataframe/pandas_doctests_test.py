@@ -86,6 +86,11 @@ class DoctestTest(unittest.TestCase):
                 'df.loc[(df.c - 43).abs().argsort()]',
             ],
             'pandas.core.generic.NDFrame.reindex': ['*'],
+            'pandas.core.generic.NDFrame.pct_change': ['*'],
+            'pandas.core.generic.NDFrame.asof': ['*'],
+            'pandas.core.generic.NDFrame.infer_objects': ['*'],
+            'pandas.core.generic.NDFrame.ewm': ['*'],
+            'pandas.core.generic.NDFrame.expanding': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -94,7 +99,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
-            'pandas.core.generic.NDFrame.pct_change': ['*'],
             'pandas.core.generic.NDFrame.rank': ['*'],
             'pandas.core.generic.NDFrame.reindex_like': ['*'],
             'pandas.core.generic.NDFrame.replace': ['*'],
@@ -112,7 +116,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.convert_dtypes': ['*'],
             'pandas.core.generic.NDFrame.copy': ['*'],
             'pandas.core.generic.NDFrame.droplevel': ['*'],
-            'pandas.core.generic.NDFrame.infer_objects': ['*'],
             'pandas.core.generic.NDFrame.rank': [
                 # Modified dataframe
                 'df'
@@ -435,6 +438,7 @@ class DoctestTest(unittest.TestCase):
                 's.repeat([1, 2, 3])'
             ],
             'pandas.core.series.Series.reindex': ['*'],
+            'pandas.core.series.Series.autocorr': ['*'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': [
@@ -461,14 +465,12 @@ class DoctestTest(unittest.TestCase):
                 's1.append(s2, verify_integrity=True)',
             ],
             # Throws NotImplementedError when modifying df
-            'pandas.core.series.Series.autocorr': ['*'],
             'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
             'pandas.core.series.Series.duplicated': ['*'],
-            'pandas.core.series.Series.explode': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
@@ -718,7 +720,6 @@ class DoctestTest(unittest.TestCase):
             'crosstab': ['*'],
             'cut': ['*'],
             'eval': ['*'],
-            'factorize': ['*'],
             'get_dummies': ['*'],
             'infer_freq': ['*'],
             'lreshape': ['*'],
@@ -737,6 +738,7 @@ class DoctestTest(unittest.TestCase):
             'wide_to_long': ['*'],
         },
         wont_implement_ok={
+            'factorize': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
             'melt': [

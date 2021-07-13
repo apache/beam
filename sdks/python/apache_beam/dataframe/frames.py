@@ -103,6 +103,11 @@ UNLIFTABLE_AGGREGATIONS = [
     'median',
     'quantile',
     'describe',
+    'sem',
+    'mad',
+    'skew',
+    'kurt',
+    'kurtosis',
     # TODO: The below all have specialized distributed
     # implementations, but they require tracking
     # multiple intermediate series, which is difficult
@@ -111,7 +116,7 @@ UNLIFTABLE_AGGREGATIONS = [
     'var',
     'corr',
     'cov',
-    'nunique'
+    'nunique',
 ]
 ALL_AGGREGATIONS = (
     LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
@@ -611,6 +616,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
+  at_time = frame_base._elementwise_method(
+      'at_time', base=pd.core.generic.NDFrame)
+  between_time = frame_base._elementwise_method(
+      'between_time', base=pd.core.generic.NDFrame)
   copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
 
   @frame_base.with_docs_from(pd.DataFrame)
@@ -1027,6 +1036,21 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   rolling = frame_base.wont_implement_method(
       pd.DataFrame, 'rolling', reason='event-time-semantics')
 
+  to_xarray = frame_base.wont_implement_method(
+      pd.DataFrame, 'to_xarray', reason='non-deferred-result')
+  to_clipboard = frame_base.wont_implement_method(
+      pd.DataFrame, 'to_clipboard', reason="non-deferred-result")
+
+  swapaxes = frame_base.wont_implement_method(
+      pd.Series, 'swapaxes', reason="non-deferred-columns")
+  infer_object = frame_base.wont_implement_method(
+      pd.Series, 'infer_objects', reason="non-deferred-columns")
+
+  ewm = frame_base.wont_implement_method(
+      pd.Series, 'ewm', reason="event-time-semantics")
+  expanding = frame_base.wont_implement_method(
+      pd.Series, 'expanding', reason="event-time-semantics")
+
   sparse = property(
       frame_base.not_implemented_method(
           'sparse', 'BEAM-12425', base_type=pd.DataFrame))
@@ -1210,6 +1234,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   ravel = frame_base.wont_implement_method(
       pd.Series, 'ravel', reason="non-deferred-result")
 
+  slice_shift = frame_base.wont_implement_method(
+      pd.Series, 'slice_shift', reason="deprecated")
+  tshift = frame_base.wont_implement_method(
+      pd.Series, 'tshift', reason="deprecated")
+
   rename = frame_base._elementwise_method('rename', base=pd.Series)
   between = frame_base._elementwise_method('between', base=pd.Series)
 
@@ -1223,6 +1252,20 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       base=pd.DataFrame,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def explode(self, ignore_index):
+    # ignoring the index will not preserve it
+    preserves = (
+        partitionings.Singleton() if ignore_index else partitionings.Index())
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'explode',
+            lambda s: s.explode(ignore_index), [self._expr],
+            preserves_partition_by=preserves,
+            requires_partition_by=partitionings.Arbitrary()))
 
   @frame_base.with_docs_from(pd.DataFrame)
   def dot(self, other):
@@ -1640,6 +1683,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   sum = _agg_method(pd.Series, 'sum')
   mean = _agg_method(pd.Series, 'mean')
   median = _agg_method(pd.Series, 'median')
+  sem = _agg_method(pd.Series, 'sem')
+  mad = _agg_method(pd.Series, 'mad')
+  skew = _agg_method(pd.Series, 'skew')
+  kurt = _agg_method(pd.Series, 'kurt')
+  kurtosis = _agg_method(pd.Series, 'kurtosis')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')
@@ -1661,6 +1709,25 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'searchsorted', reason='order-sensitive')
   shift = frame_base.wont_implement_method(
       pd.Series, 'shift', reason='order-sensitive')
+  pct_change = frame_base.wont_implement_method(
+      pd.Series, 'pct_change', reason='order-sensitive')
+  is_monotonic = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic', reason='order-sensitive')
+  is_monotonic_increasing = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic_increasing', reason='order-sensitive')
+  is_monotonic_decreasing = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic_decreasing', reason='order-sensitive')
+  asof = frame_base.wont_implement_method(
+      pd.Series, 'asof', reason='order-sensitive')
+  first_valid_index = frame_base.wont_implement_method(
+      pd.Series, 'first_valid_index', reason='order-sensitive')
+  last_valid_index = frame_base.wont_implement_method(
+      pd.Series, 'last_valid_index', reason='order-sensitive')
+  autocorr = frame_base.wont_implement_method(
+      pd.Series, 'autocorr', reason='order-sensitive')
+  iat = property(
+      frame_base.wont_implement_method(
+          pd.Series, 'iat', reason='order-sensitive'))
 
   head = frame_base.wont_implement_method(
       pd.Series, 'head', explanation=_PEEK_METHOD_EXPLANATION)
@@ -1671,6 +1738,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   memory_usage = frame_base.wont_implement_method(
       pd.Series, 'memory_usage', reason="non-deferred-result")
+  nbytes = frame_base.wont_implement_method(
+      pd.Series, 'nbytes', reason="non-deferred-result")
+  to_list = frame_base.wont_implement_method(
+      pd.Series, 'to_list', reason="non-deferred-result")
+
+  factorize = frame_base.wont_implement_method(
+      pd.Series, 'factorize', reason="non-deferred-columns")
 
   # In Series __contains__ checks the index
   __contains__ = frame_base.wont_implement_method(
@@ -2607,6 +2681,20 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   interpolate = frame_base.wont_implement_method(pd.DataFrame, 'interpolate',
                                                  reason='order-sensitive')
 
+  pct_change = frame_base.wont_implement_method(
+      pd.DataFrame, 'pct_change', reason='order-sensitive')
+  asof = frame_base.wont_implement_method(
+      pd.DataFrame, 'asof', reason='order-sensitive')
+  first_valid_index = frame_base.wont_implement_method(
+      pd.DataFrame, 'first_valid_index', reason='order-sensitive')
+  last_valid_index = frame_base.wont_implement_method(
+      pd.DataFrame, 'last_valid_index', reason='order-sensitive')
+  iat = property(frame_base.wont_implement_method(
+      pd.DataFrame, 'iat', reason='order-sensitive'))
+
+  lookup = frame_base.wont_implement_method(
+      pd.DataFrame, 'lookup', reason='deprecated')
+
   head = frame_base.wont_implement_method(pd.DataFrame, 'head',
       explanation=_PEEK_METHOD_EXPLANATION)
   tail = frame_base.wont_implement_method(pd.DataFrame, 'tail',
@@ -3225,6 +3313,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   nunique = _agg_method(pd.DataFrame, 'nunique')
   std = _agg_method(pd.DataFrame, 'std')
   var = _agg_method(pd.DataFrame, 'var')
+  sem = _agg_method(pd.DataFrame, 'sem')
+  mad = _agg_method(pd.DataFrame, 'mad')
+  skew = _agg_method(pd.DataFrame, 'skew')
+  kurt = _agg_method(pd.DataFrame, 'kurt')
+  kurtosis = _agg_method(pd.DataFrame, 'kurtosis')
 
   take = frame_base.wont_implement_method(pd.DataFrame, 'take',
                                           reason='deprecated')
@@ -3369,7 +3462,6 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       raise NotImplementedError(
           "dropna=False does not work as intended in the Beam DataFrame API "
           "when grouping on multiple columns or indexes (See BEAM-12495).")
-
 
   def __getattr__(self, name):
     return DeferredGroupBy(
@@ -3614,6 +3706,11 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   shift = frame_base.wont_implement_method(DataFrameGroupBy, 'shift',
                                            reason='order-sensitive')
 
+  pct_change = frame_base.wont_implement_method(DataFrameGroupBy, 'pct_change',
+                                                reason='order-sensitive')
+  ohlc = frame_base.wont_implement_method(DataFrameGroupBy, 'ohlc',
+                                          reason='order-sensitive')
+
   # TODO(BEAM-12169): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method(
       DataFrameGroupBy, '__len__', reason="non-deferred-result")
@@ -3626,6 +3723,13 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       DataFrameGroupBy, 'resample', reason='event-time-semantics')
   rolling = frame_base.wont_implement_method(
       DataFrameGroupBy, 'rolling', reason='event-time-semantics')
+  ewm = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'ewm', reason="event-time-semantics")
+  expanding = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'expanding', reason="event-time-semantics")
+
+  tshift = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'tshift', reason="deprecated")
 
 def _maybe_project_func(projection: Optional[List[str]]):
   """ Returns identity func if projection is empty or None, else returns
@@ -3732,6 +3836,10 @@ for meth in LIFTABLE_AGGREGATIONS:
 for meth in LIFTABLE_WITH_SUM_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth, postagg_meth='sum'))
 for meth in UNLIFTABLE_AGGREGATIONS:
+  if meth in ('kurt', 'kurtosis'):
+    # pandas doesn't currently allow kurtosis on GroupBy:
+    # https://github.com/pandas-dev/pandas/issues/40139
+    continue
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
 def _check_str_or_np_builtin(agg_func, func_list):
@@ -3750,7 +3858,7 @@ def _is_unliftable(agg_func):
   return _check_str_or_np_builtin(agg_func, UNLIFTABLE_AGGREGATIONS)
 
 NUMERIC_AGGREGATIONS = ['max', 'min', 'prod', 'sum', 'mean', 'median', 'std',
-                        'var']
+                        'var', 'sem', 'mad', 'skew', 'kurt', 'kurtosis']
 
 def _is_numeric(agg_func):
   return _check_str_or_np_builtin(agg_func, NUMERIC_AGGREGATIONS)
@@ -4376,6 +4484,10 @@ for name in ['__neg__', '__pos__', '__invert__']:
 
 DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
 DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
+DeferredSeries.subtract = DeferredSeries.sub  # type: ignore
+DeferredDataFrame.subtract = DeferredDataFrame.sub  # type: ignore
+DeferredSeries.divide = DeferredSeries.div  # type: ignore
+DeferredDataFrame.divide = DeferredDataFrame.div  # type: ignore
 
 
 def _slice_parts(s):

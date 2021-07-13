@@ -40,6 +40,7 @@ from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.pvalue import AsSideInput
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
@@ -63,6 +64,7 @@ from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
@@ -741,14 +743,40 @@ class Reshuffle(PTransform):
     return Reshuffle()
 
 
+def fn_takes_side_inputs(fn):
+  try:
+    signature = get_signature(fn)
+  except TypeError:
+    # We can't tell; maybe it does.
+    return True
+
+  return (
+      len(signature.parameters) > 1 or any(
+          p.kind == p.VAR_POSITIONAL or p.kind == p.VAR_KEYWORD
+          for p in signature.parameters.values()))
+
+
 @ptransform_fn
-def WithKeys(pcoll, k):
+def WithKeys(pcoll, k, *args, **kwargs):
   """PTransform that takes a PCollection, and either a constant key or a
   callable, and returns a PCollection of (K, V), where each of the values in
   the input PCollection has been paired with either the constant key or a key
-  computed from the value.
+  computed from the value.  The callable may optionally accept positional or
+  keyword arguments, which should be passed to WithKeys directly.  These may
+  be either SideInputs or static (non-PCollection) values, such as ints.
   """
   if callable(k):
+    if fn_takes_side_inputs(k):
+      if all([isinstance(arg, AsSideInput)
+              for arg in args]) and all([isinstance(kwarg, AsSideInput)
+                                         for kwarg in kwargs.values()]):
+        return pcoll | Map(
+            lambda v,
+            *args,
+            **kwargs: (k(v, *args, **kwargs), v),
+            *args,
+            **kwargs)
+      return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
     return pcoll | Map(lambda v: (k(v), v))
   return pcoll | Map(lambda v: (k, v))
 

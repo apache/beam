@@ -301,6 +301,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             fakeBigQueryServices);
@@ -372,8 +373,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
             .setMaxStreamCount(requestedStreamCount)
             .build();
 
@@ -394,7 +394,8 @@ public class BigQueryIOStorageQueryTest {
 
     ReadSession.Builder builder =
         ReadSession.newBuilder()
-            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()))
+            .setDataFormat(DataFormat.AVRO);
     for (int i = 0; i < expectedStreamCount; i++) {
       builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
@@ -412,6 +413,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -465,8 +467,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
             .setMaxStreamCount(1024)
             .build();
 
@@ -487,7 +488,8 @@ public class BigQueryIOStorageQueryTest {
 
     ReadSession.Builder builder =
         ReadSession.newBuilder()
-            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()))
+            .setDataFormat(DataFormat.AVRO);
     for (int i = 0; i < 1024; i++) {
       builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
@@ -505,6 +507,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -645,6 +648,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            DataFormat.AVRO,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -697,8 +701,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setDataFormat(DataFormat.AVRO))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
             .setMaxStreamCount(10)
             .build();
 
@@ -716,6 +719,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ null,
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -739,6 +743,7 @@ public class BigQueryIOStorageQueryTest {
             /* location = */ "asia-northeast1",
             /* queryTempDataset = */ null,
             /* kmsKey = */ null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             fakeBigQueryServices);
@@ -790,6 +795,7 @@ public class BigQueryIOStorageQueryTest {
             .setName("readSessionName")
             .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
             .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .setDataFormat(DataFormat.AVRO)
             .build();
 
     ReadRowsRequest expectedReadRowsRequest =

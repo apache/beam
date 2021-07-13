@@ -44,6 +44,7 @@ dependencies {
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
   compile project(":runners:core-construction-java")
+  compile project(":sdks:java:extensions:arrow")
   compile library.java.avro
   compile library.java.bigdataoss_util
   compile library.java.error_prone_annotations
@@ -128,9 +129,12 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_36_0
   compile library.java.vendored_guava_26_0_jre
+  compile library.java.arrow_memory_core
+  compile library.java.arrow_vector
 
   compile "org.threeten:threetenbp:1.4.4"
 
+  testCompile "org.apache.arrow:arrow-memory-netty:4.0.0"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntime")
