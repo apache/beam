@@ -68,7 +68,7 @@ class DoctestTest(unittest.TestCase):
                 "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
             ],
             'pandas.core.generic.NDFrame.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
@@ -165,7 +165,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.cumprod': ['*'],
             'pandas.core.frame.DataFrame.diff': ['*'],
             'pandas.core.frame.DataFrame.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
@@ -273,6 +273,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.set_index': [
                 "df.set_index([s, s**2])",
             ],
+
+            # TODO(BEAM-12495)
+            'pandas.core.frame.DataFrame.value_counts': [
+              'df.value_counts(dropna=False)'
+            ],
         },
         skip={
             # s2 created with reindex
@@ -309,6 +314,14 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
+
+            # Raises right exception, but testing framework has matching issues.
+            # Tested in `frames_test.py`.
+            'pandas.core.frame.DataFrame.insert': [
+                'df',
+                'df.insert(1, "newcol", [99, 99])',
+                'df.insert(0, "col1", [100, 100], allow_duplicates=True)'
+            ],
 
             'pandas.core.frame.DataFrame.to_records': [
                 'df.index = df.index.rename("I")',
@@ -393,7 +406,7 @@ class DoctestTest(unittest.TestCase):
                 's.dot(arr)',  # non-deferred result
             ],
             'pandas.core.series.Series.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
@@ -681,12 +694,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.SeriesGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.groupby.generic.SeriesGroupBy.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
