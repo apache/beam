@@ -16,7 +16,6 @@
 #
 # pytype: skip-file
 
-
 # Run as
 #
 # pytest samza_runner_test.py[::TestClass::test_case] \
@@ -36,6 +35,7 @@ from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
   _use_grpc = True
@@ -79,7 +79,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     known_args, unknown_args = parser.parse_known_args(
         shlex.split(test_pipeline_options))
     if unknown_args:
-        _LOGGER.warning('Discarding unrecognized arguments %s' % unknown_args)
+      _LOGGER.warning('Discarding unrecognized arguments %s' % unknown_args)
     self.set_samza_job_server_jar(
         known_args.samza_job_server_jar or
         job_server.JavaJarJobServer.path_to_beam_jar(
@@ -118,7 +118,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
 
   @classmethod
   def get_runner(cls):
-      return portable_runner.PortableRunner()
+    return portable_runner.PortableRunner()
 
   @classmethod
   def get_expansion_service(cls):
