@@ -23,6 +23,7 @@ import static org.apache.samza.config.TaskConfig.TASK_SHUTDOWN_MS;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.transforms.PTransformOverrideRegistrar;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
@@ -105,7 +106,12 @@ public class SamzaPipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    return waitUntilFinish(null);
+    // LI-specific: clear the PTransformOverrideRegistrar when pipeline is terminal.
+    PipelineResult.State pipelineResult = waitUntilFinish(null);
+    if (pipelineResult.isTerminal()) {
+      PTransformOverrideRegistrar.clear();
+    }
+    return pipelineResult;
   }
 
   @Override

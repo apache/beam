@@ -32,6 +32,7 @@ import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.transforms.PTransformOverrideRegistrar;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -89,7 +90,12 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State waitUntilFinish() {
-    return waitUntilFinish(Duration.millis(-1));
+    // LI-specific: clear the PTransformOverrideRegistrar when pipeline is terminal.
+    PipelineResult.State pipelineResult = waitUntilFinish(Duration.millis(-1));
+    if (pipelineResult.isTerminal()) {
+      PTransformOverrideRegistrar.clear();
+    }
+    return pipelineResult;
   }
 
   @Override
