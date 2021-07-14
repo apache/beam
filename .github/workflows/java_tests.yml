@@ -115,16 +115,11 @@ jobs:
       - name: "Java Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
+        run: python sync_github_actions.py $name $jobstatus $workflow_id
         env:
           jobstatus: ${{ job.status }}
           name: java_unit_tests-${{matrix.os}}
           workflow_id: ${{ github.run_id }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
@@ -160,16 +155,11 @@ jobs:
       - name: "Java Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
+        run: python sync_github_actions.py $name $jobstatus $workflow_id
         env:
           jobstatus: ${{ job.status }}
           workflow_id: ${{ github.run_id }}
           name: java_word_count_direct_runner-${{matrix.os}}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
   java_wordcount_dataflow:
     name: 'Java Wordcount Dataflow'
@@ -228,13 +218,8 @@ jobs:
       - name: "Java Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
+        run: python sync_github_actions.py $name $jobstatus $workflow_id
         env:
           jobstatus: ${{ job.status }}
           name: java_word_count_dataflow-${{matrix.os}}
           workflow_id: ${{ github.run_id }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
