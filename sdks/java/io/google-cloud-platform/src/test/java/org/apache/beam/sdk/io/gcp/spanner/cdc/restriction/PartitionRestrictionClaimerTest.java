@@ -207,21 +207,24 @@ public class PartitionRestrictionClaimerTest {
     }
 
     private PartitionRestriction partitionRestrictionFrom(PartitionMode mode) {
+      final Timestamp startTimestamp = Timestamp.MIN_VALUE;
+      final Timestamp endTimestamp = Timestamp.MAX_VALUE;
       switch (mode) {
         case QUERY_CHANGE_STREAM:
-          return PartitionRestriction.queryChangeStream(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE);
+          return PartitionRestriction.queryChangeStream(startTimestamp, endTimestamp);
         case WAIT_FOR_CHILD_PARTITIONS:
-          return PartitionRestriction.waitForChildPartitions();
+          return PartitionRestriction.waitForChildPartitions(startTimestamp, endTimestamp);
         case FINISH_PARTITION:
-          return PartitionRestriction.finishPartition();
+          return PartitionRestriction.finishPartition(startTimestamp, endTimestamp);
         case WAIT_FOR_PARENT_PARTITIONS:
-          return PartitionRestriction.waitForParentPartitions();
+          return PartitionRestriction.waitForParentPartitions(startTimestamp, endTimestamp);
         case DELETE_PARTITION:
-          return PartitionRestriction.deletePartition();
+          return PartitionRestriction.deletePartition(startTimestamp, endTimestamp);
         case DONE:
-          return PartitionRestriction.done();
+          return PartitionRestriction.done(startTimestamp, endTimestamp);
         case STOP:
-          return PartitionRestriction.stop();
+          return PartitionRestriction.stop(
+              PartitionRestriction.queryChangeStream(startTimestamp, endTimestamp));
         default:
           throw new IllegalArgumentException("Unknown mode " + mode);
       }
