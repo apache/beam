@@ -211,6 +211,11 @@ public class BeamFnLoggingClient implements AutoCloseable {
                       .setSeconds(record.getMillis() / 1000)
                       .setNanos((int) (record.getMillis() % 1000) * 1_000_000));
 
+      String instructionId = BeamFnLoggingMDC.getInstructionId();
+      if (instructionId != null) {
+        builder.setInstructionId(instructionId);
+      }
+
       Throwable thrown = record.getThrown();
       if (thrown != null) {
         builder.setTrace(getStackTraceAsString(thrown));
