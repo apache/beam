@@ -40,6 +40,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import io.grpc.Status;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -55,11 +56,16 @@ import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.Element;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.FlushBuffer;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.FlushBufferImpl;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.RpcWriteAttemptImpl;
+import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.StatusCodeAwareBackoff;
+import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.StatusCodeAwareBackoff.BackoffDuration;
+import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.StatusCodeAwareBackoff.BackoffResult;
+import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.StatusCodeAwareBackoff.BackoffResults;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.WriteRampUp;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -303,23 +309,21 @@ public final class RpcQosTest {
     // try 1
     readAttempt.recordRequestStart(monotonicClock.instant());
     readAttempt.recordRequestFailed(monotonicClock.instant());
-    readAttempt.checkCanRetry(RETRYABLE_ERROR);
+    readAttempt.checkCanRetry(monotonicClock.instant(), RETRYABLE_ERROR);
     // try 2
     readAttempt.recordRequestStart(monotonicClock.instant());
     readAttempt.recordRequestFailed(monotonicClock.instant());
-    readAttempt.checkCanRetry(RETRYABLE_ERROR);
+    readAttempt.checkCanRetry(monotonicClock.instant(), RETRYABLE_ERROR);
     // try 3
     readAttempt.recordRequestStart(monotonicClock.instant());
     readAttempt.recordRequestFailed(monotonicClock.instant());
     try {
-      readAttempt.checkCanRetry(RETRYABLE_ERROR);
+      readAttempt.checkCanRetry(monotonicClock.instant(), RETRYABLE_ERROR);
       fail("expected retry to be exhausted after third attempt");
     } catch (ApiException e) {
       assertSame(e, RETRYABLE_ERROR);
     }
 
-    verify(sleeper, times(2))
-        .sleep(anyLong()); // happens in checkCanRetry when the backoff is checked
     verify(counterThrottlingMs, times(0)).inc(anyLong());
     verify(counterRpcFailures, times(3)).inc();
     verify(counterRpcSuccesses, times(0)).inc();
@@ -338,14 +342,12 @@ public final class RpcQosTest {
     // try 1
     readAttempt.recordRequestFailed(monotonicClock.instant());
     try {
-      readAttempt.checkCanRetry(NON_RETRYABLE_ERROR);
+      readAttempt.checkCanRetry(monotonicClock.instant(), NON_RETRYABLE_ERROR);
       fail("expected non-retryable error to throw error on first occurrence");
     } catch (ApiException e) {
       assertSame(e, NON_RETRYABLE_ERROR);
     }
 
-    verify(sleeper, times(1))
-        .sleep(anyLong()); // happens in checkCanRetry when the backoff is checked
     verify(counterThrottlingMs, times(0)).inc(anyLong());
     verify(counterRpcFailures, times(1)).inc();
     verify(counterRpcSuccesses, times(0)).inc();
@@ -364,14 +366,12 @@ public final class RpcQosTest {
     // try 1
     readAttempt.recordRequestFailed(monotonicClock.instant());
     try {
-      readAttempt.checkCanRetry(RETRYABLE_ERROR_WITH_NON_RETRYABLE_CODE);
+      readAttempt.checkCanRetry(monotonicClock.instant(), RETRYABLE_ERROR_WITH_NON_RETRYABLE_CODE);
       fail("expected non-retryable error to throw error on first occurrence");
     } catch (ApiException e) {
       assertSame(e, RETRYABLE_ERROR_WITH_NON_RETRYABLE_CODE);
     }
 
-    verify(sleeper, times(1))
-        .sleep(anyLong()); // happens in checkCanRetry when the backoff is checked
     verify(counterThrottlingMs, times(0)).inc(anyLong());
     verify(counterRpcFailures, times(1)).inc();
     verify(counterRpcSuccesses, times(0)).inc();
@@ -390,7 +390,7 @@ public final class RpcQosTest {
     readAttempt.recordRequestStart(monotonicClock.instant());
     readAttempt.recordRequestFailed(monotonicClock.instant());
     try {
-      readAttempt.checkCanRetry(RETRYABLE_ERROR);
+      readAttempt.checkCanRetry(monotonicClock.instant(), RETRYABLE_ERROR);
       fail("expected error to be re-thrown due to max attempts exhaustion");
     } catch (ApiException e) {
       // expected
@@ -582,6 +582,53 @@ public final class RpcQosTest {
     doTest_isCodeRetryable(Code.UNAVAILABLE, true);
     doTest_isCodeRetryable(Code.UNIMPLEMENTED, false);
     doTest_isCodeRetryable(Code.UNKNOWN, true);
+  }
+
+  @Test
+  public void statusCodeAwareBackoff_graceCodeBackoffWithin60sec() {
+
+    StatusCodeAwareBackoff backoff =
+        new StatusCodeAwareBackoff(
+            random, 5, Duration.standardSeconds(5), ImmutableSet.of(Code.UNAVAILABLE_VALUE));
+
+    BackoffResult backoffResult1 =
+        backoff.nextBackoff(Instant.ofEpochMilli(1), Code.UNAVAILABLE_VALUE);
+    assertEquals(BackoffResults.NONE, backoffResult1);
+
+    BackoffResult backoffResult2 =
+        backoff.nextBackoff(Instant.ofEpochMilli(2), Code.UNAVAILABLE_VALUE);
+    assertEquals(new BackoffDuration(Duration.millis(6_091)), backoffResult2);
+
+    BackoffResult backoffResult3 =
+        backoff.nextBackoff(Instant.ofEpochMilli(60_100), Code.UNAVAILABLE_VALUE);
+    assertEquals(BackoffResults.NONE, backoffResult3);
+  }
+
+  @Test
+  public void statusCodeAwareBackoff_exhausted_attemptCount() {
+
+    StatusCodeAwareBackoff backoff =
+        new StatusCodeAwareBackoff(random, 1, Duration.standardSeconds(5), Collections.emptySet());
+
+    BackoffResult backoffResult1 =
+        backoff.nextBackoff(Instant.ofEpochMilli(1), Code.UNAVAILABLE_VALUE);
+    assertEquals(BackoffResults.EXHAUSTED, backoffResult1);
+  }
+
+  @Test
+  public void statusCodeAwareBackoff_exhausted_cumulativeBackoff() {
+
+    StatusCodeAwareBackoff backoff =
+        new StatusCodeAwareBackoff(random, 3, Duration.standardSeconds(60), Collections.emptySet());
+
+    BackoffDuration backoff60Sec = new BackoffDuration(Duration.standardMinutes(1));
+    BackoffResult backoffResult1 =
+        backoff.nextBackoff(Instant.ofEpochMilli(1), Code.DEADLINE_EXCEEDED_VALUE);
+    assertEquals(backoff60Sec, backoffResult1);
+
+    BackoffResult backoffResult2 =
+        backoff.nextBackoff(Instant.ofEpochMilli(2), Code.DEADLINE_EXCEEDED_VALUE);
+    assertEquals(BackoffResults.EXHAUSTED, backoffResult2);
   }
 
   private IntStream from0To90By(int increment) {

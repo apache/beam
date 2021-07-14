@@ -26,8 +26,8 @@ import com.google.api.gax.rpc.ApiExceptionFactory;
 import com.google.cloud.firestore.v1.stub.FirestoreStub;
 import io.grpc.Status.Code;
 import java.net.SocketTimeoutException;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.HasRpcAttemptContext;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.V1FnRpcAttemptContext;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.HasRpcAttemptContext;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -62,9 +62,34 @@ abstract class BaseFirestoreV1FnTest<
     if (rpcAttemptContext instanceof V1FnRpcAttemptContext) {
       V1FnRpcAttemptContext v1FnRpcAttemptContext = (V1FnRpcAttemptContext) rpcAttemptContext;
       switch (v1FnRpcAttemptContext) {
+        case BatchGetDocuments:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchGetDocuments",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
         case BatchWrite:
           assertEquals(
               "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchWrite",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
+        case ListCollectionIds:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListCollectionIds",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
+        case ListDocuments:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListDocuments",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
+        case PartitionQuery:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.PartitionQuery",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
+        case RunQuery:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.RunQuery",
               v1FnRpcAttemptContext.getNamespace());
           break;
         default:
