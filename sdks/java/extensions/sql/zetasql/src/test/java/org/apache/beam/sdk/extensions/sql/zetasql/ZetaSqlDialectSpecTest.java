@@ -3840,7 +3840,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)")
   public void testZetaSQLBitAnd() {
     String sql = "SELECT BIT_AND(row_id) FROM table_all_types GROUP BY bool_col";
 
@@ -3851,6 +3850,25 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValue(1L).build(),
             Row.withSchema(schema).addValue(0L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testArrayAggNulls() {
+    String sql = "SELECT ARRAY_AGG(x) FROM UNNEST([1, NULL, 3]) AS x";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema =
+        Schema.builder()
+            .addField(
+                Field.of(
+                    "field1",
+                    FieldType.array(FieldType.of(Schema.TypeName.INT64).withNullable(true))))
+            .build();
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addArray(1L, (Long) null, 3L).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -3898,8 +3916,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore(
-      "Null values are not handled properly, so BIT_XOR is temporarily removed from SupportedZetaSqlBuiltinFunctions. https://issues.apache.org/jira/browse/BEAM-10379")
   public void testZetaSQLBitXor() {
     String sql = "SELECT BIT_XOR(x) AS bit_xor FROM UNNEST([5678, 1234]) AS x";
     PCollection<Row> stream = execute(sql);

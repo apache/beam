@@ -22,11 +22,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.function.Function;
-import org.apache.beam.sdk.coders.BigDecimalCoder;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
@@ -56,12 +52,13 @@ public class BeamBuiltinAggregations {
       BUILTIN_AGGREGATOR_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
               .put("ANY_VALUE", typeName -> Sample.anyValueCombineFn())
-              .put("COUNT", typeName -> Count.combineFn())
-              .put("MAX", BeamBuiltinAggregations::createMax)
-              .put("MIN", BeamBuiltinAggregations::createMin)
-              .put("SUM", BeamBuiltinAggregations::createSum)
-              .put("$SUM0", BeamBuiltinAggregations::createSum)
-              .put("AVG", BeamBuiltinAggregations::createAvg)
+              // Drop null elements for these aggregations BEAM-10379
+              .put("COUNT", typeName -> new DropNullFn(Count.combineFn()))
+              .put("MAX", typeName -> new DropNullFn(BeamBuiltinAggregations.createMax(typeName)))
+              .put("MIN", typeName -> new DropNullFn(BeamBuiltinAggregations.createMin(typeName)))
+              .put("SUM", typeName -> new DropNullFn(BeamBuiltinAggregations.createSum(typeName)))
+              .put("$SUM0", typeName -> new DropNullFn(BeamBuiltinAggregations.createSum(typeName)))
+              .put("AVG", typeName -> new DropNullFn(BeamBuiltinAggregations.createAvg(typeName)))
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
               .put("BIT_XOR", BeamBuiltinAggregations::createBitXOr)
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
@@ -256,6 +253,40 @@ public class BeamBuiltinAggregations {
     @Override
     public BigDecimal apply(BigDecimal left, BigDecimal right) {
       return left.add(right);
+    }
+  }
+
+  static class DropNullFn<T> extends CombineFn<T, Object, Object> {
+    CombineFn<T, Object, Object> combineFn;
+
+    DropNullFn(CombineFn<T, Object, Object> combineFn) {
+      this.combineFn = combineFn;
+    }
+
+    @Override
+    public Object createAccumulator() {
+      return combineFn.createAccumulator();
+    }
+
+    @Override
+    public Object addInput(Object accumulator, T input) {
+      return (input == null) ? accumulator : combineFn.addInput(accumulator, input);
+    }
+
+    @Override
+    public Object mergeAccumulators(Iterable<Object> accumulators) {
+      return combineFn.mergeAccumulators(accumulators);
+    }
+
+    @Override
+    public Object extractOutput(Object accumulator) {
+      return combineFn.extractOutput(accumulator);
+    }
+
+    @Override
+    public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder)
+        throws CannotProvideCoderException {
+      return combineFn.getAccumulatorCoder(registry, inputCoder);
     }
   }
 
