@@ -69,6 +69,12 @@ var flinkFilters = []string{
 	"TestXLang_Combine.*",
 }
 
+var samzaFilters = []string{
+    // TODO(BEAM-12608): Samza tests invalid encoding.
+    "TestReshuffle",
+    "TestReshuffleKV",
+}
+
 var sparkFilters = []string{
 	// TODO(BEAM-11498): XLang tests broken with Spark runner.
 	"TestXLang.*",
@@ -115,6 +121,8 @@ func CheckFilters(t *testing.T) {
 		filters = portableFilters
 	case "flink", "FlinkRunner":
 		filters = flinkFilters
+	case "samza", "SamzaRunner":
+		filters = samzaFilters
 	case "spark", "SparkRunner":
 		filters = sparkFilters
 	case "dataflow", "DataflowRunner":

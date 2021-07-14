@@ -20,8 +20,8 @@ package org.apache.beam.runners.samza;
 import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.slf4j.Logger;
@@ -37,8 +37,7 @@ public class SamzaJobServerDriver extends JobServerDriver {
 
   public static void main(String[] args) {
     // TODO: Expose the fileSystem related options.
-    PortablePipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(PortablePipelineOptions.class);
+    PipelineOptions options = PipelineOptionsFactory.create();
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
     fromParams(args).run();
