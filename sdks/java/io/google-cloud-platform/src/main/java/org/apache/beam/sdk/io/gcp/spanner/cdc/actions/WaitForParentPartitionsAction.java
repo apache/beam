@@ -45,16 +45,16 @@ public class WaitForParentPartitionsAction {
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
     final String token = partition.getPartitionToken();
-    LOG.info("[" + token + "] Waiting for parent partitions");
+    LOG.debug("[" + token + "] Waiting for parent partitions");
 
     if (!tracker.tryClaim(PartitionPosition.waitForParentPartitions())) {
-      LOG.info("[" + token + "] Could not claim waitForParentPartitions(), stopping");
+      LOG.debug("[" + token + "] Could not claim waitForParentPartitions(), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     long numberOfExistingParents = partitionMetadataDao.countExistingParents(token);
-    LOG.info("[" + token + "] Number of existing parents is " + numberOfExistingParents);
+    LOG.debug("[" + token + "] Number of existing parents is " + numberOfExistingParents);
     if (numberOfExistingParents > 0) {
-      LOG.info(
+      LOG.debug(
           "["
               + token
               + "] Parents still exist ("
@@ -63,7 +63,7 @@ public class WaitForParentPartitionsAction {
       return Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration));
     }
 
-    LOG.info("[" + token + "] Wait for parent partitions action completed successfully");
+    LOG.debug("[" + token + "] Wait for parent partitions action completed successfully");
     return Optional.empty();
   }
 }

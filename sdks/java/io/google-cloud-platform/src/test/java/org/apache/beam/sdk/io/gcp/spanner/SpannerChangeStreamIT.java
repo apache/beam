@@ -161,6 +161,7 @@ public class SpannerChangeStreamIT {
                 SpannerIO.readChangeStream()
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
+                    .withMetadataDatabase(databaseId)
                     .withInclusiveStartAt(now)
                     .withInclusiveEndAt(after30Seconds))
             .apply(

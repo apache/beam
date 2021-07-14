@@ -42,11 +42,11 @@ public class DataChangeRecordAction {
       OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
     final String token = partition.getPartitionToken();
-    LOG.info("[" + token + "] Processing data record " + record.getCommitTimestamp());
+    LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(commitTimestamp))) {
-      LOG.info(
+      LOG.debug(
           "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
@@ -54,7 +54,7 @@ public class DataChangeRecordAction {
     outputReceiver.output(record);
     watermarkEstimator.setWatermark(new Instant(commitTimestamp.toSqlTimestamp().getTime()));
 
-    LOG.info("[" + token + "] Data record action completed successfully");
+    LOG.debug("[" + token + "] Data record action completed successfully");
     return Optional.empty();
   }
 }

@@ -54,11 +54,11 @@ public class ChildPartitionsRecordAction {
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
     final String token = partition.getPartitionToken();
-    LOG.info("[" + token + "] Processing child partition record " + record);
+    LOG.debug("[" + token + "] Processing child partition record " + record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();
     if (!tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))) {
-      LOG.info(
+      LOG.debug(
           "[" + token + "] Could not claim queryChangeStream(" + startTimestamp + "), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
@@ -66,7 +66,7 @@ public class ChildPartitionsRecordAction {
 
     for (ChildPartition childPartition : record.getChildPartitions()) {
       if (isSplit(childPartition)) {
-        LOG.info("[" + token + "] Processing child partition split event");
+        LOG.debug("[" + token + "] Processing child partition split event");
         PARTITION_SPLIT_COUNTER.inc();
 
         final PartitionMetadata row =
@@ -80,7 +80,7 @@ public class ChildPartitionsRecordAction {
         // TODO: Make sure this does not fail if the rows already exist
         partitionMetadataDao.insert(row);
       } else {
-        LOG.info("[" + token + "] Processing child partition merge event");
+        LOG.debug("[" + token + "] Processing child partition merge event");
         PARTITION_MERGE_COUNTER.inc();
 
         partitionMetadataDao.runInTransaction(
@@ -90,7 +90,7 @@ public class ChildPartitionsRecordAction {
                       childPartition.getParentTokens(), Collections.singletonList(FINISHED));
 
               if (finishedParents == childPartition.getParentTokens().size() - 1) {
-                LOG.info(
+                LOG.debug(
                     "["
                         + token
                         + "] All parents are finished, inserting child partition "
@@ -102,7 +102,7 @@ public class ChildPartitionsRecordAction {
                         partition.getHeartbeatMillis(),
                         childPartition));
               } else {
-                LOG.info(
+                LOG.debug(
                     "["
                         + token
                         + "] At least one parent is not finished ("
@@ -119,7 +119,7 @@ public class ChildPartitionsRecordAction {
       }
     }
 
-    LOG.info("[" + token + "] Child partitions action completed successfully");
+    LOG.debug("[" + token + "] Child partitions action completed successfully");
     return Optional.empty();
   }
 

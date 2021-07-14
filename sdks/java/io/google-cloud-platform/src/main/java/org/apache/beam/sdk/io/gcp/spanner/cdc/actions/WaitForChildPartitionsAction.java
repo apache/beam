@@ -48,18 +48,18 @@ public class WaitForChildPartitionsAction {
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
     final String token = partition.getPartitionToken();
-    LOG.info("[" + token + "] Waiting for child partitions");
+    LOG.debug("[" + token + "] Waiting for child partitions");
 
     if (!tracker.tryClaim(PartitionPosition.waitForChildPartitions())) {
-      LOG.info("[" + token + "] Could not claim waitForChildPartitions(), stopping");
+      LOG.debug("[" + token + "] Could not claim waitForChildPartitions(), stopping");
       return Optional.of(ProcessContinuation.stop());
     }
     long numberOfUnscheduledChildren =
         partitionMetadataDao.countChildPartitionsInStates(
             token, Collections.singletonList(CREATED));
-    LOG.info("[" + token + "] Number of unscheduled children is " + numberOfUnscheduledChildren);
+    LOG.debug("[" + token + "] Number of unscheduled children is " + numberOfUnscheduledChildren);
     if (numberOfUnscheduledChildren > 0) {
-      LOG.info(
+      LOG.debug(
           "["
               + token
               + " ] Resuming, there are "
@@ -69,7 +69,7 @@ public class WaitForChildPartitionsAction {
       return Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration));
     }
 
-    LOG.info("[" + token + "] Wait for child partitions action completed successfully");
+    LOG.debug("[" + token + "] Wait for child partitions action completed successfully");
     return Optional.empty();
   }
 }

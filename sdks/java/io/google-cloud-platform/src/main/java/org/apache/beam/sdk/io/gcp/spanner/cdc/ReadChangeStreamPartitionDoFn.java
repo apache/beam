@@ -78,7 +78,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   @GetInitialWatermarkEstimatorState
   public Instant getInitialWatermarkEstimatorState(
       @Element PartitionMetadata partition, @Timestamp Instant currentElementTimestamp) {
-    LOG.info("[" + partition.getPartitionToken() + "] Get initial watermark estimator");
+    LOG.debug("[" + partition.getPartitionToken() + "] Get initial watermark estimator");
     return currentElementTimestamp;
   }
 
@@ -86,13 +86,13 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   public ManualWatermarkEstimator<Instant> newWatermarkEstimator(
       @Element PartitionMetadata partition,
       @WatermarkEstimatorState Instant watermarkEstimatorState) {
-    LOG.info("[" + partition.getPartitionToken() + "] New watermark estimator");
+    LOG.debug("[" + partition.getPartitionToken() + "] New watermark estimator");
     return new Manual(watermarkEstimatorState);
   }
 
   @GetInitialRestriction
   public PartitionRestriction initialRestriction(@Element PartitionMetadata partition) {
-    LOG.info("[" + partition.getPartitionToken() + "] Initial restriction");
+    LOG.debug("[" + partition.getPartitionToken() + "] Initial restriction");
     return PartitionRestriction.queryChangeStream(
         partition.getStartTimestamp(), partition.getEndTimestamp());
   }
@@ -100,19 +100,20 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   @NewTracker
   public PartitionRestrictionTracker newTracker(
       @Element PartitionMetadata partition, @Restriction PartitionRestriction restriction) {
-    LOG.info("[" + partition.getPartitionToken() + "] New tracker");
+    LOG.debug("[" + partition.getPartitionToken() + "] New tracker");
     return new PartitionRestrictionTracker(restriction);
   }
 
   @Setup
   public void setup() {
     final PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
-    ChangeStreamDao changeStreamDao = daoFactory.getChangeStreamDao();
-    ChangeStreamRecordMapper changeStreamRecordMapper = mapperFactory.changeStreamRecordMapper();
+    final ChangeStreamDao changeStreamDao = daoFactory.getChangeStreamDao();
+    final ChangeStreamRecordMapper changeStreamRecordMapper =
+        mapperFactory.changeStreamRecordMapper();
 
-    DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
-    HeartbeatRecordAction heartbeatRecordAction = actionFactory.heartbeatRecordAction();
-    ChildPartitionsRecordAction childPartitionsRecordAction =
+    final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
+    final HeartbeatRecordAction heartbeatRecordAction = actionFactory.heartbeatRecordAction();
+    final ChildPartitionsRecordAction childPartitionsRecordAction =
         actionFactory.childPartitionsRecordAction(partitionMetadataDao);
 
     this.queryChangeStreamAction =
@@ -177,7 +178,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
     final String token = partition.getPartitionToken();
-    LOG.info("[" + token + "] Processing element with restriction " + tracker.currentRestriction());
+    LOG.debug(
+        "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
 
     final PartitionMode mode = tracker.currentRestriction().getMode();
     switch (mode) {

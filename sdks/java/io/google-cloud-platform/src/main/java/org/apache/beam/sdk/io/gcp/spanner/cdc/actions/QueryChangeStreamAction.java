@@ -101,12 +101,12 @@ public class QueryChangeStreamAction {
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
           }
           if (maybeContinuation.isPresent()) {
-            LOG.info("[" + token + "] Continuation present, returning " + maybeContinuation);
+            LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
             return maybeContinuation;
           }
         }
       }
-      LOG.info("[" + token + "] = Query change stream action completed successfully");
+      LOG.debug("[" + token + "] = Query change stream action completed successfully");
       return Optional.empty();
     }
   }

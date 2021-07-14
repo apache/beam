@@ -68,7 +68,7 @@ public class PartitionRestrictionClaimer {
     final PartitionMode toMode = position.getMode();
 
     if (fromMode == STOP) {
-      LOG.info(
+      LOG.debug(
           "Try claim from ("
               + restriction
               + ","
