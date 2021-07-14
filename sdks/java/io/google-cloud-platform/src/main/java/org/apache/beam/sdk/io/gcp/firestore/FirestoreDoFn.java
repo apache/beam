@@ -46,7 +46,35 @@ abstract class FirestoreDoFn<InT, OutT> extends DoFn<InT, OutT> {
   @StartBundle
   public abstract void startBundle(DoFn<InT, OutT>.StartBundleContext context) throws Exception;
 
-  abstract static class WindowAwareDoFn<InT, OutT> extends FirestoreDoFn<InT, OutT> {
+  /**
+   * This class defines a common parent class for those DoFn which rely on the implicit window for
+   * emitting values while processing a bundle.
+   */
+  abstract static class ImplicitlyWindowedFirestoreDoFn<InT, OutT>
+      extends FirestoreDoFn<InT, OutT> {
+    /**
+     * {@link ProcessContext#element() context.element()} must be non-null, otherwise a
+     * NullPointerException will be thrown.
+     *
+     * @param context Context to source element from, and output to
+     * @see org.apache.beam.sdk.transforms.DoFn.ProcessElement
+     */
+    @ProcessElement
+    public abstract void processElement(DoFn<InT, OutT>.ProcessContext context) throws Exception;
+
+    /** @see org.apache.beam.sdk.transforms.DoFn.FinishBundle */
+    @FinishBundle
+    public abstract void finishBundle() throws Exception;
+  }
+
+  /**
+   * This class defines a common parent class for those DoFn which must explicitly track the window
+   * for emitting values while processing bundles. This is primarily necessary to support the
+   * ability to emit values during {@link #finishBundle(DoFn.FinishBundleContext)} where an output
+   * value must be explicitly correlated to a window.
+   */
+  abstract static class ExplicitlyWindowedFirestoreDoFn<InT, OutT>
+      extends FirestoreDoFn<InT, OutT> {
     /**
      * {@link ProcessContext#element() context.element()} must be non-null, otherwise a
      * NullPointerException will be thrown.
