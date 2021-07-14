@@ -23,6 +23,7 @@ import (
 
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/samza"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
 )
 
