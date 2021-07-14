@@ -150,7 +150,7 @@ public class BeamBuiltinAggregations {
       case BYTE:
         return new ByteSum();
       case INT64:
-        return Sum.ofLongs();
+        return new LongSum();
       case FLOAT:
         return new FloatSum();
       case DOUBLE:
@@ -242,6 +242,13 @@ public class BeamBuiltinAggregations {
     @Override
     public Float apply(Float left, Float right) {
       return left + right;
+    }
+  }
+
+  static class LongSum extends Combine.BinaryCombineFn<Long> {
+    @Override
+    public Long apply(Long left, Long right) {
+      return Math.addExact(left, right);
     }
   }
 

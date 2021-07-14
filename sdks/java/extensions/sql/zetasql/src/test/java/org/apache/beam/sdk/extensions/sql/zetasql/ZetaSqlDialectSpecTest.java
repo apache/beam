@@ -3856,6 +3856,34 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testInt64SumOverflow() {
+    String sql =
+        "SELECT SUM(col1)\n"
+            + "FROM (SELECT CAST(9223372036854775807 as int64) as col1 UNION ALL\n"
+            + "      SELECT CAST(1 as int64))\n";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    thrown.expect(RuntimeException.class);
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testInt64SumUnderflow() {
+    String sql =
+        "SELECT SUM(col1)\n"
+            + "FROM (SELECT CAST(-9223372036854775808 as int64) as col1 UNION ALL\n"
+            + "      SELECT CAST(-1 as int64))\n";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    thrown.expect(RuntimeException.class);
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testSimpleTableName() {
     String sql = "SELECT Key FROM KeyValue";
 
