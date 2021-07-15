@@ -23,6 +23,8 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.Sta
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.SpannerException;
 import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
@@ -66,61 +68,98 @@ public class ChildPartitionsRecordAction {
 
     for (ChildPartition childPartition : record.getChildPartitions()) {
       if (isSplit(childPartition)) {
-        LOG.debug("[" + token + "] Processing child partition split event");
-        PARTITION_SPLIT_COUNTER.inc();
-
-        final PartitionMetadata row =
-            toPartitionMetadata(
-                record.getStartTimestamp(),
-                partition.getEndTimestamp(),
-                partition.getHeartbeatMillis(),
-                childPartition);
-        // Updates the metadata table
-        // FIXME: Figure out what to do if this throws an exception
-        // TODO: Make sure this does not fail if the rows already exist
-        partitionMetadataDao.insert(row);
+        processSplit(partition, record, childPartition);
       } else {
-        LOG.debug("[" + token + "] Processing child partition merge event");
-        PARTITION_MERGE_COUNTER.inc();
-
-        partitionMetadataDao.runInTransaction(
-            transaction -> {
-              final long finishedParents =
-                  transaction.countPartitionsInStates(
-                      childPartition.getParentTokens(), Collections.singletonList(FINISHED));
-
-              if (finishedParents == childPartition.getParentTokens().size() - 1) {
-                LOG.debug(
-                    "["
-                        + token
-                        + "] All parents are finished, inserting child partition "
-                        + childPartition);
-                transaction.insert(
-                    toPartitionMetadata(
-                        record.getStartTimestamp(),
-                        partition.getEndTimestamp(),
-                        partition.getHeartbeatMillis(),
-                        childPartition));
-              } else {
-                LOG.debug(
-                    "["
-                        + token
-                        + "] At least one parent is not finished ("
-                        + "finishedParents = "
-                        + finishedParents
-                        + ", "
-                        + "expectedToBeFinished = "
-                        + (childPartition.getParentTokens().size() - 1)
-                        + "), skipping child partition insertion");
-              }
-
-              return null;
-            });
+        processMerge(partition, record, childPartition);
       }
     }
 
     LOG.debug("[" + token + "] Child partitions action completed successfully");
     return Optional.empty();
+  }
+
+  private void processSplit(
+      PartitionMetadata partition, ChildPartitionsRecord record, ChildPartition childPartition) {
+    final String partitionToken = partition.getPartitionToken();
+    final String childPartitionToken = childPartition.getToken();
+    LOG.debug("[" + partitionToken + "] Processing child partition split event");
+    PARTITION_SPLIT_COUNTER.inc();
+
+    final PartitionMetadata row =
+        toPartitionMetadata(
+            record.getStartTimestamp(),
+            partition.getEndTimestamp(),
+            partition.getHeartbeatMillis(),
+            childPartition);
+    // FIXME: Figure out what to do if this throws an exception
+    LOG.debug("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
+    try {
+      partitionMetadataDao.insert(row);
+    } catch (SpannerException e) {
+      if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
+        LOG.debug(
+            "["
+                + partitionToken
+                + "] Child partition token "
+                + childPartitionToken
+                + " already exists, skipping");
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  private void processMerge(
+      PartitionMetadata partition, ChildPartitionsRecord record, ChildPartition childPartition) {
+    final String partitionToken = partition.getPartitionToken();
+    final String childPartitionToken = childPartition.getToken();
+    LOG.debug("[" + partitionToken + "] Processing child partition merge event");
+    PARTITION_MERGE_COUNTER.inc();
+
+    try {
+      partitionMetadataDao.runInTransaction(
+          transaction -> {
+            final long finishedParents =
+                transaction.countPartitionsInStates(
+                    childPartition.getParentTokens(), Collections.singletonList(FINISHED));
+
+            if (finishedParents == childPartition.getParentTokens().size() - 1) {
+              LOG.debug(
+                  "["
+                      + partitionToken
+                      + "] All parents are finished, inserting child partition "
+                      + childPartition);
+              transaction.insert(
+                  toPartitionMetadata(
+                      record.getStartTimestamp(),
+                      partition.getEndTimestamp(),
+                      partition.getHeartbeatMillis(),
+                      childPartition));
+            } else {
+              LOG.debug(
+                  "["
+                      + partitionToken
+                      + "] At least one parent is not finished (finishedParents = "
+                      + finishedParents
+                      + ", expectedToBeFinished = "
+                      + (childPartition.getParentTokens().size() - 1)
+                      + "), skipping child partition insertion");
+            }
+
+            return null;
+          });
+    } catch (SpannerException e) {
+      if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
+        LOG.debug(
+            "["
+                + partitionToken
+                + "] Child partition token "
+                + childPartitionToken
+                + " already exists, skipping");
+      } else {
+        throw e;
+      }
+    }
   }
 
   private boolean isSplit(ChildPartition childPartition) {

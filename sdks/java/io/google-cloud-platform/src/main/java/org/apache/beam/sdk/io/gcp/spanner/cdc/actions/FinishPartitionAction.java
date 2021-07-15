@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
 
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.SpannerException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -50,7 +52,15 @@ public class FinishPartitionAction {
       return Optional.of(ProcessContinuation.stop());
     }
 
-    partitionMetadataDao.updateState(token, FINISHED);
+    try {
+      partitionMetadataDao.updateState(token, FINISHED);
+    } catch (SpannerException e) {
+      if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
+        LOG.info("[" + token + "] Partition does not exist, skipping");
+      } else {
+        throw e;
+      }
+    }
 
     LOG.info("[" + token + "] Finish partition action completed successfully");
     return Optional.empty();

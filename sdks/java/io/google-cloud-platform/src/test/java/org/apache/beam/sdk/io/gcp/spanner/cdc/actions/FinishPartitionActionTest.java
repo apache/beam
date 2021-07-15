@@ -21,11 +21,14 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.Sta
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.SpannerException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -50,11 +53,27 @@ public class FinishPartitionActionTest {
   }
 
   @Test
-  public void testRestrictionClaimed() {
+  public void testRestrictionClaimedAndPartitionExists() {
     final String partitionToken = "partitionToken";
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     when(tracker.tryClaim(PartitionPosition.finishPartition())).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
+
+    final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
+
+    assertEquals(Optional.empty(), maybeContinuation);
+    verify(dao).updateState(partitionToken, FINISHED);
+  }
+
+  @Test
+  public void testRestrictionClaimedAndPartitionDoesNotExist() {
+    final String partitionToken = "partitionToken";
+    final PartitionMetadata partition = mock(PartitionMetadata.class);
+    final SpannerException spannerException = mock(SpannerException.class);
+    when(tracker.tryClaim(PartitionPosition.finishPartition())).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+    when(spannerException.getErrorCode()).thenReturn(ErrorCode.NOT_FOUND);
+    doThrow(spannerException).when(dao).updateState(any(), any());
 
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
