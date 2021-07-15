@@ -138,10 +138,6 @@ jobs:
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
         run: python sync_github_actions.py unit_tests-${{matrix.os}}-${{matrix.params.py_ver}} ${{ job.status }} ${{ github.run_id }}
-        env:
-          name: unit_tests-${{matrix.os}}-${{matrix.params.py_ver}}
-          jobstatus: ${{ job.status }}
-          workflow_id: ${{ github.run_id }}
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
@@ -179,10 +175,6 @@ jobs:
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
         run: python sync_github_actions.py word_count_direct_runner-${{matrix.os}}-${{matrix.python}} ${{ job.status }} ${{ github.run_id }}
-        env:
-          name: word_count_direct_runner-${{matrix.os}}-${{matrix.python}}
-          jobstatus: ${{ job.status }}
-          workflow_id: ${{ github.run_id }}
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
@@ -242,7 +234,3 @@ jobs:
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
         run: python sync_github_actions.py word_count_dataflow-${{matrix.os}}-${{matrix.python}} ${{ job.status }} ${{ github.run_id }}
-        env:
-          name: word_count_dataflow-${{matrix.os}}-${{matrix.python}}
-          jobstatus: ${{ job.status }}
-          workflow_id: ${{ github.run_id }}

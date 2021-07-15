@@ -116,10 +116,6 @@ jobs:
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
         run: python sync_github_actions.py java_unit_tests-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}
-        env:
-          jobstatus: ${{ job.status }}
-          name: java_unit_tests-${{matrix.os}}
-          workflow_id: ${{ github.run_id }}
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
@@ -156,10 +152,6 @@ jobs:
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
         run: python sync_github_actions.py java_word_count_direct_runner-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}
-        env:
-          jobstatus: ${{ job.status }}
-          workflow_id: ${{ github.run_id }}
-          name: java_word_count_direct_runner-${{matrix.os}}
 
   java_wordcount_dataflow:
     name: 'Java Wordcount Dataflow'
@@ -219,7 +211,3 @@ jobs:
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
         run: python sync_github_actions.py java_word_count_dataflow-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}
-        env:
-          jobstatus: ${{ job.status }}
-          name: java_word_count_dataflow-${{matrix.os}}
-          workflow_id: ${{ github.run_id }}
