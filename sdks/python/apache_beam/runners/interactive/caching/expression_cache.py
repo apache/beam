@@ -31,6 +31,7 @@ class ExpressionCache(object):
   Example::
 
     df : beam.dataframe.DeferredDataFrame = ...
+    ...
     cache = ExpressionCache()
     cache.replace_with_cached(df._expr)
 
