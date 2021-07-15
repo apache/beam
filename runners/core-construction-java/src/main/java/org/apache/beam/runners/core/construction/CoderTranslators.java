@@ -194,7 +194,7 @@ class CoderTranslators {
     return new SimpleStructuredCoderTranslator<TimestampPrefixingWindowCoder<?>>() {
       @Override
       protected TimestampPrefixingWindowCoder<?> fromComponents(List<Coder<?>> components) {
-        return TimestampPrefixingWindowCoder.of(components.get(0));
+        return TimestampPrefixingWindowCoder.of((Coder<? extends BoundedWindow>) components.get(0));
       }
 
       @Override

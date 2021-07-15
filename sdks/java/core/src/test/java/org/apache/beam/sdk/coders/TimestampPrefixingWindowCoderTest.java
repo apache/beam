@@ -17,15 +17,21 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -63,7 +69,6 @@ public class TimestampPrefixingWindowCoderTest {
 
     private static final CustomWindowCoder INSTANCE = new CustomWindowCoder();
     private static final Coder<IntervalWindow> INTERVAL_WINDOW_CODER = IntervalWindow.getCoder();
-    private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
 
     public static CustomWindowCoder of() {
       return INSTANCE;
@@ -72,22 +77,50 @@ public class TimestampPrefixingWindowCoderTest {
     @Override
     public void encode(CustomWindow window, OutputStream outStream) throws IOException {
       INTERVAL_WINDOW_CODER.encode(window, outStream);
-      VAR_INT_CODER.encode(window.isBig ? 1 : 0, outStream);
+      BooleanCoder.of().encode(window.isBig, outStream);
     }
 
     @Override
     public CustomWindow decode(InputStream inStream) throws IOException {
       IntervalWindow superWindow = INTERVAL_WINDOW_CODER.decode(inStream);
-      boolean isBig = VAR_INT_CODER.decode(inStream) != 0;
+      boolean isBig = BooleanCoder.of().decode(inStream);
       return new CustomWindow(superWindow.start(), superWindow.end(), isBig);
     }
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       INTERVAL_WINDOW_CODER.verifyDeterministic();
-      VAR_INT_CODER.verifyDeterministic();
+      BooleanCoder.of().verifyDeterministic();
+    }
+
+    @Override
+    public boolean consistentWithEquals() {
+      return INTERVAL_WINDOW_CODER.consistentWithEquals()
+          && BooleanCoder.of().consistentWithEquals();
+    }
+
+    @Override
+    public boolean isRegisterByteSizeObserverCheap(CustomWindow value) {
+      return INTERVAL_WINDOW_CODER.isRegisterByteSizeObserverCheap(value)
+          && BooleanCoder.of().isRegisterByteSizeObserverCheap(true);
+    }
+
+    @Override
+    public void registerByteSizeObserver(CustomWindow value, ElementByteSizeObserver observer)
+        throws Exception {
+      INTERVAL_WINDOW_CODER.registerByteSizeObserver(value, observer);
+      BooleanCoder.of().registerByteSizeObserver(true, observer);
     }
   }
+
+  private static final List<CustomWindow> CUSTOM_WINDOW_LIST =
+      Lists.newArrayList(
+          new CustomWindow(new Instant(0L), new Instant(1L), true),
+          new CustomWindow(new Instant(100L), new Instant(200L), false),
+          new CustomWindow(new Instant(0L), BoundedWindow.TIMESTAMP_MAX_VALUE, true));
+
+  private static final TimestampPrefixingWindowCoder<CustomWindow> TEST_CODER =
+      TimestampPrefixingWindowCoder.of(CustomWindowCoder.of());
 
   @Test
   public void testEncodeAndDecode() throws Exception {
@@ -107,15 +140,32 @@ public class TimestampPrefixingWindowCoderTest {
         TimestampPrefixingWindowCoder.of(GlobalWindow.Coder.INSTANCE);
     CoderProperties.coderDecodeEncodeEqual(coder2, globalWindow);
 
-    List<CustomWindow> customWindowsToTest =
-        Lists.newArrayList(
-            new CustomWindow(new Instant(0L), new Instant(1L), true),
-            new CustomWindow(new Instant(100L), new Instant(200L), false),
-            new CustomWindow(new Instant(0L), BoundedWindow.TIMESTAMP_MAX_VALUE, true));
-    TimestampPrefixingWindowCoder<CustomWindow> coder3 =
-        TimestampPrefixingWindowCoder.of(CustomWindowCoder.of());
-    for (CustomWindow window : customWindowsToTest) {
-      CoderProperties.coderDecodeEncodeEqual(coder3, window);
+    for (CustomWindow window : CUSTOM_WINDOW_LIST) {
+      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, window);
+    }
+  }
+
+  @Test
+  public void testConsistentWithEquals() {
+    assertThat(TEST_CODER.consistentWithEquals(), equalTo(true));
+  }
+
+  @Test
+  public void testIsRegisterByteSizeObserverCheap() {
+    assertThat(
+        TEST_CODER.isRegisterByteSizeObserverCheap(CUSTOM_WINDOW_LIST.get(0)), equalTo(true));
+  }
+
+  @Test
+  public void testGetEncodedElementByteSize() throws Exception {
+    TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
+    for (CustomWindow value : CUSTOM_WINDOW_LIST) {
+      TEST_CODER.registerByteSizeObserver(value, observer);
+      observer.advance();
+      assertThat(
+          observer.getSumAndReset(),
+          equalTo(
+              (long) CoderUtils.encodeToByteArray(TEST_CODER, value, Coder.Context.NESTED).length));
     }
   }
 }

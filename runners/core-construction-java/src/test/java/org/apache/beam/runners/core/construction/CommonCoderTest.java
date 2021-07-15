@@ -349,9 +349,8 @@ public class CommonCoderTest {
           convertValue(kvMap.get("key"), coderSpec.getComponents().get(0), keyCoder), shardId);
     } else if (s.equals(getUrn(StandardCoders.Enum.CUSTOM_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
-      Instant end = new Instant(((Number) kvMap.get("end")).longValue());
-      Duration span = Duration.millis(((Number) kvMap.get("span")).longValue());
-      return new IntervalWindow(end.minus(span), span);
+      Coder windowCoder = ((TimestampPrefixingWindowCoder) coder).getWindowCoder();
+      return convertValue(kvMap.get("window"), coderSpec.getComponents().get(0), windowCoder);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }

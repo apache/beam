@@ -22,7 +22,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.Instant;
 
 /**
  * A {@link TimestampPrefixingWindowCoder} wraps arbitrary user custom window coder. While encoding
@@ -31,15 +33,20 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  *
  * @param <T> The custom window type.
  */
-public class TimestampPrefixingWindowCoder<T> extends StructuredCoder<T> {
+public class TimestampPrefixingWindowCoder<T extends BoundedWindow> extends StructuredCoder<T> {
   private final Coder<T> windowCoder;
 
-  public static <T> TimestampPrefixingWindowCoder<T> of(Coder<T> windowCoder) {
+  public static <T extends BoundedWindow> TimestampPrefixingWindowCoder<T> of(
+      Coder<T> windowCoder) {
     return new TimestampPrefixingWindowCoder<>(windowCoder);
   }
 
   TimestampPrefixingWindowCoder(Coder<T> windowCoder) {
     this.windowCoder = windowCoder;
+  }
+
+  public Coder<T> getWindowCoder() {
+    return windowCoder;
   }
 
   @Override
@@ -66,5 +73,21 @@ public class TimestampPrefixingWindowCoder<T> extends StructuredCoder<T> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     windowCoder.verifyDeterministic();
+  }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return windowCoder.consistentWithEquals();
+  }
+
+  @Override
+  public boolean isRegisterByteSizeObserverCheap(T value) {
+    return windowCoder.isRegisterByteSizeObserverCheap(value);
+  }
+
+  @Override
+  public void registerByteSizeObserver(T value, ElementByteSizeObserver observer) throws Exception {
+    InstantCoder.of().registerByteSizeObserver(new Instant(), observer);
+    windowCoder.registerByteSizeObserver(value, observer);
   }
 }
