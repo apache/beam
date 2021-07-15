@@ -54,6 +54,9 @@ def default_window_mapping_fn(target_window_fn):
   # type: (window.WindowFn) -> WindowMappingFn
   if target_window_fn == window.GlobalWindows():
     return _global_window_mapping_fn
+  
+  if isinstance(target_window_fn, window.Sessions):
+    raise RuntimeError("Sessions is not allowed in side inputs")
 
   def map_via_end(source_window):
     # type: (window.BoundedWindow) -> window.BoundedWindow
