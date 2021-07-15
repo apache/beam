@@ -37,12 +37,12 @@ from datetime import timedelta
 import pandas as pd
 
 import apache_beam as beam
-from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.options import interactive_options
+from apache_beam.runners.interactive.utils import deferred_df_to_pcollection
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import progress_indicated
 from apache_beam.runners.runner import PipelineState
@@ -455,10 +455,7 @@ def show(
   element_types = {}
   for pcoll in flatten_pcolls:
     if isinstance(pcoll, DeferredBase):
-      proxy = pcoll._expr.proxy()
-      pcoll = to_pcollection(
-          pcoll, yield_elements='pandas', label=str(pcoll._expr))
-      element_type = proxy
+      pcoll, element_type = deferred_df_to_pcollection(pcoll)
       watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
     else:
       element_type = pcoll.element_type
@@ -569,11 +566,7 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   # collect the result in elements_to_df.
   if isinstance(pcoll, DeferredBase):
     # Get the proxy so we can get the output shape of the DataFrame.
-    # TODO(BEAM-11064): Once type hints are implemented for pandas, use those
-    # instead of the proxy.
-    element_type = pcoll._expr.proxy()
-    pcoll = to_pcollection(
-        pcoll, yield_elements='pandas', label=str(pcoll._expr))
+    pcoll, element_type = deferred_df_to_pcollection(pcoll)
     watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
   else:
     element_type = pcoll.element_type
