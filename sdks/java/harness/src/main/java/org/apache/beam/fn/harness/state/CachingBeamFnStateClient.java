@@ -21,9 +21,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+
+import com.google.auto.value.AutoValue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.IterableSideInput;
@@ -31,11 +32,14 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.MultimapKeysSideI
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.MultimapSideInput;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 
+/**
+ * Wraps a delegate BeamFnStateClient and stores the result of state requests in cross bundle cache
+ * according to the available cache tokens. If there are no cache tokens for the state key requested
+ * the request is forwarded to the client and executed normally.
+ */
 public class CachingBeamFnStateClient implements BeamFnStateClient {
 
   private final BeamFnStateClient beamFnStateClient;
@@ -50,12 +54,12 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     this.beamFnStateClient = beamFnStateClient;
     this.stateCache = stateCache;
     this.sideInputCacheTokens = new HashMap<>();
-    this.userStateToken = null;
 
     // Set up cache tokens
+    ByteString tempUserStateToken = null;
     for (BeamFnApi.ProcessBundleRequest.CacheToken token : cacheTokenList) {
       if (token.hasUserState()) {
-        this.userStateToken = token.getToken();
+        tempUserStateToken = token.getToken();
       } else if (token.hasSideInput()) {
         Pair<String, String> sideInput =
             new ImmutablePair<>(
@@ -63,6 +67,8 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         sideInputCacheTokens.put(sideInput, token.getToken());
       }
     }
+
+    this.userStateToken = tempUserStateToken;
   }
 
   @Override
@@ -73,7 +79,6 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     StateRequest request = requestBuilder.build();
     StateKey stateKey = request.getStateKey();
     ByteString cacheToken = getCacheToken(stateKey);
-    StateResponse.Builder responseBuilder = StateResponse.newBuilder();
 
     // If not cacheable proceed as normal
     if (cacheToken == null) {
@@ -152,6 +157,9 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     // type: (beam_fn_api_pb2.StateKey) -> Optional[bytes]
     if (stateKey.hasBagUserState()) {
       return userStateToken;
+    } else if (stateKey.hasRunner()) {
+      // TODO: Support runner state key caching
+      return null;
     } else {
       Pair<String, String> sideInput;
       if (stateKey.hasIterableSideInput()) {
@@ -174,6 +182,17 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         return sideInputCacheTokens.get(sideInput);
       }
     }
-    return null;
   }
+
+  @AutoValue
+  public abstract static class StateCacheKey {
+    public abstract ByteString getCacheToken();
+
+    public abstract ByteString getContinuationToken();
+
+    static StateCacheKey create(ByteString cacheToken, ByteString continuationToken) {
+      return new AutoValue_CachingBeamFnStateClient_StateCacheKey(cacheToken, continuationToken);
+    }
+  }
+
 }
