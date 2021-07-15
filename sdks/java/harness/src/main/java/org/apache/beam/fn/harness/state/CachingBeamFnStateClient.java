@@ -43,13 +43,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 public class CachingBeamFnStateClient implements BeamFnStateClient {
 
   private final BeamFnStateClient beamFnStateClient;
-  private final Cache<Pair<StateKey, ByteString>, StateGetResponse> stateCache;
-  private Map<Pair<String, String>, ByteString> sideInputCacheTokens;
-  private ByteString userStateToken;
+  private final Cache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache;
+  private final Map<CacheToken.SideInput, ByteString> sideInputCacheTokens;
+  private final ByteString userStateToken;
 
   public CachingBeamFnStateClient(
       BeamFnStateClient beamFnStateClient,
-      Cache<Pair<StateKey, ByteString>, StateGetResponse> stateCache,
+      Cache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache,
       List<CacheToken> cacheTokenList) {
     this.beamFnStateClient = beamFnStateClient;
     this.stateCache = stateCache;
@@ -61,10 +61,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       if (token.hasUserState()) {
         tempUserStateToken = token.getToken();
       } else if (token.hasSideInput()) {
-        Pair<String, String> sideInput =
-            new ImmutablePair<>(
-                token.getSideInput().getTransformId(), token.getSideInput().getSideInputId());
-        sideInputCacheTokens.put(sideInput, token.getToken());
+        sideInputCacheTokens.put(token.getSideInput(), token.getToken());
       }
     }
 
@@ -86,64 +83,41 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       return;
     }
 
-    // Check if data is in the cache already
-    StateGetResponse cachedFirstPage = null;
-    Pair<StateKey, ByteString> cacheKey = new ImmutablePair<>(stateKey, cacheToken);
-    cachedFirstPage = stateCache.getIfPresent(cacheKey);
-
     switch (request.getRequestCase()) {
       case GET:
-        if (ByteString.EMPTY.equals(request.getGet().getContinuationToken())) {
-          if (cachedFirstPage == null) {
-            beamFnStateClient.handle(requestBuilder, response);
-            try {
-              stateCache.put(cacheKey, response.get().getGet());
-            } catch (Exception e) {
-              // response should already be completed exceptionally
-              return;
-            }
-          } else {
-            response.complete(
-                responseBuilder.setId(requestBuilder.getId()).setGet(cachedFirstPage).build());
-          }
-        } else {
+        // Check if data is in the cache already
+        // consider using a LoadingCache so that stateKey map will be loaded automatically
+        Map<StateCacheKey, StateGetResponse> stateKeyMap = stateCache.getIfPresent(stateKey);
+        if (stateKeyMap == null) {
+          stateKeyMap = new HashMap<>();
+          stateCache.put(stateKey, new HashMap<>());
+        }
+        StateGetResponse cachedPage;
+        StateCacheKey cacheKey = StateCacheKey.create(cacheToken, request.getGet().getContinuationToken());
+        cachedPage = stateKeyMap.get(cacheKey);
+
+        if (cachedPage == null) {
           beamFnStateClient.handle(requestBuilder, response);
+          CompletableFuture<Void> callback = response.thenAccept(stateResponse -> {
+            stateCache.getIfPresent(stateKey).put(cacheKey, stateResponse.getGet());
+          });
+        } else {
+          response.complete(
+              StateResponse.newBuilder().setId(requestBuilder.getId()).setGet(cachedPage).build());
         }
 
         return;
 
       case APPEND:
-        if (cachedFirstPage == null) {
-          CompletableFuture<StateResponse> responseFuture = new CompletableFuture<>();
-          beamFnStateClient.handle(
-              StateRequest.newBuilder()
-                  .setStateKey(stateKey)
-                  .setGet(StateGetRequest.getDefaultInstance()),
-              responseFuture);
-          try {
-            cachedFirstPage = responseFuture.get().getGet();
-            stateCache.put(cacheKey, cachedFirstPage);
-          } catch (Exception e) {
-            // If we can't cache the value just send append as before
-            beamFnStateClient.handle(requestBuilder, response);
-            return;
-          }
-        }
-
-        if (ByteString.EMPTY.equals(cachedFirstPage.getContinuationToken())) {
-          cachedFirstPage =
-              StateGetResponse.newBuilder()
-                  .setData(cachedFirstPage.getData().concat(requestBuilder.getAppend().getData()))
-                  .setContinuationToken(ByteString.EMPTY)
-                  .build();
-          stateCache.put(cacheKey, cachedFirstPage);
-        }
-
+        // Treat appends as normal for now and do not cache
         beamFnStateClient.handle(requestBuilder, response);
         return;
 
       case CLEAR:
-        stateCache.put(cacheKey, StateGetResponse.getDefaultInstance());
+        Map<StateCacheKey, StateGetResponse> clearedData = new HashMap<>();
+        StateCacheKey newKey = StateCacheKey.create(cacheToken, ByteString.EMPTY);
+        clearedData.put(newKey, StateGetResponse.getDefaultInstance());
+        stateCache.put(stateKey, clearedData);
         beamFnStateClient.handle(requestBuilder, response);
         return;
 
@@ -161,26 +135,21 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       // TODO: Support runner state key caching
       return null;
     } else {
-      Pair<String, String> sideInput;
+      CacheToken.SideInput.Builder sideInputBuilder = CacheToken.SideInput.newBuilder();
       if (stateKey.hasIterableSideInput()) {
         IterableSideInput iterableSideInput = stateKey.getIterableSideInput();
-        sideInput =
-            new ImmutablePair<>(
-                iterableSideInput.getTransformId(), iterableSideInput.getSideInputId());
-        return sideInputCacheTokens.get(sideInput);
+        sideInputBuilder.setTransformId(iterableSideInput.getTransformId())
+            .setSideInputId(iterableSideInput.getSideInputId());
       } else if (stateKey.hasMultimapSideInput()) {
         MultimapSideInput multimapSideInput = stateKey.getMultimapSideInput();
-        sideInput =
-            new ImmutablePair<>(
-                multimapSideInput.getTransformId(), multimapSideInput.getSideInputId());
-        return sideInputCacheTokens.get(sideInput);
+        sideInputBuilder.setTransformId(multimapSideInput.getTransformId())
+            .setSideInputId(multimapSideInput.getSideInputId());
       } else if (stateKey.hasMultimapKeysSideInput()) {
         MultimapKeysSideInput multimapKeysSideInput = stateKey.getMultimapKeysSideInput();
-        sideInput =
-            new ImmutablePair<>(
-                multimapKeysSideInput.getTransformId(), multimapKeysSideInput.getSideInputId());
-        return sideInputCacheTokens.get(sideInput);
+        sideInputBuilder.setTransformId(multimapKeysSideInput.getTransformId())
+            .setSideInputId(multimapKeysSideInput.getSideInputId());
       }
+      return sideInputCacheTokens.get(sideInputBuilder.build());
     }
   }
 
