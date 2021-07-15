@@ -255,7 +255,7 @@ class CloudObjectTranslators {
       public TimestampPrefixingWindowCoder fromCloudObject(CloudObject cloudObject) {
         List<Coder<?>> components = getComponents(cloudObject);
         checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-        return TimestampPrefixingWindowCoder.of(components.get(0));
+        return TimestampPrefixingWindowCoder.of((Coder<? extends BoundedWindow>) components.get(0));
       }
 
       @Override

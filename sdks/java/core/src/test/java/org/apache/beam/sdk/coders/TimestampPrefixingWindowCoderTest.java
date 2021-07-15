@@ -30,7 +30,6 @@ import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -67,11 +66,19 @@ public class TimestampPrefixingWindowCoderTest {
 
   private static class CustomWindowCoder extends CustomCoder<CustomWindow> {
 
-    private static final CustomWindowCoder INSTANCE = new CustomWindowCoder();
     private static final Coder<IntervalWindow> INTERVAL_WINDOW_CODER = IntervalWindow.getCoder();
+    private static final int REGISTER_BYTE_SIZE = 1234;
+    private final boolean isConsistentWithEqual;
+    private final boolean isRegisterByteSizeCheap;
 
-    public static CustomWindowCoder of() {
-      return INSTANCE;
+    public static CustomWindowCoder of(
+        boolean isConsistentWithEqual, boolean isRegisterByteSizeCheap) {
+      return new CustomWindowCoder(isConsistentWithEqual, isRegisterByteSizeCheap);
+    }
+
+    private CustomWindowCoder(boolean isConsistentWithEqual, boolean isRegisterByteSizeCheap) {
+      this.isConsistentWithEqual = isConsistentWithEqual;
+      this.isRegisterByteSizeCheap = isRegisterByteSizeCheap;
     }
 
     @Override
@@ -95,21 +102,18 @@ public class TimestampPrefixingWindowCoderTest {
 
     @Override
     public boolean consistentWithEquals() {
-      return INTERVAL_WINDOW_CODER.consistentWithEquals()
-          && BooleanCoder.of().consistentWithEquals();
+      return isConsistentWithEqual;
     }
 
     @Override
     public boolean isRegisterByteSizeObserverCheap(CustomWindow value) {
-      return INTERVAL_WINDOW_CODER.isRegisterByteSizeObserverCheap(value)
-          && BooleanCoder.of().isRegisterByteSizeObserverCheap(true);
+      return isRegisterByteSizeCheap;
     }
 
     @Override
     public void registerByteSizeObserver(CustomWindow value, ElementByteSizeObserver observer)
         throws Exception {
-      INTERVAL_WINDOW_CODER.registerByteSizeObserver(value, observer);
-      BooleanCoder.of().registerByteSizeObserver(true, observer);
+      observer.update(REGISTER_BYTE_SIZE);
     }
   }
 
@@ -118,9 +122,6 @@ public class TimestampPrefixingWindowCoderTest {
           new CustomWindow(new Instant(0L), new Instant(1L), true),
           new CustomWindow(new Instant(100L), new Instant(200L), false),
           new CustomWindow(new Instant(0L), BoundedWindow.TIMESTAMP_MAX_VALUE, true));
-
-  private static final TimestampPrefixingWindowCoder<CustomWindow> TEST_CODER =
-      TimestampPrefixingWindowCoder.of(CustomWindowCoder.of());
 
   @Test
   public void testEncodeAndDecode() throws Exception {
@@ -139,33 +140,46 @@ public class TimestampPrefixingWindowCoderTest {
     TimestampPrefixingWindowCoder<GlobalWindow> coder2 =
         TimestampPrefixingWindowCoder.of(GlobalWindow.Coder.INSTANCE);
     CoderProperties.coderDecodeEncodeEqual(coder2, globalWindow);
-
+    TimestampPrefixingWindowCoder<CustomWindow> coder3 =
+        TimestampPrefixingWindowCoder.of(CustomWindowCoder.of(true, true));
     for (CustomWindow window : CUSTOM_WINDOW_LIST) {
-      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, window);
+      CoderProperties.coderDecodeEncodeEqual(coder3, window);
     }
   }
 
   @Test
   public void testConsistentWithEquals() {
-    assertThat(TEST_CODER.consistentWithEquals(), equalTo(true));
+    TimestampPrefixingWindowCoder<CustomWindow> coder1 =
+        TimestampPrefixingWindowCoder.of(CustomWindowCoder.of(true, true));
+    assertThat(coder1.consistentWithEquals(), equalTo(true));
+    TimestampPrefixingWindowCoder<CustomWindow> coder2 =
+        TimestampPrefixingWindowCoder.of(CustomWindowCoder.of(false, true));
+    assertThat(coder2.consistentWithEquals(), equalTo(false));
   }
 
   @Test
   public void testIsRegisterByteSizeObserverCheap() {
-    assertThat(
-        TEST_CODER.isRegisterByteSizeObserverCheap(CUSTOM_WINDOW_LIST.get(0)), equalTo(true));
+    TimestampPrefixingWindowCoder<CustomWindow> coder1 =
+        TimestampPrefixingWindowCoder.of(CustomWindowCoder.of(true, true));
+    assertThat(coder1.isRegisterByteSizeObserverCheap(CUSTOM_WINDOW_LIST.get(0)), equalTo(true));
+    TimestampPrefixingWindowCoder<CustomWindow> coder2 =
+        TimestampPrefixingWindowCoder.of(CustomWindowCoder.of(true, false));
+    assertThat(coder2.isRegisterByteSizeObserverCheap(CUSTOM_WINDOW_LIST.get(0)), equalTo(false));
   }
 
   @Test
   public void testGetEncodedElementByteSize() throws Exception {
     TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
+    TimestampPrefixingWindowCoder<CustomWindow> coder =
+        TimestampPrefixingWindowCoder.of(CustomWindowCoder.of(true, true));
     for (CustomWindow value : CUSTOM_WINDOW_LIST) {
-      TEST_CODER.registerByteSizeObserver(value, observer);
+      coder.registerByteSizeObserver(value, observer);
       observer.advance();
       assertThat(
           observer.getSumAndReset(),
           equalTo(
-              (long) CoderUtils.encodeToByteArray(TEST_CODER, value, Coder.Context.NESTED).length));
+              CustomWindowCoder.REGISTER_BYTE_SIZE
+                  + InstantCoder.of().getEncodedElementByteSize(value.maxTimestamp())));
     }
   }
 }

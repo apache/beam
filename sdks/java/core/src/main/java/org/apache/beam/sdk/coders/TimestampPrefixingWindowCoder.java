@@ -24,7 +24,6 @@ import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.joda.time.Instant;
 
 /**
  * A {@link TimestampPrefixingWindowCoder} wraps arbitrary user custom window coder. While encoding
@@ -51,11 +50,10 @@ public class TimestampPrefixingWindowCoder<T extends BoundedWindow> extends Stru
 
   @Override
   public void encode(T value, OutputStream outStream) throws CoderException, IOException {
-    BoundedWindow window = (BoundedWindow) value;
-    if (window == null) {
+    if (value == null) {
       throw new CoderException("Cannot encode null window");
     }
-    InstantCoder.of().encode(window.maxTimestamp(), outStream);
+    InstantCoder.of().encode(value.maxTimestamp(), outStream);
     windowCoder.encode(value, outStream);
   }
 
@@ -87,7 +85,7 @@ public class TimestampPrefixingWindowCoder<T extends BoundedWindow> extends Stru
 
   @Override
   public void registerByteSizeObserver(T value, ElementByteSizeObserver observer) throws Exception {
-    InstantCoder.of().registerByteSizeObserver(new Instant(), observer);
+    InstantCoder.of().registerByteSizeObserver(value.maxTimestamp(), observer);
     windowCoder.registerByteSizeObserver(value, observer);
   }
 }
