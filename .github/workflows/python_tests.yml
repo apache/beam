@@ -137,7 +137,7 @@ jobs:
       - name: "Python Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id
+        run: python sync_github_actions.py unit_tests-${{matrix.os}}-${{matrix.params.py_ver}} ${{ job.status }} ${{ github.run_id }}
         env:
           name: unit_tests-${{matrix.os}}-${{matrix.params.py_ver}}
           jobstatus: ${{ job.status }}
@@ -178,7 +178,7 @@ jobs:
       - name: "Python Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id
+        run: python sync_github_actions.py word_count_direct_runner-${{matrix.os}}-${{matrix.python}} ${{ job.status }} ${{ github.run_id }}
         env:
           name: word_count_direct_runner-${{matrix.os}}-${{matrix.python}}
           jobstatus: ${{ job.status }}
@@ -241,7 +241,7 @@ jobs:
       - name: "Python Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id
+        run: python sync_github_actions.py word_count_dataflow-${{matrix.os}}-${{matrix.python}} ${{ job.status }} ${{ github.run_id }}
         env:
           name: word_count_dataflow-${{matrix.os}}-${{matrix.python}}
           jobstatus: ${{ job.status }}
