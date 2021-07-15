@@ -114,7 +114,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
 
   @classmethod
   def set_samza_job_server_jar(cls, samza_job_server_jar):
-    cls.samza_job_server_jar = samza_job_server_jar\
+    cls.samza_job_server_jar = samza_job_server_jar
 
   @classmethod
   def get_runner(cls):
