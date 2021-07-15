@@ -115,7 +115,7 @@ jobs:
       - name: "Java Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id
+        run: python sync_github_actions.py java_unit_tests-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}
         env:
           jobstatus: ${{ job.status }}
           name: java_unit_tests-${{matrix.os}}
@@ -155,7 +155,7 @@ jobs:
       - name: "Java Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id
+        run: python sync_github_actions.py java_word_count_direct_runner-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}
         env:
           jobstatus: ${{ job.status }}
           workflow_id: ${{ github.run_id }}
@@ -218,7 +218,7 @@ jobs:
       - name: "Java Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id
+        run: python sync_github_actions.py java_word_count_dataflow-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}
         env:
           jobstatus: ${{ job.status }}
           name: java_word_count_dataflow-${{matrix.os}}
