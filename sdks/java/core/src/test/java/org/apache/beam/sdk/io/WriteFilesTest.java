@@ -63,6 +63,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -316,7 +317,7 @@ public class WriteFilesTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
   public void testWithRunnerDeterminedShardingUnbounded() throws IOException {
     runShardedWrite(
         Arrays.asList("one", "two", "three", "four", "five", "six"),
@@ -328,7 +329,7 @@ public class WriteFilesTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
   public void testWithRunnerDeterminedShardingTestStream() throws IOException {
     List<String> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {

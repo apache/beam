@@ -41,6 +41,17 @@ test {
   ignoreFailures true
 }
 
+configurations.testRuntimeClasspath {
+  resolutionStrategy {
+    def log4j_version = "2.8.2"
+    // Beam's build system forces a uniform log4j version resolution for all modules, however for
+    // the HCatalog case the current version of log4j produces NoClassDefFoundError so we need to
+    // force an old version on the tests runtime classpath
+    force "org.apache.logging.log4j:log4j-api:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-core:${log4j_version}"
+  }
+}
+
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because

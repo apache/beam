@@ -98,9 +98,10 @@ public class BeamKafkaTableThriftTest extends BeamKafkaTableTest {
                     .name("kafka")
                     .type("kafka")
                     .schema(schema)
+                    .location("localhost/mytopic")
                     .properties(
                         JSON.parseObject(
-                            "{ \"topics\": [ \"mytopic\" ], \"format\": \"thrift\", \"thriftClass\": \""
+                            "{ \"format\": \"thrift\", \"thriftClass\": \""
                                 + TestThriftMessage.class.getName()
                                 + "\", \"thriftProtocolFactoryClass\": \""
                                 + TCompactProtocol.Factory.class.getName()

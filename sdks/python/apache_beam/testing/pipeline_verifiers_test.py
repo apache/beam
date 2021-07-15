@@ -19,13 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import os
 import tempfile
 import unittest
-from builtins import range
 
 from hamcrest import assert_that as hc_assert_that
 from mock import Mock

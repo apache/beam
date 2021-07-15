@@ -47,8 +47,8 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -90,20 +90,23 @@ public class Environments {
           .build();
 
   public enum JavaVersion {
-    v8("java8", "1.8"),
-    v11("java11", "11");
+    java8("java", "1.8"),
+    java11("java11", "11"),
+    java17("java17", "17");
 
-    private final String name;
+    // Legacy name, as used in container image
+    private final String legacyName;
+
+    // Specification version (e.g. System java.specification.version)
     private final String specification;
 
-    JavaVersion(final String name, final String specification) {
-      this.name = name;
+    JavaVersion(final String legacyName, final String specification) {
+      this.legacyName = legacyName;
       this.specification = specification;
     }
 
-    @Override
-    public String toString() {
-      return this.name;
+    public String legacyName() {
+      return this.legacyName;
     }
 
     public String specification() {
@@ -383,6 +386,7 @@ public class Environments {
     capabilities.addAll(ModelCoders.urns());
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.HARNESS_MONITORING_INFOS));
     capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
     capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     capabilities.add(BeamUrns.getUrn(Primitives.TO_STRING));
@@ -399,6 +403,16 @@ public class Environments {
     String ext = path.isDirectory() ? "jar" : Files.getFileExtension(path.getAbsolutePath());
     String suffix = Strings.isNullOrEmpty(ext) ? "" : "." + ext;
     return String.format("%s-%s%s", fileName, encodedHash, suffix);
+  }
+
+  public static String getExternalServiceAddress(PortablePipelineOptions options) {
+    String environmentConfig = options.getDefaultEnvironmentConfig();
+    String environmentOption =
+        PortablePipelineOptions.getEnvironmentOption(options, externalServiceAddressOption);
+    if (environmentConfig != null && !environmentConfig.isEmpty()) {
+      return environmentConfig;
+    }
+    return environmentOption;
   }
 
   private static File zipDirectory(File directory) throws IOException {
@@ -445,16 +459,6 @@ public class Environments {
     String environmentConfig = options.getDefaultEnvironmentConfig();
     String environmentOption =
         PortablePipelineOptions.getEnvironmentOption(options, dockerContainerImageOption);
-    if (environmentConfig != null && !environmentConfig.isEmpty()) {
-      return environmentConfig;
-    }
-    return environmentOption;
-  }
-
-  private static String getExternalServiceAddress(PortablePipelineOptions options) {
-    String environmentConfig = options.getDefaultEnvironmentConfig();
-    String environmentOption =
-        PortablePipelineOptions.getEnvironmentOption(options, externalServiceAddressOption);
     if (environmentConfig != null && !environmentConfig.isEmpty()) {
       return environmentConfig;
     }

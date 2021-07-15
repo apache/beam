@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.provider;
 
 import com.google.auto.service.AutoService;
+import java.sql.Date;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.udf.AggregateFn;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.udf.UdfProvider;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -36,7 +38,14 @@ public class UdfTestProvider implements UdfProvider {
         "increment",
         new IncrementFn(),
         "isNull",
-        new IsNullFn());
+        new IsNullFn(),
+        "dateIncrementAll",
+        new DateIncrementAllFn());
+  }
+
+  @Override
+  public Map<String, AggregateFn<?, ?, ?>> userDefinedAggregateFunctions() {
+    return ImmutableMap.of("my_sum", new Sum());
   }
 
   public static class HelloWorldFn extends ScalarFn {
@@ -71,6 +80,39 @@ public class UdfTestProvider implements UdfProvider {
     @ApplyMethod
     public String notRegistered() {
       return "This method is not registered as a UDF.";
+    }
+  }
+
+  public static class Sum implements AggregateFn<Long, Long, Long> {
+
+    @Override
+    public Long createAccumulator() {
+      return 0L;
+    }
+
+    @Override
+    public Long addInput(Long mutableAccumulator, Long input) {
+      return mutableAccumulator + input;
+    }
+
+    @Override
+    public Long mergeAccumulators(Long mutableAccumulator, Iterable<Long> immutableAccumulators) {
+      for (Long x : immutableAccumulators) {
+        mutableAccumulator += x;
+      }
+      return mutableAccumulator;
+    }
+
+    @Override
+    public Long extractOutput(Long mutableAccumulator) {
+      return mutableAccumulator;
+    }
+  }
+
+  public static class DateIncrementAllFn extends ScalarFn {
+    @ApplyMethod
+    public Date incrementAll(Date date) {
+      return new Date(date.getYear() + 1, date.getMonth() + 1, date.getDate() + 1);
     }
   }
 }

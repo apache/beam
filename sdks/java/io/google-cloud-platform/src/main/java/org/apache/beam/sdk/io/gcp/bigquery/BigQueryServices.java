@@ -62,7 +62,7 @@ public interface BigQueryServices extends Serializable {
   StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
 
   /** An interface for the Cloud BigQuery load service. */
-  public interface JobService {
+  public interface JobService extends AutoCloseable {
     /** Start a BigQuery load job. */
     void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
@@ -98,7 +98,7 @@ public interface BigQueryServices extends Serializable {
   }
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
-  public interface DatasetService {
+  public interface DatasetService extends AutoCloseable {
     /**
      * Gets the specified {@link Table} resource by table ID.
      *
@@ -181,7 +181,8 @@ public interface BigQueryServices extends Serializable {
      * Create an append client for a given Storage API write stream. The stream must be created
      * first.
      */
-    StreamAppendClient getStreamAppendClient(String streamName) throws Exception;
+    StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor)
+        throws Exception;
 
     /** Flush a given stream up to the given offset. The stream must have type BUFFERED. */
     ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)
@@ -200,8 +201,7 @@ public interface BigQueryServices extends Serializable {
   /** An interface for appending records to a Storage API write stream. */
   interface StreamAppendClient extends AutoCloseable {
     /** Append rows to a Storage API write stream at the given offset. */
-    ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows, Descriptor descriptor)
-        throws Exception;
+    ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) throws Exception;
 
     /**
      * Pin this object. If close() is called before all pins are removed, the underlying resources

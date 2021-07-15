@@ -31,7 +31,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -43,10 +42,10 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.function.ThrowingFunction;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -130,25 +129,18 @@ public class BeamFnControlClientTest {
             throw FAILURE;
           });
 
+      ExecutorService executor = Executors.newCachedThreadPool();
       BeamFnControlClient client =
           new BeamFnControlClient(
-              "",
               apiServiceDescriptor,
               InProcessManagedChannelFactory.create(),
               OutboundObserverFactory.trivial(),
+              executor,
               handlers);
 
       // Get the connected client and attempt to send and receive an instruction
       StreamObserver<BeamFnApi.InstructionRequest> outboundServerObserver =
           outboundServerObservers.take();
-
-      ExecutorService executor = Executors.newCachedThreadPool();
-      Future<Void> future =
-          executor.submit(
-              () -> {
-                client.processInstructionRequests(executor);
-                return null;
-              });
 
       outboundServerObserver.onNext(SUCCESSFUL_REQUEST);
       assertEquals(SUCCESSFUL_RESPONSE, values.take());
@@ -165,7 +157,7 @@ public class BeamFnControlClientTest {
       // Ensure that the server completing the stream translates to the completable future
       // being completed allowing for a successful shutdown of the client.
       outboundServerObserver.onCompleted();
-      future.get();
+      client.waitForTermination();
     } finally {
       server.shutdownNow();
     }
@@ -210,25 +202,18 @@ public class BeamFnControlClientTest {
             throw new Error("Test Error");
           });
 
+      ExecutorService executor = Executors.newCachedThreadPool();
       BeamFnControlClient client =
           new BeamFnControlClient(
-              "",
               apiServiceDescriptor,
               InProcessManagedChannelFactory.create(),
               OutboundObserverFactory.trivial(),
+              executor,
               handlers);
 
       // Get the connected client and attempt to send and receive an instruction
       StreamObserver<BeamFnApi.InstructionRequest> outboundServerObserver =
           outboundServerObservers.take();
-
-      ExecutorService executor = Executors.newCachedThreadPool();
-      Future<Void> future =
-          executor.submit(
-              () -> {
-                client.processInstructionRequests(executor);
-                return null;
-              });
 
       // Ensure that all exceptions are caught and translated to failures
       outboundServerObserver.onNext(
@@ -241,7 +226,7 @@ public class BeamFnControlClientTest {
 
       // Ensure that the client shuts down when an Error is thrown from the harness
       try {
-        future.get();
+        client.waitForTermination();
         throw new IllegalStateException("The future should have terminated with an error");
       } catch (ExecutionException errorWrapper) {
         assertThat(errorWrapper.getCause().getMessage(), containsString("Test Error"));

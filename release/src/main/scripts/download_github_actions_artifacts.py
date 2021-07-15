@@ -30,7 +30,7 @@ import dateutil.parser
 import requests
 
 GH_API_URL_WORKLOW_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/build_wheels.yml"
-GH_API_URL_WORKFLOW_RUNS_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/{workflow_id}/runs"
+GH_API_URL_WORKFLOW_RUNS_FMT = "https://api.github.com/repos/{repo_url}/actions/workflows/{workflow_id}/runs?branch={ref}"
 GH_API_URL_WORKFLOW_RUN_FMT = "https://api.github.com/repos/{repo_url}/actions/runs/{run_id}"
 GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/{repo_url}/actions/runs/{run_id}"
 
@@ -38,7 +38,7 @@ GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/{repo_url}/actions/runs/{run_id
 def parse_arguments():
   """
   Gets all neccessary data from the user by parsing arguments or asking for input.
-  Return: github_token, user_github_id, repo_url, release_branch, release_commit, artifacts_dir, rc_number
+  Return: github_token, user_github_id, repo_url, rc_tag, release_commit, artifacts_dir, rc_number
   """
   parser = argparse.ArgumentParser(
       description=
@@ -46,7 +46,7 @@ def parse_arguments():
   )
   parser.add_argument("--github-user", required=True)
   parser.add_argument("--repo-url", required=True)
-  parser.add_argument("--release-branch", required=True)
+  parser.add_argument("--rc-tag", required=True)
   parser.add_argument("--release-commit", required=True)
   parser.add_argument("--artifacts_dir", required=True)
   parser.add_argument("--rc_number", required=False, default="")
@@ -63,13 +63,13 @@ def parse_arguments():
 
   user_github_id = args.github_user
   repo_url = args.repo_url
-  release_branch = args.release_branch
+  rc_tag = args.rc_tag
   release_commit = args.release_commit
   artifacts_dir = args.artifacts_dir if os.path.isabs(args.artifacts_dir) \
     else os.path.abspath(args.artifacts_dir)
   rc_number = args.rc_number
 
-  return github_token, user_github_id, repo_url, release_branch, release_commit, artifacts_dir, rc_number
+  return github_token, user_github_id, repo_url, rc_tag, release_commit, artifacts_dir, rc_number
 
 
 def ask_for_github_token():
@@ -125,22 +125,23 @@ def get_build_wheels_workflow_id(repo_url, github_token):
 def get_single_workflow_run_data(run_id, repo_url, github_token):
   """Gets single workflow run data (github api payload)."""
   url = GH_API_URL_WORKFLOW_RUN_FMT.format(repo_url=repo_url, run_id=run_id)
+  print('Fetching run data: ', url)
   return request_url(url, github_token)
 
 
 def get_last_run_id(
-    workflow_id, repo_url, release_branch, release_commit, github_token):
+    workflow_id, repo_url, rc_tag, release_commit, github_token):
   """
   Gets id of last run for given workflow, repo, branch and commit.
   Raises exception when no run found.
   """
   url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
-      repo_url=repo_url, workflow_id=workflow_id)
+      repo_url=repo_url, workflow_id=workflow_id, ref=rc_tag)
   data = request_url(
       url,
       github_token,
       params={
-          "event": "push", "branch": release_branch
+          "event": "push", "tag": rc_tag
       },
   )
   runs = safe_get(data, "workflow_runs", url)
@@ -151,9 +152,9 @@ def get_last_run_id(
 
   if not filtered_commit_runs:
     workflow_run_web_url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
-        repo_url=repo_url, workflow_id=workflow_id)
+        repo_url=repo_url, workflow_id=workflow_id, ref=rc_tag)
     raise Exception(
-        f"No runs for workflow (branch {release_branch}, commit {release_commit}). Verify at {workflow_run_web_url}"
+        f"No runs for workflow (tag {rc_tag}, commit {release_commit}). Verify at {workflow_run_web_url}"
     )
 
   sorted_runs = sorted(
@@ -171,7 +172,7 @@ def get_last_run_id(
   print(f"Verify at {workflow_run_web_url}")
   print(
       f"GCS location corresponding to artifacts built in this run: "
-      f"gs://beam-wheels-staging/{release_branch}/{release_commit}-{last_run_id}/"
+      f"gs://beam-wheels-staging/{rc_tag}/{release_commit}-{last_run_id}/"
   )
   return last_run_id
 
@@ -276,11 +277,14 @@ def fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token, rc_num
   artifacts_url = safe_get(run_data, "artifacts_url")
   data_artifacts = request_url(artifacts_url, github_token)
   artifacts = safe_get(data_artifacts, "artifacts", artifacts_url)
+  print('Filtering ', len(artifacts), ' artifacts')
   filtered_artifacts = filter_artifacts(artifacts, rc_number)
+  print('Preparing to download ', len(filtered_artifacts), ' artifacts')
   for artifact in filtered_artifacts:
     url = safe_get(artifact, "archive_download_url")
     name = safe_get(artifact, "name")
     size_in_bytes = safe_get(artifact, "size_in_bytes")
+    print('Downloading ', size_in_bytes, ' from ', url)
 
     with tempfile.TemporaryDirectory() as tmp:
       temp_file_path = os.path.join(tmp, name + ".zip")
@@ -319,7 +323,7 @@ if __name__ == "__main__":
       github_token,
       user_github_id,
       repo_url,
-      release_branch,
+      rc_tag,
       release_commit,
       artifacts_dir,
       rc_number,
@@ -328,7 +332,7 @@ if __name__ == "__main__":
   try:
     workflow_id = get_build_wheels_workflow_id(repo_url, github_token)
     run_id = get_last_run_id(
-        workflow_id, repo_url, release_branch, release_commit, github_token)
+        workflow_id, repo_url, rc_tag, release_commit, github_token)
     validate_run(run_id, repo_url, github_token)
     prepare_directory(artifacts_dir)
     fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token, rc_number)

@@ -47,8 +47,6 @@ Typical usage::
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-
 import abc
 import logging
 import os
@@ -56,8 +54,6 @@ import re
 import shutil
 import tempfile
 import unicodedata
-from builtins import object
-from builtins import zip
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
@@ -72,7 +68,6 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 
-from future.utils import with_metaclass
 from google.protobuf import message
 
 from apache_beam import pvalue
@@ -90,6 +85,9 @@ from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.resources import merge_resource_hints
+from apache_beam.transforms.resources import resource_hints_from_options
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
@@ -219,7 +217,8 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()  # type: Set[str]
-
+    # Hints supplied via pipeline options are considered the outermost hints.
+    self._root_transform().resource_hints = resource_hints_from_options(options)
     # Create a ComponentIdMap for assigning IDs to components. Ensures that any
     # components that receive an ID during pipeline construction (for example in
     # ExternalTransform), will receive the same component ID when generating the
@@ -238,6 +237,11 @@ class Pipeline(object):
   def options(self):
     # type: () -> PipelineOptions
     return self._options
+
+  @property
+  def allow_unsafe_triggers(self):
+    # type: () -> bool
+    return self._options.view_as(TypeOptions).allow_unsafe_triggers
 
   def _current_transform(self):
     # type: () -> AppliedPTransform
@@ -294,6 +298,9 @@ class Pipeline(object):
               replacement_transform,
               original_transform_node.full_label,
               original_transform_node.inputs)
+
+          replacement_transform_node.resource_hints = (
+              original_transform_node.resource_hints)
 
           # Transform execution could depend on order in which nodes are
           # considered. Hence we insert the replacement transform node to same
@@ -453,10 +460,10 @@ class Pipeline(object):
         transform.replace_output(output, tag=tag)
 
     for transform in input_replacements:
-      transform.inputs = input_replacements[transform]
+      transform.replace_inputs(input_replacements[transform])
 
     for transform in side_input_replacements:
-      transform.side_inputs = side_input_replacements[transform]
+      transform.replace_side_inputs(side_input_replacements[transform])
 
   def _check_replacement(self, override):
     # type: (PTransformOverride) -> None
@@ -1042,6 +1049,12 @@ class AppliedPTransform(object):
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
     self.environment_id = environment_id if environment_id else None  # type: Optional[str]
+    # We may need to merge the hints with environment-provided hints here
+    # once environment is a first-class citizen in Beam graph and we have
+    # access to actual environment, not just an id.
+    self.resource_hints = dict(
+        transform.get_resource_hints()) if transform else {
+        }  # type: Dict[str, bytes]
 
     if annotations is None and transform:
 
@@ -1091,6 +1104,27 @@ class AppliedPTransform(object):
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_outputs(self.named_outputs())
+
+  def replace_inputs(self, inputs):
+    self.inputs = inputs
+
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_inputs(self.named_inputs())
+
+  def replace_side_inputs(self, side_inputs):
+    self.side_inputs = side_inputs
+
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.transforms import external
+    if isinstance(self.transform, external.ExternalTransform):
+      self.transform.replace_named_inputs(self.named_inputs())
+
   def add_output(
       self,
       output,  # type: Union[pvalue.DoOutputsTuple, pvalue.PValue]
@@ -1108,6 +1142,7 @@ class AppliedPTransform(object):
   def add_part(self, part):
     # type: (AppliedPTransform) -> None
     assert isinstance(part, AppliedPTransform)
+    part._merge_outer_resource_hints()
     self.parts.append(part)
 
   def is_composite(self):
@@ -1197,9 +1232,11 @@ class AppliedPTransform(object):
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PTransform
-    # External tranforms require more splicing than just setting the spec.
+    # External transforms require more splicing than just setting the spec.
     from apache_beam.transforms import external
     if isinstance(self.transform, external.ExternalTransform):
+      # TODO(BEAM-12082): Support resource hints in XLang transforms.
+      # In particular, make sure hints on composites are properly propagated.
       return self.transform.to_runner_api_transform(context, self.full_label)
 
     from apache_beam.portability.api import beam_runner_api_pb2
@@ -1228,7 +1265,8 @@ class AppliedPTransform(object):
     transform_urn = transform_spec.urn if transform_spec else None
     if (not environment_id and
         (transform_urn not in Pipeline.runner_implemented_transforms())):
-      environment_id = context.default_environment_id()
+      environment_id = context.get_environment_id_for_resource_hints(
+          self.resource_hints)
 
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
@@ -1250,7 +1288,8 @@ class AppliedPTransform(object):
         environment_id=environment_id,
         annotations=self.annotations,
         # TODO(BEAM-366): Add display_data.
-        display_data=None)
+        display_data=DisplayData.create_from(self.transform).to_proto()
+        if self.transform else None)
 
   @staticmethod
   def from_runner_api(
@@ -1276,6 +1315,12 @@ class AppliedPTransform(object):
     ]
 
     transform = ptransform.PTransform.from_runner_api(proto, context)
+    if transform and proto.environment_id:
+      resource_hints = context.environments.get_by_id(
+          proto.environment_id).resource_hints()
+      if resource_hints:
+        transform._resource_hints = dict(resource_hints)
+
     # Ordering is important here.
     # TODO(BEAM-9635): use key, value pairs instead of depending on tags with
     # index as a suffix.
@@ -1290,7 +1335,7 @@ class AppliedPTransform(object):
         transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
-        environment_id=proto.environment_id,
+        environment_id=None,
         annotations=proto.annotations)
 
     if result.transform and result.transform.side_inputs:
@@ -1301,7 +1346,7 @@ class AppliedPTransform(object):
     for transform_id in proto.subtransforms:
       part = context.transforms.get_by_id(transform_id)
       part.parent = result
-      result.parts.append(part)
+      result.add_part(part)
     result.outputs = {
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
         for tag,
@@ -1319,9 +1364,17 @@ class AppliedPTransform(object):
           pc.tag = None if tag == 'None' else tag
     return result
 
+  def _merge_outer_resource_hints(self):
+    if (self.parent is not None and self.parent.resource_hints):
+      self.resource_hints = merge_resource_hints(
+          outer_hints=self.parent.resource_hints,
+          inner_hints=self.resource_hints)
+    if self.resource_hints:
+      for part in self.parts:
+        part._merge_outer_resource_hints()
 
-class PTransformOverride(with_metaclass(abc.ABCMeta,
-                                        object)):  # type: ignore[misc]
+
+class PTransformOverride(metaclass=abc.ABCMeta):
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.

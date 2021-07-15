@@ -23,9 +23,6 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -49,12 +46,14 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
+from apache_beam.transforms.resources import merge_resource_hints
 from apache_beam.typehints import native_type_compatibility
 
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.coders.coder_impl import IterableStateReader
   from apache_beam.coders.coder_impl import IterableStateWriter
+  from apache_beam.transforms import ptransform
 
 PortableObjectT = TypeVar('PortableObjectT', bound='PortableObject')
 
@@ -118,13 +117,23 @@ class _PipelineContextMap(Generic[PortableObjectT]):
 
   def get_by_proto(self, maybe_new_proto, label=None, deduplicate=False):
     # type: (message.Message, Optional[str], bool) -> str
+    # TODO: this method may not be safe for arbitrary protos due to
+    #  xlang concerns, hence limiting usage to the only current use-case it has.
+    #  See: https://github.com/apache/beam/pull/14390#discussion_r616062377
+    assert isinstance(maybe_new_proto, beam_runner_api_pb2.Environment)
+    obj = self._obj_type.from_runner_api(
+        maybe_new_proto, self._pipeline_context)
+
     if deduplicate:
+      if obj in self._obj_to_id:
+        return self._obj_to_id[obj]
+
       for id, proto in self._id_to_proto.items():
         if proto == maybe_new_proto:
           return id
     return self.put_proto(
         self._pipeline_context.component_id_map.get_or_assign(
-            label, obj_type=self._obj_type),
+            obj=obj, obj_type=self._obj_type, label=label),
         maybe_new_proto)
 
   def get_id_to_proto_map(self):
@@ -184,6 +193,7 @@ class PipelineContext(object):
     self.component_id_map = component_id_map or ComponentIdMap(namespace)
     assert self.component_id_map.namespace == namespace
 
+    # TODO(BEAM-12084) Initialize component_id_map with objects from proto.
     self.transforms = _PipelineContextMap(
         self,
         pipeline.AppliedPTransform,
@@ -210,12 +220,12 @@ class PipelineContext(object):
         namespace,
         proto.environments if proto is not None else None)
 
-    if default_environment:
-      self._default_environment_id = self.environments.get_id(
-          default_environment,
-          label='default_environment')  # type: Optional[str]
-    else:
-      self._default_environment_id = None
+    if default_environment is None:
+      default_environment = environments.DefaultEnvironment()
+
+    self._default_environment_id = self.environments.get_id(
+        default_environment, label='default_environment')  # type: str
+
     self.use_fake_coders = use_fake_coders
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
@@ -274,5 +284,33 @@ class PipelineContext(object):
     return context_proto
 
   def default_environment_id(self):
-    # type: () -> Optional[str]
+    # type: () -> str
     return self._default_environment_id
+
+  def get_environment_id_for_resource_hints(
+      self, hints):  # type: (Dict[str, bytes]) -> str
+    """Returns an environment id that has necessary resource hints."""
+    if not hints:
+      return self.default_environment_id()
+
+    def get_or_create_environment_with_resource_hints(
+        template_env_id,
+        resource_hints,
+    ):  # type: (str, Dict[str, bytes]) -> str
+      """Creates an environment that has necessary hints and returns its id."""
+      template_env = self.environments.get_proto_from_id(template_env_id)
+      cloned_env = beam_runner_api_pb2.Environment()
+      cloned_env.CopyFrom(template_env)
+      cloned_env.resource_hints.clear()
+      cloned_env.resource_hints.update(resource_hints)
+
+      return self.environments.get_by_proto(
+          cloned_env, label='environment_with_resource_hints', deduplicate=True)
+
+    default_env_id = self.default_environment_id()
+    env_hints = self.environments.get_by_id(default_env_id).resource_hints()
+    hints = merge_resource_hints(outer_hints=env_hints, inner_hints=hints)
+    maybe_new_env_id = get_or_create_environment_with_resource_hints(
+        default_env_id, hints)
+
+    return maybe_new_env_id

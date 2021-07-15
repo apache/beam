@@ -19,13 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import json
 import logging
-from builtins import list
-from builtins import object
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -445,6 +441,18 @@ class StandardOptions(PipelineOptions):
         action='store_true',
         help='Whether to enable streaming mode.')
 
+    parser.add_argument(
+        '--resource_hint',
+        '--resource_hints',
+        dest='resource_hints',
+        action='append',
+        default=[],
+        help=(
+            'Resource hint to set in the pipeline execution environment.'
+            'Hints specified via this option override hints specified '
+            'at transform level. Interpretation of hints is defined by '
+            'Beam runners.'))
+
 
 class CrossLanguageOptions(PipelineOptions):
   @classmethod
@@ -524,6 +532,16 @@ class TypeOptions(PipelineOptions):
         'operations such as GropuByKey.  This is unsafe, as runners may group '
         'keys based on their encoded bytes, but is available for backwards '
         'compatibility. See BEAM-11719.')
+    parser.add_argument(
+        '--allow_unsafe_triggers',
+        # TODO(BEAM-9487): Set to False for Beam 2.33
+        default=True,
+        action='store_true',
+        help='Allow the use of unsafe triggers. Unsafe triggers have the '
+        'potential to cause data loss due to finishing and/or never having '
+        'their condition met. Some operations, such as GroupByKey, disallow '
+        'this. This exists for cases where such loss is acceptable and for '
+        'backwards compatibility. See BEAM-9487.')
 
   def validate(self, unused_validator):
     errors = []
@@ -863,9 +881,20 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'Docker registry location of container image to use for the '
-            'worker harness. Default is the container for the version of the '
-            'SDK. Note: currently, only approved Google Cloud Dataflow '
-            'container images may be used here.'))
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. Note: This flag is deprecated and only supports '
+            'approved Google Cloud Dataflow container images. To provide a '
+            'custom container image, use sdk_container_image instead.'))
+    parser.add_argument(
+        '--sdk_container_image',
+        default=None,
+        help=(
+            'Docker registry location of container image to use for the '
+            'worker harness. If not set, an appropriate approved Google Cloud '
+            'Dataflow image will be used based on the version of the '
+            'SDK. If set for a non-portable pipeline, only official '
+            'Google Cloud Dataflow container images may be used here.'))
     parser.add_argument(
         '--sdk_harness_container_image_overrides',
         action='append',
@@ -903,9 +932,10 @@ class WorkerOptions(PipelineOptions):
 
   def validate(self, validator):
     errors = []
+    errors.extend(validator.validate_sdk_container_image_options(self))
+
     if validator.is_service_runner():
-      errors.extend(
-          validator.validate_optional_argument_positive(self, 'num_workers'))
+      errors.extend(validator.validate_num_workers(self))
       errors.extend(validator.validate_worker_region_zone(self))
     return errors
 
@@ -1244,7 +1274,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.8', '1.9', '1.10', '1.11', '1.12']
+  PUBLISHED_FLINK_VERSIONS = ['1.10', '1.11', '1.12', '1.13']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -1285,7 +1315,8 @@ class SparkRunnerOptions(PipelineOptions):
         'the execution.')
     parser.add_argument(
         '--spark_job_server_jar',
-        help='Path or URL to a Beam Spark jobserver jar.')
+        help='Path or URL to a Beam Spark job server jar. '
+        'Overrides --spark_version.')
     parser.add_argument(
         '--spark_submit_uber_jar',
         default=False,
@@ -1298,6 +1329,11 @@ class SparkRunnerOptions(PipelineOptions):
         help='URL for the Spark REST endpoint. '
         'Only required when using spark_submit_uber_jar. '
         'For example, http://hostname:6066')
+    parser.add_argument(
+        '--spark_version',
+        default='2',
+        choices=['2', '3'],
+        help='Spark major version to use.')
 
 
 class TestOptions(PipelineOptions):

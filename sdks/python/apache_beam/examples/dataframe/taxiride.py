@@ -25,18 +25,16 @@ import argparse
 import logging
 
 import apache_beam as beam
-from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.io import read_csv
-from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
 
-ZONE_LOOKUP_PATH = "gs://apache-beam-samples/nyc_taxi/misc/taxi+_zone_lookup.csv"
+ZONE_LOOKUP_PATH = (
+    "gs://apache-beam-samples/nyc_taxi/misc/taxi+_zone_lookup.csv")
 
 
-def run_aggregation_pipeline(pipeline_args, input_path, output_path):
+def run_aggregation_pipeline(pipeline, input_path, output_path):
   # The pipeline will be run on exiting the with block.
-  with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
+  with pipeline as p:
     rides = p | read_csv(input_path)
 
     # Count the number of passengers dropped off per LocationID
@@ -45,11 +43,11 @@ def run_aggregation_pipeline(pipeline_args, input_path, output_path):
 
 
 def run_enrich_pipeline(
-    pipeline_args, input_path, output_path, zone_lookup_path):
+    pipeline, input_path, output_path, zone_lookup_path=ZONE_LOOKUP_PATH):
   """Enrich taxi ride data with zone lookup table and perform a grouped
   aggregation."""
   # The pipeline will be run on exiting the with block.
-  with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
+  with pipeline as p:
     rides = p | "Read taxi rides" >> read_csv(input_path)
     zones = p | "Read zone lookup" >> read_csv(zone_lookup_path)
 
@@ -103,14 +101,16 @@ def run(argv=None):
 
   known_args, pipeline_args = parser.parse_known_args(argv)
 
+  pipeline = beam.Pipeline(options=PipelineOptions(pipeline_args))
+
   if known_args.pipeline == 'location_id_agg':
-    run_aggregation_pipeline(pipeline_args, known_args.input, known_args.output)
+    run_aggregation_pipeline(pipeline, known_args.input, known_args.output)
   elif known_args.pipeline == 'borough_enrich':
     run_enrich_pipeline(
-        pipeline_args,
+        pipeline,
         known_args.input,
         known_args.output,
-        known_args.zone_lookup)
+        known_args.zone_lookup_path)
   else:
     raise ValueError(
         f"Unrecognized value for --pipeline: {known_args.pipeline!r}. "

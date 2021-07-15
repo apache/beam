@@ -18,9 +18,11 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.
@@ -55,5 +57,21 @@ public class SimpleStateRegistry {
       monitoringInfos.add(builder.build());
     }
     return monitoringInfos;
+  }
+
+  public Map<String, ByteString> getExecutionTimeMonitoringData(ShortIdMap shortIds) {
+    Map<String, ByteString> result = new HashMap<>(executionStates.size());
+    for (SimpleExecutionState state : executionStates) {
+      if (state.getTotalMillis() != 0) {
+        String shortId = state.getTotalMillisShortId(shortIds);
+        if (result.containsKey(shortId)) {
+          // This can happen due to flatten unzipping.
+          result.put(shortId, state.mergeTotalMillisPayload(result.get(shortId)));
+        } else {
+          result.put(shortId, state.getTotalMillisPayload());
+        }
+      }
+    }
+    return result;
   }
 }

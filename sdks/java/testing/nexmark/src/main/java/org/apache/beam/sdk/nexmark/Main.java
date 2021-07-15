@@ -210,6 +210,7 @@ public class Main {
       final Map<NexmarkConfiguration, NexmarkPerf> results,
       final long timestamp) {
     final InfluxDBSettings settings = getInfluxSettings(options);
+    final Map<String, String> tags = options.getInfluxTags();
     final String runner = options.getRunner().getSimpleName();
     final List<Map<String, Object>> schemaResults =
         results.entrySet().stream()
@@ -222,7 +223,7 @@ public class Main {
                         runner,
                         produceMeasurement(options, entry)))
             .collect(toList());
-    InfluxDBPublisher.publishNexmarkResults(schemaResults, settings);
+    InfluxDBPublisher.publishNexmarkResults(schemaResults, settings, tags);
   }
 
   private static InfluxDBSettings getInfluxSettings(final NexmarkOptions options) {

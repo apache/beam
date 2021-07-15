@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -32,6 +34,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class RowCoder extends SchemaCoder<Row> {
   public static RowCoder of(Schema schema) {
     return new RowCoder(schema);
+  }
+
+  /** Override encoding positions for the given schema. */
+  public static void overrideEncodingPositions(UUID uuid, Map<String, Integer> encodingPositions) {
+    SchemaCoder.overrideEncodingPositions(uuid, encodingPositions);
   }
 
   private RowCoder(Schema schema) {

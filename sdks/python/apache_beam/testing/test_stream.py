@@ -21,15 +21,10 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from abc import ABCMeta
 from abc import abstractmethod
-from builtins import object
 from enum import Enum
 from functools import total_ordering
-
-from future.utils import with_metaclass
 
 import apache_beam as beam
 from apache_beam import coders
@@ -63,7 +58,7 @@ __all__ = [
 
 
 @total_ordering
-class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class Event(metaclass=ABCMeta):  # type: ignore[misc]
   """Test stream event to be emitted during execution of a TestStream."""
   @abstractmethod
   def __eq__(self, other):

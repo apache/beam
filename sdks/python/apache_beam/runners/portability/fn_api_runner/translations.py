@@ -20,14 +20,10 @@
 # pytype: skip-file
 # mypy: check-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import collections
 import functools
 import itertools
 import logging
-from builtins import object
 from typing import Callable
 from typing import Container
 from typing import DefaultDict
@@ -40,8 +36,6 @@ from typing import Optional
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
-
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.internal import pickler
@@ -79,11 +73,20 @@ PAR_DO_URNS = frozenset([
 
 IMPULSE_BUFFER = b'impulse'
 
+# TimerFamilyId is identified by transform name + timer family
+TimerFamilyId = Tuple[str, str]
+
 # SideInputId is identified by a consumer ParDo + tag.
 SideInputId = Tuple[str, str]
 SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
 
 DataOutput = Dict[str, bytes]
+
+# A map from a PCollection coder ID to a Safe Coder ID
+# A safe coder is a coder that can be used on the runner-side of the FnApi.
+# A safe coder receives a byte string, and returns a type that can be
+# understood by the runner when deserializing.
+SafeCoderMapping = Dict[str, str]
 
 # DataSideInput maps SideInputIds to a tuple of the encoded bytes of the side
 # input content, and a payload specification regarding the type of side input
@@ -106,7 +109,7 @@ class Stage(object):
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
     self.must_follow = must_follow
-    self.timers = set()  # type: Set[Tuple[str, str]]
+    self.timers = set()  # type: Set[TimerFamilyId]
     self.parent = parent
     if environment is None:
       environment = functools.reduce(
@@ -376,7 +379,12 @@ class TransformContext(object):
     coder_proto = coders.BytesCoder().to_runner_api(
         None)  # type: ignore[arg-type]
     self.bytes_coder_id = self.add_or_get_coder_id(coder_proto, 'bytes_coder')
-    self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
+
+    self.safe_coders: SafeCoderMapping = {
+        self.bytes_coder_id: self.bytes_coder_id
+    }
+
+    # A map of PCollection ID to Coder ID.
     self.data_channel_coders = {}  # type: Dict[str, str]
 
   def add_or_get_coder_id(
@@ -1082,10 +1090,6 @@ def pack_combiners(stages, context, can_pack=None):
       can_pack)
 
 
-def pack_all_combiners(stages, context):
-  yield from pack_combiners(stages, context, lambda name: True)
-
-
 def lift_combiners(stages, context):
   # type: (List[Stage], TransformContext) -> Iterator[Stage]
 
@@ -1335,7 +1339,7 @@ def expand_sdf(stages, context):
       if pardo_payload.restriction_coder_id:
 
         def copy_like(protos, original, suffix='_copy', **kwargs):
-          if isinstance(original, (str, unicode)):
+          if isinstance(original, str):
             key = original
             original = protos[original]
           else:

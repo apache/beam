@@ -404,9 +404,7 @@ func TestSchemaConversion(t *testing.T) {
 						},
 					},
 				},
-				Options: []*pipepb.Option{{
-					Name: optGoNillable,
-				}},
+				Options: []*pipepb.Option{optGoNillable()},
 			},
 			rt: reflect.TypeOf(&struct {
 				SuperNES int16
@@ -530,9 +528,7 @@ func TestSchemaConversion(t *testing.T) {
 						},
 					},
 				},
-				Options: []*pipepb.Option{{
-					Name: optGoNillable,
-				}, logicalOption("*schema.exportedFunc")},
+				Options: []*pipepb.Option{optGoNillable(), logicalOption("*schema.exportedFunc")},
 			},
 			rt: exportedFuncType,
 		}, {
@@ -568,7 +564,7 @@ func TestSchemaConversion(t *testing.T) {
 				Fields: []*pipepb.Field{
 					{
 						Name:    "Exported",
-						Options: []*pipepb.Option{&pipepb.Option{Name: optGoEmbedded}},
+						Options: []*pipepb.Option{optGoEmbedded()},
 						Type: &pipepb.FieldType{
 							TypeInfo: &pipepb.FieldType_RowType{
 								RowType: &pipepb.RowType{
@@ -610,7 +606,7 @@ func TestSchemaConversion(t *testing.T) {
 				Fields: []*pipepb.Field{
 					{
 						Name:    "Exported",
-						Options: []*pipepb.Option{&pipepb.Option{Name: optGoEmbedded}},
+						Options: []*pipepb.Option{optGoEmbedded()},
 						Type: &pipepb.FieldType{
 							Nullable: true,
 							TypeInfo: &pipepb.FieldType_RowType{
@@ -660,9 +656,7 @@ func TestSchemaConversion(t *testing.T) {
 						},
 					},
 				},
-				Options: []*pipepb.Option{{
-					Name: optGoNillable,
-				}},
+				Options: []*pipepb.Option{optGoNillable()},
 			},
 			rt: reflect.TypeOf(&struct {
 				myInt

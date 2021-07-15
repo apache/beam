@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -55,7 +55,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.scheduler.EventLoggingListener;
@@ -72,8 +72,7 @@ import org.slf4j.LoggerFactory;
 
 /** Runs a portable pipeline on Apache Spark. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 public class SparkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineRunner.class);
@@ -114,19 +113,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             ? trimmedPipeline
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
-    // File staging.
-    if (pipelineOptions.getFilesToStage() == null) {
-      pipelineOptions.setFilesToStage(
-          detectClassPathResourcesToStage(
-              SparkPipelineRunner.class.getClassLoader(), pipelineOptions));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
-    }
     prepareFilesToStage(pipelineOptions);
-    LOG.info(
-        "Will stage {} files. (Enable logging at DEBUG level to see which files will be staged.)",
-        pipelineOptions.getFilesToStage().size());
-    LOG.debug("Staging files: {}", pipelineOptions.getFilesToStage());
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
@@ -281,6 +268,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   private static class SparkPipelineRunnerConfiguration {
+    @Nullable
     @Option(
         name = "--base-job-name",
         usage =

@@ -191,7 +191,7 @@ public class FlinkSavepointTest implements Serializable {
   private JobID executeLegacy(Pipeline pipeline) throws Exception {
     JobGraph jobGraph = getJobGraph(pipeline);
     flinkCluster.submitJob(jobGraph).get();
-    return jobGraph.getJobID();
+    return waitForJobToBeReady();
   }
 
   private JobID executePortable(Pipeline pipeline) throws Exception {

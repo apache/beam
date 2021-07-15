@@ -33,7 +33,7 @@ import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -64,13 +64,13 @@ public class WindmillStateCache implements StatusDataProvider {
   private static final int PER_CACHE_ENTRY_OVERHEAD =
       8 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
 
-  private Cache<StateId, StateCacheEntry> stateCache;
+  private final Cache<StateId, StateCacheEntry> stateCache;
   // Contains the current valid ForKey object. Entries in the cache are keyed by ForKey with pointer
   // equality so entries may be invalidated by creating a new key object, rendering the previous
   // entries inaccessible. They will be evicted through normal cache operation.
-  private ConcurrentMap<WindmillComputationKey, ForKey> keyIndex =
+  private final ConcurrentMap<WindmillComputationKey, ForKey> keyIndex =
       new MapMaker().weakValues().concurrencyLevel(4).makeMap();
-  private long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
+  private final long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
 
   public WindmillStateCache(long workerCacheMb) {
     final Weigher<Weighted, Weighted> weigher = Weighers.weightedKeysAndValues();
@@ -115,6 +115,10 @@ public class WindmillStateCache implements StatusDataProvider {
     return workerCacheBytes;
   }
 
+  public CacheStats getCacheStats() {
+    return stateCache.stats();
+  }
+
   /** Per-computation view of the state cache. */
   public class ForComputation {
 
@@ -134,16 +138,11 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     /**
-     * Returns a per-computation, per-key, per-state-family view of the state cache. Access to the
-     * cached data for this key is not thread-safe. Callers should ensure that there is only a
-     * single ForKeyAndFamily object in use at a time and that access to it is synchronized or
-     * single-threaded.
+     * Returns a per-computation, per-key view of the state cache. Access to the cached data for
+     * this key is not thread-safe. Callers should ensure that there is only a single ForKey object
+     * in use at a time and that access to it is synchronized or single-threaded.
      */
-    public ForKeyAndFamily forKey(
-        WindmillComputationKey computationKey,
-        String stateFamily,
-        long cacheToken,
-        long workToken) {
+    public ForKey forKey(WindmillComputationKey computationKey, long cacheToken, long workToken) {
       ForKey forKey = keyIndex.get(computationKey);
       if (forKey == null || !forKey.updateTokens(cacheToken, workToken)) {
         forKey = new ForKey(computationKey, cacheToken, workToken);
@@ -152,14 +151,14 @@ public class WindmillStateCache implements StatusDataProvider {
         // values as well.
         keyIndex.put(computationKey, forKey);
       }
-      return new ForKeyAndFamily(forKey, stateFamily);
+      return forKey;
     }
   }
 
   /** Per-computation, per-key view of the state cache. */
   // Note that we utilize the default equality and hashCode for this class based upon the instance
   // (instead of the fields) to optimize cache invalidation.
-  private static class ForKey {
+  public class ForKey {
     private final WindmillComputationKey computationKey;
     // Cache token must be consistent for the key for the cache to be valid.
     private final long cacheToken;
@@ -168,6 +167,16 @@ public class WindmillStateCache implements StatusDataProvider {
     // increasing for a key, a less-than or equal to work token indicates that the current token is
     // for stale processing.
     private long workToken;
+
+    /**
+     * Returns a per-computation, per-key, per-family view of the state cache. Access to the cached
+     * data for this key is not thread-safe. Callers should ensure that there is only a single
+     * ForKeyAndFamily object in use at a time for a given computation, key, family tuple and that
+     * access to it is synchronized or single-threaded.
+     */
+    public ForKeyAndFamily forFamily(String stateFamily) {
+      return new ForKeyAndFamily(this, stateFamily);
+    }
 
     private ForKey(WindmillComputationKey computationKey, long cacheToken, long workToken) {
       this.computationKey = computationKey;
@@ -191,7 +200,7 @@ public class WindmillStateCache implements StatusDataProvider {
   public class ForKeyAndFamily {
     final ForKey forKey;
     final String stateFamily;
-    private HashMap<StateId, StateCacheEntry> localCache;
+    private final HashMap<StateId, StateCacheEntry> localCache;
 
     private ForKeyAndFamily(ForKey forKey, String stateFamily) {
       this.forKey = forKey;
@@ -331,7 +340,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
       NamespacedTag(StateNamespace namespace, StateTag<T> tag) {
         this.namespace = namespace;
-        this.tag = StateTags.ID_EQUIVALENCE.wrap((StateTag) tag);
+        this.tag = StateTags.ID_EQUIVALENCE.wrap(tag);
       }
 
       @Override

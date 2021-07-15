@@ -57,7 +57,15 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
     options.setRunner(SamzaRunner.class);
     try {
       final SamzaRunner runner = SamzaRunner.fromOptions(options);
-      return runner.runPortablePipeline(fusedPipeline);
+      final PortablePipelineResult result = runner.runPortablePipeline(fusedPipeline, jobInfo);
+
+      final SamzaExecutionEnvironment exeEnv = options.getSamzaExecutionEnvironment();
+      if (exeEnv == SamzaExecutionEnvironment.LOCAL
+          || exeEnv == SamzaExecutionEnvironment.STANDALONE) {
+        // Make run() sync for local mode
+        result.waitUntilFinish();
+      }
+      return result;
     } catch (Exception e) {
       throw new RuntimeException("Failed to invoke samza job", e);
     }

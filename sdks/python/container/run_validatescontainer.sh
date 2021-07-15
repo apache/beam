@@ -71,7 +71,7 @@ else
   echo "Must set Python version with one of 'python36', 'python37' and 'python38' from commandline."
   exit 1
 fi
-XUNIT_FILE="nosetests-$IMAGE_NAME.xml"
+XUNIT_FILE="pytest-$IMAGE_NAME.xml"
 
 # Verify in the root of the repository
 test -d sdks/python/container
@@ -118,19 +118,19 @@ SDK_LOCATION=$2
 
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
-python setup.py nosetests \
-  --attr ValidatesContainer \
-  --nologcapture \
-  --processes=1 \
-  --process-timeout=900 \
-  --with-xunitmp \
-  --xunitmp-file=$XUNIT_FILE \
-  --ignore-files '.*py3\d?\.py$' \
+pytest -o junit_suite_name=$IMAGE_NAME \
+  -m="it_validatescontainer" \
+  --show-capture=no \
+  --numprocesses=1 \
+  --timeout=900 \
+  --junitxml=$XUNIT_FILE \
+  --ignore-glob '.*py3\d?\.py$' \
+  --log-cli-level=INFO \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
     --region=$REGION \
-    --worker_harness_container_image=$CONTAINER:$TAG \
+    --sdk_container_image=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --output=$GCS_LOCATION/output \

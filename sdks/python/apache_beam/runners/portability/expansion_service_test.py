@@ -16,8 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import argparse
 import logging
 import signal
@@ -25,7 +23,6 @@ import sys
 import typing
 
 import grpc
-from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -95,7 +92,7 @@ class FilterLessThanTransform(ptransform.PTransform):
 
 
 @ptransform.PTransform.register_urn(TEST_PREFIX_URN, None)
-@beam.typehints.with_output_types(unicode)
+@beam.typehints.with_output_types(str)
 class PrefixTransform(ptransform.PTransform):
   def __init__(self, payload):
     self._payload = payload
@@ -120,9 +117,9 @@ class MutltiTransform(ptransform.PTransform):
         'main': (pcolls['main1'], pcolls['main2'])
         | beam.Flatten()
         | beam.Map(lambda x, s: x + s, beam.pvalue.AsSingleton(
-            pcolls['side'])).with_output_types(unicode),
+            pcolls['side'])).with_output_types(str),
         'side': pcolls['side']
-        | beam.Map(lambda x: x + x).with_output_types(unicode),
+        | beam.Map(lambda x: x + x).with_output_types(str),
     }
 
   def to_runner_api_parameter(self, unused_context):
@@ -159,7 +156,7 @@ class CoGBKTransform(ptransform.PTransform):
     return pcoll \
            | beam.CoGroupByKey() \
            | beam.ParDo(self.ConcatFn()).with_output_types(
-               typing.Tuple[int, typing.Iterable[unicode]])
+               typing.Tuple[int, typing.Iterable[str]])
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_CGBK_URN, None
@@ -190,7 +187,7 @@ class CombinePerKeyTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return pcoll \
            | beam.CombinePerKey(sum).with_output_types(
-               typing.Tuple[unicode, int])
+               typing.Tuple[str, int])
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_COMPK_URN, None
@@ -243,7 +240,7 @@ class ExtractHtmlTitleDoFn(beam.DoFn):
 @ptransform.PTransform.register_urn(TEST_PYTHON_BS4_URN, None)
 class ExtractHtmlTitleTransform(ptransform.PTransform):
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(ExtractHtmlTitleDoFn()).with_output_types(unicode)
+    return pcoll | beam.ParDo(ExtractHtmlTitleDoFn()).with_output_types(str)
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_PYTHON_BS4_URN, None

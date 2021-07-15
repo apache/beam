@@ -27,6 +27,7 @@ import (
 	// Library imports
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -34,11 +35,17 @@ import (
 func init() {
 	runtime.RegisterFunction(discardFn)
 	runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*headFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*headFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*headKVFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*headKVFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*printFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*printFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*printGBKFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*printGBKFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*printKVFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*printKVFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*headFn)(nil)).Elem(), wrapMakerHeadFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*headKVFn)(nil)).Elem(), wrapMakerHeadKVFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*printFn)(nil)).Elem(), wrapMakerPrintFn)

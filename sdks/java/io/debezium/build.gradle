@@ -32,7 +32,7 @@ ext.summary = "Library to work with Debezium data."
 
 dependencies {
     compile library.java.vendored_guava_26_0_jre
-    compile library.java.vendored_grpc_1_26_0
+    compile library.java.vendored_grpc_1_36_0
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile library.java.slf4j_api
     compile library.java.joda_time

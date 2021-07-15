@@ -17,6 +17,7 @@ package dataflowlib
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -56,6 +57,7 @@ type JobOptions struct {
 	WorkerRegion        string
 	WorkerZone          string
 	ContainerImage      string
+	ArtifactURLs        []string // Additional packages for workers.
 
 	// Autoscaling settings
 	Algorithm     string
@@ -126,6 +128,15 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		}
 		packages = append(packages, jar)
 		experiments = append(experiments, "use_staged_dataflow_worker_jar")
+	}
+
+	for _, url := range opts.ArtifactURLs {
+		name := url[strings.LastIndexAny(url, "/")+1:]
+		pkg := &df.Package{
+			Name:     name,
+			Location: url,
+		}
+		packages = append(packages, pkg)
 	}
 
 	ipConfiguration := "WORKER_IP_UNSPECIFIED"
@@ -334,6 +345,18 @@ func validateWorkerSettings(ctx context.Context, opts *JobOptions) error {
 		log.Warn(ctx, "Option --zone is deprecated. Please use --workerZone instead.")
 		opts.WorkerZone = opts.Zone
 		opts.Zone = ""
+	}
+
+	numWorkers := opts.NumWorkers
+	maxNumWorkers := opts.MaxNumWorkers
+	if numWorkers < 0 {
+		return fmt.Errorf("num_workers (%d) cannot be negative", numWorkers)
+	}
+	if maxNumWorkers < 0 {
+		return fmt.Errorf("max_num_workers (%d) cannot be negative", maxNumWorkers)
+	}
+	if numWorkers > 0 && maxNumWorkers > 0 && numWorkers > maxNumWorkers {
+		return fmt.Errorf("num_workers (%d) cannot exceed max_num_workers (%d)", numWorkers, maxNumWorkers)
 	}
 	return nil
 }

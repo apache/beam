@@ -19,31 +19,40 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
+import dataclasses
 import logging
 import typing
 import unittest
 
-from past.builtins import unicode
-
 import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.runners.dataflow.internal import apiclient
+except ImportError:
+  apiclient = None  # type: ignore
+# pylint: enable=wrong-import-order, wrong-import-position
 
-def get_payload(args):
-  return ExternalConfigurationPayload(configuration=args)
+
+def get_payload(cls):
+  payload = ExternalConfigurationPayload()
+  payload.ParseFromString(cls._payload)
+  return payload
 
 
 class PayloadBase(object):
@@ -83,28 +92,8 @@ class PayloadBase(object):
     for key, value in self.values.items():
       self.assertEqual(getattr(decoded, key), value)
 
-  # TODO(BEAM-7372): Drop py2 specific "bytes" tests
-  def test_typing_payload_builder_with_bytes(self):
-    """
-    string_utf8 coder will be used even if values are not unicode in python 2.x
-    """
-    result = self.get_payload_from_typing_hints(self.bytes_values)
-    decoded = RowCoder(result.schema).decode(result.payload)
-    for key, value in self.values.items():
-      self.assertEqual(getattr(decoded, key), value)
-
   def test_typehints_payload_builder(self):
     result = self.get_payload_from_typing_hints(self.values)
-    decoded = RowCoder(result.schema).decode(result.payload)
-    for key, value in self.values.items():
-      self.assertEqual(getattr(decoded, key), value)
-
-  # TODO(BEAM-7372): Drop py2 specific "bytes" tests
-  def test_typehints_payload_builder_with_bytes(self):
-    """
-    string_utf8 coder will be used even if values are not unicode in python 2.x
-    """
-    result = self.get_payload_from_typing_hints(self.bytes_values)
     decoded = RowCoder(result.schema).decode(result.payload)
     for key, value in self.values.items():
       self.assertEqual(getattr(decoded, key), value)
@@ -124,9 +113,9 @@ class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
         [
             ('integer_example', int),
             ('boolean', bool),
-            ('string_example', unicode),
-            ('list_of_strings', typing.List[unicode]),
-            ('mapping', typing.Mapping[unicode, float]),
+            ('string_example', str),
+            ('list_of_strings', typing.List[str]),
+            ('mapping', typing.Mapping[str, float]),
             ('optional_integer', typing.Optional[int]),
         ])
 
@@ -197,6 +186,54 @@ class ExternalTransformTest(unittest.TestCase):
     self.assertEqual(
         u'ExternalTransform(beam:transforms:xlang:test:prefix)/TestLabel',
         pipeline_from_proto.transforms_stack[0].parts[1].parts[0].full_label)
+
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
+  def test_pipeline_generation_with_runner_overrides(self):
+    pipeline_properties = [
+        '--dataflow_endpoint=ignored',
+        '--job_name=test-job',
+        '--project=test-project',
+        '--staging_location=ignored',
+        '--temp_location=/dev/null',
+        '--no_auth',
+        '--dry_run=True',
+        '--sdk_location=container',
+        '--runner=DataflowRunner',
+        '--streaming'
+    ]
+
+    with beam.Pipeline(options=PipelineOptions(pipeline_properties)) as p:
+      _ = (
+          p
+          | beam.io.ReadFromPubSub(
+              subscription=
+              'projects/dummy-project/subscriptions/dummy-subscription')
+          | beam.ExternalTransform(
+              'beam:transforms:xlang:test:prefix',
+              ImplicitSchemaPayloadBuilder({'data': u'0'}),
+              expansion_service.ExpansionServiceServicer()))
+
+    pipeline_proto, _ = p.to_runner_api(return_context=True)
+
+    pubsub_read_transform = None
+    external_transform = None
+    proto_transforms = pipeline_proto.components.transforms
+    for id in proto_transforms:
+      if 'beam:transforms:xlang:test:prefix' in proto_transforms[
+          id].unique_name:
+        external_transform = proto_transforms[id]
+      if 'ReadFromPubSub' in proto_transforms[id].unique_name:
+        pubsub_read_transform = proto_transforms[id]
+
+    if not (pubsub_read_transform and external_transform):
+      raise ValueError(
+          'Could not find an external transform and the PubSub read transform '
+          'in the pipeline')
+
+    self.assertEqual(1, len(list(pubsub_read_transform.outputs.values())))
+    self.assertEqual(
+        list(pubsub_read_transform.outputs.values()),
+        list(external_transform.inputs.values()))
 
   def test_payload(self):
     with beam.Pipeline() as p:
@@ -277,6 +314,96 @@ class ExternalTransformTest(unittest.TestCase):
     pipeline.run().wait_until_finish()
 
     self.assertTrue(pipeline.contains_external_transforms)
+
+
+class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
+  def get_payload_from_typing_hints(self, values):
+    class AnnotatedTransform(beam.ExternalTransform):
+      URN = 'beam:external:fakeurn:v1'
+
+      def __init__(
+          self,
+          integer_example: int,
+          boolean: bool,
+          string_example: str,
+          list_of_strings: typing.List[str],
+          mapping: typing.Mapping[str, float],
+          optional_integer: typing.Optional[int] = None,
+          expansion_service=None):
+        super(AnnotatedTransform, self).__init__(
+            self.URN,
+            AnnotationBasedPayloadBuilder(
+                self,
+                integer_example=integer_example,
+                boolean=boolean,
+                string_example=string_example,
+                list_of_strings=list_of_strings,
+                mapping=mapping,
+                optional_integer=optional_integer,
+            ),
+            expansion_service)
+
+    return get_payload(AnnotatedTransform(**values))
+
+  def get_payload_from_beam_typehints(self, values):
+    class AnnotatedTransform(beam.ExternalTransform):
+      URN = 'beam:external:fakeurn:v1'
+
+      def __init__(
+          self,
+          integer_example: int,
+          boolean: bool,
+          string_example: str,
+          list_of_strings: typehints.List[str],
+          mapping: typehints.Dict[str, float],
+          optional_integer: typehints.Optional[int] = None,
+          expansion_service=None):
+        super(AnnotatedTransform, self).__init__(
+            self.URN,
+            AnnotationBasedPayloadBuilder(
+                self,
+                integer_example=integer_example,
+                boolean=boolean,
+                string_example=string_example,
+                list_of_strings=list_of_strings,
+                mapping=mapping,
+                optional_integer=optional_integer,
+            ),
+            expansion_service)
+
+    return get_payload(AnnotatedTransform(**values))
+
+
+class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
+  def get_payload_from_typing_hints(self, values):
+    @dataclasses.dataclass
+    class DataclassTransform(beam.ExternalTransform):
+      URN = 'beam:external:fakeurn:v1'
+
+      integer_example: int
+      boolean: bool
+      string_example: str
+      list_of_strings: typing.List[str]
+      mapping: typing.Mapping[str, float] = dataclasses.field(default=dict)
+      optional_integer: typing.Optional[int] = None
+      expansion_service: dataclasses.InitVar[typing.Optional[str]] = None
+
+    return get_payload(DataclassTransform(**values))
+
+  def get_payload_from_beam_typehints(self, values):
+    @dataclasses.dataclass
+    class DataclassTransform(beam.ExternalTransform):
+      URN = 'beam:external:fakeurn:v1'
+
+      integer_example: int
+      boolean: bool
+      string_example: str
+      list_of_strings: typehints.List[str]
+      mapping: typehints.Dict[str, float] = {}
+      optional_integer: typehints.Optional[int] = None
+      expansion_service: dataclasses.InitVar[typehints.Optional[str]] = None
+
+    return get_payload(DataclassTransform(**values))
 
 
 if __name__ == '__main__':

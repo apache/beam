@@ -19,13 +19,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import glob
 import io
 import tempfile
-from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -285,11 +282,13 @@ def assert_that(
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
 
       keyed_singleton = pcoll.pipeline | Create([(None, None)])
+      keyed_singleton.is_bounded = True
 
       if use_global_window:
         pcoll = pcoll | WindowInto(window.GlobalWindows())
 
       keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
+      keyed_actual.is_bounded = True
 
       # This is a CoGroupByKey so that the matcher always runs, even if the
       # PCollection is empty.

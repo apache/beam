@@ -20,8 +20,6 @@ HTML files."""
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import html
 import os
 import shutil

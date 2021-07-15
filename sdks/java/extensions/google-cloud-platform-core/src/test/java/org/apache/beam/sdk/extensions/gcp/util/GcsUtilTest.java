@@ -52,9 +52,7 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
-import com.google.cloud.hadoop.util.ClientRequestHelper;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -497,21 +495,30 @@ public class GcsUtilTest {
             + "\n";
     thrown.expect(FileNotFoundException.class);
 
-    final LowLevelHttpResponse mockResponse = Mockito.mock(LowLevelHttpResponse.class);
-    when(mockResponse.getContentType()).thenReturn("multipart/mixed; boundary=" + contentBoundary);
+    final LowLevelHttpResponse[] mockResponses =
+        new LowLevelHttpResponse[] {
+          Mockito.mock(LowLevelHttpResponse.class), Mockito.mock(LowLevelHttpResponse.class),
+        };
+    when(mockResponses[0].getContentType()).thenReturn("text/plain");
+    when(mockResponses[1].getContentType())
+        .thenReturn("multipart/mixed; boundary=" + contentBoundary);
 
     // 429: Too many requests, then 200: OK.
-    when(mockResponse.getStatusCode()).thenReturn(429, 200);
-    when(mockResponse.getContent()).thenReturn(toStream("error"), toStream(content));
+    when(mockResponses[0].getStatusCode()).thenReturn(429);
+    when(mockResponses[1].getStatusCode()).thenReturn(200);
+    when(mockResponses[0].getContent()).thenReturn(toStream("error"));
+    when(mockResponses[1].getContent()).thenReturn(toStream(content));
 
     // A mock transport that lets us mock the API responses.
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder()
             .setLowLevelHttpRequest(
                 new MockLowLevelHttpRequest() {
+                  int index = 0;
+
                   @Override
                   public LowLevelHttpResponse execute() throws IOException {
-                    return mockResponse;
+                    return mockResponses[index++];
                   }
                 })
             .build();
@@ -759,11 +766,12 @@ public class GcsUtilTest {
 
   @Test
   public void testGCSChannelCloseIdempotent() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorageReadOptions readOptions =
         GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
     SeekableByteChannel channel =
-        new GoogleCloudStorageReadChannel(
-            null, "dummybucket", "dummyobject", null, new ClientRequestHelper<>(), readOptions);
+        gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject"), readOptions);
     channel.close();
     channel.close();
   }

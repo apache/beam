@@ -19,30 +19,14 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import os
 import re
-import shutil
 import socketserver
 import tempfile
 import threading
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
-
 from apache_beam.utils import subprocess_server
-
-
-# TODO(Py3): Use tempfile.TemporaryDirectory
-class TemporaryDirectory:
-  def __enter__(self):
-    self._path = tempfile.mkdtemp()
-    return self._path
-
-  def __exit__(self, *args):
-    shutil.rmtree(self._path, ignore_errors=True)
 
 
 class JavaJarServerTest(unittest.TestCase):
@@ -124,7 +108,7 @@ class JavaJarServerTest(unittest.TestCase):
     t.daemon = True
     t.start()
 
-    with TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
       subprocess_server.JavaJarServer.local_jar(
           'http://localhost:%s/path/to/file.jar' % port, temp_dir)
       with open(os.path.join(temp_dir, 'file.jar')) as fin:

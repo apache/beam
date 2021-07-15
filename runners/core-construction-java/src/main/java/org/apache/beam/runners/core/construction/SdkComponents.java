@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,13 +37,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
@@ -62,6 +67,7 @@ public class SdkComponents {
   private final Set<String> reservedIds = new HashSet<>();
 
   private String defaultEnvironmentId;
+  private Map<ResourceHints, String> environmentIdsByResourceHints = new HashMap<>();
 
   /** Create a new {@link SdkComponents} with no components. */
   public static SdkComponents create() {
@@ -309,13 +315,38 @@ public class SdkComponents {
     return environmentId;
   }
 
-  public String getOnlyEnvironmentId() {
-    // TODO Support multiple environments. The environment should be decided by the translation.
-    if (defaultEnvironmentId != null) {
-      return defaultEnvironmentId;
-    } else {
-      return Iterables.getOnlyElement(componentsBuilder.getEnvironmentsMap().keySet());
+  public String getEnvironmentIdFor(ResourceHints resourceHints) {
+    if (!environmentIdsByResourceHints.containsKey(resourceHints)) {
+      String baseEnvironmentId = getOnlyEnvironmentId();
+      if (resourceHints.hints().size() == 0) {
+        environmentIdsByResourceHints.put(resourceHints, baseEnvironmentId);
+      } else {
+        Environment env =
+            componentsBuilder
+                .getEnvironmentsMap()
+                .get(baseEnvironmentId)
+                .toBuilder()
+                .putAllResourceHints(
+                    Maps.transformValues(
+                        resourceHints.hints(), hint -> ByteString.copyFrom(hint.toBytes())))
+                .build();
+        String name = uniqify(env.getUrn(), environmentIds.values());
+        environmentIds.put(env, name);
+        componentsBuilder.putEnvironments(name, env);
+        environmentIdsByResourceHints.put(resourceHints, name);
+      }
     }
+    return environmentIdsByResourceHints.get(resourceHints);
+  }
+
+  @VisibleForTesting
+  /*package*/ String getOnlyEnvironmentId() {
+    // TODO Support multiple environments. The environment should be decided by the translation.
+    if (defaultEnvironmentId == null) {
+      defaultEnvironmentId =
+          Iterables.getOnlyElement(componentsBuilder.getEnvironmentsMap().keySet());
+    }
+    return defaultEnvironmentId;
   }
 
   public void addRequirement(String urn) {

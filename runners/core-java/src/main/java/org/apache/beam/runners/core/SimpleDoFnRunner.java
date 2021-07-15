@@ -1145,6 +1145,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void clear() {
+      timerInternals.deleteTimer(namespace, timerId, timerFamilyId, spec.getTimeDomain());
+    }
+
+    @Override
     public Timer offset(Duration offset) {
       this.offset = offset;
       return this;
@@ -1219,11 +1224,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         checkArgument(
-            !outputTimestamp.isAfter(target),
+            !outputTimestamp.isAfter(windowExpiry),
             "Attempted to set an event-time timer with an output timestamp of %s that is"
-                + " after the timer firing timestamp %s",
+                + " after the expiration of window %s",
             outputTimestamp,
-            target);
+            windowExpiry);
         checkArgument(
             !target.isAfter(windowExpiry),
             "Attempted to set an event-time timer with a firing timestamp of %s that is"

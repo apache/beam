@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.auto.value.AutoOneOf;
-import com.google.cloud.pubsublite.PublishMetadata;
+import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.Publisher;
 
@@ -35,11 +35,11 @@ abstract class PublisherOrError {
 
   abstract Kind getKind();
 
-  abstract Publisher<PublishMetadata> publisher();
+  abstract Publisher<MessageMetadata> publisher();
 
   abstract CheckedApiException error();
 
-  static PublisherOrError ofPublisher(Publisher<PublishMetadata> p) {
+  static PublisherOrError ofPublisher(Publisher<MessageMetadata> p) {
     return AutoOneOf_PublisherOrError.publisher(p);
   }
 

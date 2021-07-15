@@ -35,8 +35,10 @@ import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -172,6 +174,16 @@ public class MetricsContainerStepMap implements Serializable {
       }
     }
     return monitoringInfos;
+  }
+
+  /** Return the cumulative values for any metrics in this container as MonitoringInfo data. */
+  public Map<String, ByteString> getMonitoringData(ShortIdMap shortIds) {
+    // Extract user metrics and store as MonitoringInfos.
+    ImmutableMap.Builder<String, ByteString> builder = ImmutableMap.builder();
+    for (MetricsContainerImpl container : getMetricsContainers()) {
+      builder.putAll(container.getMonitoringData(shortIds));
+    }
+    return builder.build();
   }
 
   @Override

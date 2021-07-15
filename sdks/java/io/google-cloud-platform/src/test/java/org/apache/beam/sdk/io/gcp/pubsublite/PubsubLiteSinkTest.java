@@ -36,10 +36,10 @@ import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.CloudRegion;
 import com.google.cloud.pubsublite.CloudZone;
 import com.google.cloud.pubsublite.Message;
+import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.ProjectNumber;
-import com.google.cloud.pubsublite.PublishMetadata;
 import com.google.cloud.pubsublite.TopicName;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
@@ -74,7 +74,7 @@ public class PubsubLiteSinkTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   abstract static class PublisherFakeService extends FakeApiService
-      implements Publisher<PublishMetadata> {}
+      implements Publisher<MessageMetadata> {}
 
   @Spy private PublisherFakeService publisher;
 
@@ -124,7 +124,7 @@ public class PubsubLiteSinkTest {
   @Test
   public void singleMessagePublishes() throws Exception {
     when(publisher.publish(Message.builder().build()))
-        .thenReturn(ApiFutures.immediateFuture(PublishMetadata.of(Partition.of(1), Offset.of(2))));
+        .thenReturn(ApiFutures.immediateFuture(MessageMetadata.of(Partition.of(1), Offset.of(2))));
     runWith(Message.builder().build());
     verify(publisher).publish(Message.builder().build());
   }
@@ -134,9 +134,9 @@ public class PubsubLiteSinkTest {
     Message message1 = Message.builder().build();
     Message message2 = Message.builder().setKey(ByteString.copyFromUtf8("abc")).build();
     when(publisher.publish(message1))
-        .thenReturn(ApiFutures.immediateFuture(PublishMetadata.of(Partition.of(1), Offset.of(2))));
+        .thenReturn(ApiFutures.immediateFuture(MessageMetadata.of(Partition.of(1), Offset.of(2))));
     when(publisher.publish(message2))
-        .thenReturn(ApiFutures.immediateFuture(PublishMetadata.of(Partition.of(85), Offset.of(3))));
+        .thenReturn(ApiFutures.immediateFuture(MessageMetadata.of(Partition.of(85), Offset.of(3))));
     runWith(message1, message2);
     verify(publisher, times(2)).publish(publishedMessageCaptor.capture());
     assertThat(publishedMessageCaptor.getAllValues(), containsInAnyOrder(message1, message2));
@@ -161,9 +161,9 @@ public class PubsubLiteSinkTest {
     Message message1 = Message.builder().build();
     Message message2 = Message.builder().setKey(ByteString.copyFromUtf8("abc")).build();
     Message message3 = Message.builder().setKey(ByteString.copyFromUtf8("def")).build();
-    SettableApiFuture<PublishMetadata> future1 = SettableApiFuture.create();
-    SettableApiFuture<PublishMetadata> future2 = SettableApiFuture.create();
-    SettableApiFuture<PublishMetadata> future3 = SettableApiFuture.create();
+    SettableApiFuture<MessageMetadata> future1 = SettableApiFuture.create();
+    SettableApiFuture<MessageMetadata> future2 = SettableApiFuture.create();
+    SettableApiFuture<MessageMetadata> future3 = SettableApiFuture.create();
     CountDownLatch startedLatch = new CountDownLatch(3);
     when(publisher.publish(message1))
         .then(
@@ -188,9 +188,9 @@ public class PubsubLiteSinkTest {
         () -> {
           try {
             startedLatch.await();
-            future1.set(PublishMetadata.of(Partition.of(1), Offset.of(2)));
+            future1.set(MessageMetadata.of(Partition.of(1), Offset.of(2)));
             future2.setException(new CheckedApiException(Code.INTERNAL).underlying);
-            future3.set(PublishMetadata.of(Partition.of(1), Offset.of(3)));
+            future3.set(MessageMetadata.of(Partition.of(1), Offset.of(3)));
           } catch (InterruptedException e) {
             fail();
             throw new RuntimeException(e);
@@ -210,7 +210,7 @@ public class PubsubLiteSinkTest {
   @Test
   public void listenerExceptionOnBundleFinish() throws Exception {
     Message message1 = Message.builder().build();
-    SettableApiFuture<PublishMetadata> future = SettableApiFuture.create();
+    SettableApiFuture<MessageMetadata> future = SettableApiFuture.create();
 
     SettableApiFuture<Void> publishFuture = SettableApiFuture.create();
     when(publisher.publish(message1))
@@ -231,7 +231,7 @@ public class PubsubLiteSinkTest {
                 });
     publishFuture.get();
     listener.failed(null, new CheckedApiException(Code.INTERNAL).underlying);
-    future.set(PublishMetadata.of(Partition.of(1), Offset.of(2)));
+    future.set(MessageMetadata.of(Partition.of(1), Offset.of(2)));
     executorFuture.get();
   }
 }

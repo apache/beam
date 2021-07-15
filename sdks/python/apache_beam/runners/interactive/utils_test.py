@@ -15,11 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
 import json
 import logging
 import unittest
+from typing import NamedTuple
 from unittest.mock import PropertyMock
 from unittest.mock import patch
 
@@ -27,7 +26,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import apache_beam as beam
 from apache_beam import coders
+from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
@@ -37,16 +38,23 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 
+class Record(NamedTuple):
+  order_id: int
+  product_id: int
+  quantity: int
+
+
+def windowed_value(e):
+  from apache_beam.transforms.window import GlobalWindow
+  return WindowedValue(e, 1, [GlobalWindow()])
+
+
 class ParseToDataframeTest(unittest.TestCase):
   def test_parse_windowedvalue(self):
     """Tests that WindowedValues are supported but not present.
     """
-    from apache_beam.transforms.window import GlobalWindow
 
-    els = [
-        WindowedValue(('a', 2), 1, [GlobalWindow()]),
-        WindowedValue(('b', 3), 1, [GlobalWindow()])
-    ]
+    els = [windowed_value(('a', 2)), windowed_value(('b', 3))]
 
     actual_df = utils.elements_to_df(els, include_window_info=False)
     expected_df = pd.DataFrame([['a', 2], ['b', 3]], columns=[0, 1])
@@ -56,12 +64,8 @@ class ParseToDataframeTest(unittest.TestCase):
   def test_parse_windowedvalue_with_window_info(self):
     """Tests that WindowedValues are supported and have their own columns.
     """
-    from apache_beam.transforms.window import GlobalWindow
 
-    els = [
-        WindowedValue(('a', 2), 1, [GlobalWindow()]),
-        WindowedValue(('b', 3), 1, [GlobalWindow()])
-    ]
+    els = [windowed_value(('a', 2)), windowed_value(('b', 3))]
 
     actual_df = utils.elements_to_df(els, include_window_info=True)
     expected_df = pd.DataFrame(
@@ -74,15 +78,13 @@ class ParseToDataframeTest(unittest.TestCase):
   def test_parse_windowedvalue_with_dicts(self):
     """Tests that dicts play well with WindowedValues.
     """
-    from apache_beam.transforms.window import GlobalWindow
-
     els = [
-        WindowedValue({
+        windowed_value({
             'b': 2, 'd': 4
-        }, 1, [GlobalWindow()]),
-        WindowedValue({
+        }),
+        windowed_value({
             'a': 1, 'b': 2, 'c': 3
-        }, 1, [GlobalWindow()])
+        })
     ]
 
     actual_df = utils.elements_to_df(els, include_window_info=True)
@@ -92,6 +94,31 @@ class ParseToDataframeTest(unittest.TestCase):
         columns=['a', 'b', 'c', 'd', 'event_time', 'windows', 'pane_info'])
     # check_like so that ordering of indices doesn't matter.
     pd.testing.assert_frame_equal(actual_df, expected_df, check_like=True)
+
+  def test_parse_dataframes(self):
+    """Tests that it correctly parses a DataFrame.
+    """
+    deferred = to_dataframe(beam.Pipeline() | beam.Create([Record(0, 0, 0)]))
+
+    els = [windowed_value(pd.DataFrame(Record(n, 0, 0))) for n in range(10)]
+
+    actual_df = utils.elements_to_df(
+        els, element_type=deferred._expr.proxy()).reset_index(drop=True)
+    expected_df = pd.concat([e.value for e in els], ignore_index=True)
+    pd.testing.assert_frame_equal(actual_df, expected_df)
+
+  def test_parse_series(self):
+    """Tests that it correctly parses a Pandas Series.
+    """
+    deferred = to_dataframe(beam.Pipeline()
+                            | beam.Create([Record(0, 0, 0)]))['order_id']
+
+    els = [windowed_value(pd.Series([n])) for n in range(10)]
+
+    actual_df = utils.elements_to_df(
+        els, element_type=deferred._expr.proxy()).reset_index(drop=True)
+    expected_df = pd.concat([e.value for e in els], ignore_index=True)
+    pd.testing.assert_series_equal(actual_df, expected_df)
 
 
 class ToElementListTest(unittest.TestCase):

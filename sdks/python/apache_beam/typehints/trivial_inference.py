@@ -21,9 +21,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import print_function
-
+import builtins
 import collections
 import dis
 import inspect
@@ -31,21 +29,12 @@ import pprint
 import sys
 import traceback
 import types
-from builtins import object
-from builtins import zip
 from functools import reduce
 
 from apache_beam import pvalue
 from apache_beam.typehints import Any
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
-
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:  # Python 2
-  import __builtin__ as builtins
-except ImportError:  # Python 3
-  import builtins  # type: ignore
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 class TypeInferenceError(ValueError):

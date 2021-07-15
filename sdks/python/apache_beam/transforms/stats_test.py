@@ -18,14 +18,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import math
 import random
 import sys
 import unittest
-from builtins import range
 from collections import defaultdict
 
 import hamcrest as hc

@@ -18,9 +18,6 @@
 # pytype: skip-file
 # mypy: check-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import division
-
 import atexit
 import functools
 import itertools
@@ -341,6 +338,7 @@ class PortableRunner(runner.PipelineRunner):
             # TODO: https://issues.apache.org/jira/browse/BEAM-4678
             #       https://issues.apache.org/jira/browse/BEAM-11478
             # Eventually remove the 'lift_combiners' phase from 'default'.
+            translations.pack_combiners,
             translations.lift_combiners,
             translations.sort_stages
         ]

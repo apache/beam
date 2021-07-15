@@ -80,7 +80,7 @@ class SplittableProcessElementsEvaluatorFactory<
                         (ProcessElements<
                                 InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>)
                             application.getTransform();
-                return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()));
+                return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()), options);
               }
             },
             options);

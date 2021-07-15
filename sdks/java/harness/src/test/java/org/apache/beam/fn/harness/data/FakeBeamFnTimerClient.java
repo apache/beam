@@ -65,6 +65,12 @@ public class FakeBeamFnTimerClient implements BeamFnTimerClient {
                 }
 
                 @Override
+                @SuppressWarnings("FutureReturnValueIgnored")
+                public void runWhenComplete(Runnable completeRunnable) {
+                  timerInputFutures.get(endpoint).whenComplete((f, t) -> completeRunnable.run());
+                }
+
+                @Override
                 public boolean isDone() {
                   return timerInputFutures.get(endpoint).isDone();
                 }

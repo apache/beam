@@ -26,10 +26,7 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import re
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable

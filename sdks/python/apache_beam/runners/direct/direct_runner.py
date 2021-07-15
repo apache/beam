@@ -23,8 +23,6 @@ graph of transformations belonging to a pipeline on the local machine.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import itertools
 import logging
 import time
@@ -400,7 +398,7 @@ class _DirectReadFromPubSub(PTransform):
     # type: (...) -> typing.Optional[coders.Coder]
     return coders.BytesCoder()
 
-  def get_windowing(self, inputs):
+  def get_windowing(self, unused_inputs):
     return beam.Windowing(beam.window.GlobalWindows())
 
   def expand(self, pvalue):

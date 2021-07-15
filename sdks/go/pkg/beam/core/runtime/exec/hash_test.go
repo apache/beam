@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
@@ -125,6 +126,7 @@ func (*jsonEncoder) Encode(t reflect.Type, element interface{}) ([]byte, error) 
 
 func hashbench(b *testing.B, test interface{}, encoded, dedicated elementHasher) {
 	var value FullValue
+	gw := window.SingleGlobalWindow[0]
 	b.Run("interface", func(b *testing.B) {
 		m := make(map[interface{}]FullValue)
 		for i := 0; i < b.N; i++ {
@@ -136,7 +138,7 @@ func hashbench(b *testing.B, test interface{}, encoded, dedicated elementHasher)
 	b.Run("encodedHash", func(b *testing.B) {
 		m := make(map[uint64]FullValue)
 		for i := 0; i < b.N; i++ {
-			k, err := encoded.Hash(test)
+			k, err := encoded.Hash(test, gw)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -150,7 +152,7 @@ func hashbench(b *testing.B, test interface{}, encoded, dedicated elementHasher)
 	b.Run("dedicatedHash", func(b *testing.B) {
 		m := make(map[uint64]FullValue)
 		for i := 0; i < b.N; i++ {
-			k, err := dedicated.Hash(test)
+			k, err := dedicated.Hash(test, gw)
 			if err != nil {
 				b.Fatal(err)
 			}

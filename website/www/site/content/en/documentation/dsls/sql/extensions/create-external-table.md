@@ -344,20 +344,26 @@ INSERT INTO writeTable(key, boolColumn, longColumn, stringColumn, doubleColumn)
 
 ### Syntax
 
+#### Nested mode
 ```
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
     event_timestamp TIMESTAMP,
-    attributes MAP<VARCHAR, VARCHAR>,
-    payload ROW<tableElement [, tableElement ]*>
+    attributes [MAP<VARCHAR, VARCHAR>, ARRAY<ROW<VARCHAR key, VARCHAR value>>],
+    payload [BYTES, ROW<tableElement [, tableElement ]*>]
 )
 TYPE pubsub
 LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
-TBLPROPERTIES '{
-    "timestampAttributeKey": "key",
-    "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]",
-    "format": "format"
-}'
 ```
+
+#### Flattened mode
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(tableElement [, tableElement ]*)
+TYPE pubsub
+LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
+```
+
+In nested mode, the following fields hold topic metadata. The presence of the
+`attributes` field triggers nested mode usage.
 
 *   `event_timestamp`: The event timestamp associated with the Pub/Sub message
     by PubsubIO. It can be one of the following:
@@ -376,6 +382,8 @@ TBLPROPERTIES '{
     `deadLeaderQueue` field of the `tblProperties` blob. If no dead-letter queue
     is specified in this case, an exception is thrown and the pipeline will
     crash.
+
+
 *   `LOCATION`:
     *   `PROJECT`: ID of the Google Cloud Project
     *   `TOPIC`: The Pub/Sub topic name. A subscription will be created
@@ -390,15 +398,14 @@ TBLPROPERTIES '{
         payload was not parsed. If not specified, an exception is thrown for
         parsing failures.
     *   `format`: Optional. Allows you to specify the Pubsub payload format.
-        Possible values are {`json`, `avro`}. Defaults to `json`.
 
 ### Read Mode
 
-PubsubIO is currently limited to read access only.
+PubsubIO supports reading from topics by creating a new subscription.
 
 ### Write Mode
 
-Not supported. PubSubIO is currently limited to read access only in Beam SQL.
+PubsubIO supports writing to topics.
 
 ### Schema
 
@@ -411,13 +418,7 @@ declare a special set of columns, as shown below.
 
 ### Supported Payload
 
-*   JSON Objects (Default)
-    *   Beam only supports querying messages with payload containing JSON
-        objects. Beam attempts to parse JSON to match the schema of the
-        `payload` field.
-*   Avro
-    *   An Avro schema is automatically generated from the specified schema of
-        the `payload` field. It is used to parse incoming messages.
+*   Pub/Sub supports [Generic Payload Handling](#generic-payload-handling).
 
 ### Example
 
@@ -427,38 +428,106 @@ TYPE pubsub
 LOCATION 'projects/testing-integration/topics/user-location'
 ```
 
+## Pub/Sub Lite
+
+### Syntax
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
+    publish_timestamp DATETIME,
+    event_timestamp DATETIME,
+    message_key BYTES,
+    attributes ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>,
+    payload [BYTES, ROW<tableElement [, tableElement ]*>]
+)
+TYPE pubsublite
+// For writing
+LOCATION 'projects/[PROJECT]/locations/[GCP-LOCATION]/topics/[TOPIC]'
+// For reading
+LOCATION 'projects/[PROJECT]/locations/[GCP-LOCATION]/subscriptions/[SUBSCRIPTION]'
+```
+
+*   `LOCATION`:
+    *   `PROJECT`: ID of the Google Cloud Project
+    *   `TOPIC`: The Pub/Sub Lite topic name.
+    *   `SUBSCRIPTION`: The Pub/Sub Lite subscription name.
+    *   `GCP-LOCATION`: The location for this Pub/Sub Lite topic os subscription.
+*   `TBLPROPERTIES`:
+    *   `timestampAttributeKey`: Optional. The key which contains the event
+        timestamp associated with the Pub/Sub message. If not specified, the
+        message publish timestamp is used as an event timestamp for
+        windowing/watermarking.
+    *   `deadLetterQueue`: Optional, supports
+        [Generic DLQ Handling](#generic-dlq-handling)
+    *   `format`: Optional. Allows you to specify the payload format.
+
+### Read Mode
+
+PubsubLiteIO supports reading from subscriptions.
+
+### Write Mode
+
+PubsubLiteIO supports writing to topics.
+
+### Supported Payload
+
+*   Pub/Sub Lite supports [Generic Payload Handling](#generic-payload-handling).
+
+### Example
+
+```
+CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>, payload ROW<id INTEGER, location VARCHAR>)
+TYPE pubsublite
+LOCATION 'projects/testing-integration/locations/us-central1-a/topics/user-location'
+```
+
 ## Kafka
 
 KafkaIO is experimental in Beam SQL.
 
 ### Syntax
 
+#### Flattened mode
 ```
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE kafka
-LOCATION 'kafka://localhost:2181/brokers'
+LOCATION 'my.company.url.com:2181/topic1'
 TBLPROPERTIES '{
-    "bootstrap.servers":"localhost:9092",
-    "topics": ["topic1", "topic2"],
-    "format": "avro"
-    [, "protoClass": "com.example.ExampleMessage" ]
+    "bootstrap_servers": ["localhost:9092", "PLAINTEXT://192.168.1.200:2181"],
+    "topics": ["topic2", "topic3"],
+    "format": "json"
 }'
 ```
 
-*   `LOCATION`: The Kafka topic URL.
+#### Nested mode
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (
+  event_timestamp DATETIME,
+  message_key BYTES,
+  headers ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>,
+  payload [BYTES, ROW<tableElement [, tableElement ]*>]
+)
+TYPE kafka
+LOCATION 'my.company.url.com:2181/topic1'
+TBLPROPERTIES '{
+    "bootstrap_servers": ["localhost:9092", "PLAINTEXT://192.168.1.200:2181"],
+    "topics": ["topic2", "topic3"],
+    "format": "json"
+}'
+```
+
+The presence of the `headers` field triggers nested mode usage.
+
+*   `LOCATION`: A url with the initial bootstrap broker to use and the initial
+    topic name provided as the path.
 *   `TBLPROPERTIES`:
-    *   `bootstrap.servers`: Optional. Allows you to specify the bootstrap
-        server.
-    *   `topics`: Optional. Allows you to specify specific topics.
+    *   `bootstrap_servers`: Optional. Allows you to specify additional
+        bootstrap servers, which are used in addition to the one in `LOCATION`.
+    *   `topics`: Optional. Allows you to specify additional topics, which are
+        used in addition to the one in `LOCATION`.
     *   `format`: Optional. Allows you to specify the Kafka values format. Possible values are
-        {`csv`, `avro`, `json`, `proto`, `thrift`}. Defaults to `csv`.
-    *   `protoClass`: Optional. Use only when `format` is equal to `proto`. Allows you to
-        specify full protocol buffer java class name.
-    *   `thriftClass`: Optional. Use only when `format` is equal to `thrift`. Allows you to
-        specify full thrift java class name.
-    *   `thriftProtocolFactoryClass`: Optional. Use only when `format` is equal to `thrift`.
-        Allows you to specify full class name of the `TProtocolFactory` to use for thrift
-        serialization.
+        {`csv`, `avro`, `json`, `proto`, `thrift`}. Defaults to `csv` in
+        flattened mode or `json` in nested mode. `csv` does not support nested
+        mode.
 
 ### Read Mode
 
@@ -473,18 +542,8 @@ Write Mode supports writing to a topic.
 *   CSV (default)
     *   Beam parses the messages, attempting to parse fields according to the
         types specified in the schema.
-*   Avro
-    *   An Avro schema is automatically generated from the specified field
-        types. It is used to parse incoming messages and to format outgoing
-        messages.
-*   JSON Objects
-    *   Beam attempts to parse JSON to match the schema.
-*   Protocol buffers
-    *   Fields in the schema have to match the fields of the given `protoClass`.
-*   Thrift
-    *   Fields in the schema have to match the fields of the given `thriftClass`.
-    *   The `TProtocolFactory` used for thrift serialization must match the
-        provided `thriftProtocolFactoryClass`.
+*   Kafka supports all [Generic Payload Handling](#generic-payload-handling)
+    formats.
 
 ### Schema
 
@@ -582,3 +641,47 @@ CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
 TYPE text
 LOCATION '/home/admin/orders'
 ```
+
+## Generic Payload Handling
+
+Certain data sources and sinks support generic payload handling. This handling
+parses a byte array payload field into a table schema. The following schemas are
+supported by this handling. All require at least setting `"format": "<type>"`,
+and may require other properties.
+
+*   `avro`: Avro
+    *   An Avro schema is automatically generated from the specified field
+        types. It is used to parse incoming messages and to format outgoing
+        messages.
+*   `json`: JSON Objects
+    *   Beam attempts to parse the byte array as UTF-8 JSON to match the schema.
+*   `proto`: Protocol Buffers
+    *   Beam locates the equivalent Protocol Buffer class and uses it to parse
+        the payload
+    *   `protoClass`: Required. The proto class name to use. Must be built into
+         the deployed JAR.
+    *   Fields in the schema have to match the fields of the given `protoClass`.
+*   `thrift`: Thrift
+    *   Fields in the schema have to match the fields of the given
+        `thriftClass`.
+    *   `thriftClass`: Required. Allows you to specify full thrift java class
+        name. Must be built into the deployed JAR.
+    *   `thriftProtocolFactoryClass`: Required. Allows you to specify full class
+        name of the `TProtocolFactory` to use for thrift serialization. Must be
+        built into the deployed JAR.
+    *   The `TProtocolFactory` used for thrift serialization must match the
+        provided `thriftProtocolFactoryClass`.
+
+## Generic DLQ Handling
+
+Sources and sinks which support generic DLQ handling specify a parameter with
+the format `"<dlqParamName>": "[DLQ_KIND]:[DLQ_ID]"`. The following types of
+DLQ handling are supported:
+
+*   `bigquery`: BigQuery
+    *   DLQ_ID is the table spec for an output table with an "error" string
+        field and "payload" byte array field.
+*   `pubsub`: Pub/Sub Topic
+    *   DLQ_ID is the full path of the Pub/Sub Topic.
+*   `pubsublite`: Pub/Sub Lite Topic
+    *   DLQ_ID is the full path of the Pub/Sub Lite Topic.

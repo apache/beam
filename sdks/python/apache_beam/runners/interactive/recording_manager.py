@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
 import logging
 import threading
 import time
@@ -66,6 +64,13 @@ class ElementStream:
 
     """Returns the variable named that defined this PCollection."""
     return self._var
+
+  @property
+  def pcoll(self):
+    # type: () -> beam.pvalue.PCollection
+
+    """Returns the PCollection that supplies this stream with data."""
+    return self._pcoll
 
   @property
   def cache_key(self):
@@ -298,8 +303,14 @@ class RecordingManager:
           watched_pcollections.add(val)
         elif isinstance(val, DeferredBase):
           watched_dataframes.add(val)
-    # Convert them all in a single step for efficiency.
-    for pcoll in to_pcollection(*watched_dataframes, always_return_tuple=True):
+
+    # Convert them one-by-one to generate a unique label for each. This allows
+    # caching at a more fine-grained granularity.
+    #
+    # TODO(BEAM-12388): investigate the mixing pcollections in multiple
+    # pipelines error when using the default label.
+    for df in watched_dataframes:
+      pcoll = to_pcollection(df, yield_elements='pandas', label=str(df._expr))
       watched_pcollections.add(pcoll)
     for pcoll in pcolls:
       if pcoll not in watched_pcollections:

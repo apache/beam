@@ -15,10 +15,6 @@
 """Utility and schema methods for the chicago_taxi sample."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from tensorflow_transform import coders as tft_coders
 from tensorflow_transform.tf_metadata import schema_utils
 

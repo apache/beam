@@ -26,17 +26,14 @@ encode many elements with minimal overhead.
 This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
 
-Py2/3 porting: Native range is used on both python versions instead of
-future.builtins.range to avoid performance regression in Cython compiled code.
-
 For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import enum
 import json
+import logging
 import pickle
-from builtins import chr
-from builtins import object
 from io import BytesIO
 from typing import TYPE_CHECKING
 from typing import Any
@@ -81,18 +78,20 @@ except ImportError:
 else:
   SLOW_STREAM = False
 
+is_compiled = False
+fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
+
 if TYPE_CHECKING or SLOW_STREAM:
   from .slow_stream import InputStream as create_InputStream
   from .slow_stream import OutputStream as create_OutputStream
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
 
-  if False:  # pylint: disable=using-constant-test
-    # This clause is interpreted by the compiler.
-    from cython import compiled as is_compiled
-  else:
-    is_compiled = False
-    fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
+  try:
+    import cython
+    is_compiled = cython.compiled
+  except ImportError:
+    pass
 
 else:
   # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -106,6 +105,8 @@ else:
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
   # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
+_LOGGER = logging.getLogger(__name__)
 
 _TIME_SHIFT = 1 << 63
 MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
@@ -324,6 +325,8 @@ ITERABLE_LIKE_TYPE = 10
 PROTO_TYPE = 100
 DATACLASS_TYPE = 101
 NAMED_TUPLE_TYPE = 102
+ENUM_TYPE = 103
+NESTED_STATE_TYPE = 104
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -339,6 +342,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
     self.requires_deterministic_step_label = requires_deterministic_step_label
+    self.warn_deterministic_fallback = True
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -418,6 +422,12 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
 
   def encode_special_deterministic(self, value, stream):
+    if self.warn_deterministic_fallback:
+      _LOGGER.warning(
+          "Using fallback deterministic coder for type '%s' in '%s'. ",
+          type(value),
+          self.requires_deterministic_step_label)
+      self.warn_deterministic_fallback = False
     if isinstance(value, proto_utils.message_types):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
@@ -430,20 +440,50 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic_step_label))
       self.encode_type(type(value), stream)
-      self.iterable_coder_impl.encode_to_stream(
-          [getattr(value, field.name) for field in dataclasses.fields(value)],
-          stream,
-          True)
-    elif isinstance(value, tuple) and type(value).__base__ is tuple and hasattr(
-        type(value), '_fields'):
+      values = [
+          getattr(value, field.name) for field in dataclasses.fields(value)
+      ]
+      try:
+        self.iterable_coder_impl.encode_to_stream(values, stream, True)
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
+    elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
       stream.write_byte(NAMED_TUPLE_TYPE)
       self.encode_type(type(value), stream)
-      self.iterable_coder_impl.encode_to_stream(value, stream, True)
+      try:
+        self.iterable_coder_impl.encode_to_stream(value, stream, True)
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
+    elif isinstance(value, enum.Enum):
+      stream.write_byte(ENUM_TYPE)
+      self.encode_type(type(value), stream)
+      # Enum values can be of any type.
+      try:
+        self.encode_to_stream(value.value, stream, True)
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
+    elif hasattr(value, "__getstate__"):
+      if not hasattr(value, "__setstate__"):
+        raise TypeError(
+            "Unable to deterministically encode '%s' of type '%s', "
+            "for the input of '%s'. The object defines __getstate__ but not "
+            "__setstate__." %
+            (value, type(value), self.requires_deterministic_step_label))
+      stream.write_byte(NESTED_STATE_TYPE)
+      self.encode_type(type(value), stream)
+      state_value = value.__getstate__()
+      try:
+        self.encode_to_stream(state_value, stream, True)
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     else:
-      raise TypeError(
-          "Unable to deterministically encode '%s' of type '%s', "
-          "please provide a type hint for the input of '%s'" %
-          (value, type(value), self.requires_deterministic_step_label))
+      raise TypeError(self._deterministic_encoding_error_msg(value))
+
+  def _deterministic_encoding_error_msg(self, value):
+    return (
+        "Unable to deterministically encode '%s' of type '%s', "
+        "please provide a type hint for the input of '%s'" %
+        (value, type(value), self.requires_deterministic_step_label))
 
   def encode_type(self, t, stream):
     stream.write(dill.dumps(t), True)
@@ -491,6 +531,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
       cls = self.decode_type(stream)
       return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))
+    elif t == ENUM_TYPE:
+      cls = self.decode_type(stream)
+      return cls(self.decode_from_stream(stream, True))
+    elif t == NESTED_STATE_TYPE:
+      cls = self.decode_type(stream)
+      state = self.decode_from_stream(stream, True)
+      value = cls.__new__(cls)
+      value.__setstate__(state)
+      return value
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:

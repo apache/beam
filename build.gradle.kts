@@ -145,6 +145,7 @@ task("javaPreCommit") {
   dependsOn(":sdks:java:core:buildNeeded")
   dependsOn(":sdks:java:core:buildDependents")
   dependsOn(":examples:java:preCommit")
+  dependsOn(":examples:java:twitter:preCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":runners:direct-java:needsRunnerTests")
@@ -334,6 +335,13 @@ task("pushAllDockerImages") {
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
   }
+}
+
+// Use this task to validate the environment set up for Go, Python and Java
+task("checkSetup") {
+  dependsOn(":sdks:go:examples:wordCount")
+  dependsOn(":sdks:python:wordCount")
+  dependsOn(":examples:java:wordCount")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

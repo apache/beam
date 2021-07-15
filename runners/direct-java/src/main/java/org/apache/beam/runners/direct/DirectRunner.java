@@ -253,6 +253,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     // The last set of overrides includes GBK overrides used in WriteView
     pipeline.replaceAll(groupByKeyOverrides());
 
+    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
     SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
   }
 

@@ -27,12 +27,12 @@ import java.util.Set;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,12 +43,12 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
 
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
@@ -71,9 +71,10 @@ public class PCollectionConsumerRegistry {
         FnDataReceiver consumer,
         String pTransformId,
         SimpleExecutionState state,
-        Coder valueCoder) {
+        Coder valueCoder,
+        MetricsContainer metricsContainer) {
       return new AutoValue_PCollectionConsumerRegistry_ConsumerAndMetadata(
-          consumer, pTransformId, state, valueCoder);
+          consumer, pTransformId, state, valueCoder, metricsContainer);
     }
 
     public abstract FnDataReceiver getConsumer();
@@ -83,6 +84,8 @@ public class PCollectionConsumerRegistry {
     public abstract SimpleExecutionState getExecutionState();
 
     public abstract Coder getValueCoder();
+
+    public abstract MetricsContainer getMetricsContainer();
   }
 
   private ListMultimap<String, ConsumerAndMetadata> pCollectionIdsToConsumers;
@@ -138,7 +141,13 @@ public class PCollectionConsumerRegistry {
     executionStates.register(state);
 
     pCollectionIdsToConsumers.put(
-        pCollectionId, ConsumerAndMetadata.forConsumer(consumer, pTransformId, state, valueCoder));
+        pCollectionId,
+        ConsumerAndMetadata.forConsumer(
+            consumer,
+            pTransformId,
+            state,
+            valueCoder,
+            metricsContainerRegistry.getContainer(pTransformId)));
   }
 
   /** Reset the execution states of the registered functions. */
@@ -166,13 +175,18 @@ public class PCollectionConsumerRegistry {
             throw new IllegalArgumentException(
                 String.format("Unknown PCollectionId %s", pCollectionId));
           } else if (consumerAndMetadatas.size() == 1) {
-            if (consumerAndMetadatas.get(0).getConsumer() instanceof HandlesSplits) {
-              return new SplittingMetricTrackingFnDataReceiver(pcId, consumerAndMetadatas.get(0));
+            ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(0);
+            if (consumerAndMetadata.getConsumer() instanceof HandlesSplits) {
+              return new SplittingMetricTrackingFnDataReceiver(pcId, consumerAndMetadata);
             }
-            return new MetricTrackingFnDataReceiver(pcId, consumerAndMetadatas.get(0));
+            return new MetricTrackingFnDataReceiver(pcId, consumerAndMetadata);
           } else {
-            /* TODO(SDF), Consider supporting splitting each consumer individually. This would never come up in the existing SDF expansion, but might be useful to support fused SDF nodes. This would require dedicated delivery of the split results to each of the consumers separately. */
-            return new MultiplexingMetricTrackingFnDataReceiver(pcId, consumerAndMetadatas);
+            /* TODO(SDF), Consider supporting splitting each consumer individually. This would never
+            come up in the existing SDF expansion, but might be useful to support fused SDF nodes.
+            This would require dedicated delivery of the split results to each of the consumers
+            separately. */
+            return new MultiplexingMetricTrackingFnDataReceiver(
+                pcId, ImmutableList.copyOf(consumerAndMetadatas));
           }
         });
   }
@@ -180,6 +194,11 @@ public class PCollectionConsumerRegistry {
   /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
     return executionStates.getExecutionTimeMonitoringInfos();
+  }
+
+  /** @return Execution Time Monitoring data based on the tracked start or finish function. */
+  public Map<String, ByteString> getExecutionTimeMonitoringData(ShortIdMap shortIds) {
+    return executionStates.getExecutionTimeMonitoringData(shortIds);
   }
 
   /** @return the underlying consumers for a pCollectionId, some tests may wish to check this. */
@@ -201,8 +220,9 @@ public class PCollectionConsumerRegistry {
     private final String pTransformId;
     private final SimpleExecutionState state;
     private final Counter unboundedElementCountCounter;
-    private final SampleByteSizeDistribution<T> unboundSampledByteSizeDistribution;
+    private final SampleByteSizeDistribution<T> unboundedSampledByteSizeDistribution;
     private final Coder<T> coder;
+    private final MetricsContainer metricsContainer;
 
     public MetricTrackingFnDataReceiver(
         String pCollectionId, ConsumerAndMetadata consumerAndMetadata) {
@@ -223,11 +243,12 @@ public class PCollectionConsumerRegistry {
 
       MonitoringInfoMetricName sampledByteSizeMetricName =
           MonitoringInfoMetricName.named(Urns.SAMPLED_BYTE_SIZE, labels);
-      this.unboundSampledByteSizeDistribution =
+      this.unboundedSampledByteSizeDistribution =
           new SampleByteSizeDistribution<>(
               unboundMetricContainer.getDistribution(sampledByteSizeMetricName));
 
       this.coder = consumerAndMetadata.getValueCoder();
+      this.metricsContainer = consumerAndMetadata.getMetricsContainer();
     }
 
     @Override
@@ -235,17 +256,17 @@ public class PCollectionConsumerRegistry {
       // Increment the counter for each window the element occurs in.
       this.unboundedElementCountCounter.inc(input.getWindows().size());
       // TODO(BEAM-11879): Consider updating size per window when we have window optimization.
-      this.unboundSampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
+      this.unboundedSampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
       // Wrap the consumer with extra logic to set the metric container with the appropriate
       // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
       // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric.
-      MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
-      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
+      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
         try (Closeable trackerCloseable = stateTracker.enterState(state)) {
           this.delegate.accept(input);
         }
       }
+      this.unboundedSampledByteSizeDistribution.finishLazyUpdate();
     }
   }
 
@@ -298,14 +319,14 @@ public class PCollectionConsumerRegistry {
           this.unboundedSampledByteSizeDistribution.tryUpdate(
               input.getValue(), consumerAndMetadata.getValueCoder());
         }
-        MetricsContainerImpl container =
-            metricsContainerRegistry.getContainer(consumerAndMetadata.getPTransformId());
-        try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
+        try (Closeable closeable =
+            MetricsEnvironment.scopedMetricsContainer(consumerAndMetadata.getMetricsContainer())) {
           try (Closeable trackerCloseable =
               stateTracker.enterState(consumerAndMetadata.getExecutionState())) {
             consumerAndMetadata.getConsumer().accept(input);
           }
         }
+        this.unboundedSampledByteSizeDistribution.finishLazyUpdate();
       }
     }
   }
@@ -350,28 +371,33 @@ public class PCollectionConsumerRegistry {
     }
 
     final Distribution distribution;
+    ByteSizeObserver byteCountObserver;
 
     public SampleByteSizeDistribution(Distribution distribution) {
       this.distribution = distribution;
+      this.byteCountObserver = null;
     }
 
     public void tryUpdate(T value, Coder<T> coder) throws Exception {
       if (shouldSampleElement()) {
         // First try using byte size observer
-        ByteSizeObserver observer = new ByteSizeObserver();
-        coder.registerByteSizeObserver(value, observer);
+        byteCountObserver = new ByteSizeObserver();
+        coder.registerByteSizeObserver(value, byteCountObserver);
 
-        if (!observer.getIsLazy()) {
-          observer.advance();
-          this.distribution.update(observer.observedSize);
-        } else {
-          // TODO(BEAM-11841): Optimize calculation of element size for iterables.
-          // Coder byte size observation is lazy (requires iteration for observation) so fall back
-          // to counting output stream
-          CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream());
-          coder.encode(value, os);
-          this.distribution.update(os.getCount());
+        if (!byteCountObserver.getIsLazy()) {
+          byteCountObserver.advance();
+          this.distribution.update(byteCountObserver.observedSize);
         }
+      } else {
+        byteCountObserver = null;
+      }
+    }
+
+    public void finishLazyUpdate() {
+      // Advance lazy ElementByteSizeObservers, if any.
+      if (byteCountObserver != null && byteCountObserver.getIsLazy()) {
+        byteCountObserver.advance();
+        this.distribution.update(byteCountObserver.observedSize);
       }
     }
 
@@ -397,7 +423,8 @@ public class PCollectionConsumerRegistry {
       samplingToken++;
       // Use traditional sampling until the threshold of 30
       if (nextSamplingToken == 0) {
-        if (randomGenerator.nextInt((int) samplingToken) <= RESERVOIR_SIZE) {
+        if (samplingToken <= RESERVOIR_SIZE
+            || randomGenerator.nextInt((int) samplingToken) < RESERVOIR_SIZE) {
           if (samplingToken > SAMPLING_THRESHOLD) {
             nextSamplingToken = getNextSamplingToken(samplingToken);
           }

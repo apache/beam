@@ -25,6 +25,7 @@ import (
 	// Library imports
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -34,6 +35,7 @@ func init() {
 	runtime.RegisterFunction(KvFn)
 	runtime.RegisterFunction(VFn)
 	runtime.RegisterType(reflect.TypeOf((*SCombine)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*SCombine)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*SCombine)(nil)).Elem(), wrapMakerSCombine)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int, int) int)(nil)).Elem(), funcMakerIntIntГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int) (string, int))(nil)).Elem(), funcMakerIntГStringInt)

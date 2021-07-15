@@ -47,8 +47,6 @@ TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import glob
 import hashlib
 import logging
@@ -59,9 +57,9 @@ import tempfile
 from typing import List
 from typing import Optional
 from typing import Tuple
+from urllib.parse import urlparse
 
 import pkg_resources
-from future.moves.urllib.parse import urlparse
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http

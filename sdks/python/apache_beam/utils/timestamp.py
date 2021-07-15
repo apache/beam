@@ -23,12 +23,8 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import division
-
 import datetime
 import time
-from builtins import object
 from typing import Union
 from typing import overload
 
@@ -36,7 +32,6 @@ import dateutil.parser
 import pytz
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
-from past.builtins import long
 
 from apache_beam.portability import common_urns
 
@@ -59,10 +54,10 @@ class Timestamp(object):
   """
   def __init__(self, seconds=0, micros=0):
     # type: (Union[int, float], Union[int, float]) -> None
-    if not isinstance(seconds, (int, long, float)):
+    if not isinstance(seconds, (int, float)):
       raise TypeError(
           'Cannot interpret %s %s as seconds.' % (seconds, type(seconds)))
-    if not isinstance(micros, (int, long, float)):
+    if not isinstance(micros, (int, float)):
       raise TypeError(
           'Cannot interpret %s %s as micros.' % (micros, type(micros)))
     self.micros = int(seconds * 1000000) + int(micros)
@@ -82,7 +77,7 @@ class Timestamp(object):
       Corresponding Timestamp object.
     """
 
-    if not isinstance(seconds, (int, long, float, Timestamp)):
+    if not isinstance(seconds, (int, float, Timestamp)):
       raise TypeError(
           'Cannot interpret %s %s as Timestamp.' % (seconds, type(seconds)))
     if isinstance(seconds, Timestamp):
@@ -214,7 +209,7 @@ class Timestamp(object):
     # Allow comparisons between Duration and Timestamp values.
     if isinstance(other, (Duration, Timestamp)):
       return self.micros == other.micros
-    elif isinstance(other, (int, long, float)):
+    elif isinstance(other, (int, float)):
       return self.micros == Timestamp.of(other).micros
     else:
       # Support equality with other types
@@ -370,7 +365,7 @@ class Duration(object):
     # Allow comparisons between Duration and Timestamp values.
     if isinstance(other, (Duration, Timestamp)):
       return self.micros == other.micros
-    elif isinstance(other, (int, long, float)):
+    elif isinstance(other, (int, float)):
       return self.micros == Duration.of(other).micros
     else:
       # Support equality with other types

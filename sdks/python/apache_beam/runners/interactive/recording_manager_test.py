@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import
-
 import time
 import unittest
 from unittest.mock import MagicMock
@@ -501,18 +499,23 @@ class RecordingManagerTest(unittest.TestCase):
     class SizeLimiter(Limiter):
       def __init__(self, p):
         self.pipeline = p
+        self._rm = None
+
+      def set_recording_manager(self, rm):
+        self._rm = rm
 
       def is_triggered(self):
-        rm = ie.current_env().get_recording_manager(self.pipeline)
-        return rm.describe()['size'] > 0 if rm else False
+        return self._rm.describe()['size'] > 0 if self._rm else False
 
     # Do the first recording to get the timestamp of the first time the fragment
     # was run.
-    rm = RecordingManager(p, test_limiters=[SizeLimiter(p)])
+    size_limiter = SizeLimiter(p)
+    rm = RecordingManager(p, test_limiters=[size_limiter])
+    size_limiter.set_recording_manager(rm)
     self.assertEqual(rm.describe()['state'], PipelineState.STOPPED)
     self.assertTrue(rm.record_pipeline())
 
-    ie.current_env().set_recording_manager(rm, p)
+    # A recording is in progress, no need to start another one.
     self.assertFalse(rm.record_pipeline())
 
     for _ in range(60):

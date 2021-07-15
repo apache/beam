@@ -76,6 +76,28 @@ func TestValidateWorkerSettings(t *testing.T) {
 			},
 			errMessage: "experiment worker_region and option Zone are mutually exclusive",
 		},
+		{
+			name: "test_num_workers_cannot_be_negative",
+			jobOptions: JobOptions{
+				NumWorkers: -1,
+			},
+			errMessage: "num_workers (-1) cannot be negative",
+		},
+		{
+			name: "test_max_num_workers_cannot_be_negative",
+			jobOptions: JobOptions{
+				MaxNumWorkers: -1,
+			},
+			errMessage: "max_num_workers (-1) cannot be negative",
+		},
+		{
+			name: "test_num_workers_cannot_exceed_max_num_workers",
+			jobOptions: JobOptions{
+				NumWorkers:    43,
+				MaxNumWorkers: 42,
+			},
+			errMessage: "num_workers (43) cannot exceed max_num_workers (42)",
+		},
 	}
 
 	for _, test := range testsWithErr {
@@ -109,6 +131,17 @@ func TestValidateWorkerSettings(t *testing.T) {
 			name:     "test_single_worker_region",
 			opts:     JobOptions{WorkerRegion: "foo"},
 			expected: JobOptions{WorkerRegion: "foo"},
+		},
+		{
+			name: "test_num_workers_can_equal_max_num_workers",
+			opts: JobOptions{
+				NumWorkers:    42,
+				MaxNumWorkers: 42,
+			},
+			expected: JobOptions{
+				NumWorkers:    42,
+				MaxNumWorkers: 42,
+			},
 		},
 	}
 

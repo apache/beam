@@ -38,6 +38,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -292,8 +293,10 @@ public class DatastoreV1Test {
 
   @Test
   public void testWritePrimitiveDisplayData() {
+    int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Entity>, ?> write = DatastoreIO.v1().write().withProjectId("myProject");
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1().write().withProjectId("myProject").withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -304,13 +307,42 @@ public class DatastoreV1Test {
         "DatastoreIO write should include the upsertFn in its primitive display data",
         displayData,
         hasItem(hasDisplayItem("upsertFn")));
+    assertThat(
+        "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
+        displayData,
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers)));
+  }
+
+  @Test
+  public void testWritePrimitiveDisplayDataDisabledThrottler() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1().write().withProjectId("myProject").withRampupThrottlingDisabled();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat(
+        "DatastoreIO write should include the project in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("projectId")));
+    assertThat(
+        "DatastoreIO write should include the upsertFn in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("upsertFn")));
+    assertThat(
+        "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
+        displayData,
+        not(hasItem(hasDisplayItem("hintNumWorkers"))));
   }
 
   @Test
   public void testDeleteEntityPrimitiveDisplayData() {
+    int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
-        DatastoreIO.v1().deleteEntity().withProjectId("myProject");
+        DatastoreIO.v1()
+            .deleteEntity()
+            .withProjectId("myProject")
+            .withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -321,12 +353,18 @@ public class DatastoreV1Test {
         "DatastoreIO write should include the deleteEntityFn in its primitive display data",
         displayData,
         hasItem(hasDisplayItem("deleteEntityFn")));
+    assertThat(
+        "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
+        displayData,
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers)));
   }
 
   @Test
   public void testDeleteKeyPrimitiveDisplayData() {
+    int hintNumWorkers = 10;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PCollection<Key>, ?> write = DatastoreIO.v1().deleteKey().withProjectId("myProject");
+    PTransform<PCollection<Key>, ?> write =
+        DatastoreIO.v1().deleteKey().withProjectId("myProject").withHintNumWorkers(hintNumWorkers);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat(
@@ -337,6 +375,10 @@ public class DatastoreV1Test {
         "DatastoreIO write should include the deleteKeyFn in its primitive display data",
         displayData,
         hasItem(hasDisplayItem("deleteKeyFn")));
+    assertThat(
+        "DatastoreIO write should include ramp-up throttling worker count hint if enabled",
+        displayData,
+        hasItem(hasDisplayItem("hintNumWorkers", hintNumWorkers)));
   }
 
   /** Test building a Write using builder methods. */
@@ -831,15 +873,15 @@ public class DatastoreV1Test {
     writeBatcher.start();
     writeBatcher.addRequestLatency(0, 10000, 200);
     writeBatcher.addRequestLatency(0, 10000, 200);
-    assertEquals(100, writeBatcher.nextBatchSize(0));
+    assertEquals(120, writeBatcher.nextBatchSize(0));
   }
 
   @Test
   public void testWriteBatcherSizeNotBelowMinimum() {
     DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
     writeBatcher.start();
-    writeBatcher.addRequestLatency(0, 30000, 50);
-    writeBatcher.addRequestLatency(0, 30000, 50);
+    writeBatcher.addRequestLatency(0, 75000, 50);
+    writeBatcher.addRequestLatency(0, 75000, 50);
     assertEquals(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_MIN, writeBatcher.nextBatchSize(0));
   }
 
@@ -848,9 +890,9 @@ public class DatastoreV1Test {
     DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
     writeBatcher.start();
     writeBatcher.addRequestLatency(0, 30000, 50);
-    writeBatcher.addRequestLatency(50000, 5000, 200);
-    writeBatcher.addRequestLatency(100000, 5000, 200);
-    assertEquals(200, writeBatcher.nextBatchSize(150000));
+    writeBatcher.addRequestLatency(50000, 8000, 200);
+    writeBatcher.addRequestLatency(100000, 8000, 200);
+    assertEquals(150, writeBatcher.nextBatchSize(150000));
   }
 
   /** Helper Methods */

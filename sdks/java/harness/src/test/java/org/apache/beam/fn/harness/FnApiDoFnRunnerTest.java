@@ -139,8 +139,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -149,6 +149,7 @@ import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -436,7 +437,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               iterableSideInputKey(iterableSideInputView.getTagInternal().getId()),
               encode("iterableValue1", "iterableValue2", "iterableValue3"));
 
-      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
+      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData, 1000);
 
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
@@ -728,7 +729,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               iterableSideInputKey(iterableSideInputView.getTagInternal().getId(), encodedWindowB),
               encode("iterableValue1B", "iterableValue2B", "iterableValue3B"));
 
-      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
+      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData, 1000);
 
       List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
@@ -805,6 +806,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
+    @Ignore("https://issues.apache.org/jira/browse/BEAM-12230")
     public void testUsingMetrics() throws Exception {
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
       MetricsContainerImpl metricsContainer = metricsContainerRegistry.getUnboundContainer();
@@ -1096,9 +1098,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           fakeTimerClient.getTimers(eventTimer),
           contains(
               timerInGlobalWindow("X", new Instant(1000L), new Instant(1001L)),
+              clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(1100L), new Instant(1101L)),
+              clearedTimerInGlobalWindow("Y"),
               timerInGlobalWindow("X", new Instant(1200L), new Instant(1201L)),
+              clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(1300L), new Instant(1301L)),
+              clearedTimerInGlobalWindow("Y"),
               timerInGlobalWindow("A", new Instant(1400L), new Instant(2411L)),
               timerInGlobalWindow("B", new Instant(1500L), new Instant(2511L)),
               timerInGlobalWindow("A", new Instant(1600L), new Instant(2611L)),
@@ -1111,9 +1117,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           fakeTimerClient.getTimers(processingTimer),
           contains(
               timerInGlobalWindow("X", new Instant(1000L), new Instant(10002L)),
+              clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(1100L), new Instant(10002L)),
+              clearedTimerInGlobalWindow("Y"),
               timerInGlobalWindow("X", new Instant(1200L), new Instant(10002L)),
+              clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(1300L), new Instant(10002L)),
+              clearedTimerInGlobalWindow("Y"),
               timerInGlobalWindow("A", new Instant(1400L), new Instant(10012L)),
               timerInGlobalWindow("B", new Instant(1500L), new Instant(10012L)),
               timerInGlobalWindow("A", new Instant(1600L), new Instant(10012L)),
@@ -1214,6 +1224,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
       return dynamicTimerInGlobalWindow(userKey, "", holdTimestamp, fireTimestamp);
     }
 
+    private <K> org.apache.beam.runners.core.construction.Timer<K> clearedTimerInGlobalWindow(
+        K userKey) {
+      return org.apache.beam.runners.core.construction.Timer.cleared(
+          userKey, "", Collections.singletonList(GlobalWindow.INSTANCE));
+    }
+
     private <K> org.apache.beam.runners.core.construction.Timer<K> dynamicTimerInGlobalWindow(
         K userKey, String dynamicTimerTag, Instant holdTimestamp, Instant fireTimestamp) {
       return org.apache.beam.runners.core.construction.Timer.of(
@@ -1263,8 +1279,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
         bagState.add(context.element().getValue());
 
         eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(1L));
+        eventTimeTimer.clear();
         processingTimeTimer.offset(Duration.millis(2L));
         processingTimeTimer.setRelative();
+        processingTimeTimer.clear();
         eventTimerFamily
             .get("event-timer1")
             .withOutputTimestamp(context.timestamp())
@@ -1759,13 +1777,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertEquals(
             ImmutableMap.of(
                 "output",
-                org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
                     .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                     .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                     .build()),
             residualRoot.getApplication().getOutputWatermarksMap());
         assertEquals(
-            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Duration.newBuilder()
+            org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Duration.newBuilder()
                 .setSeconds(54)
                 .setNanos(321000000)
                 .build(),
@@ -1895,7 +1913,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertEquals(
             ImmutableMap.of(
                 "output",
-                org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
                     .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                     .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                     .build()),
@@ -2079,27 +2097,27 @@ public class FnApiDoFnRunnerTest implements Serializable {
             residualRoot.getApplication().getInputId());
         assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
         Instant expectedOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7);
-        Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+        Map<String, org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp>
             expectedOutputWatmermarkMap =
                 ImmutableMap.of(
                     "output",
-                    org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                    org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
                         .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                         .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                         .build());
         Instant initialWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1);
-        Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+        Map<String, org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp>
             expectedOutputWatmermarkMapForUnprocessedWindows =
                 ImmutableMap.of(
                     "output",
-                    org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                    org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
                         .setSeconds(initialWatermark.getMillis() / 1000)
                         .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
                         .build());
         assertEquals(
             expectedOutputWatmermarkMap, residualRoot.getApplication().getOutputWatermarksMap());
         assertEquals(
-            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Duration.newBuilder()
+            org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Duration.newBuilder()
                 .setSeconds(54)
                 .setNanos(321000000)
                 .build(),
@@ -2297,19 +2315,19 @@ public class FnApiDoFnRunnerTest implements Serializable {
             residualRootInUnprocessedWindows.getRequestedTimeDelay());
         Instant initialWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1);
         Instant expectedOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2);
-        Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+        Map<String, org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp>
             expectedOutputWatermarkMapInUnprocessedResiduals =
                 ImmutableMap.of(
                     "output",
-                    org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                    org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
                         .setSeconds(initialWatermark.getMillis() / 1000)
                         .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
                         .build());
-        Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+        Map<String, org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp>
             expectedOutputWatermarkMap =
                 ImmutableMap.of(
                     "output",
-                    org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                    org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
                         .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                         .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                         .build());
@@ -4777,9 +4795,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   .build()));
     }
 
-    private org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp toTimestamp(
+    private org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp toTimestamp(
         Instant time) {
-      return org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+      return org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp.newBuilder()
           .setSeconds(time.getMillis() / 1000)
           .setNanos((int) (time.getMillis() % 1000) * 1000000)
           .build();
@@ -4885,7 +4903,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertEquals(1, result.getResidualRoots().size());
       DelayedBundleApplication residualRoot = result.getResidualRoots().get(0);
       assertEquals(
-          org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Duration.getDefaultInstance(),
+          org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Duration.getDefaultInstance(),
           residualRoot.getRequestedTimeDelay());
       assertEquals(PROCESS_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
       assertEquals(PROCESS_INPUT_ID, residualRoot.getApplication().getInputId());
@@ -4940,7 +4958,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       DelayedBundleApplication windowResidual = result.getResidualRoots().get(0);
       DelayedBundleApplication elementResidual = result.getResidualRoots().get(1);
       assertEquals(
-          org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Duration.getDefaultInstance(),
+          org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Duration.getDefaultInstance(),
           windowResidual.getRequestedTimeDelay());
       assertEquals(PROCESS_TRANSFORM_ID, windowResidual.getApplication().getTransformId());
       assertEquals(PROCESS_INPUT_ID, windowResidual.getApplication().getInputId());
@@ -4998,7 +5016,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       DelayedBundleApplication windowResidual = result.getResidualRoots().get(0);
       DelayedBundleApplication elementResidual = result.getResidualRoots().get(1);
       assertEquals(
-          org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Duration.getDefaultInstance(),
+          org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Duration.getDefaultInstance(),
           windowResidual.getRequestedTimeDelay());
       assertEquals(TRUNCATE_TRANSFORM_ID, windowResidual.getApplication().getTransformId());
       assertEquals(TRUNCATE_INPUT_ID, windowResidual.getApplication().getInputId());

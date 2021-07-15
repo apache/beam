@@ -106,7 +106,7 @@ public class DoFnFunction<InputT, OutputT>
   public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
       throws Exception {
     if (!wasSetupCalled && iter.hasNext()) {
-      DoFnInvokers.tryInvokeSetupFor(doFn);
+      DoFnInvokers.tryInvokeSetupFor(doFn, serializableOptions.get());
       wasSetupCalled = true;
     }
 

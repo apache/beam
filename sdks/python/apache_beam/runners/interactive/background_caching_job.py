@@ -38,8 +38,6 @@ deterministic replayable recorded events until they are invalidated.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import threading
 import time
@@ -140,7 +138,7 @@ def attempt_to_run_background_caching_job(
     # pipeline_instrument module to this module and aggregate tests.
     from apache_beam.runners.interactive import pipeline_instrument as instr
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
-        user_pipeline.to_runner_api(use_fake_coders=True), runner, options)
+        user_pipeline.to_runner_api(), runner, options)
     ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
     background_caching_job_result = beam.pipeline.Pipeline.from_runner_api(
         instr.build_pipeline_instrument(
@@ -232,11 +230,13 @@ def has_source_to_cache(user_pipeline):
                                                          create_if_absent=True),
                       streaming_cache.StreamingCache):
 
+      file_based_cm = ie.current_env().get_cache_manager(user_pipeline)
       ie.current_env().set_cache_manager(
           streaming_cache.StreamingCache(
-              ie.current_env().get_cache_manager(user_pipeline)._cache_dir,
+              file_based_cm._cache_dir,
               is_cache_complete=is_cache_complete,
-              sample_resolution_sec=1.0),
+              sample_resolution_sec=1.0,
+              saved_pcoders=file_based_cm._saved_pcoders),
           user_pipeline)
   return has_cache
 
@@ -338,8 +338,7 @@ def extract_source_to_cache_signature(user_pipeline):
       user_pipeline)
   unbounded_sources_as_ptransforms = set(
       map(lambda x: x.transform, unbounded_sources_as_applied_transforms))
-  _, context = user_pipeline.to_runner_api(
-      return_context=True, use_fake_coders=True)
+  _, context = user_pipeline.to_runner_api(return_context=True)
   signature = set(
       map(
           lambda transform: str(transform.to_runner_api(context)),

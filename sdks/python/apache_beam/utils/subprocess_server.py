@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import contextlib
 import logging
 import os
@@ -30,10 +28,10 @@ import subprocess
 import tempfile
 import threading
 import time
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import grpc
-from future.moves.urllib.error import URLError
-from future.moves.urllib.request import urlopen
 
 from apache_beam.version import __version__ as beam_version
 

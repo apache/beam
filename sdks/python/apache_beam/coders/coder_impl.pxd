@@ -36,6 +36,7 @@ cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingO
 # Temporarily untyped to allow monkeypatching on failed import.
 #cdef type WindowedValue
 
+cdef bint is_compiled
 
 cdef class CoderImpl(object):
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
@@ -78,6 +79,7 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
   cdef CoderImpl iterable_coder_impl
   cdef object requires_deterministic_step_label
+  cdef bint warn_deterministic_fallback
 
   @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t,
                  unicode_value=unicode)

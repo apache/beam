@@ -68,9 +68,15 @@ public class ExecutionStateSampler {
     return new ExecutionStateSampler(checkNotNull(clock));
   }
 
-  private static final long PERIOD_MS = 200;
+  // The sampling period can be reset with flag --experiment state_sampling_period_millis=<value>.
+  private static long periodMs = 200;
 
   private @Nullable Future<Void> executionSamplerFuture = null;
+
+  /** Set the state sampler sampling period. */
+  public static void setSamplingPeriod(long samplingPeriodMillis) {
+    periodMs = samplingPeriodMillis;
+  }
 
   /** Reset the state sampler. */
   public void reset() {
@@ -102,7 +108,7 @@ public class ExecutionStateSampler {
         executor.submit(
             () -> {
               lastSampleTimeMillis = clock.getMillis();
-              long targetTimeMillis = lastSampleTimeMillis + PERIOD_MS;
+              long targetTimeMillis = lastSampleTimeMillis + periodMs;
               while (!Thread.interrupted()) {
                 long currentTimeMillis = clock.getMillis();
                 long difference = targetTimeMillis - currentTimeMillis;
@@ -116,7 +122,7 @@ public class ExecutionStateSampler {
                   // Call doSampling if more than PERIOD_MS have passed.
                   doSampling(currentTimeMillis - lastSampleTimeMillis);
                   lastSampleTimeMillis = currentTimeMillis;
-                  targetTimeMillis = lastSampleTimeMillis + PERIOD_MS;
+                  targetTimeMillis = lastSampleTimeMillis + periodMs;
                 }
               }
               return null;
@@ -130,7 +136,7 @@ public class ExecutionStateSampler {
 
     executionSamplerFuture.cancel(true);
     try {
-      executionSamplerFuture.get(5 * PERIOD_MS, TimeUnit.MILLISECONDS);
+      executionSamplerFuture.get(5 * periodMs, TimeUnit.MILLISECONDS);
     } catch (CancellationException e) {
       // This was expected -- we were cancelling the thread.
     } catch (InterruptedException | TimeoutException e) {

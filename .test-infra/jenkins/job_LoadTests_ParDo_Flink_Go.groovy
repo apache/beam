@@ -126,7 +126,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest"
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, batchScenarios(), 'ParDo', mode)
 }

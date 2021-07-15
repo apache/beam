@@ -45,7 +45,9 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20210310',
+    'dataflow.legacy_container_version' : 'beam-master-20210525',
+    'dataflow.fnapi_container_version' : 'beam-master-20210524',
+    'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
 
@@ -77,6 +79,9 @@ dependencies {
   compile project(":runners:core-construction-java")
   compile library.java.avro
   compile library.java.bigdataoss_util
+  compile library.java.commons_codec
+  compile library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  permitUnusedDeclared library.java.flogger_system_backend
   compile library.java.google_api_client
   compile library.java.google_api_services_clouddebugger
   compile library.java.google_api_services_dataflow
@@ -93,7 +98,7 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   testCompile library.java.guava_testlib
   testCompile library.java.junit
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
@@ -145,9 +150,9 @@ def runnerV2PipelineOptions = [
   "--project=${dataflowProject}",
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+  "--sdkContainerImage=${dockerImageContainer}:${dockerTag}",
   // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-  "--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=appliance",
+  "--experiments=use_unified_worker,use_runner_v2,shuffle_mode=appliance",
 ]
 
 def commonLegacyExcludeCategories = [
@@ -347,12 +352,11 @@ createCrossLanguageValidatesRunnerTask(
     // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
     "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
-  nosetestsOptions: [
-    "--nocapture",
-    "--processes=8",
-    "--process-timeout=4500",
-    // TODO: enable after fixing BEAM-10507
-    "--exclude=test_xlang_parquetio_write|test_flatten",
+  pytestOptions: [
+    "--capture=no",
+    "--numprocesses=8",
+    "--timeout=4500",
+    "--log-cli-level=INFO",
   ]
 )
 
@@ -389,6 +393,8 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime',
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys100MB',
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys10MB',
+      // TODO(BEAM-12353): Identify whether it's bug or a feature gap.
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
 
       'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
     ]
@@ -472,6 +478,9 @@ task validatesRunnerV2Streaming {
       "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty",
 
       'org.apache.beam.sdk.io.CountingSourceTest.testBoundedSourceSplits',
+
+      // TODO(BEAM-12353): Identify whether it's bug or a feature gap.
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
     ]
   ))
 }

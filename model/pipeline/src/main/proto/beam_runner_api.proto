@@ -754,8 +754,11 @@ message PubSubWritePayload {
 // Payload for GroupIntoBatches composite transform.
 message GroupIntoBatchesPayload {
 
-  // (Required) Max size of a batch.
+  // Max size of a batch.
   int64 batch_size = 1;
+
+  // Max byte size of a batch in element.
+  int64 batch_size_bytes = 3;
 
   // (Optional) Max duration a batch is allowed to be cached in states.
   int64 max_buffering_duration_millis = 2;
@@ -1395,6 +1398,9 @@ message ArtifactFilePayload {
 message ArtifactUrlPayload {
   // a string for an artifact URL e.g. "https://.../foo.jar" or "gs://tmp/foo.jar"
   string url = 1;
+
+  // (Optional) The hex-encoded sha256 checksum of the artifact if available.
+  string sha256 = 2;
 }
 
 message EmbeddedFilePayload {
@@ -1484,6 +1490,8 @@ message StandardEnvironments {
     PROCESS = 1 [(beam_urn) = "beam:env:process:v1"]; // A managed native process to run user code.
 
     EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"]; // An external non managed process to run user code.
+
+    DEFAULT = 3 [(beam_urn) = "beam:env:default:v1"]; // Used as a stub when context is missing a runner-provided default environment.
   }
 }
 
@@ -1532,6 +1540,15 @@ message StandardProtocols {
     // the entire SDK harness process, not specific to a bundle.
     HARNESS_MONITORING_INFOS = 4
         [(beam_urn) = "beam:protocol:harness_monitoring_infos:v1"];
+  }
+}
+
+// These URNs are used to indicate capabilities of runner that an environment
+// may take advantage of when interacting with this runner.
+message StandardRunnerProtocols {
+  enum Enum {
+    // Indicates suport the MonitoringInfo short id protocol.
+    MONITORING_INFO_SHORT_IDS = 0 [(beam_urn) = "beam:protocol:monitoring_info_short_ids:v1"];
   }
 }
 
@@ -1645,8 +1662,8 @@ message FunctionSpec {
 message StandardDisplayData {
   enum DisplayData {
     // A string label and value. Has a payload containing an encoded
-    // LabelledStringPayload.
-    LABELLED_STRING = 0 [(beam_urn) = "beam:display_data:labelled_string:v1"];
+    // LabelledPayload.
+    LABELLED = 0 [(beam_urn) = "beam:display_data:labelled:v1"];
 
     // Some samples that are being considered to become standard display data
     // types follow:
@@ -1667,13 +1684,16 @@ message StandardDisplayData {
   }
 }
 
-message LabelledStringPayload {
+message LabelledPayload {
   // (Required) A human readable label for the value.
   string label = 1;
 
-  // (Required) A value which will be displayed to the user. The urn describes
-  // how the value can be interpreted and/or categorized.
-  string value = 2;
+  // (Required) A value which will be displayed to the user.
+  oneof value {
+    string string_value = 2;
+    bool bool_value = 3;
+    double double_value = 4;
+  }
 }
 
 // Static display data associated with a pipeline component. Display data is
@@ -1827,5 +1847,15 @@ message ExecutableStagePayload {
       // The timer id this setting applies to.
       TimerId timer = 4;
     }
+  }
+}
+
+message StandardResourceHints {
+  enum Enum {
+    // Describes hardware accelerators that are desired to have in the execution environment.
+    ACCELERATOR = 0 [(beam_urn) = "beam:resources:accelerator:v1"];
+    // Describes desired minimal available RAM size in transform's execution environment.
+    // SDKs should convert the size to bytes, but can allow users to specify human-friendly units (e.g. GiB).
+    MIN_RAM_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_bytes:v1"];
   }
 }

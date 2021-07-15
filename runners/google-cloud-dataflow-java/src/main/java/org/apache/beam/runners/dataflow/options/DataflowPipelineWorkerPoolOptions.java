@@ -18,16 +18,12 @@
 package org.apache.beam.runners.dataflow.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.beam.runners.dataflow.DataflowRunnerInfo;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.Hidden;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options that are used to configure the Dataflow pipeline worker pool. */
@@ -112,30 +108,32 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
 
   void setDiskSizeGb(int value);
 
-  /**
-   * Docker container image that executes Dataflow worker harness, residing in Google Container
-   * Registry.
-   */
-  @Default.InstanceFactory(WorkerHarnessContainerImageFactory.class)
+  /** Container image used as Dataflow worker harness image. */
+  /** @deprecated Use {@link #getSdkContainerImage} instead. */
   @Description(
-      "Docker container image that executes Dataflow worker harness, residing in Google "
-          + " Container Registry.")
+      "Container image used to configure a Dataflow worker. "
+          + "Can only be used for official Dataflow container images. "
+          + "Prefer using sdkContainerImage instead.")
+  @Deprecated
   @Hidden
   String getWorkerHarnessContainerImage();
 
+  /** @deprecated Use {@link #setSdkContainerImage} instead. */
+  @Deprecated
+  @Hidden
   void setWorkerHarnessContainerImage(String value);
 
   /**
-   * Returns the default Docker container image that executes Dataflow worker harness, residing in
-   * Google Container Registry.
+   * Container image used to configure SDK execution environment on worker. Used for custom
+   * containers on portable pipelines only.
    */
-  class WorkerHarnessContainerImageFactory implements DefaultValueFactory<String> {
-    @Override
-    public String create(PipelineOptions options) {
-      String containerVersion = DataflowRunnerInfo.getDataflowRunnerInfo().getContainerVersion();
-      return String.format("gcr.io/cloud-dataflow/v1beta3/IMAGE:%s", containerVersion);
-    }
-  }
+  @Description(
+      "Container image used to configure the SDK execution environment of "
+          + "pipeline code on a worker. For non-portable pipelines, can only be "
+          + "used for official Dataflow container images.")
+  String getSdkContainerImage();
+
+  void setSdkContainerImage(String value);
 
   /**
    * GCE <a href="https://cloud.google.com/compute/docs/networking">network</a> for launching

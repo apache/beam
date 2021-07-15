@@ -18,15 +18,14 @@
 """Tests common to all coder implementations."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
+import enum
 import logging
 import math
 import unittest
-from builtins import range
 from typing import Any
 from typing import List
+from typing import NamedTuple
 
 import pytest
 
@@ -53,6 +52,34 @@ except ImportError:
   dataclasses = None  # type: ignore
 
 MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
+
+
+class MyEnum(enum.Enum):
+  E1 = 5
+  E2 = enum.auto()
+  E3 = 'abc'
+
+
+MyIntEnum = enum.IntEnum('MyIntEnum', 'I1 I2 I3')
+MyIntFlag = enum.IntFlag('MyIntFlag', 'F1 F2 F3')
+MyFlag = enum.Flag('MyFlag', 'F1 F2 F3')  # pylint: disable=too-many-function-args
+
+
+class DefinesGetState:
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    return self.value
+
+  def __eq__(self, other):
+    return type(other) is type(self) and other.value == self.value
+
+
+class DefinesGetAndSetState(DefinesGetState):
+  def __setstate__(self, value):
+    self.value = value
 
 
 # Defined out of line for picklability.
@@ -202,9 +229,11 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(deterministic_coder, test_message.MessageA(field1='value'))
 
+    self.check_coder(
+        deterministic_coder, [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
+
     if dataclasses is not None:
-      self.check_coder(
-          deterministic_coder, [FrozenDataClass(1, 2), MyNamedTuple(1, 2)])
+      self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
 
       with self.assertRaises(TypeError):
         self.check_coder(deterministic_coder, UnFrozenDataClass(1, 2))
@@ -214,6 +243,20 @@ class CodersTest(unittest.TestCase):
       with self.assertRaises(TypeError):
         self.check_coder(
             deterministic_coder, MyNamedTuple(UnFrozenDataClass(1, 2), 3))
+
+    self.check_coder(deterministic_coder, list(MyEnum))
+    self.check_coder(deterministic_coder, list(MyIntEnum))
+    self.check_coder(deterministic_coder, list(MyIntFlag))
+    self.check_coder(deterministic_coder, list(MyFlag))
+
+    self.check_coder(
+        deterministic_coder,
+        [DefinesGetAndSetState(1), DefinesGetAndSetState((1, 2, 3))])
+
+    with self.assertRaises(TypeError):
+      self.check_coder(deterministic_coder, DefinesGetState(1))
+    with self.assertRaises(TypeError):
+      self.check_coder(deterministic_coder, DefinesGetAndSetState(dict()))
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]

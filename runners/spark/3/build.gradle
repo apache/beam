@@ -20,7 +20,7 @@ def basePath = '..'
 /* All properties required for loading the Spark build script */
 project.ext {
   // Set the version of all Spark-related dependencies here.
-  spark_version = '3.1.1'
+  spark_version = '3.1.2'
   spark_scala_version = '2.12'
 
   // Version specific code overrides.
