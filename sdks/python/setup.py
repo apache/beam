@@ -139,7 +139,7 @@ REQUIRED_PACKAGES = [
     # version of dill. It is best to use the same version of dill on client and
     # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
-    'dill>=0.3.1.1,<0.3.2',
+    'dill>=0.3.1.1,<0.3.4',
     'fastavro>=0.21.4,<2',
     'future>=0.18.2,<1.0.0',
     'grpcio>=1.29.0,<2',
