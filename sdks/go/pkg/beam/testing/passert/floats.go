@@ -26,6 +26,56 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
+// EqualsFloat checks that two PCollections of floats are equal, with each element
+// being within a specified threshold of its corresponding element. Both PCollections
+// are loaded into memory, sorted, and compared element by element.
+func EqualsFloat(s beam.Scope, observed, expected beam.PCollection, threshold float64) {
+	s = s.Scope(fmt.Sprintf("passert.EqualsFloat[%v]", threshold))
+	beam.ParDo0(s, &thresholdFn{threshold: threshold}, beam.Impulse(s), beam.SideInput{Input: observed}, beam.SideInput{Input: expected})
+}
+
+type thresholdFn struct {
+	threshold float64
+}
+
+func (f *thresholdFn) ProcessElement(_ []byte, observed, expected func(*beam.T) bool) error {
+	var observedValues, expectedValues []float64
+	var observedInput, expectedInput beam.T
+	for observed(&observedInput) {
+		val := reflect.ValueOf(observedInput.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+		observedValues = append(observedValues, val)
+	}
+	for expected(&expectedInput) {
+		val := reflect.ValueOf(expectedInput.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+		expectedValues = append(expectedValues, val)
+	}
+	if len(observedValues) != len(expectedValues) {
+		return errors.Errorf("PCollections of different lengths, got %v expected %v", len(observedValues), len(expectedValues))
+	}
+	sort.Float64s(observedValues)
+	sort.Float64s(expectedValues)
+	var tooLow, tooHigh []string
+	for i := 0; i < len(observedValues); i++ {
+		delta := observedValues[i] - expectedValues[i]
+		if delta > f.threshold {
+			tooHigh = append(tooHigh, fmt.Sprintf("%v > %v,", observedValues[i], expectedValues[i]))
+		} else if delta < f.threshold*-1 {
+			tooLow = append(tooLow, fmt.Sprintf("%v < %v,", observedValues[i], expectedValues[i]))
+		}
+	}
+	if len(tooLow)+len(tooHigh) == 0 {
+		return nil
+	}
+	errorStrings := []string{}
+	if len(tooLow) != 0 {
+		errorStrings = append(errorStrings, fmt.Sprintf("values below expected: %v", tooLow))
+	}
+	if len(tooHigh) != 0 {
+		errorStrings = append(errorStrings, fmt.Sprintf("values above expected: %v", tooHigh))
+	}
+	return errors.New(strings.Join(errorStrings, "\n"))
+}
+
 // AllWithinBounds checks that a PCollection of numeric types is within the bounds
 // [lo, high]. Checks for case where bounds are flipped and swaps them so the bounds
 // passed to the doFn are always lo <= hi.
