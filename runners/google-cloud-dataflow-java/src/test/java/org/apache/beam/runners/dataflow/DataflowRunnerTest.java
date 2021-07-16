@@ -1960,8 +1960,9 @@ public class DataflowRunnerTest implements Serializable {
 
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (!(node.getTransform() instanceof WriteFiles))
+            if (!(node.getTransform() instanceof WriteFiles)) {
               return CompositeBehavior.ENTER_TRANSFORM;
+            }
 
             if (p.getOptions().as(StreamingOptions.class).isStreaming()) {
               if (withRunnerDeterminedSharding) {
