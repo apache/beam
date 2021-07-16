@@ -20,6 +20,7 @@ import unittest
 import pandas as pd
 
 from apache_beam.dataframe import doctests
+from apache_beam.dataframe.frames import PD_VERSION
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
@@ -473,6 +474,7 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
             ],
+            'pandas.core.series.Series.swaplevel' :['*']
         },
         skip={
             # Relies on setting values with iloc
@@ -521,7 +523,6 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_string_tests(self):
-    PD_VERSION = tuple(int(v) for v in pd.__version__.split('.')[:2])
     if PD_VERSION < (1, 2):
       module = pd.core.strings
     else:
@@ -710,6 +711,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.apply': ['*'],
         },
         skip={
             'pandas.core.groupby.generic.SeriesGroupBy.cov': [
@@ -726,6 +728,14 @@ class DoctestTest(unittest.TestCase):
             # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.aggregate': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.aggregate': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.transform': [
+                # Dropping invalid columns during a transform is unsupported.
+                'grouped.transform(lambda x: (x - x.mean()) / x.std())'
+            ],
+            'pandas.core.groupby.generic.DataFrameGroupBy.transform': [
+                # Dropping invalid columns during a transform is unsupported.
+                'grouped.transform(lambda x: (x - x.mean()) / x.std())'
+            ],
         })
     self.assertEqual(result.failed, 0)
 
