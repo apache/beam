@@ -655,7 +655,8 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
+        false,
+        null);
 
     verifyAllResponsesAreRead();
     expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
@@ -699,7 +700,8 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
+        false,
+        null);
 
     verifyAllResponsesAreRead();
     expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
@@ -755,7 +757,8 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
+        false,
+        null);
 
     verifyAllResponsesAreRead();
 
@@ -813,7 +816,8 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
+        false,
+        null);
 
     verifyAllResponsesAreRead();
 
@@ -880,7 +884,8 @@ public class BigQueryServicesImplTest {
           null,
           false,
           false,
-          false);
+          false,
+          null);
       fail();
     } catch (IOException e) {
       assertThat(e, instanceOf(IOException.class));
@@ -940,7 +945,8 @@ public class BigQueryServicesImplTest {
           null,
           false,
           false,
-          false);
+          false,
+          null);
     } finally {
       verify(responses[0], atLeastOnce()).getStatusCode();
       verify(responses[0]).getContent();
@@ -1023,7 +1029,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
     assertEquals(1, failedInserts.size());
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
 
@@ -1069,7 +1076,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     TableDataInsertAllRequest parsedRequest =
         fromString(request.getContentAsString(), TableDataInsertAllRequest.class);
@@ -1090,7 +1098,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         true,
         true,
-        true);
+        true,
+        null);
 
     parsedRequest = fromString(request.getContentAsString(), TableDataInsertAllRequest.class);
 
@@ -1325,7 +1334,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     assertThat(failedInserts, is(expected));
   }
@@ -1384,7 +1394,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     assertThat(failedInserts, is(expected));
   }
