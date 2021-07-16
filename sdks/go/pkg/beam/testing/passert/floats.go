@@ -30,6 +30,10 @@ import (
 // being within a specified threshold of its corresponding element. Both PCollections
 // are loaded into memory, sorted, and compared element by element.
 func EqualsFloat(s beam.Scope, observed, expected beam.PCollection, threshold float64) {
+	observedT := beam.ValidateNonCompositeType(observed)
+	validateNonComplexNumber(observedT.Type())
+	expectedT := beam.ValidateNonCompositeType(expected)
+	validateNonComplexNumber(expectedT.Type())
 	s = s.Scope(fmt.Sprintf("passert.EqualsFloat[%v]", threshold))
 	beam.ParDo0(s, &thresholdFn{Threshold: threshold}, beam.Impulse(s), beam.SideInput{Input: observed}, beam.SideInput{Input: expected})
 }
@@ -42,11 +46,11 @@ func (f *thresholdFn) ProcessElement(_ []byte, observed, expected func(*beam.T) 
 	var observedValues, expectedValues []float64
 	var observedInput, expectedInput beam.T
 	for observed(&observedInput) {
-		val := reflect.ValueOf(observedInput.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+		val := toFloat(observedInput)
 		observedValues = append(observedValues, val)
 	}
 	for expected(&expectedInput) {
-		val := reflect.ValueOf(expectedInput.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+		val := toFloat(expectedInput)
 		expectedValues = append(expectedValues, val)
 	}
 	if len(observedValues) != len(expectedValues) {
@@ -81,9 +85,7 @@ func (f *thresholdFn) ProcessElement(_ []byte, observed, expected func(*beam.T) 
 // passed to the doFn are always lo <= hi.
 func AllWithinBounds(s beam.Scope, col beam.PCollection, lo, hi float64) {
 	t := beam.ValidateNonCompositeType(col)
-	if !reflectx.IsNumber(t.Type()) || reflectx.IsComplex(t.Type()) {
-		panic(fmt.Sprintf("type must be a non-complex number: %v", t))
-	}
+	validateNonComplexNumber(t.Type())
 	if lo > hi {
 		lo, hi = hi, lo
 	}
@@ -99,7 +101,7 @@ func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
 	var tooLow, tooHigh []float64
 	var input beam.T
 	for col(&input) {
-		val := reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+		val := toFloat(input)
 		if val < f.lo {
 			tooLow = append(tooLow, val)
 		} else if val > f.hi {
@@ -119,4 +121,14 @@ func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
 		errorStrings = append(errorStrings, fmt.Sprintf("values above maximum value %v: %v", f.hi, tooHigh))
 	}
 	return errors.New(strings.Join(errorStrings, "\n"))
+}
+
+func toFloat(input beam.T) float64 {
+	return reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+}
+
+func validateNonComplexNumber(t reflect.Type) {
+	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
+		panic(fmt.Sprintf("type must be a non-complex number: %v", t))
+	}
 }
