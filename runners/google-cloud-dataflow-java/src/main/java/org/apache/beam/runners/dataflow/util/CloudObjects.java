@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
@@ -58,7 +59,8 @@ public class CloudObjects {
           Timer.Coder.class,
           LengthPrefixCoder.class,
           GlobalWindow.Coder.class,
-          FullWindowedValueCoder.class);
+          FullWindowedValueCoder.class,
+          TimestampPrefixingWindowCoder.class);
 
   static final Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
       CODER_TRANSLATORS = populateCoderTranslators();
