@@ -94,8 +94,11 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
           beamFnStateClient.handle(requestBuilder, response);
           CompletableFuture<Void> callback =
               response.thenAccept(
-                  stateResponse ->
-                      stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet()));
+                  stateResponse -> {
+                    stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet());
+                  });
+
+          callback.getNow(null);
         } else {
           response.complete(
               StateResponse.newBuilder().setId(requestBuilder.getId()).setGet(cachedPage).build());
