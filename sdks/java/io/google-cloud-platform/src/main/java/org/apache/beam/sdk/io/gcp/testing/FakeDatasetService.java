@@ -323,7 +323,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
         null,
         false,
         false,
-        false);
+        false,
+        null);
   }
 
   @Override
@@ -336,7 +337,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
       ErrorContainer<T> errorContainer,
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
-      boolean ignoreInsertIds)
+      boolean ignoreInsertIds,
+      List<ValueInSingleWindow<TableRow>> successfulRows)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {
@@ -370,6 +372,14 @@ public class FakeDatasetService implements DatasetService, Serializable {
             dataSize += tableContainer.addRow(row, null);
           } else {
             dataSize += tableContainer.addRow(row, insertIdList.get(i));
+          }
+          if (successfulRows != null) {
+            successfulRows.add(
+                ValueInSingleWindow.of(
+                    row,
+                    rowList.get(i).getTimestamp(),
+                    rowList.get(i).getWindow(),
+                    rowList.get(i).getPane()));
           }
         } else {
           errorContainer.add(

@@ -86,9 +86,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -814,7 +816,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
         boolean ignoreUnkownValues,
-        boolean ignoreInsertIds)
+        boolean ignoreInsertIds,
+        List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
@@ -829,6 +832,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                 + "as many elements as rowList");
       }
 
+      final Set<Integer> failedIndices = new HashSet<>();
       long retTotalDataSize = 0;
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
       // These lists contain the rows to publish. Initially the contain the entire list.
@@ -981,6 +985,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                 throw new IOException("Insert failed: " + error + ", other errors: " + allErrors);
               }
               int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
+              failedIndices.add(errorIndex);
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                 allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
@@ -1022,6 +1027,18 @@ class BigQueryServicesImpl implements BigQueryServices {
         allErrors.clear();
         LOG.info("Retrying {} failed inserts to BigQuery", rowsToPublish.size());
       }
+      if (successfulRows != null) {
+        for (int i = 0; i < rowsToPublish.size(); i++) {
+          if (!failedIndices.contains(i)) {
+            successfulRows.add(
+                ValueInSingleWindow.of(
+                    rowsToPublish.get(i).getValue(),
+                    rowsToPublish.get(i).getTimestamp(),
+                    rowsToPublish.get(i).getWindow(),
+                    rowsToPublish.get(i).getPane()));
+          }
+        }
+      }
       if (!allErrors.isEmpty()) {
         throw new IOException("Insert failed: " + allErrors);
       } else {
@@ -1039,7 +1056,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
         boolean ignoreUnknownValues,
-        boolean ignoreInsertIds)
+        boolean ignoreInsertIds,
+        List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException {
       return insertAll(
           ref,
@@ -1053,7 +1071,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           errorContainer,
           skipInvalidRows,
           ignoreUnknownValues,
-          ignoreInsertIds);
+          ignoreInsertIds,
+          successfulRows);
     }
 
     protected GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
