@@ -104,6 +104,22 @@ func TestEqualsFloat_bad(t *testing.T) {
 	}
 }
 
+func TestEqualsFloat_nonNumeric(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	obs := beam.Create(s, "a", "b", "c")
+	exp := beam.Create(s, "a", "b", "c")
+	err := TryEqualsFloat(s, obs, exp, 0.001)
+	ptest.Run(p)
+	if err == nil {
+		t.Fatalf("Pipeline succeeded but should have failed.")
+	}
+	str := err.Error()
+	expErr := "type must be a non-complex number"
+	if !strings.Contains(str, expErr) {
+		t.Errorf("pipeline failed correctly but did not contain substring %#v in message: \n%v", expErr, str)
+	}
+}
+
 func TestAllWithinBounds_GoodFloats(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, 0.0, 0.5, 1.0)

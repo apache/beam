@@ -26,16 +26,33 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
-// EqualsFloat checks that two PCollections of floats are equal, with each element
-// being within a specified threshold of its corresponding element. Both PCollections
-// are loaded into memory, sorted, and compared element by element.
 func EqualsFloat(s beam.Scope, observed, expected beam.PCollection, threshold float64) {
+	if err := TryEqualsFloat(s, observed, expected, threshold); err != nil {
+		panic(fmt.Sprintf("TryEqualsFloat failed: %v", err))
+	}
+}
+
+// TryEqualsFloat checks that two PCollections of floats are equal, with each element
+// being within a specified threshold of its corresponding element. Both PCollections
+// are loaded into memory, sorted, and compared element by element. Returns an error if
+// the PCollection types are complex or non-numeric.
+func TryEqualsFloat(s beam.Scope, observed, expected beam.PCollection, threshold float64) error {
+	errorStrings := []string{}
 	observedT := beam.ValidateNonCompositeType(observed)
-	validateNonComplexNumber(observedT.Type())
+	if obsErr := validateNonComplexNumber(observedT.Type()); obsErr != nil {
+		errorStrings = append(errorStrings, fmt.Sprintf("observed PCollection has incompatible type: %v", obsErr))
+	}
 	expectedT := beam.ValidateNonCompositeType(expected)
 	validateNonComplexNumber(expectedT.Type())
+	if expErr := validateNonComplexNumber(expectedT.Type()); expErr != nil {
+		errorStrings = append(errorStrings, fmt.Sprintf("expected PCollection has incompatible type: %v", expErr))
+	}
+	if len(errorStrings) != 0 {
+		return errors.New(strings.Join(errorStrings, "\n"))
+	}
 	s = s.Scope(fmt.Sprintf("passert.EqualsFloat[%v]", threshold))
 	beam.ParDo0(s, &thresholdFn{Threshold: threshold}, beam.Impulse(s), beam.SideInput{Input: observed}, beam.SideInput{Input: expected})
+	return nil
 }
 
 type thresholdFn struct {
@@ -127,8 +144,9 @@ func toFloat(input beam.T) float64 {
 	return reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
 }
 
-func validateNonComplexNumber(t reflect.Type) {
+func validateNonComplexNumber(t reflect.Type) error {
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
-		panic(fmt.Sprintf("type must be a non-complex number: %v", t))
+		return errors.Errorf("type must be a non-complex number: %v", t)
 	}
+	return nil
 }
