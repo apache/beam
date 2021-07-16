@@ -38,8 +38,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,7 +51,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CachingBeamFnStateClientTest {
 
-  private Cache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache;
+  private LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache;
   private List<CacheToken> cacheTokenList;
   private CacheToken userStateToken =
       CacheToken.newBuilder()
@@ -59,10 +60,17 @@ public class CachingBeamFnStateClientTest {
           .build();
   private StateCacheKey defaultCacheKey =
       StateCacheKey.create(ByteString.copyFromUtf8("1"), ByteString.EMPTY);
+  private CacheLoader<StateKey, Map<StateCacheKey, StateGetResponse>> loader =
+      new CacheLoader<StateKey, Map<StateCacheKey, StateGetResponse>>() {
+        @Override
+        public Map<StateCacheKey, StateGetResponse> load(StateKey key) {
+          return new HashMap<>();
+        }
+      };
 
   @Before
   public void setup() {
-    stateCache = CacheBuilder.newBuilder().build();
+    stateCache = CacheBuilder.newBuilder().build(loader);
     cacheTokenList = new ArrayList<>();
   }
 

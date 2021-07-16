@@ -32,7 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.MultimapSideInput
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 
 /**
  * Wraps a delegate BeamFnStateClient and stores the result of state requests in cross bundle cache
@@ -42,13 +42,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 public class CachingBeamFnStateClient implements BeamFnStateClient {
 
   private final BeamFnStateClient beamFnStateClient;
-  private final Cache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache;
+  private final LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache;
   private final Map<CacheToken.SideInput, ByteString> sideInputCacheTokens;
   private final ByteString userStateToken;
 
   public CachingBeamFnStateClient(
       BeamFnStateClient beamFnStateClient,
-      Cache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache,
+      LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache,
       List<CacheToken> cacheTokenList) {
     this.beamFnStateClient = beamFnStateClient;
     this.stateCache = stateCache;
@@ -69,8 +69,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
 
   @Override
   public void handle(
-      BeamFnApi.StateRequest.Builder requestBuilder,
-      CompletableFuture<BeamFnApi.StateResponse> response) {
+      StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
 
     StateRequest request = requestBuilder.build();
     StateKey stateKey = request.getStateKey();
@@ -85,24 +84,18 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     switch (request.getRequestCase()) {
       case GET:
         // Check if data is in the cache already
-        // consider using a LoadingCache so that stateKey map will be loaded automatically
-        Map<StateCacheKey, StateGetResponse> stateKeyMap = stateCache.getIfPresent(stateKey);
-        if (stateKeyMap == null) {
-          stateKeyMap = new HashMap<>();
-          stateCache.put(stateKey, new HashMap<>());
-        }
         StateGetResponse cachedPage;
         StateCacheKey cacheKey =
             StateCacheKey.create(cacheToken, request.getGet().getContinuationToken());
+        Map<StateCacheKey, StateGetResponse> stateKeyMap = stateCache.getUnchecked(stateKey);
         cachedPage = stateKeyMap.get(cacheKey);
 
         if (cachedPage == null) {
           beamFnStateClient.handle(requestBuilder, response);
           CompletableFuture<Void> callback =
               response.thenAccept(
-                  stateResponse -> {
-                    stateCache.getIfPresent(stateKey).put(cacheKey, stateResponse.getGet());
-                  });
+                  stateResponse ->
+                      stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet()));
         } else {
           response.complete(
               StateResponse.newBuilder().setId(requestBuilder.getId()).setGet(cachedPage).build());
@@ -135,7 +128,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       return userStateToken;
     } else if (stateKey.hasRunner()) {
       // TODO: Support runner state key caching
-      return null;
+      return ByteString.EMPTY;
     } else {
       CacheToken.SideInput.Builder sideInputBuilder = CacheToken.SideInput.newBuilder();
       if (stateKey.hasIterableSideInput()) {
