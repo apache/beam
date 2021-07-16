@@ -30,11 +30,14 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
+import com.google.common.collect.Iterables;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
@@ -58,9 +61,12 @@ import com.google.rpc.Code;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -901,12 +907,28 @@ public class DatastoreV1 {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = RUNQUERY_BACKOFF.backoff();
         while (true) {
+          HashMap<String, String> baseLabels = new HashMap<>();
+          baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "TODO");
+          baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
+          baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "runQueryWithRetries");
+          baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "TODO");
+          baseLabels.put(
+              MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, request.getProjectId());
+          ServiceCallMetric serviceCallMetric =
+              new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
           try {
             RunQueryResponse response = datastore.runQuery(request);
+            serviceCallMetric.call("ok");
             rpcSuccesses.inc();
             return response;
           } catch (DatastoreException exception) {
             rpcErrors.inc();
+            GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(exception);
+            if (errorInfo == null) {
+              serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
+              throw exception;
+            }
+            serviceCallMetric.call(errorInfo.getReason());
 
             if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
               throw exception;
@@ -917,6 +939,15 @@ public class DatastoreV1 {
             }
           }
         }
+      }
+
+      protected GoogleJsonError.ErrorInfo getErrorInfo(Exception e) {
+        if (!(e instanceof GoogleJsonResponseException)) {
+          return null;
+        }
+        GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
+        GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
+        return errorInfo;
       }
 
       /** Read and output entities for the given query. */
