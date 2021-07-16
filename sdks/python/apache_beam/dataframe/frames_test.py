@@ -611,9 +611,20 @@ class DeferredFrameTest(_AbstractFrameTest):
       with self.assertRaises(NotImplementedError):
         self._run_test(lambda df: df.value_counts(dropna=False), df)
 
+    # Test the defaults.
     self._run_test(lambda df: df.num_wings.value_counts(), df)
     self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
     self._run_test(lambda df: df.num_wings.value_counts(dropna=False), df)
+
+    # Test the combination interactions.
+    for normalize in (True, False):
+      for dropna in (True, False):
+        self._run_test(
+            lambda df,
+            dropna=dropna,
+            normalize=normalize: df.num_wings.value_counts(
+                dropna=dropna, normalize=normalize),
+            df)
 
   def test_value_counts_does_not_support_sort(self):
     df = pd.DataFrame({
