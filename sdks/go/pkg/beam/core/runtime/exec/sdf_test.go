@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -247,6 +248,56 @@ func TestSdfNodes(t *testing.T) {
 		}
 	})
 
+	// Validate SplitAndSizeRestrictions matches its contract and properly
+	// invokes SDF methods SplitRestriction and RestrictionSize.
+	t.Run("InvalidSplitAndSizeRestrictions", func(t *testing.T) {
+		idfn, err := graph.NewDoFn(&NegativeSizeSdf{rest: offsetrange.Restriction{Start: 0, End: 4}}, graph.NumMainInputs(graph.MainSingle))
+		if err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+		tests := []struct {
+			name string
+			fn   *graph.DoFn
+			in   FullValue
+		}{
+			{
+				name: "InvalidSplit",
+				fn:   idfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm:       1,
+						Elm2:      nil,
+						Timestamp: testTimestamp,
+						Windows:   testWindows,
+					},
+					Elm2:      offsetrange.Restriction{Start: 0, End: 4},
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+			},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				capt := &CaptureNode{UID: 2}
+				node := &SplitAndSizeRestrictions{UID: 1, Fn: test.fn, Out: capt}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: test.in}}, Out: node}
+				units := []Unit{root, node, capt}
+				p, err := NewPlan("a", units)
+				if err != nil {
+					t.Fatalf("failed to construct plan: %v", err)
+				}
+				err = p.Execute(context.Background(), "1", DataContext{})
+				if err == nil {
+					t.Errorf("execution was expected to fail.")
+				}
+				if !strings.Contains(err.Error(), "size returned expected to be non-negative but received") {
+					t.Errorf("SplitAndSizeRestrictions(%v) failed, got: %v, wanted: 'size returned expected to be non-negative but received'.", test.in, err)
+				}
+			})
+		}
+	})
+
 	// Validate ProcessSizedElementsAndRestrictions matches its contract and
 	// properly invokes SDF methods CreateTracker and ProcessElement.
 	t.Run("ProcessSizedElementsAndRestrictions", func(t *testing.T) {
@@ -407,6 +458,14 @@ func TestAsSplittableUnit(t *testing.T) {
 		t.Fatalf("invalid function: %v", err)
 	}
 	kvdfn, err := graph.NewDoFn(&VetKvSdf{}, graph.NumMainInputs(graph.MainKv))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	pdfn, err := graph.NewDoFn(&NegativeSizeSdf{rest: offsetrange.Restriction{Start: 0, End: 2}}, graph.NumMainInputs(graph.MainSingle))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	rdfn, err := graph.NewDoFn(&NegativeSizeSdf{rest: offsetrange.Restriction{Start: 2, End: 4}}, graph.NumMainInputs(graph.MainSingle))
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
 	}
@@ -752,6 +811,67 @@ func TestAsSplittableUnit(t *testing.T) {
 			})
 		}
 	})
+
+	// Test that Split properly validates the results and returns an error if invalid
+	t.Run("InvalidSplitSize", func(t *testing.T) {
+		tests := []struct {
+			name string
+			fn   *graph.DoFn
+			in   FullValue
+		}{
+			{
+				name: "Primary",
+				fn:   pdfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm:  1,
+						Elm2: &offsetrange.Restriction{Start: 0, End: 4},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+			},
+			{
+				name: "Residual",
+				fn:   rdfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm:  1,
+						Elm2: &offsetrange.Restriction{Start: 0, End: 4},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+			},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				// Setup, create transforms, inputs, and desired outputs.
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}}
+				node := &ProcessSizedElementsAndRestrictions{PDo: n}
+				node.rt = sdf.RTracker(offsetrange.NewTracker(*test.in.Elm.(*FullValue).Elm2.(*offsetrange.Restriction)))
+				node.elm = &test.in
+				node.numW = len(test.in.Windows)
+				node.currW = 0
+
+				// Call from SplittableUnit and check results.
+				su := SplittableUnit(node)
+				if err := node.Up(context.Background()); err != nil {
+					t.Fatalf("ProcessSizedElementsAndRestrictions.Up() failed: %v", err)
+				}
+				_, _, err := su.Split(0.5)
+				if err == nil {
+					t.Errorf("SplittableUnit.Split(%v) was expected to fail.", test.in)
+				}
+				if !strings.Contains(err.Error(), "size returned expected to be non-negative but received") {
+					t.Errorf("SplittableUnit.Split(%v) failed, got: %v, wanted: 'size returned expected to be non-negative but received'.", test.in, err)
+				}
+			})
+		}
+	})
 }
 
 // TestMultiWindowProcessing tests that ProcessSizedElementsAndRestrictions
@@ -856,6 +976,44 @@ func TestMultiWindowProcessing(t *testing.T) {
 	}
 }
 
+// NegativeSizeSdf is a very basic SDF that returns a negative restriction size
+// if the passed in restriction matches otherwise it uses offsetrange.Restriction's default size.
+type NegativeSizeSdf struct {
+	rest offsetrange.Restriction
+}
+
+// CreateInitialRestriction creates a four-element offset range.
+func (fn *NegativeSizeSdf) CreateInitialRestriction(_ int) offsetrange.Restriction {
+	return offsetrange.Restriction{Start: 0, End: 4}
+}
+
+// SplitRestriction is a no-op, and does not split.
+func (fn *NegativeSizeSdf) SplitRestriction(_ int, rest offsetrange.Restriction) []offsetrange.Restriction {
+	return []offsetrange.Restriction{rest}
+}
+
+// RestrictionSize returns the passed in size that should be used.
+func (fn *NegativeSizeSdf) RestrictionSize(_ int, rest offsetrange.Restriction) float64 {
+	if fn.rest == rest {
+		return -1
+	}
+	return rest.Size()
+}
+
+// CreateTracker creates a LockRTracker wrapping an offset range RTracker.
+func (fn *NegativeSizeSdf) CreateTracker(rest offsetrange.Restriction) *offsetrange.Tracker {
+	return offsetrange.NewTracker(rest)
+}
+
+// ProcessElement emits the element after consuming the entire restriction tracker.
+func (fn *NegativeSizeSdf) ProcessElement(rt *offsetrange.Tracker, elm int, emit func(int)) {
+	i := rt.GetRestriction().(offsetrange.Restriction).Start
+	for rt.TryClaim(i) {
+		i++
+	}
+	emit(elm)
+}
+
 // WindowBlockingSdf is a very basic SDF that blocks execution once, in one
 // window and at one position within the restriction.
 type WindowBlockingSdf struct {
@@ -924,4 +1082,106 @@ func (rt *SplittableUnitRTracker) TrySplit(_ float64) (interface{}, interface{},
 
 func (rt *SplittableUnitRTracker) GetProgress() (float64, float64) {
 	return rt.Done, rt.Remaining
+}
+
+// TestMultiWindowProcessing tests that ProcessSizedElementsAndRestrictions
+// handles processing multiple windows correctly, even when progress is
+// reported and splits are performed during processing.
+func TestSplittingValidationProcessing(t *testing.T) {
+	// Set up our SDF to block on the second window of four, at the second
+	// position of the restriction. (i.e. window at 0.5 progress, full element
+	// at 0.375 progress)
+	blockW := 1
+	wsdf := WindowBlockingSdf{
+		block: make(chan struct{}),
+		claim: 1,
+		w:     testMultiWindows[blockW],
+	}
+	dfn, err := graph.NewDoFn(&wsdf, graph.NumMainInputs(graph.MainSingle))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+
+	// Create a plan with a single valid element as input to ProcessElement.
+	in := FullValue{
+		Elm: &FullValue{
+			Elm:  1,
+			Elm2: offsetrange.Restriction{Start: 0, End: 4},
+		},
+		Elm2:      4.0,
+		Timestamp: testTimestamp,
+		Windows:   testMultiWindows,
+	}
+	capt := &CaptureNode{UID: 2}
+	n := &ParDo{UID: 1, Fn: dfn, Out: []Node{capt}}
+	node := &ProcessSizedElementsAndRestrictions{PDo: n}
+	root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: in}}, Out: node}
+	units := []Unit{root, node, capt}
+	p, err := NewPlan("a", units)
+	if err != nil {
+		t.Fatalf("failed to construct plan: %v", err)
+	}
+
+	// Start a goroutine for processing, expecting to synchronize with it once
+	// while processing is blocked (to validate processing) and a second time
+	// it's done (to validate final outputs).
+	done := make(chan struct{})
+	go func() {
+		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
+			t.Fatalf("execute failed: %v", err)
+		}
+		done <- struct{}{}
+	}()
+
+	// Once SDF is blocked, check that it is tracking windows properly, and that
+	// getting progress and splitting works as expected.
+	<-wsdf.block
+
+	if got, want := node.currW, blockW; got != want {
+		t.Errorf("Incorrect current window during processing, got %v, want %v", got, want)
+	}
+	if got, want := node.numW, len(testMultiWindows); got != want {
+		t.Errorf("Incorrect total number of windows during processing, got %v, want %v", got, want)
+	}
+
+	su := <-node.SU
+	if got, want := su.GetProgress(), 1.5/4.0; !floatEquals(got, want, 0.00001) {
+		t.Errorf("Incorrect result from GetProgress() during processing, got %v, want %v", got, want)
+	}
+	// Split should hit window boundary between 2 and 3. We don't need to check
+	// the split result here, just the effects it has on currW and numW.
+	frac := 0.5
+	if _, _, err := su.Split(frac); err != nil {
+		t.Errorf("Split(%v) failed with error: %v", frac, err)
+	}
+	if got, want := node.currW, blockW; got != want {
+		t.Errorf("Incorrect current window after splitting, got %v, want %v", got, want)
+	}
+	if got, want := node.numW, 3; got != want {
+		t.Errorf("Incorrect total number of windows after splitting, got %v, want %v", got, want)
+	}
+
+	// Now we can unblock SDF and finish processing, then check that the results
+	// respected the windowed split.
+	node.SU <- su
+	wsdf.block <- struct{}{}
+	<-done
+
+	gotOut := capt.Elements
+	wantOut := []FullValue{{ // Only 3 windows, 4th should be gone after split.
+		Elm:       1,
+		Timestamp: testTimestamp,
+		Windows:   testMultiWindows[0:1],
+	}, {
+		Elm:       1,
+		Timestamp: testTimestamp,
+		Windows:   testMultiWindows[1:2],
+	}, {
+		Elm:       1,
+		Timestamp: testTimestamp,
+		Windows:   testMultiWindows[2:3],
+	}}
+	if diff := cmp.Diff(gotOut, wantOut); diff != "" {
+		t.Errorf("ProcessSizedElementsAndRestrictions produced incorrect outputs (-got, +want):\n%v", diff)
+	}
 }
