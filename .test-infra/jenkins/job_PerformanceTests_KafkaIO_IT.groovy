@@ -40,7 +40,7 @@ job(jobName) {
 
 
   // Get 3 random available ports.
-  Integer[] ports = new Integer[3]()
+  Integer[] ports = new Integer[3]
   ServerSocket ss1 = new ServerSocket(0)
   ServerSocket ss2 = new ServerSocket(0)
   ServerSocket ss3 = new ServerSocket(0)
@@ -67,7 +67,7 @@ job(jobName) {
     influxMeasurement            : 'kafkaioit_results',
     influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:\$ports[0],\$KAFKA_BROKER_1:\$ports[1],\$KAFKA_BROKER_2:\$ports[2]",
+    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:31400,\$KAFKA_BROKER_1:31401,\$KAFKA_BROKER_2:31402",
     kafkaTopic                   : 'beam',
     readTimeout                  : '900',
     numWorkers                   : '5',
