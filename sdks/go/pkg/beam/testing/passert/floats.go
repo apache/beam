@@ -31,11 +31,11 @@ import (
 // are loaded into memory, sorted, and compared element by element.
 func EqualsFloat(s beam.Scope, observed, expected beam.PCollection, threshold float64) {
 	s = s.Scope(fmt.Sprintf("passert.EqualsFloat[%v]", threshold))
-	beam.ParDo0(s, &thresholdFn{threshold: threshold}, beam.Impulse(s), beam.SideInput{Input: observed}, beam.SideInput{Input: expected})
+	beam.ParDo0(s, &thresholdFn{Threshold: threshold}, beam.Impulse(s), beam.SideInput{Input: observed}, beam.SideInput{Input: expected})
 }
 
 type thresholdFn struct {
-	threshold float64
+	Threshold float64
 }
 
 func (f *thresholdFn) ProcessElement(_ []byte, observed, expected func(*beam.T) bool) error {
@@ -57,9 +57,9 @@ func (f *thresholdFn) ProcessElement(_ []byte, observed, expected func(*beam.T) 
 	var tooLow, tooHigh []string
 	for i := 0; i < len(observedValues); i++ {
 		delta := observedValues[i] - expectedValues[i]
-		if delta > f.threshold {
+		if delta > f.Threshold {
 			tooHigh = append(tooHigh, fmt.Sprintf("%v > %v,", observedValues[i], expectedValues[i]))
-		} else if delta < f.threshold*-1 {
+		} else if delta < f.Threshold*-1 {
 			tooLow = append(tooLow, fmt.Sprintf("%v < %v,", observedValues[i], expectedValues[i]))
 		}
 	}
