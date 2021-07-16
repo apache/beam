@@ -46,7 +46,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-
 /** Tests for {@link CachingBeamFnStateClient}. */
 @RunWith(JUnit4.class)
 public class CachingBeamFnStateClientTest {
@@ -58,7 +57,8 @@ public class CachingBeamFnStateClientTest {
           .setUserState(CacheToken.UserState.getDefaultInstance())
           .setToken(ByteString.copyFromUtf8("1"))
           .build();
-  private StateCacheKey defaultCacheKey = StateCacheKey.create(ByteString.copyFromUtf8("1"), ByteString.EMPTY);
+  private StateCacheKey defaultCacheKey =
+      StateCacheKey.create(ByteString.copyFromUtf8("1"), ByteString.EMPTY);
 
   @Before
   public void setup() {
@@ -193,7 +193,6 @@ public class CachingBeamFnStateClientTest {
 
     // Test clear cached value
     testMutationCaching(requestBuilder, key("A"), defaultCacheKey, cachingClient, fakeClient);
-
   }
 
   private StateKey key(String id) throws IOException {
@@ -238,7 +237,8 @@ public class CachingBeamFnStateClientTest {
     StateRequest.Builder requestBuilder =
         StateRequest.newBuilder()
             .setStateKey(stateKey)
-            .setGet(StateGetRequest.newBuilder().setContinuationToken(cacheKey.getContinuationToken()));
+            .setGet(
+                StateGetRequest.newBuilder().setContinuationToken(cacheKey.getContinuationToken()));
 
     cachingClient.handle(requestBuilder, firstResponse);
     assertEquals(firstResponse.get().getGet(), stateCache.getIfPresent(stateKey).get(cacheKey));
@@ -264,8 +264,7 @@ public class CachingBeamFnStateClientTest {
       // Include more testing after append is implemented
     } else {
       assertEquals(
-          StateGetResponse.getDefaultInstance(),
-          stateCache.getIfPresent(stateKey).get(cacheKey));
+          StateGetResponse.getDefaultInstance(), stateCache.getIfPresent(stateKey).get(cacheKey));
       assertNull(fakeClient.getData().get(stateKey));
     }
   }

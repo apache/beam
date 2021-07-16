@@ -17,12 +17,11 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import com.google.auto.value.AutoValue;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
-import com.google.auto.value.AutoValue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -56,7 +55,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     this.sideInputCacheTokens = new HashMap<>();
 
     // Set up cache tokens
-    ByteString tempUserStateToken = null;
+    ByteString tempUserStateToken = ByteString.EMPTY;
     for (BeamFnApi.ProcessBundleRequest.CacheToken token : cacheTokenList) {
       if (token.hasUserState()) {
         tempUserStateToken = token.getToken();
@@ -78,7 +77,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     ByteString cacheToken = getCacheToken(stateKey);
 
     // If not cacheable proceed as normal
-    if (cacheToken == null) {
+    if (ByteString.EMPTY.equals(cacheToken)) {
       beamFnStateClient.handle(requestBuilder, response);
       return;
     }
@@ -93,14 +92,17 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
           stateCache.put(stateKey, new HashMap<>());
         }
         StateGetResponse cachedPage;
-        StateCacheKey cacheKey = StateCacheKey.create(cacheToken, request.getGet().getContinuationToken());
+        StateCacheKey cacheKey =
+            StateCacheKey.create(cacheToken, request.getGet().getContinuationToken());
         cachedPage = stateKeyMap.get(cacheKey);
 
         if (cachedPage == null) {
           beamFnStateClient.handle(requestBuilder, response);
-          CompletableFuture<Void> callback = response.thenAccept(stateResponse -> {
-            stateCache.getIfPresent(stateKey).put(cacheKey, stateResponse.getGet());
-          });
+          CompletableFuture<Void> callback =
+              response.thenAccept(
+                  stateResponse -> {
+                    stateCache.getIfPresent(stateKey).put(cacheKey, stateResponse.getGet());
+                  });
         } else {
           response.complete(
               StateResponse.newBuilder().setId(requestBuilder.getId()).setGet(cachedPage).build());
@@ -138,18 +140,21 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       CacheToken.SideInput.Builder sideInputBuilder = CacheToken.SideInput.newBuilder();
       if (stateKey.hasIterableSideInput()) {
         IterableSideInput iterableSideInput = stateKey.getIterableSideInput();
-        sideInputBuilder.setTransformId(iterableSideInput.getTransformId())
+        sideInputBuilder
+            .setTransformId(iterableSideInput.getTransformId())
             .setSideInputId(iterableSideInput.getSideInputId());
       } else if (stateKey.hasMultimapSideInput()) {
         MultimapSideInput multimapSideInput = stateKey.getMultimapSideInput();
-        sideInputBuilder.setTransformId(multimapSideInput.getTransformId())
+        sideInputBuilder
+            .setTransformId(multimapSideInput.getTransformId())
             .setSideInputId(multimapSideInput.getSideInputId());
       } else if (stateKey.hasMultimapKeysSideInput()) {
         MultimapKeysSideInput multimapKeysSideInput = stateKey.getMultimapKeysSideInput();
-        sideInputBuilder.setTransformId(multimapKeysSideInput.getTransformId())
+        sideInputBuilder
+            .setTransformId(multimapKeysSideInput.getTransformId())
             .setSideInputId(multimapKeysSideInput.getSideInputId());
       }
-      return sideInputCacheTokens.get(sideInputBuilder.build());
+      return sideInputCacheTokens.getOrDefault(sideInputBuilder.build(), ByteString.EMPTY);
     }
   }
 
@@ -163,5 +168,4 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       return new AutoValue_CachingBeamFnStateClient_StateCacheKey(cacheToken, continuationToken);
     }
   }
-
 }
