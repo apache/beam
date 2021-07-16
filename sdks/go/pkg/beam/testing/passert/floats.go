@@ -26,6 +26,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
+// Equals float calls into TryEqualsFloat, checkong that two PCollections of non-complex
+// numeric types are equal, with each element being within a provided threshold of an
+// expected value. Panics if TryEqualsFloat returns an error.
 func EqualsFloat(s beam.Scope, observed, expected beam.PCollection, threshold float64) {
 	if err := TryEqualsFloat(s, observed, expected, threshold); err != nil {
 		panic(fmt.Sprintf("TryEqualsFloat failed: %v", err))
