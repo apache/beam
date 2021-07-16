@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.Executors;
@@ -25,6 +27,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -37,6 +40,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -81,7 +85,8 @@ public class ReadSourcePortableTest implements Serializable {
 
   @Test(timeout = 120_000)
   public void testExecution() throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs("--experiments=use_deprecated_read").create();
     options.setRunner(CrashingRunner.class);
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
     options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
@@ -93,6 +98,8 @@ public class ReadSourcePortableTest implements Serializable {
     PCollection<Long> result = p.apply(GenerateSequence.from(0L).to(10L));
     PAssert.that(result)
         .containsInAnyOrder(ImmutableList.of(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L));
+
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 
@@ -109,6 +116,7 @@ public class ReadSourcePortableTest implements Serializable {
                     options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
     jobInvocation.start();
     while (jobInvocation.getState() != JobState.Enum.DONE) {
+      assertThat(jobInvocation.getState(), Matchers.not(JobState.Enum.FAILED));
       Thread.sleep(100);
     }
   }
