@@ -59,6 +59,7 @@ import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -148,11 +149,11 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <T> TransformEvaluator<SplittableParDo.PrimitiveUnboundedRead<T>> readUnbounded() {
-    return new TransformEvaluator<SplittableParDo.PrimitiveUnboundedRead<T>>() {
+  private static <T> TransformEvaluator<Read.PrimitiveUnboundedRead<T>> readUnbounded() {
+    return new TransformEvaluator<Read.PrimitiveUnboundedRead<T>>() {
       @Override
       public void evaluate(
-          SplittableParDo.PrimitiveUnboundedRead<T> transform, EvaluationContext context) {
+          Read.PrimitiveUnboundedRead<T> transform, EvaluationContext context) {
         final String stepName = context.getCurrentTransform().getFullName();
         context.putDataset(
             transform,

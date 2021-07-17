@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.Executors;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
 import org.apache.beam.runners.direct.UnboundedReadEvaluatorFactory.UnboundedSourceShard;
 import org.apache.beam.sdk.Pipeline;
@@ -61,6 +60,7 @@ import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -118,8 +118,9 @@ public class UnboundedReadEvaluatorFactoryTest {
   @Before
   public void setup() {
     source = CountingSource.unboundedWithTimestampFn(new LongToInstantFn());
+    ExperimentalOptions experimentalOptions = p.getOptions().as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(experimentalOptions, "use_deprecated_read");
     longs = p.apply(Read.from(source));
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     context = mock(EvaluationContext.class);
     factory = new UnboundedReadEvaluatorFactory(context, p.getOptions());
     output = bundleFactory.createBundle(longs);
@@ -203,7 +204,6 @@ public class UnboundedReadEvaluatorFactoryTest {
     source.dedupes = true;
 
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     AppliedPTransform<?, ?, ?> sourceTransform = getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
@@ -244,7 +244,6 @@ public class UnboundedReadEvaluatorFactoryTest {
     // Read with a very slow rate so by the second read there are no more elements
     PCollection<Long> pcollection =
         p.apply(Read.from(new TestUnboundedSource<>(VarLongCoder.of(), 1L)));
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     AppliedPTransform<?, ?, ?> sourceTransform = getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
@@ -302,7 +301,6 @@ public class UnboundedReadEvaluatorFactoryTest {
     source.advanceWatermarkToInfinity = true;
 
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     DirectGraph graph = DirectGraphs.getGraph(p);
     AppliedPTransform<?, ?, ?> sourceTransform = graph.getProducer(pcollection);
 
@@ -448,12 +446,11 @@ public class UnboundedReadEvaluatorFactoryTest {
     final UnboundedReadEvaluatorFactory factory =
         new UnboundedReadEvaluatorFactory(context, p.getOptions());
 
-    final SplittableParDo.PrimitiveUnboundedRead<String> unbounded =
-        new SplittableParDo.PrimitiveUnboundedRead(Read.from(source));
+    final Read.PrimitiveUnboundedRead<String> unbounded =
+        new Read.PrimitiveUnboundedRead(Read.from(source));
     final Pipeline pipeline = Pipeline.create(p.getOptions());
     final PCollection<String> pCollection = pipeline.apply(unbounded);
-    final AppliedPTransform<
-            PBegin, PCollection<String>, SplittableParDo.PrimitiveUnboundedRead<String>>
+    final AppliedPTransform<PBegin, PCollection<String>, Read.PrimitiveUnboundedRead<String>>
         application =
             AppliedPTransform.of(
                 "test",

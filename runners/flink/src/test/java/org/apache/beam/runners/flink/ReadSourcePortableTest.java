@@ -27,7 +27,6 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -98,8 +97,6 @@ public class ReadSourcePortableTest implements Serializable {
     PCollection<Long> result = p.apply(GenerateSequence.from(0L).to(10L));
     PAssert.that(result)
         .containsInAnyOrder(ImmutableList.of(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L));
-
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 

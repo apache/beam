@@ -26,6 +26,7 @@ import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -145,15 +146,15 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
           transformString = replaceFnString(transformClass, transformString, "windowFn");
         } else if (transformString.contains("<source>")) {
           String sourceName = "...";
-          if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
+          if (transform instanceof Read.PrimitiveBoundedRead) {
             sourceName =
-                ((SplittableParDo.PrimitiveBoundedRead<?>) transform)
+                ((Read.PrimitiveBoundedRead<?>) transform)
                     .getSource()
                     .getClass()
                     .getName();
-          } else if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
+          } else if (transform instanceof Read.PrimitiveUnboundedRead) {
             sourceName =
-                ((SplittableParDo.PrimitiveUnboundedRead<?>) transform)
+                ((Read.PrimitiveUnboundedRead<?>) transform)
                     .getSource()
                     .getClass()
                     .getName();

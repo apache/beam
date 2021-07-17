@@ -35,18 +35,10 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
 import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
 import org.apache.beam.runners.core.construction.ReadTranslation.UnboundedReadPayloadTranslator;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -55,7 +47,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
@@ -65,9 +56,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -76,7 +65,6 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -641,167 +629,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     public void tearDown() {
       invoker.invokeTeardown();
       invoker = null;
-    }
-  }
-
-  /**
-   * Converts {@link Read} based Splittable DoFn expansions to primitive reads implemented by {@link
-   * PrimitiveBoundedRead} and {@link PrimitiveUnboundedRead} if either the experiment {@code
-   * use_deprecated_read} or {@code beam_fn_api_use_deprecated_read} are specified.
-   *
-   * <p>TODO(BEAM-10670): Remove the primitive Read and make the splittable DoFn the only option.
-   */
-  public static void convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(Pipeline pipeline) {
-    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")
-        || ExperimentalOptions.hasExperiment(
-            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
-        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
-      convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
-    }
-  }
-
-  /**
-   * Converts {@link Read} based Splittable DoFn expansions to primitive reads implemented by {@link
-   * PrimitiveBoundedRead} and {@link PrimitiveUnboundedRead}.
-   *
-   * <p>TODO(BEAM-10670): Remove the primitive Read and make the splittable DoFn the only option.
-   */
-  public static void convertReadBasedSplittableDoFnsToPrimitiveReads(Pipeline pipeline) {
-    pipeline.replaceAll(
-        ImmutableList.of(PRIMITIVE_BOUNDED_READ_OVERRIDE, PRIMITIVE_UNBOUNDED_READ_OVERRIDE));
-  }
-
-  /**
-   * A transform override for {@link Read.Bounded} that converts it to a {@link
-   * PrimitiveBoundedRead}.
-   */
-  public static final PTransformOverride PRIMITIVE_BOUNDED_READ_OVERRIDE =
-      PTransformOverride.of(
-          PTransformMatchers.classEqualTo(Read.Bounded.class), new BoundedReadOverrideFactory<>());
-  /**
-   * A transform override for {@link Read.Unbounded} that converts it to a {@link
-   * PrimitiveUnboundedRead}.
-   */
-  public static final PTransformOverride PRIMITIVE_UNBOUNDED_READ_OVERRIDE =
-      PTransformOverride.of(
-          PTransformMatchers.classEqualTo(Read.Unbounded.class),
-          new UnboundedReadOverrideFactory<>());
-
-  private static class BoundedReadOverrideFactory<T>
-      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Bounded<T>> {
-    @Override
-    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(), new PrimitiveBoundedRead<>(transform.getTransform()));
-    }
-
-    @Override
-    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
-      return ReplacementOutputs.singleton(outputs, newOutput);
-    }
-  }
-
-  private static class UnboundedReadOverrideFactory<T>
-      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Unbounded<T>> {
-    @Override
-    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<T>, Read.Unbounded<T>> transform) {
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(), new PrimitiveUnboundedRead<>(transform.getTransform()));
-    }
-
-    @Override
-    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
-      return ReplacementOutputs.singleton(outputs, newOutput);
-    }
-  }
-
-  /**
-   * Base class that ensures the overridden transform has the same contract as if interacting with
-   * the original {@link Read.Bounded Read.Bounded}/{@link Read.Unbounded Read.Unbounded}
-   * implementations.
-   */
-  private abstract static class PrimitiveRead<T> extends PTransform<PBegin, PCollection<T>> {
-    private final PTransform<PBegin, PCollection<T>> originalTransform;
-    protected final Object source;
-
-    public PrimitiveRead(PTransform<PBegin, PCollection<T>> originalTransform, Object source) {
-      this.originalTransform = originalTransform;
-      this.source = source;
-    }
-
-    @Override
-    public void validate(@Nullable PipelineOptions options) {
-      originalTransform.validate(options);
-    }
-
-    @Override
-    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      return originalTransform.getAdditionalInputs();
-    }
-
-    @Override
-    public <CoderT> Coder<CoderT> getDefaultOutputCoder(PBegin input, PCollection<CoderT> output)
-        throws CannotProvideCoderException {
-      return originalTransform.getDefaultOutputCoder(input, output);
-    }
-
-    @Override
-    public String getName() {
-      return originalTransform.getName();
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      originalTransform.populateDisplayData(builder);
-    }
-
-    @Override
-    protected String getKindString() {
-      return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
-    }
-  }
-
-  /** The original primitive based {@link Read.Bounded Read.Bounded} expansion. */
-  public static class PrimitiveBoundedRead<T> extends PrimitiveRead<T> {
-    public PrimitiveBoundedRead(Read.Bounded<T> originalTransform) {
-      super(originalTransform, originalTransform.getSource());
-    }
-
-    @Override
-    public PCollection<T> expand(PBegin input) {
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          PCollection.IsBounded.BOUNDED,
-          getSource().getOutputCoder());
-    }
-
-    public BoundedSource<T> getSource() {
-      return (BoundedSource<T>) source;
-    }
-  }
-
-  /** The original primitive based {@link Read.Unbounded Read.Unbounded} expansion. */
-  public static class PrimitiveUnboundedRead<T> extends PrimitiveRead<T> {
-    public PrimitiveUnboundedRead(Read.Unbounded<T> originalTransform) {
-      super(originalTransform, originalTransform.getSource());
-    }
-
-    @Override
-    public PCollection<T> expand(PBegin input) {
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          PCollection.IsBounded.UNBOUNDED,
-          getSource().getOutputCoder());
-    }
-
-    public UnboundedSource<T, ? extends CheckpointMark> getSource() {
-      return (UnboundedSource<T, ? extends CheckpointMark>) source;
     }
   }
 }

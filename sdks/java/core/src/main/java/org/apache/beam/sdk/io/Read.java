@@ -27,8 +27,10 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -38,6 +40,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -56,11 +59,14 @@ import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
@@ -141,6 +147,12 @@ public class Read {
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
+      ExperimentalOptions experimentalOptions =
+          input.getPipeline().getOptions().as(ExperimentalOptions.class);
+
+      if (ExperimentalOptions.hasExperiment(experimentalOptions, "use_deprecated_read")) {
+        return input.apply(new PrimitiveBoundedRead<>(this));
+      }
       // We don't use Create here since Create is defined as a BoundedSource and using it would
       // cause an infinite expansion loop. We can reconsider this if Create is implemented
       // directly as a SplittableDoFn.
@@ -207,6 +219,13 @@ public class Read {
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
+      ExperimentalOptions experimentalOptions =
+          input.getPipeline().getOptions().as(ExperimentalOptions.class);
+
+      if (ExperimentalOptions.hasExperiment(experimentalOptions, "use_deprecated_read")) {
+        return input.apply(new PrimitiveUnboundedRead<>(this));
+      }
+
       // We don't use Create here since Create is defined as a BoundedSource and using it would
       // cause an infinite expansion loop. We can reconsider this if Create is implemented
       // directly as a SplittableDoFn.
@@ -1021,4 +1040,89 @@ public class Read {
   }
 
   private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
+
+  /**
+   * Base class that ensures the overridden transform has the same contract as if interacting with
+   * the original {@link Bounded Read.Bounded}/{@link Unbounded Read.Unbounded} implementations.
+   */
+  private abstract static class PrimitiveRead<T> extends PTransform<PBegin, PCollection<T>> {
+    private final PTransform<PBegin, PCollection<T>> originalTransform;
+    protected final Object source;
+
+    public PrimitiveRead(PTransform<PBegin, PCollection<T>> originalTransform, Object source) {
+      this.originalTransform = originalTransform;
+      this.source = source;
+    }
+
+    @Override
+    public void validate(@Nullable PipelineOptions options) {
+      originalTransform.validate(options);
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      return originalTransform.getAdditionalInputs();
+    }
+
+    @Override
+    public <CoderT> Coder<CoderT> getDefaultOutputCoder(PBegin input, PCollection<CoderT> output)
+        throws CannotProvideCoderException {
+      return originalTransform.getDefaultOutputCoder(input, output);
+    }
+
+    @Override
+    public String getName() {
+      return originalTransform.getName();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      originalTransform.populateDisplayData(builder);
+    }
+
+    @Override
+    protected String getKindString() {
+      return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
+    }
+  }
+
+  /** The original primitive based {@link Bounded Read.Bounded} expansion. */
+  public static class PrimitiveBoundedRead<T> extends PrimitiveRead<T> {
+    public PrimitiveBoundedRead(Bounded<T> originalTransform) {
+      super(originalTransform, originalTransform.getSource());
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          PCollection.IsBounded.BOUNDED,
+          getSource().getOutputCoder());
+    }
+
+    public BoundedSource<T> getSource() {
+      return (BoundedSource<T>) source;
+    }
+  }
+
+  /** The original primitive based {@link Unbounded Read.Unbounded} expansion. */
+  public static class PrimitiveUnboundedRead<T> extends PrimitiveRead<T> {
+    public PrimitiveUnboundedRead(Unbounded<T> originalTransform) {
+      super(originalTransform, originalTransform.getSource());
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          PCollection.IsBounded.UNBOUNDED,
+          getSource().getOutputCoder());
+    }
+
+    public UnboundedSource<T, ? extends CheckpointMark> getSource() {
+      return (UnboundedSource<T, ? extends CheckpointMark>) source;
+    }
+  }
 }

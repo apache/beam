@@ -219,24 +219,6 @@ public class SplittableParDoTest {
   }
 
   @Test
-  public void testConvertIsSkippedWhenUsingDeprecatedRead() {
-    Pipeline sdfRead = Pipeline.create();
-    sdfRead.apply(Read.from(new FakeBoundedSource()));
-    sdfRead.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(sdfRead);
-    pipeline.traverseTopologically(
-        new Defaults() {
-          @Override
-          public void visitPrimitiveTransform(Node node) {
-            assertThat(
-                node.getTransform(), not(instanceOf(SplittableParDo.PrimitiveBoundedRead.class)));
-            assertThat(
-                node.getTransform(), not(instanceOf(SplittableParDo.PrimitiveUnboundedRead.class)));
-          }
-        });
-  }
-
-  @Test
   public void testConvertToPrimitiveReadsHappen() {
     PipelineOptions deprecatedReadOptions = PipelineOptionsFactory.create();
     deprecatedReadOptions.setRunner(CrashingRunner.class);
@@ -246,7 +228,6 @@ public class SplittableParDoTest {
     Pipeline pipeline = Pipeline.create(deprecatedReadOptions);
     pipeline.apply(Read.from(new FakeBoundedSource()));
     pipeline.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     AtomicBoolean sawPrimitiveBoundedRead = new AtomicBoolean();
     AtomicBoolean sawPrimitiveUnboundedRead = new AtomicBoolean();
     pipeline.traverseTopologically(
@@ -260,9 +241,9 @@ public class SplittableParDoTest {
 
           @Override
           public void visitPrimitiveTransform(Node node) {
-            if (node.getTransform() instanceof SplittableParDo.PrimitiveBoundedRead) {
+            if (node.getTransform() instanceof Read.PrimitiveBoundedRead) {
               sawPrimitiveBoundedRead.set(true);
-            } else if (node.getTransform() instanceof SplittableParDo.PrimitiveUnboundedRead) {
+            } else if (node.getTransform() instanceof Read.PrimitiveUnboundedRead) {
               sawPrimitiveUnboundedRead.set(true);
             }
           }
