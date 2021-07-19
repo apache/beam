@@ -160,7 +160,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     }
   }
 
-  /** A key for caching the result of a StateGetRequest by cache and continuation tokens */
+  /** A key for caching the result of a StateGetRequest by cache and continuation tokens. */
   @AutoValue
   public abstract static class StateCacheKey {
     public abstract ByteString getCacheToken();
