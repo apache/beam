@@ -1281,6 +1281,8 @@ public class SpannerIO {
 
     abstract String getChangeStreamName();
 
+    abstract String getMetadataInstance();
+
     abstract String getMetadataDatabase();
 
     abstract Timestamp getInclusiveStartAt();
@@ -1297,6 +1299,8 @@ public class SpannerIO {
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setChangeStreamName(String changeStreamName);
+
+      abstract Builder setMetadataInstance(String metadataInstance);
 
       abstract Builder setMetadataDatabase(String metadataDatabase);
 
@@ -1353,6 +1357,11 @@ public class SpannerIO {
     }
 
     /** Specifies the metadata database. */
+    public ReadChangeStream withMetadataInstance(String metadataInstance) {
+      return toBuilder().setMetadataInstance(metadataInstance).build();
+    }
+
+    /** Specifies the metadata database. */
     public ReadChangeStream withMetadataDatabase(String metadataDatabase) {
       return toBuilder().setMetadataDatabase(metadataDatabase).build();
     }
@@ -1395,6 +1404,11 @@ public class SpannerIO {
       checkArgument(
           getInclusiveStartAt() != null,
           "SpannerIO.readChangeStream() requires the start time to be set.");
+      if (getMetadataInstance() != null) {
+        checkArgument(
+            getMetadataDatabase() != null,
+            "SpannerIO.readChangeStream() requires the metadata database to be set if metadata instance is set.");
+      }
 
       // Start time must be before end time
       if (getInclusiveEndAt() != null
@@ -1407,6 +1421,9 @@ public class SpannerIO {
               getSpannerConfig().getProjectId().get(),
               getSpannerConfig().getInstanceId().get(),
               getSpannerConfig().getDatabaseId().get());
+      final String partitionMetadataInstanceId =
+          MoreObjects.firstNonNull(
+              getMetadataInstance(), changeStreamDatabaseId.getInstanceId().getInstance());
       final String partitionMetadataDatabaseId =
           MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
       final String partitionMetadataTableName =
@@ -1416,8 +1433,8 @@ public class SpannerIO {
       final SpannerConfig partitionMetadataSpannerConfig =
           SpannerConfig.create()
               .withProjectId(changeStreamSpannerConfig.getProjectId())
-              .withInstanceId(changeStreamSpannerConfig.getInstanceId())
               .withHost(changeStreamSpannerConfig.getHost())
+              .withInstanceId(partitionMetadataInstanceId)
               .withDatabaseId(partitionMetadataDatabaseId)
               .withCommitDeadline(changeStreamSpannerConfig.getCommitDeadline())
               .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
