@@ -57,6 +57,10 @@ func TestSdfNodes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
 	}
+	emptydfn, err := graph.NewDoFn(&VetEmptyInitialSplitSdf{}, graph.NumMainInputs(graph.MainSingle))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
 
 	// Validate PairWithRestriction matches its contract and properly invokes
 	// SDF method CreateInitialRestriction.
@@ -227,6 +231,22 @@ func TestSdfNodes(t *testing.T) {
 					},
 				},
 			},
+			{
+				name: "Empty",
+				fn:   emptydfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm:       1,
+						Elm2:      nil,
+						Timestamp: testTimestamp,
+						Windows:   testWindows,
+					},
+					Elm2:      &VetRestriction{ID: "Sdf"},
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				want: []FullValue{},
+			},
 		}
 		for _, test := range tests {
 			test := test
@@ -237,6 +257,10 @@ func TestSdfNodes(t *testing.T) {
 				units := []Unit{root, node, capt}
 				constructAndExecutePlan(t, units)
 
+				if len(capt.Elements) != len(test.want) {
+					t.Errorf("SplitAndSizeRestrictions(%v) has incorrect number of outputs got: %v, want: %v",
+						test.in, len(capt.Elements), len(test.want))
+				}
 				for i, got := range capt.Elements {
 					if !cmp.Equal(got, test.want[i]) {
 						t.Errorf("SplitAndSizeRestrictions(%v) has incorrect output %v: got: %v, want: %v",
