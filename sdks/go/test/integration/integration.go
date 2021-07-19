@@ -87,8 +87,6 @@ var sparkFilters = []string{
 var dataflowFilters = []string{
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
-	// TODO(BEAM-4152): Fails to merge session windows on Dataflow.
-	"TestWindowSums.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

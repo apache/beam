@@ -975,9 +975,15 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	if err != nil {
 		return nil, err
 	}
+	var mergeStat pipepb.MergeStatus_Enum
+	if w.Fn.Kind == window.Sessions {
+		mergeStat = pipepb.MergeStatus_NEEDS_MERGE
+	} else {
+		mergeStat = pipepb.MergeStatus_NON_MERGING
+	}
 	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
-		MergeStatus:      pipepb.MergeStatus_NON_MERGING,
+		MergeStatus:      mergeStat,
 		AccumulationMode: pipepb.AccumulationMode_DISCARDING,
 		WindowCoderId:    windowCoderId,
 		Trigger: &pipepb.Trigger{
