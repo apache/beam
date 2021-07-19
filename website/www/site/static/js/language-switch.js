@@ -116,6 +116,8 @@ $(document).ready(function() {
                 $(this.selector).hide();
                 $("nav"+this.selector).show();
                 $("." + pref).show();
+                // make sure we display the code element within the selected block
+                $("." + pref + " code").show();
             },
             "render": function(wrapper) {
                 this.addTabs();
