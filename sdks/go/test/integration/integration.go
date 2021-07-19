@@ -72,9 +72,9 @@ var flinkFilters = []string{
 }
 
 var samzaFilters = []string{
-    // TODO(BEAM-12608): Samza tests invalid encoding.
-    "TestReshuffle",
-    "TestReshuffleKV",
+	// TODO(BEAM-12608): Samza tests invalid encoding.
+	"TestReshuffle",
+	"TestReshuffleKV",
 }
 
 var sparkFilters = []string{
