@@ -22,7 +22,7 @@ import static org.apache.spark.sql.types.DataTypes.BinaryType;
 
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.catalyst.analysis.GetColumnByOrdinal;

@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
 import static org.apache.spark.sql.types.DataTypes.BinaryType;
 
-import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SchemaHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
