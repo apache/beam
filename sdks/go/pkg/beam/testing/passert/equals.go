@@ -113,4 +113,3 @@ func readToStrings(iter func(*beam.T) bool) []string {
 	sort.Strings(out)
 	return out
 }
-
