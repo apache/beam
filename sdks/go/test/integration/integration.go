@@ -60,8 +60,6 @@ var sickbay = []string{}
 var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
-	// TODO(BEAM-4152): The direct runner does not support session window merging.
-	"TestWindowSums.*",
 }
 
 var portableFilters = []string{}
