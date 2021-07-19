@@ -46,6 +46,10 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
   private final Map<CacheToken.SideInput, ByteString> sideInputCacheTokens;
   private final ByteString userStateToken;
 
+  /**
+   * Creates a CachingBeamFnStateClient that wraps a BeamFnStateClient with a LoadingCache. Cache
+   * tokens are sent by the runner to indicate which state is able to be cached.
+   */
   public CachingBeamFnStateClient(
       BeamFnStateClient beamFnStateClient,
       LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache,
@@ -54,7 +58,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     this.stateCache = stateCache;
     this.sideInputCacheTokens = new HashMap<>();
 
-    // Set up cache tokens
+    // Set up cache tokens.
     ByteString tempUserStateToken = ByteString.EMPTY;
     for (BeamFnApi.ProcessBundleRequest.CacheToken token : cacheTokenList) {
       if (token.hasUserState()) {
@@ -63,33 +67,36 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         sideInputCacheTokens.put(token.getSideInput(), token.getToken());
       }
     }
-
     this.userStateToken = tempUserStateToken;
   }
 
+  /**
+   * Completes the response with a cached value if possible, if not forwards the response to the
+   * BeamFnStateClient and tries caching the result. All Append and Clear requests are forwarded.
+   */
   @Override
   public void handle(
       StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
 
-    StateRequest request = requestBuilder.build();
-    StateKey stateKey = request.getStateKey();
+    StateKey stateKey = requestBuilder.getStateKey();
     ByteString cacheToken = getCacheToken(stateKey);
 
-    // If not cacheable proceed as normal
+    // If state is not cacheable proceed as normal.
     if (ByteString.EMPTY.equals(cacheToken)) {
       beamFnStateClient.handle(requestBuilder, response);
       return;
     }
 
-    switch (request.getRequestCase()) {
+    switch (requestBuilder.getRequestCase()) {
       case GET:
-        // Check if data is in the cache already
-        StateGetResponse cachedPage;
+        // Check if data is in the cache.
         StateCacheKey cacheKey =
-            StateCacheKey.create(cacheToken, request.getGet().getContinuationToken());
+            StateCacheKey.create(cacheToken, requestBuilder.getGet().getContinuationToken());
         Map<StateCacheKey, StateGetResponse> stateKeyMap = stateCache.getUnchecked(stateKey);
-        cachedPage = stateKeyMap.get(cacheKey);
+        StateGetResponse cachedPage = stateKeyMap.get(cacheKey);
 
+        // If data is not cached, add callback to add response to cache on completion.
+        // Otherwise, complete the response with the cached data.
         if (cachedPage == null) {
           beamFnStateClient.handle(requestBuilder, response);
           CompletableFuture<Void> callback =
@@ -97,7 +104,6 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
                   stateResponse -> {
                     stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet());
                   });
-
           callback.getNow(null);
         } else {
           response.complete(
@@ -107,30 +113,30 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         return;
 
       case APPEND:
-        // Treat appends as normal for now and do not cache
+        // TODO(BEAM-12637): Support APPEND in CachingBeamFnStateClient.
         beamFnStateClient.handle(requestBuilder, response);
         return;
 
       case CLEAR:
+        // Remove all state key data and replace with an empty response.
+        beamFnStateClient.handle(requestBuilder, response);
         Map<StateCacheKey, StateGetResponse> clearedData = new HashMap<>();
         StateCacheKey newKey = StateCacheKey.create(cacheToken, ByteString.EMPTY);
         clearedData.put(newKey, StateGetResponse.getDefaultInstance());
         stateCache.put(stateKey, clearedData);
-        beamFnStateClient.handle(requestBuilder, response);
         return;
 
       default:
         throw new IllegalStateException(
-            String.format("Unknown request type %s", request.getRequestCase()));
+            String.format("Unknown request type %s", requestBuilder.getRequestCase()));
     }
   }
 
   private ByteString getCacheToken(BeamFnApi.StateKey stateKey) {
-    // type: (beam_fn_api_pb2.StateKey) -> Optional[bytes]
     if (stateKey.hasBagUserState()) {
       return userStateToken;
     } else if (stateKey.hasRunner()) {
-      // TODO: Support runner state key caching
+      // TODO(BEAM-12638): Support caching of remote references.
       return ByteString.EMPTY;
     } else {
       CacheToken.SideInput.Builder sideInputBuilder = CacheToken.SideInput.newBuilder();
@@ -154,6 +160,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     }
   }
 
+  /** A key for caching the result of a StateGetRequest by cache and continuation tokens */
   @AutoValue
   public abstract static class StateCacheKey {
     public abstract ByteString getCacheToken();
