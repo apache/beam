@@ -26,14 +26,86 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
+// Equals float calls into TryEqualsFloat, checkong that two PCollections of non-complex
+// numeric types are equal, with each element being within a provided threshold of an
+// expected value. Panics if TryEqualsFloat returns an error.
+func EqualsFloat(s beam.Scope, observed, expected beam.PCollection, threshold float64) {
+	if err := TryEqualsFloat(s, observed, expected, threshold); err != nil {
+		panic(fmt.Sprintf("TryEqualsFloat failed: %v", err))
+	}
+}
+
+// TryEqualsFloat checks that two PCollections of floats are equal, with each element
+// being within a specified threshold of its corresponding element. Both PCollections
+// are loaded into memory, sorted, and compared element by element. Returns an error if
+// the PCollection types are complex or non-numeric.
+func TryEqualsFloat(s beam.Scope, observed, expected beam.PCollection, threshold float64) error {
+	errorStrings := []string{}
+	observedT := beam.ValidateNonCompositeType(observed)
+	if obsErr := validateNonComplexNumber(observedT.Type()); obsErr != nil {
+		errorStrings = append(errorStrings, fmt.Sprintf("observed PCollection has incompatible type: %v", obsErr))
+	}
+	expectedT := beam.ValidateNonCompositeType(expected)
+	validateNonComplexNumber(expectedT.Type())
+	if expErr := validateNonComplexNumber(expectedT.Type()); expErr != nil {
+		errorStrings = append(errorStrings, fmt.Sprintf("expected PCollection has incompatible type: %v", expErr))
+	}
+	if len(errorStrings) != 0 {
+		return errors.New(strings.Join(errorStrings, "\n"))
+	}
+	s = s.Scope(fmt.Sprintf("passert.EqualsFloat[%v]", threshold))
+	beam.ParDo0(s, &thresholdFn{Threshold: threshold}, beam.Impulse(s), beam.SideInput{Input: observed}, beam.SideInput{Input: expected})
+	return nil
+}
+
+type thresholdFn struct {
+	Threshold float64
+}
+
+func (f *thresholdFn) ProcessElement(_ []byte, observed, expected func(*beam.T) bool) error {
+	var observedValues, expectedValues []float64
+	var observedInput, expectedInput beam.T
+	for observed(&observedInput) {
+		val := toFloat(observedInput)
+		observedValues = append(observedValues, val)
+	}
+	for expected(&expectedInput) {
+		val := toFloat(expectedInput)
+		expectedValues = append(expectedValues, val)
+	}
+	if len(observedValues) != len(expectedValues) {
+		return errors.Errorf("PCollections of different lengths, got %v expected %v", len(observedValues), len(expectedValues))
+	}
+	sort.Float64s(observedValues)
+	sort.Float64s(expectedValues)
+	var tooLow, tooHigh []string
+	for i := 0; i < len(observedValues); i++ {
+		delta := observedValues[i] - expectedValues[i]
+		if delta > f.Threshold {
+			tooHigh = append(tooHigh, fmt.Sprintf("%v > %v,", observedValues[i], expectedValues[i]))
+		} else if delta < f.Threshold*-1 {
+			tooLow = append(tooLow, fmt.Sprintf("%v < %v,", observedValues[i], expectedValues[i]))
+		}
+	}
+	if len(tooLow)+len(tooHigh) == 0 {
+		return nil
+	}
+	errorStrings := []string{}
+	if len(tooLow) != 0 {
+		errorStrings = append(errorStrings, fmt.Sprintf("values below expected: %v", tooLow))
+	}
+	if len(tooHigh) != 0 {
+		errorStrings = append(errorStrings, fmt.Sprintf("values above expected: %v", tooHigh))
+	}
+	return errors.New(strings.Join(errorStrings, "\n"))
+}
+
 // AllWithinBounds checks that a PCollection of numeric types is within the bounds
 // [lo, high]. Checks for case where bounds are flipped and swaps them so the bounds
 // passed to the doFn are always lo <= hi.
 func AllWithinBounds(s beam.Scope, col beam.PCollection, lo, hi float64) {
 	t := beam.ValidateNonCompositeType(col)
-	if !reflectx.IsNumber(t.Type()) || reflectx.IsComplex(t.Type()) {
-		panic(fmt.Sprintf("type must be a non-complex number: %v", t))
-	}
+	validateNonComplexNumber(t.Type())
 	if lo > hi {
 		lo, hi = hi, lo
 	}
@@ -49,7 +121,7 @@ func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
 	var tooLow, tooHigh []float64
 	var input beam.T
 	for col(&input) {
-		val := reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+		val := toFloat(input)
 		if val < f.lo {
 			tooLow = append(tooLow, val)
 		} else if val > f.hi {
@@ -69,4 +141,15 @@ func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
 		errorStrings = append(errorStrings, fmt.Sprintf("values above maximum value %v: %v", f.hi, tooHigh))
 	}
 	return errors.New(strings.Join(errorStrings, "\n"))
+}
+
+func toFloat(input beam.T) float64 {
+	return reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+}
+
+func validateNonComplexNumber(t reflect.Type) error {
+	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
+		return errors.Errorf("type must be a non-complex number: %v", t)
+	}
+	return nil
 }
