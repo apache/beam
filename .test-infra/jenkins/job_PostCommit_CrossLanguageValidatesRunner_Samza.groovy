@@ -24,27 +24,27 @@ import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIO
 
 // This job runs the suite of ValidatesRunner tests against the Samza runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Samza',
-        'Run XVR_Samza PostCommit', 'Samza CrossLanguageValidatesRunner Tests', this) {
-    description('Runs the CrossLanguageValidatesRunner suite on the Samza runner.')
+    'Run XVR_Samza PostCommit', 'Samza CrossLanguageValidatesRunner Tests', this) {
+      description('Runs the CrossLanguageValidatesRunner suite on the Samza runner.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-    // Publish all test results to Jenkins
-    publishers {
+      // Publish all test results to Jenkins
+      publishers {
         archiveJunit('**/build/test-results/**/*.xml')
-    }
+      }
 
-    // Gradle goals for this job.
-    steps {
+      // Gradle goals for this job.
+      steps {
         CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
-            shell("echo \"*** RUN CROSS-LANGUAGE SAMZA USING PYTHON ${pythonVersion} ***\"")
-            gradle {
-                rootBuildScriptDir(commonJobProperties.checkoutDir)
-                tasks(":runners:samza:job-server:validatesCrossLanguageRunner")
-                commonJobProperties.setGradleSwitches(delegate)
-                switches("-PpythonVersion=${pythonVersion}")
-            }
+          shell("echo \"*** RUN CROSS-LANGUAGE SAMZA USING PYTHON ${pythonVersion} ***\"")
+          gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            tasks(":runners:samza:job-server:validatesCrossLanguageRunner")
+            commonJobProperties.setGradleSwitches(delegate)
+            switches("-PpythonVersion=${pythonVersion}")
+          }
         }
+      }
     }
-}
