@@ -33,7 +33,7 @@ from apache_beam.io.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import PipelineOptions
 
 
-def run(bootstrap_servers, topic, pipeline_args):
+def run(bootstrap_servers, topic, with_metadata, pipeline_args):
   # bootstrap_servers = '123.45.67.89:123:9092'
   # topic = 'kafka_taxirides_realtime'
   # pipeline_args = ['--project', 'my-project',
@@ -47,7 +47,21 @@ def run(bootstrap_servers, topic, pipeline_args):
       pipeline_args, save_main_session=True, streaming=True)
   window_size = 15  # size of the Window in seconds.
 
-  def log_ride(ride_bytes):
+  def log_ride_with_metadata(record):
+    # Converting bytes record from Kafka to a dictionary.
+    ride_bytes = record.value
+    import ast
+    ride = ast.literal_eval(ride_bytes.decode("UTF-8"))
+    logging.info(
+        'Found ride at latitude %r and longitude %r with %r '
+        'passengers at timestamp %r',
+        ride['latitude'],
+        ride['longitude'],
+        ride['passenger_count'],
+        record.timestamp)  # timestamp is read from Kafka metadata
+
+  def log_ride(kv):
+    ride_bytes = kv[1]
     # Converting bytes record from Kafka to a dictionary.
     import ast
     ride = ast.literal_eval(ride_bytes.decode("UTF-8"))
@@ -71,12 +85,15 @@ def run(bootstrap_servers, topic, pipeline_args):
             producer_config={'bootstrap.servers': bootstrap_servers},
             topic=topic))
 
+    log_function = log_ride_with_metadata if with_metadata else log_ride
+
     _ = (
         pipeline
         | ReadFromKafka(
             consumer_config={'bootstrap.servers': bootstrap_servers},
-            topics=[topic])
-        | beam.FlatMap(lambda kv: log_ride(kv[1])))
+            topics=[topic],
+            with_metadata=with_metadata)
+        | beam.FlatMap(lambda ride: log_function(ride)))
 
 
 if __name__ == '__main__':
@@ -95,6 +112,15 @@ if __name__ == '__main__':
       dest='topic',
       default='kafka_taxirides_realtime',
       help='Kafka topic to write to and read from')
+  parser.add_argument(
+      '--with_metadata',
+      default=False,
+      action='store_true',
+      help='If set, also reads metadata from the Kafka broker.')
   known_args, pipeline_args = parser.parse_known_args()
 
-  run(known_args.bootstrap_servers, known_args.topic, pipeline_args)
+  run(
+      known_args.bootstrap_servers,
+      known_args.topic,
+      known_args.with_metadata,
+      pipeline_args)

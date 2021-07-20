@@ -1106,9 +1106,9 @@ class GeneratorHint(IteratorHint):
   def __getitem__(self, type_params):
     if isinstance(type_params, tuple) and len(type_params) == 3:
       yield_type, send_type, return_type = type_params
-      if send_type is not None:
+      if send_type is not type(None):
         _LOGGER.warning('Ignoring send_type hint: %s' % send_type)
-      if return_type is not None:
+      if return_type is not type(None):
         _LOGGER.warning('Ignoring return_type hint: %s' % return_type)
     else:
       yield_type = type_params

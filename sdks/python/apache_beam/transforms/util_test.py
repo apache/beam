@@ -38,6 +38,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.pvalue import AsList
+from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -627,6 +629,30 @@ class WithKeysTest(unittest.TestCase):
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(lambda x: x * x)
     assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+
+  @staticmethod
+  def _test_args_kwargs_fn(x, multiply, subtract):
+    return x * multiply - subtract
+
+  def test_args_kwargs_k(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      with_keys = pc | util.WithKeys(
+          WithKeysTest._test_args_kwargs_fn, 2, subtract=1)
+    assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
+
+  def test_sideinputs(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      si1 = AsList(p | "side input 1" >> beam.Create([1, 2, 3]))
+      si2 = AsSingleton(p | "side input 2" >> beam.Create([10]))
+      with_keys = pc | util.WithKeys(
+          lambda x,
+          the_list,
+          the_singleton: x + sum(the_list) + the_singleton,
+          si1,
+          the_singleton=si2)
+    assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
 
 
 class GroupIntoBatchesTest(unittest.TestCase):

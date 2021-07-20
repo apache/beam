@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
@@ -57,7 +58,6 @@ import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -357,8 +357,9 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   public void reset() {
-    Preconditions.checkArgumentNotNull(
-        processBundleInstructionIdSupplier.get(), "Cannot reset an active bundle processor.");
+    checkArgument(
+        processBundleInstructionIdSupplier.get() == null,
+        "Cannot reset an active bundle processor.");
     clearSplitIndices();
   }
 

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.sdk.values.Row.toRow;
@@ -129,8 +131,11 @@ public class BigQueryUtils {
     }
   }
 
+  private static final String BIGQUERY_TIME_PATTERN = "HH:mm:ss[.SSSSSS]";
+  private static final java.time.format.DateTimeFormatter BIGQUERY_TIME_FORMATTER =
+      java.time.format.DateTimeFormatter.ofPattern(BIGQUERY_TIME_PATTERN);
   private static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
-      java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss[.SSSSSS]");
+      java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd'T'" + BIGQUERY_TIME_PATTERN);
 
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
@@ -546,11 +551,28 @@ public class BigQueryUtils {
         // For the JSON formats of DATE/DATETIME/TIME/TIMESTAMP types that BigQuery accepts, see
         // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json#details_of_loading_json_data
         String identifier = fieldType.getLogicalType().getIdentifier();
-        if (SqlTypes.DATE.getIdentifier().equals(identifier)
-            || SqlTypes.TIME.getIdentifier().equals(identifier)) {
+        if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           return fieldValue.toString();
+        } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+          // LocalTime.toString() drops seconds if it is zero (see
+          // https://docs.oracle.com/javase/8/docs/api/java/time/LocalTime.html#toString--).
+          // but BigQuery TIME requires seconds
+          // (https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#time_type).
+          // Fractional seconds are optional so drop them to conserve number of bytes transferred.
+          LocalTime localTime = (LocalTime) fieldValue;
+          @SuppressWarnings(
+              "JavaLocalTimeGetNano") // Suppression is justified because seconds are always
+          // outputted.
+          java.time.format.DateTimeFormatter localTimeFormatter =
+              (0 == localTime.getNano()) ? ISO_LOCAL_TIME : BIGQUERY_TIME_FORMATTER;
+          return localTimeFormatter.format(localTime);
         } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
-          return BIGQUERY_DATETIME_FORMATTER.format((LocalDateTime) fieldValue);
+          // Same rationale as SqlTypes.TIME
+          LocalDateTime localDateTime = (LocalDateTime) fieldValue;
+          @SuppressWarnings("JavaLocalDateTimeGetNano")
+          java.time.format.DateTimeFormatter localDateTimeFormatter =
+              (0 == localDateTime.getNano()) ? ISO_LOCAL_DATE_TIME : BIGQUERY_DATETIME_FORMATTER;
+          return localDateTimeFormatter.format(localDateTime);
         } else if ("Enum".equals(identifier)) {
           return fieldType
               .getLogicalType(EnumerationType.class)

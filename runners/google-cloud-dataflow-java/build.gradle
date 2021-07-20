@@ -352,12 +352,11 @@ createCrossLanguageValidatesRunnerTask(
     // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
     "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
-  nosetestsOptions: [
-    "--nocapture",
-    "--processes=8",
-    "--process-timeout=4500",
-    // TODO: enable after fixing BEAM-10507
-    "--exclude=test_xlang_parquetio_write|test_flatten",
+  pytestOptions: [
+    "--capture=no",
+    "--numprocesses=8",
+    "--timeout=4500",
+    "--log-cli-level=INFO",
   ]
 )
 

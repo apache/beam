@@ -103,6 +103,11 @@ UNLIFTABLE_AGGREGATIONS = [
     'median',
     'quantile',
     'describe',
+    'sem',
+    'mad',
+    'skew',
+    'kurt',
+    'kurtosis',
     # TODO: The below all have specialized distributed
     # implementations, but they require tracking
     # multiple intermediate series, which is difficult
@@ -111,7 +116,7 @@ UNLIFTABLE_AGGREGATIONS = [
     'var',
     'corr',
     'cov',
-    'nunique'
+    'nunique',
 ]
 ALL_AGGREGATIONS = (
     LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
@@ -143,6 +148,14 @@ _PEEK_METHOD_EXPLANATION = (
 
 
 class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
+  def _render_indexes(self):
+    if self.index.nlevels == 1:
+      return 'index=' + (
+          '<unnamed>' if self.index.name is None else repr(self.index.name))
+    else:
+      return 'indexes=[' + ', '.join(
+          '<unnamed>' if ix is None else repr(ix)
+          for ix in self.index.names) + ']'
 
   __array__ = frame_base.wont_implement_method(
       pd.Series, '__array__', reason="non-deferred-result")
@@ -236,10 +249,36 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             f"axis={axis!r}.",
             reason="order-sensitive")
 
-    if isinstance(value, frame_base.DeferredBase):
+    if isinstance(self, DeferredDataFrame) and isinstance(value,
+                                                          DeferredSeries):
+      # If self is a DataFrame and value is a Series we want to broadcast value
+      # to all partitions of self.
+      # This is OK, as its index must be the same size as the columns set of
+      # self, so cannot be too large.
+      class AsScalar(object):
+        def __init__(self, value):
+          self.value = value
+
+      with expressions.allow_non_parallel_operations():
+        value_expr = expressions.ComputedExpression(
+            'as_scalar',
+            lambda df: AsScalar(df), [value._expr],
+            requires_partition_by=partitionings.Singleton())
+
+      get_value = lambda x: x.value
+      requires = partitionings.Arbitrary()
+    elif isinstance(value, frame_base.DeferredBase):
+      # For other DeferredBase combinations, use Index partitioning to
+      # co-locate on the Index
       value_expr = value._expr
+      get_value = lambda x: x
+      requires = partitionings.Index()
     else:
+      # Default case, pass value through as a constant, no particular
+      # partitioning requirement
       value_expr = expressions.ConstantExpression(value)
+      get_value = lambda x: x
+      requires = partitionings.Arbitrary()
 
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
@@ -247,15 +286,48 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             'fillna',
             lambda df,
             value: df.fillna(
-                value, method=method, axis=axis, limit=limit, **kwargs),
-            [self._expr, value_expr],
+                get_value(value),
+                method=method,
+                axis=axis,
+                limit=limit,
+                **kwargs), [self._expr, value_expr],
             preserves_partition_by=partitionings.Arbitrary(),
-            requires_partition_by=partitionings.Arbitrary()))
+            requires_partition_by=requires))
 
   ffill = _fillna_alias('ffill')
   bfill = _fillna_alias('bfill')
   backfill = _fillna_alias('backfill')
   pad = _fillna_alias('pad')
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  def first(self, offset):
+    per_partition = expressions.ComputedExpression(
+        'first-per-partition',
+        lambda df: df.sort_index().first(offset=offset), [self._expr],
+        preserves_partition_by=partitionings.Arbitrary(),
+        requires_partition_by=partitionings.Arbitrary())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'first',
+              lambda df: df.sort_index().first(offset=offset), [per_partition],
+              preserves_partition_by=partitionings.Arbitrary(),
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  def last(self, offset):
+    per_partition = expressions.ComputedExpression(
+        'last-per-partition',
+        lambda df: df.sort_index().last(offset=offset), [self._expr],
+        preserves_partition_by=partitionings.Arbitrary(),
+        requires_partition_by=partitionings.Arbitrary())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'last',
+              lambda df: df.sort_index().last(offset=offset), [per_partition],
+              preserves_partition_by=partitionings.Arbitrary(),
+              requires_partition_by=partitionings.Singleton()))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -544,6 +616,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
+  at_time = frame_base._elementwise_method(
+      'at_time', base=pd.core.generic.NDFrame)
+  between_time = frame_base._elementwise_method(
+      'between_time', base=pd.core.generic.NDFrame)
   copy = frame_base._elementwise_method('copy', base=pd.core.generic.NDFrame)
 
   @frame_base.with_docs_from(pd.DataFrame)
@@ -738,7 +814,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     It is not implemented for ``axis=columns`` because it makes the order of
     the columns depend on the data (see
-    https://s.apache.org/dataframe-non-deferred-column-names)."""
+    https://s.apache.org/dataframe-non-deferred-columns)."""
     if axis in (0, 'index'):
       # axis=index imposes an ordering on the DataFrame rows which we do not
       # support
@@ -839,6 +915,70 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     """mask is not parallelizable when ``errors="ignore"`` is specified."""
     return self.where(~cond, **kwargs)
 
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def xs(self, key, axis, level, **kwargs):
+    """Note that ``xs(axis='index')`` will raise a ``KeyError`` at execution
+    time if the key does not exist in the index."""
+
+    if axis in ('columns', 1):
+      # Special case for axis=columns. This is a simple project that raises a
+      # KeyError at construction time for missing columns.
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'xs',
+              lambda df: df.xs(key, axis=axis, **kwargs), [self._expr],
+              requires_partition_by=partitionings.Arbitrary(),
+              preserves_partition_by=partitionings.Arbitrary()))
+    elif axis not in ('index', 0):
+      # Make sure that user's axis is valid
+      raise ValueError(
+          "axis must be one of ('index', 0, 'columns', 1). "
+          f"got {axis!r}.")
+
+    if not isinstance(key, tuple):
+      key = (key, )
+
+    key_size = len(key)
+    key_series = pd.Series([key], pd.MultiIndex.from_tuples([key]))
+    key_expr = expressions.ConstantExpression(
+        key_series, proxy=key_series.iloc[:0])
+
+    if level is None:
+      reindexed = self
+    else:
+      if not isinstance(level, list):
+        level = [level]
+
+      # If user specifed levels, reindex so those levels are at the beginning.
+      # Keep the others and preserve their order.
+      level = [
+          l if isinstance(l, int) else list(self.index.names).index(l)
+          for l in level
+      ]
+
+      reindexed = self.reorder_levels(
+          level + [i for i in range(self.index.nlevels) if i not in level])
+
+    def xs_partitioned(frame, key):
+      if not len(key):
+        # key is not in this partition, return empty dataframe
+        return frame.iloc[:0].droplevel(list(range(key_size)))
+
+      # key should be in this partition, call xs. Will raise KeyError if not
+      # present.
+      return frame.xs(key.item())
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'xs',
+            xs_partitioned,
+            [reindexed._expr, key_expr],
+            requires_partition_by=partitionings.Index(list(range(key_size))),
+            # Drops index levels, so partitioning is not preserved
+            preserves_partition_by=partitionings.Singleton()))
+
   @property
   def dtype(self):
     return self._expr.proxy().dtype
@@ -874,6 +1014,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         "Assigning an index is not yet supported. "
         "Consider using set_index() instead.")
 
+  reindex = frame_base.wont_implement_method(
+      pd.DataFrame, 'reindex', reason="order-sensitive")
+
   hist = frame_base.wont_implement_method(
       pd.DataFrame, 'hist', reason="plotting-tools")
 
@@ -893,16 +1036,43 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   rolling = frame_base.wont_implement_method(
       pd.DataFrame, 'rolling', reason='event-time-semantics')
 
+  to_xarray = frame_base.wont_implement_method(
+      pd.DataFrame, 'to_xarray', reason='non-deferred-result')
+  to_clipboard = frame_base.wont_implement_method(
+      pd.DataFrame, 'to_clipboard', reason="non-deferred-result")
+
+  swapaxes = frame_base.wont_implement_method(
+      pd.Series, 'swapaxes', reason="non-deferred-columns")
+  infer_object = frame_base.wont_implement_method(
+      pd.Series, 'infer_objects', reason="non-deferred-columns")
+
+  ewm = frame_base.wont_implement_method(
+      pd.Series, 'ewm', reason="event-time-semantics")
+  expanding = frame_base.wont_implement_method(
+      pd.Series, 'expanding', reason="event-time-semantics")
+
   sparse = property(
       frame_base.not_implemented_method(
           'sparse', 'BEAM-12425', base_type=pd.DataFrame))
 
   transform = frame_base._elementwise_method('transform', base=pd.DataFrame)
 
+  tz_convert = frame_base._proxy_method(
+      'tz_convert',
+      base=pd.DataFrame,
+      requires_partition_by=partitionings.Arbitrary(),
+      # Manipulates index, partitioning is not preserved
+      preserves_partition_by=partitionings.Singleton())
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(DeferredDataFrameOrSeries):
+  def __repr__(self):
+    return (
+        f'DeferredSeries(name={self.name!r}, dtype={self.dtype}, '
+        f'{self._render_indexes()})')
+
   @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
   def name(self):
@@ -1026,7 +1196,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     Filling NaN values via ``method`` is not supported, because it is
     `order-sensitive
-    <https://s.apache.org/dataframe-order-sensitive-operatons>`_.
+    <https://s.apache.org/dataframe-order-sensitive-operations>`_.
     Only the default, ``method=None``, is allowed."""
     if level is not None:
       raise NotImplementedError('per-level align')
@@ -1054,8 +1224,20 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       frame_base.wont_implement_method(
           pd.Series, 'array', reason="non-deferred-result"))
 
+  # We can't reliably predict the output type, it depends on whether `key` is:
+  # - not in the index (default_value)
+  # - in the index once (constant)
+  # - in the index multiple times (Series)
+  get = frame_base.wont_implement_method(
+      pd.Series, 'get', reason="non-deferred-columns")
+
   ravel = frame_base.wont_implement_method(
       pd.Series, 'ravel', reason="non-deferred-result")
+
+  slice_shift = frame_base.wont_implement_method(
+      pd.Series, 'slice_shift', reason="deprecated")
+  tshift = frame_base.wont_implement_method(
+      pd.Series, 'tshift', reason="deprecated")
 
   rename = frame_base._elementwise_method('rename', base=pd.Series)
   between = frame_base._elementwise_method('between', base=pd.Series)
@@ -1070,6 +1252,20 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       base=pd.DataFrame,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def explode(self, ignore_index):
+    # ignoring the index will not preserve it
+    preserves = (
+        partitionings.Singleton() if ignore_index else partitionings.Index())
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'explode',
+            lambda s: s.explode(ignore_index), [self._expr],
+            preserves_partition_by=preserves,
+            requires_partition_by=partitionings.Arbitrary()))
 
   @frame_base.with_docs_from(pd.DataFrame)
   def dot(self, other):
@@ -1487,6 +1683,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   sum = _agg_method(pd.Series, 'sum')
   mean = _agg_method(pd.Series, 'mean')
   median = _agg_method(pd.Series, 'median')
+  sem = _agg_method(pd.Series, 'sem')
+  mad = _agg_method(pd.Series, 'mad')
+  skew = _agg_method(pd.Series, 'skew')
+  kurt = _agg_method(pd.Series, 'kurt')
+  kurtosis = _agg_method(pd.Series, 'kurtosis')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')
@@ -1502,16 +1703,31 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       pd.Series, 'cumsum', reason='order-sensitive')
   diff = frame_base.wont_implement_method(
       pd.Series, 'diff', reason='order-sensitive')
-  first = frame_base.wont_implement_method(
-      pd.Series, 'first', reason='order-sensitive')
   interpolate = frame_base.wont_implement_method(
       pd.Series, 'interpolate', reason='order-sensitive')
-  last = frame_base.wont_implement_method(
-      pd.Series, 'last', reason='order-sensitive')
   searchsorted = frame_base.wont_implement_method(
       pd.Series, 'searchsorted', reason='order-sensitive')
   shift = frame_base.wont_implement_method(
       pd.Series, 'shift', reason='order-sensitive')
+  pct_change = frame_base.wont_implement_method(
+      pd.Series, 'pct_change', reason='order-sensitive')
+  is_monotonic = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic', reason='order-sensitive')
+  is_monotonic_increasing = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic_increasing', reason='order-sensitive')
+  is_monotonic_decreasing = frame_base.wont_implement_method(
+      pd.Series, 'is_monotonic_decreasing', reason='order-sensitive')
+  asof = frame_base.wont_implement_method(
+      pd.Series, 'asof', reason='order-sensitive')
+  first_valid_index = frame_base.wont_implement_method(
+      pd.Series, 'first_valid_index', reason='order-sensitive')
+  last_valid_index = frame_base.wont_implement_method(
+      pd.Series, 'last_valid_index', reason='order-sensitive')
+  autocorr = frame_base.wont_implement_method(
+      pd.Series, 'autocorr', reason='order-sensitive')
+  iat = property(
+      frame_base.wont_implement_method(
+          pd.Series, 'iat', reason='order-sensitive'))
 
   head = frame_base.wont_implement_method(
       pd.Series, 'head', explanation=_PEEK_METHOD_EXPLANATION)
@@ -1522,6 +1738,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   memory_usage = frame_base.wont_implement_method(
       pd.Series, 'memory_usage', reason="non-deferred-result")
+  nbytes = frame_base.wont_implement_method(
+      pd.Series, 'nbytes', reason="non-deferred-result")
+  to_list = frame_base.wont_implement_method(
+      pd.Series, 'to_list', reason="non-deferred-result")
+
+  factorize = frame_base.wont_implement_method(
+      pd.Series, 'factorize', reason="non-deferred-columns")
 
   # In Series __contains__ checks the index
   __contains__ = frame_base.wont_implement_method(
@@ -1543,7 +1766,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       keep = 'first'
     elif keep != 'all':
       raise frame_base.WontImplementError(
-          "nlargest(keep={keep!r}) is not supported because it is "
+          f"nlargest(keep={keep!r}) is not supported because it is "
           "order sensitive. Only keep=\"all\" is supported.",
           reason="order-sensitive")
     kwargs['keep'] = keep
@@ -1573,7 +1796,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       keep = 'first'
     elif keep != 'all':
       raise frame_base.WontImplementError(
-          "nsmallest(keep={keep!r}) is not supported because it is "
+          f"nsmallest(keep={keep!r}) is not supported because it is "
           "order sensitive. Only keep=\"all\" is supported.",
           reason="order-sensitive")
     kwargs['keep'] = keep
@@ -1686,7 +1909,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     possible addition of a distributed implementation."""
 
     if sort:
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "value_counts(sort=True) is not supported because it imposes an "
           "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
@@ -1739,6 +1962,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   def cat(self):
     return _DeferredCategoricalMethods(self._expr)
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.Series)
+  def dt(self):
+    return _DeferredDatetimeMethods(self._expr)
 
   @frame_base.with_docs_from(pd.Series)
   def mode(self, *args, **kwargs):
@@ -1801,6 +2029,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 @populate_not_implemented(pd.DataFrame)
 @frame_base.DeferredFrame._register_for(pd.DataFrame)
 class DeferredDataFrame(DeferredDataFrameOrSeries):
+  def __repr__(self):
+    return (
+        f'DeferredDataFrame(columns={list(self.columns)}, '
+        f'{self._render_indexes()})')
+
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
   def columns(self):
@@ -1891,7 +2124,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     Filling NaN values via ``method`` is not supported, because it is
     `order-sensitive
-    <https://s.apache.org/dataframe-order-sensitive-operatons>`_. Only the
+    <https://s.apache.org/dataframe-order-sensitive-operations>`_. Only the
     default, ``method=None``, is allowed.
 
     ``copy=False`` is not supported because its behavior (whether or not it is
@@ -1959,6 +2192,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Arbitrary()
         )
     )
+
+  # If column name exists this is a simple project, otherwise it is a constant
+  # (default_value)
+  @frame_base.with_docs_from(pd.DataFrame)
+  def get(self, key, default_value=None):
+    if key in self.columns:
+      return self[key]
+    else:
+      return default_value
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -2032,7 +2274,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     """``value`` cannot be a ``List`` because aligning it with this
     DeferredDataFrame is order-sensitive."""
     if isinstance(value, list):
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "insert(value=list) is not supported because it joins the input "
           "list to the deferred DataFrame based on the order of the data.",
           reason="order-sensitive")
@@ -2068,6 +2310,19 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary()))
 
     self._expr = inserted._expr
+
+  @staticmethod
+  @frame_base.with_docs_from(pd.DataFrame)
+  def from_dict(*args, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(pd.DataFrame.from_dict(*args, **kwargs)))
+
+  @staticmethod
+  @frame_base.with_docs_from(pd.DataFrame)
+  def from_records(*args, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(pd.DataFrame.from_records(*args,
+                                                                 **kwargs)))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -2282,7 +2537,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def corr(self, method, min_periods):
     """Only ``method="pearson"`` can be parallelized. Other methods require
     collecting all data on a single worker (see
-    https://s.apache.org/dataframe-non-parallelizable-operations for details).
+    https://s.apache.org/dataframe-non-parallel-operations for details).
     """
     if method == 'pearson':
       proxy = self._expr.proxy().corr()
@@ -2423,12 +2678,22 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   # diff that relies on the index
   diff = frame_base.wont_implement_method(pd.DataFrame, 'diff',
                                           reason='order-sensitive')
-  first = frame_base.wont_implement_method(pd.DataFrame, 'first',
-                                           reason='order-sensitive')
   interpolate = frame_base.wont_implement_method(pd.DataFrame, 'interpolate',
                                                  reason='order-sensitive')
-  last = frame_base.wont_implement_method(pd.DataFrame, 'last',
-                                          reason='order-sensitive')
+
+  pct_change = frame_base.wont_implement_method(
+      pd.DataFrame, 'pct_change', reason='order-sensitive')
+  asof = frame_base.wont_implement_method(
+      pd.DataFrame, 'asof', reason='order-sensitive')
+  first_valid_index = frame_base.wont_implement_method(
+      pd.DataFrame, 'first_valid_index', reason='order-sensitive')
+  last_valid_index = frame_base.wont_implement_method(
+      pd.DataFrame, 'last_valid_index', reason='order-sensitive')
+  iat = property(frame_base.wont_implement_method(
+      pd.DataFrame, 'iat', reason='order-sensitive'))
+
+  lookup = frame_base.wont_implement_method(
+      pd.DataFrame, 'lookup', reason='deprecated')
 
   head = frame_base.wont_implement_method(pd.DataFrame, 'head',
       explanation=_PEEK_METHOD_EXPLANATION)
@@ -2804,7 +3069,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       keep = 'first'
     elif keep != 'all':
       raise frame_base.WontImplementError(
-          "nlargest(keep={keep!r}) is not supported because it is "
+          f"nlargest(keep={keep!r}) is not supported because it is "
           "order sensitive. Only keep=\"all\" is supported.",
           reason="order-sensitive")
     kwargs['keep'] = keep
@@ -2836,7 +3101,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       keep = 'first'
     elif keep != 'all':
       raise frame_base.WontImplementError(
-          "nsmallest(keep={keep!r}) is not supported because it is "
+          f"nsmallest(keep={keep!r}) is not supported because it is "
           "order sensitive. Only keep=\"all\" is supported.",
           reason="order-sensitive")
     kwargs['keep'] = keep
@@ -3048,6 +3313,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   nunique = _agg_method(pd.DataFrame, 'nunique')
   std = _agg_method(pd.DataFrame, 'std')
   var = _agg_method(pd.DataFrame, 'var')
+  sem = _agg_method(pd.DataFrame, 'sem')
+  mad = _agg_method(pd.DataFrame, 'mad')
+  skew = _agg_method(pd.DataFrame, 'skew')
+  kurt = _agg_method(pd.DataFrame, 'kurt')
+  kurtosis = _agg_method(pd.DataFrame, 'kurtosis')
 
   take = frame_base.wont_implement_method(pd.DataFrame, 'take',
                                           reason='deprecated')
@@ -3128,7 +3398,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     preserved."""
 
     if sort:
-      raise frame_base.WontImplementMethod(
+      raise frame_base.WontImplementError(
           "value_counts(sort=True) is not supported because it imposes an "
           "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
@@ -3155,8 +3425,8 @@ for meth in ('filter', ):
 @populate_not_implemented(DataFrameGroupBy)
 class DeferredGroupBy(frame_base.DeferredFrame):
   def __init__(self, expr, kwargs,
-               ungrouped: expressions.Expression,
-               ungrouped_with_index: expressions.Expression,
+               ungrouped: expressions.Expression[pd.core.generic.NDFrame],
+               ungrouped_with_index: expressions.Expression[pd.core.generic.NDFrame], # pylint: disable=line-too-long
                grouping_columns,
                grouping_indexes,
                projection=None):
@@ -3187,6 +3457,12 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     self._grouping_indexes = grouping_indexes
     self._kwargs = kwargs
 
+    if (self._kwargs.get('dropna', True) is False and
+        self._ungrouped.proxy().index.nlevels > 1):
+      raise NotImplementedError(
+          "dropna=False does not work as intended in the Beam DataFrame API "
+          "when grouping on multiple columns or indexes (See BEAM-12495).")
+
   def __getattr__(self, name):
     return DeferredGroupBy(
         expressions.ComputedExpression(
@@ -3215,6 +3491,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._grouping_indexes,
         projection=name)
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def agg(self, fn, *args, **kwargs):
     if _is_associative(fn):
       return _liftable_agg(fn)(self, *args, **kwargs)
@@ -3236,17 +3513,26 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   def ndim(self):
     return self._expr.proxy().ndim
 
-  def apply(self, fn, *args, **kwargs):
+  @frame_base.with_docs_from(DataFrameGroupBy)
+  def apply(self, func, *args, **kwargs):
+    """Note that ``func`` will be called once during pipeline construction time
+    with an empty pandas object, so take care if ``func`` has a side effect.
+
+    When called with an empty pandas object, ``func`` is expected to return an
+    object of the same type as what will be returned when the pipeline is
+    processing actual data. If the result is a pandas object it should have the
+    same type and name (for a Series) or column types and names (for
+    a DataFrame) as the actual results."""
     project = _maybe_project_func(self._projection)
     grouping_indexes = self._grouping_indexes
     grouping_columns = self._grouping_columns
 
-    # Unfortunately pandas does not execute fn to determine the right proxy.
-    # We run user fn on a proxy here to detect the return type and generate the
-    # proxy.
+    # Unfortunately pandas does not execute func to determine the right proxy.
+    # We run user func on a proxy here to detect the return type and generate
+    # the proxy.
     fn_input = project(self._ungrouped_with_index.proxy().reset_index(
         grouping_columns, drop=True))
-    result = fn(fn_input)
+    result = func(fn_input)
     if isinstance(result, pd.core.generic.NDFrame):
       if result.index is fn_input.index:
         proxy = result
@@ -3278,7 +3564,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                       by=grouping_columns or None)
 
       gb = project(gb)
-      return gb.apply(fn, *args, **kwargs)
+      return gb.apply(func, *args, **kwargs)
 
     return DeferredDataFrame(
         expressions.ComputedExpression(
@@ -3290,7 +3576,17 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                                                       grouping_columns),
             preserves_partition_by=partitionings.Index(grouping_indexes)))
 
+
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def transform(self, fn, *args, **kwargs):
+    """Note that ``func`` will be called once during pipeline construction time
+    with an empty pandas object, so take care if ``func`` has a side effect.
+
+    When called with an empty pandas object, ``func`` is expected to return an
+    object of the same type as what will be returned when the pipeline is
+    processing actual data. The result should have the same type and name (for
+    a Series) or column types and names (for a DataFrame) as the actual
+    results."""
     if not callable(fn):
       raise NotImplementedError(
           "String functions are not yet supported in transform.")
@@ -3339,6 +3635,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Index(levels),
             preserves_partition_by=partitionings.Index(self._grouping_indexes)))
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def filter(self, func=None, dropna=True):
     if func is None or not callable(func):
       raise TypeError("func must be specified and it must be callable")
@@ -3355,7 +3652,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
     return self.apply(apply_fn).droplevel(self._grouping_columns)
 
-  @property
+  @property  # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def dtypes(self):
     grouping_columns = self._grouping_columns
     return self.apply(lambda df: df.drop(grouping_columns, axis=1).dtypes)
@@ -3389,10 +3687,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   tail = frame_base.wont_implement_method(
       DataFrameGroupBy, 'tail', explanation=_PEEK_METHOD_EXPLANATION)
 
-  first = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'first', reason='order-sensitive')
-  last = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'last', reason='order-sensitive')
+  first = frame_base.not_implemented_method('first', base_type=DataFrameGroupBy)
+  last = frame_base.not_implemented_method('last', base_type=DataFrameGroupBy)
   nth = frame_base.wont_implement_method(
       DataFrameGroupBy, 'nth', reason='order-sensitive')
   cumcount = frame_base.wont_implement_method(
@@ -3410,6 +3706,11 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   shift = frame_base.wont_implement_method(DataFrameGroupBy, 'shift',
                                            reason='order-sensitive')
 
+  pct_change = frame_base.wont_implement_method(DataFrameGroupBy, 'pct_change',
+                                                reason='order-sensitive')
+  ohlc = frame_base.wont_implement_method(DataFrameGroupBy, 'ohlc',
+                                          reason='order-sensitive')
+
   # TODO(BEAM-12169): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method(
       DataFrameGroupBy, '__len__', reason="non-deferred-result")
@@ -3422,6 +3723,13 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       DataFrameGroupBy, 'resample', reason='event-time-semantics')
   rolling = frame_base.wont_implement_method(
       DataFrameGroupBy, 'rolling', reason='event-time-semantics')
+  ewm = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'ewm', reason="event-time-semantics")
+  expanding = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'expanding', reason="event-time-semantics")
+
+  tshift = frame_base.wont_implement_method(
+      DataFrameGroupBy, 'tshift', reason="deprecated")
 
 def _maybe_project_func(projection: Optional[List[str]]):
   """ Returns identity func if projection is empty or None, else returns
@@ -3440,6 +3748,7 @@ def _liftable_agg(meth, postagg_meth=None):
   else:
     post_agg_name, _ = frame_base.name_and_func(postagg_meth)
 
+  @frame_base.with_docs_from(DataFrameGroupBy, name=agg_name)
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
 
@@ -3491,6 +3800,7 @@ def _liftable_agg(meth, postagg_meth=None):
 def _unliftable_agg(meth):
   agg_name, _ = frame_base.name_and_func(meth)
 
+  @frame_base.with_docs_from(DataFrameGroupBy, name=agg_name)
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
 
@@ -3526,6 +3836,10 @@ for meth in LIFTABLE_AGGREGATIONS:
 for meth in LIFTABLE_WITH_SUM_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth, postagg_meth='sum'))
 for meth in UNLIFTABLE_AGGREGATIONS:
+  if meth in ('kurt', 'kurtosis'):
+    # pandas doesn't currently allow kurtosis on GroupBy:
+    # https://github.com/pandas-dev/pandas/issues/40139
+    continue
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
 def _check_str_or_np_builtin(agg_func, func_list):
@@ -3544,7 +3858,7 @@ def _is_unliftable(agg_func):
   return _check_str_or_np_builtin(agg_func, UNLIFTABLE_AGGREGATIONS)
 
 NUMERIC_AGGREGATIONS = ['max', 'min', 'prod', 'sum', 'mean', 'median', 'std',
-                        'var']
+                        'var', 'sem', 'mad', 'skew', 'kurt', 'kurtosis']
 
 def _is_numeric(agg_func):
   return _check_str_or_np_builtin(agg_func, NUMERIC_AGGREGATIONS)
@@ -3563,8 +3877,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
   fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
   filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
-  first = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'first', reason="order-sensitive")
+  first = frame_base._elementwise_method('first', base=DataFrameGroupBy)
   get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
   head = frame_base.wont_implement_method(
       DataFrameGroupBy, 'head', explanation=_PEEK_METHOD_EXPLANATION)
@@ -3572,8 +3885,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
       DataFrameGroupBy, 'hist', reason="plotting-tools")
   idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
   idxmin = frame_base._elementwise_method('idxmin', base=DataFrameGroupBy)
-  last = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'last', reason="order-sensitive")
+  last = frame_base._elementwise_method('last', base=DataFrameGroupBy)
   mad = frame_base._elementwise_method('mad', base=DataFrameGroupBy)
   max = frame_base._elementwise_method('max', base=DataFrameGroupBy)
   mean = frame_base._elementwise_method('mean', base=DataFrameGroupBy)
@@ -3596,19 +3908,23 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   tshift = frame_base._elementwise_method('tshift', base=DataFrameGroupBy)
   var = frame_base._elementwise_method('var', base=DataFrameGroupBy)
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def groups(self):
     return self._expr.proxy().groups
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def indices(self):
     return self._expr.proxy().indices
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def ndim(self):
     return self._expr.proxy().ndim
 
-  @property
+  @property # type: ignore
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def ngroups(self):
     return self._expr.proxy().ngroups
 
@@ -3982,6 +4298,134 @@ for method in ELEMENTWISE_CATEGORICAL_METHODS:
               make_cat_func(method), name=method,
               base=pd.core.arrays.categorical.CategoricalAccessor))
 
+class _DeferredDatetimeMethods(frame_base.DeferredBase):
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def tz(self):
+    return self._expr.proxy().dt.tz
+
+  @property  # type: ignore
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def freq(self):
+    return self._expr.proxy().dt.freq
+
+  @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
+  def tz_localize(self, *args, ambiguous='infer', **kwargs):
+    """``ambiguous`` cannot be set to ``"infer"`` as its semantics are
+    order-sensitive. Similarly, specifying ``ambiguous`` as an
+    :class:`~numpy.ndarray` is order-sensitive, but you can achieve similar
+    functionality by specifying ``ambiguous`` as a Series."""
+    if isinstance(ambiguous, np.ndarray):
+      raise frame_base.WontImplementError(
+          "tz_localize(ambiguous=ndarray) is not supported because it makes "
+          "this operation sensitive to the order of the data. Please use a "
+          "DeferredSeries instead.",
+          reason="order-sensitive")
+    elif isinstance(ambiguous, frame_base.DeferredFrame):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'tz_localize',
+              lambda s,
+              ambiguous: s.dt.tz_localize(*args, ambiguous=ambiguous, **kwargs),
+              [self._expr, ambiguous._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Arbitrary()))
+    elif ambiguous == 'infer':
+      # infer attempts to infer based on the order of the timestamps
+      raise frame_base.WontImplementError(
+          f"tz_localize(ambiguous={ambiguous!r}) is not allowed because it "
+          "makes this operation sensitive to the order of the data.",
+          reason="order-sensitive")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'tz_localize',
+            lambda s: s.dt.tz_localize(*args, ambiguous=ambiguous, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+
+  to_period = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_period',
+      reason="event-time-semantics")
+  to_pydatetime = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_pydatetime',
+      reason="non-deferred-result")
+  to_pytimedelta = frame_base.wont_implement_method(
+      pd.core.indexes.accessors.DatetimeProperties, 'to_pytimedelta',
+      reason="non-deferred-result")
+
+def make_dt_property(method):
+  def func(df):
+    return getattr(df.dt, method)
+
+  return func
+
+def make_dt_func(method):
+  def func(df, *args, **kwargs):
+    return getattr(df.dt, method)(*args, **kwargs)
+
+  return func
+
+
+ELEMENTWISE_DATETIME_METHODS = [
+  'ceil',
+  'day_name',
+  'month_name',
+  'floor',
+  'isocalendar',
+  'round',
+  'normalize',
+  'strftime',
+  'tz_convert',
+]
+
+for method in ELEMENTWISE_DATETIME_METHODS:
+  setattr(_DeferredDatetimeMethods,
+          method,
+          frame_base._elementwise_method(
+              make_dt_func(method),
+              name=method,
+              base=pd.core.indexes.accessors.DatetimeProperties))
+
+ELEMENTWISE_DATETIME_PROPERTIES = [
+  'date',
+  'day',
+  'dayofweek',
+  'dayofyear',
+  'days_in_month',
+  'daysinmonth',
+  'hour',
+  'is_leap_year',
+  'is_month_end',
+  'is_month_start',
+  'is_quarter_end',
+  'is_quarter_start',
+  'is_year_end',
+  'is_year_start',
+  'microsecond',
+  'minute',
+  'month',
+  'nanosecond',
+  'quarter',
+  'second',
+  'time',
+  'timetz',
+  'week',
+  'weekday',
+  'weekofyear',
+  'year',
+]
+
+for method in ELEMENTWISE_DATETIME_PROPERTIES:
+  setattr(_DeferredDatetimeMethods,
+          method,
+          property(frame_base._elementwise_method(
+              make_dt_property(method),
+              name=method,
+              base=pd.core.indexes.accessors.DatetimeProperties)))
+
 
 for base in ['add',
              'sub',
@@ -4040,6 +4484,10 @@ for name in ['__neg__', '__pos__', '__invert__']:
 
 DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
 DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
+DeferredSeries.subtract = DeferredSeries.sub  # type: ignore
+DeferredDataFrame.subtract = DeferredDataFrame.sub  # type: ignore
+DeferredSeries.divide = DeferredSeries.div  # type: ignore
+DeferredDataFrame.divide = DeferredDataFrame.div  # type: ignore
 
 
 def _slice_parts(s):

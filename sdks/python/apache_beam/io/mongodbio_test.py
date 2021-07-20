@@ -20,9 +20,11 @@ import datetime
 import logging
 import random
 import unittest
+from typing import Union
 from unittest import TestCase
 
 import mock
+from bson import ObjectId
 from bson import objectid
 from parameterized import parameterized_class
 from pymongo import ASCENDING
@@ -38,6 +40,8 @@ from apache_beam.io.mongodbio import _MongoSink
 from apache_beam.io.mongodbio import _ObjectIdHelper
 from apache_beam.io.mongodbio import _ObjectIdRangeTracker
 from apache_beam.io.mongodbio import _WriteMongoFn
+from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
+from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -120,7 +124,7 @@ class _MockMongoColl(object):
   def count_documents(self, filter):
     return len(self._filter(filter))
 
-  def aggregate(self, pipeline):
+  def aggregate(self, pipeline, **kwargs):
     # Simulate $bucketAuto aggregate pipeline.
     # Example splits doc count for the total of 5 docs:
     #   - 1 bucket:  [5]
@@ -175,7 +179,7 @@ class _MockMongoDb(object):
   def command(self, command, *args, **kwargs):
     if command == 'collstats':
       return {'size': 5 * 1024 * 1024, 'avgObjSize': 1 * 1024 * 1024}
-    elif command == 'splitVector':
+    if command == 'splitVector':
       return self.get_split_keys(command, *args, **kwargs)
 
   def get_split_keys(self, command, ns, min, max, maxChunkSize, **kwargs):
@@ -205,7 +209,7 @@ class _MockMongoDb(object):
     }
 
 
-class _MockMongoClient(object):
+class _MockMongoClient:
   def __init__(self, docs):
     self.docs = docs
 
@@ -219,15 +223,87 @@ class _MockMongoClient(object):
     pass
 
 
-@parameterized_class(('bucket_auto', ), [(None, ), (True, )])
+# Generate test data for MongoDB collections of different types
+OBJECT_IDS = [
+    objectid.ObjectId.from_datetime(
+        datetime.datetime(year=2020, month=i + 1, day=i + 1)) for i in range(5)
+]
+
+INT_IDS = [n for n in range(5)]  # [0, 1, 2, 3, 4]
+
+STR_IDS_1 = [str(n) for n in range(5)]  # ['0', '1', '2', '3', '4']
+
+# ['aaaaa', 'bbbbb', 'ccccc', 'ddddd', 'eeeee']
+STR_IDS_2 = [chr(97 + n) * 5 for n in range(5)]
+
+# ['AAAAAAAAAAAAAAAAAAAA', 'BBBBBBBBBBBBBBBBBBBB', ..., 'EEEEEEEEEEEEEEEEEEEE']
+STR_IDS_3 = [chr(65 + n) * 20 for n in range(5)]
+
+
+@parameterized_class(('bucket_auto', '_ids', 'min_id', 'max_id'),
+                     [
+                         (
+                             None,
+                             OBJECT_IDS,
+                             _ObjectIdHelper.int_to_id(0),
+                             _ObjectIdHelper.int_to_id(2**96 - 1)),
+                         (
+                             True,
+                             OBJECT_IDS,
+                             _ObjectIdHelper.int_to_id(0),
+                             _ObjectIdHelper.int_to_id(2**96 - 1)),
+                         (
+                             None,
+                             INT_IDS,
+                             0,
+                             2**96 - 1,
+                         ),
+                         (
+                             True,
+                             INT_IDS,
+                             0,
+                             2**96 - 1,
+                         ),
+                         (
+                             None,
+                             STR_IDS_1,
+                             chr(0),
+                             chr(0x10ffff),
+                         ),
+                         (
+                             True,
+                             STR_IDS_1,
+                             chr(0),
+                             chr(0x10ffff),
+                         ),
+                         (
+                             None,
+                             STR_IDS_2,
+                             chr(0),
+                             chr(0x10ffff),
+                         ),
+                         (
+                             True,
+                             STR_IDS_2,
+                             chr(0),
+                             chr(0x10ffff),
+                         ),
+                         (
+                             None,
+                             STR_IDS_3,
+                             chr(0),
+                             chr(0x10ffff),
+                         ),
+                         (
+                             True,
+                             STR_IDS_3,
+                             chr(0),
+                             chr(0x10ffff),
+                         ),
+                     ])
 class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def setUp(self, mock_client):
-    self._ids = [
-        objectid.ObjectId.from_datetime(
-            datetime.datetime(year=2020, month=i + 1, day=i + 1))
-        for i in range(5)
-    ]
     self._docs = [{'_id': self._ids[i], 'x': i} for i in range(len(self._ids))]
     mock_client.return_value = _MockMongoClient(self._docs)
 
@@ -241,6 +317,27 @@ class MongoSourceTest(unittest.TestCase):
     if bucket_auto is not None:
       kwargs['bucket_auto'] = bucket_auto
     return _BoundedMongoSource('mongodb://test', 'testdb', 'testcoll', **kwargs)
+
+  def _increment_id(
+      self,
+      _id: Union[ObjectId, int, str],
+      inc: int,
+  ) -> Union[ObjectId, int, str]:
+    """Helper method to increment `_id` of different types."""
+
+    if isinstance(_id, ObjectId):
+      return _ObjectIdHelper.increment_id(_id, inc)
+
+    if isinstance(_id, int):
+      return _id + inc
+
+    if isinstance(_id, str):
+      index = self._ids.index(_id) + inc
+      if index <= 0:
+        return self._ids[0]
+      if index >= len(self._ids):
+        return self._ids[-1]
+      return self._ids[index]
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_estimate_size(self, mock_client):
@@ -282,10 +379,12 @@ class MongoSourceTest(unittest.TestCase):
               start_position=None, stop_position=None,
               desired_bundle_size=size))
       self.assertEqual(len(splits), 1)
-      self.assertEqual(splits[0].start_position, self._docs[0]['_id'])
-      self.assertEqual(
-          splits[0].stop_position,
-          _ObjectIdHelper.increment_id(self._docs[0]['_id'], 1))
+      _id = self._docs[0]['_id']
+      assert _id == splits[0].start_position
+      assert _id <= splits[0].stop_position
+      if isinstance(_id, (ObjectId, int)):
+        # We can unambiguously determine next `_id`
+        assert self._increment_id(_id, 1) == splits[0].stop_position
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_split_no_documents(self, mock_client):
@@ -357,8 +456,8 @@ class MongoSourceTest(unittest.TestCase):
       reference_info = (
           filtered_mongo_source,
           # range to match no documents:
-          _ObjectIdHelper.increment_id(self._docs[-1]['_id'], 1),
-          _ObjectIdHelper.increment_id(self._docs[-1]['_id'], 2),
+          self._increment_id(self._docs[-1]['_id'], 1),
+          self._increment_id(self._docs[-1]['_id'], 2),
       )
       sources_info = ([
           (split.source, split.start_position, split.stop_position)
@@ -379,8 +478,21 @@ class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_get_range_tracker(self, mock_client):
     mock_client.return_value = _MockMongoClient(self._docs)
-    self.assertIsInstance(
-        self.mongo_source.get_range_tracker(None, None), _ObjectIdRangeTracker)
+    if self._ids == OBJECT_IDS:
+      self.assertIsInstance(
+          self.mongo_source.get_range_tracker(None, None),
+          _ObjectIdRangeTracker,
+      )
+    elif self._ids == INT_IDS:
+      self.assertIsInstance(
+          self.mongo_source.get_range_tracker(None, None),
+          OffsetRangeTracker,
+      )
+    elif self._ids == STR_IDS_1:
+      self.assertIsInstance(
+          self.mongo_source.get_range_tracker(None, None),
+          LexicographicKeyRangeTracker,
+      )
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read(self, mock_client):
@@ -394,26 +506,26 @@ class MongoSourceTest(unittest.TestCase):
         },
         {
             # range covers from the first to the third documents
-            'start': _ObjectIdHelper.int_to_id(0),  # smallest possible id
+            'start': self.min_id,  # smallest possible id
             'stop': self._ids[2],
             'expected': self._docs[0:2]
         },
         {
             # range covers from the third to last documents
             'start': self._ids[2],
-            'stop': _ObjectIdHelper.int_to_id(2**96 - 1),  # largest possible id
+            'stop': self.max_id,  # largest possible id
             'expected': self._docs[2:]
         },
         {
             # range covers all documents
-            'start': _ObjectIdHelper.int_to_id(0),
-            'stop': _ObjectIdHelper.int_to_id(2**96 - 1),
+            'start': self.min_id,
+            'stop': self.max_id,
             'expected': self._docs
         },
         {
             # range doesn't include any document
-            'start': _ObjectIdHelper.increment_id(self._ids[2], 1),
-            'stop': _ObjectIdHelper.increment_id(self._ids[3], -1),
+            'start': self._increment_id(self._ids[2], 1),
+            'stop': self._increment_id(self._ids[3], -1),
             'expected': []
         },
     ]
@@ -428,6 +540,32 @@ class MongoSourceTest(unittest.TestCase):
     data = self.mongo_source.display_data()
     self.assertTrue('database' in data)
     self.assertTrue('collection' in data)
+
+  def test_range_is_not_splittable(self):
+    self.assertTrue(
+        self.mongo_source._range_is_not_splittable(
+            _ObjectIdHelper.int_to_id(1),
+            _ObjectIdHelper.int_to_id(1),
+        ))
+    self.assertTrue(
+        self.mongo_source._range_is_not_splittable(
+            _ObjectIdHelper.int_to_id(1),
+            _ObjectIdHelper.int_to_id(2),
+        ))
+    self.assertFalse(
+        self.mongo_source._range_is_not_splittable(
+            _ObjectIdHelper.int_to_id(1),
+            _ObjectIdHelper.int_to_id(3),
+        ))
+
+    self.assertTrue(self.mongo_source._range_is_not_splittable(0, 0))
+    self.assertTrue(self.mongo_source._range_is_not_splittable(0, 1))
+    self.assertFalse(self.mongo_source._range_is_not_splittable(0, 2))
+
+    self.assertTrue(self.mongo_source._range_is_not_splittable("AAA", "AAA"))
+    self.assertFalse(
+        self.mongo_source._range_is_not_splittable("AAA", "AAA\x00"))
+    self.assertFalse(self.mongo_source._range_is_not_splittable("AAA", "AAB"))
 
 
 @parameterized_class(('bucket_auto', ), [(False, ), (True, )])
@@ -500,9 +638,13 @@ class MongoSinkTest(unittest.TestCase):
 class WriteToMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_write_to_mongodb_with_existing_id(self, mock_client):
-    id = objectid.ObjectId()
-    docs = [{'x': 1, '_id': id}]
-    expected_update = [ReplaceOne({'_id': id}, {'x': 1, '_id': id}, True, None)]
+    _id = objectid.ObjectId()
+    docs = [{'x': 1, '_id': _id}]
+    expected_update = [
+        ReplaceOne({'_id': _id}, {
+            'x': 1, '_id': _id
+        }, True, None)
+    ]
     with TestPipeline() as p:
       _ = (
           p | "Create" >> beam.Create(docs)
@@ -538,34 +680,36 @@ class ObjectIdHelperTest(TestCase):
         (objectid.ObjectId('00000000ffffffffffffffff'), 2**64 - 1),
         (objectid.ObjectId('ffffffffffffffffffffffff'), 2**96 - 1),
     ]
-    for (id, number) in test_cases:
-      self.assertEqual(id, _ObjectIdHelper.int_to_id(number))
-      self.assertEqual(number, _ObjectIdHelper.id_to_int(id))
+    for (_id, number) in test_cases:
+      self.assertEqual(_id, _ObjectIdHelper.int_to_id(number))
+      self.assertEqual(number, _ObjectIdHelper.id_to_int(_id))
 
     # random tests
     for _ in range(100):
-      id = objectid.ObjectId()
-      number = int(id.binary.hex(), 16)
-      self.assertEqual(id, _ObjectIdHelper.int_to_id(number))
-      self.assertEqual(number, _ObjectIdHelper.id_to_int(id))
+      _id = objectid.ObjectId()
+      number = int(_id.binary.hex(), 16)
+      self.assertEqual(_id, _ObjectIdHelper.int_to_id(number))
+      self.assertEqual(number, _ObjectIdHelper.id_to_int(_id))
 
   def test_increment_id(self):
     test_cases = [
         (
-            objectid.ObjectId('000000000000000100000000'),
-            objectid.ObjectId('0000000000000000ffffffff')),
+            objectid.ObjectId("000000000000000100000000"),
+            objectid.ObjectId("0000000000000000ffffffff"),
+        ),
         (
-            objectid.ObjectId('000000010000000000000000'),
-            objectid.ObjectId('00000000ffffffffffffffff')),
+            objectid.ObjectId("000000010000000000000000"),
+            objectid.ObjectId("00000000ffffffffffffffff"),
+        ),
     ]
-    for (first, second) in test_cases:
+    for first, second in test_cases:
       self.assertEqual(second, _ObjectIdHelper.increment_id(first, -1))
       self.assertEqual(first, _ObjectIdHelper.increment_id(second, 1))
 
     for _ in range(100):
-      id = objectid.ObjectId()
-      self.assertLess(id, _ObjectIdHelper.increment_id(id, 1))
-      self.assertGreater(id, _ObjectIdHelper.increment_id(id, -1))
+      _id = objectid.ObjectId()
+      self.assertLess(_id, _ObjectIdHelper.increment_id(_id, 1))
+      self.assertGreater(_id, _ObjectIdHelper.increment_id(_id, -1))
 
 
 class ObjectRangeTrackerTest(TestCase):
@@ -578,10 +722,10 @@ class ObjectRangeTrackerTest(TestCase):
                   [random.randint(start_int, stop_int) for _ in range(100)])
     tracker = _ObjectIdRangeTracker()
     for pos in test_cases:
-      id = _ObjectIdHelper.int_to_id(pos - start_int)
+      _id = _ObjectIdHelper.int_to_id(pos - start_int)
       desired_fraction = (pos - start_int) / (stop_int - start_int)
       self.assertAlmostEqual(
-          tracker.position_to_fraction(id, start, stop),
+          tracker.position_to_fraction(_id, start, stop),
           desired_fraction,
           places=20)
 

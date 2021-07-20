@@ -19,7 +19,8 @@ package org.apache.beam.fn.harness.data;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
@@ -55,11 +56,11 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
             },
             new Object());
 
-    private final LinkedBlockingQueue<ConsumerAndData<?>> queue;
+    private final BlockingQueue<ConsumerAndData<?>> queue;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     ClosableQueue(int queueSize) {
-      this.queue = new LinkedBlockingQueue<ConsumerAndData<?>>(queueSize);
+      this.queue = new ArrayBlockingQueue<>(queueSize);
     }
 
     // Closes the queue indicating that no additional elements will be added. May be called

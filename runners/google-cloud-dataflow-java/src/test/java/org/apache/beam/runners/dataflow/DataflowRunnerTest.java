@@ -30,7 +30,6 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -90,7 +89,6 @@ import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -99,7 +97,6 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -111,7 +108,6 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
-import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -120,8 +116,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
@@ -142,15 +136,15 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValues;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
@@ -1661,19 +1655,6 @@ public class DataflowRunnerTest implements Serializable {
     }
   }
 
-  @Test
-  public void testStreamingWriteWithNoShardingReturnsNewTransform() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.as(DataflowPipelineWorkerPoolOptions.class).setMaxNumWorkers(10);
-    testStreamingWriteOverride(options, 20);
-  }
-
-  @Test
-  public void testStreamingWriteWithNoShardingReturnsNewTransformMaxWorkersUnset() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    testStreamingWriteOverride(options, StreamingShardedWriteFactory.DEFAULT_NUM_SHARDS);
-  }
-
   private void verifyMergingStatefulParDoRejected(PipelineOptions options) throws Exception {
     Pipeline p = Pipeline.create(options);
 
@@ -1938,40 +1919,67 @@ public class DataflowRunnerTest implements Serializable {
     verifyGroupIntoBatchesOverrideBytes(p, true, true);
   }
 
-  private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
-    TestPipeline p = TestPipeline.fromOptions(options);
-
-    StreamingShardedWriteFactory<Object, Void, Object> factory =
-        new StreamingShardedWriteFactory<>(p.getOptions());
-    WriteFiles<Object, Void, Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
-    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
-    AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
-        originalApplication =
-            AppliedPTransform.of(
-                "writefiles",
-                PValues.expandInput(objs),
-                Collections.emptyMap(),
-                original,
-                ResourceHints.create(),
-                p);
-
-    WriteFiles<Object, Void, Object> replacement =
-        (WriteFiles<Object, Void, Object>)
-            factory.getReplacementTransform(originalApplication).getTransform();
-    assertThat(replacement, not(equalTo((Object) original)));
-    assertThat(replacement.getNumShardsProvider().get(), equalTo(expectedNumShards));
-
-    WriteFilesResult<Void> originalResult = objs.apply(original);
-    WriteFilesResult<Void> replacementResult = objs.apply(replacement);
-    Map<PCollection<?>, ReplacementOutput> res =
-        factory.mapOutputs(PValues.expandOutput(originalResult), replacementResult);
-    assertEquals(1, res.size());
-    assertEquals(
-        originalResult.getPerDestinationOutputFilenames(),
-        res.get(replacementResult.getPerDestinationOutputFilenames()).getOriginal().getValue());
+  @Test
+  public void testStreamingWriteWithRunnerDeterminedSharding() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    ExperimentalOptions.addExperiment(dataflowOptions, "enable_streaming_engine");
+    Pipeline p = Pipeline.create(options);
+    testStreamingWriteFilesOverride(p, 0);
   }
 
-  private static class TestSink extends FileBasedSink<Object, Void, Object> {
+  @Test
+  public void testStreamingWriteWithFixedNumShards() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    ExperimentalOptions.addExperiment(dataflowOptions, "enable_streaming_engine");
+    Pipeline p = Pipeline.create(options);
+    testStreamingWriteFilesOverride(p, 10);
+  }
+
+  private void testStreamingWriteFilesOverride(Pipeline p, int numFileShards) {
+    List<String> testValues = Arrays.asList("A", "C", "123", "foo");
+    PCollection<String> input = p.apply(Create.of(testValues));
+    WriteFiles<String, Void, String> write =
+        WriteFiles.<String, Void, String>to(new TestSink<>(tmpFolder.toString()))
+            .withWindowedWrites();
+    boolean withRunnerDeterminedSharding = numFileShards == 0;
+    if (withRunnerDeterminedSharding) {
+      write = write.withRunnerDeterminedSharding();
+    } else {
+      write = write.withNumShards(numFileShards);
+    }
+    input.setIsBoundedInternal(IsBounded.UNBOUNDED);
+    input.apply(Window.into(FixedWindows.of(Duration.standardSeconds(10)))).apply(write);
+    p.run();
+
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!(node.getTransform() instanceof WriteFiles)) {
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()) {
+              if (withRunnerDeterminedSharding) {
+                assertThat(
+                    ((WriteFiles) node.getTransform()).getNumShardsProvider(), equalTo(null));
+              } else {
+                assertThat(
+                    ((WriteFiles) node.getTransform()).getNumShardsProvider().get(),
+                    equalTo(numFileShards));
+              }
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+  }
+
+  private static class TestSink<UserT, OutputT> extends FileBasedSink<UserT, Void, OutputT> {
 
     @Override
     public void validate(PipelineOptions options) {}
@@ -2001,10 +2009,10 @@ public class DataflowRunnerTest implements Serializable {
     }
 
     @Override
-    public WriteOperation<Void, Object> createWriteOperation() {
-      return new WriteOperation<Void, Object>(this) {
+    public WriteOperation<Void, OutputT> createWriteOperation() {
+      return new WriteOperation<Void, OutputT>(this) {
         @Override
-        public Writer<Void, Object> createWriter() {
+        public Writer<Void, OutputT> createWriter() {
           throw new UnsupportedOperationException();
         }
       };

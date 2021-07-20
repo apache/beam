@@ -68,13 +68,19 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -132,6 +138,10 @@ public class BigQueryServicesImplTest {
         new Bigquery.Builder(
                 transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer())
             .build();
+
+    // Setup the ProcessWideContainer for testing metrics are set.
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
   }
 
   @FunctionalInterface
@@ -167,6 +177,30 @@ public class BigQueryServicesImplTest {
       verify(response, times(1)).getContent();
       verify(response, times(1)).getContentType();
     }
+  }
+
+  private void verifyWriteMetricWasSet(
+      String projectId, String dataset, String table, String status, long count) {
+    // Verify the metric as reported.
+    HashMap<String, String> labels = new HashMap<String, String>();
+    // TODO(ajamato): Add Ptransform label. Populate it as empty for now to prevent the
+    // SpecMonitoringInfoValidator from dropping the MonitoringInfo.
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
+    labels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.bigQueryTable(projectId, dataset, table));
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, projectId);
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, dataset);
+    labels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, table);
+    labels.put(MonitoringInfoConstants.Labels.STATUS, status);
+
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 
   /** Tests that {@link BigQueryServicesImpl.JobServiceImpl#startLoadJob} succeeds. */
@@ -621,10 +655,13 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
+        false,
+        null);
 
     verifyAllResponsesAreRead();
     expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "ratelimitexceeded", 1);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} retries quota exceeded attempts. */
@@ -663,10 +700,13 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
+        false,
+        null);
 
     verifyAllResponsesAreRead();
     expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "quotaexceeded", 1);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} can stop quotaExceeded retry attempts. */
@@ -717,9 +757,12 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
+        false,
+        null);
 
     verifyAllResponsesAreRead();
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "quotaexceeded", 1);
   }
 
   // A BackOff that makes a total of 4 attempts
@@ -773,9 +816,13 @@ public class BigQueryServicesImplTest {
         null,
         false,
         false,
-        false);
+        false,
+        null);
 
     verifyAllResponsesAreRead();
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "unknown", 1);
+    verifyWriteMetricWasSet("project", "dataset", "table", "ok", 1);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} fails gracefully when persistent issues. */
@@ -786,13 +833,18 @@ public class BigQueryServicesImplTest {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(wrapValue(new TableRow()), wrapValue(new TableRow()));
 
+    ErrorProto errorProto = new ErrorProto().setReason("schemaMismatch");
     final TableDataInsertAllResponse row1Failed =
         new TableDataInsertAllResponse()
-            .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(1L)));
+            .setInsertErrors(
+                ImmutableList.of(
+                    new InsertErrors().setIndex(1L).setErrors(ImmutableList.of(errorProto))));
 
     final TableDataInsertAllResponse row0Failed =
         new TableDataInsertAllResponse()
-            .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(0L)));
+            .setInsertErrors(
+                ImmutableList.of(
+                    new InsertErrors().setIndex(0L).setErrors(ImmutableList.of(errorProto))));
 
     MockSetupFunction row0FailureResponseFunction =
         response -> {
@@ -832,17 +884,20 @@ public class BigQueryServicesImplTest {
           null,
           false,
           false,
-          false);
+          false,
+          null);
       fail();
     } catch (IOException e) {
       assertThat(e, instanceOf(IOException.class));
       assertThat(e.getMessage(), containsString("Insert failed:"));
-      assertThat(e.getMessage(), containsString("[{\"index\":0}]"));
+      assertThat(e.getMessage(), containsString("[{\"errors\":[{\"reason\":\"schemaMismatch\"}]"));
     }
 
     // Verify the exact number of retries as well as log messages.
     verifyAllResponsesAreRead();
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "schemamismatch", 4);
   }
 
   /**
@@ -856,6 +911,8 @@ public class BigQueryServicesImplTest {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
+    final TableDataInsertAllResponse allRowsSucceeded =
+        new TableDataInsertAllResponse().setInsertErrors(ImmutableList.of());
     // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload
     // but should not be invoked.
     setupMockResponses(
@@ -888,7 +945,8 @@ public class BigQueryServicesImplTest {
           null,
           false,
           false,
-          false);
+          false,
+          null);
     } finally {
       verify(responses[0], atLeastOnce()).getStatusCode();
       verify(responses[0]).getContent();
@@ -898,6 +956,8 @@ public class BigQueryServicesImplTest {
       verify(responses[1], never()).getContent();
       verify(responses[1], never()).getContentType();
     }
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "actually forbidden", 1);
   }
 
   /**
@@ -969,9 +1029,12 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
     assertEquals(1, failedInserts.size());
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "timeout", 2);
   }
 
   /**
@@ -1013,7 +1076,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     TableDataInsertAllRequest parsedRequest =
         fromString(request.getContentAsString(), TableDataInsertAllRequest.class);
@@ -1034,7 +1098,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         true,
         true,
-        true);
+        true,
+        null);
 
     parsedRequest = fromString(request.getContentAsString(), TableDataInsertAllRequest.class);
 
@@ -1042,6 +1107,8 @@ public class BigQueryServicesImplTest {
     assertTrue(parsedRequest.getIgnoreUnknownValues());
     assertNull(parsedRequest.getRows().get(0).getInsertId());
     assertNull(parsedRequest.getRows().get(1).getInsertId());
+
+    verifyWriteMetricWasSet("project", "dataset", "table", "ok", 2);
   }
 
   /** A helper to convert a string response back to a {@link GenericJson} subclass. */
@@ -1106,7 +1173,7 @@ public class BigQueryServicesImplTest {
             bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 0), Sleeper.DEFAULT);
     assertEquals(testTable, ret);
     verifyAllResponsesAreRead();
   }
@@ -1140,7 +1207,7 @@ public class BigQueryServicesImplTest {
             bigquery, null, PipelineOptionsFactory.create());
     try {
       services.tryCreateTable(
-          testTable, new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+          testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 3), Sleeper.DEFAULT);
       fail();
     } catch (IOException e) {
       verify(responses[0], atLeastOnce()).getStatusCode();
@@ -1177,7 +1244,7 @@ public class BigQueryServicesImplTest {
             bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 0), Sleeper.DEFAULT);
 
     assertNull(ret);
     verifyAllResponsesAreRead();
@@ -1209,7 +1276,7 @@ public class BigQueryServicesImplTest {
             bigquery, null, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            testTable, new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
+            testTable, new RetryBoundedBackOff(BackOff.ZERO_BACKOFF, 3), Sleeper.DEFAULT);
     assertEquals(testTable, ret);
     verifyAllResponsesAreRead();
 
@@ -1267,7 +1334,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     assertThat(failedInserts, is(expected));
   }
@@ -1326,7 +1394,8 @@ public class BigQueryServicesImplTest {
         ErrorContainer.BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER,
         false,
         false,
-        false);
+        false,
+        null);
 
     assertThat(failedInserts, is(expected));
   }

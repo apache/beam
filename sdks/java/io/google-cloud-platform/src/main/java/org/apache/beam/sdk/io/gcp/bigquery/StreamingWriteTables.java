@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -245,26 +246,36 @@ public class StreamingWriteTables<ElementT>
   public WriteResult expand(PCollection<KV<TableDestination, ElementT>> input) {
     if (extendedErrorInfo) {
       TupleTag<BigQueryInsertError> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
-      PCollection<BigQueryInsertError> failedInserts =
+      PCollectionTuple result =
           writeAndGetErrors(
               input,
               failedInsertsTag,
               BigQueryInsertErrorCoder.of(),
               ErrorContainer.BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER);
-      return WriteResult.withExtendedErrors(input.getPipeline(), failedInsertsTag, failedInserts);
+      PCollection<BigQueryInsertError> failedInserts = result.get(failedInsertsTag);
+      return WriteResult.withExtendedErrors(
+          input.getPipeline(),
+          failedInsertsTag,
+          failedInserts,
+          result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG));
     } else {
       TupleTag<TableRow> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
-      PCollection<TableRow> failedInserts =
+      PCollectionTuple result =
           writeAndGetErrors(
               input,
               failedInsertsTag,
               TableRowJsonCoder.of(),
               ErrorContainer.TABLE_ROW_ERROR_CONTAINER);
-      return WriteResult.in(input.getPipeline(), failedInsertsTag, failedInserts);
+      PCollection<TableRow> failedInserts = result.get(failedInsertsTag);
+      return WriteResult.in(
+          input.getPipeline(),
+          failedInsertsTag,
+          failedInserts,
+          result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG));
     }
   }
 
-  private <T> PCollection<T> writeAndGetErrors(
+  private <T> PCollectionTuple writeAndGetErrors(
       PCollection<KV<TableDestination, ElementT>> input,
       TupleTag<T> failedInsertsTag,
       AtomicCoder<T> coder,
@@ -336,7 +347,8 @@ public class StreamingWriteTables<ElementT>
 
       return shardedTagged
           .apply(Reshuffle.of())
-          // Put in the global window to ensure that DynamicDestinations side inputs are accessed
+          // Put in the global window to ensure that DynamicDestinations side inputs are
+          // accessed
           // correctly.
           .apply(
               "GlobalWindow",

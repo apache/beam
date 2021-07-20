@@ -549,8 +549,13 @@ class PTransform(WithTypeHints, HasDisplayData):
     By default most transforms just return the windowing function associated
     with the input PCollection (or the first input if several).
     """
-    # TODO(robertwb): Assert all input WindowFns compatible.
-    return inputs[0].windowing
+    if inputs:
+      return inputs[0].windowing
+    else:
+      from apache_beam.transforms.core import Windowing
+      from apache_beam.transforms.window import GlobalWindows
+      # TODO(robertwb): Return something compatible with every windowing?
+      return Windowing(GlobalWindows())
 
   def __rrshift__(self, label):
     return _NamedPTransform(self, label)

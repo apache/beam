@@ -75,8 +75,14 @@ public class BigQueryUtilsTest {
           .addNullableField("timestamp_variant3", Schema.FieldType.DATETIME)
           .addNullableField("timestamp_variant4", Schema.FieldType.DATETIME)
           .addNullableField("datetime", Schema.FieldType.logicalType(SqlTypes.DATETIME))
+          .addNullableField("datetime0ms", Schema.FieldType.logicalType(SqlTypes.DATETIME))
+          .addNullableField("datetime0s_ns", Schema.FieldType.logicalType(SqlTypes.DATETIME))
+          .addNullableField("datetime0s_0ns", Schema.FieldType.logicalType(SqlTypes.DATETIME))
           .addNullableField("date", Schema.FieldType.logicalType(SqlTypes.DATE))
           .addNullableField("time", Schema.FieldType.logicalType(SqlTypes.TIME))
+          .addNullableField("time0ms", Schema.FieldType.logicalType(SqlTypes.TIME))
+          .addNullableField("time0s_ns", Schema.FieldType.logicalType(SqlTypes.TIME))
+          .addNullableField("time0s_0ns", Schema.FieldType.logicalType(SqlTypes.TIME))
           .addNullableField("valid", Schema.FieldType.BOOLEAN)
           .addNullableField("binary", Schema.FieldType.BYTES)
           .addNullableField("numeric", Schema.FieldType.DECIMAL)
@@ -138,11 +144,35 @@ public class BigQueryUtilsTest {
   private static final TableFieldSchema DATETIME =
       new TableFieldSchema().setName("datetime").setType(StandardSQLTypeName.DATETIME.toString());
 
+  private static final TableFieldSchema DATETIME_0MS =
+      new TableFieldSchema()
+          .setName("datetime0ms")
+          .setType(StandardSQLTypeName.DATETIME.toString());
+
+  private static final TableFieldSchema DATETIME_0S_NS =
+      new TableFieldSchema()
+          .setName("datetime0s_ns")
+          .setType(StandardSQLTypeName.DATETIME.toString());
+
+  private static final TableFieldSchema DATETIME_0S_0NS =
+      new TableFieldSchema()
+          .setName("datetime0s_0ns")
+          .setType(StandardSQLTypeName.DATETIME.toString());
+
   private static final TableFieldSchema DATE =
       new TableFieldSchema().setName("date").setType(StandardSQLTypeName.DATE.toString());
 
   private static final TableFieldSchema TIME =
       new TableFieldSchema().setName("time").setType(StandardSQLTypeName.TIME.toString());
+
+  private static final TableFieldSchema TIME_0MS =
+      new TableFieldSchema().setName("time0ms").setType(StandardSQLTypeName.TIME.toString());
+
+  private static final TableFieldSchema TIME_0S_NS =
+      new TableFieldSchema().setName("time0s_ns").setType(StandardSQLTypeName.TIME.toString());
+
+  private static final TableFieldSchema TIME_0S_0NS =
+      new TableFieldSchema().setName("time0s_0ns").setType(StandardSQLTypeName.TIME.toString());
 
   private static final TableFieldSchema VALID =
       new TableFieldSchema().setName("valid").setType(StandardSQLTypeName.BOOL.toString());
@@ -189,8 +219,14 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
                   DATETIME,
+                  DATETIME_0MS,
+                  DATETIME_0S_NS,
+                  DATETIME_0S_0NS,
                   DATE,
                   TIME,
+                  TIME_0MS,
+                  TIME_0S_NS,
+                  TIME_0S_0NS,
                   VALID,
                   BINARY,
                   NUMERIC));
@@ -210,8 +246,14 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
                   DATETIME,
+                  DATETIME_0MS,
+                  DATETIME_0S_NS,
+                  DATETIME_0S_0NS,
                   DATE,
                   TIME,
+                  TIME_0MS,
+                  TIME_0S_NS,
+                  TIME_0S_0NS,
                   VALID,
                   BINARY,
                   NUMERIC));
@@ -241,8 +283,14 @@ public class BigQueryUtilsTest {
                   .parseDateTime("2019-08-18T15:52:07.123"),
               new DateTime(123456),
               LocalDateTime.parse("2020-11-02T12:34:56.789876"),
+              LocalDateTime.parse("2020-11-02T12:34:56"),
+              LocalDateTime.parse("2020-11-02T12:34:00.789876"),
+              LocalDateTime.parse("2020-11-02T12:34"),
               LocalDate.parse("2020-11-02"),
               LocalTime.parse("12:34:56.789876"),
+              LocalTime.parse("12:34:56"),
+              LocalTime.parse("12:34:00.789876"),
+              LocalTime.parse("12:34"),
               false,
               Base64.getDecoder().decode("ABCD1234"),
               new BigDecimal(123.456).setScale(3, RoundingMode.HALF_UP))
@@ -262,15 +310,23 @@ public class BigQueryUtilsTest {
               String.valueOf(
                   new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
           .set("datetime", "2020-11-02T12:34:56.789876")
+          .set("datetime0ms", "2020-11-02T12:34:56")
+          .set("datetime0s_ns", "2020-11-02T12:34:00.789876")
+          .set("datetime0s_0ns", "2020-11-02T12:34:00")
           .set("date", "2020-11-02")
           .set("time", "12:34:56.789876")
+          .set("time0ms", "12:34:56")
+          .set("time0s_ns", "12:34:00.789876")
+          .set("time0s_0ns", "12:34:00")
           .set("valid", "false")
           .set("binary", "ABCD1234")
           .set("numeric", "123.456");
 
   private static final Row NULL_FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
-          .addValues(null, null, null, null, null, null, null, null, null, null, null, null, null)
+          .addValues(
+              null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+              null, null, null, null, null)
           .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
@@ -283,8 +339,14 @@ public class BigQueryUtilsTest {
           .set("timestamp_variant3", null)
           .set("timestamp_variant4", null)
           .set("datetime", null)
+          .set("datetime0ms", null)
+          .set("datetime0s_ns", null)
+          .set("datetime0s_0ns", null)
           .set("date", null)
           .set("time", null)
+          .set("time0ms", null)
+          .set("time0s_ns", null)
+          .set("time0s_0ns", null)
           .set("valid", null)
           .set("binary", null)
           .set("numeric", null);
@@ -333,8 +395,14 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
                   DATETIME,
+                  DATETIME_0MS,
+                  DATETIME_0S_NS,
+                  DATETIME_0S_0NS,
                   DATE,
                   TIME,
+                  TIME_0MS,
+                  TIME_0S_NS,
+                  TIME_0S_0NS,
                   VALID,
                   BINARY,
                   NUMERIC));
@@ -379,8 +447,14 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
             DATETIME,
+            DATETIME_0MS,
+            DATETIME_0S_NS,
+            DATETIME_0S_0NS,
             DATE,
             TIME,
+            TIME_0MS,
+            TIME_0S_NS,
+            TIME_0S_0NS,
             VALID,
             BINARY,
             NUMERIC));
@@ -420,8 +494,14 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
             DATETIME,
+            DATETIME_0MS,
+            DATETIME_0S_NS,
+            DATETIME_0S_0NS,
             DATE,
             TIME,
+            TIME_0MS,
+            TIME_0S_NS,
+            TIME_0S_0NS,
             VALID,
             BINARY,
             NUMERIC));
@@ -447,8 +527,14 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
             DATETIME,
+            DATETIME_0MS,
+            DATETIME_0S_NS,
+            DATETIME_0S_0NS,
             DATE,
             TIME,
+            TIME_0MS,
+            TIME_0S_NS,
+            TIME_0S_0NS,
             VALID,
             BINARY,
             NUMERIC));
@@ -469,14 +555,19 @@ public class BigQueryUtilsTest {
   @Test
   public void testToTableRow_flat() {
     TableRow row = toTableRow().apply(FLAT_ROW);
-    System.out.println(row);
 
-    assertThat(row.size(), equalTo(13));
+    assertThat(row.size(), equalTo(19));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
+    assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
+    assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
+    assertThat(row, hasEntry("datetime0s_0ns", "2020-11-02T12:34:00"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
+    assertThat(row, hasEntry("time0ms", "12:34:56"));
+    assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
+    assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
@@ -516,12 +607,18 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(13));
+    assertThat(row.size(), equalTo(19));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
+    assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
+    assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
+    assertThat(row, hasEntry("datetime0s_0ns", "2020-11-02T12:34:00"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
+    assertThat(row, hasEntry("time0ms", "12:34:56"));
+    assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
+    assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
@@ -534,12 +631,18 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(13));
+    assertThat(row.size(), equalTo(19));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
+    assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
+    assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
+    assertThat(row, hasEntry("datetime0s_0ns", "2020-11-02T12:34:00"));
     assertThat(row, hasEntry("date", "2020-11-02"));
     assertThat(row, hasEntry("time", "12:34:56.789876"));
+    assertThat(row, hasEntry("time0ms", "12:34:56"));
+    assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
+    assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
@@ -550,7 +653,7 @@ public class BigQueryUtilsTest {
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(13));
+    assertThat(row.size(), equalTo(19));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
@@ -559,8 +662,14 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("timestamp_variant3", null));
     assertThat(row, hasEntry("timestamp_variant4", null));
     assertThat(row, hasEntry("datetime", null));
+    assertThat(row, hasEntry("datetime0ms", null));
+    assertThat(row, hasEntry("datetime0s_ns", null));
+    assertThat(row, hasEntry("datetime0s_0ns", null));
     assertThat(row, hasEntry("date", null));
     assertThat(row, hasEntry("time", null));
+    assertThat(row, hasEntry("time0ms", null));
+    assertThat(row, hasEntry("time0s_ns", null));
+    assertThat(row, hasEntry("time0s_0ns", null));
     assertThat(row, hasEntry("valid", null));
     assertThat(row, hasEntry("binary", null));
     assertThat(row, hasEntry("numeric", null));

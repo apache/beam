@@ -46,7 +46,6 @@ import fastavro
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
-from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.internal.metrics.metric import Metrics
@@ -69,8 +68,18 @@ from apache_beam.utils.histogram import LinearBucket
 try:
   from apitools.base.py.transfer import Upload
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
+  gcp_bigquery = None
   pass
+
+try:
+  from orjson import dumps as fast_json_dumps
+  from orjson import loads as fast_json_loads
+except ImportError:
+  fast_json_dumps = json.dumps
+  fast_json_loads = json.loads
+
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -292,6 +301,7 @@ class BigQueryWrapper(object):
         http=get_new_http(),
         credentials=auth.get_service_credentials(),
         response_encoding='utf8')
+    self.gcp_bq_client = client or gcp_bigquery.Client()
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -303,6 +313,7 @@ class BigQueryWrapper(object):
         LinearBucket(0, 20, 3000),
         BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
     self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
+    self.created_temp_dataset = False
 
   @property
   def unique_row_id(self):
@@ -595,7 +606,13 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def _insert_all_rows(
-      self, project_id, dataset_id, table_id, rows, skip_invalid_rows=False):
+      self,
+      project_id,
+      dataset_id,
+      table_id,
+      rows,
+      insert_ids,
+      skip_invalid_rows=False):
     """Calls the insertAll BigQuery API endpoint.
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
@@ -603,15 +620,6 @@ class BigQueryWrapper(object):
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
     # required by the InsertAll() method.
-    request = bigquery.BigqueryTabledataInsertAllRequest(
-        projectId=project_id,
-        datasetId=dataset_id,
-        tableId=table_id,
-        tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
-            skipInvalidRows=skip_invalid_rows,
-            # TODO(silviuc): Should have an option for ignoreUnknownValues?
-            rows=rows))
-
     resource = resource_identifiers.BigQueryTable(
         project_id, dataset_id, table_id)
 
@@ -632,14 +640,15 @@ class BigQueryWrapper(object):
         base_labels=labels)
 
     started_millis = int(time.time() * 1000)
-    response = None
     try:
-      response = self.client.tabledata.InsertAll(request)
-      if not response.insertErrors:
+      table_ref = gcp_bigquery.DatasetReference(project_id,
+                                                dataset_id).table(table_id)
+      errors = self.gcp_bq_client.insert_rows_json(
+          table_ref, json_rows=rows, row_ids=insert_ids, skip_invalid_rows=True)
+      if not errors:
         service_call_metric.call('ok')
-      for insert_error in response.insertErrors:
-        for error in insert_error.errors:
-          service_call_metric.call(error.reason)
+      for insert_error in errors:
+        service_call_metric.call(insert_error['errors'][0])
     except HttpError as e:
       service_call_metric.call(e)
 
@@ -648,9 +657,7 @@ class BigQueryWrapper(object):
     finally:
       self._latency_histogram_metric.update(
           int(time.time() * 1000) - started_millis)
-    if response:
-      return not response.insertErrors, response.insertErrors
-    return False, []
+    return not errors, errors
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -713,6 +720,7 @@ class BigQueryWrapper(object):
       dataset = self.client.datasets.Get(
           bigquery.BigqueryDatasetsGetRequest(
               projectId=project_id, datasetId=dataset_id))
+      self.created_temp_dataset = False
       return dataset
     except HttpError as exn:
       if exn.status_code == 404:
@@ -724,6 +732,7 @@ class BigQueryWrapper(object):
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
+        self.created_temp_dataset = True
         # The response is a bigquery.Dataset instance.
         return response
       else:
@@ -830,6 +839,7 @@ class BigQueryWrapper(object):
         raise
     try:
       self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+      self.created_temp_dataset = False
     except HttpError as exn:
       if exn.status_code == 403:
         _LOGGER.warning(
@@ -1114,28 +1124,18 @@ class BigQueryWrapper(object):
     # BigQuery will do a best-effort if unique IDs are provided. This situation
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
-    final_rows = []
-    for i, row in enumerate(rows):
-      json_row = self._convert_to_json_row(row)
-      insert_id = str(self.unique_row_id) if not insert_ids else insert_ids[i]
-      final_rows.append(
-          bigquery.TableDataInsertAllRequest.RowsValueListEntry(
-              insertId=insert_id, json=json_row))
-    result, errors = self._insert_all_rows(
-        project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
-    return result, errors
+    insert_ids = [
+        str(self.unique_row_id) if not insert_ids else insert_ids[i] for i,
+        _ in enumerate(rows)
+    ]
+    rows = [
+        fast_json_loads(fast_json_dumps(r, default=default_encoder))
+        for r in rows
+    ]
 
-  def _convert_to_json_row(self, row):
-    json_object = bigquery.JsonObject()
-    for k, v in row.items():
-      if isinstance(v, decimal.Decimal):
-        # decimal values are converted into string because JSON does not
-        # support the precision that decimal supports. BQ is able to handle
-        # inserts into NUMERIC columns by receiving JSON with string attrs.
-        v = str(v)
-      json_object.additionalProperties.append(
-          bigquery.JsonObject.AdditionalProperty(key=k, value=to_json_value(v)))
-    return json_object
+    result, errors = self._insert_all_rows(
+        project_id, dataset_id, table_id, rows, insert_ids)
+    return result, errors
 
   def _convert_cell_value_to_dict(self, value, field):
     if field.type == 'STRING':

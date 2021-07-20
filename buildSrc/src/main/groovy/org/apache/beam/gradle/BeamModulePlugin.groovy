@@ -45,7 +45,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.net.ServerSocket
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -82,7 +82,16 @@ class BeamModulePlugin implements Plugin<Project> {
  * limitations under the License.
  */
 """
-  static AtomicInteger startingExpansionPortNumber = new AtomicInteger(18091)
+  static def getRandomPort() {
+    new ServerSocket(0).withCloseable { socket ->
+      def port = socket.getLocalPort()
+      if (port > 0) {
+        return port
+      } else {
+        throw new GradleException("couldn't find a free port.")
+      }
+    }
+  }
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
@@ -238,8 +247,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // Attribute tag that can filter the test set.
     String attribute = System.getProperty('attr')
 
-    // Extra test options pass to nose.
-    String[] extraTestOptions = ["--nocapture"]
+    // Extra test options pass to pytest.
+    String[] extraTestOptions = ["--capture=no"]
 
     // Name of Cloud KMS encryption key to use in some tests.
     String kmsKeyName = System.getProperty('kmsKeyName')
@@ -312,8 +321,8 @@ class BeamModulePlugin implements Plugin<Project> {
       "--environment_cache_millis=10000",
       "--experiments=beam_fn_api",
     ]
-    // Additional nosetests options
-    List<String> nosetestsOptions = []
+    // Additional pytest options
+    List<String> pytestOptions = []
     // Job server startup task.
     Task startJobServer
     // Job server cleanup task.
@@ -330,7 +339,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
     // Attribute for Python tests to run.
-    String pythonTestAttr = "UsesCrossLanguageTransforms"
+    String pythonTestAttr = "xlang_transforms"
     // classpath for running tests.
     FileCollection classpath
   }
@@ -425,7 +434,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def classgraph_version = "4.8.104"
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.31.0"
-    def google_cloud_bigdataoss_version = "2.1.6"
+    def google_cloud_bigdataoss_version = "2.2.2"
     def google_cloud_pubsublite_version = "0.13.2"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
@@ -452,6 +461,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark_version = "2.4.8"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
+    def arrow_version = "4.0.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -638,12 +648,15 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
         vendored_bytebuddy_1_11_0                   : "org.apache.beam:beam-vendor-bytebuddy-1_11_0:0.1",
-        vendored_grpc_1_36_0                        : "org.apache.beam:beam-vendor-grpc-1_36_0:0.1",
+        vendored_grpc_1_36_0                        : "org.apache.beam:beam-vendor-grpc-1_36_0:0.2",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.4.5-2",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
+        arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
+        arrow_memory_core                           : "org.apache.arrow:arrow-memory-core:$arrow_version",
+        arrow_memory_netty                          : "org.apache.arrow:arrow-memory-netty:$arrow_version",
       ],
       groovy: [
         groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
@@ -2029,8 +2042,8 @@ class BeamModulePlugin implements Plugin<Project> {
       // Task for launching expansion services
       def envDir = project.project(":sdks:python").envdir
       def pythonDir = project.project(":sdks:python").projectDir
-      def javaPort = startingExpansionPortNumber.getAndDecrement()
-      def pythonPort = startingExpansionPortNumber.getAndDecrement()
+      def javaPort = getRandomPort()
+      def pythonPort = getRandomPort()
       def expansionJar = project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
       def expansionServiceOpts = [
         "group_id": project.name,
@@ -2104,13 +2117,12 @@ class BeamModulePlugin implements Plugin<Project> {
         config.cleanupJobServer.mustRunAfter javaTask
 
         // Task for running testcases in Python SDK
-        def testOpts = [
-          "--attr=${config.pythonTestAttr}"
-        ]
         def beamPythonTestPipelineOptions = [
           "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
-          "test_opts": testOpts + config.nosetestsOptions,
-          "suite": "xlangValidateRunner"
+          "test_opts": config.pytestOptions,
+          "suite": "xlangValidateRunner",
+          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+          "collect": config.pythonTestAttr
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
         def pythonTask = project.tasks.create(name: config.name+"PythonUsing"+sdk, type: Exec) {
@@ -2152,13 +2164,12 @@ class BeamModulePlugin implements Plugin<Project> {
       config.cleanupJobServer.mustRunAfter javaUsingPythonOnlyTask
 
       // Task for running testcases in Python SDK
-      def testOpts = [
-        "--attr=UsesSqlExpansionService"
-      ]
       def beamPythonTestPipelineOptions = [
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
-        "test_opts": testOpts + config.nosetestsOptions,
-        "suite": "xlangSqlValidateRunner"
+        "test_opts":  config.pytestOptions,
+        "suite": "xlangSqlValidateRunner",
+        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
+        "collect": "xlang_sql_expansion_service"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
       def pythonSqlTask = project.tasks.create(name: config.name+"PythonUsingSql", type: Exec) {
@@ -2335,9 +2346,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // Build test options that configures test environment and framework
             def testOptions = []
             if (config.tests)
-              testOptions += "--tests=$config.tests"
+              testOptions += "$config.tests"
             if (config.attribute)
-              testOptions += "--attr=$config.attribute"
+              testOptions += "-m=$config.attribute"
             testOptions.addAll(config.extraTestOptions)
             argMap["test_opts"] = testOptions
 

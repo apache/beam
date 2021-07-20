@@ -144,8 +144,6 @@ public class BeamFnDataReadRunnerTest {
 
     @Test
     public void testCreatingAndProcessingBeamFnDataReadRunner() throws Exception {
-      String bundleId = "57";
-
       List<WindowedValue<String>> outputValues = new ArrayList<>();
 
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
@@ -204,7 +202,7 @@ public class BeamFnDataReadRunnerTest {
       verify(mockBeamFnDataClient)
           .receive(
               eq(PORT_SPEC.getApiServiceDescriptor()),
-              eq(LogicalEndpoint.data(bundleId, pTransformId)),
+              eq(LogicalEndpoint.data(DEFAULT_BUNDLE_ID, pTransformId)),
               eq(CODER),
               consumerCaptor.capture());
 
@@ -290,6 +288,8 @@ public class BeamFnDataReadRunnerTest {
               Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
       assertThat(values, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
+      // The BundleProcessor should be released first before calling reset.
+      bundleId.set(null);
       readRunner.reset();
       values.clear();
       // Ensure that when we reuse the BeamFnDataReadRunner the read index is reset to -1

@@ -769,6 +769,9 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(test_msg.encode('ascii'), output_buffer.getvalue())
 
   def test_downloader_monitoring_info(self):
+    # Clear the process wide metric container.
+    MetricsEnvironment.process_wide_container().reset()
+
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
     file_size = 5 * 1024 * 1024 + 100
     random_file = self._insert_random_file(self.client, file_name, file_size)
@@ -780,7 +783,7 @@ class TestGCSIO(unittest.TestCase):
         monitoring_infos.METHOD_LABEL: 'Objects.get',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_PROJECT_NUMBER,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: str(DEFAULT_PROJECT_NUMBER),
         monitoring_infos.STATUS_LABEL: 'ok'
     }
 
@@ -792,6 +795,9 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(metric_value, 2)
 
   def test_uploader_monitoring_info(self):
+    # Clear the process wide metric container.
+    MetricsEnvironment.process_wide_container().reset()
+
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
     file_size = 5 * 1024 * 1024 + 100
     random_file = self._insert_random_file(self.client, file_name, file_size)
@@ -803,7 +809,7 @@ class TestGCSIO(unittest.TestCase):
         monitoring_infos.METHOD_LABEL: 'Objects.insert',
         monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: DEFAULT_PROJECT_NUMBER,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: str(DEFAULT_PROJECT_NUMBER),
         monitoring_infos.STATUS_LABEL: 'ok'
     }
 

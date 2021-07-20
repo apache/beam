@@ -24,6 +24,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Channel;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ClientCall;
