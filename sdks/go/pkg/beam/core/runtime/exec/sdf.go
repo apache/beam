@@ -172,10 +172,6 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 	mainElm := elm.Elm.(*FullValue)
 
 	splitRests := n.splitInv.Invoke(mainElm, rest)
-	if len(splitRests) == 0 {
-		err := errors.Errorf("initial splitting returned 0 restrictions.")
-		return errors.WithContextf(err, "%v", n)
-	}
 
 	for _, splitRest := range splitRests {
 		size := n.sizeInv.Invoke(mainElm, splitRest)
