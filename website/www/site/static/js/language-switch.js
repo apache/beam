@@ -115,9 +115,9 @@ $(document).ready(function() {
                 // Swapping visibility of code blocks.
                 $(this.selector).hide();
                 $("nav"+this.selector).show();
+                // make sure that runner and shell snippets are still visible after changing language
+                $("code"+this.selector).show();
                 $("." + pref).show();
-                // make sure we display the code element within the selected block
-                $("." + pref + " code").show();
             },
             "render": function(wrapper) {
                 this.addTabs();
