@@ -44,7 +44,6 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.ForeachWriter;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.streaming.DataStreamWriter;
-import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,8 +200,7 @@ public class TranslationContext {
   // --------------------------------------------------------------------------------------------
 
   /** Starts the pipeline. */
-  public void startPipeline() {
-    try {
+  public void startPipeline(){
       SparkStructuredStreamingPipelineOptions options =
           serializablePipelineOptions.get().as(SparkStructuredStreamingPipelineOptions.class);
       int datasetIndex = 0;
@@ -216,8 +214,7 @@ public class TranslationContext {
             dataStreamWriter =
                 dataStreamWriter.option("checkpointLocation", options.getCheckpointDir());
           }
-          // TODO: Do not await termination here.
-          dataStreamWriter.foreach(new NoOpForeachWriter<>()).start().awaitTermination();
+          dataStreamWriter.foreach(new NoOpForeachWriter<>()).start();
         } else {
           if (options.getTestMode()) {
             LOG.debug("**** dataset {} catalyst execution plans ****", ++datasetIndex);
@@ -228,9 +225,6 @@ public class TranslationContext {
           dataset.foreach((ForeachFunction) t -> {});
         }
       }
-    } catch (StreamingQueryException e) {
-      throw new RuntimeException("Pipeline execution failed: " + e);
-    }
   }
 
   public static void printDatasetContent(Dataset<WindowedValue> dataset) {
