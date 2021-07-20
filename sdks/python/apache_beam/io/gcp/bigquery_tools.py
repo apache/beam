@@ -641,14 +641,17 @@ class BigQueryWrapper(object):
 
     started_millis = int(time.time() * 1000)
     try:
-      table_ref = gcp_bigquery.DatasetReference(project_id,
-                                                dataset_id).table(table_id)
+      table_ref_str = '%s.%s.%s' % (project_id, dataset_id, table_id)
       errors = self.gcp_bq_client.insert_rows_json(
-          table_ref, json_rows=rows, row_ids=insert_ids, skip_invalid_rows=True)
+          table_ref_str,
+          json_rows=rows,
+          row_ids=insert_ids,
+          skip_invalid_rows=True)
       if not errors:
         service_call_metric.call('ok')
-      for insert_error in errors:
-        service_call_metric.call(insert_error['errors'][0])
+      else:
+        for insert_error in errors:
+          service_call_metric.call(insert_error['errors'][0])
     except HttpError as e:
       service_call_metric.call(e)
 
