@@ -75,6 +75,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
    * BeamFnStateClient and tries caching the result. All Append and Clear requests are forwarded.
    */
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void handle(
       StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
 
@@ -98,13 +99,11 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         // If data is not cached, add callback to add response to cache on completion.
         // Otherwise, complete the response with the cached data.
         if (cachedPage == null) {
+          response.thenAccept(
+              stateResponse ->
+                  stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet()));
           beamFnStateClient.handle(requestBuilder, response);
-          CompletableFuture<Void> callback =
-              response.thenAccept(
-                  stateResponse -> {
-                    stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet());
-                  });
-          callback.getNow(null);
+
         } else {
           response.complete(
               StateResponse.newBuilder().setId(requestBuilder.getId()).setGet(cachedPage).build());
