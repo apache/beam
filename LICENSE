@@ -403,5 +403,5 @@
     OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
     WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 
-See https://github.com/apache/beam/blob/master/LICENSE.python for additional
-licenses that apply to parts of Apache Beam Python.
+See the adjacent LICENSE.python file, if present, for additional licenses that
+apply to parts of Apache Beam Python.
