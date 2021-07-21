@@ -1060,21 +1060,21 @@ limitations under the License.
 directory has many examples. All examples can be run by passing the
 required arguments described in the examples.&lt;/p>
 &lt;p>For example, to run &lt;code>wordcount&lt;/code>, run:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -1087,12 +1087,12 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --worker_harness_container_image=apache/beam_go_sdk:latest&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code># Build and run the Spark job server from Beam source.
+&lt;pre>&lt;code class="language-spark" data-lang="spark"># Build and run the Spark job server from Beam source.
 # -PsparkMasterUrl is optional. If it is unset the job will be run inside an embedded Spark cluster.
 $ ./gradlew :runners:spark:2:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
 # In a separate terminal, run:
@@ -1157,12 +1157,12 @@ limitations under the License.
 &lt;/ol>
 &lt;h2 id="get-the-example-code">Get the Example Code&lt;/h2>
 &lt;p>Use the following command to generate a Maven project that contains Beam&amp;rsquo;s WordCount examples and builds against the most recent Beam release:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn archetype:generate \
+&lt;pre>&lt;code class="language-unix" data-lang="unix">$ mvn archetype:generate \
 -DarchetypeGroupId=org.apache.beam \
 -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
 -DarchetypeVersion=2.31.0 \
@@ -1173,29 +1173,29 @@ limitations under the License.
 -DinteractiveMode=false&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; mvn archetype:generate `
--D archetypeGroupId=org.apache.beam `
--D archetypeArtifactId=beam-sdks-java-maven-archetypes-examples `
--D archetypeVersion=2.31.0 `
--D groupId=org.example `
--D artifactId=word-count-beam `
--D version=&amp;#34;0.1&amp;#34; `
--D package=org.apache.beam.examples `
--D interactiveMode=false&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">mvn&lt;/span> &lt;span class="n">archetype&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">generate&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">archetypeGroupId&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">beam&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">archetypeArtifactId&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">beam-sdks-java-maven-archetypes-examples&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">archetypeVersion&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">31&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">0&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">groupId&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">example&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">artifactId&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">word-count-beam&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">version&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="s2">&amp;#34;0.1&amp;#34;&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">package&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">examples&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">interactiveMode&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">false&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>This will create a &lt;code>word-count-beam&lt;/code> directory that contains a &lt;code>pom.xml&lt;/code> and several example pipelines that count words in text files.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ cd word-count-beam/
+&lt;pre>&lt;code class="language-unix" data-lang="unix">$ cd word-count-beam/
 $ ls
 pom.xml src
 $ ls src/main/java/org/apache/beam/examples/
@@ -1203,29 +1203,30 @@ DebuggingWordCount.java WindowedWordCount.java common
 MinimalWordCount.java WordCount.java&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; cd .\word-count-beam
-PS&amp;gt; dir
-...
-Mode LastWriteTime Length Name
----- ------------- ------ ----
-d----- 7/19/2018 11:00 PM src
--a---- 7/19/2018 11:00 PM 16051 pom.xml
-PS&amp;gt; dir .\src\main\java\org\apache\beam\examples
-...
-Mode LastWriteTime Length Name
----- ------------- ------ ----
-d----- 7/19/2018 11:00 PM common
-d----- 7/19/2018 11:00 PM complete
-d----- 7/19/2018 11:00 PM subprocess
--a---- 7/19/2018 11:00 PM 7073 DebuggingWordCount.java
--a---- 7/19/2018 11:00 PM 5945 MinimalWordCount.java
--a---- 7/19/2018 11:00 PM 9490 WindowedWordCount.java
--a---- 7/19/2018 11:00 PM 7662 WordCount.java&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nb">cd &lt;/span>&lt;span class="p">.\&lt;/span>&lt;span class="n">word-count-beam&lt;/span>
+&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nb">dir
+&lt;/span>&lt;span class="nb">&lt;/span>
+&lt;span class="p">...&lt;/span>
+&lt;span class="n">Mode&lt;/span> &lt;span class="n">LastWriteTime&lt;/span> &lt;span class="n">Length&lt;/span> &lt;span class="n">Name&lt;/span>
+&lt;span class="p">----&lt;/span> &lt;span class="p">-------------&lt;/span> &lt;span class="p">------&lt;/span> &lt;span class="p">----&lt;/span>
+&lt;span class="n">d&lt;/span>&lt;span class="p">-----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">src&lt;/span>
+&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">16051&lt;/span> &lt;span class="n">pom&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">xml&lt;/span>
+&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nb">dir &lt;/span>&lt;span class="p">.\&lt;/span>&lt;span class="n">src&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">main&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">examples&lt;/span>
+&lt;span class="p">...&lt;/span>
+&lt;span class="n">Mode&lt;/span> &lt;span class="n">LastWriteTime&lt;/span> &lt;span class="n">Length&lt;/span> &lt;span class="n">Name&lt;/span>
+&lt;span class="p">----&lt;/span> &lt;span class="p">-------------&lt;/span> &lt;span class="p">------&lt;/span> &lt;span class="p">----&lt;/span>
+&lt;span class="n">d&lt;/span>&lt;span class="p">-----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">common&lt;/span>
+&lt;span class="n">d&lt;/span>&lt;span class="p">-----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">complete&lt;/span>
+&lt;span class="n">d&lt;/span>&lt;span class="p">-----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">subprocess&lt;/span>
+&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">7073&lt;/span> &lt;span class="n">DebuggingWordCount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">java&lt;/span>
+&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">5945&lt;/span> &lt;span class="n">MinimalWordCount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">java&lt;/span>
+&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">9490&lt;/span> &lt;span class="n">WindowedWordCount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">java&lt;/span>
+&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">7662&lt;/span> &lt;span class="n">WordCount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">java&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>For a detailed introduction to the Beam concepts used in these examples, see the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>. Here, we&amp;rsquo;ll just focus on executing &lt;code>WordCount.java&lt;/code>.&lt;/p>
@@ -1312,50 +1313,50 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 &lt;p>To run the WordCount pipeline, see the Maven and Gradle examples below.&lt;/p>
 &lt;h3 id="run-wordcount-using-maven">Run WordCount Using Maven&lt;/h3>
 &lt;p>For Unix shells:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-flink" data-lang="flink">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --inputFile=sample.txt --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
 --inputFile=sample.txt --output=/tmp/counts&amp;#34; -Pflink-runner
 You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-spark" data-lang="spark">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=SparkRunner --inputFile=sample.txt --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=DataflowRunner --project=&amp;lt;your-gcp-project&amp;gt; \
 --region=&amp;lt;your-gcp-region&amp;gt; \
@@ -1364,79 +1365,79 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-samza" data-lang="samza">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
 --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package -Pjet-runner
+&lt;pre>&lt;code class="language-jet" data-lang="jet">$ mvn package -Pjet-runner
 $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
 --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>For Windows PowerShell:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-direct" data-lang="direct">PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -P direct-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-flink" data-lang="flink">PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=FlinkRunner --inputFile=sample.txt --output=counts&amp;#34; -P flink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">PS&amp;gt; mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
 --inputFile=C:\path\to\quickstart\sample.txt --output=C:\tmp\counts&amp;#34; -P flink-runner
 You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-spark" data-lang="spark">PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=SparkRunner --inputFile=sample.txt --output=counts&amp;#34; -P spark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
 PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=DataflowRunner --project=&amp;lt;your-gcp-project&amp;gt; `
 --region=&amp;lt;your-gcp-region&amp;gt; \
@@ -1445,186 +1446,178 @@ PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.Word
 -P dataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-samza" data-lang="samza">PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner&amp;#34; -P samza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; mvn package -P nemo-runner -DskipTests
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">PS&amp;gt; mvn package -P nemo-runner -DskipTests
 PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
 --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; mvn package -P jet-runner
+&lt;pre>&lt;code class="language-jet" data-lang="jet">PS&amp;gt; mvn package -P jet-runner
 PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
 --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="run-wordcount-using-gradle">Run WordCount Using Gradle&lt;/h3>
 &lt;p>For Unix shells (Instructions currently only available for Direct, Spark, and Dataflow):&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-spark" data-lang="spark">$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--project=&amp;lt;your-gcp-project&amp;gt; --inputFile=gs://apache-beam-samples/shakespeare/* \
 --output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts&amp;#34; -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;h2 id="inspect-the-results">Inspect the results&lt;/h2>
 &lt;p>Once the pipeline has completed, you can view the output. You&amp;rsquo;ll notice that there may be multiple output files prefixed by &lt;code>count&lt;/code>. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ ls counts*&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">$ ls counts*&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ ls /tmp/counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ ls /tmp/counts*&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">$ ls counts*&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ gsutil ls gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ gsutil ls gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ ls /tmp/counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">$ ls /tmp/counts*&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ ls counts*&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">$ ls counts*&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>When you look into the contents of the file, you&amp;rsquo;ll see that they contain unique words and the number of occurrences of each word. The order of elements within the file may differ because the Beam model does not generally guarantee ordering, again to allow runners to optimize for efficiency.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ more counts*
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ more counts*
 wrought: 2
 st: 32
 fresher: 1
@@ -1638,12 +1631,12 @@ single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ more counts*
+&lt;pre>&lt;code class="language-flink" data-lang="flink">$ more counts*
 wrought: 2
 st: 32
 fresher: 1
@@ -1657,12 +1650,12 @@ single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ more /tmp/counts*
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ more /tmp/counts*
 wrought: 2
 st: 32
 fresher: 1
@@ -1676,12 +1669,12 @@ single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ more counts*
+&lt;pre>&lt;code class="language-spark" data-lang="spark">$ more counts*
 wrought: 2
 st: 32
 fresher: 1
@@ -1695,12 +1688,12 @@ single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ gsutil cat gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ gsutil cat gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
 wrought: 2
 st: 32
 fresher: 1
@@ -1714,12 +1707,12 @@ single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ more /tmp/counts*
+&lt;pre>&lt;code class="language-samza" data-lang="samza">$ more /tmp/counts*
 wrought: 2
 st: 32
 fresher: 1
@@ -1733,12 +1726,12 @@ single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ more counts*
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ more counts*
 wrought: 2
 st: 32
 fresher: 1
@@ -1752,12 +1745,12 @@ single: 4
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ more counts*
+&lt;pre>&lt;code class="language-jet" data-lang="jet">$ more counts*
 wrought: 2
 st: 32
 fresher: 1
@@ -1842,20 +1835,20 @@ limitations under the License.
 &lt;/div>
 &lt;p>If you do not have &lt;code>pip&lt;/code> version 7.0.0 or newer, run the following command to
 install it. This command might require administrative privileges.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>pip install --upgrade pip&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">pip install --upgrade pip&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; python -m pip install --upgrade pip&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="n">-upgrade&lt;/span> &lt;span class="n">pip&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="install-python-virtual-environment">Install Python virtual environment&lt;/h3>
@@ -1863,98 +1856,98 @@ install it. This command might require administrative privileges.&lt;/p>
 for initial experiments. If you do not have &lt;code>virtualenv&lt;/code> version 13.1.0 or
 newer, run the following command to install it. This command might require
 administrative privileges.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>pip install --upgrade virtualenv&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">pip install --upgrade virtualenv&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; python -m pip install --upgrade virtualenv&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="n">-upgrade&lt;/span> &lt;span class="n">virtualenv&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>If you do not want to use a Python virtual environment (not recommended), ensure
 &lt;code>setuptools&lt;/code> is installed on your machine. If you do not have &lt;code>setuptools&lt;/code>
 version 17.1 or newer, run the following command to install it.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>pip install --upgrade setuptools&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">pip install --upgrade setuptools&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; python -m pip install --upgrade setuptools&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="n">-upgrade&lt;/span> &lt;span class="n">setuptools&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h2 id="get-apache-beam">Get Apache Beam&lt;/h2>
 &lt;h3 id="create-and-activate-a-virtual-environment">Create and activate a virtual environment&lt;/h3>
 &lt;p>A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>virtualenv /path/to/directory&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">virtualenv /path/to/directory&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; virtualenv C:\path\to\directory&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">virtualenv&lt;/span> &lt;span class="n">C:&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">path&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">directory&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>A virtual environment needs to be activated for each shell that is to use it.
 Activating it sets some environment variables that point to the virtual
 environment&amp;rsquo;s directories.&lt;/p>
 &lt;p>To activate a virtual environment in Bash, run:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>. /path/to/directory/bin/activate&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">. /path/to/directory/bin/activate&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; C:\path\to\directory\Scripts\activate.ps1&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">C:&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">path&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">directory&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">Scripts&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">activate&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">ps1&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>That is, execute the &lt;code>activate&lt;/code> script under the virtual environment directory you created.&lt;/p>
 &lt;p>For instructions using other shells, see the &lt;a href="https://virtualenv.pypa.io/en/stable/userguide/#activate-script">virtualenv documentation&lt;/a>.&lt;/p>
 &lt;h3 id="download-and-install">Download and install&lt;/h3>
 &lt;p>Install the latest Python SDK from PyPI:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>pip install apache-beam&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">pip install apache-beam&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>PS&amp;gt; python -m pip install apache-beam&lt;/code>&lt;/pre>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">apache-beam&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="extra-requirements">Extra requirements&lt;/h4>
@@ -1995,40 +1988,40 @@ environment&amp;rsquo;s directories.&lt;/p>
 &lt;h2 id="execute-a-pipeline">Execute a pipeline&lt;/h2>
 &lt;p>The Apache Beam &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples">examples&lt;/a> directory has many examples. All examples can be run locally by passing the required arguments described in the example script.&lt;/p>
 &lt;p>For example, run &lt;code>wordcount.py&lt;/code> with the following command:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-direct" data-lang="direct">python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+&lt;pre>&lt;code class="language-flink" data-lang="flink">python -m apache_beam.examples.wordcount --input /path/to/inputfile \
 --output /path/to/write/counts \
 --runner FlinkRunner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+&lt;pre>&lt;code class="language-spark" data-lang="spark">python -m apache_beam.examples.wordcount --input /path/to/inputfile \
 --output /path/to/write/counts \
 --runner SparkRunner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code># As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow"># As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
 # complete the setup steps at /documentation/runners/dataflow/#setup
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -2039,12 +2032,12 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 --temp_location gs://&amp;lt;your-gcs-bucket&amp;gt;/tmp/&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>After the pipeline completes, you can view the output files at your specified
@@ -2765,129 +2758,129 @@ your pipeline, and help make your pipeline&amp;rsquo;s code reusable.&lt;/p>
 building a pipeline. If you feel that you aren&amp;rsquo;t at that point yet, read the
 above section, &lt;a href="#minimalwordcount-example">MinimalWordCount&lt;/a>.&lt;/p>
 &lt;p>&lt;strong>To run this example in Java:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-flink" data-lang="flink">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --inputFile=pom.xml --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
 --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts&amp;#34; -Pflink-runner
 You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-spark" data-lang="spark">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=SparkRunner --inputFile=pom.xml --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
 --project=YOUR_PROJECT --region=GCE_REGION \
 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts&amp;#34; \
 -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-samza" data-lang="samza">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts --runner=SamzaRunner&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
 --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package -P jet-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-jet" data-lang="jet">$ mvn package -P jet-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
 --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Java, see
 &lt;strong>&lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java">WordCount&lt;/a>.&lt;/strong>&lt;/p>
 &lt;p>&lt;strong>To run this example in Python:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-direct" data-lang="direct">python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+&lt;pre>&lt;code class="language-flink" data-lang="flink">python -m apache_beam.examples.wordcount --input /path/to/inputfile \
 --output /path/to/write/counts \
 --runner FlinkRunner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code># Running Beam Python on a distributed Flink cluster requires additional configuration.
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster"># Running Beam Python on a distributed Flink cluster requires additional configuration.
 # See https://beam.apache.org/documentation/runners/flink/ for more information.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+&lt;pre>&lt;code class="language-spark" data-lang="spark">python -m apache_beam.examples.wordcount --input /path/to/inputfile \
 --output /path/to/write/counts \
 --runner SparkRunner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code># As part of the initial setup, install Google Cloud Platform specific extra components.
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow"># As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --output gs://YOUR_GCS_BUCKET/counts \
@@ -2897,72 +2890,72 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 --temp_location gs://YOUR_GCS_BUCKET/tmp/&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Python, see
 &lt;strong>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py">wordcount.py&lt;/a>.&lt;/strong>&lt;/p>
 &lt;p>&lt;strong>To run this example in Go:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -2975,28 +2968,28 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --worker_harness_container_image=apache/beam_go_sdk:latest&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Go, see
@@ -3202,124 +3195,124 @@ values for them. You can then access the options values in your pipeline code.&l
 &lt;p>The DebuggingWordCount example demonstrates some best practices for
 instrumenting your pipeline code.&lt;/p>
 &lt;p>&lt;strong>To run this example in Java:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
 -Dexec.args=&amp;#34;--output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+&lt;pre>&lt;code class="language-flink" data-lang="flink">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
 --output=/tmp/counts&amp;#34; -Pflink-runner
 You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+&lt;pre>&lt;code class="language-spark" data-lang="spark">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
 -Dexec.args=&amp;#34;--runner=SparkRunner --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
 -Dexec.args=&amp;#34;--runner=DataflowRunner --gcpTempLocation=gs://&amp;lt;your-gcs-bucket&amp;gt;/tmp \
 --project=YOUR_PROJECT --region=GCE_REGION \
 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts&amp;#34; \
 -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+&lt;pre>&lt;code class="language-samza" data-lang="samza">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
 -Dexec.args=&amp;#34;--runner=SamzaRunner --output=counts&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
 --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package -P jet-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
+&lt;pre>&lt;code class="language-jet" data-lang="jet">$ mvn package -P jet-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
 --runner=JetRunner --jetLocalMode=3 --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Java, see
 &lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java">DebuggingWordCount&lt;/a>.&lt;/p>
 &lt;p>&lt;strong>To run this example in Python:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-direct" data-lang="direct">python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code># As part of the initial setup, install Google Cloud Platform specific extra components.
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow"># As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --output gs://YOUR_GCS_BUCKET/counts \
@@ -3328,72 +3321,72 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 --temp_location gs://YOUR_GCS_BUCKET/tmp/&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Python, see
 &lt;strong>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py">wordcount_debugging.py&lt;/a>.&lt;/strong>&lt;/p>
 &lt;p>&lt;strong>To run this example in Go:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
 $ debugging_wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -3406,28 +3399,28 @@ $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Go, see
@@ -3629,80 +3622,80 @@ examples did, but introduces several advanced concepts.&lt;/p>
 &lt;p>The following sections explain these key concepts in detail, and break down the
 pipeline code into smaller sections.&lt;/p>
 &lt;p>&lt;strong>To run this example in Java:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
 -Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+&lt;pre>&lt;code class="language-flink" data-lang="flink">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --inputFile=pom.xml --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
 --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts&amp;#34; -Pflink-runner
 You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+&lt;pre>&lt;code class="language-spark" data-lang="spark">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
 -Dexec.args=&amp;#34;--runner=SparkRunner --inputFile=pom.xml --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
 -Dexec.args=&amp;#34;--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
 --project=YOUR_PROJECT --region=GCE_REGION \
 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts&amp;#34; \
 -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+&lt;pre>&lt;code class="language-samza" data-lang="samza">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
 -Dexec.args=&amp;#34;--runner=SamzaRunner --inputFile=pom.xml --output=counts&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
 --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ mvn package -P jet-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
+&lt;pre>&lt;code class="language-jet" data-lang="jet">$ mvn package -P jet-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
 --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -3712,44 +3705,44 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;p>This pipeline writes its results to a BigQuery table &lt;code>--output_table&lt;/code>
 parameter. using the format &lt;code>PROJECT:DATASET.TABLE&lt;/code> or
 &lt;code>DATASET.TABLE&lt;/code>.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-direct" data-lang="direct">python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code># As part of the initial setup, install Google Cloud Platform specific extra components.
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow"># As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 --output_table PROJECT:DATASET.TABLE \
@@ -3758,72 +3751,72 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 --temp_location gs://YOUR_GCS_BUCKET/tmp/&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Python, see
 &lt;strong>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py">windowed_wordcount.py&lt;/a>.&lt;/strong>&lt;/p>
 &lt;p>&lt;strong>To run this example in Go:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
 $ windowed_wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -3835,28 +3828,28 @@ $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Go, see
@@ -4100,47 +4093,47 @@ frequency count of the words seen in each 15 second window.&lt;/p>
 &lt;p>&lt;strong>Note:&lt;/strong> StreamingWordCount is not yet available for the Java SDK.&lt;/p>
 &lt;/blockquote>
 &lt;p>&lt;strong>To run this example in Python:&lt;/strong>&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>python -m apache_beam.examples.streaming_wordcount \
+&lt;pre>&lt;code class="language-direct" data-lang="direct">python -m apache_beam.examples.streaming_wordcount \
 --input_topic &amp;#34;projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC&amp;#34; \
 --output_topic &amp;#34;projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC&amp;#34; \
 --streaming&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code># As part of the initial setup, install Google Cloud Platform specific extra components.
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow"># As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.streaming_wordcount \
 --runner DataflowRunner \
@@ -4152,28 +4145,28 @@ python -m apache_beam.examples.streaming_wordcount \
 --streaming&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>To view the full code in Python, see

@@ -13065,12 +13065,12 @@ docker push &amp;quot;${IMAGE_NAME}:${TAG}&amp;quot;
 PortableRunner flag &lt;code>--environment_config&lt;/code> as supported by the Portable
 Runner or by runners supported PortableRunner flags.
 Other runners, such as Dataflow, support specifying containers with different flags.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>export IMAGE=&amp;#34;my-repo/beam_python_sdk_custom&amp;#34;
+&lt;pre>&lt;code class="language-direct" data-lang="direct">export IMAGE=&amp;#34;my-repo/beam_python_sdk_custom&amp;#34;
 export TAG=&amp;#34;X.Y.Z&amp;#34;
 export IMAGE_URL = &amp;#34;${IMAGE}:${TAG}&amp;#34;
 python -m apache_beam.examples.wordcount \
@@ -13082,12 +13082,12 @@ python -m apache_beam.examples.wordcount \
 --environment_config=&amp;#34;${IMAGE_URL}&amp;#34;&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>export IMAGE=&amp;#34;my-repo/beam_python_sdk_custom&amp;#34;
+&lt;pre>&lt;code class="language-flink" data-lang="flink">export IMAGE=&amp;#34;my-repo/beam_python_sdk_custom&amp;#34;
 export TAG=&amp;#34;X.Y.Z&amp;#34;
 export IMAGE_URL = &amp;#34;${IMAGE}:${TAG}&amp;#34;
 # Run a pipeline using the FlinkRunner which starts a Flink job server.
@@ -13101,12 +13101,12 @@ python -m apache_beam.examples.wordcount \
 --environment_config=&amp;#34;${IMAGE_URL}&amp;#34;&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>export IMAGE=&amp;#34;my-repo/beam_python_sdk_custom&amp;#34;
+&lt;pre>&lt;code class="language-spark" data-lang="spark">export IMAGE=&amp;#34;my-repo/beam_python_sdk_custom&amp;#34;
 export TAG=&amp;#34;X.Y.Z&amp;#34;
 export IMAGE_URL = &amp;#34;${IMAGE}:${TAG}&amp;#34;
 # Run a pipeline using the SparkRunner which starts the Spark job server
@@ -13120,12 +13120,12 @@ python -m apache_beam.examples.wordcount \
 --environment_config=&amp;#34;${IMAGE_URL}&amp;#34;&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>export GCS_PATH=&amp;#34;gs://my-gcs-bucket&amp;#34;
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">export GCS_PATH=&amp;#34;gs://my-gcs-bucket&amp;#34;
 export GCP_PROJECT=&amp;#34;my-gcp-project&amp;#34;
 export REGION=&amp;#34;us-central1&amp;#34;
 # By default, the Dataflow runner has access to the GCR images
