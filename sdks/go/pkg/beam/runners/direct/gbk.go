@@ -86,14 +86,14 @@ func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...ex
 }
 
 func (n *CoGBK) encodeKey(elm interface{}, ws []typex.Window) (string, error) {
-		var buf bytes.Buffer
-                if err := n.enc.Encode(&exec.FullValue{Elm: elm}, &buf); err != nil {
-                        return "", errors.WithContextf(err, "encoding key %v for CoGBK", elm)
-                }
-                if err := n.wEnc.Encode(ws, &buf); err != nil {
-                        return "", errors.WithContextf(err, "encoding window %v for CoGBK", ws)
-                }
-                return buf.String(), nil
+	var buf bytes.Buffer
+	if err := n.enc.Encode(&exec.FullValue{Elm: elm}, &buf); err != nil {
+		return "", errors.WithContextf(err, "encoding key %v for CoGBK", elm)
+	}
+	if err := n.wEnc.Encode(ws, &buf); err != nil {
+		return "", errors.WithContextf(err, "encoding window %v for CoGBK", ws)
+	}
+	return buf.String(), nil
 }
 
 func (n *CoGBK) FinishBundle(ctx context.Context) error {
