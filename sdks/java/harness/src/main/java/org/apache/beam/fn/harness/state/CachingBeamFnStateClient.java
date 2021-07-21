@@ -114,6 +114,11 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       case APPEND:
         // TODO(BEAM-12637): Support APPEND in CachingBeamFnStateClient.
         beamFnStateClient.handle(requestBuilder, response);
+
+        // Invalidate last page of cached values (entry with a blank continuation token response)
+        Map<StateCacheKey, StateGetResponse> map = stateCache.getUnchecked(stateKey);
+        map.entrySet()
+            .removeIf(entry -> (entry.getValue().getContinuationToken().equals(ByteString.EMPTY)));
         return;
 
       case CLEAR:
