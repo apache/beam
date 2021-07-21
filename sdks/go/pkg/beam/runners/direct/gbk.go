@@ -39,11 +39,10 @@ type CoGBK struct {
 	Edge *graph.MultiEdge
 	Out  exec.Node
 
-	enc      exec.ElementEncoder // key encoder for coder-equality
-	wEnc     exec.WindowEncoder  // window encoder for windowing
-	m        map[string]*group
-	wins     []typex.Window
-	mergeMap map[typex.Window]int
+	enc  exec.ElementEncoder // key encoder for coder-equality
+	wEnc exec.WindowEncoder  // window encoder for windowing
+	m    map[string]*group
+	wins []typex.Window
 }
 
 func (n *CoGBK) ID() exec.UnitID {
@@ -94,10 +93,11 @@ func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...ex
 func (n *CoGBK) FinishBundle(ctx context.Context) error {
 	winKind := n.Edge.Input[0].From.WindowingStrategy().Fn.Kind
 	if winKind == window.Sessions {
-		if mergeErr := n.mergeWindows(); mergeErr != nil {
+		mergeMap, mergeErr := n.mergeWindows()
+		if mergeErr != nil {
 			return errors.Errorf("failed to merge windows, got: %v", mergeErr)
 		}
-		if reprocessErr := n.reprocessByWindow(); reprocessErr != nil {
+		if reprocessErr := n.reprocessByWindow(mergeMap); reprocessErr != nil {
 			return errors.Errorf("failed to reprocess with merged windows, got :%v", reprocessErr)
 		}
 	}
@@ -114,16 +114,18 @@ func (n *CoGBK) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
 }
 
-func (n *CoGBK) mergeWindows() error {
+func (n *CoGBK) mergeWindows() (map[typex.Window]int, error) {
 	sort.Slice(n.wins, func(i int, j int) bool {
 		return n.wins[i].MaxTimestamp() < n.wins[j].MaxTimestamp()
 	})
-	n.mergeMap = make(map[typex.Window]int)
+	// mergeMap is a map from the oringal windows to the index of the new window
+	// in the mergedWins slice
+	mergeMap := make(map[typex.Window]int)
 	mergedWins := []typex.Window{}
 	for i := 0; i < len(n.wins); {
 		intWin, ok := n.wins[i].(window.IntervalWindow)
 		if !ok {
-			return errors.Errorf("tried to merge non-interval window type")
+			return nil, errors.Errorf("tried to merge non-interval window type")
 		}
 		mergeStart := intWin.Start
 		mergeEnd := intWin.End
@@ -138,19 +140,19 @@ func (n *CoGBK) mergeWindows() error {
 			}
 		}
 		for k := i; k < j; k++ {
-			n.mergeMap[n.wins[k]] = len(mergedWins)
+			mergeMap[n.wins[k]] = len(mergedWins)
 		}
 		mergedWins = append(mergedWins, window.IntervalWindow{Start: mergeStart, End: mergeEnd})
 		i = j
 	}
 	n.wins = mergedWins
-	return nil
+	return mergeMap, nil
 }
 
-func (n *CoGBK) reprocessByWindow() error {
+func (n *CoGBK) reprocessByWindow(mergeMap map[typex.Window]int) error {
 	newGroups := make(map[string]*group)
 	for _, g := range n.m {
-		ws := []typex.Window{n.wins[n.mergeMap[g.key.Windows[0]]]}
+		ws := []typex.Window{n.wins[mergeMap[g.key.Windows[0]]]}
 		var buf bytes.Buffer
 		if err := n.enc.Encode(&exec.FullValue{Elm: g.key.Elm}, &buf); err != nil {
 			return errors.WithContextf(err, "encoding key %v for CoGBK", g.key.Elm)
