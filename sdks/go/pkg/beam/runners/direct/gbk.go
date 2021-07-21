@@ -68,15 +68,10 @@ func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...ex
 		ws := []typex.Window{w}
 		n.wins = append(n.wins, ws...)
 
-		var buf bytes.Buffer
-		if err := n.enc.Encode(&exec.FullValue{Elm: value.Elm}, &buf); err != nil {
-			return errors.WithContextf(err, "encoding key %v for CoGBK", elm)
+		key, err := n.encodeKey(value.Elm, ws)
+		if err != nil {
+			return errors.Errorf("failed encoding key for %v: %v", elm, err)
 		}
-		if err := n.wEnc.Encode(ws, &buf); err != nil {
-			return errors.WithContextf(err, "encoding window %v for CoGBK", w)
-		}
-		key := buf.String()
-
 		g, ok := n.m[key]
 		if !ok {
 			g = &group{
@@ -88,6 +83,17 @@ func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...ex
 		g.values[index] = append(g.values[index], exec.FullValue{Elm: value.Elm2, Timestamp: value.Timestamp})
 	}
 	return nil
+}
+
+func (n *CoGBK) encodeKey(elm interface{}, ws []typex.Window) (string, error) {
+		var buf bytes.Buffer
+                if err := n.enc.Encode(&exec.FullValue{Elm: elm}, &buf); err != nil {
+                        return "", errors.WithContextf(err, "encoding key %v for CoGBK", elm)
+                }
+                if err := n.wEnc.Encode(ws, &buf); err != nil {
+                        return "", errors.WithContextf(err, "encoding window %v for CoGBK", ws)
+                }
+                return buf.String(), nil
 }
 
 func (n *CoGBK) FinishBundle(ctx context.Context) error {
@@ -153,15 +159,10 @@ func (n *CoGBK) reprocessByWindow(mergeMap map[typex.Window]int) error {
 	newGroups := make(map[string]*group)
 	for _, g := range n.m {
 		ws := []typex.Window{n.wins[mergeMap[g.key.Windows[0]]]}
-		var buf bytes.Buffer
-		if err := n.enc.Encode(&exec.FullValue{Elm: g.key.Elm}, &buf); err != nil {
-			return errors.WithContextf(err, "encoding key %v for CoGBK", g.key.Elm)
+		key, err := n.encodeKey(g.key.Elm, ws)
+		if err != nil {
+			return errors.Errorf("failed encoding key for %v: %v", g.key.Elm, err)
 		}
-		if err := n.wEnc.Encode(ws, &buf); err != nil {
-			return errors.WithContextf(err, "encoding window %v for CoGBK", ws[0])
-		}
-		key := buf.String()
-
 		gr, ok := newGroups[key]
 		if !ok {
 			gr = &group{
