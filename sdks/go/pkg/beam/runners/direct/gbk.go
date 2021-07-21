@@ -125,7 +125,7 @@ func (n *CoGBK) mergeWindows() (map[typex.Window]int, error) {
 	for i := 0; i < len(n.wins); {
 		intWin, ok := n.wins[i].(window.IntervalWindow)
 		if !ok {
-			return nil, errors.Errorf("tried to merge non-interval window type")
+			return nil, errors.Errorf("tried to merge non-interval window type %T", n.wins[i])
 		}
 		mergeStart := intWin.Start
 		mergeEnd := intWin.End
