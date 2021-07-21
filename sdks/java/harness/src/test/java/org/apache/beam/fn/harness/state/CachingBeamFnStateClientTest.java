@@ -18,7 +18,9 @@
 package org.apache.beam.fn.harness.state;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -76,9 +78,8 @@ public class CachingBeamFnStateClientTest {
 
   @Test
   public void testNoCacheWithoutToken() throws Exception {
-
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")), 1);
+        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")));
 
     CachingBeamFnStateClient cachingClient =
         new CachingBeamFnStateClient(fakeClient, stateCache, cacheTokenList);
@@ -92,24 +93,28 @@ public class CachingBeamFnStateClientTest {
             .setGet(BeamFnApi.StateGetRequest.newBuilder().build());
 
     cachingClient.handle(request, response1);
-    assertEquals("1", response1.get().getId());
+    assertEquals(1, fakeClient.getCallCount());
     request.clearId();
 
     cachingClient.handle(request, response2);
-    assertEquals("2", response2.get().getId());
+    assertEquals(2, fakeClient.getCallCount());
   }
 
   @Test
   public void testCachingUserState() throws Exception {
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1")));
+        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")), 3);
 
     cacheTokenList.add(userStateToken);
 
     CachingBeamFnStateClient cachingClient =
         new CachingBeamFnStateClient(fakeClient, stateCache, cacheTokenList);
 
-    testGetCaching(key("A"), defaultCacheKey, cachingClient, fakeClient);
+    assertEquals(fakeClient.getData().get(key("A")), getALlDataForKey(key("A"), cachingClient));
+    assertEquals(3, fakeClient.getCallCount());
+
+    assertEquals(fakeClient.getData().get(key("A")), getALlDataForKey(key("A"), cachingClient));
+    assertEquals(3, fakeClient.getCallCount());
   }
 
   @Test
@@ -124,7 +129,7 @@ public class CachingBeamFnStateClientTest {
             .build();
 
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(iterableSideInput, encode("S1", "S2")));
+        new FakeBeamFnStateClient(ImmutableMap.of(iterableSideInput, encode("S1", "S2", "S3")), 3);
 
     CacheToken iterableToken = sideInputCacheToken("GBK", "Iterable");
     cacheTokenList.add(iterableToken);
@@ -132,12 +137,19 @@ public class CachingBeamFnStateClientTest {
     CachingBeamFnStateClient cachingClient =
         new CachingBeamFnStateClient(fakeClient, stateCache, cacheTokenList);
 
-    testGetCaching(iterableSideInput, defaultCacheKey, cachingClient, fakeClient);
+    assertEquals(
+        fakeClient.getData().get(iterableSideInput),
+        getALlDataForKey(iterableSideInput, cachingClient));
+    assertEquals(3, fakeClient.getCallCount());
+
+    assertEquals(
+        fakeClient.getData().get(iterableSideInput),
+        getALlDataForKey(iterableSideInput, cachingClient));
+    assertEquals(3, fakeClient.getCallCount());
   }
 
   @Test
   public void testCachingMultimapSideInput() throws Exception {
-
     StateKey multimapKeys =
         StateKey.newBuilder()
             .setMultimapKeysSideInput(
@@ -159,9 +171,9 @@ public class CachingBeamFnStateClientTest {
 
     Map<StateKey, ByteString> clientData = new HashMap<>();
     clientData.put(multimapKeys, encode("K1", "K2"));
-    clientData.put(multimapValues, encode("V1"));
+    clientData.put(multimapValues, encode("V1", "V2", "V3"));
 
-    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(clientData);
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(clientData, 3);
 
     CacheToken multimapToken = sideInputCacheToken("GBK", "Multimap");
     cacheTokenList.add(multimapToken);
@@ -169,38 +181,87 @@ public class CachingBeamFnStateClientTest {
     CachingBeamFnStateClient cachingClient =
         new CachingBeamFnStateClient(fakeClient, stateCache, cacheTokenList);
 
-    testGetCaching(multimapKeys, defaultCacheKey, cachingClient, fakeClient);
-    testGetCaching(multimapValues, defaultCacheKey, cachingClient, fakeClient);
+    assertEquals(
+        fakeClient.getData().get(multimapKeys), getALlDataForKey(multimapKeys, cachingClient));
+    assertEquals(2, fakeClient.getCallCount());
+
+    assertEquals(
+        fakeClient.getData().get(multimapKeys), getALlDataForKey(multimapKeys, cachingClient));
+    assertEquals(2, fakeClient.getCallCount());
+
+    assertEquals(
+        fakeClient.getData().get(multimapValues), getALlDataForKey(multimapValues, cachingClient));
+    assertEquals(5, fakeClient.getCallCount());
+
+    assertEquals(
+        fakeClient.getData().get(multimapValues), getALlDataForKey(multimapValues, cachingClient));
+    assertEquals(5, fakeClient.getCallCount());
   }
 
   @Test
-  public void testCacheOnAppendOrClear() throws Exception {
-
+  public void testAppendInvalidatesLastPage() throws Exception {
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1")));
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(key("A"), encode("A1"), key("B"), encode("B1")), 3);
 
     cacheTokenList.add(userStateToken);
 
     CachingBeamFnStateClient cachingClient =
         new CachingBeamFnStateClient(fakeClient, stateCache, cacheTokenList);
 
-    StateRequest.Builder requestBuilder =
-        StateRequest.newBuilder().setAppend(StateAppendRequest.newBuilder().setData(encode("V")));
+    // Append works with no pages in cache
+    appendToKey(key("A"), encode("A2"), cachingClient);
+    assertTrue(stateCache.getUnchecked(key("A")).isEmpty());
+    assertEquals(fakeClient.getData().get(key("A")), getALlDataForKey(key("A"), cachingClient));
+    assertEquals(3, fakeClient.getCallCount());
 
-    // Test append to empty cacheable value
-    testMutationCaching(requestBuilder, key("B"), defaultCacheKey, cachingClient, fakeClient);
+    // Append works with multiple pages in cache
+    appendToKey(key("A"), encode("A3"), cachingClient);
+    assertFalse(
+        stateCache
+            .getUnchecked(key("A"))
+            .containsValue(StateGetResponse.newBuilder().setData(encode("A2")).build()));
+    assertEquals(fakeClient.getData().get(key("A")), getALlDataForKey(key("A"), cachingClient));
+    assertEquals(6, fakeClient.getCallCount());
 
-    // Test append to non empty cacheable value
-    testMutationCaching(requestBuilder, key("A"), defaultCacheKey, cachingClient, fakeClient);
+    // Append works with one page in the cache
+    assertEquals(fakeClient.getData().get(key("B")), getALlDataForKey(key("B"), cachingClient));
+    appendToKey(key("B"), encode("B2"), cachingClient);
+    assertTrue(stateCache.getUnchecked(key("B")).isEmpty());
+    assertEquals(fakeClient.getData().get(key("B")), getALlDataForKey(key("B"), cachingClient));
+    assertEquals(10, fakeClient.getCallCount());
 
-    // Test clear
-    requestBuilder.clearAppend().setClear(StateClearRequest.getDefaultInstance());
+    // Append works with no prior data
+    appendToKey(key("C"), encode("C1"), cachingClient);
+    assertTrue(stateCache.getUnchecked(key("C")).isEmpty());
+    assertEquals(fakeClient.getData().get(key("C")), getALlDataForKey(key("C"), cachingClient));
+  }
+
+  @Test
+  public void testCacheClear() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(key("A"), encode("A1"), key("B"), encode("B1", "B2")), 3);
+
+    cacheTokenList.add(userStateToken);
+
+    CachingBeamFnStateClient cachingClient =
+        new CachingBeamFnStateClient(fakeClient, stateCache, cacheTokenList);
 
     // Test clear cacheable value
-    testMutationCaching(requestBuilder, key("C"), defaultCacheKey, cachingClient, fakeClient);
+    clearKey(key("A"), cachingClient);
+    assertEquals(1, fakeClient.getCallCount());
+    assertNull(fakeClient.getData().get(key("A")));
+    assertEquals(ByteString.EMPTY, getALlDataForKey(key("A"), cachingClient));
+    assertEquals(1, fakeClient.getCallCount());
 
     // Test clear cached value
-    testMutationCaching(requestBuilder, key("A"), defaultCacheKey, cachingClient, fakeClient);
+    getALlDataForKey(key("B"), cachingClient);
+    clearKey(key("B"), cachingClient);
+    assertEquals(4, fakeClient.getCallCount());
+    assertNull(fakeClient.getData().get(key("B")));
+    assertEquals(ByteString.EMPTY, getALlDataForKey(key("B"), cachingClient));
+    assertEquals(4, fakeClient.getCallCount());
   }
 
   private StateKey key(String id) throws IOException {
@@ -233,47 +294,42 @@ public class CachingBeamFnStateClientTest {
     return out.toByteString();
   }
 
-  private void testGetCaching(
-      StateKey stateKey,
-      StateCacheKey cacheKey,
-      BeamFnStateClient cachingClient,
-      FakeBeamFnStateClient fakeClient)
+  private void appendToKey(StateKey key, ByteString data, CachingBeamFnStateClient cachingClient)
       throws Exception {
-    CompletableFuture<StateResponse> firstResponse = new CompletableFuture<>();
-    CompletableFuture<StateResponse> cachedResponse = new CompletableFuture<>();
-
-    StateRequest.Builder requestBuilder =
+    StateRequest.Builder appendRequestBuilder =
         StateRequest.newBuilder()
-            .setStateKey(stateKey)
-            .setGet(
-                StateGetRequest.newBuilder().setContinuationToken(cacheKey.getContinuationToken()));
+            .setStateKey(key)
+            .setAppend(StateAppendRequest.newBuilder().setData(data));
 
-    cachingClient.handle(requestBuilder, firstResponse);
-    assertEquals(firstResponse.get().getGet(), stateCache.getIfPresent(stateKey).get(cacheKey));
-    requestBuilder.clearId();
-
-    cachingClient.handle(requestBuilder, cachedResponse);
-    assertEquals("", cachedResponse.get().getId());
-    assertEquals(firstResponse.get().getGet(), cachedResponse.get().getGet());
+    CompletableFuture<StateResponse> appendResponse = new CompletableFuture<>();
+    cachingClient.handle(appendRequestBuilder, appendResponse);
+    appendResponse.get();
   }
 
-  private void testMutationCaching(
-      StateRequest.Builder requestBuilder,
-      StateKey stateKey,
-      StateCacheKey cacheKey,
-      BeamFnStateClient cachingClient,
-      FakeBeamFnStateClient fakeClient)
+  private void clearKey(StateKey key, CachingBeamFnStateClient cachingClient) throws Exception {
+    StateRequest.Builder clearRequestBuilder =
+        StateRequest.newBuilder().setStateKey(key).setClear(StateClearRequest.getDefaultInstance());
+
+    CompletableFuture<StateResponse> clearResponse = new CompletableFuture<>();
+    cachingClient.handle(clearRequestBuilder, clearResponse);
+    clearResponse.get();
+  }
+
+  private ByteString getALlDataForKey(StateKey key, CachingBeamFnStateClient cachingClient)
       throws Exception {
-    requestBuilder.setStateKey(stateKey);
-    requestBuilder.clearId();
-    CompletableFuture<StateResponse> stateResponseFuture = new CompletableFuture<>();
-    cachingClient.handle(requestBuilder, stateResponseFuture);
-    if (requestBuilder.hasAppend()) {
-      // Include more testing after append is implemented
-    } else {
-      assertEquals(
-          StateGetResponse.getDefaultInstance(), stateCache.getIfPresent(stateKey).get(cacheKey));
-      assertNull(fakeClient.getData().get(stateKey));
-    }
+    ByteString continuationToken = ByteString.EMPTY;
+    ByteString allData = ByteString.EMPTY;
+    StateRequest.Builder requestBuilder = StateRequest.newBuilder().setStateKey(key);
+    do {
+      requestBuilder
+          .clearId()
+          .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken));
+      CompletableFuture<StateResponse> getResponse = new CompletableFuture<>();
+      cachingClient.handle(requestBuilder, getResponse);
+      continuationToken = getResponse.get().getGet().getContinuationToken();
+      allData = allData.concat(getResponse.get().getGet().getData());
+    } while (!continuationToken.equals(ByteString.EMPTY));
+
+    return allData;
   }
 }
