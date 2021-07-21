@@ -51,7 +51,6 @@ from apache_beam.options.value_provider import StaticValueProvider
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
-  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   HttpError = None
   HttpForbiddenError = None
@@ -860,8 +859,7 @@ class TestBigQueryWriter(unittest.TestCase):
 
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
     client.insert_rows_json.assert_called_with(
-        gcp_bigquery.TableReference(
-            gcp_bigquery.DatasetReference('project', 'dataset'), 'table'),
+        '%s.%s.%s' % ('project', 'dataset', 'table'),
         json_rows=[sample_row],
         row_ids=['_1'],
         skip_invalid_rows=True)
