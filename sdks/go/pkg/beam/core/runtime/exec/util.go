@@ -37,8 +37,8 @@ func (g *GenID) New() UnitID {
 type doFnError struct {
 	doFn string
 	err  error
-	uid  UnitID // Unit ID
-	pid  string // Plan ID
+	uid  UnitID
+	pid  string
 }
 
 func (e *doFnError) Error() string {
@@ -49,8 +49,7 @@ func (e *doFnError) Error() string {
 func callNoPanic(ctx context.Context, fn func(context.Context) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			// Top level error is the panic itself, but also include the stack trace as the original error.
-			// Higher levels can then add appropriate context without getting pushed down by the stack trace.
+			// check if error is of type DoFn then handle it appropriately
 			if e, ok := r.(doFnError); ok {
 				err = &e
 			} else {

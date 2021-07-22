@@ -17,15 +17,55 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 )
+
+// testSimpleError tests for a simple case that
+// doesn't panic
+func testSimpleError(ctx context.Context, t *testing.T) {
+	expected := errors.New("Sample error.")
+	actual := callNoPanic(ctx, func(c context.Context) error { return errors.New("Simple error.") })
+
+	if errors.Unwrap(actual) != errors.Unwrap(expected) {
+		t.Errorf("Simple error reporting failed.")
+	}
+}
+
+// testPanicError tests for the case in which a normal
+// error is passed to panic, resulting in panic trace.
+func testPanicError(ctx context.Context, t *testing.T) {
+	actual := callNoPanic(ctx, func(c context.Context) error { panic("Panic error") })
+	if !strings.Contains(actual.Error(), "panic:") {
+		t.Errorf("Caught in panic.")
+	}
+}
+
+// testWrapPanicError tests for the case in which error
+// is passed to panic from DoFn, resulting in
+// formatted error message for DoFn.
+func testWrapPanicError(ctx context.Context, t *testing.T) {
+	parDoError := doFnError{
+		doFn: "sumFn",
+		err:  errors.New("SumFn error"),
+		uid:  1,
+		pid:  "Plan ID",
+	}
+	var err errorx.GuardedError
+	err.TrySetError(&parDoError)
+	actual := callNoPanic(ctx, func(c context.Context) error { panic(parDoError) })
+
+	if strings.Contains(actual.Error(), "panic:") {
+		t.Errorf("Error not wrapped! Caught in panic")
+	}
+}
 
 func TestCallNoPanic(t *testing.T) {
 	ctx := context.Background()
-
-	actual := callNoPanic(ctx, func(c context.Context) error { panic("Panic error") })
-	if !strings.Contains(actual.Error(), "panic:") {
-		t.Errorf("Caught in panic")
-	}
+	testSimpleError(ctx, t)
+	testPanicError(ctx, t)
+	testWrapPanicError(ctx, t)
 }
