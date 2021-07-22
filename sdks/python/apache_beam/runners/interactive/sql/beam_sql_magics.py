@@ -107,12 +107,13 @@ class BeamSqlMagics(Magics):
       def process(self, e):
         yield e.windowed_value
 
+    print(pcoll.element_type)
     coder = cache_manager.load_pcoder(key)
     return (
         query_pipeline
         | '{}{}'.format('QuerySource', key) >> cache.ReadCache(
             cache_manager, key)
-        | beam.Map(rebuildRow).with_output_types(pcoll.element_type))
+        | '{}{}'.format('ParseCache', key) >> beam.Map(parse_cache).with_output_types(pcoll.element_type))
     #| '{}{}'.format('Decode', key) >> beam.Map(lambda x: coder.decode(x))
 
 
@@ -122,13 +123,10 @@ class BeamSqlMagics(Magics):
     pass
 
 
-def rebuildRow(x):
-  fields = type(x)._fields
-  kwargs = {}
-  for field in fields:
-    kwargs[field] = getattr(x, field)
-  return beam.Row(**kwargs)
-
+def parse_cache(e):
+  if isinstance(e, beam.Row) and hasattr(e, 'windowed_value'):
+    return e.windowed_value
+  return e
 
 def load_ipython_extension(ipython):
   ipython.register_magics(BeamSqlMagics)
