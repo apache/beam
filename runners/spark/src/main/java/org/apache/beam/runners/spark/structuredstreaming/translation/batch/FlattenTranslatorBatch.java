@@ -21,7 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Collection;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,7 +37,7 @@ class FlattenTranslatorBatch<T>
 
   @Override
   public void translateTransform(
-      PTransform<PCollectionList<T>, PCollection<T>> transform, TranslationContext context) {
+      PTransform<PCollectionList<T>, PCollection<T>> transform, AbstractTranslationContext context) {
     Collection<PCollection<?>> pcollectionList = context.getInputs().values();
     Dataset<WindowedValue<T>> result = null;
     if (pcollectionList.isEmpty()) {

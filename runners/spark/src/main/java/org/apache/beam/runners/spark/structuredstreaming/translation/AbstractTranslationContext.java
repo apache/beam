@@ -55,9 +55,9 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class TranslationContext {
+public abstract class AbstractTranslationContext {
 
-  private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractTranslationContext.class);
 
   /** All the datasets of the DAG. */
   private final Map<PValue, Dataset<?>> datasets;
@@ -74,7 +74,7 @@ public class TranslationContext {
 
   private final Map<PCollectionView<?>, Dataset<?>> broadcastDataSets;
 
-  public TranslationContext(SparkStructuredStreamingPipelineOptions options) {
+  public AbstractTranslationContext(SparkStructuredStreamingPipelineOptions options) {
     SparkConf sparkConf = new SparkConf();
     sparkConf.setMaster(options.getSparkMaster());
     sparkConf.setAppName(options.getAppName());
@@ -214,7 +214,7 @@ public class TranslationContext {
             dataStreamWriter =
                 dataStreamWriter.option("checkpointLocation", options.getCheckpointDir());
           }
-          dataStreamWriter.foreach(new NoOpForeachWriter<>()).start();
+          launchStreaming(dataStreamWriter.foreach(new NoOpForeachWriter<>()));
         } else {
           if (options.getTestMode()) {
             LOG.debug("**** dataset {} catalyst execution plans ****", ++datasetIndex);
@@ -226,6 +226,7 @@ public class TranslationContext {
         }
       }
   }
+  public abstract void launchStreaming(DataStreamWriter<?> dataStreamWriter);
 
   public static void printDatasetContent(Dataset<WindowedValue> dataset) {
     // cannot use dataset.show because dataset schema is binary so it will print binary
@@ -235,7 +236,6 @@ public class TranslationContext {
       LOG.debug("**** dataset content {} ****", windowedValue.toString());
     }
   }
-
   private static class NoOpForeachWriter<T> extends ForeachWriter<T> {
 
     @Override
@@ -253,4 +253,5 @@ public class TranslationContext {
       // do nothing
     }
   }
+
 }

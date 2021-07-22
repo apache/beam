@@ -30,7 +30,7 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.CompositeSource
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
@@ -135,7 +135,7 @@ public final class SparkStructuredStreamingRunner
     AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
 
-    final TranslationContext translationContext = translatePipeline(pipeline);
+    final AbstractTranslationContext translationContext = translatePipeline(pipeline);
 
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
     final Future<?> submissionFuture =
@@ -168,7 +168,7 @@ public final class SparkStructuredStreamingRunner
     return result;
   }
 
-  private TranslationContext translatePipeline(Pipeline pipeline) {
+  private AbstractTranslationContext translatePipeline(Pipeline pipeline) {
     PipelineTranslator.detectTranslationMode(pipeline, options);
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded for non-portable
