@@ -4522,7 +4522,12 @@ public class ParDoTest implements Serializable {
     //    }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesStrictTimerOrdering.class,
+      UsesUnboundedPCollections.class
+    })
     public void testTwoTimersSettingEachOtherWithCreateAsInputUnbounded() {
       testTwoTimersSettingEachOtherWithCreateAsInput(IsBounded.UNBOUNDED);
     }
