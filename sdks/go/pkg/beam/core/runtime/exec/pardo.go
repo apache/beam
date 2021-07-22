@@ -332,8 +332,14 @@ func (n *ParDo) postInvoke() error {
 
 func (n *ParDo) fail(err error) error {
 	n.status = Broken
-	n.err.TrySetError(err)
-	return err
+	parDoError := &doFnError{
+		doFn: n.Fn.Name(),
+		err:  err,
+		uid:  n.UID,
+		pid:  n.PID,
+	}
+	n.err.TrySetError(parDoError)
+	return parDoError
 }
 
 func (n *ParDo) String() string {
