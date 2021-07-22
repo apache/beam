@@ -17,20 +17,20 @@ package exec
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 )
 
 // testSimpleError tests for a simple case that
 // doesn't panic
 func testSimpleError(ctx context.Context, t *testing.T) {
-	expected := errors.New("Sample error.")
+	expected := errors.New("Simple error.")
 	actual := callNoPanic(ctx, func(c context.Context) error { return errors.New("Simple error.") })
 
-	if errors.Unwrap(actual) != errors.Unwrap(expected) {
+	if actual.Error() != expected.Error() {
 		t.Errorf("Simple error reporting failed.")
 	}
 }
