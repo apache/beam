@@ -237,8 +237,7 @@ public class FlinkBatchPortablePipelineTranslator
 
   private final Map<String, PTransformTranslator> urnToTransformTranslator;
 
-  private FlinkBatchPortablePipelineTranslator(
-      Map<String, PTransformTranslator> urnToTransformTranslator) {
+  FlinkBatchPortablePipelineTranslator(Map<String, PTransformTranslator> urnToTransformTranslator) {
     this.urnToTransformTranslator = urnToTransformTranslator;
   }
 

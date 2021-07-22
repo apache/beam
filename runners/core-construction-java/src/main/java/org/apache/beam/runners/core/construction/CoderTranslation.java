@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
+
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
@@ -83,6 +85,10 @@ public class CoderTranslation {
       translators.putAll(coderTranslatorRegistrar.getCoderTranslators());
     }
     return translators.build();
+  }
+
+  public static Set<String> getKnownCodersURNs() {
+    return KNOWN_CODER_URNS.values();
   }
 
   public static RunnerApi.MessageWithComponents toProto(Coder<?> coder) throws IOException {

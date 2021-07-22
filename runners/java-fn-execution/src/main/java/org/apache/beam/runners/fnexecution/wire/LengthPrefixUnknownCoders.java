@@ -22,6 +22,7 @@ import java.util.function.Predicate;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -59,7 +60,7 @@ public class LengthPrefixUnknownCoders {
     //     with a length prefix coder or replace it with a length prefix byte array coder.
     if (ModelCoders.LENGTH_PREFIX_CODER_URN.equals(urn)) {
       return replaceWithByteArrayCoder ? lengthPrefixedByteArrayCoderId : coderId;
-    } else if (ModelCoders.urns().contains(urn)) {
+    } else if (CoderTranslation.getKnownCodersURNs().contains(urn)) {
       return addForModelCoder(coderId, components, replaceWithByteArrayCoder);
     } else {
       return replaceWithByteArrayCoder

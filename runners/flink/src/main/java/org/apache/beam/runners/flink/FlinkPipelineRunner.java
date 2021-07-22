@@ -99,9 +99,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
             SplittableParDoExpander.createSizedReplacement());
 
     // Don't let the fuser fuse any subcomponents of native transforms.
-    Pipeline trimmedPipeline =
-        TrivialNativeTransformExpander.forKnownUrns(
-            pipelineWithSdfExpanded, translator.knownUrns());
+    Pipeline trimmedPipeline = pipelineWithSdfExpanded;
+    TrivialNativeTransformExpander.forKnownUrns(pipelineWithSdfExpanded, translator.knownUrns());
 
     // Fused pipeline proto.
     // TODO: Consider supporting partially-fused graphs.

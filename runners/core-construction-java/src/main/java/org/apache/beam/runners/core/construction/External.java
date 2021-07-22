@@ -340,8 +340,7 @@ public class External {
 
     boolean isJavaSDKCompatible(RunnerApi.Components components, String coderId) {
       RunnerApi.Coder coder = components.getCodersOrThrow(coderId);
-      if (!CoderTranslation.JAVA_SERIALIZED_CODER_URN.equals(coder.getSpec().getUrn())
-          && !CoderTranslation.KNOWN_CODER_URNS.containsValue(coder.getSpec().getUrn())) {
+      if (!CoderTranslation.getKnownCodersURNs().contains(coder.getSpec().getUrn())) {
         return false;
       }
       for (String componentId : coder.getComponentCoderIdsList()) {
