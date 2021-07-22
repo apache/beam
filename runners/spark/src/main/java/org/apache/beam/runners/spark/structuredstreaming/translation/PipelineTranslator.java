@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private int depth = 0;
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);
-  protected TranslationContext translationContext;
+  protected AbstractTranslationContext translationContext;
 
   // --------------------------------------------------------------------------------------------
   //  Pipeline preparation methods
@@ -196,7 +196,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     applyTransformTranslator(node, transformTranslator);
   }
 
-  public TranslationContext getTranslationContext() {
+  public AbstractTranslationContext getTranslationContext() {
     return translationContext;
   }
 }

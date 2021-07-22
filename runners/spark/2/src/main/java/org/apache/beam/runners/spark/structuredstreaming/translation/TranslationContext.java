@@ -15,15 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
+package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
-import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.spark.sql.streaming.DataStreamWriter;
 
-/** TODO: Should be removed if {@link Reshuffle} won't be translated. */
-class ReshuffleTranslatorBatch<K, InputT> implements TransformTranslator<Reshuffle<K, InputT>> {
+/**
+ * Subclass of {@link AbstractTranslationContext} that address spark breaking changes.
+ */
+public class TranslationContext extends AbstractTranslationContext {
+
+  public TranslationContext(SparkStructuredStreamingPipelineOptions options) {
+    super(options);
+  }
 
   @Override
-  public void translateTransform(Reshuffle<K, InputT> transform, AbstractTranslationContext context) {}
+  public void launchStreaming(DataStreamWriter<?> dataStreamWriter) {
+    dataStreamWriter.start();
+  }
 }
