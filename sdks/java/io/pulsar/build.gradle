@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-sourceCompatibility = targetCompatibility = JavaVersion.VERSION_11
+// sourceCompatibility = targetCompatibility = JavaVersion.VERSION_11
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Pulsar"
 ext.summary = "IO to read and write to Pulsar."
@@ -22,7 +22,7 @@ dependencies {
 
     // testImplementation 'io.projectreactor:reactor-core'
 
-    testImplementation 'org.apache.pulsar:pulsar-client-admin:2.5.0'
+    // testImplementation 'org.apache.pulsar:pulsar-client-admin:2.5.0'
 
     testImplementation('org.apache.pulsar:pulsar-functions-local-runner-original:2.5.0') {
         exclude group: 'log4j'
@@ -32,7 +32,7 @@ dependencies {
     // testCompileOnly project(':functions')
 }
 
-test {
+/*test {
     // def functionsProject = project(':functions')
 
     // dependsOn functionsProject.shadowJar
@@ -42,4 +42,4 @@ test {
     //systemProperty "functions.jar.path", file(functionsProject.shadowJar.archiveFile)
 
     useJUnitPlatform()
-}
+}*/
