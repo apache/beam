@@ -382,7 +382,7 @@ class UtilTest(unittest.TestCase):
     accumulator.max = 15
     accumulator.sum = 16
     accumulator.count = 2
-    apiclient.translate_distribution(accumulator, metric_update)
+    apiclient.MetricUpdateTranslators.translate_distribution(accumulator, metric_update)
     self.assertEqual(metric_update.distribution.min.lowBits, accumulator.min)
     self.assertEqual(metric_update.distribution.max.lowBits, accumulator.max)
     self.assertEqual(metric_update.distribution.sum.lowBits, accumulator.sum)
@@ -392,7 +392,7 @@ class UtilTest(unittest.TestCase):
   def test_translate_distribution_using_distribution_data(self):
     metric_update = dataflow.CounterUpdate()
     distribution_update = DistributionData(16, 2, 1, 15)
-    apiclient.translate_distribution(distribution_update, metric_update)
+    apiclient.MetricUpdateTranslators.translate_distribution(distribution_update, metric_update)
     self.assertEqual(
         metric_update.distribution.min.lowBits, distribution_update.min)
     self.assertEqual(
@@ -407,7 +407,7 @@ class UtilTest(unittest.TestCase):
     counter_update.add_input(1)
     counter_update.add_input(3)
     metric_proto = dataflow.CounterUpdate()
-    apiclient.translate_distribution(counter_update, metric_proto)
+    apiclient.MetricUpdateTranslators.translate_distribution(counter_update, metric_proto)
     histogram = mock.Mock(firstBucketOffset=None, bucketCounts=None)
     counter_update.translate_to_histogram(histogram)
     self.assertEqual(metric_proto.distribution.min.lowBits, counter_update.min)

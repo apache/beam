@@ -974,11 +974,38 @@ class DataflowApplicationClient(object):
         raise ValueError("No running job found with name '%s'" % job_name)
 
 
+  def to_split_int(n):
+  res = dataflow.SplitInt64()
+  res.lowBits = n & 0xffffffff
+  res.highBits = n >> 32
+  return res
+
+
 class MetricUpdateTranslators(object):
   """Translators between accumulators and dataflow metric updates."""
   @staticmethod
   def translate_boolean(accumulator, metric_update_proto):
     metric_update_proto.boolean = accumulator.value
+
+  @staticmethod
+  def translate_distribution(distribution_update, metric_update_proto):
+    """Translate metrics DistributionUpdate to dataflow distribution update.
+
+    Args:
+      distribution_update: Instance of DistributionData,
+      DistributionInt64Accumulator or DataflowDistributionCounter.
+      metric_update_proto: Used for report metrics.
+    """
+    dist_update_proto = dataflow.DistributionUpdate()
+    dist_update_proto.min = to_split_int(distribution_update.min)
+    dist_update_proto.max = to_split_int(distribution_update.max)
+    dist_update_proto.count = to_split_int(distribution_update.count)
+    dist_update_proto.sum = to_split_int(distribution_update.sum)
+    # DataflowDistributionCounter needs to translate histogram
+    if isinstance(distribution_update, DataflowDistributionCounter):
+      dist_update_proto.histogram = dataflow.Histogram()
+      distribution_update.translate_to_histogram(dist_update_proto.histogram)
+    metric_update_proto.distribution = dist_update_proto
 
   @staticmethod
   def translate_scalar_mean_int(accumulator, metric_update_proto):
@@ -1027,47 +1054,6 @@ class _LegacyDataflowStager(Stager):
           Returns the PyPI package name to be staged to Google Cloud Dataflow.
     """
     return shared_names.BEAM_PACKAGE_NAME
-
-
-def to_split_int(n):
-  res = dataflow.SplitInt64()
-  res.lowBits = n & 0xffffffff
-  res.highBits = n >> 32
-  return res
-
-
-def translate_distribution(distribution_update, metric_update_proto):
-  """Translate metrics DistributionUpdate to dataflow distribution update.
-
-  Args:
-    distribution_update: Instance of DistributionData,
-    DistributionInt64Accumulator or DataflowDistributionCounter.
-    metric_update_proto: Used for report metrics.
-  """
-  dist_update_proto = dataflow.DistributionUpdate()
-  dist_update_proto.min = to_split_int(distribution_update.min)
-  dist_update_proto.max = to_split_int(distribution_update.max)
-  dist_update_proto.count = to_split_int(distribution_update.count)
-  dist_update_proto.sum = to_split_int(distribution_update.sum)
-  # DataflowDistributionCounter needs to translate histogram
-  if isinstance(distribution_update, DataflowDistributionCounter):
-    dist_update_proto.histogram = dataflow.Histogram()
-    distribution_update.translate_to_histogram(dist_update_proto.histogram)
-  metric_update_proto.distribution = dist_update_proto
-
-
-def translate_value(value, metric_update_proto):
-  metric_update_proto.integer = to_split_int(value)
-
-
-def translate_mean(accumulator, metric_update):
-  if accumulator.count:
-    metric_update.meanSum = to_json_value(accumulator.sum, with_type=True)
-    metric_update.meanCount = to_json_value(accumulator.count, with_type=True)
-  else:
-    # A denominator of 0 will raise an error in the service.
-    # What it means is we have nothing to report yet, so don't.
-    metric_update.kind = None
 
 
 def _use_fnapi(pipeline_options):
@@ -1238,10 +1224,10 @@ structured_counter_translations = {
         MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
+        MetricUpdateTranslators.translate_distribution),
     cy_combiners.DistributionInt64Fn: (
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
+        MetricUpdateTranslators.translate_distribution),
 }
 
 counter_translations = {
@@ -1280,8 +1266,8 @@ counter_translations = {
         MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
         dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
+        MetricUpdateTranslators.translate_distribution),
     cy_combiners.DistributionInt64Fn: (
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
+        MetricUpdateTranslators.translate_distribution),
 }
