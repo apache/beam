@@ -15,23 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
-
-import static org.apache.beam.runners.spark.structuredstreaming.Constants.BEAM_SOURCE_OPTION;
-import static org.apache.beam.runners.spark.structuredstreaming.Constants.DEFAULT_PARALLELISM;
-import static org.apache.beam.runners.spark.structuredstreaming.Constants.PIPELINE_OPTIONS;
+package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.Serializable;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -39,7 +34,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SimpleSourceTest implements Serializable {
   private static Pipeline pipeline;
-  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   @BeforeClass
   public static void beforeClass() {
@@ -50,12 +44,10 @@ public class SimpleSourceTest implements Serializable {
     pipeline = Pipeline.create(options);
   }
 
-  @Ignore
   @Test
-  public void testUnboundedSource() {
-    // produces an unbounded PCollection of longs from 0 to Long.MAX_VALUE which elements
-    // have processing time as event timestamps.
-    pipeline.apply(GenerateSequence.from(0L));
+  public void testBoundedSource() {
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+    PAssert.that(input).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
     pipeline.run();
   }
 }
