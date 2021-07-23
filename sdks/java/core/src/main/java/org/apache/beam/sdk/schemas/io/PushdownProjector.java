@@ -41,8 +41,8 @@ public interface PushdownProjector {
       FieldAccessDescriptor fieldAccessDescriptor);
 
   /**
-   * Returns true if this instance can do a projection that returns fields in a different order
-   * than the projection's inputs.
+   * Returns true if this instance can do a projection that returns fields in a different order than
+   * the projection's inputs.
    */
   boolean supportsFieldReordering();
 }
