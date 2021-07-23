@@ -339,7 +339,7 @@ func (n *ParDo) fail(err error) error {
 		pid:  n.PID,
 	}
 	n.err.TrySetError(parDoError)
-	return parDoError
+	return err
 }
 
 func (n *ParDo) String() string {
