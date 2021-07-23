@@ -28,11 +28,11 @@ import (
 // doesn't panic
 func TestCallNoPanic_simple(t *testing.T) {
 	ctx := context.Background()
-	expected := errors.New("Simple error.")
-	actual := callNoPanic(ctx, func(c context.Context) error { return errors.New("Simple error.") })
+	want := errors.New("Simple error.")
+	got := callNoPanic(ctx, func(c context.Context) error { return errors.New("Simple error.") })
 
-	if actual.Error() != expected.Error() {
-		t.Errorf("Simple error reporting failed.")
+	if got.Error() != want.Error() {
+		t.Errorf("callNoPanic(<func that returns error>) = %v, want %v", got, want)
 	}
 }
 
@@ -40,9 +40,9 @@ func TestCallNoPanic_simple(t *testing.T) {
 // error is passed to panic, resulting in panic trace.
 func TestCallNoPanic_panic(t *testing.T) {
 	ctx := context.Background()
-	actual := callNoPanic(ctx, func(c context.Context) error { panic("Panic error") })
-	if !strings.Contains(actual.Error(), "panic:") {
-		t.Errorf("Panic reporting failed.")
+	got := callNoPanic(ctx, func(c context.Context) error { panic("Panic error") })
+	if !strings.Contains(got.Error(), "panic:") {
+		t.Errorf("callNoPanic(<func that panics with a string>) didn't panic, got = %v", got)
 	}
 }
 
@@ -51,17 +51,19 @@ func TestCallNoPanic_panic(t *testing.T) {
 // formatted error message for DoFn.
 func TestCallNoPanic_wrappedPanic(t *testing.T) {
 	ctx := context.Background()
-	parDoError := doFnError{
+	parDoError := &doFnError{
 		doFn: "sumFn",
 		err:  errors.New("SumFn error"),
 		uid:  1,
 		pid:  "Plan ID",
 	}
+	want := "DoFn[<1>;<Plan ID>]<sumFn> returned error:<SumFn error>"
 	var err errorx.GuardedError
-	err.TrySetError(&parDoError)
-	actual := callNoPanic(ctx, func(c context.Context) error { panic(parDoError) })
+	err.TrySetError(parDoError)
 
-	if strings.Contains(actual.Error(), "panic:") {
-		t.Errorf("Error not wrapped! Caught in panic.")
+	got := callNoPanic(ctx, func(c context.Context) error { panic(parDoError) })
+
+	if strings.Contains(got.Error(), "panic:") {
+		t.Errorf("callNoPanic(<func that panics with a wrapped know error>) did not filter panic, want %v, got %v", want, got)
 	}
 }
