@@ -974,7 +974,7 @@ class DataflowApplicationClient(object):
         raise ValueError("No running job found with name '%s'" % job_name)
 
 
-  def to_split_int(n):
+def to_split_int(n):
   res = dataflow.SplitInt64()
   res.lowBits = n & 0xffffffff
   res.highBits = n >> 32
