@@ -72,10 +72,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Install python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
+#      - name: Install python
+#        uses: actions/setup-python@v2
+#        with:
+#          python-version: 3.7
       # :sdks:java:core:test
       - name: Run :sdks:java:core:test
         uses: ./.github/actions/gradle-command-action
