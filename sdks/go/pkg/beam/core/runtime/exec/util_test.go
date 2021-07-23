@@ -26,7 +26,8 @@ import (
 
 // testSimpleError tests for a simple case that
 // doesn't panic
-func testSimpleError(ctx context.Context, t *testing.T) {
+func TestCallNoPanic_simple(t *testing.T) {
+	ctx := context.Background()
 	expected := errors.New("Simple error.")
 	actual := callNoPanic(ctx, func(c context.Context) error { return errors.New("Simple error.") })
 
@@ -37,17 +38,19 @@ func testSimpleError(ctx context.Context, t *testing.T) {
 
 // testPanicError tests for the case in which a normal
 // error is passed to panic, resulting in panic trace.
-func testPanicError(ctx context.Context, t *testing.T) {
+func TestCallNoPanic_panic(t *testing.T) {
+	ctx := context.Background()
 	actual := callNoPanic(ctx, func(c context.Context) error { panic("Panic error") })
 	if !strings.Contains(actual.Error(), "panic:") {
-		t.Errorf("Caught in panic.")
+		t.Errorf("Panic reporting failed.")
 	}
 }
 
 // testWrapPanicError tests for the case in which error
 // is passed to panic from DoFn, resulting in
 // formatted error message for DoFn.
-func testWrapPanicError(ctx context.Context, t *testing.T) {
+func TestCallNoPanic_wrappedPanic(t *testing.T) {
+	ctx := context.Background()
 	parDoError := doFnError{
 		doFn: "sumFn",
 		err:  errors.New("SumFn error"),
@@ -59,13 +62,6 @@ func testWrapPanicError(ctx context.Context, t *testing.T) {
 	actual := callNoPanic(ctx, func(c context.Context) error { panic(parDoError) })
 
 	if strings.Contains(actual.Error(), "panic:") {
-		t.Errorf("Error not wrapped! Caught in panic")
+		t.Errorf("Error not wrapped! Caught in panic.")
 	}
-}
-
-func TestCallNoPanic(t *testing.T) {
-	ctx := context.Background()
-	testSimpleError(ctx, t)
-	testPanicError(ctx, t)
-	testWrapPanicError(ctx, t)
 }

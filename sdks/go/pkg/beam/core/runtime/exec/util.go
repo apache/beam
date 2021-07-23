@@ -49,7 +49,7 @@ func (e *doFnError) Error() string {
 func callNoPanic(ctx context.Context, fn func(context.Context) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			// check if error is of type DoFn then handle it appropriately
+			// Check if the panic value is from a failed DoFn, and return it without a pancic trace.
 			if e, ok := r.(doFnError); ok {
 				err = &e
 			} else {
