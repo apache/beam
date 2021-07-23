@@ -302,10 +302,12 @@ class RestrictionProvider(object):
     return coders.registry.get_coder(object)
 
   def restriction_size(self, element, restriction):
-    """Returns the size of an element with respect to the given element.
+    """Returns the size of a restriction with respect to the given element.
 
     By default, asks a newly-created restriction tracker for the default size
     of the restriction.
+
+    The return value must be non-negative.
 
     This API is required to be implemented.
     """
@@ -313,6 +315,8 @@ class RestrictionProvider(object):
 
   def split_and_size(self, element, restriction):
     """Like split, but also does sizing, returning (restriction, size) pairs.
+
+    For each pair, size must be non-negative.
 
     This API is optional if ``split`` and ``restriction_size`` have been
     implemented.
@@ -696,19 +700,6 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return self.process
 
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_DOFN)
-
-
-def _fn_takes_side_inputs(fn):
-  try:
-    signature = get_signature(fn)
-  except TypeError:
-    # We can't tell; maybe it does.
-    return True
-
-  return (
-      len(signature.parameters) > 1 or any(
-          p.kind == p.VAR_POSITIONAL or p.kind == p.VAR_KEYWORD
-          for p in signature.parameters.values()))
 
 
 class CallableWrapperDoFn(DoFn):
@@ -1564,7 +1555,8 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
     raise TypeError(
         'Map can be used only with callable objects. '
         'Received %r instead.' % (fn))
-  if _fn_takes_side_inputs(fn):
+  from apache_beam.transforms.util import fn_takes_side_inputs
+  if fn_takes_side_inputs(fn):
     wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
   else:
     wrapper = lambda x: [fn(x)]
@@ -1604,6 +1596,10 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   In other words
 
       beam.MapTuple(fn)
+
+  is equivalent to
+
+      beam.Map(lambda element, ...: fn(\*element, ...))
 
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).

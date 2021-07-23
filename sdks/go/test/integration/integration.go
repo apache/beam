@@ -21,7 +21,8 @@
 // should be placed in smaller sub-packages for organizational purposes and
 // parallelism (tests are only run in parallel across different packages).
 // Integration tests should always begin with a call to CheckFilters to ensure
-// test filters can be applied.
+// test filters can be applied, and each package containing integration tests
+// should call ptest.Main in a TestMain function if it uses ptest.
 //
 // Running integration tests can be done with a go test call with any flags that
 // are required by the test pipelines, such as --runner or --endpoint.
@@ -66,6 +67,12 @@ var portableFilters = []string{}
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
+}
+
+var samzaFilters = []string{
+	// TODO(BEAM-12608): Samza tests invalid encoding.
+	"TestReshuffle",
+	"TestReshuffleKV",
 }
 
 var sparkFilters = []string{
@@ -114,6 +121,8 @@ func CheckFilters(t *testing.T) {
 		filters = portableFilters
 	case "flink", "FlinkRunner":
 		filters = flinkFilters
+	case "samza", "SamzaRunner":
+		filters = samzaFilters
 	case "spark", "SparkRunner":
 		filters = sparkFilters
 	case "dataflow", "DataflowRunner":

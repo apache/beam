@@ -26,6 +26,27 @@ from apache_beam.runners.interactive.testing.integration.screen_diff import Base
 
 
 @pytest.mark.timeout(300)
+class DataFramesTest(BaseTestCase):
+  def __init__(self, *args, **kwargs):
+    kwargs['golden_size'] = (1024, 10000)
+    super(DataFramesTest, self).__init__(*args, **kwargs)
+
+  def explicit_wait(self):
+    try:
+      from selenium.webdriver.common.by import By
+      from selenium.webdriver.support import expected_conditions
+      from selenium.webdriver.support.ui import WebDriverWait
+
+      WebDriverWait(self.driver, 5).until(
+          expected_conditions.presence_of_element_located((By.ID, 'test-done')))
+    except:
+      pass  # The test will be ignored.
+
+  def test_dataframes(self):
+    self.assert_notebook('dataframes')
+
+
+@pytest.mark.timeout(300)
 class InitSquareCubeTest(BaseTestCase):
   def __init__(self, *args, **kwargs):
     kwargs['golden_size'] = (1024, 10000)

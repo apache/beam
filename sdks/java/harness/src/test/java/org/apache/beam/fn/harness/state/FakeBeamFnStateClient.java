@@ -145,4 +145,8 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   private String generateId() {
     return Integer.toString(++currentId);
   }
+
+  public int getCallCount() {
+    return currentId;
+  }
 }

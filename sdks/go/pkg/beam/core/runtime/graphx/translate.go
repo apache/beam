@@ -975,9 +975,15 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	if err != nil {
 		return nil, err
 	}
+	var mergeStat pipepb.MergeStatus_Enum
+	if w.Fn.Kind == window.Sessions {
+		mergeStat = pipepb.MergeStatus_NEEDS_MERGE
+	} else {
+		mergeStat = pipepb.MergeStatus_NON_MERGING
+	}
 	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
-		MergeStatus:      pipepb.MergeStatus_NON_MERGING,
+		MergeStatus:      mergeStat,
 		AccumulationMode: pipepb.AccumulationMode_DISCARDING,
 		WindowCoderId:    windowCoderId,
 		Trigger: &pipepb.Trigger{
@@ -1036,7 +1042,7 @@ func makeWindowCoder(w *window.Fn) (*coder.WindowCoder, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
 		return coder.NewGlobalWindow(), nil
-	case window.FixedWindows, window.SlidingWindows, URNSlidingWindowsWindowFn:
+	case window.FixedWindows, window.SlidingWindows, window.Sessions, URNSlidingWindowsWindowFn:
 		return coder.NewIntervalWindow(), nil
 	default:
 		return nil, errors.Errorf("unexpected windowing strategy for coder: %v", w)

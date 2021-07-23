@@ -25,9 +25,11 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -39,12 +41,17 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -362,6 +369,19 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
+  private final PipelineOptions pipelineOptions;
+
+  public ExpansionService() {
+    this(new String[] {});
+  }
+
+  public ExpansionService(String[] args) {
+    this(PipelineOptionsFactory.fromArgs(args).create());
+  }
+
+  public ExpansionService(PipelineOptions opts) {
+    this.pipelineOptions = opts;
+  }
 
   private Map<String, TransformProvider> getRegisteredTransforms() {
     if (registeredTransforms == null) {
@@ -391,17 +411,28 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         request.getTransform().getSpec().getUrn());
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
-    Pipeline pipeline = Pipeline.create();
-    ExperimentalOptions.addExperiment(
-        pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
-    // TODO(BEAM-10670): Remove this when we address performance issue.
-    ExperimentalOptions.addExperiment(
-        pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
+    Pipeline pipeline = createPipeline();
+    boolean isUseDeprecatedRead =
+        ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")
+            || ExperimentalOptions.hasExperiment(
+                pipelineOptions, "beam_fn_api_use_deprecated_read");
+    if (!isUseDeprecatedRead) {
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+      // TODO(BEAM-10670): Remove this when we address performance issue.
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
+    } else {
+      LOG.warn(
+          "Using use_depreacted_read in portable runners is runner-dependent. The "
+              + "ExpansionService will respect that, but if your runner does not have support for "
+              + "native Read transform, your Pipeline will fail during Pipeline submission.");
+    }
 
     ClassLoader classLoader = Environments.class.getClassLoader();
     if (classLoader == null) {
       throw new RuntimeException(
-          "Cannot detect classpath: classload is null (is it the bootstrap classloader?)");
+          "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
     }
 
     List<String> classpathResources =
@@ -462,6 +493,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                         throw new RuntimeException(exn);
                       }
                     }));
+
+    if (isUseDeprecatedRead) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
+
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents);
     String expandedTransformId =
         Iterables.getOnlyElement(
@@ -484,6 +520,22 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .setTransform(expandedTransform)
         .addAllRequirements(pipelineProto.getRequirementsList())
         .build();
+  }
+
+  protected Pipeline createPipeline() {
+    // TODO: [BEAM-12599]: implement proper validation
+    PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
+    PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
+    PortablePipelineOptions specifiedOptions = pipelineOptions.as(PortablePipelineOptions.class);
+    Optional.ofNullable(specifiedOptions.getDefaultEnvironmentType())
+        .ifPresent(portableOptions::setDefaultEnvironmentType);
+    Optional.ofNullable(specifiedOptions.getDefaultEnvironmentConfig())
+        .ifPresent(portableOptions::setDefaultEnvironmentConfig);
+    effectiveOpts
+        .as(ExperimentalOptions.class)
+        .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
+    effectiveOpts.setRunner(NotRunnableRunner.class);
+    return Pipeline.create(effectiveOpts);
   }
 
   @Override
@@ -510,7 +562,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
-    ExpansionService service = new ExpansionService();
+    @SuppressWarnings("nullness")
+    ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
     for (Map.Entry<String, TransformProvider> entry :
         service.getRegisteredTransforms().entrySet()) {
       System.out.println("\t" + entry.getKey() + ": " + entry.getValue());
@@ -523,5 +576,16 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             .build();
     server.start();
     server.awaitTermination();
+  }
+
+  private static class NotRunnableRunner extends PipelineRunner<PipelineResult> {
+    public static NotRunnableRunner fromOptions(PipelineOptions opts) {
+      return new NotRunnableRunner();
+    }
+
+    @Override
+    public PipelineResult run(Pipeline pipeline) {
+      throw new UnsupportedOperationException();
+    }
   }
 }

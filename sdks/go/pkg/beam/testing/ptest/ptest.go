@@ -28,12 +28,6 @@ import (
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 )
 
-var (
-	// expansionAddr is the endpoint for an expansion service for cross-language
-	// transforms.
-	ExpansionAddr = flag.String("expansion_addr", "", "Address of Expansion Service")
-)
-
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
 
 // Create creates a pipeline and a PCollection with the given values.
@@ -121,4 +115,26 @@ func MainWithDefault(m *testing.M, runner string) {
 	}
 	beam.Init()
 	os.Exit(m.Run())
+}
+
+// MainRet is equivelant to Main, but returns an exit code to pass to os.Exit().
+//
+// Example:
+//
+//	func TestMain(m *testing.M) {
+//		os.Exit(ptest.Main(m))
+//	}
+func MainRet(m *testing.M) int {
+	return MainRetWithDefault(m, "direct")
+}
+
+// MainRetWithDefault is equivelant to MainWithDefault but returns an exit code
+// to pass to os.Exit().
+func MainRetWithDefault(m *testing.M, runner string) int {
+	defaultRunner = runner
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	beam.Init()
+	return m.Run()
 }

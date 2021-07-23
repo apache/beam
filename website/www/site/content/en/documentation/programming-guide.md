@@ -28,10 +28,15 @@ programmatically building your Beam pipeline. As the programming guide is filled
 out, the text will include code samples in multiple languages to help illustrate
 how to implement Beam concepts in your pipelines.
 
-{{< language-switcher java py >}}
+{{< language-switcher java py go >}}
 
 {{< paragraph class="language-py" >}}
 The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+The Go SDK is presently considered experimental, but removing that designation is
+[under discussion](https://lists.apache.org/thread.html/re3589c797d2dc6c5a9c1015683b4a8b48a097bacfa6f12bb1e48aa45%40%3Cdev.beam.apache.org%3E).
 {{< /paragraph >}}
 
 ## 1. Overview {#overview}
@@ -69,6 +74,15 @@ include:
   input, performs a processing function that you provide on the elements of that
   `PCollection`, and produces zero or more output `PCollection` objects.
 
+<span class="language-go">
+
+* `Scope`: The Go SDK has an explicit scope variable used to build a `Pipeline`.
+  A `Pipeline` can return it's root scope with the `Root()` method. The scope
+  variable is passed to `PTransform` functions to place them in the `Pipeline`
+  that owns the `Scope`.
+
+</span>
+
 * I/O transforms: Beam comes with a number of "IOs" - library `PTransform`s that
   read or write data to various external storage systems.
 
@@ -103,6 +117,7 @@ The `Pipeline` abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
 <span class="language-java">[Pipeline](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
 <span class="language-py">[Pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py)</span>
+<span class="language-go">[Pipeline](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pipeline.go#L62)</span>
 object, and then using that object as the basis for creating the pipeline's data
 sets as `PCollection`s and its operations as `Transform`s.
 
@@ -126,8 +141,7 @@ Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
 {{< highlight go >}}
-// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.
-p, s := beam.NewPipelineWithRoot()
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
@@ -138,18 +152,29 @@ configuration required by the chosen runner. Your pipeline options will
 potentially include information such as your project ID or a location for
 storing files.
 
+{{< paragraph class="language-java" >}}
 When you run the pipeline on a runner of your choice, a copy of the
 PipelineOptions will be available to your code. For example, if you add a PipelineOptions parameter
 to a DoFn's `@ProcessElement` method, it will be populated by the system.
+{{< /paragraph >}}
 
 #### 2.1.1. Setting PipelineOptions from command-line arguments {#pipeline-options-cli}
 
+{{< paragraph class="language-java language-py" >}}
 While you can configure your pipeline by creating a `PipelineOptions` object and
 setting the fields directly, the Beam SDKs include a command-line parser that
 you can use to set fields in `PipelineOptions` using command-line arguments.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java language-py" >}}
 To read options from the command-line, construct your `PipelineOptions` object
 as demonstrated in the following example code:
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Use Go flags to parse command line arguments to configure your pipeline. Flags must be parsed
+before `beam.Init()` is called.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PipelineOptions options =
@@ -157,12 +182,11 @@ PipelineOptions options =
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_create >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
-// If beamx or Go flags are used, flags must be parsed first.
-flag.Parse()
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipeline_options >}}
 {{< /highlight >}}
 
 This interprets command-line arguments that follow the format:
@@ -171,11 +195,21 @@ This interprets command-line arguments that follow the format:
 --<option>=<value>
 ```
 
-> **Note:** Appending the method `.withValidation` will check for required
+<span class="language-java">
+
+> Appending the method `.withValidation` will check for required
 > command-line arguments and validate argument values.
 
+</span>
+
+{{< paragraph class="language-java language-py" >}}
 Building your `PipelineOptions` this way lets you specify any of the options as
 a command-line argument.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+Defining flag variables this way lets you specify any of the options as a command-line argument.
+{{< /paragraph >}}
 
 > **Note:** The [WordCount example pipeline](/get-started/wordcount-example)
 > demonstrates how to set pipeline options at runtime by using command-line
@@ -203,10 +237,7 @@ public interface MyOptions extends PipelineOptions {
 {{< /highlight >}}
 
 {{< highlight go >}}
-var (
-  input = flag.String("input", "", "")
-  output = flag.String("output", "", "")
-)
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipeline_options_define_custom >}}
 {{< /highlight >}}
 
 You can also specify a description, which appears when a user passes `--help` as
@@ -233,10 +264,7 @@ public interface MyOptions extends PipelineOptions {
 {{< /highlight >}}
 
 {{< highlight go >}}
-var (
-  input = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
-  output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
-)
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipeline_options_define_custom_with_help_and_default >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -265,7 +293,9 @@ Now your pipeline can accept `--input=value` and `--output=value` as command-lin
 ## 3. PCollections {#pcollections}
 
 The <span class="language-java">[PCollection](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/values/PCollection.html)</span>
-<span class="language-py">`PCollection`</span> abstraction represents a
+<span class="language-py">`PCollection`</span>
+<span class="language-go">[PCollection](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/pcollection.go#L39)</span>
+abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 `PCollection` as "pipeline" data; Beam transforms use `PCollection` objects as
 inputs and outputs. As such, if you want to work with data in your pipeline, it
@@ -295,11 +325,13 @@ represent the data records in that source.
 Each data source adapter has a `Read` transform; to read, you must apply that
 transform to the `Pipeline` object itself.
 <span class="language-java">`TextIO.Read`</span>
-<span class="language-py">`io.TextFileSource`</span>, for example, reads from an
+<span class="language-py">`io.TextFileSource`</span>
+<span class="language-go">`textio.Read`</span>, for example, reads from an
 external text file and returns a `PCollection` whose elements are of type
 `String`, each `String` represents one line from the text file. Here's how you
 would apply <span class="language-java">`TextIO.Read`</span>
-<span class="language-py">`io.TextFileSource`</span> to your `Pipeline` to create
+<span class="language-py">`io.TextFileSource`</span>
+<span class="language-go">`textio.Read`</span> to your `Pipeline` to create
 a `PCollection`:
 
 {{< highlight java >}}
@@ -320,7 +352,7 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight go >}}
-lines := textio.Read(s, "gs://some/inputData.txt")
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -346,8 +378,13 @@ To create a `PCollection` from an in-memory `list`, you use the Beam-provided
 itself.
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+To create a `PCollection` from an in-memory `slice`, you use the Beam-provided
+`beam.CreateList` transform. Pass the pipeline `scope`, and the `slice` to this transform.
+{{< /paragraph >}}
+
 The following example code shows how to create a `PCollection` from an in-memory
-<span class="language-java">`List`</span><span class="language-py">`list`</span>:
+<span class="language-java">`List`</span><span class="language-py">`list`</span><span class="language-go">`slice`</span>:
 
 {{< highlight java >}}
 public static void main(String[] args) {
@@ -372,12 +409,16 @@ public static void main(String[] args) {
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pcollection >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/01_03intro.go" model_pcollection >}}
+{{< /highlight >}}
+
 ### 3.2. PCollection characteristics {#pcollection-characteristics}
 
 A `PCollection` is owned by the specific `Pipeline` object for which it is
-created; multiple pipelines cannot share a `PCollection`. <span language="java">
-In some respects, a `PCollection` functions like a `Collection` class. However,
-a `PCollection` can differ in a few key ways:</span>
+created; multiple pipelines cannot share a `PCollection`.
+<span class="language-java">In some respects, a `PCollection` functions like
+a `Collection` class. However, a `PCollection` can differ in a few key ways:</span>
 
 #### 3.2.1. Element type {#element-type}
 
@@ -387,6 +428,12 @@ encode each individual element as a byte string (so elements can be passed
 around to distributed workers). The Beam SDKs provide a data encoding mechanism
 that includes built-in encoding for commonly-used types as well as support for
 specifying custom encodings as needed.
+
+{{< paragraph class="language-go" >}}
+Custom struct types should be registered with beam using `beam.RegisterType`.
+Among other things, this allows the Go SDK to infer an encoding from their
+exported fields. Unexported fields in struct types are ignored.
+{{< /paragraph >}}
 
 #### 3.2.2. Element schema {#element-schema}
 
@@ -499,16 +546,34 @@ the transform itself as an argument, and the operation returns the output
 [Output PCollection] = [Input PCollection] | [Transform]
 {{< /highlight >}}
 
+{{< highlight go >}}
+[Output PCollection] := beam.ParDo(scope, [Transform], [Input PCollection])
+{{< /highlight >}}
+
+{{< paragraph class="language-java language-py" >}}
 Because Beam uses a generic `apply` method for `PCollection`, you can both chain
 transforms sequentially and also apply transforms that contain other transforms
 nested within (called [composite transforms](#composite-transforms) in the Beam
 SDKs).
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+It's recommended to create a new variable for each new `PCollection` to
+sequentially transform input data. `Scope`s can be used to create functions
+that contain other transforms
+(called [composite transforms](#composite-transforms) in the Beam SDKs).
+{{< /paragraph >}}
 
 How you apply your pipeline's transforms determines the structure of your
 pipeline. The best way to think of your pipeline is as a directed acyclic graph,
 where `PTransform` nodes are subroutines that accept `PCollection` nodes as
-inputs and emit `PCollection` nodes as outputs. For example, you can chain
-together transforms to create a pipeline that successively modifies input data:
+inputs and emit `PCollection` nodes as outputs.
+<span class="language-java language-py">
+For example, you can chain together transforms to create a pipeline that successively modifies input data:
+</span>
+<span class="language-go">
+For example, you can successively call transforms on PCollections to modify the input data:
+</span>
 
 {{< highlight java >}}
 [Final Output PCollection] = [Initial Input PCollection].apply([First Transform])
@@ -520,6 +585,12 @@ together transforms to create a pipeline that successively modifies input data:
 [Final Output PCollection] = ([Initial Input PCollection] | [First Transform]
               | [Second Transform]
               | [Third Transform])
+{{< /highlight >}}
+
+{{< highlight go >}}
+[Second PCollection] := beam.ParDo(scope, [First Transform], [Initial Input PCollection])
+[Third PCollection] := beam.ParDo(scope, [Second Transform], [Second PCollection])
+[Final Output PCollection] := beam.ParDo(scope, [Third Transform], [Third PCollection])
 {{< /highlight >}}
 
 The graph of this pipeline looks like the following:
@@ -544,6 +615,12 @@ a branching pipeline, like so:
 [PCollection of database table rows] = [Database Table Reader] | [Read Transform]
 [PCollection of 'A' names] = [PCollection of database table rows] | [Transform A]
 [PCollection of 'B' names] = [PCollection of database table rows] | [Transform B]
+{{< /highlight >}}
+
+{{< highlight go >}}
+[PCollection of database table rows] = beam.ParDo(scope, [Read Transform], [Database Table Reader])
+[PCollection of 'A' names] = beam.ParDo(scope, [Transform A], [PCollection of database table rows])
+[PCollection of 'B' names] = beam.ParDo(scope, [Transform B], [PCollection of database table rows])
 {{< /highlight >}}
 
 The graph of this branching pipeline looks like the following:
@@ -607,14 +684,25 @@ When you apply a `ParDo` transform, you'll need to provide user code in the form
 of a `DoFn` object. `DoFn` is a Beam SDK class that defines a distributed
 processing function.
 
+<span class="language-java language-py">
+
 > When you create a subclass of `DoFn`, note that your subclass should adhere to
 > the [Requirements for writing user code for Beam transforms](#requirements-for-writing-user-code-for-beam-transforms).
 
+</span>
+
 ##### 4.2.1.1. Applying ParDo {#applying-pardo}
 
+{{< paragraph class="language-java language-py" >}}
 Like all Beam transforms, you apply `ParDo` by calling the `apply` method on the
 input `PCollection` and passing `ParDo` as an argument, as shown in the
 following example code:
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+`beam.ParDo` applies the passed in `DoFn` argument to the input `PCollection`,
+as shown in the following example code:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 // The input PCollection of Strings.
@@ -640,20 +728,18 @@ words = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
-// words is the input PCollection of strings
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_pardo >}}
+// words is an input PCollection of strings
 var words beam.PCollection = ...
-
-func computeWordLengthFn(word string) int {
-      return len(word)
-}
-
-wordLengths := beam.ParDo(s, computeWordLengthFn, words)
+{{< code_sample  "sdks/go/examples/snippets/04transforms.go" model_pardo_apply >}}
 {{< /highlight >}}
 
-In the example, our input `PCollection` contains `String` values. We apply a
+In the example, our input `PCollection` contains <span class="language-java language-py">`String`</span>
+<span class="language-go">`string`</span> values. We apply a
 `ParDo` transform that specifies a function (`ComputeWordLengthFn`) to compute
 the length of each string, and outputs the result to a new `PCollection` of
-`Integer` values that stores the length of each word.
+<span class="language-java language-py">`Integer`</span>
+<span class="language-go">`int`</span> values that stores the length of each word.
 
 ##### 4.2.1.2. Creating a DoFn
 
@@ -675,8 +761,33 @@ the types of the input and output elements. If your `DoFn` processes incoming
 look like this:
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+A `DoFn` processes one element at a time from the input `PCollection`. When you
+create a `DoFn` struct, you'll need to provide type parameters that match
+the types of the input and output elements in a ProcessElement method.
+If your `DoFn` processes incoming `string` elements and produces `int` elements
+for the output collection (like our previous example, `ComputeWordLengthFn`), your dofn could
+look like this:
+{{< /paragraph >}}
+
 {{< highlight java >}}
 static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
+{{< /highlight >}}
+
+{{< highlight go >}}
+// ComputeWordLengthFn is a DoFn that computes the word length of string elements.
+type ComputeWordLengthFn struct{}
+
+// ProcessElement computes the length of word and emits the result.
+// When creating structs as a DoFn, the ProcessElement method performs the
+// work of this step in the pipeline.
+func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
+   ...
+}
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*ComputeWordLengthFn)(nil)))
+}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -702,6 +813,16 @@ elements with `yield` statements. You can also use a `return` statement
 with an iterable, like a list or a generator.
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+For your `DoFn` type, you'll write a method `ProcessElement` where you provide
+the actual processing logic. You don't need to manually extract the elements
+from the input collection; the Beam SDKs handle that for you. Your `ProcessElement` method
+should accept a parameter `element`, which is the input element. In order to output elements,
+the method can also take a function parameter, which can be called to emit elements.
+The parameter types must match the input and output types of your `DoFn`
+ or the framework will raise an error.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 static class ComputeWordLengthFn extends DoFn<String, Integer> {
   @ProcessElement
@@ -716,11 +837,45 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> {
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
 {{< /highlight >}}
 
-{{< paragraph class="language-java" >}}
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_pardo >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-go" >}}
+Simple DoFns can also be written as functions.
+{{< /paragraph >}}
+
+{{< highlight go >}}
+func ComputeWordLengthFn(word string, emit func(int)) { ... }
+
+func init() {
+	beam.RegisterFunction(ComputeWordLengthFn)
+}
+{{< /highlight >}}
+
+<span class="language-go" >
+
+> **Note:** Whether using a structural `DoFn` type or a functional `DoFn`, they should be registered with
+> beam in an `init` block. Otherwise they may not execute on distributed runners.
+
+</span>
+
+<span class="language-java">
+
 > **Note:** If the elements in your input `PCollection` are key/value pairs, you
 > can access the key or value by using `element.getKey()` or
 > `element.getValue()`, respectively.
-{{< /paragraph >}}
+
+</span>
+
+<span class="language-go">
+
+> **Note:** If the elements in your input `PCollection` are key/value pairs, your
+> process element method must have two parameters, for each of the key and value,
+> respectively. Similarly, key/value pairs are also output as separate
+> parameters to a single `emitter function`.
+
+</span>
 
 A given `DoFn` instance generally gets invoked one or more times to process some
 arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of
@@ -734,32 +889,48 @@ requirements to ensure that Beam and the processing back-end can safely
 serialize and cache the values in your pipeline. Your method should meet the
 following requirements:
 
-{{< paragraph class="language-java" >}}
+<span class="language-java">
+
 * You should not in any way modify an element returned by
   the `@Element` annotation or `ProcessContext.sideInput()` (the incoming
   elements from the input collection).
 * Once you output a value using `OutputReceiver.output()` you should not modify
   that value in any way.
-{{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
+</span>
+
+<span class="language-py">
+
 * You should not in any way modify the `element` argument provided to the
   `process` method, or any side inputs.
 * Once you output a value using `yield` or `return`, you should not modify
   that value in any way.
-{{< /paragraph >}}
+
+</span>
+
+<span class="language-go">
+
+* You should not in any way modify the parameters provided to the
+  `ProcessElement` method, or any side inputs.
+* Once you output a value using an `emitter function`, you should not modify
+  that value in any way.
+
+</span>
+
 
 ##### 4.2.1.3. Lightweight DoFns and other abstractions {#lightweight-dofns}
 
 If your function is relatively straightforward, you can simplify your use of
 `ParDo` by providing a lightweight `DoFn` in-line, as
 <span class="language-java">an anonymous inner class instance</span>
-<span class="language-py">a lambda function</span>.
+<span class="language-py">a lambda function</span>
+<span class="language-go">an anonymous function</span>.
 
 Here's the previous example, `ParDo` with `ComputeLengthWordsFn`, with the
 `DoFn` specified as
 <span class="language-java">an anonymous inner class instance</span>
-<span class="language-py">a lambda function</span>:
+<span class="language-py">a lambda function</span>
+<span class="language-go">an anonymous function</span>:
 
 {{< highlight java >}}
 // The input PCollection.
@@ -790,20 +961,21 @@ words = ...
 // words is the input PCollection of strings
 var words beam.PCollection = ...
 
-lengths := beam.ParDo(s, func (word string) int {
-      return len(word)
+lengths := beam.ParDo(s, func (word string, emit func(int)) {
+      emit(len(word))
 }, words)
 {{< /highlight >}}
 
 If your `ParDo` performs a one-to-one mapping of input elements to output
 elements--that is, for each input element, it applies a function that produces
-*exactly one* output element, you can use the higher-level
+*exactly one* output element, <span class="language-go">you can return that
+element directly.</span><span class="language-java language-py">you can use the higher-level
 <span class="language-java">`MapElements`</span><span class="language-py">`Map`</span>
-transform. <span class="language-java">`MapElements` can accept an anonymous
+transform.</span><span class="language-java">`MapElements` can accept an anonymous
 Java 8 lambda function for additional brevity.</span>
 
 Here's the previous example using <span class="language-java">`MapElements`</span>
-<span class="language-py">`Map`</span>:
+<span class="language-py">`Map`</span><span class="language-go">a direct return</span>:
 
 {{< highlight java >}}
 // The input PCollection.
@@ -825,10 +997,28 @@ words = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_map >}}
 {{< /highlight >}}
 
-{{< paragraph class="language-java" >}}
+{{< highlight go >}}
+// words is the input PCollection of strings
+var words beam.PCollection = ...
+
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_apply_anon >}}
+{{< /highlight >}}
+
+<span class="language-java" >
+
 > **Note:** You can use Java 8 lambda functions with several other Beam
 > transforms, including `Filter`, `FlatMapElements`, and `Partition`.
-{{< /paragraph >}}
+
+</span>
+
+<span class="language-go" >
+
+> **Note:** Anonymous function DoFns may not work on distributed runners.
+> It's recommended to use named functions and register them with `beam.RegisterFunction` in
+> an `init()` block.
+
+</span>
+
 
 ##### 4.2.1.4. DoFn lifecycle {#dofn}
 Here is a sequence diagram that shows the lifecycle of the DoFn during
@@ -944,7 +1134,7 @@ windowing](#setting-your-pcollections-windowing-function) or an
 [GroupByKey and unbounded PCollections](#groupbykey-and-unbounded-pcollections)
 for more details.
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 In the Beam SDK for Java, `CoGroupByKey` accepts a tuple of keyed
 `PCollection`s (`PCollection<KV<K, V>>`) as input. For type safety, the SDK
 requires you to pass each `PCollection` as part of a `KeyedPCollectionTuple`.
@@ -955,27 +1145,37 @@ from all the input `PCollection`s by their common keys. Each key (all of type
 `K`) will have a different `CoGbkResult`, which is a map from `TupleTag<T>` to
 `Iterable<T>`. You can access a specific collection in an `CoGbkResult` object
 by using the `TupleTag` that you supplied with the initial collection.
-</span>
-<span class="language-py">
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
 In the Beam SDK for Python, `CoGroupByKey` accepts a dictionary of keyed
 `PCollection`s as input. As output, `CoGroupByKey` creates a single output
 `PCollection` that contains one key/value tuple for each key in the input
 `PCollection`s. Each key's value is a dictionary that maps each tag to an
 iterable of the values under they key in the corresponding `PCollection`.
-</span>
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+In the Beam Go SDK, `CoGroupByKey` accepts an arbitrary number of
+`PCollection`s as input. As output, `CoGroupByKey` creates a single output
+`PCollection` that groups each key with value iterator functions for each
+input `PCollection`. The iterator functions map to input `PCollections` in
+ the same order they were provided to the `CoGroupByKey`.
+{{< /paragraph >}}
 
 The following conceptual examples use two input collections to show the mechanics of
 `CoGroupByKey`.
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 The first set of data has a `TupleTag<String>` called `emailsTag` and contains names
 and email addresses. The second set of data has a `TupleTag<String>` called
 `phonesTag` and contains names and phone numbers.
-</span>
-<span class="language-py">
+{{< /paragraph >}}
+
+{{< paragraph class="language-py language-go" >}}
 The first set of data contains names and email addresses. The second set of
 data contains names and phone numbers.
-</span>
+{{< /paragraph >}}
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleInputs >}}
@@ -983,6 +1183,11 @@ data contains names and phone numbers.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_inputs >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" cogroupbykey_input_helpers >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" cogroupbykey_inputs >}}
 {{< /highlight >}}
 
 After `CoGroupByKey`, the resulting data contains all data associated with each
@@ -996,9 +1201,22 @@ unique key from any of the input collections.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_outputs >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" cogroupbykey_outputs >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms_test.go" cogroupbykey_outputs >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-java language-py" >}}
 The following code example joins the two `PCollection`s with `CoGroupByKey`,
 followed by a `ParDo` to consume the result. Then, the code uses tags to look up
 and format data from each collection.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+The following code example joins the two `PCollection`s with `CoGroupByKey`,
+followed by a `ParDo` to consume the result. The ordering of the `DoFn` iterator
+parameters maps to the ordering of the `CoGroupByKey` inputs.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CoGroupByKeyTuple >}}
@@ -1006,6 +1224,11 @@ and format data from each collection.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_group_by_key_cogroupbykey_tuple >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" cogroupbykey_output_helpers >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms_test.go" cogroupbykey_outputs >}}
 {{< /highlight >}}
 
 The formatted data looks like this:
@@ -1018,10 +1241,15 @@ The formatted data looks like this:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_formatted_outputs >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms_test.go" cogroupbykey_formatted_outputs >}}
+{{< /highlight >}}
+
 #### 4.2.4. Combine {#combine}
 
 <span class="language-java">[`Combine`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span>
 <span class="language-py">[`Combine`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
+<span class="language-go">[`Combine`](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/combine.go#L27)</span>
 is a Beam transform for combining collections of elements or values in your
 data. `Combine` has variants that work on entire `PCollection`s, and some that
 combine the values for each key in `PCollection`s of key/value pairs.
@@ -1038,8 +1266,8 @@ and max.
 
 Simple combine operations, such as sums, can usually be implemented as a simple
 function. More complex combination operations might require you to create a
-subclass of `CombineFn` that has an accumulation type distinct from the
-input/output type.
+<span class="language-java language-py">subclass of</span> `CombineFn`
+that has an accumulation type distinct from the input/output type.
 
 ##### 4.2.4.1. Simple combinations using simple functions {#simple-combines}
 
@@ -1063,15 +1291,21 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_simple_sum >}}
+{{< /highlight >}}
+
 ##### 4.2.4.2. Advanced combinations using CombineFn {#advanced-combines}
 
-For more complex combine functions, you can define a subclass of `CombineFn`.
-You should use `CombineFn` if the combine function requires a more sophisticated
+For more complex combine functions, you can define a
+<span class="language-java language-py">subclass of</span>`CombineFn`.
+You should use a `CombineFn` if the combine function requires a more sophisticated
 accumulator, must perform additional pre- or post-processing, might change the
 output type, or takes the key into account.
 
 A general combining operation consists of four operations. When you create a
-subclass of `CombineFn`, you must provide four operations by overriding the
+<span class="language-java language-py">subclass of</span>
+`CombineFn`, you must provide four operations by overriding the
 corresponding methods:
 
 1. **Create Accumulator** creates a new "local" accumulator. In the example
@@ -1136,6 +1370,17 @@ pc = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_define >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_custom_average >}}
+{{< /highlight >}}
+
+<span class="language-go">
+
+> **Note**: Only `MergeAccumulators` is a required method. The others will have a default interpretation
+> based on the accumulator type.
+
+</span>
+
 ##### 4.2.4.3. Combining a PCollection into a single value {#combining-pcollection}
 
 Use the global combine to transform all of the elements in a given `PCollection`
@@ -1158,6 +1403,10 @@ PCollection<Integer> sum = pc.apply(
 # the elements in the input PCollection.
 pc = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_execute >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_average >}}
 {{< /highlight >}}
 
 ##### 4.2.4.4. Combine and global windowing {#combine-global-windowing}
@@ -1184,7 +1433,13 @@ pc = ...
 sum = pc | beam.CombineGlobally(sum).without_defaults()
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_global_with_default >}}
+{{< /highlight >}}
+
 ##### 4.2.4.5. Combine and non-global windowing {#combine-non-global-windowing}
+
+<span class="language-java language-py">
 
 If your `PCollection` uses any non-global windowing function, Beam does not
 provide the default behavior. You must specify one of the following options when
@@ -1197,6 +1452,13 @@ applying `Combine`:
   when used as a side input. You'll generally only need to use this option if
   the result of your pipeline's `Combine` is to be used as a side input later in
   the pipeline.
+
+</span>
+
+{{< paragraph class="language-go" >}}
+If your `PCollection` uses any non-global windowing function, the Beam Go SDK
+behaves the same way as with global windowing.
+{{< /paragraph >}}
 
 ##### 4.2.4.6. Combining values in a keyed PCollection {#combining-values-in-a-keyed-pcollection}
 
@@ -1220,7 +1482,8 @@ considering them individually), you can combine the iterable of integers to
 create a single, merged value to be paired with each key. This pattern of a
 `GroupByKey` followed by merging the collection of values is equivalent to
 Beam's Combine PerKey transform. The combine function you supply to Combine
-PerKey must be an associative reduction function or a subclass of `CombineFn`.
+PerKey must be an associative reduction function or a
+<span class="language-java language-py">subclass of</span> `CombineFn`.
 
 {{< highlight java >}}
 // PCollection is grouped by key and the Double values associated with each key are combined into a Double.
@@ -1244,10 +1507,19 @@ player_accuracies = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_per_key >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+// PCollection is grouped by key and the numeric values associated with each key
+// are averaged into a float64.
+playerAccuracies := ... // PCollection<string,int>
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" combine_per_key >}}
+// avgAccuracyPerPlayer is a PCollection<string,float64>
+{{< /highlight >}}
+
 #### 4.2.5. Flatten {#flatten}
 
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
 <span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
+<span class="language-go">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go)</span>
 is a Beam transform for `PCollection` objects that store the same data type.
 `Flatten` merges multiple `PCollection` objects into a single logical
 `PCollection`.
@@ -1273,6 +1545,12 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+// Flatten accepts any number of PCollections of the same element type.
+// Returns a single PCollection that contains all of the elements in input PCollections.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_multiple_pcollections_flatten >}}
+{{< /highlight >}}
+
 ##### 4.2.5.1. Data encoding in merged collections {#data-encoding-merged-collections}
 
 By default, the coder for the output `PCollection` is the same as the coder for
@@ -1296,6 +1574,7 @@ pipeline is constructed.
 
 <span class="language-java">[`Partition`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span>
 <span class="language-py">[`Partition`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
+<span class="language-go">[`Partition`](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/partition.go)</span>
 is a Beam transform for `PCollection` objects that store the same data
 type. `Partition` splits a single `PCollection` into a fixed number of smaller
 collections.
@@ -1339,6 +1618,11 @@ students = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition_40th >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_multiple_pcollections_partition_fn >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_multiple_pcollections_partition >}}
+{{< /highlight >}}
+
 ### 4.3. Requirements for writing user code for Beam transforms {#requirements-for-writing-user-code-for-beam-transforms}
 
 When you build user code for a Beam transform, you should keep in mind the
@@ -1360,31 +1644,62 @@ In addition, it's recommended that you make your function object **idempotent**.
 Non-idempotent functions are supported by Beam, but require additional
 thought to ensure correctness when there are external side effects.
 
-> **Note:** These requirements apply to subclasses of `DoFn` (a function object
+<span class="language-java language-py">
+
+> **Note:** These requirements apply to subclasses of `DoFn`</span> (a function object
 > used with the [ParDo](#pardo) transform), `CombineFn` (a function object used
 > with the [Combine](#combine) transform), and `WindowFn` (a function object
 > used with the [Window](#windowing) transform).
+
+</span>
+
+<span class="language-go">
+
+> **Note:** These requirements apply to `DoFn`s</span> (a function object
+> used with the [ParDo](#pardo) transform), `CombineFn`s (a function object used
+> with the [Combine](#combine) transform), and `WindowFn`s (a function object
+> used with the [Window](#windowing) transform).
+
+</span>
 
 #### 4.3.1. Serializability {#user-code-serializability}
 
 Any function object you provide to a transform must be **fully serializable**.
 This is because a copy of the function needs to be serialized and transmitted to
-a remote worker in your processing cluster. The base classes for user code, such
+a remote worker in your processing cluster.
+<span class="language-java language-py">The base classes for user code, such
 as `DoFn`, `CombineFn`, and `WindowFn`, already implement `Serializable`;
-however, your subclass must not add any non-serializable members.
+however, your subclass must not add any non-serializable members.</span>
+<span class="language-go">Funcs are serializable as long as
+they are registered with `beam.RegisterFunction`, and are not
+closures. Structural `DoFn`s will have all exported fields serialized.
+Unexported fields are unable to be serialized, and will be silently ignored.</span>
 
 Some other serializability factors you should keep in mind are:
 
-* Transient fields in your function object are *not* transmitted to worker
+* <span class="language-java language-py">Transient</span><span class="langauage-go">Unexported</span>
+  fields in your function object are *not* transmitted to worker
   instances, because they are not automatically serialized.
 * Avoid loading a field with a large amount of data before serialization.
 * Individual instances of your function object cannot share data.
 * Mutating a function object after it gets applied will have no effect.
-* Take care when declaring your function object inline by using an anonymous
-  inner class instance. In a non-static context, your inner class instance will
-  implicitly contain a pointer to the enclosing class and that class' state.
-  That enclosing class will also be serialized, and thus the same considerations
-  that apply to the function object itself also apply to this outer class.
+
+<span class="language-java">
+
+> **Note:** Take care when declaring your function object inline by using an anonymous
+> inner class instance. In a non-static context, your inner class instance will
+> implicitly contain a pointer to the enclosing class and that class' state.
+> That enclosing class will also be serialized, and thus the same considerations
+> that apply to the function object itself also apply to this outer class.
+
+</span>
+
+<span class="language-go">
+
+> **Note:** There's no way to detect if a function is a closure. Closures will cause
+> runtime errors and pipeline failures. Avoid using anonymous functions when possible.
+
+</span>
 
 #### 4.3.2. Thread-compatibility {#user-code-thread-compatibility}
 
@@ -1392,9 +1707,9 @@ Your function object should be thread-compatible. Each instance of your function
 object is accessed by a single thread at a time on a worker instance, unless you
 explicitly create your own threads. Note, however, that **the Beam SDKs are not
 thread-safe**. If you create your own threads in your user code, you must
-provide your own synchronization. Note that static members in your function
+provide your own synchronization. <span class="language-java"> Note that static members in your function
 object are not passed to worker instances and that multiple instances of your
-function may be accessed from different threads.
+function may be accessed from different threads.</span>
 
 #### 4.3.3. Idempotence {#user-code-idempotence}
 
@@ -1469,6 +1784,20 @@ words = ...
 ...
 {{< /highlight >}}
 
+{{< highlight go >}}
+// Side inputs are provided using `beam.SideInput` in the DoFn's ProcessElement method.
+// Side inputs can be arbitrary PCollections, which can then be iterated over per element
+// in a DoFn.
+// Side input parameters appear after main input elements, and before any output emitters.
+words = ...
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_side_input >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_side_input_dofn >}}
+
+// The Go SDK doesn't support custom ViewFns.
+// See https://issues.apache.org/jira/browse/BEAM-3305 for details
+// on how to contribute them!
+{{< /highlight >}}
+
 #### 4.4.2. Side inputs and windowing {#side-inputs-windowing}
 
 A windowed `PCollection` may be infinite and thus cannot be compressed into a
@@ -1500,13 +1829,29 @@ a single global window and specify a trigger.
 
 ### 4.5. Additional outputs {#additional-outputs}
 
+{{< paragraph class="language-java language-python" >}}
 While `ParDo` always produces a main output `PCollection` (as the return value
 from `apply`), you can also have your `ParDo` produce any number of additional
 output `PCollection`s. If you choose to have multiple outputs, your `ParDo`
 returns all of the output `PCollection`s (including the main output) bundled
 together.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+While `beam.ParDo` always produces an output `PCollection`, your `DoFn` can produce any
+number of additional output `PCollections`s, or even none at all.
+If you choose to have multiple outputs, your `DoFn` needs to be called with the `ParDo`
+function that matches the number of outputs. `beam.ParDo2` for two output `PCollection`s,
+`beam.ParDo3` for three and so on until `beam.ParDo7`. If you need more, you can
+use `beam.ParDoN` which will return a `[]beam.PCollection`.
+{{< /paragraph >}}
 
 #### 4.5.1. Tags for multiple outputs {#output-tags}
+
+{{< paragraph class="language-go" >}}
+The Go SDK doesn't use output tags, and instead uses positional ordering for
+multiple output PCollections.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 // To emit elements to multiple output PCollections, create a TupleTag object to identify each collection
@@ -1570,7 +1915,23 @@ together.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs_iter >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_multiple_output >}}
+{{< /highlight >}}
+
 #### 4.5.2. Emitting to multiple outputs in your DoFn {#multiple-outputs-dofn}
+
+{{< paragraph class="language-go" >}}
+Call emitter functions as needed to produce 0 or more elements for its matching
+`PCollection`. The same value can be emitted with multiple emitters.
+As normal, do not mutate values after emitting them from any emitter.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+DoFns can also return a single element via the standard return.
+The standard return is always the first PCollection returned from beam.ParDo.
+Other emitters output to their own PCollections in their defined parameter order.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 // Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a
@@ -1608,6 +1969,10 @@ together.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_undeclared_outputs >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_multiple_output_dofn >}}
+{{< /highlight >}}
+
 #### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
 
 {{< paragraph class="language-java" >}}
@@ -1620,6 +1985,21 @@ In addition to the element, Beam will populate other parameters to your DoFn's `
 Any combination of these parameters can be added to your process method in any order.
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+In addition to the element, Beam will populate other parameters to your DoFn's `ProcessElement` method.
+Any combination of these parameters can be added to your process method in a standard order.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+**context.Context:**
+To support consolidated logging and user defined metrics, a `context.Context` parameter can be requested.
+Per Go conventions, if present it's required to be the first parameter of the `DoFn` method.
+{{< /paragraph >}}
+
+{{< highlight go >}}
+func MyDoFn(ctx context.Context, word string) string { ... }
+{{< /highlight >}}
+
 {{< paragraph class="language-java" >}}
 **Timestamp:**
 To access the timestamp of an input element, add a parameter annotated with `@Timestamp` of type `Instant`. For example:
@@ -1628,6 +2008,11 @@ To access the timestamp of an input element, add a parameter annotated with `@Ti
 {{< paragraph class="language-py" >}}
 **Timestamp:**
 To access the timestamp of an input element, add a keyword parameter default to `DoFn.TimestampParam`. For example:
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+**Timestamp:**
+To access the timestamp of an input element, add a `beam.EventTime` parameter before the element. For example:
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -1647,6 +2032,10 @@ class ProcessRecord(beam.DoFn):
 
 {{< /highlight >}}
 
+{{< highlight go >}}
+func MyDoFn(ts beam.EventTime, word string) string { ... }
+{{< /highlight >}}
+
 {{< paragraph class="language-java" >}}
 **Window:**
 To access the window an input element falls into, add a parameter of the type of the window used for the input `PCollection`.
@@ -1661,6 +2050,15 @@ are being used, the window is of type `IntervalWindow`.
 To access the window an input element falls into, add a keyword parameter default to `DoFn.WindowParam`.
 If an element falls in multiple windows (for example, this will happen when using `SlidingWindows`), then the
 `process` method will be invoked multiple time for the element, once for each window.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+**Window:**
+To access the timestamp of an input element, add a `beam.Window` parameter before the element.
+If an element falls in multiple windows (for example, this will happen when using SlidingWindows),
+then the `ProcessElement` method will be invoked multiple time for the element, once for each window.
+Since `beam.Window` is an interface it's possible to type assert to the concrete implementation of the window.
+For example, when fixed windows are being used, the window is of type `window.IntervalWindow`.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -1680,6 +2078,13 @@ class ProcessRecord(beam.DoFn):
 
 {{< /highlight >}}
 
+{{< highlight go >}}
+func MyDoFn(w beam.Window, word string) string {
+  iw := w.(window.IntervalWindow)
+  ...
+}
+{{< /highlight >}}
+
 {{< paragraph class="language-java" >}}
 **PaneInfo:**
 When triggers are used, Beam provides a `PaneInfo` object that contains information about the current firing. Using `PaneInfo`
@@ -1691,6 +2096,13 @@ you can determine whether this is an early or a late firing, and how many times 
 When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
 This feature implementation in Python SDK is not fully completed; see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+**PaneInfo:**
+This feature isn't implemented in the Go SDK; see more at [BEAM-3304](https://issues.apache.org/jira/browse/BEAM-3304). However, once implemented, when triggers are used, Beam provides
+information about the current firing. The pane lets you determine whether this
+is an early or a late firing, and how many times this window has already fired for this key.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -1708,6 +2120,12 @@ class ProcessRecord(beam.DoFn):
      # access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing
      pass
 
+{{< /highlight >}}
+
+{{< highlight go >}}
+// PaneInfo and triggers are not yet implemented in the Go SDK.
+// See https://issues.apache.org/jira/browse/BEAM-3304 for info
+// on contributing triggers and panes.
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -1735,6 +2153,11 @@ Timers are explained in more detail in the
 In addition to aforementioned parameters, user defined Timer and State parameters can be used in a stateful DoFn.
 Timers and States are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+**Timer and State:**
+This feature isn't implemented in the Go SDK; see more at [BEAM-10660](https://issues.apache.org/jira/browse/BEAM-10660). Once implemented, user defined Timer and State parameters can be used in a stateful DoFn.
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -1795,6 +2218,12 @@ class StatefulDoFn(beam.DoFn):
 
 {{< /highlight >}}
 
+{{< highlight go >}}
+// State and Timers are yet implemented in the Go SDK.
+// See https://issues.apache.org/jira/browse/BEAM-10660 for info
+// on contributing State and Timers.
+{{< /highlight >}}
+
 ### 4.6. Composite transforms {#composite-transforms}
 
 Transforms can have a nested structure, where a complex transform performs
@@ -1807,14 +2236,17 @@ The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:
   * [Pre-written Beam transforms for Java](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
   * [Pre-written Beam transforms for Python](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.transforms.html)
+  * [Pre-written Beam transforms for Go](https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/transforms)
 
 #### 4.6.1. An example composite transform {#composite-transform-example}
 
 The `CountWords` transform in the [WordCount example program](/get-started/wordcount-example/)
-is an example of a composite transform. `CountWords` is a `PTransform` subclass
-that consists of multiple nested transforms.
+is an example of a composite transform. `CountWords` is a `PTransform`
+<span class="language-java language-py">subclass</span> that consists
+of multiple nested transforms.
 
-In its `expand` method, the `CountWords` transform applies the following
+<span class="language-java language-py">In its `expand` method, the</span>
+<span class="language-go">The</span> `CountWords` transform applies the following
 transform operations:
 
   1. It applies a `ParDo` on the input `PCollection` of text lines, producing
@@ -1847,15 +2279,21 @@ transform operations:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_monitoring_composite >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" countwords_composite >}}
+{{< /highlight >}}
+
 > **Note:** Because `Count` is itself a composite transform,
 > `CountWords` is also a nested composite transform.
 
 #### 4.6.2. Creating a composite transform {#composite-transform-creation}
 
+{{< paragraph class="language-java language-py" >}}
 To create your own composite transform, create a subclass of the `PTransform`
 class and override the `expand` method to specify the actual processing logic.
 You can then use this transform just as you would a built-in transform from the
 Beam SDK.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 For the `PTransform` class type parameters, you pass the `PCollection` types
@@ -1864,8 +2302,23 @@ that your transform takes as input, and produces as output. To take multiple
 of the multi-collection types for the relevant type parameter.
 {{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+To create your own composite `PTransform` call the `Scope` method on the current
+pipeline scope variable. Transforms passed this new sub-`Scope` will be a part of
+the same composite `PTransform`.
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+To be able to re-use your Composite, build it inside a normal Go function or method.
+This function is passed a scope and input PCollections, and returns any
+output PCollections it produces. **Note:** Such functions cannot be passed directly to
+`ParDo` functions.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java language-py" >}}
 The following code sample shows how to declare a `PTransform` that accepts a
 `PCollection` of `String`s for input, and outputs a `PCollection` of `Integer`s:
+{{< /paragraph >}}
 
 {{< highlight java >}}
   static class ComputeWordLengths
@@ -1878,14 +2331,27 @@ The following code sample shows how to declare a `PTransform` that accepts a
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" countwords_composite >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-java language-py" >}}
 Within your `PTransform` subclass, you'll need to override the `expand` method.
 The `expand` method is where you add the processing logic for the `PTransform`.
 Your override of `expand` must accept the appropriate type of input
 `PCollection` as a parameter, and specify the output `PCollection` as the return
 value.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java language-py" >}}
 The following code sample shows how to override `expand` for the
 `ComputeWordLengths` class declared in the previous example:
+{{< /paragraph >}}
+
+{{< paragraph class="language-go" >}}
+The following code sample shows how to call the `CountWords` composite PTransform,
+adding it to your pipeline:
+{{< /paragraph >}}
 
 {{< highlight java >}}
   static class ComputeWordLengths
@@ -1902,20 +2368,38 @@ The following code sample shows how to override `expand` for the
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
 {{< /highlight >}}
 
+{{< highlight go >}}
+lines := ... // a PCollection of strings.
+{{< code_sample "sdks/go/examples/snippets/04transforms_test.go" countwords_composite_call >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-java language-py" >}}
 As long as you override the `expand` method in your `PTransform` subclass to
 accept the appropriate input `PCollection`(s) and return the corresponding
 output `PCollection`(s), you can include as many transforms as you want. These
 transforms can include core transforms, composite transforms, or the transforms
 included in the Beam SDK libraries.
+{{< /paragraph >}}
 
+{{< paragraph class="language-go" >}}
+Your composite `PTransform`s can include as many transforms as you want. These
+transforms can include core transforms, other composite transforms, or the transforms
+included in the Beam SDK libraries. They can also consume and return as many
+`PCollection`s as are necessary.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java language-py" >}}
 Your composite transform's parameters and return value must match the initial
 input type and final return type for the entire transform, even if the
 transform's intermediate data changes type multiple times.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java language-py" >}}
 **Note:** The `expand` method of a `PTransform` is not meant to be invoked
 directly by the user of a transform. Instead, you should call the `apply` method
 on the `PCollection` itself, with the transform as an argument. This allows
 transforms to be nested within the structure of your pipeline.
+{{< /paragraph >}}
 
 #### 4.6.3. PTransform Style Guide {#ptransform-style-guide}
 

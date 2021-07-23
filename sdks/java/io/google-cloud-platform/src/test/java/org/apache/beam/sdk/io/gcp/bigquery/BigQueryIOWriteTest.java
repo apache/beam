@@ -76,6 +76,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
@@ -181,6 +182,10 @@ public class BigQueryIOWriteTest implements Serializable {
                   options = TestPipeline.testingPipelineOptions();
                   BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
                   bqOptions.setProject("project-id");
+                  if (description.getAnnotations().stream()
+                      .anyMatch(a -> a.annotationType().equals(ProjectOverride.class))) {
+                    options.as(BigQueryOptions.class).setBigQueryProject("bigquery-project-id");
+                  }
                   bqOptions.setTempLocation(testFolder.getRoot().getAbsolutePath());
                   if (useStorageApi) {
                     bqOptions.setUseStorageWriteApi(true);
@@ -211,7 +216,7 @@ public class BigQueryIOWriteTest implements Serializable {
   public void setUp() throws IOException, InterruptedException {
     FakeDatasetService.setUp();
     BigQueryIO.clearCreatedTables();
-
+    fakeDatasetService.createDataset("bigquery-project-id", "dataset-id", "", "", null);
     fakeDatasetService.createDataset("project-id", "dataset-id", "", "", null);
   }
 
@@ -628,9 +633,19 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withoutValidation());
     p.run();
 
+    final int projectIdSplitter = tableRef.indexOf(':');
+    final String projectId =
+        projectIdSplitter == -1 ? "project-id" : tableRef.substring(0, projectIdSplitter);
+
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows(projectId, "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  @ProjectOverride
+  public void testTriggeredFileLoadsWithTempTablesBigQueryProject() throws Exception {
+    testTriggeredFileLoadsWithTempTables("bigquery-project-id:dataset-id.table-id");
   }
 
   @Test
@@ -775,13 +790,13 @@ public class BigQueryIOWriteTest implements Serializable {
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError, persistentError)));
 
-    PCollection<TableRow> failedRows =
+    WriteResult result =
         p.apply(Create.of(row1, row2, row3))
             .apply(
                 BigQueryIO.writeTableRows()
                     .to("project-id:dataset-id.table-id")
-                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                    .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                    .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                    .withMethod(Method.STREAMING_INSERTS)
                     .withSchema(
                         new TableSchema()
                             .setFields(
@@ -790,11 +805,15 @@ public class BigQueryIOWriteTest implements Serializable {
                                     new TableFieldSchema().setName("number").setType("INTEGER"))))
                     .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
                     .withTestServices(fakeBqServices)
-                    .withoutValidation())
-            .getFailedInserts();
+                    .withoutValidation());
+
+    PCollection<TableRow> failedRows = result.getFailedInserts();
     // row2 finally fails with a non-retryable error, so we expect to see it in the collection of
     // failed rows.
     PAssert.that(failedRows).containsInAnyOrder(row2);
+    if (useStorageApi || !useStreaming) {
+      PAssert.that(result.getSuccessfulInserts()).containsInAnyOrder(row1, row3);
+    }
     p.run();
 
     // Only row1 and row3 were successfully inserted.

@@ -61,7 +61,7 @@ task dataflowValidatesRunner() {
     def options = [
             "--runner dataflow",
             "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
@@ -84,7 +84,30 @@ task flinkValidatesRunner {
     def options = [
             "--runner flink",
             "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
+      options.add("--jenkins")
+    }
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
+// ValidatesRunner tests for Samza. Runs tests in the integration directory
+// with Samza to validate that the runner behaves as expected.
+task samzaValidatesRunner {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:go:container:docker"
+  dependsOn ":runners:samza:job-server:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doLast {
+    def options = [
+            "--runner samza",
+            "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
@@ -106,7 +129,7 @@ task sparkValidatesRunner {
     def options = [
             "--runner spark",
             "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")
@@ -135,7 +158,7 @@ task ulrValidatesRunner {
   doLast {
     def options = [
             "--runner portable",
-            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
       options.add("--jenkins")

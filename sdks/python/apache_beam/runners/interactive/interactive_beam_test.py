@@ -22,9 +22,11 @@ import importlib
 import sys
 import time
 import unittest
+from typing import NamedTuple
 from unittest.mock import patch
 
 import apache_beam as beam
+from apache_beam import dataframe as frames
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -32,6 +34,13 @@ from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.options.capture_limiters import Limiter
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_stream import TestStream
+
+
+class Record(NamedTuple):
+  order_id: int
+  product_id: int
+  quantity: int
+
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_beam_test'
@@ -135,6 +144,19 @@ class InteractiveBeamTest(unittest.TestCase):
     ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
     ib.show([pcoll])
+    mocked_visualize.assert_called_once()
+
+  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  def test_show_handles_deferred_dataframes(self, mocked_visualize):
+    p = beam.Pipeline(ir.InteractiveRunner())
+
+    deferred = frames.convert.to_dataframe(p | beam.Create([Record(0, 0, 0)]))
+
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+    ie.current_env()._is_in_ipython = True
+    ie.current_env()._is_in_notebook = True
+    ib.show(deferred)
     mocked_visualize.assert_called_once()
 
   @patch('apache_beam.runners.interactive.interactive_beam.visualize')

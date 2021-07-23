@@ -371,6 +371,94 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadWithPartitions() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(READ_TABLE_NAME)
+                .withNumPartitions(1)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsBySubqery() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(String.format("(select * from %s) as subq", READ_TABLE_NAME))
+                .withNumPartitions(10)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testIfNumPartitionsIsZero() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("numPartitions can not be less than 1");
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class))
+                .withTable(READ_TABLE_NAME)
+                .withNumPartitions(0)
+                .withPartitionColumn("id")
+                .withLowerBound(0)
+                .withUpperBound(1000));
+    pipeline.run();
+  }
+
+  @Test
+  public void testNumPartitionsMoreThanTotalRows() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "The specified number of partitions is more than the difference between upper bound and lower bound");
+    pipeline.apply(
+        JdbcIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+            .withCoder(SerializableCoder.of(TestRow.class))
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(200)
+            .withPartitionColumn("id")
+            .withLowerBound(0)
+            .withUpperBound(100));
+    pipeline.run();
+  }
+
+  @Test
+  public void testLowerBoundIsMoreThanUpperBound() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "The lower bound of partitioning column is larger or equal than the upper bound");
+    pipeline.apply(
+        JdbcIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+            .withCoder(SerializableCoder.of(TestRow.class))
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(5)
+            .withPartitionColumn("id")
+            .withLowerBound(100)
+            .withUpperBound(100));
+    pipeline.run();
+  }
+
+  @Test
   public void testWrite() throws Exception {
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
     DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
@@ -419,6 +507,13 @@ public class JdbcIOTest implements Serializable {
               statement.setInt(1, element.getKey());
               statement.setString(2, element.getValue());
             });
+  }
+
+  private static JdbcIO.Write<Row> getJdbcWriteWithoutStatement(String tableName) {
+    return JdbcIO.<Row>write()
+        .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+        .withBatchSize(10L)
+        .withTable(tableName);
   }
 
   private static ArrayList<KV<Integer, String>> getDataToWrite(long rowsToAdd) {
@@ -941,5 +1036,39 @@ public class JdbcIOTest implements Serializable {
     assertTrue(strategy.apply(new SQLException("SQL deadlock", "40001")));
     assertTrue(strategy.apply(new SQLException("PostgreSQL deadlock", "40P01")));
     assertFalse(strategy.apply(new SQLException("Other code", "40X01")));
+  }
+
+  @Test
+  public void testWriteRowsResultsAndWaitOn() throws Exception {
+    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ROWS_PS");
+    String secondTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ROWS_PS_AFTER_WAIT");
+    DatabaseTestHelper.createTable(DATA_SOURCE, firstTableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, secondTableName);
+
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addField(Schema.Field.of("id", Schema.FieldType.INT32));
+    schemaBuilder.addField(Schema.Field.of("name", Schema.FieldType.STRING));
+    Schema schema = schemaBuilder.build();
+    try {
+      ArrayList<Row> data = getRowsToWrite(EXPECTED_ROW_COUNT, schema);
+
+      PCollection<Row> dataCollection = pipeline.apply(Create.of(data));
+      PCollection<Void> rowsWritten =
+          dataCollection
+              .setRowSchema(schema)
+              .apply(getJdbcWriteWithoutStatement(firstTableName).withResults());
+      dataCollection
+          .apply(Wait.on(rowsWritten))
+          .setRowSchema(schema) // setRowSchema must be after .apply(Wait.on())
+          .apply(getJdbcWriteWithoutStatement(secondTableName));
+
+      pipeline.run();
+
+      assertRowCount(firstTableName, EXPECTED_ROW_COUNT);
+      assertRowCount(secondTableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, firstTableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, secondTableName);
+    }
   }
 }

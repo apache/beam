@@ -176,7 +176,7 @@ PortableRunner flag `--environment_config` as supported by the Portable
 Runner or by runners supported PortableRunner flags.
 Other runners, such as Dataflow, support specifying containers with different flags.
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
 export IMAGE_URL = "${IMAGE}:${TAG}"
@@ -188,9 +188,9 @@ python -m apache_beam.examples.wordcount \
 --job_endpoint=embed \
 --environment_type="DOCKER" \
 --environment_config="${IMAGE_URL}"
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
 export IMAGE_URL = "${IMAGE}:${TAG}"
@@ -204,9 +204,9 @@ python -m apache_beam.examples.wordcount \
 --environment_cache_millis=10000 \
 --environment_type="DOCKER" \
 --environment_config="${IMAGE_URL}"
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark-local" >}}
+{{< runner spark >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
 export IMAGE_URL = "${IMAGE}:${TAG}"
@@ -220,9 +220,9 @@ python -m apache_beam.examples.wordcount \
 --environment_cache_millis=10000 \
 --environment_type="DOCKER" \
 --environment_config="${IMAGE_URL}"
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 export GCS_PATH="gs://my-gcs-bucket"
 export GCP_PROJECT="my-gcp-project"
 export REGION="us-central1"
@@ -247,7 +247,7 @@ python -m apache_beam.examples.wordcount \
   --experiment=use_runner_v2 \
   --sdk_container_image=$IMAGE_URL
 
-{{< /highlight >}}
+{{< /runner >}}
 
 
 ### Troubleshooting

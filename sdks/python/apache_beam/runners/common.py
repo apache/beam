@@ -886,6 +886,8 @@ class PerWindowInvoker(DoFnInvoker):
         element = windowed_value.value
         size = self.signature.get_restriction_provider().restriction_size(
             element, deferred_restriction)
+        if size < 0:
+          raise ValueError('Expected size >= 0 but received %s.' % size)
         current_watermark = (
             self.threadsafe_watermark_estimator.current_watermark())
         estimator_state = (
@@ -946,6 +948,9 @@ class PerWindowInvoker(DoFnInvoker):
     def compute_whole_window_split(to_index, from_index):
       restriction_size = restriction_provider.restriction_size(
           windowed_value, restriction)
+      if restriction_size < 0:
+        raise ValueError(
+            'Expected size >= 0 but received %s.' % restriction_size)
       # The primary and residual both share the same value only differing
       # by the set of windows they are in.
       value = ((windowed_value.value, (restriction, watermark_estimator_state)),
@@ -1029,8 +1034,12 @@ class PerWindowInvoker(DoFnInvoker):
       element = windowed_value.value
       primary_size = restriction_provider.restriction_size(
           windowed_value.value, primary)
+      if primary_size < 0:
+        raise ValueError('Expected size >= 0 but received %s.' % primary_size)
       residual_size = restriction_provider.restriction_size(
           windowed_value.value, residual)
+      if residual_size < 0:
+        raise ValueError('Expected size >= 0 but received %s.' % residual_size)
       # We use the watermark estimator state for the original process call
       # for the primary and the updated watermark estimator state for the
       # residual for the split.

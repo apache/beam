@@ -85,6 +85,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.abs': [
                 'df.loc[(df.c - 43).abs().argsort()]',
             ],
+            'pandas.core.generic.NDFrame.reindex': ['*'],
+            'pandas.core.generic.NDFrame.pct_change': ['*'],
+            'pandas.core.generic.NDFrame.asof': ['*'],
+            'pandas.core.generic.NDFrame.infer_objects': ['*'],
+            'pandas.core.generic.NDFrame.ewm': ['*'],
+            'pandas.core.generic.NDFrame.expanding': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -93,16 +99,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
             'pandas.core.generic.NDFrame.flags': ['*'],
-            'pandas.core.generic.NDFrame.pct_change': ['*'],
             'pandas.core.generic.NDFrame.rank': ['*'],
-            'pandas.core.generic.NDFrame.reindex': ['*'],
             'pandas.core.generic.NDFrame.reindex_like': ['*'],
             'pandas.core.generic.NDFrame.replace': ['*'],
             'pandas.core.generic.NDFrame.sample': ['*'],
             'pandas.core.generic.NDFrame.set_flags': ['*'],
             'pandas.core.generic.NDFrame.squeeze': ['*'],
             'pandas.core.generic.NDFrame.truncate': ['*'],
-            'pandas.core.generic.NDFrame.xs': ['*'],
         },
         skip={
             # Internal test
@@ -113,7 +116,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.convert_dtypes': ['*'],
             'pandas.core.generic.NDFrame.copy': ['*'],
             'pandas.core.generic.NDFrame.droplevel': ['*'],
-            'pandas.core.generic.NDFrame.infer_objects': ['*'],
             'pandas.core.generic.NDFrame.rank': [
                 # Modified dataframe
                 'df'
@@ -230,6 +232,11 @@ class DoctestTest(unittest.TestCase):
                 "df.duplicated(keep='last')",
                 "df.duplicated(subset=['brand'])",
             ],
+            'pandas.core.frame.DataFrame.reindex': ['*'],
+            'pandas.core.frame.DataFrame.dot': [
+                # reindex not supported
+                's2 = s.reindex([1, 0, 2, 3])',
+            ],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': [
@@ -237,8 +244,6 @@ class DoctestTest(unittest.TestCase):
                 # frames_test.py::DeferredFrameTest::test_groupby_transform_sum
                 "df.groupby('Date')['Data'].transform('sum')",
             ],
-            'pandas.core.frame.DataFrame.melt': ['*'],
-            'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
             'pandas.core.frame.DataFrame.round': [
                 'df.round(decimals)',
@@ -247,13 +252,6 @@ class DoctestTest(unittest.TestCase):
             # We should be able to support pivot and pivot_table for categorical
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
-
-            # Difficult to parallelize but should be possible?
-            'pandas.core.frame.DataFrame.dot': [
-                # reindex not supported
-                's2 = s.reindex([1, 0, 2, 3])',
-                'df.dot(s2)',
-            ],
 
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
@@ -271,6 +269,11 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         skip={
+            # s2 created with reindex
+            'pandas.core.frame.DataFrame.dot': [
+                'df.dot(s2)',
+            ],
+
             # Throws NotImplementedError when modifying df
             'pandas.core.frame.DataFrame.axes': [
                 # Returns deferred index.
@@ -434,6 +437,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.repeat': [
                 's.repeat([1, 2, 3])'
             ],
+            'pandas.core.series.Series.reindex': ['*'],
+            'pandas.core.series.Series.autocorr': ['*'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': [
@@ -446,7 +451,6 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
             ],
-            'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
             'pandas.core.series.Series.groupby': [
@@ -461,14 +465,12 @@ class DoctestTest(unittest.TestCase):
                 's1.append(s2, verify_integrity=True)',
             ],
             # Throws NotImplementedError when modifying df
-            'pandas.core.series.Series.autocorr': ['*'],
             'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
             'pandas.core.series.Series.duplicated': ['*'],
-            'pandas.core.series.Series.explode': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
@@ -718,7 +720,6 @@ class DoctestTest(unittest.TestCase):
             'crosstab': ['*'],
             'cut': ['*'],
             'eval': ['*'],
-            'factorize': ['*'],
             'get_dummies': ['*'],
             'infer_freq': ['*'],
             'lreshape': ['*'],
@@ -737,6 +738,7 @@ class DoctestTest(unittest.TestCase):
             'wide_to_long': ['*'],
         },
         wont_implement_ok={
+            'factorize': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
             'melt': [
