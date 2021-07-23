@@ -42,14 +42,14 @@ type doFnError struct {
 }
 
 func (e *doFnError) Error() string {
-	return fmt.Sprintf("DoFn[<%d>;<%s>]<%s> returned error:<%s>", e.uid, e.pid, e.doFn, e.err)
+	return fmt.Sprintf("DoFn[UID:%v, PID:%v, Name: %v] failed:\n%v", e.uid, e.pid, e.doFn, e.err)
 }
 
 // callNoPanic calls the given function and catches any panic.
 func callNoPanic(ctx context.Context, fn func(context.Context) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			// Check if the panic value is from a failed DoFn, and return it without a pancic trace.
+			// Check if the panic value is from a failed DoFn, and return it without a panic trace.
 			if e, ok := r.(*doFnError); ok {
 				err = e
 			} else {

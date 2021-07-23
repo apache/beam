@@ -332,6 +332,10 @@ func (n *ParDo) postInvoke() error {
 
 func (n *ParDo) fail(err error) error {
 	n.status = Broken
+	if err2, ok := err.(*doFnError); ok {
+		return err2
+	}
+
 	parDoError := &doFnError{
 		doFn: n.Fn.Name(),
 		err:  err,
@@ -339,7 +343,7 @@ func (n *ParDo) fail(err error) error {
 		pid:  n.PID,
 	}
 	n.err.TrySetError(parDoError)
-	return err
+	return parDoError
 }
 
 func (n *ParDo) String() string {

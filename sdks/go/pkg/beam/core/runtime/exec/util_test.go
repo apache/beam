@@ -24,8 +24,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 )
 
-// testSimpleError tests for a simple case that
-// doesn't panic
+// testSimpleError tests for a simple case that doesn't panic
 func TestCallNoPanic_simple(t *testing.T) {
 	ctx := context.Background()
 	want := errors.New("Simple error.")
@@ -36,8 +35,7 @@ func TestCallNoPanic_simple(t *testing.T) {
 	}
 }
 
-// testPanicError tests for the case in which a normal
-// error is passed to panic, resulting in panic trace.
+// testPanicError tests for the case in which a normal error is passed to panic, resulting in panic trace.
 func TestCallNoPanic_panic(t *testing.T) {
 	ctx := context.Background()
 	got := callNoPanic(ctx, func(c context.Context) error { panic("Panic error") })
@@ -46,14 +44,14 @@ func TestCallNoPanic_panic(t *testing.T) {
 	}
 }
 
-// testWrapPanicError tests for the case in which error
-// is passed to panic from DoFn, resulting in
-// formatted error message for DoFn.
+// testWrapPanicError tests for the case in which error is passed to panic from
+// DoFn, resulting in formatted error message for DoFn.
 func TestCallNoPanic_wrappedPanic(t *testing.T) {
 	ctx := context.Background()
+	errs := errors.New("SumFn error")
 	parDoError := &doFnError{
 		doFn: "sumFn",
-		err:  errors.New("SumFn error"),
+		err:  errs,
 		uid:  1,
 		pid:  "Plan ID",
 	}
@@ -64,6 +62,6 @@ func TestCallNoPanic_wrappedPanic(t *testing.T) {
 	got := callNoPanic(ctx, func(c context.Context) error { panic(parDoError) })
 
 	if strings.Contains(got.Error(), "panic:") {
-		t.Errorf("callNoPanic(<func that panics with a wrapped know error>) did not filter panic, want %v, got %v", want, got)
+		t.Errorf("callNoPanic(<func that panics with a wrapped known error>) did not filter panic, want %v, got %v", want, got)
 	}
 }
