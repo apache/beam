@@ -128,10 +128,11 @@ public class ProcessBundleHandler {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   @VisibleForTesting static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;
 
+  // Creates a new map of state data for newly encountered state keys
   private CacheLoader<
           BeamFnApi.StateKey,
           Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
-      loader =
+      stateKeyMapCacheLoader =
           new CacheLoader<
               BeamFnApi.StateKey,
               Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>() {
@@ -206,7 +207,7 @@ public class ProcessBundleHandler {
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
-    this.stateCache = CacheBuilder.newBuilder().build(loader);
+    this.stateCache = CacheBuilder.newBuilder().build(stateKeyMapCacheLoader);
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
     this.runnerAcceptsShortIds =
@@ -513,7 +514,7 @@ public class ProcessBundleHandler {
     }
 
     // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor
-    // was specified.
+    // was specified. If specified, uses a CachingBeamFnStateClient to store state responses.
     HandleStateCallsForBundle beamFnStateClient =
         bundleDescriptor.hasStateApiServiceDescriptor()
             ? new BlockTillStateCallsFinish(
