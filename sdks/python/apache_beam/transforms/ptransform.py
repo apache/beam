@@ -276,7 +276,8 @@ def get_named_nested_pvalues(pvalueish, as_inputs=False):
     return
 
   for tag, subvalue in tagged_values:
-    for subtag, subsubvalue in get_named_nested_pvalues(subvalue, as_inputs=as_inputs):
+    for subtag, subsubvalue in get_named_nested_pvalues(
+        subvalue, as_inputs=as_inputs):
       if subtag is None:
         yield tag, subsubvalue
       else:
@@ -634,7 +635,11 @@ class PTransform(WithTypeHints, HasDisplayData):
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)
 
-    return pvalueish, {str(tag): value for (tag, value) in get_named_nested_pvalues(pvalueish, as_inputs=True)}
+    return pvalueish, {
+        str(tag): value
+        for (tag, value) in get_named_nested_pvalues(
+            pvalueish, as_inputs=True)
+    }
 
   def _pvaluish_from_dict(self, input_dict):
     if len(input_dict) == 1:
