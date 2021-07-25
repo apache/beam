@@ -23,6 +23,8 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.utils.timestamp import Duration
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from log_elements import LogElements
 
 
@@ -36,7 +38,9 @@ def apply_transform(events):
 
 
 def main():
-    with beam.Pipeline() as p:
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with beam.Pipeline(options=options) as p:
         events = p | GenerateEvent.sample_data()
         output = apply_transform(events)
         output | LogElements(with_window=True)

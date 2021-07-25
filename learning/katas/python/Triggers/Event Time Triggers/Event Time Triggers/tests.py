@@ -20,12 +20,16 @@ from task import apply_transform
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import window
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.util import assert_that, equal_to, equal_to_per_window
 from test_helper import failed, passed, get_file_output, test_is_not_empty
 
 
 def test_output():
-    test_pipeline = TestPipeline()
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    test_pipeline = TestPipeline(options=options)
 
     events = ( test_pipeline
                | TestStream()
