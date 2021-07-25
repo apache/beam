@@ -1,0 +1,12 @@
+type: edu
+files:
+- name: task.py
+  visible: true
+  placeholders:
+  - offset: 1098
+    length: 317
+    placeholder_text: TODO()
+- name: generate_event.py
+  visible: true
+- name: tests.py
+  visible: false
