@@ -47,7 +47,7 @@ element is processed.
 </div>
 
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/pydoc/2.31.0/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineGlobally">
+  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineGlobally">
   CombineGlobally</a> and
   <code>CountCombineFn</code> to calculate the count of events.
 </div>
