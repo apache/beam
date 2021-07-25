@@ -52,7 +52,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 * [](/documentation/patterns/cross-language/#cross-language-transforms)
 
 **State & timers patterns** - Patterns for using state & timers
-* [State and timers for calling external services using the `GroupIntoBatches`-transform](/documentation/patterns/state-and-timers/#state-and-timers-for-external-services)
+* [Grouping elements for efficient external service calls](/documentation/patterns/grouping-elements-for-efficient-external-service-calls/#grouping-elements-for-efficient-external-service-calls-using-the-`GroupIntoBatches`-transform)
 
 ## Contributing a pattern
 

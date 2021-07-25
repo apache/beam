@@ -1,5 +1,5 @@
 ---
-title: "State and timers patterns"
+title: "Pattern for grouping elements for efficient external service calls"
 ---
 
 <!--
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# State and timers for calling external services using the `GroupIntoBatches`-transform
+# Grouping elements for efficient external service calls using the `GroupIntoBatches`-transform
 
 Usually, authoring an Apache Beam pipeline can be done with out-of-the-box tools and transforms like _ParDo_'s, _Window_'s and _GroupByKey_'s. However, when you want more tight control, you can keep state in an otherwise stateless _DoFn_.
 
