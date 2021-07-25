@@ -20,6 +20,7 @@
 import apache_beam as beam
 from generate_event import GenerateEvent
 from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.utils.timestamp import Duration
 from log_elements import LogElements
@@ -29,7 +30,7 @@ def apply_transform(events):
     return (events
             | beam.WindowInto(FixedWindows(5),
                               trigger=AfterWatermark(),
-                              accumulation_mode=1,
+                              accumulation_mode=AccumulationMode.DISCARDING,
                               allowed_lateness=Duration(seconds=0))
             | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())
 
