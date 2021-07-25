@@ -17,7 +17,15 @@
 # under the License.
 #
 
-content:
-- Event Time Triggers
-- Early Triggers
-- Window Accumulation Mode
+type: edu
+files:
+- name: task.py
+  visible: true
+  placeholders:
+    - offset: 1342
+      length: 389
+      placeholder_text: TODO()
+- name: tests.py
+  visible: false
+- name: generate_event.py
+  visible: true
