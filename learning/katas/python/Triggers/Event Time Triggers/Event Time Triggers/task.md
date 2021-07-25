@@ -40,7 +40,7 @@ of a window after the watermark passes the end of the window, based on the times
 the data elements. The watermark is a global progress metric, and is Beam’s notion of input
 completeness within your pipeline at any given point. `AfterWatermark` only fires when the watermark passes the end of the window.
 
-**Kata:** Given that events are being generated every second, please implement a trigger that emits
+**Kata:** Given that sample events generated with one second granularity, please implement a trigger that emits
 the number of events count within a fixed window of 5-second duration.
 
 <div class="hint">
