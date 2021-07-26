@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -127,15 +128,26 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     public PCollection<Row> buildIOReader(
         PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
       PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
-      if (readerTransform instanceof PushdownProjector) {
-        PushdownProjector pushdownProjector = (PushdownProjector) readerTransform;
-        FieldAccessDescriptor fieldAccessDescriptor =
-            FieldAccessDescriptor.withFieldNames(fieldNames);
-        // The pushdown must return a PTransform that can be applied to a PBegin, or this cast will
-        // fail.
-        readerTransform =
-            (PTransform<PBegin, PCollection<Row>>)
-                pushdownProjector.withProjectionPushdown(fieldAccessDescriptor);
+      if (!(filters instanceof DefaultTableFilter)) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Filter pushdown is not yet supported in %s. BEAM-12663",
+                SchemaIOTableWrapper.class));
+      }
+      if (!fieldNames.isEmpty()) {
+        if (readerTransform instanceof PushdownProjector) {
+          PushdownProjector pushdownProjector = (PushdownProjector) readerTransform;
+          FieldAccessDescriptor fieldAccessDescriptor =
+              FieldAccessDescriptor.withFieldNames(fieldNames);
+          // The pushdown must return a PTransform that can be applied to a PBegin, or this cast
+          // will fail.
+          readerTransform =
+              (PTransform<PBegin, PCollection<Row>>)
+                  pushdownProjector.withProjectionPushdown(fieldAccessDescriptor);
+        } else {
+          throw new UnsupportedOperationException(
+              String.format("%s does not support projection pushdown.", this.getClass()));
+        }
       }
       return begin.apply(readerTransform);
     }

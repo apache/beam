@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 import com.alibaba.fastjson.JSON;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableFilter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -84,7 +84,9 @@ public class SchemaIOTableProviderWrapperTest {
 
     PCollection<Row> result =
         beamSqlTable.buildIOReader(
-            pipeline.begin(), new TestTableFilter(ImmutableList.of()), ImmutableList.of("f_long"));
+            pipeline.begin(),
+            new DefaultTableFilter(ImmutableList.of()),
+            ImmutableList.of("f_long"));
     Schema outputSchema = Schema.builder().addInt64Field("f_long").build();
     PAssert.that(result)
         .containsInAnyOrder(
