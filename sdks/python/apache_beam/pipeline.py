@@ -1048,7 +1048,7 @@ class AppliedPTransform(object):
     # reusing PTransform instances in different contexts (apply() calls) without
     # any interference. This is particularly useful for composite transforms.
     self.full_label = full_label
-    self.main_inputs = main_inputs or {}
+    self.main_inputs = dict(main_inputs or {})
 
     self.side_inputs = tuple() if transform is None else transform.side_inputs
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
