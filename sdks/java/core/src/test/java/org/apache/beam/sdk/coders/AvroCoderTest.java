@@ -342,7 +342,7 @@ public class AvroCoderTest {
     assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
     assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
 
-    // CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
     CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
   }
 
