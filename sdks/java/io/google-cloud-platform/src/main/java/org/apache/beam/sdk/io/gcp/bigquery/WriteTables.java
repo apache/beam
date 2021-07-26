@@ -50,7 +50,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.WritePartition.Result;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -446,7 +445,6 @@ class WriteTables<DestinationT>
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
-
     return writeTablesOutputs.get(mainOutputTag);
   }
 

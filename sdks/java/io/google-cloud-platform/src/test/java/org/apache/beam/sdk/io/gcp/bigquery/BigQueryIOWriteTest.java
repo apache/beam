@@ -1917,7 +1917,9 @@ public class BigQueryIOWriteTest implements Serializable {
             Collections.emptySet());
 
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
-        writeTablesInput.apply(writeTables);
+        writeTablesInput
+            .apply(writeTables)
+            .setCoder(KvCoder.of(TableDestinationCoderV3.of(), WriteTables.ResultCoder.INSTANCE));
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
