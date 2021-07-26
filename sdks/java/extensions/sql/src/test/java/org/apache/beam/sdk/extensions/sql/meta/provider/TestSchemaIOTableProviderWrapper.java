@@ -121,7 +121,7 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
     }
 
     @Override
-    public PTransform<? extends PInput, PCollection<Row>> withProjectPushdown(
+    public PTransform<? extends PInput, PCollection<Row>> withProjectionPushdown(
         FieldAccessDescriptor fieldAccessDescriptor) {
       return new TestPushdownProjector(schema, fieldAccessDescriptor);
     }
