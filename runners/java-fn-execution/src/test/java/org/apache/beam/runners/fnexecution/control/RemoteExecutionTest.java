@@ -1200,6 +1200,7 @@ public class RemoteExecutionTest implements Serializable {
   public void testExecutionWithUserStateCaching() throws Exception {
     Pipeline p = Pipeline.create();
     final String stateId = "foo";
+    final String stateId2 = "bar";
 
     p.apply("impulse", Impulse.create())
         .apply(
@@ -1219,14 +1220,24 @@ public class RemoteExecutionTest implements Serializable {
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
+                  @StateId(stateId2)
+                  private final StateSpec<BagState<String>> bufferState2 =
+                      StateSpecs.bag(StringUtf8Coder.of());
+
                   @ProcessElement
                   public void processElement(
                       @Element KV<String, String> element,
                       @StateId(stateId) BagState<String> state,
+                      @StateId(stateId2) BagState<String> state2,
                       OutputReceiver<KV<String, String>> r) {
-                    ReadableState<Boolean> isEmpty = state.isEmpty();
                     for (String value : state.read()) {
                       r.output(KV.of(element.getKey(), value));
+                    }
+                    ReadableState<Boolean> isEmpty = state2.isEmpty();
+                    if (isEmpty.read()) {
+                      r.output(KV.of(element.getKey(), "Empty"));
+                    } else {
+                      state2.clear();
                     }
                   }
                 }))
@@ -1278,7 +1289,14 @@ public class RemoteExecutionTest implements Serializable {
                             StringUtf8Coder.of(), "B", Coder.Context.NESTED)),
                     ByteString.copyFrom(
                         CoderUtils.encodeToByteArray(
-                            StringUtf8Coder.of(), "C", Coder.Context.NESTED)))));
+                            StringUtf8Coder.of(), "C", Coder.Context.NESTED)))),
+            stateId2,
+            new ArrayList(
+                Arrays.asList(
+                    ByteString.copyFrom(
+                        CoderUtils.encodeToByteArray(
+                            StringUtf8Coder.of(), "D", Coder.Context.NESTED)))));
+
     StoringStateRequestHandler stateRequestHandler =
         new StoringStateRequestHandler(
             StateRequestHandlers.forBagUserStateHandlerFactory(
@@ -1332,7 +1350,8 @@ public class RemoteExecutionTest implements Serializable {
               valueInGlobalWindow(KV.of("X", "C")),
               valueInGlobalWindow(KV.of("X", "A")),
               valueInGlobalWindow(KV.of("X", "B")),
-              valueInGlobalWindow(KV.of("X", "C"))));
+              valueInGlobalWindow(KV.of("X", "C")),
+              valueInGlobalWindow(KV.of("X", "Empty"))));
     }
     assertThat(
         userStateData.get(stateId),
@@ -1343,13 +1362,50 @@ public class RemoteExecutionTest implements Serializable {
                 CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B", Coder.Context.NESTED)),
             ByteString.copyFrom(
                 CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C", Coder.Context.NESTED))));
+    assertThat(userStateData.get(stateId2), IsEmptyIterable.emptyIterable());
 
-    assertEquals(1, stateRequestHandler.getRequestCount());
-    BeamFnApi.StateRequest receivedRequest = stateRequestHandler.receivedRequests.get(0);
+    assertEquals(3, stateRequestHandler.getRequestCount());
     ByteString.Output out = ByteString.newOutput();
     StringUtf8Coder.of().encode("X", out);
-    assertEquals(stateId, receivedRequest.getStateKey().getBagUserState().getUserStateId());
-    assertEquals(receivedRequest.getStateKey().getBagUserState().getKey(), out.toByteString());
+
+    assertEquals(
+        stateId,
+        stateRequestHandler
+            .receivedRequests
+            .get(0)
+            .getStateKey()
+            .getBagUserState()
+            .getUserStateId());
+    assertEquals(
+        stateRequestHandler.receivedRequests.get(0).getStateKey().getBagUserState().getKey(),
+        out.toByteString());
+    assertTrue(stateRequestHandler.receivedRequests.get(0).hasGet());
+
+    assertEquals(
+        stateId2,
+        stateRequestHandler
+            .receivedRequests
+            .get(1)
+            .getStateKey()
+            .getBagUserState()
+            .getUserStateId());
+    assertEquals(
+        stateRequestHandler.receivedRequests.get(1).getStateKey().getBagUserState().getKey(),
+        out.toByteString());
+    assertTrue(stateRequestHandler.receivedRequests.get(1).hasGet());
+
+    assertEquals(
+        stateId2,
+        stateRequestHandler
+            .receivedRequests
+            .get(2)
+            .getStateKey()
+            .getBagUserState()
+            .getUserStateId());
+    assertEquals(
+        stateRequestHandler.receivedRequests.get(2).getStateKey().getBagUserState().getKey(),
+        out.toByteString());
+    assertTrue(stateRequestHandler.receivedRequests.get(2).hasClear());
   }
 
   private static class StoringStateRequestHandler implements StateRequestHandler {
