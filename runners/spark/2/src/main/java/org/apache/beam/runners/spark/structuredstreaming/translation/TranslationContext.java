@@ -20,9 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.spark.sql.streaming.DataStreamWriter;
 
-/**
- * Subclass of {@link AbstractTranslationContext} that address spark breaking changes.
- */
+/** Subclass of {@link AbstractTranslationContext} that address spark breaking changes. */
 public class TranslationContext extends AbstractTranslationContext {
 
   public TranslationContext(SparkStructuredStreamingPipelineOptions options) {

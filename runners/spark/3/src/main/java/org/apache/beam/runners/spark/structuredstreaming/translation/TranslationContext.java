@@ -18,12 +18,13 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.spark.sql.streaming.DataStreamWriter;
 
 /**
- * Subclass of {@link AbstractTranslationContext} that address spark breaking changes.
+ * Subclass of {@link
+ * org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext} that
+ * address spark breaking changes.
  */
 public class TranslationContext extends AbstractTranslationContext {
 
@@ -35,8 +36,8 @@ public class TranslationContext extends AbstractTranslationContext {
   public void launchStreaming(DataStreamWriter<?> dataStreamWriter) {
     try {
       dataStreamWriter.start();
-    } catch (TimeoutException e){
-      throw new RuntimeException("A timeout occurrend when running the streaming pipeline", e);
+    } catch (TimeoutException e) {
+      throw new RuntimeException("A timeout occurred when running the streaming pipeline", e);
     }
   }
 }

@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 /**
- * Empty impl needed for compilation. Spark DataSourceV2 API was removed in Spark3. Need to code a Beam source using new spark 3 API.
+ * Empty impl needed for compilation. Spark DataSourceV2 API was removed in Spark3. Need to code a
+ * Beam source using new spark 3 API.
  */
-class DatasetSourceStreaming {
-}
+class DatasetSourceStreaming {}
