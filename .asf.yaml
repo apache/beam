@@ -39,3 +39,6 @@ notifications:
   issues: github@beam.apache.org
   pullrequests: github@beam.apache.org
   jira_options: link worklog
+
+publish:
+  whoami: asf-site
