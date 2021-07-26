@@ -135,7 +135,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
         // fail.
         readerTransform =
             (PTransform<PBegin, PCollection<Row>>)
-                pushdownProjector.withProjectPushdown(fieldAccessDescriptor);
+                pushdownProjector.withProjectionPushdown(fieldAccessDescriptor);
       }
       return begin.apply(readerTransform);
     }
