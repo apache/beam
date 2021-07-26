@@ -1525,8 +1525,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
                 try {
                   blockedStartMs.set(Instant.now().getMillis());
-                  current = queue.take();
-                  if (current != POISON_PILL) {
+                  current = queue.poll(180, TimeUnit.SECONDS);
+                  if (current != null && current != POISON_PILL) {
                     return true;
                   }
                   if (cancelled.get()) {
