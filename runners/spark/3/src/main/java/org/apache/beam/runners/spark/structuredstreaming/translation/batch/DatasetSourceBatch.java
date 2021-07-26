@@ -63,7 +63,7 @@ public class DatasetSourceBatch implements TableProvider {
 
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    return null;
+    return BINARY_SCHEMA;
   }
 
   @Override
@@ -77,7 +77,7 @@ public class DatasetSourceBatch implements TableProvider {
     return new DatasetSourceBatchTable();
   }
 
-  private static class DatasetSourceBatchTable implements SupportsRead, Serializable {
+  private static class DatasetSourceBatchTable implements SupportsRead {
 
     @Override
     public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {
@@ -177,7 +177,7 @@ public class DatasetSourceBatch implements TableProvider {
         };
       }
 
-      private static class BeamInputPartition<T> implements InputPartition, Serializable {
+      private static class BeamInputPartition<T> implements InputPartition {
 
         private final BoundedSource<T> source;
 
@@ -190,8 +190,7 @@ public class DatasetSourceBatch implements TableProvider {
         }
       }
 
-      private static class BeamPartitionReader<T>
-          implements PartitionReader<InternalRow>, Serializable {
+      private static class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
 
         private final BoundedSource<T> source;
         private final BoundedSource.BoundedReader<T> reader;
