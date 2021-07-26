@@ -52,15 +52,14 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 /**
- * Empty impl needed for compilation. Spark DataSourceV2 API was removed in Spark3. Need to code a Beam source using new spark 3 API.
+ * Empty impl needed for compilation. Spark DataSourceV2 API was removed in Spark3. Need to code a
+ * Beam source using new spark 3 API.
  */
-
 public class DatasetSourceBatch implements TableProvider {
 
-  private static StructType BINARY_SCHEMA = SchemaHelpers.binarySchema();
+  private static final StructType BINARY_SCHEMA = SchemaHelpers.binarySchema();
 
-  public DatasetSourceBatch() {
-  }
+  public DatasetSourceBatch() {}
 
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
@@ -73,8 +72,8 @@ public class DatasetSourceBatch implements TableProvider {
   }
 
   @Override
-  public Table getTable(StructType schema, Transform[] partitioning,
-    Map<String, String> properties) {
+  public Table getTable(
+      StructType schema, Transform[] partitioning, Map<String, String> properties) {
     return new DatasetSourceBatchTable();
   }
 
@@ -129,8 +128,9 @@ public class DatasetSourceBatch implements TableProvider {
         if (Strings.isNullOrEmpty(options.get(BEAM_SOURCE_OPTION))) {
           throw new RuntimeException("Beam source was not set in DataSource options");
         }
-        this.source = Base64Serializer
-          .deserializeUnchecked(options.get(BEAM_SOURCE_OPTION), BoundedSource.class);
+        this.source =
+            Base64Serializer.deserializeUnchecked(
+                options.get(BEAM_SOURCE_OPTION), BoundedSource.class);
 
         if (Strings.isNullOrEmpty(DEFAULT_PARALLELISM)) {
           throw new RuntimeException("Spark default parallelism was not set in DataSource options");
@@ -141,8 +141,8 @@ public class DatasetSourceBatch implements TableProvider {
         if (Strings.isNullOrEmpty(options.get(PIPELINE_OPTIONS))) {
           throw new RuntimeException("Beam pipelineOptions were not set in DataSource options");
         }
-        this.serializablePipelineOptions = new SerializablePipelineOptions(
-          options.get(PIPELINE_OPTIONS));
+        this.serializablePipelineOptions =
+            new SerializablePipelineOptions(options.get(PIPELINE_OPTIONS));
       }
 
       @Override
@@ -161,7 +161,7 @@ public class DatasetSourceBatch implements TableProvider {
           return result;
         } catch (Exception e) {
           throw new RuntimeException(
-            "Error in splitting BoundedSource " + source.getClass().getCanonicalName(), e);
+              "Error in splitting BoundedSource " + source.getClass().getCanonicalName(), e);
         }
       }
 
@@ -171,8 +171,8 @@ public class DatasetSourceBatch implements TableProvider {
 
           @Override
           public PartitionReader<InternalRow> createReader(InputPartition partition) {
-            return new BeamPartitionReader<T>(((BeamInputPartition<T>) partition).getSource(),
-              serializablePipelineOptions);
+            return new BeamPartitionReader<T>(
+                ((BeamInputPartition<T>) partition).getSource(), serializablePipelineOptions);
           }
         };
       }
@@ -191,22 +191,22 @@ public class DatasetSourceBatch implements TableProvider {
       }
 
       private static class BeamPartitionReader<T>
-        implements PartitionReader<InternalRow>, Serializable {
+          implements PartitionReader<InternalRow>, Serializable {
 
         private final BoundedSource<T> source;
         private final BoundedSource.BoundedReader<T> reader;
         private boolean started;
         private boolean closed;
 
-        BeamPartitionReader(BoundedSource<T> source,
-          SerializablePipelineOptions serializablePipelineOptions) {
+        BeamPartitionReader(
+            BoundedSource<T> source, SerializablePipelineOptions serializablePipelineOptions) {
           this.started = false;
           this.closed = false;
           this.source = source;
           // reader is not serializable so lazy initialize it
           try {
-            reader = source
-              .createReader(serializablePipelineOptions.get().as(PipelineOptions.class));
+            reader =
+                source.createReader(serializablePipelineOptions.get().as(PipelineOptions.class));
           } catch (IOException e) {
             throw new RuntimeException("Error creating BoundedReader ", e);
           }
@@ -224,8 +224,9 @@ public class DatasetSourceBatch implements TableProvider {
 
         @Override
         public InternalRow get() {
-          WindowedValue<T> windowedValue = WindowedValue
-            .timestampedValueInGlobalWindow(reader.getCurrent(), reader.getCurrentTimestamp());
+          WindowedValue<T> windowedValue =
+              WindowedValue.timestampedValueInGlobalWindow(
+                  reader.getCurrent(), reader.getCurrentTimestamp());
           return RowHelpers.storeWindowedValueInRow(windowedValue, source.getOutputCoder());
         }
 

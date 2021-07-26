@@ -19,8 +19,8 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;

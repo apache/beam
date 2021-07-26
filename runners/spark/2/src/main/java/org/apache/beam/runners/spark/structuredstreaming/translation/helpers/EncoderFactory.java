@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
 import static org.apache.spark.sql.types.DataTypes.BinaryType;
 
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.catalyst.analysis.GetColumnByOrdinal;
@@ -37,20 +35,20 @@ import scala.reflect.ClassTag$;
 
 public class EncoderFactory {
 
-  public static <T> Encoder<T> fromBeamCoder(Coder<T> coder){
+  public static <T> Encoder<T> fromBeamCoder(Coder<T> coder) {
     Class<? super T> clazz = coder.getEncodedTypeDescriptor().getRawType();
     ClassTag<T> classTag = ClassTag$.MODULE$.apply(clazz);
     List<Expression> serializers =
-      Collections.singletonList(
-        new EncoderHelpers.EncodeUsingBeamCoder<>(new BoundReference(0, new ObjectType(clazz), true), coder));
+        Collections.singletonList(
+            new EncoderHelpers.EncodeUsingBeamCoder<>(
+                new BoundReference(0, new ObjectType(clazz), true), coder));
 
     return new ExpressionEncoder<>(
-      SchemaHelpers.binarySchema(),
-      false,
-      JavaConversions.collectionAsScalaIterable(serializers).toSeq(),
-      new EncoderHelpers.DecodeUsingBeamCoder<>(
-        new Cast(new GetColumnByOrdinal(0, BinaryType), BinaryType), classTag, coder),
-      classTag);
+        SchemaHelpers.binarySchema(),
+        false,
+        JavaConversions.collectionAsScalaIterable(serializers).toSeq(),
+        new EncoderHelpers.DecodeUsingBeamCoder<>(
+            new Cast(new GetColumnByOrdinal(0, BinaryType), BinaryType), classTag, coder),
+        classTag);
   }
-
 }
