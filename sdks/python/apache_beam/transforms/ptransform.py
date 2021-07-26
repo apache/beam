@@ -264,6 +264,7 @@ def get_named_nested_pvalues(pvalueish, as_inputs=False):
       tagged_values = enumerate(pvalueish)
   elif isinstance(pvalueish, list):
     if as_inputs:
+      # Full list treated as a list of value for eager evaluation.
       yield None, pvalueish
       return
     tagged_values = enumerate(pvalueish)

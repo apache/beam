@@ -972,7 +972,7 @@ class RunnerApiTest(unittest.TestCase):
     for transform_id in runner_api_proto.components.transforms:
       self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
 
-  def test_input_bames(self):
+  def test_input_names(self):
     class MyPTransform(beam.PTransform):
       def expand(self, pcolls):
         return pcolls.values() | beam.Flatten()
