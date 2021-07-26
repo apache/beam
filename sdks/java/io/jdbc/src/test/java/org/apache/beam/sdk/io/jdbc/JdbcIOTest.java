@@ -65,21 +65,27 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.io.jdbc.LogicalTypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.io.PushdownProjector;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -100,9 +106,10 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
+  private static final String driverClassName = "org.apache.derby.jdbc.EmbeddedDriver";
+  private static final String url = "jdbc:derby:memory:testDB;create=true";
   private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =
-      DataSourceConfiguration.create(
-          "org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:testDB;create=true");
+      DataSourceConfiguration.create(driverClassName, url);
   private static final DataSource DATA_SOURCE = DATA_SOURCE_CONFIGURATION.buildDatasource();
   private static final int EXPECTED_ROW_COUNT = 1000;
   private static final String READ_TABLE_NAME = DatabaseTestHelper.getTestTableName("UT_READ");
@@ -437,6 +444,7 @@ public class JdbcIOTest implements Serializable {
             .withPartitionColumn("id")
             .withLowerBound(0)
             .withUpperBound(100));
+
     pipeline.run();
   }
 
@@ -455,6 +463,53 @@ public class JdbcIOTest implements Serializable {
             .withPartitionColumn("id")
             .withLowerBound(100)
             .withUpperBound(100));
+    pipeline.run();
+  }
+
+  @Test
+  public void testSchemaIOReadAll() {
+    JdbcSchemaIOProvider provider = new JdbcSchemaIOProvider();
+    Row config =
+        Row.withSchema(provider.configurationSchema())
+            .addValues(driverClassName, url, "", "", null, null, null, null, null, null)
+            .build();
+    JdbcSchemaIOProvider.JdbcSchemaIO schemaIO =
+        provider.from(READ_TABLE_NAME, config, Schema.of());
+    PTransform<PBegin, PCollection<Row>> reader = schemaIO.buildReader();
+
+    PCollection<Long> count = pipeline.apply(reader).apply(Count.globally());
+
+    PAssert.that(count).containsInAnyOrder((long) EXPECTED_ROW_COUNT);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testSchemaIOProject() {
+    JdbcSchemaIOProvider provider = new JdbcSchemaIOProvider();
+    Row config =
+        Row.withSchema(provider.configurationSchema())
+            .addValues(driverClassName, url, "", "", null, null, null, null, null, null)
+            .build();
+    JdbcSchemaIOProvider.JdbcSchemaIO schemaIO =
+        provider.from(READ_TABLE_NAME, config, Schema.of());
+    PTransform<PBegin, PCollection<Row>> reader = schemaIO.buildReader();
+    assertTrue(reader instanceof PushdownProjector);
+
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNamesAs(ImmutableMap.of("id", "id1", "name", "name1"));
+    PTransform<PBegin, PCollection<Row>> pushdownReader =
+        ((PushdownProjector<PBegin>) reader).withProjectionPushdown(fieldAccessDescriptor);
+    PCollection<Row> sample = pipeline.apply(pushdownReader).apply(Sample.any(1));
+
+    PAssert.thatSingleton(sample)
+        .satisfies(
+            (row) -> {
+              assertTrue(row.getSchema().hasField("ID1"));
+              assertTrue(row.getSchema().hasField("NAME1"));
+              return null;
+            });
+
     pipeline.run();
   }
 

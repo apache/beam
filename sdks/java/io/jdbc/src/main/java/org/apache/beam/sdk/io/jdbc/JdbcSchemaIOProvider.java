@@ -18,14 +18,17 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import com.google.auto.service.AutoService;
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.io.PushdownProjector;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -107,31 +110,12 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
 
     @Override
     public PTransform<PBegin, PCollection<Row>> buildReader() {
-      return new PTransform<PBegin, PCollection<Row>>() {
-        @Override
-        public PCollection<Row> expand(PBegin input) {
-          String readQuery;
-          if (config.getString("readQuery") != null) {
-            readQuery = config.getString("readQuery");
-          } else {
-            readQuery = String.format("SELECT * FROM %s", location);
-          }
-
-          JdbcIO.ReadRows readRows =
-              JdbcIO.readRows()
-                  .withDataSourceConfiguration(getDataSourceConfiguration())
-                  .withQuery(readQuery);
-
-          if (config.getInt16("fetchSize") != null) {
-            readRows = readRows.withFetchSize(config.getInt16("fetchSize"));
-          }
-          if (config.getBoolean("outputParallelization") != null) {
-            readRows =
-                readRows.withOutputParallelization(config.getBoolean("outputParallelization"));
-          }
-          return input.apply(readRows);
-        }
-      };
+      return Reader.builder()
+          .setLocation(location)
+          .setConfig(config)
+          .setDataSourceConfiguration(getDataSourceConfiguration())
+          .setFieldAccessDescriptor(FieldAccessDescriptor.withAllFields())
+          .build();
     }
 
     @Override
@@ -146,6 +130,95 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
                   .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter()));
         }
       };
+    }
+
+    @AutoValue
+    public abstract static class Reader extends PTransform<PBegin, PCollection<Row>>
+        implements PushdownProjector<PBegin> {
+      abstract String getLocation();
+
+      abstract Row getConfig();
+
+      abstract JdbcIO.DataSourceConfiguration getDataSourceConfiguration();
+
+      abstract FieldAccessDescriptor getFieldAccessDescriptor();
+
+      abstract Builder toBuilder();
+
+      @AutoValue.Builder
+      abstract static class Builder {
+        abstract Builder setLocation(String location);
+
+        abstract Builder setConfig(Row config);
+
+        abstract Builder setDataSourceConfiguration(
+            JdbcIO.DataSourceConfiguration dataSourceConfiguration);
+
+        abstract Builder setFieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor);
+
+        abstract Reader build();
+      }
+
+      static Builder builder() {
+        return new AutoValue_JdbcSchemaIOProvider_JdbcSchemaIO_Reader.Builder();
+      }
+
+      @Override
+      public PCollection<Row> expand(PBegin input) {
+        String readQuery;
+
+        JdbcIO.ReadRows readRows =
+            JdbcIO.readRows()
+                .withDataSourceConfiguration(getDataSourceConfiguration())
+                .withQuery(getReadQuery());
+
+        if (getConfig().getInt16("fetchSize") != null) {
+          readRows = readRows.withFetchSize(getConfig().getInt16("fetchSize"));
+        }
+        if (getConfig().getBoolean("outputParallelization") != null) {
+          readRows =
+              readRows.withOutputParallelization(getConfig().getBoolean("outputParallelization"));
+        }
+        return input.apply(readRows);
+      }
+
+      @Override
+      public PTransform<PBegin, PCollection<Row>> withProjectionPushdown(
+          FieldAccessDescriptor fieldAccessDescriptor) {
+        return toBuilder().setFieldAccessDescriptor(fieldAccessDescriptor).build();
+      }
+
+      @Override
+      public boolean supportsFieldReordering() {
+        return true;
+      }
+
+      private String getReadQuery() {
+        if (getConfig().getString("readQuery") != null) {
+          return getConfig().getString("readQuery");
+        }
+        if (getFieldAccessDescriptor().getAllFields()) {
+          return String.format("SELECT * FROM %s", getLocation());
+        }
+
+        // Build query from field access descriptor.
+        StringBuilder query = new StringBuilder("SELECT ");
+        List<FieldAccessDescriptor.FieldDescriptor> fieldsAccessed =
+            getFieldAccessDescriptor().getFieldsAccessed();
+        for (int i = 0; i < fieldsAccessed.size(); i++) {
+          if (i > 0) {
+            query.append(", ");
+          }
+          query.append(fieldsAccessed.get(i).getFieldName());
+          if (fieldsAccessed.get(i).getFieldRename() != null) {
+            query.append(" AS ");
+            query.append(fieldsAccessed.get(i).getFieldRename());
+          }
+        }
+        query.append(" FROM ");
+        query.append(getLocation());
+        return query.toString();
+      }
     }
 
     protected JdbcIO.DataSourceConfiguration getDataSourceConfiguration() {
