@@ -1535,7 +1535,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
                   if (complete.get()) {
                     return false;
                   }
-                  throw new IllegalStateException("Got poison pill but stream is not done.");
+                  throw new IllegalStateException("Got poison pill or timeout but stream is not done.");
                 } catch (InterruptedException e) {
                   Thread.currentThread().interrupt();
                   throw new CancellationException();
