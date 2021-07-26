@@ -18,9 +18,6 @@ import apache_beam as beam
 from apache_beam.testing.test_stream import TestStream
 from datetime import datetime
 import pytz
-# from apache_beam.io.external.generate_sequence import GenerateSequence
-
-# expansion_service = 'localhost:12345'
 
 
 class GenerateEvent(beam.PTransform):
@@ -30,10 +27,6 @@ class GenerateEvent(beam.PTransform):
         return GenerateEvent()
 
     def expand(self, input):
-        # return (input
-        #         | GenerateSequence(start=1, stop=10, expansion_service=expansion_service)
-        #         | beam.Map(lambda elem: "event"))
-
         return (input
                 | TestStream()
                     .add_elements(elements=["event"], event_timestamp=datetime(2021, 3, 1, 0, 0, 1, 0, tzinfo=pytz.UTC).timestamp())
