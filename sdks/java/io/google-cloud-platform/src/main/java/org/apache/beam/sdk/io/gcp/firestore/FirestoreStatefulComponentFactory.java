@@ -19,13 +19,13 @@ package org.apache.beam.sdk.io.gcp.firestore;
 
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ClientContext;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.cloud.firestore.FirestoreOptions.EmulatorCredentials;
 import com.google.cloud.firestore.v1.FirestoreSettings;
 import com.google.cloud.firestore.v1.stub.FirestoreStub;
 import com.google.cloud.firestore.v1.stub.GrpcFirestoreStub;
-import java.io.IOException;
 import java.io.Serializable;
 import java.security.SecureRandom;
 import java.util.Map;
@@ -76,6 +76,14 @@ class FirestoreStatefulComponentFactory implements Serializable {
                     }
                   });
 
+      RetrySettings retrySettings = RetrySettings.newBuilder().setMaxAttempts(1).build();
+
+      builder.applyToAllUnaryMethods(
+          b -> {
+            b.setRetrySettings(retrySettings);
+            return null;
+          });
+
       FirestoreOptions firestoreOptions = options.as(FirestoreOptions.class);
       String emulatorHostPort = firestoreOptions.getEmulatorHost();
       if (emulatorHostPort != null) {
@@ -96,7 +104,7 @@ class FirestoreStatefulComponentFactory implements Serializable {
 
       ClientContext clientContext = ClientContext.create(builder.build());
       return GrpcFirestoreStub.create(clientContext);
-    } catch (IOException e) {
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }

@@ -23,9 +23,6 @@ import unittest
 import pytest
 
 from apache_beam.runners.interactive.testing.integration.screen_diff import BaseTestCase
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.ui import WebDriverWait
 
 
 @pytest.mark.timeout(300)
@@ -35,8 +32,15 @@ class DataFramesTest(BaseTestCase):
     super(DataFramesTest, self).__init__(*args, **kwargs)
 
   def explicit_wait(self):
-    WebDriverWait(self.driver, 5).until(
-        expected_conditions.presence_of_element_located((By.ID, 'test-done')))
+    try:
+      from selenium.webdriver.common.by import By
+      from selenium.webdriver.support import expected_conditions
+      from selenium.webdriver.support.ui import WebDriverWait
+
+      WebDriverWait(self.driver, 5).until(
+          expected_conditions.presence_of_element_located((By.ID, 'test-done')))
+    except:
+      pass  # The test will be ignored.
 
   def test_dataframes(self):
     self.assert_notebook('dataframes')

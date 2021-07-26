@@ -149,7 +149,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
    *
    * <p><i>Default Value:</i> 5 sec
    *
-   * @see RpcQosOptions#getInitialBackoff()
+   * @see RpcQosOptions.Builder#withInitialBackoff(Duration)
    */
   public Duration getInitialBackoff() {
     return initialBackoff;

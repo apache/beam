@@ -62,9 +62,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.WithFailures;
+import org.apache.beam.sdk.transforms.WithFailures.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.EncodableThrowable;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -643,6 +647,8 @@ public class PubsubIO {
 
     abstract @Nullable ValueProvider<PubsubTopic> getTopicProvider();
 
+    abstract @Nullable ValueProvider<PubsubTopic> getDeadLetterTopicProvider();
+
     abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
 
     abstract @Nullable ValueProvider<PubsubSubscription> getSubscriptionProvider();
@@ -692,6 +698,8 @@ public class PubsubIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
+
+      abstract Builder<T> setDeadLetterTopicProvider(ValueProvider<PubsubTopic> deadLetterTopic);
 
       abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory clientFactory);
 
@@ -763,15 +771,60 @@ public class PubsubIO {
       return fromTopic(StaticValueProvider.of(topic));
     }
 
-    /** Like {@code topic()} but with a {@link ValueProvider}. */
+    /** Like {@link Read#fromTopic(String)} but with a {@link ValueProvider}. */
     public Read<T> fromTopic(ValueProvider<String> topic) {
-      if (topic.isAccessible()) {
-        // Validate.
-        PubsubTopic.fromPath(topic.get());
-      }
+      validateTopic(topic);
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
           .build();
+    }
+
+    /**
+     * Creates and returns a transform for writing read failures out to a dead-letter topic.
+     *
+     * <p>The message written to the dead-letter will contain three attributes:
+     *
+     * <ul>
+     *   <li>exceptionClassName: The type of exception that was thrown.
+     *   <li>exceptionMessage: The message in the exception
+     *   <li>pubsubMessageId: The message id of the original Pub/Sub message if it was read in,
+     *       otherwise "<null>"
+     * </ul>
+     *
+     * <p>The {@link PubsubClient.PubsubClientFactory} used in the {@link Write} transform for
+     * errors will be the same as used in the final {@link Read} transform.
+     *
+     * <p>If there <i>might</i> be a parsing error (or similar), then this should be set up on the
+     * topic to avoid wasting resources and to provide more error details with the message written
+     * to Pub/Sub. Otherwise, the Pub/Sub topic should have a dead-letter configuration set up to
+     * avoid an infinite retry loop.
+     *
+     * <p>Only failures that result from the {@link Read} configuration (e.g. parsing errors) will
+     * be sent to the dead-letter topic. Errors that occur after a successful read will need to set
+     * up their own {@link Write} transform. Errors with delivery require configuring Pub/Sub itself
+     * to write to the dead-letter topic after a certain number of failed attempts.
+     *
+     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
+     * {@code deadLetterTopic} string.
+     */
+    public Read<T> withDeadLetterTopic(String deadLetterTopic) {
+      return withDeadLetterTopic(StaticValueProvider.of(deadLetterTopic));
+    }
+
+    /** Like {@link Read#withDeadLetterTopic(String)} but with a {@link ValueProvider}. */
+    public Read<T> withDeadLetterTopic(ValueProvider<String> deadLetterTopic) {
+      validateTopic(deadLetterTopic);
+      return toBuilder()
+          .setDeadLetterTopicProvider(
+              NestedValueProvider.of(deadLetterTopic, PubsubTopic::fromPath))
+          .build();
+    }
+
+    /** Handles validation of {@code topic}. */
+    private static void validateTopic(ValueProvider<String> topic) {
+      if (topic.isAccessible()) {
+        PubsubTopic.fromPath(topic.get());
+      }
     }
 
     /**
@@ -881,8 +934,60 @@ public class PubsubIO {
               getIdAttribute(),
               getNeedsAttributes(),
               getNeedsMessageId());
-      PCollection<T> read =
-          input.apply(source).apply(MapElements.into(new TypeDescriptor<T>() {}).via(getParseFn()));
+
+      PCollection<T> read;
+      PCollection<PubsubMessage> preParse = input.apply(source);
+      TypeDescriptor<T> typeDescriptor = new TypeDescriptor<T>() {};
+      if (getDeadLetterTopicProvider() == null) {
+        read = preParse.apply(MapElements.into(typeDescriptor).via(getParseFn()));
+      } else {
+        Result<PCollection<T>, KV<PubsubMessage, EncodableThrowable>> result =
+            preParse.apply(
+                "PubsubIO.Read/Map/Parse-Incoming-Messages",
+                MapElements.into(typeDescriptor)
+                    .via(getParseFn())
+                    .exceptionsVia(new WithFailures.ThrowableHandler<PubsubMessage>() {}));
+        read = result.output();
+
+        // Write out failures to the provided dead-letter topic.
+        result
+            .failures()
+            // Since the stack trace could easily exceed Pub/Sub limits, we need to remove it from
+            // the attributes.
+            .apply(
+                "PubsubIO.Read/Map/Remove-Stack-Trace-Attribute",
+                MapElements.into(new TypeDescriptor<KV<PubsubMessage, Map<String, String>>>() {})
+                    .via(
+                        kv -> {
+                          PubsubMessage message = kv.getKey();
+                          String messageId =
+                              message.getMessageId() == null ? "<null>" : message.getMessageId();
+                          Throwable throwable = kv.getValue().throwable();
+
+                          // In order to stay within Pub/Sub limits, we aren't adding the stack
+                          // trace to the attributes. Therefore, we need to log the throwable.
+                          LOG.error(
+                              "Error parsing Pub/Sub message with id '{}'", messageId, throwable);
+
+                          ImmutableMap<String, String> attributes =
+                              ImmutableMap.<String, String>builder()
+                                  .put("exceptionClassName", throwable.getClass().getName())
+                                  .put("exceptionMessage", throwable.getMessage())
+                                  .put("pubsubMessageId", messageId)
+                                  .build();
+
+                          return KV.of(kv.getKey(), attributes);
+                        }))
+            .apply(
+                "PubsubIO.Read/Map/Create-Dead-Letter-Payload",
+                MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                    .via(kv -> new PubsubMessage(kv.getKey().getPayload(), kv.getValue())))
+            .apply(
+                writeMessages()
+                    .to(getDeadLetterTopicProvider().get().asPath())
+                    .withClientFactory(getPubsubClientFactory()));
+      }
+
       return read.setCoder(getCoder());
     }
 

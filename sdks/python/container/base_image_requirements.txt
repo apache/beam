@@ -43,7 +43,7 @@ typing-extensions==3.7.4.3
 
 # GCP extra features
 google-auth==1.31.0
-google-api-core==1.22.0
+google-api-core==1.22.2
 google-apitools==0.5.31
 google-cloud-pubsub==1.0.2
 google-cloud-bigquery==1.26.1

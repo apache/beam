@@ -23,6 +23,103 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
+func TestEqualsFloat_exact(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	left := beam.Create(s, 1.2, 4.6, 3.79)
+	right := beam.Create(s, 1.2, 4.6, 3.79)
+	EqualsFloat(s, left, right, 0.001)
+	err := ptest.Run(p)
+	if err != nil {
+		t.Errorf("Pipeline failed: %v", err)
+	}
+}
+
+func TestEqualsFloat_withinThreshold(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	left := beam.Create(s, 1.1996, 4.60002, 3.79)
+	right := beam.Create(s, 1.2, 4.6, 3.79)
+	EqualsFloat(s, left, right, 0.001)
+	err := ptest.Run(p)
+	if err != nil {
+		t.Errorf("Pipeline failed: %v", err)
+	}
+}
+
+func TestEqualsFloat_bad(t *testing.T) {
+	var tests = []struct {
+		name       string
+		observed   []float64
+		expected   []float64
+		threshold  float64
+		errorParts []string
+	}{
+		{
+			"length mismatch",
+			[]float64{1.2, 3.4},
+			[]float64{1.2, 3.4, 5.6},
+			0.001,
+			[]string{"PCollections of different lengths", "got 2", "expected 3"},
+		},
+		{
+			"too low",
+			[]float64{1.198, 3.3},
+			[]float64{1.2, 3.4},
+			0.001,
+			[]string{"values below expected", "1.198 < 1.2", "3.3 < 3.4"},
+		},
+		{
+			"too high",
+			[]float64{1.3, 3.402},
+			[]float64{1.2, 3.4},
+			0.001,
+			[]string{"values above expected", "1.3 > 1.2", "3.402 > 3.4"},
+		},
+		{
+			"too high and too low",
+			[]float64{1.198, 3.402},
+			[]float64{1.2, 3.4},
+			0.001,
+			[]string{"values below expected", "1.198 < 1.2", "values above expected", "3.402 > 3.4"},
+		},
+	}
+	for _, tc := range tests {
+		p, s := beam.NewPipelineWithRoot()
+		left := beam.CreateList(s, tc.observed)
+		right := beam.CreateList(s, tc.expected)
+		EqualsFloat(s, left, right, tc.threshold)
+		err := ptest.Run(p)
+		if err == nil {
+			t.Fatalf("Pipeline succeeded but should have failed.")
+		}
+		str := err.Error()
+		missing := []string{}
+		for _, part := range tc.errorParts {
+			if !strings.Contains(str, part) {
+				missing = append(missing, part)
+			}
+		}
+		if len(missing) != 0 {
+			t.Errorf("%v: pipeline failed correctly but substrings %#v are not present in message:\n%v", tc.name, missing, str)
+		}
+	}
+}
+
+func TestEqualsFloat_nonNumeric(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	obs := beam.Create(s, "a", "b", "c")
+	exp := beam.Create(s, "a", "b", "c")
+	err := TryEqualsFloat(s, obs, exp, 0.001)
+	ptest.Run(p)
+	if err == nil {
+		t.Fatalf("Pipeline succeeded but should have failed.")
+	}
+	str := err.Error()
+	expErr := "type must be a non-complex number"
+	if !strings.Contains(str, expErr) {
+		t.Errorf("pipeline failed correctly but did not contain substring %#v in message: \n%v", expErr, str)
+	}
+}
+
 func TestAllWithinBounds_GoodFloats(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, 0.0, 0.5, 1.0)

@@ -32,6 +32,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"strings"
+	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -39,11 +40,22 @@ import (
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
-var (
-	hookRegistry = make(map[string]HookFactory)
-	enabledHooks = make(map[string][]string)
-	activeHooks  = make(map[string]Hook)
-)
+var defaultRegistry = newRegistry()
+
+type registry struct {
+	mu           sync.Mutex
+	hookRegistry map[string]HookFactory
+	enabledHooks map[string][]string
+	activeHooks  map[string]Hook
+}
+
+func newRegistry() *registry {
+	return &registry{
+		hookRegistry: make(map[string]HookFactory),
+		enabledHooks: make(map[string][]string),
+		activeHooks:  make(map[string]Hook),
+	}
+}
 
 // A Hook is a set of hooks to run at various stages of executing a
 // pipeline.
@@ -64,19 +76,26 @@ type InitHook func(context.Context) (context.Context, error)
 // HookFactory is a function that produces a Hook from the supplied arguments.
 type HookFactory func([]string) Hook
 
+func (r *registry) RegisterHook(name string, h HookFactory) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.hookRegistry[name] = h
+}
+
 // RegisterHook registers a Hook for the
 // supplied identifier.
 func RegisterHook(name string, h HookFactory) {
-	hookRegistry[name] = h
+	defaultRegistry.RegisterHook(name, h)
 }
 
-// RunInitHooks runs the init hooks.
-func RunInitHooks(ctx context.Context) (context.Context, error) {
+func (r *registry) RunInitHooks(ctx context.Context) (context.Context, error) {
 	// If an init hook fails to complete, the invariants of the
 	// system are compromised and we can't run a workflow.
 	// The hooks can run in any order. They should not be
 	// interdependent or interfere with each other.
-	for _, h := range activeHooks {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, h := range r.activeHooks {
 		if h.Init != nil {
 			var err error
 			if ctx, err = h.Init(ctx); err != nil {
@@ -87,15 +106,21 @@ func RunInitHooks(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
+// RunInitHooks runs the init hooks.
+func RunInitHooks(ctx context.Context) (context.Context, error) {
+	return defaultRegistry.RunInitHooks(ctx)
+}
+
 // RequestHook is called when handling a FnAPI instruction. It can return an updated
 // context to pass additional information to downstream callers, or return the
 // original context provided.
 type RequestHook func(context.Context, *fnpb.InstructionRequest) (context.Context, error)
 
-// RunRequestHooks runs the hooks that handle a FnAPI request.
-func RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) context.Context {
+func (r *registry) RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) context.Context {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	// The request hooks should not modify the request.
-	for n, h := range activeHooks {
+	for n, h := range r.activeHooks {
 		if h.Req != nil {
 			var err error
 			if ctx, err = h.Req(ctx, req); err != nil {
@@ -106,12 +131,18 @@ func RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) context.
 	return ctx
 }
 
+// RunRequestHooks runs the hooks that handle a FnAPI request.
+func RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) context.Context {
+	return defaultRegistry.RunRequestHooks(ctx, req)
+}
+
 // ResponseHook is called when sending a FnAPI instruction response.
 type ResponseHook func(context.Context, *fnpb.InstructionRequest, *fnpb.InstructionResponse) error
 
-// RunResponseHooks runs the hooks that handle a FnAPI response.
-func RunResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *fnpb.InstructionResponse) {
-	for n, h := range activeHooks {
+func (r *registry) RunResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *fnpb.InstructionResponse) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for n, h := range r.activeHooks {
 		if h.Resp != nil {
 			if err := h.Resp(ctx, req, resp); err != nil {
 				log.Infof(ctx, "response hook %s failed: %v", n, err)
@@ -120,10 +151,15 @@ func RunResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *f
 	}
 }
 
-// SerializeHooksToOptions serializes the activated hooks and their configuration into a JSON string
-// that can be deserialized later by the runner.
-func SerializeHooksToOptions() {
-	data, err := json.Marshal(enabledHooks)
+// RunResponseHooks runs the hooks that handle a FnAPI response.
+func RunResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *fnpb.InstructionResponse) {
+	defaultRegistry.RunResponseHooks(ctx, req, resp)
+}
+
+func (r *registry) SerializeHooksToOptions() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	data, err := json.Marshal(r.enabledHooks)
 	if err != nil {
 		// Shouldn't happen, since all the data is strings.
 		panic(errors.Wrap(err, "Couldn't serialize hooks"))
@@ -131,22 +167,44 @@ func SerializeHooksToOptions() {
 	runtime.GlobalOptions.Set("hooks", string(data))
 }
 
-// DeserializeHooksFromOptions extracts the hook configuration information from the options and configures
-// the hooks with the supplied options.
-func DeserializeHooksFromOptions(ctx context.Context) {
+// SerializeHooksToOptions serializes the activated hooks and their configuration into a JSON string
+// that can be deserialized later by the runner.
+func SerializeHooksToOptions() {
+	defaultRegistry.SerializeHooksToOptions()
+}
+
+func (r *registry) DeserializeHooksFromOptions(ctx context.Context) {
 	cfg := runtime.GlobalOptions.Get("hooks")
 	if cfg == "" {
 		log.Warn(ctx, "SerializeHooksToOptions was never called. No hooks enabled")
 		return
 	}
-	if err := json.Unmarshal([]byte(cfg), &enabledHooks); err != nil {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err := json.Unmarshal([]byte(cfg), &r.enabledHooks); err != nil {
 		// Shouldn't happen, since all the data is strings.
 		panic(errors.Wrapf(err, "DeserializeHooks failed on input %q", cfg))
 	}
 
-	for h, opts := range enabledHooks {
-		activeHooks[h] = hookRegistry[h](opts)
+	for h, opts := range r.enabledHooks {
+		r.activeHooks[h] = r.hookRegistry[h](opts)
 	}
+}
+
+// DeserializeHooksFromOptions extracts the hook configuration information from the options and configures
+// the hooks with the supplied options.
+func DeserializeHooksFromOptions(ctx context.Context) {
+	defaultRegistry.DeserializeHooksFromOptions(ctx)
+}
+
+func (r *registry) EnableHook(name string, args ...string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.hookRegistry[name]; !ok {
+		return errors.Errorf("EnableHook: hook %s not found", name)
+	}
+	r.enabledHooks[name] = args
+	return nil
 }
 
 // EnableHook enables the hook to be run for the pipline. It will be
@@ -154,18 +212,20 @@ func DeserializeHooksFromOptions(ctx context.Context) {
 // to enable the same hook with different options, as this is necessary
 // if a hook wants to compose behavior.
 func EnableHook(name string, args ...string) error {
-	if _, ok := hookRegistry[name]; !ok {
-		return errors.Errorf("EnableHook: hook %s not found", name)
-	}
-	enabledHooks[name] = args
-	return nil
+	return defaultRegistry.EnableHook(name, args...)
+}
+
+func (r *registry) IsEnabled(name string) (bool, []string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	opts, ok := r.enabledHooks[name]
+	return ok, opts
 }
 
 // IsEnabled returns true and the registered options if the hook is
 // already enabled.
 func IsEnabled(name string) (bool, []string) {
-	opts, ok := enabledHooks[name]
-	return ok, opts
+	return defaultRegistry.IsEnabled(name)
 }
 
 // Encode encodes a hook name and its arguments into a single string.

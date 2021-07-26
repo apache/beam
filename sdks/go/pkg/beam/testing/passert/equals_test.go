@@ -168,7 +168,7 @@ func ExampleEqualsList() {
 }
 
 func unwrapError(err error) error {
-	if wrapper, ok := err.(interface{ Unwrap() error}); ok {
+	if wrapper, ok := err.(interface{ Unwrap() error }); ok {
 		return wrapper.Unwrap()
 	}
 	return err

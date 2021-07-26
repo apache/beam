@@ -119,6 +119,31 @@ task createProcessWorker {
   }
 }
 
+def createSamzaRunnerTestTask(String workerType) {
+  def taskName = "samzaCompatibilityMatrix${workerType}"
+  def jobServerJar = "${rootDir}/runners/samza/job-server/build/libs/beam-runners-samza-job-server-${version}.jar"
+  def options = "--samza_job_server_jar=${jobServerJar} --environment_type=${workerType}"
+  if (workerType == 'PROCESS') {
+    options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
+  }
+  def task = toxTask(taskName, 'samza-runner-test', options)
+  task.dependsOn ":runners:samza:job-server:shadowJar"
+  if (workerType == 'DOCKER') {
+    task.dependsOn ext.pythonContainerTask
+  } else if (workerType == 'PROCESS') {
+    task.dependsOn 'createProcessWorker'
+  }
+  return task
+}
+
+createSamzaRunnerTestTask('DOCKER')
+createSamzaRunnerTestTask('PROCESS')
+createSamzaRunnerTestTask('LOOPBACK')
+
+task samzaValidatesRunner() {
+  dependsOn 'samzaCompatibilityMatrixLOOPBACK'
+}
+
 def createSparkRunnerTestTask(String workerType) {
   def taskName = "sparkCompatibilityMatrix${workerType}"
   // `project(':runners:spark:2:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
