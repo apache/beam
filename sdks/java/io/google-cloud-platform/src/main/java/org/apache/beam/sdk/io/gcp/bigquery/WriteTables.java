@@ -108,7 +108,7 @@ class WriteTables<DestinationT>
   }
 
   static class ResultCoder extends AtomicCoder<WriteTables.Result> {
-    static ResultCoder INSTANCE = new ResultCoder();
+    static final ResultCoder INSTANCE = new ResultCoder();
 
     @Override
     public void encode(Result value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
