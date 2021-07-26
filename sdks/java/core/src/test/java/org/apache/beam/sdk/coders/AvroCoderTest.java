@@ -331,15 +331,15 @@ public class AvroCoderTest {
 
   @Test
   public void testReflectRecordEncoding() throws Exception {
-    // AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, new
-    // ReflectData(TestAvro.class.getClassLoader()));
+    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, new
+    ReflectData(TestAvro.class.getClassLoader()));
     AvroCoder<TestAvro> coderWithSchema =
         AvroCoder.of(
             TestAvro.class,
             AVRO_SPECIFIC_RECORD.getSchema(),
             new ReflectData(TestAvro.class.getClassLoader()));
 
-    // assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
     assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
 
     // CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);

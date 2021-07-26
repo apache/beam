@@ -337,7 +337,6 @@ public class AvroCoder<T> extends CustomCoder<T> {
             } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType())) {
               return new SpecificDatumReader<>(myCoder.getType());
             }
-
             return new ReflectDatumReader<>(
                 myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
           }
