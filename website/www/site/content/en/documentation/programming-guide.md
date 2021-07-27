@@ -448,6 +448,12 @@ individual elements. A Beam Transform might process each element of a
 `PCollection` and generate new pipeline data (as a new `PCollection`), *but it
 does not consume or modify the original input collection*.
 
+> **Note:** Beam SDKs avoid unnecessary copying of elements, so `PCollection`
+> contents are logically immutable, not physically immutable. Changes to input
+> elements may be visible to DoFns executing within the same bundle, and may
+> cause correctness issues.
+> As a rule, it's not safe to modify values provided to a DoFn.
+
 #### 3.2.4. Random access {#random-access}
 
 A `PCollection` does not support random access to individual elements. Instead,
