@@ -64,24 +64,21 @@ __all__ = [
 class _ArrowTableToRowDictionaries(DoFn):
   """ A DoFn that consumes an Arrow table and yields a python dictionary for
   each row in the table."""
-  def process(self, table, with_context=False):
-    if with_context:
-      path = table[0]
+  def process(self, table, with_filename=False):
+    if with_filename:
+      file_name = table[0]
       table = table[1]
     num_rows = table.num_rows
     data_items = table.to_pydict().items()
-    if with_context:
-      for n in range(num_rows):
-        row = {}
-        for column, values in data_items:
-          row[column] = values[n]
-        yield (path, row)
-    else:
-      for n in range(num_rows):
-        row = {}
-        for column, values in data_items:
-          row[column] = values[n]
-        yield row
+    rows = []
+    for n in range(num_rows):
+      row = {}
+      for column, values in data_items:
+        row[column] = values[n]
+      rows.append(row)
+    if with_filename:
+      return [(file_name, row) for row in rows]
+    return rows
 
 
 class ReadFromParquetBatched(PTransform):
@@ -225,7 +222,7 @@ class ReadAllFromParquetBatched(PTransform):
       min_bundle_size=0,
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       columns=None,
-      with_context=False,
+      with_filename=False,
       label='ReadAllFiles'):
     """Initializes ``ReadAllFromParquet``.
 
@@ -237,9 +234,9 @@ class ReadAllFromParquetBatched(PTransform):
       columns: list of columns that will be read from files. A column name
                        may be a prefix of a nested field, e.g. 'a' will select
                        'a.b', 'a.c', and 'a.d.e'
-      with_context: If True, returns a Key Value with the key being the file
-        path and the value being the actual read. If False, it only returns
-        the read.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     super(ReadAllFromParquetBatched, self).__init__()
     source_from_file = partial(
@@ -252,7 +249,7 @@ class ReadAllFromParquetBatched(PTransform):
         desired_bundle_size,
         min_bundle_size,
         source_from_file,
-        with_context)
+        with_filename)
 
     self.label = label
 
@@ -261,14 +258,14 @@ class ReadAllFromParquetBatched(PTransform):
 
 
 class ReadAllFromParquet(PTransform):
-  def __init__(self, with_context=False, **kwargs):
-    self._with_context = with_context
+  def __init__(self, with_filename=False, **kwargs):
+    self._with_filename = with_filename
     self._read_batches = ReadAllFromParquetBatched(
-        with_context=self._with_context, **kwargs)
+        with_filename=self._with_filename, **kwargs)
 
   def expand(self, pvalue):
     return pvalue | self._read_batches | ParDo(
-        _ArrowTableToRowDictionaries(), with_context=self._with_context)
+        _ArrowTableToRowDictionaries(), with_filename=self._with_filename)
 
 
 def _create_parquet_source(

@@ -160,7 +160,7 @@ class TestParquet(unittest.TestCase):
 
       return f.name
 
-  def _write_pattern(self, num_files, with_context=False):
+  def _write_pattern(self, num_files, with_filename=False):
     assert num_files > 0
     temp_dir = tempfile.mkdtemp(dir=self.temp_dir)
 
@@ -168,7 +168,7 @@ class TestParquet(unittest.TestCase):
     for _ in range(num_files):
       file_list.append(self._write_data(directory=temp_dir, prefix='mytemp'))
 
-    if with_context:
+    if with_filename:
       return (temp_dir + os.path.sep + 'mytemp*', file_list)
     return temp_dir + os.path.sep + 'mytemp*'
 
@@ -537,14 +537,14 @@ class TestParquet(unittest.TestCase):
           | ReadAllFromParquetBatched(),
           equal_to([self._records_as_arrow()] * 10))
 
-  def test_read_all_from_parquet_with_context(self):
-    file_pattern, file_paths = self._write_pattern(3, with_context=True)
+  def test_read_all_from_parquet_with_filename(self):
+    file_pattern, file_paths = self._write_pattern(3, with_filename=True)
     result = [(path, record) for path in file_paths for record in self.RECORDS]
     with TestPipeline() as p:
       assert_that(
           p \
           | Create([file_pattern]) \
-          | ReadAllFromParquet(with_context=True),
+          | ReadAllFromParquet(with_filename=True),
           equal_to(result))
 
 

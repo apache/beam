@@ -362,7 +362,7 @@ class TestReadAllFromTFRecord(unittest.TestCase):
                 compression_type=CompressionTypes.AUTO))
         assert_that(result, equal_to([b'foo', b'bar']))
 
-  def test_process_with_context(self):
+  def test_process_with_filename(self):
     with TempDir() as temp_dir:
       num_files = 3
       files = []
@@ -381,7 +381,7 @@ class TestReadAllFromTFRecord(unittest.TestCase):
             | ReadAllFromTFRecord(
                 coder=coders.BytesCoder(),
                 compression_type=CompressionTypes.AUTO,
-                with_context=True))
+                with_filename=True))
         assert_that(result, equal_to(expected))
 
   def test_process_glob(self):

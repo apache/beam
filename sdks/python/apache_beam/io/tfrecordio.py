@@ -206,7 +206,7 @@ class ReadAllFromTFRecord(PTransform):
       self,
       coder=coders.BytesCoder(),
       compression_type=CompressionTypes.AUTO,
-      with_context=False):
+      with_filename=False):
     """Initialize the ``ReadAllFromTFRecord`` transform.
 
     Args:
@@ -214,9 +214,9 @@ class ReadAllFromTFRecord(PTransform):
       compression_type: Used to handle compressed input files. Default value
           is CompressionTypes.AUTO, in which case the file_path's extension will
           be used to detect the compression.
-      with_context: If True, returns a Key Value with the key being the file
-        path and the value being the actual read. If False, it only returns
-        the read.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     super(ReadAllFromTFRecord, self).__init__()
     source_from_file = partial(
@@ -231,7 +231,7 @@ class ReadAllFromTFRecord(PTransform):
         desired_bundle_size=0,
         min_bundle_size=0,
         source_from_file=source_from_file,
-        with_context=with_context)
+        with_filename=with_filename)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files

@@ -449,6 +449,10 @@ class ReadAllFromText(PTransform):
   Parses a text file as newline-delimited elements, by default assuming
   UTF-8 encoding. Supports newline delimiters '\\n' and '\\r\\n'.
 
+  If `with_filename` is ``True`` the output will include the file name. This is
+  similar to ``ReadFromTextWithFilename`` but this ``PTransform`` can be placed
+  anywhere in the pipeline.
+
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
   """
@@ -463,7 +467,7 @@ class ReadAllFromText(PTransform):
       strip_trailing_newlines=True,
       coder=coders.StrUtf8Coder(),  # type: coders.Coder
       skip_header_lines=0,
-      with_context=False,
+      with_filename=False,
       **kwargs):
     """Initialize the ``ReadAllFromText`` transform.
 
@@ -485,9 +489,9 @@ class ReadAllFromText(PTransform):
         from each source file. Must be 0 or higher. Large number of skipped
         lines might impact performance.
       coder: Coder used to decode each line.
-      with_context: If True, returns a Key Value with the key being the file
-        path and the value being the actual read. If False, it only returns
-        the read.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     super(ReadAllFromText, self).__init__(**kwargs)
     source_from_file = partial(
@@ -506,7 +510,7 @@ class ReadAllFromText(PTransform):
         desired_bundle_size,
         min_bundle_size,
         source_from_file,
-        with_context)
+        with_filename)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files

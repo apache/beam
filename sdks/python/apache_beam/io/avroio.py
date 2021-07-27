@@ -171,7 +171,7 @@ class ReadAllFromAvro(PTransform):
       min_bundle_size=0,
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       use_fastavro=True,
-      with_context=False,
+      with_filename=False,
       label='ReadAllFiles'):
     """Initializes ``ReadAllFromAvro``.
 
@@ -182,9 +182,9 @@ class ReadAllFromAvro(PTransform):
                        splitting the input into bundles.
       use_fastavro (bool); when set, use the `fastavro` library for IO, which
         is significantly faster, and is now the default.
-      with_context: If True, returns a Key Value with the key being the file
-        path and the value being the actual read. If False, it only returns
-        the read.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     source_from_file = partial(
         _create_avro_source,
@@ -196,7 +196,7 @@ class ReadAllFromAvro(PTransform):
         desired_bundle_size,
         min_bundle_size,
         source_from_file,
-        with_context)
+        with_filename)
 
     self.label = label
 

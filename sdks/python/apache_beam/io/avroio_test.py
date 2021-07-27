@@ -392,7 +392,7 @@ class AvroBase(object):
           | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
           equal_to(self.RECORDS * 10))
 
-  def test_read_all_from_avro_with_context(self):
+  def test_read_all_from_avro_with_filename(self):
     file_pattern, file_paths = self._write_pattern(3, return_filenames=True)
     result = [(path, record) for path in file_paths for record in self.RECORDS]
     with TestPipeline() as p:
@@ -400,7 +400,7 @@ class AvroBase(object):
           p \
           | Create([file_pattern]) \
           | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro,
-                                   with_context=True),
+                                   with_filename=True),
           equal_to(result))
 
   def test_sink_transform(self):
