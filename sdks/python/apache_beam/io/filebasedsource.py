@@ -388,7 +388,7 @@ class _ReadRange(DoFn):
       data.append(record)
     if self._with_filename:
       return [(metadata.path, record) for record in data]
-    return  data
+    return data
 
 
 class ReadAllFiles(PTransform):
@@ -448,5 +448,6 @@ class ReadAllFiles(PTransform):
                 self._min_bundle_size))
         | 'Reshard' >> Reshuffle()
         | 'ReadRange' >> ParDo(
-            _ReadRange(self._source_from_file, with_filename=self._with_filename))
+            _ReadRange(
+              self._source_from_file, with_filename=self._with_filename))
     )
