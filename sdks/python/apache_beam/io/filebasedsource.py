@@ -449,5 +449,4 @@ class ReadAllFiles(PTransform):
         | 'Reshard' >> Reshuffle()
         | 'ReadRange' >> ParDo(
             _ReadRange(
-              self._source_from_file, with_filename=self._with_filename))
-    )
+                self._source_from_file, with_filename=self._with_filename)))
