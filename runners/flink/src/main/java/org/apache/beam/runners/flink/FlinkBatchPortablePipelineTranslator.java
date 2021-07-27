@@ -24,7 +24,6 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,7 +38,6 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
-import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
@@ -245,16 +243,6 @@ public class FlinkBatchPortablePipelineTranslator
   @Override
   public Set<String> knownUrns() {
     return urnToTransformTranslator.keySet();
-  }
-
-  /** Predicate to determine whether a URN is a Flink native transform. */
-  @AutoService(NativeTransforms.IsNativeTransform.class)
-  public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
-    @Override
-    public boolean test(RunnerApi.PTransform pTransform) {
-      return PTransformTranslation.RESHUFFLE_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(pTransform));
-    }
   }
 
   @Override

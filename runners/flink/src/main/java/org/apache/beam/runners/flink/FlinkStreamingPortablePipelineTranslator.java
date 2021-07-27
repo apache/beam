@@ -25,7 +25,6 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -40,7 +39,6 @@ import java.util.TreeMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -566,16 +564,6 @@ public class FlinkStreamingPortablePipelineTranslator
             .returns(typeInfo);
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
-  }
-
-  /** Predicate to determine whether a URN is a Flink native transform. */
-  @AutoService(NativeTransforms.IsNativeTransform.class)
-  public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
-    @Override
-    public boolean test(RunnerApi.PTransform pTransform) {
-      return STREAMING_IMPULSE_TRANSFORM_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(pTransform));
-    }
   }
 
   private void translateStreamingImpulse(

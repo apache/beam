@@ -25,7 +25,6 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
 
-import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,7 +36,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -406,15 +404,5 @@ public class SparkBatchPortablePipelineTranslator
   public SparkTranslationContext createTranslationContext(
       JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
     return new SparkTranslationContext(jsc, options, jobInfo);
-  }
-
-  /** Predicate to determine whether a URN is a Spark native transform. */
-  @AutoService(NativeTransforms.IsNativeTransform.class)
-  public static class IsSparkNativeTransform implements NativeTransforms.IsNativeTransform {
-    @Override
-    public boolean test(RunnerApi.PTransform pTransform) {
-      return PTransformTranslation.RESHUFFLE_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(pTransform));
-    }
   }
 }

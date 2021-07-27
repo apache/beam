@@ -57,7 +57,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -185,7 +184,7 @@ public class QueryablePipeline {
   /** Returns true if the provided transform is a primitive. */
   private static boolean isPrimitiveTransform(PTransform transform) {
     String urn = PTransformTranslation.urnForTransformOrNull(transform);
-    return PRIMITIVE_URNS.contains(urn) || NativeTransforms.isNative(transform);
+    return PRIMITIVE_URNS.contains(urn) || transform.getSubtransformsList().isEmpty();
   }
 
   private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(
