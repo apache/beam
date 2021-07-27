@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -246,6 +247,70 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
       validateWindowIsSupported(windowedStream);
 
+      Boolean ignoreValues = false;
+      PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(ignoreValues);
+
+      boolean verifyRowValues =
+          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
+      return windowedStream
+          .apply(combiner)
+          .apply(
+              "mergeRecord",
+              ParDo.of(mergeRecord(outputSchema, windowFieldIndex, ignoreValues, verifyRowValues)))
+          .setRowSchema(outputSchema);
+    }
+
+    private PTransform<PCollection<Row>, PCollection<Row>> createCombiner(Boolean ignoreValues) {
+      // Check if have fields to be grouped
+      if (keyFieldsIds.size() > 0) {
+        return createGroupCombiner(ignoreValues);
+      }
+      return createNonGroupCombiner(ignoreValues);
+    }
+
+    private PTransform<PCollection<Row>, PCollection<Row>> createNonGroupCombiner(
+        Boolean ignoreValues) {
+      org.apache.beam.sdk.schemas.transforms.Group.Global<Row> globally =
+          org.apache.beam.sdk.schemas.transforms.Group.globally();
+      org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally<Row> combined = null;
+      for (FieldAggregation fieldAggregation : fieldAggregations) {
+        List<Integer> inputs = fieldAggregation.inputs;
+        CombineFn combineFn = fieldAggregation.combineFn;
+        if (inputs.size() > 1 || inputs.isEmpty()) {
+          // In this path we extract a Row (an empty row if inputs.isEmpty).
+          combined =
+              (combined == null)
+                  ? globally.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField)
+                  : combined.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField);
+        } else {
+          // Combining over a single field, so extract just that field.
+          combined =
+              (combined == null)
+                  ? globally.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField)
+                  : combined.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField);
+        }
+      }
+
+      PTransform<PCollection<Row>, PCollection<Row>> combiner = combined;
+      if (combiner == null) {
+        // If no field aggregations were specified, we run a constant combiner that always returns
+        // a single empty row for each key. This is used by the SELECT DISTINCT query plan - in this
+        // case a group by is generated to determine unique keys, and a constant null combiner is
+        // used.
+        combiner =
+            globally.aggregateField(
+                "*",
+                AggregationCombineFnAdapter.createConstantCombineFn(),
+                Field.of(
+                    "e",
+                    FieldType.row(AggregationCombineFnAdapter.EMPTY_SCHEMA).withNullable(true)));
+        ignoreValues = true;
+      }
+      return combiner;
+    }
+
+    private PTransform<PCollection<Row>, PCollection<Row>> createGroupCombiner(
+        Boolean ignoreValues) {
       org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> byFields =
           org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(keyFieldsIds);
       org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsByFields<Row> combined = null;
@@ -268,7 +333,6 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       }
 
       PTransform<PCollection<Row>, PCollection<Row>> combiner = combined;
-      boolean ignoreValues = false;
       if (combiner == null) {
         // If no field aggregations were specified, we run a constant combiner that always returns
         // a single empty row for each key. This is used by the SELECT DISTINCT query plan - in this
@@ -283,15 +347,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                     FieldType.row(AggregationCombineFnAdapter.EMPTY_SCHEMA).withNullable(true)));
         ignoreValues = true;
       }
-
-      boolean verifyRowValues =
-          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
-      return windowedStream
-          .apply(combiner)
-          .apply(
-              "mergeRecord",
-              ParDo.of(mergeRecord(outputSchema, windowFieldIndex, ignoreValues, verifyRowValues)))
-          .setRowSchema(outputSchema);
+      return combiner;
     }
 
     /** Extract timestamps from the windowFieldIndex, then window into windowFns. */
@@ -340,14 +396,22 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         @ProcessElement
         public void processElement(
             @Element Row kvRow, BoundedWindow window, OutputReceiver<Row> o) {
-          int capacity =
-              kvRow.getRow(0).getFieldCount()
-                  + (!ignoreValues ? kvRow.getRow(1).getFieldCount() : 0);
-          List<Object> fieldValues = Lists.newArrayListWithCapacity(capacity);
+          List<Object> fieldValues = null;
+          int capacity;
+          try {
+            capacity =
+                kvRow.getRow(0).getFieldCount()
+                    + (!ignoreValues ? kvRow.getRow(1).getFieldCount() : 0);
+            fieldValues = Lists.newArrayListWithCapacity(capacity);
 
-          fieldValues.addAll(kvRow.getRow(0).getValues());
-          if (!ignoreValues) {
-            fieldValues.addAll(kvRow.getRow(1).getValues());
+            fieldValues.addAll(kvRow.getRow(0).getValues());
+            if (!ignoreValues) {
+              fieldValues.addAll(kvRow.getRow(1).getValues());
+            }
+          } catch (ClassCastException e) {
+            capacity = kvRow.getFieldCount();
+            fieldValues = Lists.newArrayListWithCapacity(capacity);
+            fieldValues.addAll(kvRow.getValues());
           }
 
           if (windowStartFieldIndex != -1) {

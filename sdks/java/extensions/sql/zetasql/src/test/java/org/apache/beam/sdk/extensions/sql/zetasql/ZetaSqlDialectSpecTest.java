@@ -3850,6 +3850,17 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValue(1L).build(),
             Row.withSchema(schema).addValue(0L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testCountEmpty() {
+    String sql = "SELECT COUNT(x) FROM UNNEST([]) AS x";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(0L).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
