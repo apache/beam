@@ -908,12 +908,14 @@ public class DatastoreV1 {
         BackOff backoff = RUNQUERY_BACKOFF.backoff();
         while (true) {
           HashMap<String, String> baseLabels = new HashMap<>();
-          baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "TODO");
+          baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
           baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
           baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "runQueryWithRetries");
-          baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "TODO");
+          baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
+          baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, options.getProjectId());
           baseLabels.put(
-              MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, request.getProjectId());
+              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE,
+              getNameSpace(options.getProjectId(), options.getNamespace()));
           ServiceCallMetric serviceCallMetric =
               new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
           try {
@@ -926,9 +928,9 @@ public class DatastoreV1 {
             GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(exception);
             if (errorInfo == null) {
               serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
-              throw exception;
+            } else {
+              serviceCallMetric.call(errorInfo.getReason());
             }
-            serviceCallMetric.call(errorInfo.getReason());
 
             if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
               throw exception;
@@ -939,15 +941,6 @@ public class DatastoreV1 {
             }
           }
         }
-      }
-
-      protected GoogleJsonError.ErrorInfo getErrorInfo(Exception e) {
-        if (!(e instanceof GoogleJsonResponseException)) {
-          return null;
-        }
-        GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
-        GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
-        return errorInfo;
       }
 
       /** Read and output entities for the given query. */
@@ -1478,9 +1471,20 @@ public class DatastoreV1 {
           continue;
         }
 
+        HashMap<String, String> baseLabels = new HashMap<>();
+        baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+        baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
+        baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "flushBatch");
+        baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
+        baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, projectId.get());
+        baseLabels.put(
+            MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, getNameSpace(projectId.get(), ""));
+        ServiceCallMetric serviceCallMetric =
+            new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
         try {
           datastore.commit(commitRequest.build());
           endTime = System.currentTimeMillis();
+          serviceCallMetric.call("ok");
 
           writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
           adaptiveThrottler.successfulRequest(startTime);
@@ -1491,6 +1495,12 @@ public class DatastoreV1 {
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
+          GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(exception);
+          if (errorInfo == null) {
+            serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
+          } else {
+            serviceCallMetric.call(errorInfo.getReason());
+          }
           if (exception.getCode() == Code.DEADLINE_EXCEEDED) {
             /* Most errors are not related to request size, and should not change our expectation of
              * the latency of successful requests. DEADLINE_EXCEEDED can be taken into
@@ -1660,5 +1670,18 @@ public class DatastoreV1 {
     public QuerySplitter getQuerySplitter() {
       return DatastoreHelper.getQuerySplitter();
     }
+  }
+
+  private static GoogleJsonError.ErrorInfo getErrorInfo(Exception e) {
+    if (!(e instanceof GoogleJsonResponseException)) {
+      return null;
+    }
+    GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
+    GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
+    return errorInfo;
+  }
+
+  private static String getNameSpace(String projectId, String namespace) {
+    return "//bigtable.googleapis.com/projects/" + projectId + "/namespaces/" + namespace;
   }
 }
