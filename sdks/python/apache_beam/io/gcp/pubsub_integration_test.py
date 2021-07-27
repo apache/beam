@@ -24,8 +24,8 @@ import logging
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.io.gcp import pubsub_it_pipeline
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -204,11 +204,11 @@ class PubSubIntegrationTest(unittest.TestCase):
         id_label=self.ID_LABEL,
         timestamp_attribute=self.TIMESTAMP_ATTRIBUTE)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_streaming_data_only(self):
     self._test_streaming(with_attributes=False)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_streaming_with_attributes(self):
     self._test_streaming(with_attributes=True)
 
