@@ -418,7 +418,6 @@ public class SpannerIO {
         // TODO(hengfeng): revisit this to find a better way to create an uninitialized instance.
         .setChangeStreamName("")
         .setInclusiveStartAt(Timestamp.MIN_VALUE)
-        .setMetadataDatabase("")
         .build();
   }
 
@@ -1281,9 +1280,9 @@ public class SpannerIO {
 
     abstract String getChangeStreamName();
 
-    abstract String getMetadataInstance();
+    abstract @Nullable String getMetadataInstance();
 
-    abstract String getMetadataDatabase();
+    abstract @Nullable String getMetadataDatabase();
 
     abstract Timestamp getInclusiveStartAt();
 
