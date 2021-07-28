@@ -298,7 +298,7 @@ class PipelineInstrumentTest(unittest.TestCase):
       def visit_transform(self, transform_node):
         if transform_node.inputs:
           main_inputs = dict(transform_node.main_inputs)
-          for tag, input in main_inputs.items():
+          for tag in main_inputs.keys():
             if main_inputs[tag] == init_pcoll:
               main_inputs[tag] = cached_init_pcoll
           transform_node.main_inputs = main_inputs
