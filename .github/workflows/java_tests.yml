@@ -60,7 +60,7 @@ jobs:
 
   java_unit_tests:
     name: 'Java Unit Tests'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container: ${{ matrix.os }}
     strategy:
       fail-fast: false
