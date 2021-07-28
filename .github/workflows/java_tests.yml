@@ -60,7 +60,7 @@ jobs:
 
   java_unit_tests:
     name: 'Java Unit Tests'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     container: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -72,10 +72,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-#      - name: Install python
-#        uses: actions/setup-python@v2
-#        with:
-#          python-version: 3.7
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
       # :sdks:java:core:test
       - name: Run :sdks:java:core:test
         uses: ./.github/actions/gradle-command-action
@@ -116,16 +116,7 @@ jobs:
       - name: "Java Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
-        env:
-          jobstatus: ${{ job.status }}
-          name: java_unit_tests-${{matrix.os}}
-          workflow_id: ${{ github.run_id }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: python sync_github_actions.py java_unit_tests-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
@@ -162,16 +153,7 @@ jobs:
       - name: "Java Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
-        env:
-          jobstatus: ${{ job.status }}
-          workflow_id: ${{ github.run_id }}
-          name: java_word_count_direct_runner-${{matrix.os}}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: python sync_github_actions.py java_word_count_direct_runner-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}
 
   java_wordcount_dataflow:
     name: 'Java Wordcount Dataflow'
@@ -231,13 +213,4 @@ jobs:
       - name: "Java Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
-        env:
-          jobstatus: ${{ job.status }}
-          name: java_word_count_dataflow-${{matrix.os}}
-          workflow_id: ${{ github.run_id }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: python sync_github_actions.py java_word_count_dataflow-${{matrix.os}} ${{ job.status }} ${{ github.run_id }}

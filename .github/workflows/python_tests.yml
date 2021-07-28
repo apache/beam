@@ -138,16 +138,7 @@ jobs:
       - name: "Python Unit Tests Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
-        env:
-          name: unit_tests-${{matrix.os}}-${{matrix.params.py_ver}}
-          jobstatus: ${{ job.status }}
-          workflow_id: ${{ github.run_id }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: python sync_github_actions.py unit_tests-${{matrix.os}}-${{matrix.params.py_ver}} ${{ job.status }} ${{ github.run_id }}
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
@@ -185,16 +176,7 @@ jobs:
       - name: "Python Word Count Direct Runner Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
-        env:
-          name: word_count_direct_runner-${{matrix.os}}-${{matrix.python}}
-          jobstatus: ${{ job.status }}
-          workflow_id: ${{ github.run_id }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: python sync_github_actions.py word_count_direct_runner-${{matrix.os}}-${{matrix.python}} ${{ job.status }} ${{ github.run_id }}
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
@@ -254,13 +236,4 @@ jobs:
       - name: "Python Word Count Dataflow Status Report"
         if: always()
         working-directory: ./.test-infra/metrics/sync/github
-        run: python sync_github_actions.py $name $jobstatus $workflow_id $DB_HOST $DB_PORT $DB_NAME $DB_USER_NAME $DB_PASSWORD
-        env:
-          name: word_count_dataflow-${{matrix.os}}-${{matrix.python}}
-          jobstatus: ${{ job.status }}
-          workflow_id: ${{ github.run_id }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: python sync_github_actions.py word_count_dataflow-${{matrix.os}}-${{matrix.python}} ${{ job.status }} ${{ github.run_id }}

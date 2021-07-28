@@ -18,6 +18,7 @@ This module queries GitHub to collect pre-commit GitHub Actions metrics and put 
 PostgreSQL.
 '''
 import sys
+import os
 import time
 import psycopg2
 import datetime
@@ -28,11 +29,6 @@ parser = argparse.ArgumentParser(description='Saves status of GitHub Actions job
 parser.add_argument('job_name', help='Name of the job to be saved.')
 parser.add_argument('status', help='Whether or not the job succeeded or was skipped.', choices=['success', 'failure', 'skipped'])
 parser.add_argument('workflow_id', help='Used to access the objects of the current thread of execution.')
-parser.add_argument('DB_HOST', help='IP address of the postgresql DB instance.')
-parser.add_argument('DB_PORT', help='Port to connect to at the destination IP. Usually 5432 or 5433.')
-parser.add_argument('DB_NAME', help='Name of the DB to use.')
-parser.add_argument('DB_USER_NAME', help='User with permission to connect, create tables, and upsert into them.')
-parser.add_argument('DB_PASSWORD', help='Password for the given user.')
 parser.parse_args()
 
 MAXIMUM_CONN_ATTEMPTS = 5
@@ -65,11 +61,11 @@ GH_PRS_CREATE_TABLE_QUERY = f"""
 def initDBConnection():
   '''Opens connection to postgresql DB, as configured via global variables.'''
 
-  DB_HOST = sys.argv[4]
-  DB_PORT = sys.argv[5]
-  DB_NAME = sys.argv[6]
-  DB_USER_NAME = sys.argv[7]
-  DB_PASSWORD = sys.argv[8]
+  DB_HOST = os.environ['DB_HOST']
+  DB_PORT = os.environ['DB_PORT']
+  DB_NAME = os.environ['DB_DBNAME']
+  DB_USER_NAME = os.environ['DB_DBUSERNAME']
+  DB_PASSWORD = os.environ['DB_DBPWD']
 
   conn = None
   conn_attempts = 0
@@ -152,20 +148,14 @@ if __name__ == '__main__':
   wrap work code in module check.
   '''
   print("Started.")
+  print("Checking if DB needs to be initialized.")
+  sys.stdout.flush()
+  initDbTablesIfNeeded()
 
-  if len(sys.argv) < 9:
-    print('Please provide the appropriate number of parameters.')
-    print('Exiting...')
+  print("Collecting Actions metrics.")
+  sys.stdout.flush()
 
-  else:
-    print("Checking if DB needs to be initialized.")
-    sys.stdout.flush()
-    initDbTablesIfNeeded()
+  collectNewData()
+  print("Fetched metrics.")
 
-    print("Collecting Actions metrics.")
-    sys.stdout.flush()
-
-    collectNewData()
-    print("Fetched metrics.")
-
-    print('Done.')
+  print('Done.')
