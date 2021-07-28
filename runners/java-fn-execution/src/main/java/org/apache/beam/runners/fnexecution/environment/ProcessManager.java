@@ -44,8 +44,15 @@ public class ProcessManager {
   /** A symbolic file to indicate that we want to inherit I/O of parent process. */
   public static final File INHERIT_IO_FILE = new File("_inherit_io_unused_filename_");
 
-  /** For debugging purposes, we inherit I/O of processes. */
-  private static final boolean INHERIT_IO = LOG.isDebugEnabled();
+  /**
+   * LinkedIn specific config: ProcessManager spawns the worker processes for portable beam
+   * pipelines when the sdk harness environment type is `process`. For Li-specific use cases, we
+   * want to be able to always view the logs in our workers using the worker's I/O and INHERIT_IO
+   * flag needs to set to true. Pipeline author typically needs to add the following log4j
+   * configuration to the config file to set the log level to debug for package-
+   * log4j.logger.org.apache.beam.runners.fnexecution.environment=DEBUG.
+   */
+  private static final boolean INHERIT_IO = true;
 
   /** A list of all managers to ensure all processes shutdown on JVM exit . */
   private static final List<ProcessManager> ALL_PROCESS_MANAGERS = new ArrayList<>();
