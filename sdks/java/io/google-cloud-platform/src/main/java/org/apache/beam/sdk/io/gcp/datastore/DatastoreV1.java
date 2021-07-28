@@ -30,8 +30,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
-import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
@@ -64,6 +62,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.PipelineRunner;
@@ -99,7 +98,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -910,12 +908,13 @@ public class DatastoreV1 {
           HashMap<String, String> baseLabels = new HashMap<>();
           baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
           baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
-          baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "runQueryWithRetries");
+          baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BatchDatastoreRead");
           baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
           baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, options.getProjectId());
           baseLabels.put(
               MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE,
-              getNameSpace(options.getProjectId(), options.getNamespace()));
+              GcpResourceIdentifiers.datastoreNamespace(
+                  options.getProjectId(), options.getNamespace()));
           ServiceCallMetric serviceCallMetric =
               new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
           try {
@@ -925,12 +924,7 @@ public class DatastoreV1 {
             return response;
           } catch (DatastoreException exception) {
             rpcErrors.inc();
-            GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(exception);
-            if (errorInfo == null) {
-              serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
-            } else {
-              serviceCallMetric.call(errorInfo.getReason());
-            }
+            serviceCallMetric.call(exception.getCode().getNumber());
 
             if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
               throw exception;
@@ -1474,11 +1468,12 @@ public class DatastoreV1 {
         HashMap<String, String> baseLabels = new HashMap<>();
         baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
         baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
-        baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "flushBatch");
+        baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BatchDatastoreWrite");
         baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
         baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, projectId.get());
         baseLabels.put(
-            MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, getNameSpace(projectId.get(), ""));
+            MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE,
+            GcpResourceIdentifiers.datastoreNamespace(projectId.get(), ""));
         ServiceCallMetric serviceCallMetric =
             new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
         try {
@@ -1495,12 +1490,7 @@ public class DatastoreV1 {
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
-          GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(exception);
-          if (errorInfo == null) {
-            serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
-          } else {
-            serviceCallMetric.call(errorInfo.getReason());
-          }
+          serviceCallMetric.call(exception.getCode().getNumber());
           if (exception.getCode() == Code.DEADLINE_EXCEEDED) {
             /* Most errors are not related to request size, and should not change our expectation of
              * the latency of successful requests. DEADLINE_EXCEEDED can be taken into
@@ -1670,18 +1660,5 @@ public class DatastoreV1 {
     public QuerySplitter getQuerySplitter() {
       return DatastoreHelper.getQuerySplitter();
     }
-  }
-
-  private static GoogleJsonError.ErrorInfo getErrorInfo(Exception e) {
-    if (!(e instanceof GoogleJsonResponseException)) {
-      return null;
-    }
-    GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
-    GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
-    return errorInfo;
-  }
-
-  private static String getNameSpace(String projectId, String namespace) {
-    return "//bigtable.googleapis.com/projects/" + projectId + "/namespaces/" + namespace;
   }
 }

@@ -512,14 +512,14 @@ public class DatastoreV1Test {
   @Test
   public void testDatatoreWriterFnWithOneBatch() throws Exception {
     datastoreWriterFnTest(100);
-    verifyMetricWasSet("flushBatch", "ok", "", 2);
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
   }
 
   /** Tests {@link DatastoreWriterFn} with entities of more than one batches, but not a multiple. */
   @Test
   public void testDatatoreWriterFnWithMultipleBatches() throws Exception {
     datastoreWriterFnTest(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START * 3 + 100);
-    verifyMetricWasSet("flushBatch", "ok", "", 5);
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 5);
   }
 
   /**
@@ -529,7 +529,7 @@ public class DatastoreV1Test {
   @Test
   public void testDatatoreWriterFnWithBatchesExactMultiple() throws Exception {
     datastoreWriterFnTest(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START * 2);
-    verifyMetricWasSet("flushBatch", "ok", "", 2);
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
   }
 
   // A helper method to test DatastoreWriterFn for various batch sizes.
@@ -736,21 +736,21 @@ public class DatastoreV1Test {
   @Test
   public void testReadFnWithOneBatch() throws Exception {
     readFnTest(5);
-    verifyMetricWasSet("runQueryWithRetries", "ok", NAMESPACE, 1);
+    verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 1);
   }
 
   /** Tests {@link ReadFn} with a query limit more than one batch, and not a multiple. */
   @Test
   public void testReadFnWithMultipleBatches() throws Exception {
     readFnTest(QUERY_BATCH_LIMIT + 5);
-    verifyMetricWasSet("runQueryWithRetries", "ok", NAMESPACE, 2);
+    verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 2);
   }
 
   /** Tests {@link ReadFn} for several batches, using an exact multiple of batch size results. */
   @Test
   public void testReadFnWithBatchesExactMultiple() throws Exception {
     readFnTest(5 * QUERY_BATCH_LIMIT);
-    verifyMetricWasSet("runQueryWithRetries", "ok", NAMESPACE, 5);
+    verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 5);
   }
 
   /** Tests that {@link ReadFn} retries after an error. */
