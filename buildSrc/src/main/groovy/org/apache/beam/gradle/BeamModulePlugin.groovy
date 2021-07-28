@@ -1738,6 +1738,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.docker { noCache true }
       project.tasks.create(name: "copyLicenses", type: Copy) {
         from "${project.rootProject.projectDir}/LICENSE"
+        from "${project.rootProject.projectDir}/LICENSE.python"
         from "${project.rootProject.projectDir}/NOTICE"
         into "build/target"
       }

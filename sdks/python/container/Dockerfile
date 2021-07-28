@@ -101,6 +101,7 @@ RUN pip check
 
 
 COPY target/LICENSE /opt/apache/beam/
+COPY target/LICENSE.python /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
 
 ADD target/launcher/linux_amd64/boot /opt/apache/beam/
