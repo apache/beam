@@ -33,7 +33,7 @@ public class DonePartitionAction {
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
     final String token = partition.getPartitionToken();
-    LOG.info("[" + token + "] Marking partition as done");
+    LOG.debug("[" + token + "] Marking partition as done");
 
     if (!tracker.tryClaim(PartitionPosition.done())) {
       LOG.info("[" + token + "] Could not claim done(), stopping");

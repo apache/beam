@@ -21,9 +21,11 @@ import com.google.cloud.Timestamp;
 import java.util.List;
 import java.util.Objects;
 import org.apache.avro.reflect.AvroEncode;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 @DefaultCoder(AvroCoder.class)
 public class DataChangeRecord implements ChangeStreamRecord {
@@ -36,7 +38,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
   private Timestamp commitTimestamp;
 
   private String transactionId;
-  private boolean isLastRecordInTransactionPartition;
+  private boolean isLastRecordInTransactionInPartition;
   private String recordSequence;
   private String tableName;
   private List<ColumnType> rowType;
@@ -45,16 +47,17 @@ public class DataChangeRecord implements ChangeStreamRecord {
   private ValueCaptureType valueCaptureType;
   private long numberOfRecordsInTransaction;
   private long numberOfPartitionsInTransaction;
-  private Metadata metadata;
+  @Nullable private ChangeStreamRecordMetadata metadata;
 
   /** Default constructor for serialization only. */
   private DataChangeRecord() {}
 
-  public DataChangeRecord(
+  @VisibleForTesting
+  DataChangeRecord(
       String partitionToken,
       Timestamp commitTimestamp,
       String transactionId,
-      boolean isLastRecordInTransactionPartition,
+      boolean isLastRecordInTransactionInPartition,
       String recordSequence,
       String tableName,
       List<ColumnType> rowType,
@@ -62,11 +65,12 @@ public class DataChangeRecord implements ChangeStreamRecord {
       ModType modType,
       ValueCaptureType valueCaptureType,
       long numberOfRecordsInTransaction,
-      long numberOfPartitionsInTransaction) {
+      long numberOfPartitionsInTransaction,
+      ChangeStreamRecordMetadata metadata) {
     this.commitTimestamp = commitTimestamp;
     this.partitionToken = partitionToken;
     this.transactionId = transactionId;
-    this.isLastRecordInTransactionPartition = isLastRecordInTransactionPartition;
+    this.isLastRecordInTransactionInPartition = isLastRecordInTransactionInPartition;
     this.recordSequence = recordSequence;
     this.tableName = tableName;
     this.rowType = rowType;
@@ -75,7 +79,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
     this.valueCaptureType = valueCaptureType;
     this.numberOfRecordsInTransaction = numberOfRecordsInTransaction;
     this.numberOfPartitionsInTransaction = numberOfPartitionsInTransaction;
-    this.metadata = new Metadata(Timestamp.now());
+    this.metadata = metadata;
   }
 
   public String getPartitionToken() {
@@ -90,8 +94,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
     return transactionId;
   }
 
-  public boolean isLastRecordInTransactionPartition() {
-    return isLastRecordInTransactionPartition;
+  public boolean isLastRecordInTransactionInPartition() {
+    return isLastRecordInTransactionInPartition;
   }
 
   public String getRecordSequence() {
@@ -126,7 +130,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
     return numberOfPartitionsInTransaction;
   }
 
-  public Metadata getMetadata() {
+  public ChangeStreamRecordMetadata getMetadata() {
     return metadata;
   }
 
@@ -139,7 +143,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
       return false;
     }
     DataChangeRecord that = (DataChangeRecord) o;
-    return isLastRecordInTransactionPartition == that.isLastRecordInTransactionPartition
+    return isLastRecordInTransactionInPartition == that.isLastRecordInTransactionInPartition
         && numberOfRecordsInTransaction == that.numberOfRecordsInTransaction
         && numberOfPartitionsInTransaction == that.numberOfPartitionsInTransaction
         && Objects.equals(partitionToken, that.partitionToken)
@@ -159,7 +163,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
         partitionToken,
         commitTimestamp,
         transactionId,
-        isLastRecordInTransactionPartition,
+        isLastRecordInTransactionInPartition,
         recordSequence,
         tableName,
         rowType,
@@ -181,8 +185,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
         + ", transactionId='"
         + transactionId
         + '\''
-        + ", isLastRecordInTransactionPartition="
-        + isLastRecordInTransactionPartition
+        + ", isLastRecordInTransactionInPartition="
+        + isLastRecordInTransactionInPartition
         + ", recordSequence='"
         + recordSequence
         + '\''
@@ -201,31 +205,111 @@ public class DataChangeRecord implements ChangeStreamRecord {
         + numberOfRecordsInTransaction
         + ", numberOfPartitionsInTransaction="
         + numberOfPartitionsInTransaction
-        + ", metadata="
+        + ", metadata"
         + metadata
         + '}';
   }
 
-  @DefaultCoder(AvroCoder.class)
-  public static class Metadata {
+  public static Builder newBuilder() {
+    return new Builder();
+  }
 
-    @AvroEncode(using = TimestampEncoding.class)
-    private Timestamp readAt;
+  public static class Builder {
+    private String partitionToken;
+    private Timestamp commitTimestamp;
+    private String transactionId;
+    private boolean isLastRecordInTransactionInPartition;
+    private String recordSequence;
+    private String tableName;
+    private List<ColumnType> rowType;
+    private List<Mod> mods;
+    private ModType modType;
+    private ValueCaptureType valueCaptureType;
+    private long numberOfRecordsInTransaction;
+    private long numberOfPartitionsInTransaction;
+    private ChangeStreamRecordMetadata metadata;
 
-    /** Default constructor for serialization only. */
-    private Metadata() {}
-
-    public Metadata(Timestamp readAt) {
-      this.readAt = readAt;
+    public Builder withPartitionToken(String partitionToken) {
+      this.partitionToken = partitionToken;
+      return this;
     }
 
-    public Timestamp getReadAt() {
-      return readAt;
+    public Builder withCommitTimestamp(Timestamp commitTimestamp) {
+      this.commitTimestamp = commitTimestamp;
+      return this;
     }
 
-    @Override
-    public String toString() {
-      return "Metadata{" + "readAt=" + readAt + '}';
+    public Builder withTransactionId(String transactionId) {
+      this.transactionId = transactionId;
+      return this;
+    }
+
+    public Builder withIsLastRecordInTransactionInPartition(
+        boolean isLastRecordInTransactionInPartition) {
+      this.isLastRecordInTransactionInPartition = isLastRecordInTransactionInPartition;
+      return this;
+    }
+
+    public Builder withRecordSequence(String recordSequence) {
+      this.recordSequence = recordSequence;
+      return this;
+    }
+
+    public Builder withTableName(String tableName) {
+      this.tableName = tableName;
+      return this;
+    }
+
+    public Builder withRowType(List<ColumnType> rowType) {
+      this.rowType = rowType;
+      return this;
+    }
+
+    public Builder withMods(List<Mod> mods) {
+      this.mods = mods;
+      return this;
+    }
+
+    public Builder withModType(ModType modType) {
+      this.modType = modType;
+      return this;
+    }
+
+    public Builder withValueCaptureType(ValueCaptureType valueCaptureType) {
+      this.valueCaptureType = valueCaptureType;
+      return this;
+    }
+
+    public Builder withNumberOfRecordsInTransaction(long numberOfRecordsInTransaction) {
+      this.numberOfRecordsInTransaction = numberOfRecordsInTransaction;
+      return this;
+    }
+
+    public Builder withNumberOfPartitionsInTransaction(long numberOfPartitionsInTransaction) {
+      this.numberOfPartitionsInTransaction = numberOfPartitionsInTransaction;
+      return this;
+    }
+
+    public Builder withMetadata(ChangeStreamRecordMetadata metadata) {
+      this.metadata = metadata;
+      return this;
+    }
+
+    public DataChangeRecord build() {
+      return new DataChangeRecord(
+          partitionToken,
+          commitTimestamp,
+          transactionId,
+          isLastRecordInTransactionInPartition,
+          recordSequence,
+          tableName,
+          rowType,
+          mods,
+          modType,
+          valueCaptureType,
+          numberOfRecordsInTransaction,
+          numberOfPartitionsInTransaction,
+          metadata);
     }
   }
 }

@@ -1439,17 +1439,20 @@ public class SpannerIO {
               .withCommitDeadline(changeStreamSpannerConfig.getCommitDeadline())
               .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
               .withMaxCumulativeBackoff(changeStreamSpannerConfig.getMaxCumulativeBackoff());
+      final MapperFactory mapperFactory = new MapperFactory();
       final DaoFactory daoFactory =
           new DaoFactory(
               changeStreamSpannerConfig,
               getChangeStreamName(),
               partitionMetadataSpannerConfig,
-              partitionMetadataTableName);
+              partitionMetadataTableName,
+              mapperFactory);
+      final ActionFactory actionFactory = new ActionFactory();
 
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(daoFactory);
+          new DetectNewPartitionsDoFn(daoFactory, mapperFactory);
       final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-          new ReadChangeStreamPartitionDoFn(daoFactory, new MapperFactory(), new ActionFactory());
+          new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory);
       final PostProcessingMetricsDoFn postProcessingMetricsDoFn = new PostProcessingMetricsDoFn();
 
       PipelineInitializer.initialize(

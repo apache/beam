@@ -59,7 +59,11 @@ public class HeartbeatRecordActionTest {
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(true);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, new HeartbeatRecord(timestamp), tracker, watermarkEstimator);
+        action.run(
+            partition,
+            HeartbeatRecord.newBuilder().withTimestamp(timestamp).build(),
+            tracker,
+            watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
@@ -72,7 +76,11 @@ public class HeartbeatRecordActionTest {
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, new HeartbeatRecord(timestamp), tracker, watermarkEstimator);
+        action.run(
+            partition,
+            HeartbeatRecord.newBuilder().withTimestamp(timestamp).build(),
+            tracker,
+            watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());

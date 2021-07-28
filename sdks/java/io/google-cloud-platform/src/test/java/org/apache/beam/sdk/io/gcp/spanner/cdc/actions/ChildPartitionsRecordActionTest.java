@@ -77,12 +77,14 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
-        new ChildPartitionsRecord(
-            startTimestamp,
-            "recordSequence",
-            Arrays.asList(
-                new ChildPartition("childPartition1", partitionToken),
-                new ChildPartition("childPartition2", partitionToken)));
+        ChildPartitionsRecord.newBuilder()
+            .withStartTimestamp(startTimestamp)
+            .withRecordSequence("recordSequence")
+            .withChildPartitions(
+                Arrays.asList(
+                    new ChildPartition("childPartition1", partitionToken),
+                    new ChildPartition("childPartition2", partitionToken)))
+            .build();
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
@@ -126,12 +128,14 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
-        new ChildPartitionsRecord(
-            startTimestamp,
-            "recordSequence",
-            Arrays.asList(
-                new ChildPartition("childPartition1", partitionToken),
-                new ChildPartition("childPartition2", partitionToken)));
+        ChildPartitionsRecord.newBuilder()
+            .withStartTimestamp(startTimestamp)
+            .withRecordSequence("recordSequence")
+            .withChildPartitions(
+                Arrays.asList(
+                    new ChildPartition("childPartition1", partitionToken),
+                    new ChildPartition("childPartition2", partitionToken)))
+            .build();
     final SpannerException spannerException = mock(SpannerException.class);
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
@@ -156,10 +160,12 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
-        new ChildPartitionsRecord(
-            startTimestamp,
-            "recordSequence",
-            Collections.singletonList(new ChildPartition("childPartition1", parentTokens)));
+        ChildPartitionsRecord.newBuilder()
+            .withStartTimestamp(startTimestamp)
+            .withRecordSequence("recordSequence")
+            .withChildPartitions(
+                Collections.singletonList(new ChildPartition("childPartition1", parentTokens)))
+            .build();
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
@@ -195,10 +201,12 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
-        new ChildPartitionsRecord(
-            startTimestamp,
-            "recordSequence",
-            Collections.singletonList(new ChildPartition("childPartition1", parentTokens)));
+        ChildPartitionsRecord.newBuilder()
+            .withStartTimestamp(startTimestamp)
+            .withRecordSequence("recordSequence")
+            .withChildPartitions(
+                Collections.singletonList(new ChildPartition("childPartition1", parentTokens)))
+            .build();
     final SpannerException spannerException = mock(SpannerException.class);
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
@@ -225,10 +233,12 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(30L, 40);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
-        new ChildPartitionsRecord(
-            startTimestamp,
-            "recordSequence",
-            Collections.singletonList(new ChildPartition("childPartition1", parentTokens)));
+        ChildPartitionsRecord.newBuilder()
+            .withStartTimestamp(startTimestamp)
+            .withRecordSequence("recordSequence")
+            .withChildPartitions(
+                Collections.singletonList(new ChildPartition("childPartition1", parentTokens)))
+            .build();
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
@@ -249,12 +259,14 @@ public class ChildPartitionsRecordActionTest {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final ChildPartitionsRecord record =
-        new ChildPartitionsRecord(
-            startTimestamp,
-            "recordSequence",
-            Arrays.asList(
-                new ChildPartition("childPartition1", partitionToken),
-                new ChildPartition("childPartition2", partitionToken)));
+        ChildPartitionsRecord.newBuilder()
+            .withStartTimestamp(startTimestamp)
+            .withRecordSequence("recordSequence")
+            .withChildPartitions(
+                Arrays.asList(
+                    new ChildPartition("childPartition1", partitionToken),
+                    new ChildPartition("childPartition2", partitionToken)))
+            .build();
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation =

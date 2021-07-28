@@ -21,6 +21,7 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.MapperFactory;
 
 // TODO: Add java docs
 public class DaoFactory implements Serializable {
@@ -35,16 +36,19 @@ public class DaoFactory implements Serializable {
 
   private final String changeStreamName;
   private final String partitionMetadataTableName;
+  private final MapperFactory mapperFactory;
 
   public DaoFactory(
       SpannerConfig changeStreamSpannerConfig,
       String changeStreamName,
       SpannerConfig partitionMetadataSpannerConfig,
-      String partitionMetadataTableName) {
+      String partitionMetadataTableName,
+      MapperFactory mapperFactory) {
     this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
     this.partitionMetadataSpannerConfig = partitionMetadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
+    this.mapperFactory = mapperFactory;
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
@@ -69,7 +73,9 @@ public class DaoFactory implements Serializable {
     if (partitionMetadataDaoInstance == null) {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
-              this.partitionMetadataTableName, spannerAccessor.getDatabaseClient());
+              this.partitionMetadataTableName,
+              spannerAccessor.getDatabaseClient(),
+              mapperFactory.partitionMetadataMapper());
     }
     return partitionMetadataDaoInstance;
   }

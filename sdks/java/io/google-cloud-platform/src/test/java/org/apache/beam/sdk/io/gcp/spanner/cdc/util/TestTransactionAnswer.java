@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.util;
 
+import com.google.cloud.Timestamp;
 import java.util.function.Function;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.InTransactionContext;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.TransactionResult;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-public class TestTransactionAnswer implements Answer<Object> {
+@SuppressWarnings("rawtypes")
+public class TestTransactionAnswer implements Answer<TransactionResult> {
 
   private final InTransactionContext transaction;
 
@@ -31,8 +34,9 @@ public class TestTransactionAnswer implements Answer<Object> {
   }
 
   @Override
-  public Object answer(InvocationOnMock invocation) {
+  public TransactionResult answer(InvocationOnMock invocation) {
     Function<InTransactionContext, Object> callable = invocation.getArgument(0);
-    return callable.apply(transaction);
+    final Object result = callable.apply(transaction);
+    return new TransactionResult(result, Timestamp.now());
   }
 }

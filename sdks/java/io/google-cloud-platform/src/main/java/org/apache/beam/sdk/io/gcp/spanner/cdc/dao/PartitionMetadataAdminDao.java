@@ -19,14 +19,16 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_END_TIMESTAMP;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_FINISHED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_HEARTBEAT_MILLIS;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_INCLUSIVE_END;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_INCLUSIVE_START;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_PARENT_TOKENS;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_PARTITION_TOKEN;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_RUNNING_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_SCHEDULED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_START_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_STATE;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_UPDATED_AT;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.DatabaseAdminClient;
@@ -82,8 +84,12 @@ public class PartitionMetadataAdminDao {
             + " STRING(MAX) NOT NULL,"
             + COLUMN_CREATED_AT
             + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
-            + COLUMN_UPDATED_AT
-            + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true)"
+            + COLUMN_SCHEDULED_AT
+            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
+            + COLUMN_RUNNING_AT
+            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
+            + COLUMN_FINISHED_AT
+            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
             + ") PRIMARY KEY (PartitionToken)";
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(

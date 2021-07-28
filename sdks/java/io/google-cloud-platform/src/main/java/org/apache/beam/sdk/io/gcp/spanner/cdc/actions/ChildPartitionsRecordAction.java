@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.PARTITION_MERGE_COUNTER;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.CdcMetrics.PARTITION_SPLIT_COUNTER;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_RECORD_MERGE_COUNT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_RECORD_SPLIT_COUNT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
 
@@ -83,7 +83,6 @@ public class ChildPartitionsRecordAction {
     final String partitionToken = partition.getPartitionToken();
     final String childPartitionToken = childPartition.getToken();
     LOG.debug("[" + partitionToken + "] Processing child partition split event");
-    PARTITION_SPLIT_COUNTER.inc();
 
     final PartitionMetadata row =
         toPartitionMetadata(
@@ -95,6 +94,7 @@ public class ChildPartitionsRecordAction {
     LOG.debug("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
     try {
       partitionMetadataDao.insert(row);
+      PARTITION_RECORD_SPLIT_COUNT.inc();
     } catch (SpannerException e) {
       if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
         LOG.debug(
@@ -114,7 +114,6 @@ public class ChildPartitionsRecordAction {
     final String partitionToken = partition.getPartitionToken();
     final String childPartitionToken = childPartition.getToken();
     LOG.debug("[" + partitionToken + "] Processing child partition merge event");
-    PARTITION_MERGE_COUNTER.inc();
 
     try {
       partitionMetadataDao.runInTransaction(
@@ -148,6 +147,7 @@ public class ChildPartitionsRecordAction {
 
             return null;
           });
+      PARTITION_RECORD_MERGE_COUNT.inc();
     } catch (SpannerException e) {
       if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
         LOG.debug(

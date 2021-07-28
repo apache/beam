@@ -24,6 +24,7 @@ public class MapperFactory implements Serializable {
 
   private static final long serialVersionUID = -813434573067800902L;
   private static ChangeStreamRecordMapper changeStreamRecordMapperInstance;
+  private static PartitionMetadataMapper partitionMetadataMapperInstance;
 
   // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
@@ -31,5 +32,12 @@ public class MapperFactory implements Serializable {
       changeStreamRecordMapperInstance = new ChangeStreamRecordMapper();
     }
     return changeStreamRecordMapperInstance;
+  }
+
+  public synchronized PartitionMetadataMapper partitionMetadataMapper() {
+    if (partitionMetadataMapperInstance == null) {
+      partitionMetadataMapperInstance = new PartitionMetadataMapper();
+    }
+    return partitionMetadataMapperInstance;
   }
 }

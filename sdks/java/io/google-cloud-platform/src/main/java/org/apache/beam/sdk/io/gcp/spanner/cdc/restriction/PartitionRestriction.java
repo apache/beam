@@ -38,6 +38,7 @@ public class PartitionRestriction implements Serializable {
   private final Timestamp endTimestamp;
   private final PartitionMode mode;
   private final PartitionMode stoppedMode;
+  private PartitionRestrictionMetadata metadata;
 
   public static PartitionRestriction queryChangeStream(
       Timestamp startTimestamp, Timestamp endTimestamp) {
@@ -87,6 +88,11 @@ public class PartitionRestriction implements Serializable {
     this.stoppedMode = stoppedMode;
   }
 
+  public PartitionRestriction withMetadata(PartitionRestrictionMetadata metadata) {
+    this.metadata = metadata;
+    return this;
+  }
+
   public Timestamp getStartTimestamp() {
     return startTimestamp;
   }
@@ -101,6 +107,10 @@ public class PartitionRestriction implements Serializable {
 
   public PartitionMode getStoppedMode() {
     return stoppedMode;
+  }
+
+  public PartitionRestrictionMetadata getMetadata() {
+    return metadata;
   }
 
   @Override
@@ -134,6 +144,8 @@ public class PartitionRestriction implements Serializable {
         + mode
         + ", stoppedMode="
         + stoppedMode
+        + ", metadata="
+        + metadata
         + '}';
   }
 }

@@ -30,33 +30,43 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PartitionMetadataTest {
 
-  private static final Timestamp A_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(1618361869, 0);
-  private static final String A_PARTITION_TOKEN = "partitionToken123";
+  private static final String PARTITION_TOKEN = "partitionToken123";
+  private static final String PARENT_TOKEN = "parentToken123";
+  private static final Timestamp START_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(1, 1);
+  private static final Timestamp END_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(2, 2);
+  private static final Timestamp CREATED_AT = Timestamp.ofTimeSecondsAndNanos(3, 3);
+  private static final Timestamp SCHEDULED_AT = Timestamp.ofTimeSecondsAndNanos(4, 4);
+  private static final Timestamp RUNNING_AT = Timestamp.ofTimeSecondsAndNanos(5, 5);
+  private static final Timestamp FINISHED_AT = Timestamp.ofTimeSecondsAndNanos(6, 6);
 
   @Test
   public void testBuilderDefaultsToInclusiveStartAndExclusiveEnd() {
     PartitionMetadata expectedPartitionMetadata =
         new PartitionMetadata(
-            A_PARTITION_TOKEN,
-            Sets.newHashSet(A_PARTITION_TOKEN),
-            A_TIMESTAMP,
+            PARTITION_TOKEN,
+            Sets.newHashSet(PARENT_TOKEN),
+            START_TIMESTAMP,
             true,
-            A_TIMESTAMP,
+            END_TIMESTAMP,
             false,
             10,
-            State.CREATED,
-            A_TIMESTAMP,
-            A_TIMESTAMP);
+            State.FINISHED,
+            CREATED_AT,
+            SCHEDULED_AT,
+            RUNNING_AT,
+            FINISHED_AT);
     PartitionMetadata actualPartitionMetadata =
         PartitionMetadata.newBuilder()
-            .setPartitionToken(A_PARTITION_TOKEN)
-            .setParentTokens(Sets.newHashSet(A_PARTITION_TOKEN))
-            .setStartTimestamp(A_TIMESTAMP)
-            .setEndTimestamp(A_TIMESTAMP)
+            .setPartitionToken(PARTITION_TOKEN)
+            .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+            .setStartTimestamp(START_TIMESTAMP)
+            .setEndTimestamp(END_TIMESTAMP)
             .setHeartbeatMillis(10)
-            .setState(State.CREATED)
-            .setCreatedAt(A_TIMESTAMP)
-            .setUpdatedAt(A_TIMESTAMP)
+            .setState(State.FINISHED)
+            .setCreatedAt(CREATED_AT)
+            .setScheduledAt(SCHEDULED_AT)
+            .setRunningAt(RUNNING_AT)
+            .setFinishedAt(FINISHED_AT)
             .build();
     assertEquals(expectedPartitionMetadata, actualPartitionMetadata);
   }
@@ -68,13 +78,12 @@ public class PartitionMetadataTest {
         IllegalStateException.class,
         () ->
             PartitionMetadata.newBuilder()
-                .setParentTokens(Sets.newHashSet(A_PARTITION_TOKEN))
-                .setStartTimestamp(A_TIMESTAMP)
-                .setEndTimestamp(A_TIMESTAMP)
+                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+                .setStartTimestamp(START_TIMESTAMP)
+                .setEndTimestamp(END_TIMESTAMP)
                 .setHeartbeatMillis(10)
                 .setState(State.CREATED)
-                .setCreatedAt(A_TIMESTAMP)
-                .setUpdatedAt(A_TIMESTAMP)
+                .setCreatedAt(CREATED_AT)
                 .build());
   }
 
@@ -85,13 +94,12 @@ public class PartitionMetadataTest {
         IllegalStateException.class,
         () ->
             PartitionMetadata.newBuilder()
-                .setPartitionToken(A_PARTITION_TOKEN)
-                .setStartTimestamp(A_TIMESTAMP)
-                .setEndTimestamp(A_TIMESTAMP)
+                .setPartitionToken(PARTITION_TOKEN)
+                .setStartTimestamp(START_TIMESTAMP)
+                .setEndTimestamp(END_TIMESTAMP)
                 .setHeartbeatMillis(10)
                 .setState(State.CREATED)
-                .setCreatedAt(A_TIMESTAMP)
-                .setUpdatedAt(A_TIMESTAMP)
+                .setCreatedAt(CREATED_AT)
                 .build());
   }
 
@@ -102,13 +110,12 @@ public class PartitionMetadataTest {
         IllegalStateException.class,
         () ->
             PartitionMetadata.newBuilder()
-                .setPartitionToken(A_PARTITION_TOKEN)
-                .setParentTokens(Sets.newHashSet(A_PARTITION_TOKEN))
-                .setEndTimestamp(A_TIMESTAMP)
+                .setPartitionToken(PARTITION_TOKEN)
+                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+                .setEndTimestamp(END_TIMESTAMP)
                 .setHeartbeatMillis(10)
                 .setState(State.CREATED)
-                .setCreatedAt(A_TIMESTAMP)
-                .setUpdatedAt(A_TIMESTAMP)
+                .setCreatedAt(CREATED_AT)
                 .build());
   }
 
@@ -119,13 +126,12 @@ public class PartitionMetadataTest {
         IllegalStateException.class,
         () ->
             PartitionMetadata.newBuilder()
-                .setPartitionToken(A_PARTITION_TOKEN)
-                .setParentTokens(Sets.newHashSet(A_PARTITION_TOKEN))
-                .setStartTimestamp(A_TIMESTAMP)
-                .setEndTimestamp(A_TIMESTAMP)
+                .setPartitionToken(PARTITION_TOKEN)
+                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+                .setStartTimestamp(START_TIMESTAMP)
+                .setEndTimestamp(END_TIMESTAMP)
                 .setState(State.CREATED)
-                .setCreatedAt(A_TIMESTAMP)
-                .setUpdatedAt(A_TIMESTAMP)
+                .setCreatedAt(CREATED_AT)
                 .build());
   }
 
@@ -136,13 +142,12 @@ public class PartitionMetadataTest {
         IllegalStateException.class,
         () ->
             PartitionMetadata.newBuilder()
-                .setPartitionToken(A_PARTITION_TOKEN)
-                .setParentTokens(Sets.newHashSet(A_PARTITION_TOKEN))
-                .setStartTimestamp(A_TIMESTAMP)
-                .setEndTimestamp(A_TIMESTAMP)
+                .setPartitionToken(PARTITION_TOKEN)
+                .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+                .setStartTimestamp(START_TIMESTAMP)
+                .setEndTimestamp(END_TIMESTAMP)
                 .setHeartbeatMillis(10)
-                .setCreatedAt(A_TIMESTAMP)
-                .setUpdatedAt(A_TIMESTAMP)
+                .setCreatedAt(CREATED_AT)
                 .build());
   }
 }

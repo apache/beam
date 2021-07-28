@@ -17,17 +17,22 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TransactionContext;
+import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
 
@@ -44,19 +49,24 @@ public class PartitionMetadataDao {
   public static final String COLUMN_HEARTBEAT_MILLIS = "HeartbeatMillis";
   public static final String COLUMN_STATE = "State";
   public static final String COLUMN_CREATED_AT = "CreatedAt";
-  public static final String COLUMN_UPDATED_AT = "UpdatedAt";
+  public static final String COLUMN_SCHEDULED_AT = "ScheduledAt";
+  public static final String COLUMN_RUNNING_AT = "RunningAt";
+  public static final String COLUMN_FINISHED_AT = "FinishedAt";
 
   private final String tableName;
   private final DatabaseClient databaseClient;
+  private final PartitionMetadataMapper mapper;
 
-  public PartitionMetadataDao(String tableName, DatabaseClient databaseClient) {
+  public PartitionMetadataDao(
+      String tableName, DatabaseClient databaseClient, PartitionMetadataMapper mapper) {
     this.tableName = tableName;
     this.databaseClient = databaseClient;
+    this.mapper = mapper;
   }
 
   public long countChildPartitionsInStates(
       String partitionToken, List<PartitionMetadata.State> states) {
-    Statement statement =
+    final Statement statement =
         Statement.newBuilder(
                 "SELECT COUNT(*)"
                     + " FROM "
@@ -79,7 +89,7 @@ public class PartitionMetadataDao {
   }
 
   public long countExistingParents(String partitionToken) {
-    Statement statement =
+    final Statement statement =
         Statement.newBuilder(
                 "SELECT COUNT(*)"
                     + " FROM "
@@ -106,7 +116,7 @@ public class PartitionMetadataDao {
   }
 
   public long countPartitions() {
-    Statement statement = Statement.newBuilder("SELECT COUNT(*) FROM " + tableName).build();
+    final Statement statement = Statement.newBuilder("SELECT COUNT(*) FROM " + tableName).build();
     try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
       resultSet.next();
       return resultSet.getLong(0);
@@ -122,37 +132,59 @@ public class PartitionMetadataDao {
     return databaseClient.singleUse().executeQuery(statement);
   }
 
-  public void insert(PartitionMetadata row) {
-    runInTransaction(transaction -> transaction.insert(row));
+  public Timestamp insert(PartitionMetadata row) {
+    final TransactionResult<Void> transactionResult =
+        runInTransaction(transaction -> transaction.insert(row));
+    return transactionResult.getCommitTimestamp();
   }
 
-  public void updateState(String partitionToken, PartitionMetadata.State state) {
-    runInTransaction(transaction -> transaction.updateState(partitionToken, state));
+  public Timestamp updateToScheduled(String partitionToken) {
+    final TransactionResult<Void> transactionResult =
+        runInTransaction(transaction -> transaction.updateToScheduled(partitionToken));
+    return transactionResult.getCommitTimestamp();
   }
 
-  public void delete(String partitionToken) {
-    runInTransaction(transaction -> transaction.delete(partitionToken));
+  public Timestamp updateToRunning(String partitionToken) {
+    final TransactionResult<Void> transactionResult =
+        runInTransaction(transaction -> transaction.updateToRunning(partitionToken));
+    return transactionResult.getCommitTimestamp();
   }
 
-  public <T> T runInTransaction(Function<InTransactionContext, T> callable) {
-    return databaseClient
-        .readWriteTransaction()
-        .run(
+  public Timestamp delete(String partitionToken) {
+    final TransactionResult<Void> transactionResult =
+        runInTransaction(transaction -> transaction.delete(partitionToken));
+    return transactionResult.getCommitTimestamp();
+  }
+
+  public <T> TransactionResult<T> runInTransaction(Function<InTransactionContext, T> callable) {
+    final TransactionRunner readWriteTransaction = databaseClient.readWriteTransaction();
+    final T result =
+        readWriteTransaction.run(
             transaction -> {
               final InTransactionContext transactionContext =
-                  new InTransactionContext(tableName, transaction);
+                  new InTransactionContext(tableName, mapper, transaction);
               return callable.apply(transactionContext);
             });
+    return new TransactionResult<>(result, readWriteTransaction.getCommitTimestamp());
   }
 
   public static class InTransactionContext {
 
     private final String tableName;
     private final TransactionContext transaction;
+    private final PartitionMetadataMapper mapper;
+    private final Map<State, String> stateToTimestampColumn;
 
-    public InTransactionContext(String tableName, TransactionContext transaction) {
+    public InTransactionContext(
+        String tableName, PartitionMetadataMapper mapper, TransactionContext transaction) {
       this.tableName = tableName;
       this.transaction = transaction;
+      this.mapper = mapper;
+      this.stateToTimestampColumn = new HashMap<>();
+      stateToTimestampColumn.put(State.CREATED, COLUMN_CREATED_AT);
+      stateToTimestampColumn.put(State.SCHEDULED, COLUMN_SCHEDULED_AT);
+      stateToTimestampColumn.put(State.RUNNING, COLUMN_RUNNING_AT);
+      stateToTimestampColumn.put(State.FINISHED, COLUMN_FINISHED_AT);
     }
 
     public Void insert(PartitionMetadata row) {
@@ -160,8 +192,18 @@ public class PartitionMetadataDao {
       return null;
     }
 
-    public Void updateState(String partitionToken, PartitionMetadata.State state) {
-      transaction.buffer(createUpdateMutationFrom(partitionToken, state));
+    public Void updateToScheduled(String partitionToken) {
+      transaction.buffer(createUpdateMutationFrom(partitionToken, State.SCHEDULED));
+      return null;
+    }
+
+    public Void updateToRunning(String partitionToken) {
+      transaction.buffer(createUpdateMutationFrom(partitionToken, State.RUNNING));
+      return null;
+    }
+
+    public Void updateToFinished(String partitionToken) {
+      transaction.buffer(createUpdateMutationFrom(partitionToken, State.FINISHED));
       return null;
     }
 
@@ -172,7 +214,7 @@ public class PartitionMetadataDao {
 
     public long countPartitionsInStates(
         Set<String> partitionTokens, List<PartitionMetadata.State> states) {
-      try (final ResultSet resultSet =
+      try (ResultSet resultSet =
           transaction.executeQuery(
               Statement.newBuilder(
                       "SELECT COUNT(*)"
@@ -191,6 +233,25 @@ public class PartitionMetadataDao {
                   .build())) {
         resultSet.next();
         return resultSet.getLong(0);
+      }
+    }
+
+    public PartitionMetadata getPartition(String partitionToken) {
+      try (ResultSet resultSet =
+          transaction.executeQuery(
+              Statement.newBuilder(
+                      "SELECT * FROM "
+                          + tableName
+                          + " WHERE "
+                          + COLUMN_PARTITION_TOKEN
+                          + " = @partition")
+                  .bind("partition")
+                  .to(partitionToken)
+                  .build())) {
+        if (resultSet.next()) {
+          return mapper.from(resultSet);
+        }
+        return null;
       }
     }
 
@@ -214,22 +275,46 @@ public class PartitionMetadataDao {
           .to(partitionMetadata.getState().toString())
           .set(COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
-          .set(COLUMN_UPDATED_AT)
-          .to(Value.COMMIT_TIMESTAMP)
           .build();
     }
 
     private Mutation createUpdateMutationFrom(String partitionToken, State state) {
+      final String timestampColumn = stateToTimestampColumn.get(state);
       return Mutation.newUpdateBuilder(tableName)
           .set(COLUMN_PARTITION_TOKEN)
           .to(partitionToken)
           .set(COLUMN_STATE)
           .to(state.toString())
+          .set(timestampColumn)
+          .to(Value.COMMIT_TIMESTAMP)
           .build();
     }
 
     private Mutation createDeleteMutationFrom(String partitionToken) {
       return Mutation.delete(tableName, Key.of(partitionToken));
+    }
+  }
+
+  public static class TransactionResult<T> {
+    private final T result;
+    private final Timestamp commitTimestamp;
+
+    public TransactionResult(T result, Timestamp commitTimestamp) {
+      this.result = result;
+      this.commitTimestamp = commitTimestamp;
+    }
+
+    public T getResult() {
+      return result;
+    }
+
+    public Timestamp getCommitTimestamp() {
+      return commitTimestamp;
+    }
+
+    @Override
+    public String toString() {
+      return "CommitResponse{" + "result=" + result + ", commitTimestamp=" + commitTimestamp + '}';
     }
   }
 }

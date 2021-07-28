@@ -185,7 +185,7 @@ public class TestStructMapper {
         .set("transaction_id")
         .to(record.getTransactionId())
         .set("is_last_record_in_transaction_in_partition")
-        .to(record.isLastRecordInTransactionPartition())
+        .to(record.isLastRecordInTransactionInPartition())
         .set("table_name")
         .to(record.getTableName())
         .set("column_types")

@@ -21,11 +21,11 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Value;
 import java.io.Serializable;
 import java.util.HashSet;
+import java.util.Objects;
 import org.apache.avro.reflect.AvroEncode;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** Model for the partition metadata database table used in the Connector. */
@@ -38,8 +38,10 @@ public class PartitionMetadata implements Serializable {
   public enum State {
     // The partition has been discovered and is waiting to be started
     CREATED,
-    // The partition has started and is being processed
+    // The partition has been scheduled to be processed
     SCHEDULED,
+    // The partition has started being processed
+    RUNNING,
     // The partition has ended
     FINISHED
   }
@@ -69,9 +71,15 @@ public class PartitionMetadata implements Serializable {
   // When the row was inserted.
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp createdAt;
-  // When the row was updated.
+  // When the partition was scheduled
   @AvroEncode(using = TimestampEncoding.class)
-  private Timestamp updatedAt;
+  private Timestamp scheduledAt;
+  // When the partition started running
+  @AvroEncode(using = TimestampEncoding.class)
+  private Timestamp runningAt;
+  // When the partition finished
+  @AvroEncode(using = TimestampEncoding.class)
+  private Timestamp finishedAt;
 
   /** Default constructor for serialization only. */
   private PartitionMetadata() {}
@@ -86,7 +94,9 @@ public class PartitionMetadata implements Serializable {
       long heartbeatMillis,
       State state,
       Timestamp createdAt,
-      Timestamp updatedAt) {
+      Timestamp scheduledAt,
+      Timestamp runningAt,
+      Timestamp finishedAt) {
     this.partitionToken = partitionToken;
     this.parentTokens = parentTokens;
     this.startTimestamp = startTimestamp;
@@ -96,7 +106,9 @@ public class PartitionMetadata implements Serializable {
     this.heartbeatMillis = heartbeatMillis;
     this.state = state;
     this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
+    this.scheduledAt = scheduledAt;
+    this.runningAt = runningAt;
+    this.finishedAt = finishedAt;
   }
 
   public String getPartitionToken() {
@@ -135,8 +147,20 @@ public class PartitionMetadata implements Serializable {
     return createdAt;
   }
 
-  public Timestamp getUpdatedAt() {
-    return updatedAt;
+  public Timestamp getScheduledAt() {
+    return scheduledAt;
+  }
+
+  public Timestamp getRunningAt() {
+    return runningAt;
+  }
+
+  public Timestamp getFinishedAt() {
+    return finishedAt;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
   }
 
   @Override
@@ -144,35 +168,39 @@ public class PartitionMetadata implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof PartitionMetadata)) {
       return false;
     }
-    PartitionMetadata partitionMetadata = (PartitionMetadata) o;
-    return isInclusiveStart() == partitionMetadata.isInclusiveStart()
-        && isInclusiveEnd() == partitionMetadata.isInclusiveEnd()
-        && getHeartbeatMillis() == partitionMetadata.getHeartbeatMillis()
-        && Objects.equal(getPartitionToken(), partitionMetadata.getPartitionToken())
-        && Objects.equal(getParentTokens(), partitionMetadata.getParentTokens())
-        && Objects.equal(getStartTimestamp(), partitionMetadata.getStartTimestamp())
-        && Objects.equal(getEndTimestamp(), partitionMetadata.getEndTimestamp())
-        && getState() == partitionMetadata.getState()
-        && Objects.equal(getCreatedAt(), partitionMetadata.getCreatedAt())
-        && Objects.equal(getUpdatedAt(), partitionMetadata.getUpdatedAt());
+    PartitionMetadata that = (PartitionMetadata) o;
+    return inclusiveStart == that.inclusiveStart
+        && inclusiveEnd == that.inclusiveEnd
+        && heartbeatMillis == that.heartbeatMillis
+        && Objects.equals(partitionToken, that.partitionToken)
+        && Objects.equals(parentTokens, that.parentTokens)
+        && Objects.equals(startTimestamp, that.startTimestamp)
+        && Objects.equals(endTimestamp, that.endTimestamp)
+        && state == that.state
+        && Objects.equals(createdAt, that.createdAt)
+        && Objects.equals(scheduledAt, that.scheduledAt)
+        && Objects.equals(runningAt, that.runningAt)
+        && Objects.equals(finishedAt, that.finishedAt);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(
-        getPartitionToken(),
-        getParentTokens(),
-        getStartTimestamp(),
-        isInclusiveStart(),
-        getEndTimestamp(),
-        isInclusiveEnd(),
-        getHeartbeatMillis(),
-        getState(),
-        getCreatedAt(),
-        getUpdatedAt());
+    return Objects.hash(
+        partitionToken,
+        parentTokens,
+        startTimestamp,
+        inclusiveStart,
+        endTimestamp,
+        inclusiveEnd,
+        heartbeatMillis,
+        state,
+        createdAt,
+        scheduledAt,
+        runningAt,
+        finishedAt);
   }
 
   @Override
@@ -197,8 +225,12 @@ public class PartitionMetadata implements Serializable {
         + state
         + ", createdAt="
         + createdAt
-        + ", updatedAt="
-        + updatedAt
+        + ", scheduledAt="
+        + scheduledAt
+        + ", runningAt="
+        + runningAt
+        + ", finishedAt="
+        + finishedAt
         + '}';
   }
 
@@ -217,7 +249,26 @@ public class PartitionMetadata implements Serializable {
     private Long heartbeatMillis;
     private State state;
     private Timestamp createdAt;
-    private Timestamp updatedAt;
+    private Timestamp scheduledAt;
+    private Timestamp runningAt;
+    private Timestamp finishedAt;
+
+    public Builder() {}
+
+    private Builder(PartitionMetadata partition) {
+      this.partitionToken = partition.partitionToken;
+      this.parentTokens = partition.parentTokens;
+      this.startTimestamp = partition.startTimestamp;
+      this.inclusiveStart = partition.inclusiveStart;
+      this.endTimestamp = partition.endTimestamp;
+      this.inclusiveEnd = partition.inclusiveEnd;
+      this.heartbeatMillis = partition.heartbeatMillis;
+      this.state = partition.state;
+      this.createdAt = partition.createdAt;
+      this.scheduledAt = partition.scheduledAt;
+      this.runningAt = partition.runningAt;
+      this.finishedAt = partition.finishedAt;
+    }
 
     public Builder setPartitionToken(String partitionToken) {
       this.partitionToken = partitionToken;
@@ -264,8 +315,18 @@ public class PartitionMetadata implements Serializable {
       return this;
     }
 
-    public Builder setUpdatedAt(Timestamp updatedAt) {
-      this.updatedAt = updatedAt;
+    public Builder setScheduledAt(Timestamp scheduledAt) {
+      this.scheduledAt = scheduledAt;
+      return this;
+    }
+
+    public Builder setRunningAt(Timestamp runningAt) {
+      this.runningAt = runningAt;
+      return this;
+    }
+
+    public Builder setFinishedAt(Timestamp finishedAt) {
+      this.finishedAt = finishedAt;
       return this;
     }
 
@@ -287,10 +348,6 @@ public class PartitionMetadata implements Serializable {
       if (createdAt == null) {
         createdAt = Value.COMMIT_TIMESTAMP;
       }
-      // TODO: Add test for default updated at
-      if (updatedAt == null) {
-        updatedAt = Value.COMMIT_TIMESTAMP;
-      }
       return new PartitionMetadata(
           partitionToken,
           parentTokens,
@@ -301,7 +358,9 @@ public class PartitionMetadata implements Serializable {
           heartbeatMillis,
           state,
           createdAt,
-          updatedAt);
+          scheduledAt,
+          runningAt,
+          finishedAt);
     }
   }
 }

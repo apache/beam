@@ -34,7 +34,7 @@ public class ChangeStreamDao {
     this.databaseClient = databaseClient;
   }
 
-  public ResultSet changeStreamQuery(
+  public ChangeStreamResultSet changeStreamQuery(
       String partitionToken,
       Timestamp startTimestamp,
       boolean isInclusiveStart,
@@ -59,18 +59,21 @@ public class ChangeStreamDao {
             + "   read_options => null,"
             + "   heartbeat_milliseconds => @heartbeatMillis"
             + ")";
-    return databaseClient
-        .singleUse()
-        .executeQuery(
-            Statement.newBuilder(query)
-                .bind("startTimestamp")
-                .to(startTimestamp)
-                .bind("endTimestamp")
-                .to(endTimestamp)
-                .bind("partitionToken")
-                .to(partitionTokenOrNull)
-                .bind("heartbeatMillis")
-                .to(heartbeatMillis)
-                .build());
+    final ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(
+                Statement.newBuilder(query)
+                    .bind("startTimestamp")
+                    .to(startTimestamp)
+                    .bind("endTimestamp")
+                    .to(endTimestamp)
+                    .bind("partitionToken")
+                    .to(partitionTokenOrNull)
+                    .bind("heartbeatMillis")
+                    .to(heartbeatMillis)
+                    .build());
+
+    return new ChangeStreamResultSet(resultSet);
   }
 }

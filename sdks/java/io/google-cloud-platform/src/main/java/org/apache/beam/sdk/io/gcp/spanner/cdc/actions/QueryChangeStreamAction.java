@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
-import com.google.cloud.spanner.ResultSet;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
@@ -66,7 +66,8 @@ public class QueryChangeStreamAction {
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
     final String token = partition.getPartitionToken();
-    try (ResultSet resultSet =
+
+    try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token,
             tracker.currentRestriction().getStartTimestamp(),
@@ -78,11 +79,13 @@ public class QueryChangeStreamAction {
         // TODO: Check what should we do if there is an error here
         final List<ChangeStreamRecord> records =
             changeStreamRecordMapper.toChangeStreamRecords(
-                token, resultSet.getCurrentRowAsStruct());
-        LOG.debug("Mapped records: " + records);
+                partition.getPartitionToken(),
+                resultSet.getCurrentRowAsStruct(),
+                resultSet.getMetadata(),
+                tracker.currentRestriction().getMetadata());
 
         Optional<ProcessContinuation> maybeContinuation;
-        for (ChangeStreamRecord record : records) {
+        for (final ChangeStreamRecord record : records) {
           if (record instanceof DataChangeRecord) {
             maybeContinuation =
                 dataChangeRecordAction.run(
@@ -101,7 +104,7 @@ public class QueryChangeStreamAction {
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
           }
           if (maybeContinuation.isPresent()) {
-            LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
+            LOG.info("[" + token + "] Continuation present, returning " + maybeContinuation);
             return maybeContinuation;
           }
         }

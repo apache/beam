@@ -23,9 +23,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import org.apache.avro.reflect.AvroEncode;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 @DefaultCoder(AvroCoder.class)
@@ -38,15 +40,21 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
 
   private String recordSequence;
   private List<ChildPartition> childPartitions;
+  @Nullable private ChangeStreamRecordMetadata metadata;
 
   /** Default constructor for serialization only. */
   private ChildPartitionsRecord() {}
 
-  public ChildPartitionsRecord(
-      Timestamp startTimestamp, String recordSequence, List<ChildPartition> childPartitions) {
+  @VisibleForTesting
+  ChildPartitionsRecord(
+      Timestamp startTimestamp,
+      String recordSequence,
+      List<ChildPartition> childPartitions,
+      ChangeStreamRecordMetadata metadata) {
     this.startTimestamp = startTimestamp;
     this.recordSequence = recordSequence;
     this.childPartitions = childPartitions;
+    this.metadata = metadata;
   }
 
   public Timestamp getStartTimestamp() {
@@ -82,7 +90,7 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
 
   @Override
   public String toString() {
-    return "ChildPartitionRecord{"
+    return "ChildPartitionsRecord{"
         + "startTimestamp="
         + startTimestamp
         + ", recordSequence='"
@@ -90,6 +98,8 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
         + '\''
         + ", childPartitions="
         + childPartitions
+        + ", metadata="
+        + metadata
         + '}';
   }
 
@@ -147,6 +157,41 @@ public class ChildPartitionsRecord implements ChangeStreamRecord {
           + ", parentTokens="
           + parentTokens
           + '}';
+    }
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static class Builder {
+    private Timestamp startTimestamp;
+    private String recordSequence;
+    private List<ChildPartition> childPartitions;
+    private ChangeStreamRecordMetadata metadata;
+
+    public Builder withStartTimestamp(Timestamp startTimestamp) {
+      this.startTimestamp = startTimestamp;
+      return this;
+    }
+
+    public Builder withRecordSequence(String recordSequence) {
+      this.recordSequence = recordSequence;
+      return this;
+    }
+
+    public Builder withChildPartitions(List<ChildPartition> childPartitions) {
+      this.childPartitions = childPartitions;
+      return this;
+    }
+
+    public Builder withMetadata(ChangeStreamRecordMetadata metadata) {
+      this.metadata = metadata;
+      return this;
+    }
+
+    public ChildPartitionsRecord build() {
+      return new ChildPartitionsRecord(startTimestamp, recordSequence, childPartitions, metadata);
     }
   }
 }

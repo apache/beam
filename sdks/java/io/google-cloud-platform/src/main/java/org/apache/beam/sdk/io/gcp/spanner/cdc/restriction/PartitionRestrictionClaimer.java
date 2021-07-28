@@ -66,10 +66,13 @@ public class PartitionRestrictionClaimer {
             .map(PartitionPosition::getMode)
             .orElse(restriction.getMode());
     final PartitionMode toMode = position.getMode();
+    final String partitionToken = restriction.getMetadata().getPartitionToken();
 
     if (fromMode == STOP) {
       LOG.debug(
-          "Try claim from ("
+          "["
+              + partitionToken
+              + "] Try claim from ("
               + restriction
               + ","
               + lastClaimedPosition
@@ -113,7 +116,15 @@ public class PartitionRestrictionClaimer {
         throw new IllegalArgumentException("Unknown mode " + fromMode);
     }
 
-    LOG.debug("Try claim from (" + restriction + ", " + position + ") is " + tryClaimResult);
+    LOG.debug(
+        "["
+            + partitionToken
+            + "] Try claim from ("
+            + restriction
+            + ", "
+            + position
+            + ") is "
+            + tryClaimResult);
     return tryClaimResult;
   }
 }

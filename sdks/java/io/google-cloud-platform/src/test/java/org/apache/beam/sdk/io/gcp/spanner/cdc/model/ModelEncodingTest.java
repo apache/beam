@@ -78,49 +78,73 @@ public class ModelEncodingTest {
   @Test
   public void testDataChangeRecordCanBeEncoded() throws IOException {
     final DataChangeRecord dataChangeRecord =
-        new DataChangeRecord(
-            "1",
-            Timestamp.now(),
-            "2",
-            true,
-            "3",
-            "TableName",
-            Arrays.asList(
-                new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
-                new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
-                new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
-            Collections.singletonList(
-                new Mod(
-                    "{\"keyColumn\": \"keyValue\"}",
-                    "{\"column1\": \"value1\", \"column2\": \"oldValue2\"}",
-                    "{\"column1\": \"value1\", \"column2\": \"newValue2\"}")),
-            ModType.UPDATE,
-            ValueCaptureType.OLD_AND_NEW_VALUES,
-            1,
-            1);
+        DataChangeRecord.newBuilder()
+            .withPartitionToken("1")
+            .withCommitTimestamp(Timestamp.now())
+            .withTransactionId("2")
+            .withIsLastRecordInTransactionInPartition(true)
+            .withRecordSequence("3")
+            .withTableName("TableName")
+            .withRowType(
+                Arrays.asList(
+                    new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
+                    new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
+                    new ColumnType("column2", new TypeCode("typeCode2"), false, 3)))
+            .withMods(
+                Collections.singletonList(
+                    new Mod(
+                        "{\"keyColumn\": \"keyValue\"}",
+                        "{\"column1\": \"value1\", \"column2\": \"oldValue2\"}",
+                        "{\"column1\": \"value1\", \"column2\": \"newValue2\"}")))
+            .withModType(ModType.UPDATE)
+            .withValueCaptureType(ValueCaptureType.OLD_AND_NEW_VALUES)
+            .withNumberOfRecordsInTransaction(1L)
+            .withNumberOfPartitionsInTransaction(1L)
+            .withMetadata(
+                ChangeStreamRecordMetadata.newBuilder()
+                    .withRecordTimestamp(Timestamp.ofTimeMicroseconds(100L))
+                    .withPartitionToken("1")
+                    .withPartitionStartTimestamp(Timestamp.ofTimeMicroseconds(1L))
+                    .withPartitionEndTimestamp(Timestamp.ofTimeMicroseconds(10_000L))
+                    .withRestrictionInitializedAt(Timestamp.ofTimeMicroseconds(10L))
+                    .withPartitionCreatedAt(Timestamp.ofTimeMicroseconds(100L))
+                    .withPartitionScheduledAt(Timestamp.ofTimeMicroseconds(101L))
+                    .withPartitionRunningAt(Timestamp.ofTimeMicroseconds(102L))
+                    .withQueryStartedAt(Timestamp.ofTimeMicroseconds(103L))
+                    .withRecordStreamStartedAt(Timestamp.ofTimeMicroseconds(104L))
+                    .withRecordStreamEndedAt(Timestamp.ofTimeMicroseconds(105L))
+                    .withRecordReadAt(Timestamp.ofTimeMicroseconds(106L))
+                    .withTotalStreamTimeMillis(1_000L)
+                    .withNumberOfRecordsRead(1L)
+                    .build())
+            .build();
 
     assertEquals(dataChangeRecord, encodeAndDecode(dataChangeRecord));
   }
 
   @Test
-  public void testDataChangeRecordWithNullOldAndNewValuesCanBeEncoded() throws IOException {
+  public void testDataChangeRecordWithNullOldAndNewValuesAndNullMetadataCanBeEncoded()
+      throws IOException {
     final DataChangeRecord dataChangeRecord =
-        new DataChangeRecord(
-            "1",
-            Timestamp.now(),
-            "2",
-            true,
-            "3",
-            "TableName",
-            Arrays.asList(
-                new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
-                new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
-                new ColumnType("column2", new TypeCode("typeCode2"), false, 3)),
-            Collections.singletonList(new Mod("{\"keyColumn\": \"keyValue\"}", null, null)),
-            ModType.UPDATE,
-            ValueCaptureType.OLD_AND_NEW_VALUES,
-            1,
-            1);
+        DataChangeRecord.newBuilder()
+            .withPartitionToken("1")
+            .withCommitTimestamp(Timestamp.now())
+            .withTransactionId("2")
+            .withIsLastRecordInTransactionInPartition(true)
+            .withRecordSequence("3")
+            .withTableName("TableName")
+            .withRowType(
+                Arrays.asList(
+                    new ColumnType("keyColumn", new TypeCode("typeKey"), true, 1),
+                    new ColumnType("column1", new TypeCode("typeCode1"), false, 2),
+                    new ColumnType("column2", new TypeCode("typeCode2"), false, 3)))
+            .withMods(
+                Collections.singletonList(new Mod("{\"keyColumn\": \"keyValue\"}", null, null)))
+            .withModType(ModType.UPDATE)
+            .withValueCaptureType(ValueCaptureType.OLD_AND_NEW_VALUES)
+            .withNumberOfRecordsInTransaction(1)
+            .withNumberOfPartitionsInTransaction(1)
+            .build();
 
     assertEquals(dataChangeRecord, encodeAndDecode(dataChangeRecord));
   }
@@ -136,7 +160,9 @@ public class ModelEncodingTest {
             Timestamp.now(),
             false,
             10,
-            State.CREATED,
+            State.FINISHED,
+            Timestamp.now(),
+            Timestamp.now(),
             Timestamp.now(),
             Timestamp.now());
 

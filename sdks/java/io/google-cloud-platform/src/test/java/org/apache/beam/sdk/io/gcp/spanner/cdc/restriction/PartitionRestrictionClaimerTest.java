@@ -39,9 +39,11 @@ import org.junit.Test;
 public class PartitionRestrictionClaimerTest {
 
   private PartitionRestrictionClaimer claimer;
+  private String partitionToken;
 
   @Before
   public void setUp() {
+    partitionToken = "partitionToken";
     claimer = new PartitionRestrictionClaimer();
   }
 
@@ -50,7 +52,12 @@ public class PartitionRestrictionClaimerTest {
     final boolean canClaim =
         claimer.tryClaim(
             PartitionRestriction.queryChangeStream(
-                Timestamp.ofTimeSecondsAndNanos(10L, 0), Timestamp.ofTimeSecondsAndNanos(20L, 0)),
+                    Timestamp.ofTimeSecondsAndNanos(10L, 0),
+                    Timestamp.ofTimeSecondsAndNanos(20L, 0))
+                .withMetadata(
+                    PartitionRestrictionMetadata.newBuilder()
+                        .withPartitionToken(partitionToken)
+                        .build()),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(10L, 0)),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(15L, 0)));
 
@@ -62,7 +69,12 @@ public class PartitionRestrictionClaimerTest {
     final boolean canClaim =
         claimer.tryClaim(
             PartitionRestriction.queryChangeStream(
-                Timestamp.ofTimeSecondsAndNanos(10L, 0), Timestamp.ofTimeSecondsAndNanos(20L, 0)),
+                    Timestamp.ofTimeSecondsAndNanos(10L, 0),
+                    Timestamp.ofTimeSecondsAndNanos(20L, 0))
+                .withMetadata(
+                    PartitionRestrictionMetadata.newBuilder()
+                        .withPartitionToken(partitionToken)
+                        .build()),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(10L, 0)),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(10L, 0)));
 
@@ -74,7 +86,12 @@ public class PartitionRestrictionClaimerTest {
     final boolean canClaim =
         claimer.tryClaim(
             PartitionRestriction.queryChangeStream(
-                Timestamp.ofTimeSecondsAndNanos(10L, 0), Timestamp.ofTimeSecondsAndNanos(20L, 0)),
+                    Timestamp.ofTimeSecondsAndNanos(10L, 0),
+                    Timestamp.ofTimeSecondsAndNanos(20L, 0))
+                .withMetadata(
+                    PartitionRestrictionMetadata.newBuilder()
+                        .withPartitionToken(partitionToken)
+                        .build()),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(10L, 0)),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(20L, 0)));
 
@@ -86,7 +103,12 @@ public class PartitionRestrictionClaimerTest {
     final boolean canClaim =
         claimer.tryClaim(
             PartitionRestriction.queryChangeStream(
-                Timestamp.ofTimeSecondsAndNanos(10L, 0), Timestamp.ofTimeSecondsAndNanos(20L, 0)),
+                    Timestamp.ofTimeSecondsAndNanos(10L, 0),
+                    Timestamp.ofTimeSecondsAndNanos(20L, 0))
+                .withMetadata(
+                    PartitionRestrictionMetadata.newBuilder()
+                        .withPartitionToken(partitionToken)
+                        .build()),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(10L, 0)),
             PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(20L, 1)));
 
@@ -96,7 +118,11 @@ public class PartitionRestrictionClaimerTest {
   @Test(expected = IllegalArgumentException.class)
   public void testQueryChangeStreamWithoutTimestamp() {
     claimer.tryClaim(
-        PartitionRestriction.queryChangeStream(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE),
+        PartitionRestriction.queryChangeStream(Timestamp.MIN_VALUE, Timestamp.MAX_VALUE)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(partitionToken)
+                    .build()),
         PartitionPosition.queryChangeStream(Timestamp.MIN_VALUE),
         new PartitionPosition(Optional.empty(), QUERY_CHANGE_STREAM));
   }
@@ -187,7 +213,10 @@ public class PartitionRestrictionClaimerTest {
     }
 
     public void run() {
-      final PartitionRestriction restriction = partitionRestrictionFrom(from);
+      final PartitionRestrictionMetadata metadata =
+          PartitionRestrictionMetadata.newBuilder().withPartitionToken("partitionToken").build();
+      final PartitionRestriction restriction =
+          partitionRestrictionFrom(from).withMetadata(metadata);
       final PartitionPosition lastClaimedPosition = partitionPositionFrom(from);
       // Tests with and without last claimed position
       for (PartitionMode to : PartitionMode.values()) {

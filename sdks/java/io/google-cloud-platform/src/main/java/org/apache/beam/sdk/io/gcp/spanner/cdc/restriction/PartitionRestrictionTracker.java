@@ -76,7 +76,7 @@ public class PartitionRestrictionTracker
     final boolean canClaim = claimer.tryClaim(restriction, lastClaimedPosition, position);
 
     if (canClaim) {
-      this.isSplitAllowed = splitChecker.isSplitAllowed(lastClaimedPosition, position);
+      this.isSplitAllowed = splitChecker.isSplitAllowed(restriction, lastClaimedPosition, position);
       this.lastClaimedPosition = position;
     }
 

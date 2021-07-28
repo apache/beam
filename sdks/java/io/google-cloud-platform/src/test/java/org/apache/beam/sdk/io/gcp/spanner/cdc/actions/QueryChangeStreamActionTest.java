@@ -26,16 +26,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamDao;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.DaoFactory;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamResultSet;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamResultSetMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.ChangeStreamRecordMapper;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
@@ -43,12 +40,12 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestrictionMetadata;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -63,9 +60,9 @@ public class QueryChangeStreamActionTest {
   private static final long PARTITION_HEARTBEAT_MILLIS = 30_000L;
 
   private ChangeStreamDao changeStreamDao;
-  private ReadChangeStreamPartitionDoFn doFn;
   private PartitionMetadata partition;
   private PartitionRestriction restriction;
+  private PartitionRestrictionMetadata restrictionMetadata;
   private RestrictionTracker<PartitionRestriction, PartitionPosition> restrictionTracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ChangeStreamRecordMapper changeStreamRecordMapper;
@@ -73,38 +70,23 @@ public class QueryChangeStreamActionTest {
   private DataChangeRecordAction dataChangeRecordAction;
   private HeartbeatRecordAction heartbeatRecordAction;
   private ChildPartitionsRecordAction childPartitionsRecordAction;
-  private WaitForChildPartitionsAction waitForChildPartitionsAction;
-  private FinishPartitionAction finishPartitionAction;
-  private WaitForParentPartitionsAction waitForParentPartitionsAction;
-  private DeletePartitionAction deletePartitionAction;
-  private DonePartitionAction donePartitionAction;
+  private QueryChangeStreamAction action;
 
   @Before
   public void setUp() throws Exception {
-    final Duration resumeDuration = Duration.millis(100);
-    final DaoFactory daoFactory = mock(DaoFactory.class);
-    final MapperFactory mapperFactory = mock(MapperFactory.class);
-    final ActionFactory actionFactory = mock(ActionFactory.class);
-    final PartitionMetadataDao partitionMetadataDao = mock(PartitionMetadataDao.class);
     changeStreamDao = mock(ChangeStreamDao.class);
     changeStreamRecordMapper = mock(ChangeStreamRecordMapper.class);
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
-    waitForChildPartitionsAction = mock(WaitForChildPartitionsAction.class);
-    finishPartitionAction = mock(FinishPartitionAction.class);
-    waitForParentPartitionsAction = mock(WaitForParentPartitionsAction.class);
-    deletePartitionAction = mock(DeletePartitionAction.class);
-    donePartitionAction = mock(DonePartitionAction.class);
 
-    QueryChangeStreamAction queryChangeStreamAction =
+    action =
         new QueryChangeStreamAction(
             changeStreamDao,
             changeStreamRecordMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction);
-    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory);
 
     partition =
         PartitionMetadata.newBuilder()
@@ -116,46 +98,25 @@ public class QueryChangeStreamActionTest {
             .setInclusiveEnd(PARTITION_IS_INCLUSIVE_END)
             .setHeartbeatMillis(PARTITION_HEARTBEAT_MILLIS)
             .setState(SCHEDULED)
+            .setScheduledAt(Timestamp.now())
             .build();
     restriction = mock(PartitionRestriction.class);
+    restrictionMetadata = mock(PartitionRestrictionMetadata.class);
     restrictionTracker = mock(RestrictionTracker.class);
     outputReceiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
 
+    when(restriction.getMetadata()).thenReturn(restrictionMetadata);
     when(restrictionTracker.currentRestriction()).thenReturn(restriction);
     when(restriction.getStartTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
-    when(daoFactory.getPartitionMetadataDao()).thenReturn(partitionMetadataDao);
-    when(daoFactory.getChangeStreamDao()).thenReturn(changeStreamDao);
-    when(mapperFactory.changeStreamRecordMapper()).thenReturn(changeStreamRecordMapper);
-
-    when(actionFactory.dataChangeRecordAction()).thenReturn(dataChangeRecordAction);
-    when(actionFactory.heartbeatRecordAction()).thenReturn(heartbeatRecordAction);
-    when(actionFactory.childPartitionsRecordAction(partitionMetadataDao))
-        .thenReturn(childPartitionsRecordAction);
-    when(actionFactory.queryChangeStreamAction(
-            changeStreamDao,
-            changeStreamRecordMapper,
-            dataChangeRecordAction,
-            heartbeatRecordAction,
-            childPartitionsRecordAction))
-        .thenReturn(queryChangeStreamAction);
-    when(actionFactory.waitForChildPartitionsAction(partitionMetadataDao, resumeDuration))
-        .thenReturn(waitForChildPartitionsAction);
-    when(actionFactory.finishPartitionAction(partitionMetadataDao))
-        .thenReturn(finishPartitionAction);
-    when(actionFactory.waitForParentPartitionsAction(partitionMetadataDao, resumeDuration))
-        .thenReturn(waitForParentPartitionsAction);
-    when(actionFactory.deletePartitionAction(partitionMetadataDao))
-        .thenReturn(deletePartitionAction);
-    when(actionFactory.donePartitionAction()).thenReturn(donePartitionAction);
-
-    doFn.setup();
   }
 
   @Test
   public void testQueryChangeStreamModeWithDataChangeRecord() {
     final Struct rowAsStruct = mock(Struct.class);
-    final ResultSet resultSet = mock(ResultSet.class);
+    final ChangeStreamResultSetMetadata resultSetMetadata =
+        mock(ChangeStreamResultSetMetadata.class);
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     final DataChangeRecord record1 = mock(DataChangeRecord.class);
     final DataChangeRecord record2 = mock(DataChangeRecord.class);
     when(restriction.getMode()).thenReturn(PartitionMode.QUERY_CHANGE_STREAM);
@@ -169,7 +130,9 @@ public class QueryChangeStreamActionTest {
         .thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
-    when(changeStreamRecordMapper.toChangeStreamRecords(PARTITION_TOKEN, rowAsStruct))
+    when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
+    when(changeStreamRecordMapper.toChangeStreamRecords(
+            PARTITION_TOKEN, rowAsStruct, resultSetMetadata, restrictionMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(dataChangeRecordAction.run(
             partition, record1, restrictionTracker, outputReceiver, watermarkEstimator))
@@ -178,10 +141,10 @@ public class QueryChangeStreamActionTest {
             partition, record2, restrictionTracker, outputReceiver, watermarkEstimator))
         .thenReturn(Optional.of(ProcessContinuation.stop()));
 
-    final ProcessContinuation result =
-        doFn.processElement(partition, restrictionTracker, outputReceiver, watermarkEstimator);
+    final Optional<ProcessContinuation> result =
+        action.run(partition, restrictionTracker, outputReceiver, watermarkEstimator);
 
-    assertEquals(ProcessContinuation.stop(), result);
+    assertEquals(Optional.of(ProcessContinuation.stop()), result);
     verify(dataChangeRecordAction)
         .run(partition, record1, restrictionTracker, outputReceiver, watermarkEstimator);
     verify(dataChangeRecordAction)
@@ -189,18 +152,15 @@ public class QueryChangeStreamActionTest {
 
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any());
-    verify(finishPartitionAction, never()).run(any(), any());
-    verify(waitForParentPartitionsAction, never()).run(any(), any());
-    verify(deletePartitionAction, never()).run(any(), any());
-    verify(donePartitionAction, never()).run(any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
   @Test
   public void testQueryChangeStreamModeWithHeartbeatRecord() {
     final Struct rowAsStruct = mock(Struct.class);
-    final ResultSet resultSet = mock(ResultSet.class);
+    final ChangeStreamResultSetMetadata resultSetMetadata =
+        mock(ChangeStreamResultSetMetadata.class);
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     final HeartbeatRecord record1 = mock(HeartbeatRecord.class);
     final HeartbeatRecord record2 = mock(HeartbeatRecord.class);
     when(restriction.getMode()).thenReturn(PartitionMode.QUERY_CHANGE_STREAM);
@@ -214,34 +174,33 @@ public class QueryChangeStreamActionTest {
         .thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
-    when(changeStreamRecordMapper.toChangeStreamRecords(PARTITION_TOKEN, rowAsStruct))
+    when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
+    when(changeStreamRecordMapper.toChangeStreamRecords(
+            PARTITION_TOKEN, rowAsStruct, resultSetMetadata, restrictionMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(heartbeatRecordAction.run(partition, record1, restrictionTracker, watermarkEstimator))
         .thenReturn(Optional.empty());
     when(heartbeatRecordAction.run(partition, record2, restrictionTracker, watermarkEstimator))
         .thenReturn(Optional.of(ProcessContinuation.stop()));
 
-    final ProcessContinuation result =
-        doFn.processElement(partition, restrictionTracker, outputReceiver, watermarkEstimator);
+    final Optional<ProcessContinuation> result =
+        action.run(partition, restrictionTracker, outputReceiver, watermarkEstimator);
 
-    assertEquals(ProcessContinuation.stop(), result);
+    assertEquals(Optional.of(ProcessContinuation.stop()), result);
     verify(heartbeatRecordAction).run(partition, record1, restrictionTracker, watermarkEstimator);
     verify(heartbeatRecordAction).run(partition, record2, restrictionTracker, watermarkEstimator);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any());
-    verify(finishPartitionAction, never()).run(any(), any());
-    verify(waitForParentPartitionsAction, never()).run(any(), any());
-    verify(deletePartitionAction, never()).run(any(), any());
-    verify(donePartitionAction, never()).run(any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
   @Test
   public void testQueryChangeStreamModeWithChildPartitionsRecord() {
     final Struct rowAsStruct = mock(Struct.class);
-    final ResultSet resultSet = mock(ResultSet.class);
+    final ChangeStreamResultSetMetadata resultSetMetadata =
+        mock(ChangeStreamResultSetMetadata.class);
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     final ChildPartitionsRecord record1 = mock(ChildPartitionsRecord.class);
     final ChildPartitionsRecord record2 = mock(ChildPartitionsRecord.class);
     when(restriction.getMode()).thenReturn(PartitionMode.QUERY_CHANGE_STREAM);
@@ -255,19 +214,21 @@ public class QueryChangeStreamActionTest {
         .thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
-    when(changeStreamRecordMapper.toChangeStreamRecords(PARTITION_TOKEN, rowAsStruct))
+    when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
+    when(changeStreamRecordMapper.toChangeStreamRecords(
+            PARTITION_TOKEN, rowAsStruct, resultSetMetadata, restrictionMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(childPartitionsRecordAction.run(
             partition, record1, restrictionTracker, watermarkEstimator))
         .thenReturn(Optional.empty());
     when(childPartitionsRecordAction.run(
             partition, record2, restrictionTracker, watermarkEstimator))
-        .thenReturn(Optional.of(ProcessContinuation.resume()));
+        .thenReturn(Optional.of(ProcessContinuation.stop()));
 
-    final ProcessContinuation result =
-        doFn.processElement(partition, restrictionTracker, outputReceiver, watermarkEstimator);
+    final Optional<ProcessContinuation> result =
+        action.run(partition, restrictionTracker, outputReceiver, watermarkEstimator);
 
-    assertEquals(ProcessContinuation.resume(), result);
+    assertEquals(Optional.of(ProcessContinuation.stop()), result);
     verify(childPartitionsRecordAction)
         .run(partition, record1, restrictionTracker, watermarkEstimator);
     verify(childPartitionsRecordAction)
@@ -275,17 +236,12 @@ public class QueryChangeStreamActionTest {
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
-    verify(waitForChildPartitionsAction, never()).run(any(), any());
-    verify(finishPartitionAction, never()).run(any(), any());
-    verify(waitForParentPartitionsAction, never()).run(any(), any());
-    verify(deletePartitionAction, never()).run(any(), any());
-    verify(donePartitionAction, never()).run(any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
   @Test
   public void testQueryChangeStreamModeWithStreamFinished() {
-    final ResultSet resultSet = mock(ResultSet.class);
+    final ChangeStreamResultSet changeStreamResultSet = mock(ChangeStreamResultSet.class);
     when(restriction.getMode()).thenReturn(PartitionMode.QUERY_CHANGE_STREAM);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
@@ -294,19 +250,13 @@ public class QueryChangeStreamActionTest {
             PARTITION_END_TIMESTAMP,
             PARTITION_IS_INCLUSIVE_END,
             PARTITION_HEARTBEAT_MILLIS))
-        .thenReturn(resultSet);
-    when(resultSet.next()).thenReturn(false);
-    when(donePartitionAction.run(any(), any())).thenReturn(ProcessContinuation.stop());
+        .thenReturn(changeStreamResultSet);
+    when(changeStreamResultSet.next()).thenReturn(false);
 
-    final ProcessContinuation result =
-        doFn.processElement(partition, restrictionTracker, outputReceiver, watermarkEstimator);
+    final Optional<ProcessContinuation> result =
+        action.run(partition, restrictionTracker, outputReceiver, watermarkEstimator);
 
-    assertEquals(ProcessContinuation.stop(), result);
-    verify(waitForChildPartitionsAction).run(partition, restrictionTracker);
-    verify(finishPartitionAction).run(partition, restrictionTracker);
-    verify(waitForParentPartitionsAction).run(partition, restrictionTracker);
-    verify(deletePartitionAction).run(partition, restrictionTracker);
-    verify(donePartitionAction).run(partition, restrictionTracker);
+    assertEquals(Optional.empty(), result);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());

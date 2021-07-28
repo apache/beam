@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.model;
 import com.google.cloud.Timestamp;
 import java.util.Objects;
 import org.apache.avro.reflect.AvroEncode;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 @DefaultCoder(AvroCoder.class)
 public class HeartbeatRecord implements ChangeStreamRecord {
@@ -32,11 +34,15 @@ public class HeartbeatRecord implements ChangeStreamRecord {
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp timestamp;
 
+  @Nullable private ChangeStreamRecordMetadata metadata;
+
   /** Default constructor for serialization only. */
   private HeartbeatRecord() {}
 
-  public HeartbeatRecord(Timestamp timestamp) {
+  @VisibleForTesting
+  HeartbeatRecord(Timestamp timestamp, ChangeStreamRecordMetadata metadata) {
     this.timestamp = timestamp;
+    this.metadata = metadata;
   }
 
   public Timestamp getTimestamp() {
@@ -62,6 +68,29 @@ public class HeartbeatRecord implements ChangeStreamRecord {
 
   @Override
   public String toString() {
-    return "HeartbeatRecord{" + "timestamp=" + timestamp + '}';
+    return "HeartbeatRecord{" + "timestamp=" + timestamp + ", metadata=" + metadata + '}';
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static class Builder {
+    private Timestamp timestamp;
+    private ChangeStreamRecordMetadata metadata;
+
+    public Builder withTimestamp(Timestamp timestamp) {
+      this.timestamp = timestamp;
+      return this;
+    }
+
+    public Builder withMetadata(ChangeStreamRecordMetadata metadata) {
+      this.metadata = metadata;
+      return this;
+    }
+
+    public HeartbeatRecord build() {
+      return new HeartbeatRecord(timestamp, metadata);
+    }
   }
 }

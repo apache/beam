@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -27,13 +26,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.InTransactionContext;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.util.TestTransactionAnswer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.junit.Before;
@@ -44,12 +46,16 @@ public class FinishPartitionActionTest {
   private FinishPartitionAction action;
   private PartitionMetadataDao dao;
   private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
+  private InTransactionContext transaction;
 
   @Before
   public void setUp() throws Exception {
     dao = mock(PartitionMetadataDao.class);
+    transaction = mock(InTransactionContext.class);
     action = new FinishPartitionAction(dao);
     tracker = mock(RestrictionTracker.class);
+
+    when(dao.runInTransaction(any())).thenAnswer(new TestTransactionAnswer(transaction));
   }
 
   @Test
@@ -58,11 +64,13 @@ public class FinishPartitionActionTest {
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     when(tracker.tryClaim(PartitionPosition.finishPartition())).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
+    when(transaction.getPartition(partitionToken)).thenReturn(partition);
+    when(partition.getRunningAt()).thenReturn(Timestamp.now());
 
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(dao).updateState(partitionToken, FINISHED);
+    verify(transaction).updateToFinished(partitionToken);
   }
 
   @Test
@@ -73,12 +81,12 @@ public class FinishPartitionActionTest {
     when(tracker.tryClaim(PartitionPosition.finishPartition())).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(spannerException.getErrorCode()).thenReturn(ErrorCode.NOT_FOUND);
-    doThrow(spannerException).when(dao).updateState(any(), any());
+    doThrow(spannerException).when(transaction).updateToFinished(any());
 
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(dao).updateState(partitionToken, FINISHED);
+    verify(transaction).updateToFinished(partitionToken);
   }
 
   @Test
@@ -89,6 +97,6 @@ public class FinishPartitionActionTest {
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
-    verify(dao, never()).updateState(anyString(), any());
+    verify(transaction, never()).updateToFinished(anyString());
   }
 }

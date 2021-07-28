@@ -46,6 +46,7 @@ public class PartitionRestrictionSplitter {
       return null;
     }
 
+    final String partitionToken = restriction.getMetadata().getPartitionToken();
     final PartitionMode positionMode = lastClaimedPosition.getMode();
     checkArgument(
         positionMode != QUERY_CHANGE_STREAM || lastClaimedPosition.getTimestamp().isPresent(),
@@ -101,10 +102,10 @@ public class PartitionRestrictionSplitter {
     }
 
     LOG.debug(
-        "Split result for ("
+        "["
+            + partitionToken
+            + "] Split result for ("
             + fractionOfRemainder
-            + ", "
-            + isSplitAllowed
             + ", "
             + lastClaimedPosition
             + ", "
@@ -140,8 +141,18 @@ public class PartitionRestrictionSplitter {
       return null;
     } else {
       return SplitResult.of(
-          PartitionRestriction.queryChangeStream(startTimestamp, primaryEndTimestamp),
-          PartitionRestriction.queryChangeStream(residualStartTimestamp, endTimestamp));
+          PartitionRestriction.queryChangeStream(startTimestamp, primaryEndTimestamp)
+              .withMetadata(
+                  PartitionRestrictionMetadata.newBuilder(restriction.getMetadata())
+                      .withPartitionStartTimestamp(startTimestamp)
+                      .withPartitionEndTimestamp(primaryEndTimestamp)
+                      .build()),
+          PartitionRestriction.queryChangeStream(residualStartTimestamp, endTimestamp)
+              .withMetadata(
+                  PartitionRestrictionMetadata.newBuilder(restriction.getMetadata())
+                      .withPartitionStartTimestamp(residualStartTimestamp)
+                      .withPartitionEndTimestamp(endTimestamp)
+                      .build()));
     }
   }
 }

@@ -17,17 +17,21 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITIONS_RUNNING_COUNTER;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_RUNNING_TO_FINISHED_MS;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.TransactionResult;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +49,7 @@ public class FinishPartitionAction {
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
     final String token = partition.getPartitionToken();
-    LOG.info("[" + token + "] Finishing partition");
+    LOG.debug("[" + token + "] Finishing partition");
 
     if (!tracker.tryClaim(PartitionPosition.finishPartition())) {
       LOG.info("[" + token + "] Could not claim finishPartition(), stopping");
@@ -53,7 +57,7 @@ public class FinishPartitionAction {
     }
 
     try {
-      partitionMetadataDao.updateState(token, FINISHED);
+      updateStateToFinished(token);
     } catch (SpannerException e) {
       if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
         LOG.info("[" + token + "] Partition does not exist, skipping");
@@ -62,7 +66,23 @@ public class FinishPartitionAction {
       }
     }
 
-    LOG.info("[" + token + "] Finish partition action completed successfully");
+    LOG.debug("[" + token + "] Finish partition action completed successfully");
     return Optional.empty();
+  }
+
+  private void updateStateToFinished(String token) {
+    final TransactionResult<PartitionMetadata> result =
+        partitionMetadataDao.runInTransaction(
+            transaction -> {
+              transaction.updateToFinished(token);
+              return transaction.getPartition(token);
+            });
+    final PartitionMetadata updatedPartition = result.getResult();
+    final Timestamp runningAt = updatedPartition.getRunningAt();
+    final Timestamp finishedAt = result.getCommitTimestamp();
+    PARTITIONS_RUNNING_COUNTER.dec();
+    PARTITION_RUNNING_TO_FINISHED_MS.update(
+        new Duration(runningAt.toSqlTimestamp().getTime(), finishedAt.toSqlTimestamp().getTime())
+            .getMillis());
   }
 }

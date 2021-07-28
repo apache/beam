@@ -38,7 +38,12 @@ public class PartitionRestrictionSplitterTest {
   public void setUp() {
     startTimestamp = Timestamp.ofTimeSecondsAndNanos(0L, 0);
     endTimestamp = Timestamp.ofTimeSecondsAndNanos(100L, 50);
-    restriction = PartitionRestriction.queryChangeStream(startTimestamp, endTimestamp);
+    restriction =
+        PartitionRestriction.queryChangeStream(startTimestamp, endTimestamp)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken("partitionToken")
+                    .build());
     splitter = new PartitionRestrictionSplitter();
   }
 

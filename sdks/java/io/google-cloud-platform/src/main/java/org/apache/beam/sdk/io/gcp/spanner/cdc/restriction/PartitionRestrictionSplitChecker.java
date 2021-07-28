@@ -32,7 +32,10 @@ public class PartitionRestrictionSplitChecker {
   private static final long SECONDS_REQUIRED_BEFORE_SPLIT = 1L;
 
   public boolean isSplitAllowed(
-      PartitionPosition lastClaimedPosition, PartitionPosition claimedPosition) {
+      PartitionRestriction restriction,
+      PartitionPosition lastClaimedPosition,
+      PartitionPosition claimedPosition) {
+    final String partitionToken = restriction.getMetadata().getPartitionToken();
     final PartitionMode positionMode = claimedPosition.getMode();
     checkArgument(
         positionMode != QUERY_CHANGE_STREAM || claimedPosition.getTimestamp().isPresent(),
@@ -59,7 +62,9 @@ public class PartitionRestrictionSplitChecker {
     }
 
     LOG.debug(
-        "Is split allowed for ("
+        "["
+            + partitionToken
+            + "] Is split allowed for ("
             + lastClaimedPosition
             + ","
             + claimedPosition

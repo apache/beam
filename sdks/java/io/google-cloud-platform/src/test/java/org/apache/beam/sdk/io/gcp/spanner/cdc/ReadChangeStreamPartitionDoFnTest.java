@@ -117,6 +117,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             .setInclusiveEnd(PARTITION_IS_INCLUSIVE_END)
             .setHeartbeatMillis(PARTITION_HEARTBEAT_MILLIS)
             .setState(SCHEDULED)
+            .setScheduledAt(Timestamp.now())
             .build();
     restriction = mock(PartitionRestriction.class);
     restrictionTracker = mock(RestrictionTracker.class);

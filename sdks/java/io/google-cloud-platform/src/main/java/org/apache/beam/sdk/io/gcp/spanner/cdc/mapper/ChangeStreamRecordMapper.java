@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.mapper;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamResultSetMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecord;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecordMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ColumnType;
@@ -33,31 +36,53 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ModType;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ValueCaptureType;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestrictionMetadata;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 // TODO: Add java docs
 public class ChangeStreamRecordMapper {
 
-  public List<ChangeStreamRecord> toChangeStreamRecords(String partitionToken, Struct row) {
+  public List<ChangeStreamRecord> toChangeStreamRecords(
+      String partitionToken,
+      Struct row,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      PartitionRestrictionMetadata restrictionMetadata) {
     return row.getStructList(0).stream()
-        .flatMap(struct -> toChangeStreamRecord(partitionToken, struct))
+        .flatMap(
+            struct ->
+                toChangeStreamRecord(
+                    partitionToken, struct, resultSetMetadata, restrictionMetadata))
         .collect(Collectors.toList());
   }
 
   // TODO: add validation of the internal structure / values of each record parsed
-  private Stream<ChangeStreamRecord> toChangeStreamRecord(String partitionToken, Struct row) {
+  private Stream<ChangeStreamRecord> toChangeStreamRecord(
+      String partitionToken,
+      Struct row,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      PartitionRestrictionMetadata restrictionMetadata) {
+
     final Stream<DataChangeRecord> dataChangeRecords =
         row.getStructList("data_change_record").stream()
             .filter(this::isNonNullDataChangeRecord)
-            .map(struct -> toDataChangeRecord(partitionToken, struct));
+            .map(
+                struct ->
+                    toDataChangeRecord(
+                        partitionToken, struct, resultSetMetadata, restrictionMetadata));
+
     final Stream<HeartbeatRecord> heartbeatRecords =
         row.getStructList("heartbeat_record").stream()
             .filter(this::isNonNullHeartbeatRecord)
-            .map(this::toHeartbeatRecord);
+            .map(struct -> toHeartbeatRecord(struct, resultSetMetadata, restrictionMetadata));
+
     final Stream<ChildPartitionsRecord> childPartitionsRecords =
         row.getStructList("child_partitions_record").stream()
             .filter(this::isNonNullChildPartitionsRecord)
-            .map(struct -> toChildPartitionsRecord(partitionToken, struct));
+            .map(
+                struct ->
+                    toChildPartitionsRecord(
+                        partitionToken, struct, resultSetMetadata, restrictionMetadata));
+
     return Stream.concat(
         Stream.concat(dataChangeRecords, heartbeatRecords), childPartitionsRecords);
   }
@@ -74,38 +99,67 @@ public class ChangeStreamRecordMapper {
     return !row.isNull("start_timestamp");
   }
 
-  private DataChangeRecord toDataChangeRecord(String partitionToken, Struct row) {
-    return new DataChangeRecord(
-        partitionToken,
-        row.getTimestamp("commit_timestamp"),
+  private DataChangeRecord toDataChangeRecord(
+      String partitionToken,
+      Struct row,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      PartitionRestrictionMetadata restrictionMetadata) {
+    final Timestamp commitTimestamp = row.getTimestamp("commit_timestamp");
+    return DataChangeRecord.newBuilder()
+        .withPartitionToken(partitionToken)
+        .withCommitTimestamp(commitTimestamp)
         // FIXME: The spec has this as server_transaction_id
-        row.getString("transaction_id"),
-        row.getBoolean("is_last_record_in_transaction_in_partition"),
+        .withTransactionId(row.getString("transaction_id"))
+        .withIsLastRecordInTransactionInPartition(
+            row.getBoolean("is_last_record_in_transaction_in_partition"))
         // FIXME: The spec has this as a String, but an int64 is returned
-        row.getLong("record_sequence") + "",
-        row.getString("table_name"),
-        row.getStructList("column_types").stream()
-            .map(this::columnTypeFrom)
-            .collect(Collectors.toList()),
-        row.getStructList("mods").stream().map(this::modFrom).collect(Collectors.toList()),
-        ModType.valueOf(row.getString("mod_type")),
-        ValueCaptureType.valueOf(row.getString("value_capture_type")),
-        row.getLong("number_of_records_in_transaction"),
-        row.getLong("number_of_partitions_in_transaction"));
+        .withRecordSequence(row.getLong("record_sequence") + "")
+        .withTableName(row.getString("table_name"))
+        .withRowType(
+            row.getStructList("column_types").stream()
+                .map(this::columnTypeFrom)
+                .collect(Collectors.toList()))
+        .withMods(
+            row.getStructList("mods").stream().map(this::modFrom).collect(Collectors.toList()))
+        .withModType(ModType.valueOf(row.getString("mod_type")))
+        .withValueCaptureType(ValueCaptureType.valueOf(row.getString("value_capture_type")))
+        .withNumberOfRecordsInTransaction(row.getLong("number_of_records_in_transaction"))
+        .withNumberOfPartitionsInTransaction(row.getLong("number_of_partitions_in_transaction"))
+        .withMetadata(
+            changeStreamRecordMetadataFrom(commitTimestamp, restrictionMetadata, resultSetMetadata))
+        .build();
   }
 
-  private HeartbeatRecord toHeartbeatRecord(Struct row) {
-    return new HeartbeatRecord(row.getTimestamp("timestamp"));
+  private HeartbeatRecord toHeartbeatRecord(
+      Struct row,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      PartitionRestrictionMetadata restrictionMetadata) {
+    final Timestamp timestamp = row.getTimestamp("timestamp");
+
+    return HeartbeatRecord.newBuilder()
+        .withTimestamp(timestamp)
+        .withMetadata(
+            changeStreamRecordMetadataFrom(timestamp, restrictionMetadata, resultSetMetadata))
+        .build();
   }
 
-  private ChildPartitionsRecord toChildPartitionsRecord(String partitionToken, Struct row) {
-    return new ChildPartitionsRecord(
-        row.getTimestamp("start_timestamp"),
-        // FIXME: The spec has this as a String, but an int64 is returned
-        row.getLong("record_sequence") + "",
-        row.getStructList("child_partitions").stream()
-            .map(struct -> childPartitionFrom(partitionToken, struct))
-            .collect(Collectors.toList()));
+  private ChildPartitionsRecord toChildPartitionsRecord(
+      String partitionToken,
+      Struct row,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      PartitionRestrictionMetadata restrictionMetadata) {
+    final Timestamp startTimestamp = row.getTimestamp("start_timestamp");
+
+    return ChildPartitionsRecord.newBuilder()
+        .withStartTimestamp(startTimestamp)
+        .withRecordSequence(row.getLong("record_sequence") + "")
+        .withChildPartitions(
+            row.getStructList("child_partitions").stream()
+                .map(struct -> childPartitionFrom(partitionToken, struct))
+                .collect(Collectors.toList()))
+        .withMetadata(
+            changeStreamRecordMetadataFrom(startTimestamp, restrictionMetadata, resultSetMetadata))
+        .build();
   }
 
   private ColumnType columnTypeFrom(Struct struct) {
@@ -132,5 +186,27 @@ public class ChangeStreamRecordMapper {
       parentTokens.add(partitionToken);
     }
     return new ChildPartition(struct.getString("token"), parentTokens);
+  }
+
+  private ChangeStreamRecordMetadata changeStreamRecordMetadataFrom(
+      Timestamp recordTimestamp,
+      PartitionRestrictionMetadata restrictionMetadata,
+      ChangeStreamResultSetMetadata resultSetMetadata) {
+    return ChangeStreamRecordMetadata.newBuilder()
+        .withRecordTimestamp(recordTimestamp)
+        .withPartitionToken(restrictionMetadata.getPartitionToken())
+        .withPartitionStartTimestamp(restrictionMetadata.getPartitionStartTimestamp())
+        .withPartitionEndTimestamp(restrictionMetadata.getPartitionEndTimestamp())
+        .withRestrictionInitializedAt(restrictionMetadata.getRestrictionInitializedAt())
+        .withPartitionCreatedAt(restrictionMetadata.getPartitionCreatedAt())
+        .withPartitionScheduledAt(restrictionMetadata.getPartitionScheduledAt())
+        .withPartitionRunningAt(restrictionMetadata.getPartitionRunningAt())
+        .withQueryStartedAt(resultSetMetadata.getQueryStartedAt())
+        .withRecordStreamStartedAt(resultSetMetadata.getRecordStreamStartedAt())
+        .withRecordStreamEndedAt(resultSetMetadata.getRecordStreamEndedAt())
+        .withRecordReadAt(resultSetMetadata.getRecordReadAt())
+        .withTotalStreamTimeMillis(resultSetMetadata.getTotalStreamDuration().getMillis())
+        .withNumberOfRecordsRead(resultSetMetadata.getNumberOfRecordsRead())
+        .build();
   }
 }

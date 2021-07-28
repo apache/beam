@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITIONS_RUNNING_COUNTER;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_SCHEDULED_TO_RUNNING_MS;
+
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ChildPartitionsRecordAction;
@@ -38,6 +41,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestrictionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestrictionTracker;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
@@ -76,25 +80,45 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   }
 
   @GetInitialWatermarkEstimatorState
-  public Instant getInitialWatermarkEstimatorState(
-      @Element PartitionMetadata partition, @Timestamp Instant currentElementTimestamp) {
-    LOG.debug("[" + partition.getPartitionToken() + "] Get initial watermark estimator");
+  public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
     return currentElementTimestamp;
   }
 
   @NewWatermarkEstimator
   public ManualWatermarkEstimator<Instant> newWatermarkEstimator(
-      @Element PartitionMetadata partition,
       @WatermarkEstimatorState Instant watermarkEstimatorState) {
-    LOG.debug("[" + partition.getPartitionToken() + "] New watermark estimator");
     return new Manual(watermarkEstimatorState);
   }
 
   @GetInitialRestriction
   public PartitionRestriction initialRestriction(@Element PartitionMetadata partition) {
-    LOG.debug("[" + partition.getPartitionToken() + "] Initial restriction");
-    return PartitionRestriction.queryChangeStream(
-        partition.getStartTimestamp(), partition.getEndTimestamp());
+    final String token = partition.getPartitionToken();
+    final com.google.cloud.Timestamp startTimestamp = partition.getStartTimestamp();
+    final com.google.cloud.Timestamp endTimestamp = partition.getEndTimestamp();
+    final com.google.cloud.Timestamp restrictionInitializedAt = com.google.cloud.Timestamp.now();
+    final com.google.cloud.Timestamp partitionCreatedAt = partition.getCreatedAt();
+    final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
+    final com.google.cloud.Timestamp partitionRunningAt =
+        daoFactory.getPartitionMetadataDao().updateToRunning(token);
+
+    PARTITION_SCHEDULED_TO_RUNNING_MS.update(
+        new Duration(
+                partitionScheduledAt.toSqlTimestamp().getTime(),
+                partitionRunningAt.toSqlTimestamp().getTime())
+            .getMillis());
+    PARTITIONS_RUNNING_COUNTER.inc();
+
+    return PartitionRestriction.queryChangeStream(startTimestamp, endTimestamp)
+        .withMetadata(
+            PartitionRestrictionMetadata.newBuilder()
+                .withPartitionToken(token)
+                .withPartitionStartTimestamp(startTimestamp)
+                .withPartitionEndTimestamp(endTimestamp)
+                .withRestrictionInitializedAt(restrictionInitializedAt)
+                .withPartitionCreatedAt(partitionCreatedAt)
+                .withPartitionScheduledAt(partitionScheduledAt)
+                .withPartitionRunningAt(partitionRunningAt)
+                .build());
   }
 
   @NewTracker
