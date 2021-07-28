@@ -24,7 +24,7 @@ ENV GITHUB_PERSONAL_TOKEN ""
 ENV GITHUB_OWNER ""
 ENV GITHUB_REPOSITORY ""
 
-RUN apt-get -yqq update && apt-get install -yqq curl sudo git jq tar gnupg2 docker apt-transport-https ca-certificates
+RUN apt-get -yqq update && apt-get install -yqq curl sudo git jq tar gnupg2 apt-transport-https ca-certificates
 RUN apt-get install -yqq liblttng-ust0 libkrb5-3 zlib1g libssl1.1
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -yqq libicu66
 RUN apt-get clean
