@@ -52,8 +52,7 @@ public class TestStructMapper {
   private static final Type DATA_CHANGE_RECORD_TYPE =
       Type.struct(
           StructField.of("commit_timestamp", Type.timestamp()),
-          // FIXME: The spec has this as a String, but an int64 is returned
-          StructField.of("record_sequence", Type.int64()),
+          StructField.of("record_sequence", Type.string()),
           // FIXME: The spec has this as server_transaction_id
           StructField.of("transaction_id", Type.string()),
           StructField.of("is_last_record_in_transaction_in_partition", Type.bool()),
@@ -69,8 +68,7 @@ public class TestStructMapper {
   private static final Type CHILD_PARTITIONS_RECORD_TYPE =
       Type.struct(
           StructField.of("start_timestamp", Type.timestamp()),
-          // FIXME: The spec has this as a String, but an int64 is returned
-          StructField.of("record_sequence", Type.int64()),
+          StructField.of("record_sequence", Type.string()),
           StructField.of("child_partitions", Type.array(CHILD_PARTITION_TYPE)));
   private static final Type STREAM_RECORD_TYPE =
       Type.struct(
@@ -125,8 +123,7 @@ public class TestStructMapper {
         .set("start_timestamp")
         .to(record.getStartTimestamp())
         .set("record_sequence")
-        // FIXME: The spec has this as a String, but an int64 is returned
-        .to(Long.parseLong(record.getRecordSequence()))
+        .to(record.getRecordSequence())
         .set("child_partitions")
         .to(childPartitions)
         .build();
@@ -179,8 +176,7 @@ public class TestStructMapper {
         .set("commit_timestamp")
         .to(record.getCommitTimestamp())
         .set("record_sequence")
-        // FIXME: The spec has this as a String, but an int64 is returned
-        .to(Long.parseLong(record.getRecordSequence()))
+        .to(record.getRecordSequence())
         // FIXME: The spec has this as server_transaction_id
         .set("transaction_id")
         .to(record.getTransactionId())

@@ -71,10 +71,11 @@ public class PartitionRestriction implements Serializable {
 
   public static PartitionRestriction stop(PartitionRestriction restriction) {
     return new PartitionRestriction(
-        restriction.getStartTimestamp(),
-        restriction.getEndTimestamp(),
-        STOP,
-        restriction.getMode());
+            restriction.getStartTimestamp(),
+            restriction.getEndTimestamp(),
+            STOP,
+            restriction.getMode())
+        .withMetadata(restriction.getMetadata());
   }
 
   public PartitionRestriction(

@@ -112,8 +112,7 @@ public class ChangeStreamRecordMapper {
         .withTransactionId(row.getString("transaction_id"))
         .withIsLastRecordInTransactionInPartition(
             row.getBoolean("is_last_record_in_transaction_in_partition"))
-        // FIXME: The spec has this as a String, but an int64 is returned
-        .withRecordSequence(row.getLong("record_sequence") + "")
+        .withRecordSequence(row.getString("record_sequence"))
         .withTableName(row.getString("table_name"))
         .withRowType(
             row.getStructList("column_types").stream()
@@ -152,7 +151,7 @@ public class ChangeStreamRecordMapper {
 
     return ChildPartitionsRecord.newBuilder()
         .withStartTimestamp(startTimestamp)
-        .withRecordSequence(row.getLong("record_sequence") + "")
+        .withRecordSequence(row.getString("record_sequence"))
         .withChildPartitions(
             row.getStructList("child_partitions").stream()
                 .map(struct -> childPartitionFrom(partitionToken, struct))
