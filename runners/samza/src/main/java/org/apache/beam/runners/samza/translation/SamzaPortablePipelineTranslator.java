@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.translation;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
@@ -84,5 +85,9 @@ public class SamzaPortablePipelineTranslator {
         configBuilder.putAll(configGenerator.createPortableConfig(transform, options));
       }
     }
+  }
+
+  public static Set<String> knownUrns() {
+    return TRANSLATORS.keySet();
   }
 }
