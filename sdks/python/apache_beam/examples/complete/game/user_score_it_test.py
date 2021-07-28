@@ -20,7 +20,7 @@
 Code: beam/sdks/python/apache_beam/examples/complete/game/user_score.py
 Usage:
 
-  python setup.py nosetests --test-pipeline-options=" \
+    pytest --test-pipeline-options=" \
       --runner=TestDataflowRunner \
       --project=... \
       --region=... \
@@ -37,8 +37,8 @@ import logging
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.complete.game import user_score
 from apache_beam.runners.runner import PipelineState
@@ -60,7 +60,7 @@ class UserScoreIT(unittest.TestCase):
     self.output = '/'.join(
         [self.test_pipeline.get_option('output'), self.uuid, 'results'])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_user_score_it(self):
 
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
