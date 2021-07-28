@@ -120,7 +120,17 @@ class HadoopFileSystem(FileSystem):
       hdfs_port = pipeline_options.get('hdfs_port')
       hdfs_user = pipeline_options.get('hdfs_user')
       self._full_urls = pipeline_options.get('hdfs_full_urls', False)
-
+    """
+    TODO
+    REMOVE this once open source upstream beam changes are merged to LinkedIn's li_trunk.
+    Currently, beam doesn't pass the pipeline options to the sdk worker process. Inspite of setting hdfs_full_urls
+    pipeline option to true, it will always be false. Tensorflow's hdfs file io requires the file format is in the
+    form of hdfs://default/path/to/the/file. default here is the namenode. We want to ensure that beam hdfs filesystem
+    can process files in this format and for that we need to set hdfs_full_urls to true.
+    Latest changes in beam ensure that beam passes the pipeline options from the main program to the sdk worker. Once
+    the changes are merged to li_trunk, we can remove the line below.
+    """
+    self._full_urls = True
     if not isinstance(self._full_urls, bool):
       raise ValueError(
         'hdfs_full_urls should be bool, got: %s', self._full_urls)
