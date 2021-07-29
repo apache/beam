@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import com.google.auto.service.AutoService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
@@ -45,7 +48,7 @@ public class SamzaPortablePipelineTranslator {
 
   private static Map<String, TransformTranslator<?>> loadTranslators() {
     Map<String, TransformTranslator<?>> translators = new HashMap<>();
-    for (SamzaTranslatorRegistrar registrar : ServiceLoader.load(SamzaTranslatorRegistrar.class)) {
+    for (SamzaPortableTranslatorRegistrar registrar : ServiceLoader.load(SamzaPortableTranslatorRegistrar.class)) {
       translators.putAll(registrar.getTransformTranslators());
     }
     LOG.info("{} translators loaded.", translators.size());
@@ -90,5 +93,20 @@ public class SamzaPortablePipelineTranslator {
 
   public static Set<String> knownUrns() {
     return TRANSLATORS.keySet();
+  }
+
+  /** Registers Samza translators. */
+  @AutoService(SamzaPortableTranslatorRegistrar.class)
+  public static class SamzaTranslators implements SamzaPortableTranslatorRegistrar {
+
+    @Override
+    public Map<String, TransformTranslator<?>> getTransformTranslators() {
+      return ImmutableMap.<String, TransformTranslator<?>>builder()
+          .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
+          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator<>())
+          .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+          .put(ExecutableStage.URN, new ParDoBoundMultiTranslator<>())
+          .build();
+    }
   }
 }
