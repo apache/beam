@@ -43,7 +43,7 @@ func (f *createTimestampedData) ProcessElement(_ []byte, emit func(beam.EventTim
 	}
 }
 
-// WindowsSums produces a pipeline that generates the numbers of a 3x3 magic square, and
+// WindowSums produces a pipeline that generates the numbers of a 3x3 magic square, and
 // configures the pipeline so that PCollection. Sum is a closure to handle summing data over the window, in a few conditions.
 func WindowSums(s beam.Scope, sumPerKey func(beam.Scope, beam.PCollection) beam.PCollection) {
 	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{4, 9, 2, 3, 5, 7, 8, 1, 6}}, beam.Impulse(s))

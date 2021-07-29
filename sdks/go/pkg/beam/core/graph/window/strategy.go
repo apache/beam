@@ -38,9 +38,5 @@ func (ws *WindowingStrategy) String() string {
 
 // DefaultWindowingStrategy returns the default windowing strategy.
 func DefaultWindowingStrategy() *WindowingStrategy {
-	return &WindowingStrategy{Fn: NewGlobalWindows(), Trigger: &pipepb.Trigger{
-		Trigger: &pipepb.Trigger_Always_{
-			Always: &pipepb.Trigger_Always{},
-		},
-	}}
+	return &WindowingStrategy{Fn: NewGlobalWindows(), Trigger: SetDefault()}
 }
