@@ -104,7 +104,6 @@ from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
-from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
