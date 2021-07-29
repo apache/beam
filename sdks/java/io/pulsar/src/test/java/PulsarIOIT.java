@@ -22,11 +22,11 @@ public class PulsarIOIT {
 
 
     private static PulsarContainer pulsarContainer;
-    private static boolean useContainerFlag;
 
     @BeforeClass
     public static void setup() throws PulsarClientException {
         setupPulsarContainer();
+
     }
 
     @AfterClass
@@ -37,12 +37,14 @@ public class PulsarIOIT {
     }
 
     @Test
-    public void testPulsarClient() {
-
+    public void testPulsarClient() throws PulsarClientException{
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(PULSAR_URL)
+                .build();
     }
 
     private static void setupPulsarContainer() {
-        pulsarContainer = new PulsarContainer(DockerImageName.parse("apachepulsar/pulsar").with);
+        pulsarContainer = new PulsarContainer(DockerImageName.parse("apachepulsar/pulsar"));
         pulsarContainer.withExposedPorts(6650, 8080);
         pulsarContainer.withCommand("bin/pulsar standalone");
         pulsarContainer.waitingFor(Wait.forLogMessage(".*Function worker service started.*", 1));

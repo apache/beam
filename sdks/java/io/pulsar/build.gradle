@@ -1,8 +1,7 @@
 plugins {
-    id 'java'
+    id 'org.apache.beam.module'
 }
-
-// sourceCompatibility = targetCompatibility = JavaVersion.VERSION_11
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.pulsar')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Pulsar"
 ext.summary = "IO to read and write to Pulsar."
@@ -17,29 +16,12 @@ def pulsarVersion = '2.8.0'
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion
-    compile group: 'org.apache.pulsar', name: 'pulsar-io-core', version: pulsarVersion
     testImplementation "org.testcontainers:pulsar:1.15.3"
 
-    // testImplementation 'io.projectreactor:reactor-core'
-
-    // testImplementation 'org.apache.pulsar:pulsar-client-admin:2.5.0'
 
     testImplementation('org.apache.pulsar:pulsar-functions-local-runner-original:2.5.0') {
         exclude group: 'log4j'
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
     }
 
-    // testCompileOnly project(':functions')
 }
-
-/*test {
-    // def functionsProject = project(':functions')
-
-    // dependsOn functionsProject.shadowJar
-
-    // Rearrange test classpath, add compiled JAR instead of main classes
-    // classpath = project.sourceSets.test.output + configurations.testRuntimeClasspath + files(functionsProject.shadowJar.archiveFile)
-    //systemProperty "functions.jar.path", file(functionsProject.shadowJar.archiveFile)
-
-    useJUnitPlatform()
-}*/
