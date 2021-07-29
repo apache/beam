@@ -74,7 +74,8 @@ public class ReadAllViaFileBasedSource<T>
   public PCollection<T> expand(PCollection<ReadableFile> input) {
     return input
         .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
-        .apply("Reshuffle",
+        .apply(
+            "Reshuffle",
             Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey()
                 .withNumBuckets(this.readerThreadCount))
         .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))

@@ -786,8 +786,8 @@ public class AvroIO {
     }
 
     /**
-     * If set, the number of threads used to read files will be limited
-     * to the value supplied.  This can be used to avoid causing OOM errors.
+     * If set, the number of threads used to read files will be limited to the value supplied. This
+     * can be used to avoid causing OOM errors.
      */
     public ReadFiles<T> withReaderThreadCount(Integer readerThreadCount) {
       return toBuilder().setReaderThreadCount(readerThreadCount).build();
@@ -1113,8 +1113,8 @@ public class AvroIO {
     }
 
     /**
-     * If set, the number of threads used to read files will be limited
-     * to the value supplied.  This can be used to avoid causing OOM errors.
+     * If set, the number of threads used to read files will be limited to the value supplied. This
+     * can be used to avoid causing OOM errors.
      */
     public ParseFiles<T> withReaderThreadCount(Integer readerThreadCount) {
       return toBuilder().setReaderThreadCount(readerThreadCount).build();
@@ -1135,10 +1135,7 @@ public class AvroIO {
       return input.apply(
           "Parse Files via FileBasedSource",
           new ReadAllViaFileBasedSource<>(
-              getDesiredBundleSizeBytes(),
-              createSource,
-              coder,
-              getReaderThreadCount()));
+              getDesiredBundleSizeBytes(), createSource, coder, getReaderThreadCount()));
     }
 
     @Override
