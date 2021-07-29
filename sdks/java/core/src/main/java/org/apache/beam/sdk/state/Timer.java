@@ -98,4 +98,9 @@ public interface Timer {
    * the timer fires.
    */
   Timer withOutputTimestamp(Instant outputTime);
+
+  /**
+   * Returns the current relative time use by {@link #setRelative()} and {@link #offset}.
+   */
+  Instant getCurrentRelativeTime();
 }
