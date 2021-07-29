@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Reads each file in the input {@link PCollection} of {@link ReadableFile} using given parameters
@@ -61,7 +62,7 @@ public class ReadAllViaFileBasedSource<T>
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder,
-      Integer readerThreadCount) {
+      @Nullable Integer readerThreadCount) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
     this.coder = coder;
