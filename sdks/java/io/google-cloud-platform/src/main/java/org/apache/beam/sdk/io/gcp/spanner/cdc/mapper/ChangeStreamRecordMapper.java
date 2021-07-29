@@ -108,8 +108,7 @@ public class ChangeStreamRecordMapper {
     return DataChangeRecord.newBuilder()
         .withPartitionToken(partitionToken)
         .withCommitTimestamp(commitTimestamp)
-        // FIXME: The spec has this as server_transaction_id
-        .withTransactionId(row.getString("transaction_id"))
+        .withServerTransactionId(row.getString("server_transaction_id"))
         .withIsLastRecordInTransactionInPartition(
             row.getBoolean("is_last_record_in_transaction_in_partition"))
         .withRecordSequence(row.getString("record_sequence"))

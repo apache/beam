@@ -33,7 +33,7 @@ public class DataChangeRecordTest {
         new DataChangeRecord(
             "partitionToken",
             Timestamp.ofTimeMicroseconds(1L),
-            "transactionId",
+            "serverTransactionId",
             true,
             "recordSequence",
             "tableName",
@@ -54,7 +54,7 @@ public class DataChangeRecordTest {
         DataChangeRecord.newBuilder()
             .withPartitionToken("partitionToken")
             .withCommitTimestamp(Timestamp.ofTimeMicroseconds(1L))
-            .withTransactionId("transactionId")
+            .withServerTransactionId("serverTransactionId")
             .withIsLastRecordInTransactionInPartition(true)
             .withRecordSequence("recordSequence")
             .withTableName("tableName")
@@ -83,7 +83,7 @@ public class DataChangeRecordTest {
         new DataChangeRecord(
             "partitionToken",
             Timestamp.ofTimeMicroseconds(1L),
-            "transactionId",
+            "serverTransactionId",
             true,
             "recordSequence",
             "tableName",
@@ -104,7 +104,7 @@ public class DataChangeRecordTest {
         new DataChangeRecord(
             "partitionToken",
             Timestamp.ofTimeMicroseconds(1L),
-            "transactionId",
+            "serverTransactionId",
             true,
             "recordSequence",
             "tableName",

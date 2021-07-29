@@ -53,8 +53,7 @@ public class TestStructMapper {
       Type.struct(
           StructField.of("commit_timestamp", Type.timestamp()),
           StructField.of("record_sequence", Type.string()),
-          // FIXME: The spec has this as server_transaction_id
-          StructField.of("transaction_id", Type.string()),
+          StructField.of("server_transaction_id", Type.string()),
           StructField.of("is_last_record_in_transaction_in_partition", Type.bool()),
           StructField.of("table_name", Type.string()),
           StructField.of("column_types", Type.array(COLUMN_TYPE_TYPE)),
@@ -177,9 +176,8 @@ public class TestStructMapper {
         .to(record.getCommitTimestamp())
         .set("record_sequence")
         .to(record.getRecordSequence())
-        // FIXME: The spec has this as server_transaction_id
-        .set("transaction_id")
-        .to(record.getTransactionId())
+        .set("server_transaction_id")
+        .to(record.getServerTransactionId())
         .set("is_last_record_in_transaction_in_partition")
         .to(record.isLastRecordInTransactionInPartition())
         .set("table_name")

@@ -37,7 +37,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp commitTimestamp;
 
-  private String transactionId;
+  private String serverTransactionId;
   private boolean isLastRecordInTransactionInPartition;
   private String recordSequence;
   private String tableName;
@@ -56,7 +56,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
   DataChangeRecord(
       String partitionToken,
       Timestamp commitTimestamp,
-      String transactionId,
+      String serverTransactionId,
       boolean isLastRecordInTransactionInPartition,
       String recordSequence,
       String tableName,
@@ -69,7 +69,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
       ChangeStreamRecordMetadata metadata) {
     this.commitTimestamp = commitTimestamp;
     this.partitionToken = partitionToken;
-    this.transactionId = transactionId;
+    this.serverTransactionId = serverTransactionId;
     this.isLastRecordInTransactionInPartition = isLastRecordInTransactionInPartition;
     this.recordSequence = recordSequence;
     this.tableName = tableName;
@@ -90,8 +90,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
     return commitTimestamp;
   }
 
-  public String getTransactionId() {
-    return transactionId;
+  public String getServerTransactionId() {
+    return serverTransactionId;
   }
 
   public boolean isLastRecordInTransactionInPartition() {
@@ -148,7 +148,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
         && numberOfPartitionsInTransaction == that.numberOfPartitionsInTransaction
         && Objects.equals(partitionToken, that.partitionToken)
         && Objects.equals(commitTimestamp, that.commitTimestamp)
-        && Objects.equals(transactionId, that.transactionId)
+        && Objects.equals(serverTransactionId, that.serverTransactionId)
         && Objects.equals(recordSequence, that.recordSequence)
         && Objects.equals(tableName, that.tableName)
         && Objects.equals(rowType, that.rowType)
@@ -162,7 +162,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
     return Objects.hash(
         partitionToken,
         commitTimestamp,
-        transactionId,
+        serverTransactionId,
         isLastRecordInTransactionInPartition,
         recordSequence,
         tableName,
@@ -182,8 +182,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
         + '\''
         + ", commitTimestamp="
         + commitTimestamp
-        + ", transactionId='"
-        + transactionId
+        + ", serverTransactionId='"
+        + serverTransactionId
         + '\''
         + ", isLastRecordInTransactionInPartition="
         + isLastRecordInTransactionInPartition
@@ -217,7 +217,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
   public static class Builder {
     private String partitionToken;
     private Timestamp commitTimestamp;
-    private String transactionId;
+    private String serverTransactionId;
     private boolean isLastRecordInTransactionInPartition;
     private String recordSequence;
     private String tableName;
@@ -239,8 +239,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
       return this;
     }
 
-    public Builder withTransactionId(String transactionId) {
-      this.transactionId = transactionId;
+    public Builder withServerTransactionId(String serverTransactionId) {
+      this.serverTransactionId = serverTransactionId;
       return this;
     }
 
@@ -299,7 +299,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
       return new DataChangeRecord(
           partitionToken,
           commitTimestamp,
-          transactionId,
+          serverTransactionId,
           isLastRecordInTransactionInPartition,
           recordSequence,
           tableName,

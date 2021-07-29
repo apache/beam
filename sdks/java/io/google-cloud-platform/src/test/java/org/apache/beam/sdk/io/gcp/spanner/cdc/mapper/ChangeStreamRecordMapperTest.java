@@ -75,7 +75,7 @@ public class ChangeStreamRecordMapperTest {
         DataChangeRecord.newBuilder()
             .withPartitionToken("partitionToken")
             .withCommitTimestamp(Timestamp.ofTimeSecondsAndNanos(10L, 20))
-            .withTransactionId("transactionId")
+            .withServerTransactionId("serverTransactionId")
             .withIsLastRecordInTransactionInPartition(true)
             .withRecordSequence("1")
             .withTableName("tableName")
