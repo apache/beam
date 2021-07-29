@@ -220,6 +220,27 @@ Render:
 
 The purpose of adding classes or programming languages (java, py or go) in code highlighting is to activate the language switching feature.
 
+#### Gotcha: Use two returns before a highlight
+
+When you're using the `{{< highlight >}}` syntax, be sure to use *two* returns between the preceding content and the shortcode.
+
+Do this:
+
+```
+For example:
+
+{{< highlight java >}}
+```
+
+NOT this:
+
+```
+For example:
+{{< highlight java >}}
+```
+
+The second (incorrect) example will be rendered to HTML in a way that breaks the language-switching feature. (TODO: make this less brittle.)
+
 ### Adding class to markdown text
 
 1. To add a class to a single line in mardown. Use:
