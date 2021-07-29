@@ -26,9 +26,11 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.math.BigDecimal;
@@ -881,5 +883,83 @@ public class BigQueryUtilsTest {
         BigQueryUtils.toBeamRow(
             record, AVRO_ARRAY_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
     assertEquals(expected, beamRow);
+  }
+
+  @Test
+  public void testToTableReference() {
+    {
+      TableReference tr =
+          BigQueryUtils.toTableReference("projects/myproject/datasets/mydataset/tables/mytable");
+      assertEquals("myproject", tr.getProjectId());
+      assertEquals("mydataset", tr.getDatasetId());
+      assertEquals("mytable", tr.getTableId());
+    }
+
+    {
+      // Test colon(":") after project format
+      TableReference tr = BigQueryUtils.toTableReference("myprojectwithcolon:mydataset.mytable");
+      assertEquals("myprojectwithcolon", tr.getProjectId());
+      assertEquals("mydataset", tr.getDatasetId());
+      assertEquals("mytable", tr.getTableId());
+    }
+
+    {
+      // Test dot(".") after project format
+      TableReference tr = BigQueryUtils.toTableReference("myprojectwithdot.mydataset.mytable");
+      assertEquals("myprojectwithdot", tr.getProjectId());
+      assertEquals("mydataset", tr.getDatasetId());
+      assertEquals("mytable", tr.getTableId());
+    }
+
+    // Invalid scenarios
+    assertNull(BigQueryUtils.toTableReference(""));
+    assertNull(BigQueryUtils.toTableReference(":."));
+    assertNull(BigQueryUtils.toTableReference(".."));
+    assertNull(BigQueryUtils.toTableReference("myproject"));
+    assertNull(BigQueryUtils.toTableReference("myproject:"));
+    assertNull(BigQueryUtils.toTableReference("myproject."));
+    assertNull(BigQueryUtils.toTableReference("myproject:mydataset"));
+    assertNull(BigQueryUtils.toTableReference("myproject:mydataset."));
+    assertNull(BigQueryUtils.toTableReference("myproject:mydataset.mytable."));
+    assertNull(BigQueryUtils.toTableReference("myproject:mydataset:mytable:"));
+    assertNull(BigQueryUtils.toTableReference(".invalidleadingdot.mydataset.mytable"));
+    assertNull(BigQueryUtils.toTableReference("invalidtrailingdot.mydataset.mytable."));
+    assertNull(BigQueryUtils.toTableReference(":invalidleadingcolon.mydataset.mytable"));
+    assertNull(BigQueryUtils.toTableReference("invalidtrailingcolon.mydataset.mytable:"));
+    assertNull(BigQueryUtils.toTableReference("myproject.mydataset.mytable.myinvalidpart"));
+    assertNull(BigQueryUtils.toTableReference("myproject:mydataset.mytable.myinvalidpart"));
+
+    assertNull(
+        BigQueryUtils.toTableReference("/projects/extraslash/datasets/mydataset/tables/mytable"));
+    assertNull(
+        BigQueryUtils.toTableReference("projects//extraslash/datasets/mydataset/tables/mytable"));
+    assertNull(
+        BigQueryUtils.toTableReference("projects/extraslash//datasets/mydataset/tables/mytable"));
+    assertNull(
+        BigQueryUtils.toTableReference("projects/extraslash/datasets//mydataset/tables/mytable"));
+    assertNull(
+        BigQueryUtils.toTableReference("projects/extraslash/datasets/mydataset//tables/mytable"));
+    assertNull(
+        BigQueryUtils.toTableReference("projects/extraslash/datasets/mydataset/tables//mytable"));
+    assertNull(
+        BigQueryUtils.toTableReference("projects/extraslash/datasets/mydataset/tables/mytable/"));
+
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/datasets/mydataset/tables//"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/datasets//tables/mytable/"));
+    assertNull(BigQueryUtils.toTableReference("projects//datasets/mydataset/tables/mytable/"));
+    assertNull(BigQueryUtils.toTableReference("projects//datasets//tables//"));
+
+    assertNull(
+        BigQueryUtils.toTableReference("projects/myproject/datasets/mydataset/tables/mytable/"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/datasets/mydataset/tables/"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/datasets/mydataset/tables"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/datasets/mydataset/"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/datasets/mydataset"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/datasets/"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/datasets"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject/"));
+    assertNull(BigQueryUtils.toTableReference("projects/myproject"));
+    assertNull(BigQueryUtils.toTableReference("projects/"));
+    assertNull(BigQueryUtils.toTableReference("projects"));
   }
 }
