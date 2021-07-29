@@ -48,7 +48,8 @@ public class SamzaPortablePipelineTranslator {
 
   private static Map<String, TransformTranslator<?>> loadTranslators() {
     Map<String, TransformTranslator<?>> translators = new HashMap<>();
-    for (SamzaPortableTranslatorRegistrar registrar : ServiceLoader.load(SamzaPortableTranslatorRegistrar.class)) {
+    for (SamzaPortableTranslatorRegistrar registrar :
+        ServiceLoader.load(SamzaPortableTranslatorRegistrar.class)) {
       translators.putAll(registrar.getTransformTranslators());
     }
     LOG.info("{} translators loaded.", translators.size());
