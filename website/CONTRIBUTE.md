@@ -184,6 +184,33 @@ To have a programming language tab switcher, for instance of java, python and go
 
 The purpose is to switch languages of codeblocks.
 
+You can also provide language tabs without the language switcher widget. To do so, place `{{< highlight >}}` shortcodes next to each other, like this:
+
+```
+{{< highlight java >}}
+// Java code here...
+{{< /highlight >}}
+{{< highlight py >}}
+# Python code here...
+{{< /highlight >}}
+```
+
+Note that the `{{< highlight >}}` blocks should be directly adjacent to each other, without an extra return between them.
+
+Do NOT do this:
+
+```
+{{< highlight java >}}
+// Java code here...
+{{< /highlight >}}
+
+{{< highlight py >}}
+# Python code here...
+{{< /highlight >}}
+```
+
+In some circumstances, the Hugo markdown parser will generate a pair of empty `<p>` tags for the extra return, and that breaks the formatting of the code tabs. TODO: Fix this issue: [BEAM-12688](https://issues.apache.org/jira/browse/BEAM-12688).
+
 ### Code highlighting
 
 To be consistent, please prefer to use `{{< highlight >}}` syntax instead of ` ``` `, for code-blocks or syntax-highlighters.
@@ -219,27 +246,6 @@ Render:
 ```
 
 The purpose of adding classes or programming languages (java, py or go) in code highlighting is to activate the language switching feature.
-
-#### Gotcha: Use two returns before a highlight
-
-When you're using the `{{< highlight >}}` syntax, be sure to use *two* returns between the preceding content and the shortcode.
-
-Do this:
-
-```
-For example:
-
-{{< highlight java >}}
-```
-
-NOT this:
-
-```
-For example:
-{{< highlight java >}}
-```
-
-The second (incorrect) example will be rendered to HTML in a way that breaks the language-switching feature. (TODO: make this less brittle.)
 
 ### Adding class to markdown text
 

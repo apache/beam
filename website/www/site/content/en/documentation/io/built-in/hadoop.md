@@ -66,7 +66,6 @@ new SimpleFunction<InputFormatValueClass, MyValueClass>() {
   }
 };
 {{< /highlight >}}
-
 {{< highlight py >}}
   # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 {{< /highlight >}}
