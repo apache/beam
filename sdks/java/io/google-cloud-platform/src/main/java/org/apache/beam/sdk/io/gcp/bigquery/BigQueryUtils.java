@@ -24,6 +24,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
@@ -34,17 +35,23 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -75,6 +82,20 @@ import org.joda.time.format.DateTimeFormatterBuilder;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class BigQueryUtils {
+
+  // For parsing the format returned on the API proto:
+  // google.cloud.bigquery.storage.v1.ReadSession.getTable()
+  // "projects/{project_id}/datasets/{dataset_id}/tables/{table_id}"
+  private static final Pattern TABLE_RESOURCE_PATTERN =
+      Pattern.compile(
+          "^projects/(?<PROJECT>[^/]+)/datasets/(?<DATASET>[^/]+)/tables/(?<TABLE>[^/]+)$");
+
+  // For parsing the format used to refer to tables parameters in BigQueryIO.
+  // "{project_id}:{dataset_id}.{table_id}" or
+  // "{project_id}.{dataset_id}.{table_id}"
+  private static final Pattern SIMPLE_TABLE_PATTERN =
+      Pattern.compile("^(?<PROJECT>[^\\.:]+)[\\.:](?<DATASET>[^\\.:]+)[\\.](?<TABLE>[^\\.:]+)$");
+
   /** Options for how to convert BigQuery data to Beam data. */
   @AutoValue
   public abstract static class ConversionOptions implements Serializable {
@@ -908,5 +929,86 @@ public class BigQueryUtils {
       throw new RuntimeException(
           "Does not support converting avro format: " + value.getClass().getName());
     }
+  }
+
+  /**
+   * @param fullTableId - Is one of the two forms commonly used to refer to bigquery tables in the
+   *     beam codebase:
+   *     <ul>
+   *       <li>projects/{project_id}/datasets/{dataset_id}/tables/{table_id}
+   *       <li>myproject:mydataset.mytable
+   *       <li>myproject.mydataset.mytable
+   *     </ul>
+   *
+   * @return a BigQueryTableIdentifier by parsing the fullTableId. If it cannot be parsed properly
+   *     null is returned.
+   */
+  public static @Nullable TableReference toTableReference(String fullTableId) {
+    // Try parsing the format:
+    // "projects/{project_id}/datasets/{dataset_id}/tables/{table_id}"
+    Matcher m = TABLE_RESOURCE_PATTERN.matcher(fullTableId);
+    if (m.matches()) {
+      return new TableReference()
+          .setProjectId(m.group("PROJECT"))
+          .setDatasetId(m.group("DATASET"))
+          .setTableId(m.group("TABLE"));
+    }
+
+    // If that failed, try the format:
+    // "{project_id}:{dataset_id}.{table_id}" or
+    // "{project_id}.{dataset_id}.{table_id}"
+    m = SIMPLE_TABLE_PATTERN.matcher(fullTableId);
+    if (m.matches()) {
+      return new TableReference()
+          .setProjectId(m.group("PROJECT"))
+          .setDatasetId(m.group("DATASET"))
+          .setTableId(m.group("TABLE"));
+    }
+    return null;
+  }
+
+  private static ServiceCallMetric callMetricForMethod(
+      TableReference tableReference, String method) {
+    if (tableReference != null) {
+      // TODO(ajamato): Add Ptransform label. Populate it as empty for now to prevent the
+      // SpecMonitoringInfoValidator from dropping the MonitoringInfo.
+      HashMap<String, String> baseLabels = new HashMap<String, String>();
+      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, method);
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.RESOURCE,
+          GcpResourceIdentifiers.bigQueryTable(
+              tableReference.getProjectId(),
+              tableReference.getDatasetId(),
+              tableReference.getTableId()));
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, tableReference.getProjectId());
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.BIGQUERY_DATASET, tableReference.getDatasetId());
+      baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, tableReference.getTableId());
+      return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    }
+    return null;
+  }
+
+  /**
+   * @param tableReference - The table being read from. Can be a temporary BQ table used to read
+   *     from a SQL query.
+   * @return a ServiceCallMetric for recording statuses for all BQ API responses related to reading
+   *     elements directly from BigQuery in a process-wide metric. Such as: calls to readRows,
+   *     splitReadStream, createReadSession.
+   */
+  public static ServiceCallMetric readCallMetric(TableReference tableReference) {
+    return callMetricForMethod(tableReference, "BigQueryBatchRead");
+  }
+
+  /**
+   * @param tableReference - The table being written to.
+   * @return a ServiceCallMetric for recording statuses for all BQ responses related to writing
+   *     elements directly to BigQuery in a process-wide metric. Such as: insertAll.
+   */
+  public static ServiceCallMetric writeCallMetric(TableReference tableReference) {
+    return callMetricForMethod(tableReference, "BigQueryBatchWrite");
   }
 }
