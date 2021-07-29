@@ -753,6 +753,8 @@ public class AvroIO {
 
     abstract @Nullable Schema getSchema();
 
+    abstract @Nullable Integer getReaderThreadCount();
+
     abstract long getDesiredBundleSizeBytes();
 
     abstract boolean getInferBeamSchema();
@@ -767,6 +769,8 @@ public class AvroIO {
 
       abstract Builder<T> setSchema(Schema schema);
 
+      abstract Builder<T> setReaderThreadCount(Integer readerThreadCount);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract Builder<T> setInferBeamSchema(boolean infer);
@@ -779,6 +783,14 @@ public class AvroIO {
     @VisibleForTesting
     ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    /**
+     * If set, the number of threads used to read files will be limited
+     * to the value supplied.  This can be used to avoid causing OOM errors.
+     */
+    public ReadFiles<T> withReaderThreadCount(Integer readerThreadCount) {
+      return toBuilder().setReaderThreadCount(readerThreadCount).build();
     }
 
     /**
@@ -804,7 +816,8 @@ public class AvroIO {
                   getDesiredBundleSizeBytes(),
                   new CreateSourceFn<>(
                       getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
-                  AvroCoder.of(getRecordClass(), getSchema())));
+                  AvroCoder.of(getRecordClass(), getSchema()),
+                  getReaderThreadCount()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
@@ -1075,6 +1088,8 @@ public class AvroIO {
 
     abstract @Nullable Coder<T> getCoder();
 
+    abstract @Nullable Integer getReaderThreadCount();
+
     abstract long getDesiredBundleSizeBytes();
 
     abstract Builder<T> toBuilder();
@@ -1085,6 +1100,8 @@ public class AvroIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
+      abstract Builder<T> setReaderThreadCount(Integer readerThreadCount);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ParseFiles<T> build();
@@ -1093,6 +1110,14 @@ public class AvroIO {
     /** Specifies the coder for the result of the {@code parseFn}. */
     public ParseFiles<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
+    }
+
+    /**
+     * If set, the number of threads used to read files will be limited
+     * to the value supplied.  This can be used to avoid causing OOM errors.
+     */
+    public ParseFiles<T> withReaderThreadCount(Integer readerThreadCount) {
+      return toBuilder().setReaderThreadCount(readerThreadCount).build();
     }
 
     @VisibleForTesting
@@ -1109,7 +1134,11 @@ public class AvroIO {
           new CreateParseSourceFn<>(parseFn, coder);
       return input.apply(
           "Parse Files via FileBasedSource",
-          new ReadAllViaFileBasedSource<>(getDesiredBundleSizeBytes(), createSource, coder));
+          new ReadAllViaFileBasedSource<>(
+              getDesiredBundleSizeBytes(),
+              createSource,
+              coder,
+              getReaderThreadCount()));
     }
 
     @Override

@@ -48,6 +48,7 @@ public class ReadAllViaFileBasedSource<T>
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
+  private Integer readerThreadCount;
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
@@ -58,11 +59,22 @@ public class ReadAllViaFileBasedSource<T>
     this.coder = coder;
   }
 
+  public ReadAllViaFileBasedSource(
+      long desiredBundleSizeBytes,
+      SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
+      Coder<T> coder,
+      Integer readerThreadCount) {
+    this.desiredBundleSizeBytes = desiredBundleSizeBytes;
+    this.createSource = createSource;
+    this.coder = coder;
+    this.readerThreadCount = readerThreadCount;
+  }
+
   @Override
   public PCollection<T> expand(PCollection<ReadableFile> input) {
     return input
         .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
-        .apply("Reshuffle", Reshuffle.viaRandomKey())
+        .apply("Reshuffle", Reshuffle.viaRandomKey().withNumBuckets(this.readerThreadCount))
         .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
         .setCoder(coder);
   }
