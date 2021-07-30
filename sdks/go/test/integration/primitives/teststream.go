@@ -26,13 +26,13 @@ import (
 // then advancing the watermark past the point where they were inserted.
 func TestStreamSingleSequence() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
-	con := teststream.MakeConfig(coder.NewString())
+	con := teststream.NewConfig(coder.NewString())
 	con.AddElements(100, "a", "b", "c")
 	con.AdvanceWatermark(110)
 
-	col := teststream.TestStream(s, con)
+	col := teststream.Create(s, con)
 
-	passert.Count(s, col[0], "teststream strings", 3)
+	passert.Count(s, col, "teststream strings", 3)
 
 	return p
 }
@@ -41,14 +41,14 @@ func TestStreamSingleSequence() *beam.Pipeline {
 // string elements that arrive on-time into the TestStream
 func TestStreamTwoSequences() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
-	con := teststream.MakeConfig(coder.NewString())
+	con := teststream.NewConfig(coder.NewString())
 	con.AddElements(100, "a", "b", "c")
 	con.AdvanceWatermark(110)
 	con.AddElements(120, "d", "e", "f")
 	con.AdvanceWatermark(130)
 
-	col := teststream.TestStream(s, con)
+	col := teststream.Create(s, con)
 
-	passert.Count(s, col[0], "teststream strings", 6)
+	passert.Count(s, col, "teststream strings", 6)
 	return p
 }

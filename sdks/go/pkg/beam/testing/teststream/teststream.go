@@ -15,7 +15,8 @@
 
 // Package teststream contains code configuring the TestStream primitive for
 // use in testing code that is meant to be run on streaming data sources.
-// TestStream is not supported on the Go direct runner.
+// See https://beam.apache.org/blog/test-stream/ for more information.
+// TestStream is supported on Flink.
 package teststream
 
 import (
@@ -34,19 +35,19 @@ const urn = "beam:transform:teststream:v1"
 
 // Config holds information used to create a TestStreamPayload object.
 type Config struct {
-	ElmCoder  *coder.Coder
-	Events    []*pipepb.TestStreamPayload_Event
-	Endpoint  *pipepb.ApiServiceDescriptor
-	Watermark int64
+	elmCoder  *coder.Coder
+	events    []*pipepb.TestStreamPayload_Event
+	endpoint  *pipepb.ApiServiceDescriptor
+	watermark int64
 }
 
 // MakeConfig initializes a Config struct to begin inserting TestStream events/endpoints into.
 // Requires that users provide the coder for the elements they are trying to emit.
-func MakeConfig(c *coder.Coder) Config {
-	return Config{ElmCoder: c,
-		Events:    []*pipepb.TestStreamPayload_Event{},
-		Endpoint:  &pipepb.ApiServiceDescriptor{},
-		Watermark: 0,
+func NewConfig(c *coder.Coder) Config {
+	return Config{elmCoder: c,
+		events:    []*pipepb.TestStreamPayload_Event{},
+		endpoint:  &pipepb.ApiServiceDescriptor{},
+		watermark: 0,
 	}
 }
 
@@ -54,40 +55,38 @@ func MakeConfig(c *coder.Coder) Config {
 // defined manually. Currently does not support authentication, so the TestStreamService should
 // be accessed in a trusted context.
 func (c *Config) SetEndpoint(url string) {
-	c.Endpoint.Url = url
+	c.endpoint.Url = url
 }
 
-// CreatePayload converts the Config object into a TestStreamPayload to be sent to the runner.
-func (c *Config) CreatePayload() *pipepb.TestStreamPayload {
-	return &pipepb.TestStreamPayload{CoderId: "c0", Events: c.Events, Endpoint: c.Endpoint}
+// createPayload converts the Config object into a TestStreamPayload to be sent to the runner.
+func (c *Config) createPayload() *pipepb.TestStreamPayload {
+	return &pipepb.TestStreamPayload{CoderId: "c0", Events: c.events, Endpoint: c.endpoint}
 }
 
-// AdvanceWatermark adds an event to the Config Events struct advancing the watermark for a PCollection
-// to the given timestamp. if the tag is empty, this is applied to the default PCollection. Timestamp is
-// in milliseconds
+// AdvanceWatermark adds an event to the Config Events struct advancing the watermark for the PCollection
+// to the given timestamp. Timestamp is in milliseconds
 func (c *Config) AdvanceWatermark(timestamp int64) error {
-	if c.Watermark >= timestamp {
-		return fmt.Errorf("watermark must be monotonally increasing, is at %v, got %v", c.Watermark, timestamp)
+	if c.watermark >= timestamp {
+		return fmt.Errorf("watermark must be monotonally increasing, is at %v, got %v", c.watermark, timestamp)
 	}
 	watermarkAdvance := &pipepb.TestStreamPayload_Event_AdvanceWatermark{NewWatermark: timestamp}
 	watermarkEvent := &pipepb.TestStreamPayload_Event_WatermarkEvent{WatermarkEvent: watermarkAdvance}
-	c.Events = append(c.Events, &pipepb.TestStreamPayload_Event{Event: watermarkEvent})
-	c.Watermark = timestamp
+	c.events = append(c.events, &pipepb.TestStreamPayload_Event{Event: watermarkEvent})
+	c.watermark = timestamp
 	return nil
 }
 
-// AdvanceWatermarkToInfinity advances the watermark for the PCollection corresponding to the tag
-// to the maximum timestamp.
+// AdvanceWatermarkToInfinity advances the watermark to the maximum timestamp.
 func (c *Config) AdvanceWatermarkToInfinity() error {
 	return c.AdvanceWatermark(mtime.MaxTimestamp.Milliseconds())
 }
 
-// AdvanceProcessingTime adds an event into the Config Events struct advancing the processing time by a given
-// duration. This advancement is applied to all of the PCollections output by the TestStream.
+// AdvanceProcessingTime adds an event advancing the processing time by a given duration.
+// This advancement is applied to all of the PCollections output by the TestStream.
 func (c *Config) AdvanceProcessingTime(duration int64) {
 	processingAdvance := &pipepb.TestStreamPayload_Event_AdvanceProcessingTime{AdvanceDuration: duration}
 	processingEvent := &pipepb.TestStreamPayload_Event_ProcessingTimeEvent{ProcessingTimeEvent: processingAdvance}
-	c.Events = append(c.Events, &pipepb.TestStreamPayload_Event{Event: processingEvent})
+	c.events = append(c.events, &pipepb.TestStreamPayload_Event{Event: processingEvent})
 }
 
 // AdvanceProcessingTimeToInfinity moves the TestStream processing time to the largest possible
@@ -96,12 +95,12 @@ func (c *Config) AdvanceProcessingTimeToInfinity() {
 	c.AdvanceProcessingTime(mtime.MaxTimestamp.Milliseconds())
 }
 
-// AddElements adds a number of elements to the Config object at the specified timestamp.
+// AddElements adds a number of elements to the Config object at the specified event timestamp.
 // The encoder will panic if there is a type mismatch between the provided coder and the
 // elements.
 func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 	newElements := []*pipepb.TestStreamPayload_TimestampedElement{}
-	enc := beam.NewElementEncoder(c.ElmCoder.T.Type())
+	enc := beam.NewElementEncoder(c.elmCoder.T.Type())
 	for _, e := range elements {
 		var buf bytes.Buffer
 		if err := enc.Encode(e, &buf); err != nil {
@@ -111,15 +110,16 @@ func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 	}
 	addElementsEvent := &pipepb.TestStreamPayload_Event_AddElements{Elements: newElements}
 	elementEvent := &pipepb.TestStreamPayload_Event_ElementEvent{ElementEvent: addElementsEvent}
-	c.Events = append(c.Events, &pipepb.TestStreamPayload_Event{Event: elementEvent})
+	c.events = append(c.events, &pipepb.TestStreamPayload_Event{Event: elementEvent})
 	return nil
 }
 
-// TestStream inserts a TestStream primitive into a pipeline, taking a scope and a Config object and
-// producing an array of output PCollections.
-func TestStream(s beam.Scope, c Config) []beam.PCollection {
-	pyld := protox.MustEncode(c.CreatePayload())
-	outputs := []beam.FullType{c.ElmCoder.T}
+// Create inserts a TestStream primitive into a pipeline, taking a scope and a Config object and
+// producing an array of output PCollections. The TestStream must be the first PTransform in the
+// pipeline.
+func Create(s beam.Scope, c Config) beam.PCollection {
+	pyld := protox.MustEncode(c.createPayload())
+	outputs := []beam.FullType{c.elmCoder.T}
 
 	outputMap := beam.External(s, urn, pyld, []beam.PCollection{}, outputs, false)
 
@@ -127,5 +127,6 @@ func TestStream(s beam.Scope, c Config) []beam.PCollection {
 	for _, val := range outputMap {
 		ret = append(ret, val)
 	}
-	return ret
+	// This should only ever contain one PCollection.
+	return ret[0]
 }
