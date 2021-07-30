@@ -61,12 +61,12 @@ var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
 	// The direct runner does not support the TestStream primitive
-	"TestTestStream*",
+	"TestTestStream.*",
 }
 
 var portableFilters = []string{
 	// The portable runner does not support the TestStream primitive
-	"TestTestStream*",
+	"TestTestStream.*",
 }
 
 var flinkFilters = []string{
@@ -79,7 +79,7 @@ var samzaFilters = []string{
 	"TestReshuffle",
 	"TestReshuffleKV",
 	// The Samza runner does not support the TestStream primitive
-	"TestTestStream*",
+	"TestTestStream.*",
 }
 
 var sparkFilters = []string{
@@ -88,14 +88,14 @@ var sparkFilters = []string{
 	"TestParDoSideInput",
 	"TestParDoKVSideInput",
 	// The Spark runner does not support the TestStream primitive
-	"TestTestStream*",
+	"TestTestStream.*",
 }
 
 var dataflowFilters = []string{
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
 	// The Dataflow runner does not support the TestStream primitive
-	"TestTestStream*",
+	"TestTestStream.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
