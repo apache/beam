@@ -16,8 +16,7 @@
 #    limitations under the License.
 
 # This script executes ValidatesRunner tests including launching any additional
-# services needed, such as job services or expansion services. This script
-# should be executed from the root of the Beam repository.
+# services needed, such as job services or expansion services.
 #
 # The following runners are supported, and selected via a flag:
 # --runner {portable|direct|flink} (default: portable)
@@ -30,8 +29,9 @@
 #    dataflow - Dataflow Runner
 #
 # General flags:
-#    --tests -> A space-seperated list of targets for "go test". Defaults to
-#        all packages in the integration and regression directories.
+#    --tests -> A space-seperated list of targets for "go test", written with
+#        beam/sdks/go as the working directory. Defaults to all packages in the
+#        integration and regression directories.
 #    --timeout -> Timeout for the go test command, on a per-package level.
 #    --simultaneous -> Number of simultaneous packages to test.
 #        Controls the -p flag for the go test command.
@@ -73,7 +73,7 @@ set -e
 set -v
 
 # Default test targets.
-TESTS="./sdks/go/test/integration/... ./sdks/go/test/regression"
+TESTS="./test/integration/... ./test/regression"
 
 # Default runner.
 RUNNER=portable
@@ -406,16 +406,18 @@ if [[ "$JENKINS" == true ]]; then
   cd ./src
 
   # Search and replace working directory on test targets with new directory.
-  TESTS="${TESTS//"./"/"github.com/apache/beam/"}"
+  TESTS="${TESTS//"./"/"github.com/apache/beam/sdks/go"}"
   echo ">>> For Jenkins environment, changing test targets to: $TESTS"
 
   echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
   GOPATH=$TEMP_GOPATH go test -v $TESTS $ARGS \
       || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 else
+  cd sdks/go
   echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
   go test -v $TESTS $ARGS \
       || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
+  cd ../..
 fi
 
 if [[ "$RUNNER" == "dataflow" ]]; then
