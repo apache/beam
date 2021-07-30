@@ -39,8 +39,8 @@ class LocalResourceId implements ResourceId {
 
   private transient volatile @Nullable Path cachedPath;
 
-  static LocalResourceId fromPath(Path path, boolean isDirectory) {
-    checkNotNull(path, "path");
+  static LocalResourceId fromPath(@Nullable Path path, boolean isDirectory) {
+    checkNotNull(Objects.requireNonNull(path, "path"));
     return new LocalResourceId(path, isDirectory);
   }
 
