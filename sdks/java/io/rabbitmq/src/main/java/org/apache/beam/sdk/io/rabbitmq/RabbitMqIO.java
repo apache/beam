@@ -417,7 +417,14 @@ public class RabbitMqIO {
       implements UnboundedSource.CheckpointMark, Serializable {
     transient Channel channel;
     Instant latestTimestamp = Instant.now();
-    final ConcurrentLinkedQueue<Long> sessionIds = new ConcurrentLinkedQueue<>();
+    transient ConcurrentLinkedQueue<Long> sessionIds = new ConcurrentLinkedQueue<>();
+
+    // this method is called after deserialization on the deserialized object
+    private Object readResolve() {
+      // (re-)initialize transient fields as required
+      this.sessionIds = new ConcurrentLinkedQueue<>();
+      return this;
+    }
 
     /**
      * Advances the watermark to the provided time, provided said time is after the current
