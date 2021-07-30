@@ -76,8 +76,7 @@ public class PartitionRestrictionSplitter {
             SplitResult.of(
                 PartitionRestriction.stop(restriction),
                 PartitionRestriction.waitForParentPartitions(startTimestamp, endTimestamp)
-                    .withMetadata(restriction.getMetadata())
-            );
+                    .withMetadata(restriction.getMetadata()));
         break;
       case WAIT_FOR_PARENT_PARTITIONS:
         // If we need to split the wait for parent partitions, we remain at the same mode. That is
@@ -87,16 +86,14 @@ public class PartitionRestrictionSplitter {
             SplitResult.of(
                 PartitionRestriction.stop(restriction),
                 PartitionRestriction.waitForParentPartitions(startTimestamp, endTimestamp)
-                    .withMetadata(restriction.getMetadata())
-            );
+                    .withMetadata(restriction.getMetadata()));
         break;
       case DELETE_PARTITION:
         splitResult =
             SplitResult.of(
                 PartitionRestriction.stop(restriction),
                 PartitionRestriction.done(startTimestamp, endTimestamp)
-                    .withMetadata(restriction.getMetadata())
-            );
+                    .withMetadata(restriction.getMetadata()));
         break;
       case DONE:
         return null;

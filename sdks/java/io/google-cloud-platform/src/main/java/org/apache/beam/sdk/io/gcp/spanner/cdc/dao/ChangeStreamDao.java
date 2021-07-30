@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.Options;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
@@ -28,10 +30,13 @@ public class ChangeStreamDao {
 
   private final String changeStreamName;
   private final DatabaseClient databaseClient;
+  private final RpcPriority rpcPriority;
 
-  public ChangeStreamDao(String changeStreamName, DatabaseClient databaseClient) {
+  public ChangeStreamDao(
+      String changeStreamName, DatabaseClient databaseClient, RpcPriority rpcPriority) {
     this.changeStreamName = changeStreamName;
     this.databaseClient = databaseClient;
+    this.rpcPriority = rpcPriority;
   }
 
   public ChangeStreamResultSet changeStreamQuery(
@@ -72,7 +77,8 @@ public class ChangeStreamDao {
                     .to(partitionTokenOrNull)
                     .bind("heartbeatMillis")
                     .to(heartbeatMillis)
-                    .build());
+                    .build(),
+                Options.priority(rpcPriority));
 
     return new ChangeStreamResultSet(resultSet);
   }

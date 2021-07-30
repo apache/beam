@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.Options.RpcPriority;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
@@ -37,18 +38,21 @@ public class DaoFactory implements Serializable {
   private final String changeStreamName;
   private final String partitionMetadataTableName;
   private final MapperFactory mapperFactory;
+  private final RpcPriority rpcPriority;
 
   public DaoFactory(
       SpannerConfig changeStreamSpannerConfig,
       String changeStreamName,
       SpannerConfig partitionMetadataSpannerConfig,
       String partitionMetadataTableName,
-      MapperFactory mapperFactory) {
+      MapperFactory mapperFactory,
+      RpcPriority rpcPriority) {
     this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
     this.partitionMetadataSpannerConfig = partitionMetadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
     this.mapperFactory = mapperFactory;
+    this.rpcPriority = rpcPriority;
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
@@ -85,7 +89,8 @@ public class DaoFactory implements Serializable {
     final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
     if (changeStreamDaoInstance == null) {
       changeStreamDaoInstance =
-          new ChangeStreamDao(this.changeStreamName, spannerAccessor.getDatabaseClient());
+          new ChangeStreamDao(
+              this.changeStreamName, spannerAccessor.getDatabaseClient(), rpcPriority);
     }
     return changeStreamDaoInstance;
   }

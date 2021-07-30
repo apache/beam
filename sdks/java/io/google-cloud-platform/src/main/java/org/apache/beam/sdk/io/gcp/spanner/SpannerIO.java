@@ -32,6 +32,7 @@ import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
@@ -1290,6 +1291,8 @@ public class SpannerIO {
 
     abstract @Nullable Deserializer getDeserializer();
 
+    abstract @Nullable RpcPriority getRpcPriority();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1308,6 +1311,8 @@ public class SpannerIO {
       abstract Builder setInclusiveEndAt(Timestamp inclusiveEndAt);
 
       abstract Builder setDeserializer(Deserializer deserializer);
+
+      abstract Builder setRpcPriority(RpcPriority rpcPriority);
 
       abstract ReadChangeStream build();
     }
@@ -1383,6 +1388,10 @@ public class SpannerIO {
       return toBuilder().setDeserializer(deserializer).build();
     }
 
+    public ReadChangeStream withRpcPriority(RpcPriority rpcPriority) {
+      return toBuilder().setRpcPriority(rpcPriority).build();
+    }
+
     @Override
     public PCollection<DataChangeRecord> expand(PBegin input) {
       checkArgument(
@@ -1439,13 +1448,15 @@ public class SpannerIO {
               .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
               .withMaxCumulativeBackoff(changeStreamSpannerConfig.getMaxCumulativeBackoff());
       final MapperFactory mapperFactory = new MapperFactory();
+      final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.LOW);
       final DaoFactory daoFactory =
           new DaoFactory(
               changeStreamSpannerConfig,
               getChangeStreamName(),
               partitionMetadataSpannerConfig,
               partitionMetadataTableName,
-              mapperFactory);
+              mapperFactory,
+              rpcPriority);
       final ActionFactory actionFactory = new ActionFactory();
 
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
