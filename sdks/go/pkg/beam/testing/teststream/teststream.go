@@ -22,6 +22,7 @@ package teststream
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
@@ -43,8 +44,8 @@ type Config struct {
 
 // MakeConfig initializes a Config struct to begin inserting TestStream events/endpoints into.
 // Requires that users provide the coder for the elements they are trying to emit.
-func NewConfig(c *coder.Coder) Config {
-	return Config{elmCoder: c,
+func NewConfig() Config {
+	return Config{elmCoder: nil,
 		events:    []*pipepb.TestStreamPayload_Event{},
 		endpoint:  &pipepb.ApiServiceDescriptor{},
 		watermark: 0,
@@ -99,6 +100,23 @@ func (c *Config) AdvanceProcessingTimeToInfinity() {
 // The encoder will panic if there is a type mismatch between the provided coder and the
 // elements.
 func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
+	if c.elmCoder == nil {
+		elmType := reflect.TypeOf(elements[0])
+		var newCoder *coder.Coder
+		switch elmType.Kind() {
+		case reflect.Bool:
+			newCoder = coder.NewBool()
+		case reflect.String:
+			newCoder = coder.NewString()
+		case reflect.Float32, reflect.Float64:
+			newCoder = coder.NewDouble()
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			newCoder = coder.NewVarInt()
+		default:
+			return fmt.Errorf("unsupported element type %v", elmType.Kind())
+		}
+		c.elmCoder = newCoder
+	}
 	newElements := []*pipepb.TestStreamPayload_TimestampedElement{}
 	enc := beam.NewElementEncoder(c.elmCoder.T.Type())
 	for _, e := range elements {

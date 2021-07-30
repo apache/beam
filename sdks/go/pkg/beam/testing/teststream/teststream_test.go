@@ -24,9 +24,9 @@ import (
 )
 
 func TestMakeConfig(t *testing.T) {
-	con := NewConfig(coder.NewDouble())
-	if con.elmCoder.Kind != coder.Double {
-		t.Fatalf("coder type is not correct, expected double, got %v", con.elmCoder.Kind)
+	con := NewConfig()
+	if con.elmCoder != nil {
+		t.Fatalf("coder is not correct, expected nil, got %v", con.elmCoder.Kind)
 	}
 	if len(con.events) != 0 {
 		t.Fatalf("config has too many elements, expected 0, got %v", len(con.events))
@@ -37,7 +37,7 @@ func TestMakeConfig(t *testing.T) {
 }
 
 func TestAdvanceWatermark(t *testing.T) {
-	con := NewConfig(coder.NewDouble())
+	con := NewConfig()
 	con.AdvanceWatermark(500)
 	if w := con.watermark; w != 500 {
 		t.Errorf("default watermark expected 500, got %v", w)
@@ -51,7 +51,7 @@ func TestAdvanceWatermark(t *testing.T) {
 }
 
 func TestAdvanceWatermark_Bad(t *testing.T) {
-	con := NewConfig(coder.NewDouble())
+	con := NewConfig()
 	if errOne := con.AdvanceWatermark(500); errOne != nil {
 		t.Fatalf("first advance watermark failed when it should have succeeded, got %v", errOne)
 	}
@@ -61,7 +61,7 @@ func TestAdvanceWatermark_Bad(t *testing.T) {
 }
 
 func TestAdvanceProcessingTime(t *testing.T) {
-	con := NewConfig(coder.NewDouble())
+	con := NewConfig()
 	con.AdvanceProcessingTime(100)
 	if len(con.events) != 1 {
 		t.Fatalf("expected only 1 event in config, got %v", len(con.events))
@@ -100,7 +100,7 @@ func TestAddElements(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		con := NewConfig(tc.elementCoder)
+		con := NewConfig()
 		dec := beam.NewElementDecoder(tc.elementCoder.T.Type())
 		for i, elements := range tc.elementGroups {
 			if err := con.AddElements(100, elements...); err != nil {

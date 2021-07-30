@@ -17,7 +17,6 @@ package primitives
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/teststream"
 )
@@ -26,7 +25,7 @@ import (
 // then advancing the watermark past the point where they were inserted.
 func TestStreamSingleSequence() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
-	con := teststream.NewConfig(coder.NewString())
+	con := teststream.NewConfig()
 	con.AddElements(100, "a", "b", "c")
 	con.AdvanceWatermark(110)
 
@@ -41,7 +40,7 @@ func TestStreamSingleSequence() *beam.Pipeline {
 // string elements that arrive on-time into the TestStream
 func TestStreamTwoSequences() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
-	con := teststream.NewConfig(coder.NewString())
+	con := teststream.NewConfig()
 	con.AddElements(100, "a", "b", "c")
 	con.AdvanceWatermark(110)
 	con.AddElements(120, "d", "e", "f")
