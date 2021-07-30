@@ -1047,7 +1047,7 @@ limitations under the License.
 &lt;li>&lt;code>key.class&lt;/code> - The &lt;code>Key&lt;/code> class returned by the &lt;code>InputFormat&lt;/code> in &lt;code>mapreduce.job.inputformat.class&lt;/code>.&lt;/li>
 &lt;li>&lt;code>value.class&lt;/code> - The &lt;code>Value&lt;/code> class returned by the &lt;code>InputFormat&lt;/code> in &lt;code>mapreduce.job.inputformat.class&lt;/code>.&lt;/li>
 &lt;/ul>
-&lt;p>For example:
+&lt;p>For example:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1061,7 +1061,6 @@ limitations under the License.
 &lt;span class="n">myHadoopConfiguration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">setClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;value.class&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">InputFormatValueClass&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Object&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1071,7 +1070,8 @@ limitations under the License.
 &lt;/div>
 &lt;/div>
 &lt;p>You will need to check if the &lt;code>Key&lt;/code> and &lt;code>Value&lt;/code> classes output by the &lt;code>InputFormat&lt;/code> have a Beam &lt;code>Coder&lt;/code> available. If not, you can use &lt;code>withKeyTranslation&lt;/code> or &lt;code>withValueTranslation&lt;/code> to specify a method transforming instances of those classes into another class that is supported by a Beam &lt;code>Coder&lt;/code>. These settings are optional and you don&amp;rsquo;t need to specify translation for both key and value.&lt;/p>
-&lt;p>For example:
+&lt;p>For example:&lt;/p>
+&lt;p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1091,7 +1091,6 @@ limitations under the License.
 &lt;span class="o">};&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1100,6 +1099,7 @@ limitations under the License.
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py"> &lt;span class="c1"># The Beam SDK for Python does not support Hadoop Input/Output Format IO.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;/p>
 &lt;h4 id="read-data-only-with-hadoop-configuration">Read data only with Hadoop configuration.&lt;/h4>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -1399,7 +1399,7 @@ The below example uses one such available wrapper API - &lt;a href="https://gith
 Reading from a table snapshot bypasses the HBase region servers, instead reading HBase data files directly from the filesystem.
 This is useful for cases such as reading historical data or offloading of work from the HBase cluster.
 There are scenarios when this may prove faster than accessing content through the region servers using the &lt;code>HBaseIO&lt;/code>.&lt;/p>
-&lt;p>A table snapshot can be taken using the HBase shell or programmatically:
+&lt;p>A table snapshot can be taken using the HBase shell or programmatically:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1416,7 +1416,6 @@ There are scenarios when this may prove faster than accessing content through th
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1491,7 +1490,7 @@ There are scenarios when this may prove faster than accessing content through th
 &lt;li>&lt;code>mapreduce.job.partitioner.class&lt;/code> - Hadoop partitioner class which will be used for distributing of records among partitions. This property is not required for &lt;code>Write.PartitionedWriterBuilder#withoutPartitioning()&lt;/code> write.&lt;/li>
 &lt;/ul>
 &lt;p>&lt;em>Note&lt;/em>: All mentioned values have appropriate constants. E.g.: &lt;code>HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR&lt;/code>.&lt;/p>
-&lt;p>For example:
+&lt;p>For example:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -1510,7 +1509,6 @@ There are scenarios when this may prove faster than accessing content through th
 &lt;span class="n">myHadoopConfiguration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">setInt&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;mapreduce.job.reduces&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
