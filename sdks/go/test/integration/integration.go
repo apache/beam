@@ -60,6 +60,8 @@ var sickbay = []string{}
 var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
+	// Triggers are not yet supported
+	"TestTrigger.*",
 }
 
 var portableFilters = []string{}

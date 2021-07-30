@@ -15,42 +15,27 @@
 
 package window
 
-import (
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+type TriggerType string
+
+const (
+	Default  TriggerType = "Trigger_Default_"
+	Always   TriggerType = "Trigger_Always_"
+	AfterAny TriggerType = "Trigger_AfterAny_"
+	AfterAll TriggerType = "Trigger_AfterAny_"
 )
 
-// type Tr {
-// 	tr *pipepb.Trigger
-// }
-
-func SetAfterAll() *pipepb.Trigger {
-	return &pipepb.Trigger{
-		Trigger: &pipepb.Trigger_AfterAll_{
-			AfterAll: &pipepb.Trigger_AfterAll{},
-		},
-	}
+func (ws *WindowingStrategy) SetAfterAll() {
+	ws.Trigger = AfterAll
 }
 
-func SetAfterAny() *pipepb.Trigger {
-	return &pipepb.Trigger{
-		Trigger: &pipepb.Trigger_AfterAny_{
-			AfterAny: &pipepb.Trigger_AfterAny{},
-		},
-	}
+func (ws *WindowingStrategy) SetAfterAny() {
+	ws.Trigger = AfterAny
 }
 
-func SetAlways() *pipepb.Trigger {
-	return &pipepb.Trigger{
-		Trigger: &pipepb.Trigger_Always_{
-			Always: &pipepb.Trigger_Always{},
-		},
-	}
+func (ws *WindowingStrategy) SetAlways() {
+	ws.Trigger = Always
 }
 
-func SetDefault() *pipepb.Trigger {
-	return &pipepb.Trigger{
-		Trigger: &pipepb.Trigger_Default_{
-			Default: &pipepb.Trigger_Default{},
-		},
-	}
+func (ws *WindowingStrategy) SetDefault() {
+	ws.Trigger = Default
 }

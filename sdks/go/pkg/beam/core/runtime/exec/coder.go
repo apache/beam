@@ -749,6 +749,7 @@ func (c *arrayDecoder) Decode(r io.Reader) (*FullValue, error) {
 type windowedValueEncoder struct {
 	elm ElementEncoder
 	win WindowEncoder
+	// need to add pane encoder here
 }
 
 func (e *windowedValueEncoder) Encode(val *FullValue, w io.Writer) error {

@@ -17,6 +17,7 @@ package beam
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
@@ -49,7 +50,11 @@ func (p PCollection) IsValid() bool {
 }
 
 // TODO(herohde) 5/30/2017: add name for PCollections? Java supports it.
+
 // TODO(herohde) 5/30/2017: add windowing strategy and documentation.
+func (p PCollection) WindowingStrategy() *window.WindowingStrategy {
+	return p.n.WindowingStrategy()
+}
 
 // Type returns the full type 'A' of the elements. 'A' must be a concrete
 // type, such as int or KV<int,string>.

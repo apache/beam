@@ -981,24 +981,46 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	} else {
 		mergeStat = pipepb.MergeStatus_NON_MERGING
 	}
+	trigger, err := makeTrigger(w.Trigger)
+	if err != nil {
+		return nil, err
+	}
+
 	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
 		MergeStatus:      mergeStat,
 		AccumulationMode: pipepb.AccumulationMode_DISCARDING,
 		WindowCoderId:    windowCoderId,
-		Trigger: &pipepb.Trigger{
-			Trigger: &pipepb.Trigger_Default_{
-				Default: &pipepb.Trigger_Default{},
-			},
-		},
-		OutputTime:      pipepb.OutputTime_END_OF_WINDOW,
-		ClosingBehavior: pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
-		AllowedLateness: 0,
-		OnTimeBehavior:  pipepb.OnTimeBehavior_FIRE_ALWAYS,
+		Trigger:          trigger,
+		OutputTime:       pipepb.OutputTime_END_OF_WINDOW,
+		ClosingBehavior:  pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
+		AllowedLateness:  0,
+		OnTimeBehavior:   pipepb.OnTimeBehavior_FIRE_ALWAYS,
 	}
 	return ws, nil
 }
-
+func makeTrigger(t window.TriggerType) (*pipepb.Trigger, error) {
+	switch t {
+	case window.Default:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Default_{
+				Default: &pipepb.Trigger_Default{},
+			},
+		}, nil
+	case window.Always:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Always_{
+				Always: &pipepb.Trigger_Always{},
+			},
+		}, nil
+	default:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Default_{
+				Default: &pipepb.Trigger_Default{},
+			},
+		}, nil
+	}
+}
 func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 	switch w.Kind {
 	case window.GlobalWindows:

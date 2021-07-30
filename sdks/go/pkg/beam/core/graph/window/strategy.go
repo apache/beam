@@ -16,16 +16,12 @@
 // Package window contains window representation, windowing strategies and utilities.
 package window
 
-import (
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-)
-
 // WindowingStrategy defines the types of windowing used in a pipeline and contains
 // the data to support executing a windowing strategy.
 type WindowingStrategy struct {
 	Fn *Fn
 	// TODO(BEAM-3304): trigger support
-	Trigger *pipepb.Trigger
+	Trigger TriggerType
 }
 
 func (ws *WindowingStrategy) Equals(o *WindowingStrategy) bool {
@@ -38,5 +34,5 @@ func (ws *WindowingStrategy) String() string {
 
 // DefaultWindowingStrategy returns the default windowing strategy.
 func DefaultWindowingStrategy() *WindowingStrategy {
-	return &WindowingStrategy{Fn: NewGlobalWindows(), Trigger: SetDefault()}
+	return &WindowingStrategy{Fn: NewGlobalWindows(), Trigger: Default}
 }
