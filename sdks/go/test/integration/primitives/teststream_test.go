@@ -31,8 +31,3 @@ func TestTestStreamTwoSequences(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, TestStreamTwoSequences())
 }
-
-func TestTestStreamNoAdvance(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamNoAdvance())
-}
