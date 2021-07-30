@@ -1222,6 +1222,8 @@ public class ElasticsearchIO {
 
     abstract @Nullable Boolean getUsePartialUpdate();
 
+    abstract @Nullable Boolean getAppendOnly();
+
     abstract Write.@Nullable BooleanFieldValueExtractFn getIsDeleteFn();
 
     abstract @Nullable Integer getBackendVersion();
@@ -1247,6 +1249,8 @@ public class ElasticsearchIO {
       abstract Builder setIsDeleteFn(Write.BooleanFieldValueExtractFn isDeleteFn);
 
       abstract Builder setUsePartialUpdate(Boolean usePartialUpdate);
+
+      abstract Builder setAppendOnly(Boolean appendOnly);
 
       abstract Builder setUpsertScript(String source);
 
@@ -1331,6 +1335,18 @@ public class ElasticsearchIO {
      */
     public DocToBulk withUsePartialUpdate(boolean usePartialUpdate) {
       return builder().setUsePartialUpdate(usePartialUpdate).build();
+    }
+
+    /**
+     * Provide an instruction to control whether the target index should be considered append-only.
+     * For append-only indexes and/or data streams, only {@code create} operations will be issued.
+     * Updates and deletions are not allowed, so related options will be ignored.
+     *
+     * @param usePartialUpdate set to true to issue partial updates
+     * @return the {@link DocToBulk} with the partial update control set
+     */
+    public DocToBulk withAppendOnly(boolean appendOnly) {
+      return builder().withAppendOnly(appendOnly).build();
     }
 
     /**
@@ -1512,10 +1528,16 @@ public class ElasticsearchIO {
           isDelete = spec.getIsDeleteFn().apply(parsedDocument);
         }
       }
+      final boolean isAppendOnly = Boolean.TRUE.equals(spec.getAppendOnly());
 
       if (isDelete) {
+        if (isAppendOnly) {
+          throw new IllegalStateException("No deletions allowed for append-only indices");
+        }
         // delete request used for deleting a document
         return String.format("{ \"delete\" : %s }%n", documentMetadata);
+      } else if (isAppendOnly) {
+        return String.format("{ \"create\" : %s }%n%s%n", documentMetadata, document);
       } else {
         // index is an insert/upsert and update is a partial update (or insert if not
         // existing)
@@ -1671,6 +1693,12 @@ public class ElasticsearchIO {
     /** Refer to {@link DocToBulk#withUsePartialUpdate}. */
     public Write withUsePartialUpdate(boolean usePartialUpdate) {
       docToBulk = docToBulk.withUsePartialUpdate(usePartialUpdate);
+      return this;
+    }
+
+    /** Refer to {@link DocToBulk#withAppendOnly}. */
+    public Write withAppendOnly(boolean appendOnly) {
+      docToBulk = docToBulk.withAppendOnly(appendOnly);
       return this;
     }
 
