@@ -21,6 +21,9 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go"
 
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
+
 golang {
   packagePath = 'github.com/apache/beam/sdks/go'
 

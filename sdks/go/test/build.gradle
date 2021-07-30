@@ -25,7 +25,9 @@ description = "Apache Beam :: SDKs :: Go :: Test"
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
+//resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
 
 clean.dependsOn cleanVendor
 

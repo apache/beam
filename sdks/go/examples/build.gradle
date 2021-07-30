@@ -21,6 +21,9 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go :: Examples"
 
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
+
 def getLocalPlatform = {
   String hostOs = com.github.blindpirate.gogradle.crossplatform.Os.getHostOs()
   String hostArch = com.github.blindpirate.gogradle.crossplatform.Arch.getHostArch()
