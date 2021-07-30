@@ -143,35 +143,20 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * Returns an {@code AvroCoder} instance for the given class using Avro's Reflection API for
    * encoding and decoding.
    *
-   * <p>The ReflectData must correspond to the type provided. Note that custom ClassLoaders are not
-   * supported with ReflectData as they can't be properly serialized, so the default Avro
-   * ClassLoader will be used.
-   *
    * @param <T> the element type
    */
-  public static <T> AvroCoder<T> of(Class<T> type, ReflectData reflectData) {
-    return of(type, reflectData.getSchema(type), reflectData);
+  public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
+    return of(type, new ReflectData(type.getClassLoader()).getSchema(type), useReflectApi);
   }
 
   /**
    * Returns an {@code AvroCoder} instance for the given class and schema using Avro's Reflection
    * API for encoding and decoding.
    *
-   * <p>The ReflectData must correspond to the type provided. Note that custom ClassLoaders are not
-   * supported with ReflectData as they can't be properly serialized, so the default Avro
-   * ClassLoader will be used.
-   *
    * @param <T> the element type
    */
-  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, ReflectData reflectData) {
-    if (reflectData.getClassLoader().getClass() != type.getClassLoader().getClass()) {
-      throw new AvroRuntimeException(
-          String.format(
-              "ReflectData with a different ClassLoader than Avro class %s is not supported in AvroCoder: %s was not equal to %s",
-              type, reflectData.getClassLoader().getClass(), type.getClassLoader().getClass()));
-    }
-
-    return new AvroCoder<>(type, schema, reflectData);
+  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, boolean useReflectApi) {
+    return new AvroCoder<>(type, schema, useReflectApi);
   }
 
   /**
@@ -305,10 +290,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final Supplier<ReflectData> reflectData;
 
   protected AvroCoder(Class<T> type, Schema schema) {
-    this(type, schema, null);
+    this(type, schema, false);
   }
 
-  protected AvroCoder(Class<T> type, Schema schema, ReflectData reflectData) {
+  protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
     this.type = type;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
     typeDescriptor = TypeDescriptor.of(type);
@@ -319,7 +304,6 @@ public class AvroCoder<T> extends CustomCoder<T> {
     this.decoder = new EmptyOnDeserializationThreadLocal<>();
     this.encoder = new EmptyOnDeserializationThreadLocal<>();
 
-    final boolean useAvroReflection = reflectData != null;
     this.reflectData = Suppliers.memoize(new SerializableReflectDataSupplier(getType()));
 
     // Reader and writer are allocated once per thread per Coder
@@ -329,12 +313,9 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
           @Override
           public DatumReader<T> initialValue() {
-            if (useAvroReflection) {
-              return new ReflectDatumReader<>(
-                  myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
-            } else if (myCoder.getType().equals(GenericRecord.class)) {
+            if (myCoder.getType().equals(GenericRecord.class)) {
               return new GenericDatumReader<>(myCoder.getSchema());
-            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType())) {
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
               return new SpecificDatumReader<>(myCoder.getType());
             }
             return new ReflectDatumReader<>(
@@ -348,11 +329,9 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
           @Override
           public DatumWriter<T> initialValue() {
-            if (useAvroReflection) {
-              return new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
-            } else if (myCoder.getType().equals(GenericRecord.class)) {
+            if (myCoder.getType().equals(GenericRecord.class)) {
               return new GenericDatumWriter<>(myCoder.getSchema());
-            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType())) {
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
               return new SpecificDatumWriter<>(myCoder.getType());
             }
             return new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
