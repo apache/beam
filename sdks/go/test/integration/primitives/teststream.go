@@ -23,7 +23,7 @@ import (
 )
 
 // TestStreamSequence tests the TestStream primitive by inserting string elements
-// then advancing the watermark past the poin where they were inserted.
+// then advancing the watermark past the point where they were inserted.
 func TestStreamSingleSequence() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 	con := teststream.MakeConfig(coder.NewString())
