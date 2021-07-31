@@ -3820,43 +3820,6 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class})
-    public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
-      final String timerId = "foo";
-
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
-
-            @TimerId(timerId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
-
-            @ProcessElement
-            public void processElement(@TimerId(timerId) Timer timer) {
-              try {
-                timer.set(new Instant(0));
-                fail("Should have failed due to processing time with absolute timer.");
-              } catch (RuntimeException e) {
-                String message = e.getMessage();
-                List<String> expectedSubstrings =
-                    Arrays.asList("relative timers", "processing time");
-                expectedSubstrings.forEach(
-                    str ->
-                        Preconditions.checkState(
-                            message.contains(str),
-                            "Pipeline didn't fail with the expected strings: %s",
-                            expectedSubstrings));
-              }
-            }
-
-            @OnTimer(timerId)
-            public void onTimer() {}
-          };
-
-      pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-      pipeline.run();
-    }
-
-    @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutOfBoundsEventTimeTimer() throws Exception {
       final String timerId = "foo";
 

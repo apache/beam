@@ -1721,6 +1721,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           fireTimestamp = elementTimestampOrTimerFireTimestamp;
           break;
         case PROCESSING_TIME:
+          // TODO: This should use an injected clock when using TestStream.
           fireTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
           break;
         default:
@@ -1743,12 +1744,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void set(Instant absoluteTime) {
-      // Verifies that the time domain of this timer is acceptable for absolute timers.
-      if (!TimeDomain.EVENT_TIME.equals(timeDomain)) {
-        throw new IllegalArgumentException(
-            "Can only set relative timers in processing time domain. Use #setRelative()");
-      }
-
       // Ensures that the target time is reasonable. For event time timers this means that the time
       // should be prior to window GC time.
       if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
@@ -1808,6 +1803,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       this.outputTimestamp = outputTime;
       return this;
     }
+
+    @Override
+    public Instant getCurrentRelativeTime() {
+      return fireTimestamp;
+    }
+
     /**
      * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).
