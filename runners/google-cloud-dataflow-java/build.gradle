@@ -167,6 +167,7 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
   'org.apache.beam.sdk.testing.UsesBundleFinalizer',
+  'org.apache.beam.sdk.testing.UsesStrictTimerOrdering',
 ]
 
 def commonRunnerV2ExcludeCategories = [
@@ -178,6 +179,7 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesTestStream',
         'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
         'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+        'org.apache.beam.sdk.testing.UsesStrictTimerOrdering',
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
@@ -277,7 +279,10 @@ task cleanUpDockerImages() {
       commandLine "docker", "rmi", "--force", "${dockerImageName}"
     }
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "delete", "--force-delete-tags", "${dockerImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerImageName}"
+    }
+    exec {
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerImageContainer}"
     }
   }
 }
@@ -319,7 +324,6 @@ task validatesRunnerStreaming {
       'org.apache.beam.sdk.testing.UsesMapState',
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
       'org.apache.beam.sdk.testing.UsesSetState',
-      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering',
     ],
   ))
 }

@@ -52,6 +52,8 @@ google-cloud-core==1.4.1
 google-cloud-datastore==1.15.3
 google-cloud-dlp==0.13.0
 google-cloud-language==1.3.0
+google-cloud-profiler==3.0.4
+google-cloud-recommendations-ai==0.2.0
 google-cloud-spanner==1.13.0
 google-cloud-videointelligence==1.13.0
 google-cloud-vision==0.42.0
@@ -66,6 +68,7 @@ cachetools == 3.1.1
 dataclasses == 0.8 ; python_version=="3.6"
 guppy3==3.0.10
 mmh3==2.5.1
+orjson==3.5.3
 python-dateutil == 2.8.1
 requests == 2.24.0
 freezegun == 0.3.15

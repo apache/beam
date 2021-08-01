@@ -685,8 +685,8 @@ class PipelineInstrument(object):
 
       def visit_transform(self, transform_node):
         if transform_node.inputs:
-          input_list = list(transform_node.inputs)
-          for i, input_pcoll in enumerate(input_list):
+          main_inputs = dict(transform_node.main_inputs)
+          for tag, input_pcoll in main_inputs.items():
             key = self._pin.cache_key(input_pcoll)
 
             # Replace the input pcollection with the cached pcollection (if it
@@ -694,9 +694,9 @@ class PipelineInstrument(object):
             if key in self._pin._cached_pcoll_read:
               # Ignore this pcoll in the final pruned instrumented pipeline.
               self._pin._ignored_targets.add(input_pcoll)
-              input_list[i] = self._pin._cached_pcoll_read[key]
+              main_inputs[tag] = self._pin._cached_pcoll_read[key]
           # Update the transform with its new inputs.
-          transform_node.inputs = tuple(input_list)
+          transform_node.main_inputs = main_inputs
 
     v = ReadCacheWireVisitor(self)
     pipeline.visit(v)

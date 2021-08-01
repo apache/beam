@@ -64,3 +64,13 @@ Developers must invoke Go for cross-compilation manually, if desired.
 
 If you make changes to .proto files, you will need to rebuild the generated code.
 Consult `pkg/beam/model/PROTOBUF.md`.
+
+If you make changes to .tmpl files, then add the specialize tool to your path.
+You can install specialize using:
+```
+go get github.com/apache/beam/sdks/go/cmd/specialize
+```
+Add it to your path:
+```
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+```

@@ -91,6 +91,9 @@ tasks.rat {
     "ownership/**/*",
     "**/OWNERS",
 
+    // Ignore CPython LICENSE file
+    "LICENSE.python",
+
     // Json doesn't support comments.
     "**/*.json",
 

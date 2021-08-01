@@ -22,7 +22,7 @@ from __future__ import absolute_import
 import random
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -53,7 +53,7 @@ def extract_prediction(response):
   yield response[0]["results"]
 
 
-@attr('IT')
+@pytest.mark.it_postcommit
 @unittest.skipIf(
     recommendationengine is None,
     "Recommendations AI dependencies not installed.")

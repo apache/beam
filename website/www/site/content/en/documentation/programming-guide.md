@@ -2434,6 +2434,10 @@ PCollection<String> lines = p.apply(TextIO.read().from("gs://some/inputData.txt"
 lines = pipeline | beam.io.ReadFromText('gs://some/inputData.txt')
 {{< /highlight >}}
 
+{{< highlight go >}}
+lines :=  textio.Read(scope, 'gs://some/inputData.txt')
+{{< /highlight >}}
+
 ### 5.2. Writing output data {#pipeline-io-writing-data}
 
 Write transforms write the data in a `PCollection` to an external data source.
@@ -2447,6 +2451,10 @@ output.apply(TextIO.write().to("gs://some/outputData"));
 
 {{< highlight py >}}
 output | beam.io.WriteToText('gs://some/outputData')
+{{< /highlight >}}
+
+{{< highlight go >}}
+textio.Write(scope, 'gs://some/inputData.txt', output)
 {{< /highlight >}}
 
 ### 5.3. File-based input and output data {#file-based-data}
@@ -2466,6 +2474,10 @@ p.apply("ReadFromText",
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_read >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+lines := textio.Read(scope, "path/to/input-*.csv")
 {{< /highlight >}}
 
 To read data from disparate sources into a single `PCollection`, read each one
@@ -2491,6 +2503,12 @@ records.apply("WriteToText",
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_write >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+// The Go SDK textio doesn't support sharding on writes yet.
+// See https://issues.apache.org/jira/browse/BEAM-12664 for ways
+// to contribute a solution.
 {{< /highlight >}}
 
 ### 5.4. Beam-provided I/O transforms {#provided-io-transforms}

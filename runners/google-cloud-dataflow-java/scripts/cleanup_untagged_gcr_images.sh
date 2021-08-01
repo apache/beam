@@ -14,14 +14,19 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
 
-set -ex
-rm -rf /output/*
+set -e
 
-export GO111MODULE=off
-go get $sdk_location
+IMAGE_NAME=$1
 
-go-licenses save $sdk_location --save_path=/output/licenses
-go-licenses csv $sdk_location | tee /output/licenses/list.csv
-chmod -R a+w /output/*
+# Find all untagged images
+DIGESTS=$(gcloud container images list-tags "${IMAGE_NAME}"  --filter='-tags:*' --format="get(digest)")
+
+# Delete image
+echo "${DIGESTS}" | while read -r digest; do
+  if [[ ! -z "${digest}" ]]; then
+    img="${IMAGE_NAME}@${digest}"
+    echo "Removing untagged image ${img}"
+    gcloud container images delete --quiet "${img}"
+  fi
+done

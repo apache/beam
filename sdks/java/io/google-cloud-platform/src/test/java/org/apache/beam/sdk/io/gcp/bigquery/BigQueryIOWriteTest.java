@@ -65,6 +65,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -72,13 +73,17 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
+import org.apache.beam.sdk.io.gcp.bigquery.WritePartition.ResultCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteTables.Result;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -1758,10 +1763,12 @@ public class BigQueryIOWriteTest implements Serializable {
       }
     }
 
-    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag =
-        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("multiPartitionsTag") {};
-    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag =
-        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("singlePartitionTag") {};
+    TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>> multiPartitionsTag =
+        new TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>>(
+            "multiPartitionsTag") {};
+    TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>> singlePartitionTag =
+        new TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>>(
+            "singlePartitionTag") {};
 
     String tempFilePrefix = testFolder.newFolder("BigQueryIOTest").getAbsolutePath();
     PCollectionView<String> tempFilePrefixView =
@@ -1781,12 +1788,12 @@ public class BigQueryIOWriteTest implements Serializable {
 
     DoFnTester<
             Iterable<WriteBundlesToFiles.Result<TableDestination>>,
-            KV<ShardedKey<TableDestination>, List<String>>>
+            KV<ShardedKey<TableDestination>, WritePartition.Result>>
         tester = DoFnTester.of(writePartition);
     tester.setSideInput(tempFilePrefixView, GlobalWindow.INSTANCE, tempFilePrefix);
     tester.processElement(files);
 
-    List<KV<ShardedKey<TableDestination>, List<String>>> partitions;
+    List<KV<ShardedKey<TableDestination>, WritePartition.Result>> partitions;
     if (expectedNumPartitionsPerTable > 1) {
       partitions = tester.takeOutputElements(multiPartitionsTag);
     } else {
@@ -1795,12 +1802,12 @@ public class BigQueryIOWriteTest implements Serializable {
 
     List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
     Map<String, List<String>> filesPerTableResult = Maps.newHashMap();
-    for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
+    for (KV<ShardedKey<TableDestination>, WritePartition.Result> partition : partitions) {
       String table = partition.getKey().getKey().getTableSpec();
       partitionsResult.add(partition.getKey());
       List<String> tableFilesResult =
           filesPerTableResult.computeIfAbsent(table, k -> Lists.newArrayList());
-      tableFilesResult.addAll(partition.getValue());
+      tableFilesResult.addAll(partition.getValue().getFilenames());
     }
 
     assertThat(
@@ -1847,7 +1854,7 @@ public class BigQueryIOWriteTest implements Serializable {
     String jobIdToken = "jobId";
     final Multimap<TableDestination, String> expectedTempTables = ArrayListMultimap.create();
 
-    List<KV<ShardedKey<String>, List<String>>> partitions = Lists.newArrayList();
+    List<KV<ShardedKey<String>, WritePartition.Result>> partitions = Lists.newArrayList();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
@@ -1869,7 +1876,10 @@ public class BigQueryIOWriteTest implements Serializable {
           }
           filesPerPartition.add(writer.getResult().resourceId.toString());
         }
-        partitions.add(KV.of(ShardedKey.of(tableDestination.getTableSpec(), j), filesPerPartition));
+        partitions.add(
+            KV.of(
+                ShardedKey.of(tableDestination.getTableSpec(), j),
+                new AutoValue_WritePartition_Result(filesPerPartition, true)));
 
         String json =
             String.format(
@@ -1879,8 +1889,11 @@ public class BigQueryIOWriteTest implements Serializable {
       }
     }
 
-    PCollection<KV<ShardedKey<String>, List<String>>> writeTablesInput =
-        p.apply(Create.of(partitions));
+    PCollection<KV<ShardedKey<String>, WritePartition.Result>> writeTablesInput =
+        p.apply(
+            Create.of(partitions)
+                .withCoder(
+                    KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), ResultCoder.INSTANCE)));
     PCollectionView<String> jobIdTokenView =
         p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
     List<PCollectionView<?>> sideInputs = ImmutableList.of(jobIdTokenView);
@@ -1903,18 +1916,25 @@ public class BigQueryIOWriteTest implements Serializable {
             false,
             Collections.emptySet());
 
-    PCollection<KV<TableDestination, String>> writeTablesOutput =
-        writeTablesInput.apply(writeTables);
+    PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
+        writeTablesInput
+            .apply(writeTables)
+            .setCoder(KvCoder.of(TableDestinationCoderV3.of(), WriteTables.ResultCoder.INSTANCE));
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
             input -> {
               assertEquals(input.keySet(), expectedTempTables.keySet());
-              for (Map.Entry<TableDestination, Iterable<String>> entry : input.entrySet()) {
+              for (Map.Entry<TableDestination, Iterable<WriteTables.Result>> entry :
+                  input.entrySet()) {
+                Iterable<String> tableNames =
+                    StreamSupport.stream(entry.getValue().spliterator(), false)
+                        .map(Result::getTableName)
+                        .collect(Collectors.toList());
                 @SuppressWarnings("unchecked")
                 String[] expectedValues =
                     Iterables.toArray(expectedTempTables.get(entry.getKey()), String.class);
-                assertThat(entry.getValue(), containsInAnyOrder(expectedValues));
+                assertThat(tableNames, containsInAnyOrder(expectedValues));
               }
               return null;
             });
@@ -1951,7 +1971,7 @@ public class BigQueryIOWriteTest implements Serializable {
     Multimap<TableDestination, TableRow> expectedRowsPerTable = ArrayListMultimap.create();
     String jobIdToken = "jobIdToken";
     Multimap<TableDestination, String> tempTables = ArrayListMultimap.create();
-    List<KV<TableDestination, String>> tempTablesElement = Lists.newArrayList();
+    List<KV<TableDestination, WriteTables.Result>> tempTablesElement = Lists.newArrayList();
     for (int i = 0; i < numFinalTables; ++i) {
       String tableName = "project-id:dataset-id.table_" + i;
       TableDestination tableDestination = new TableDestination(tableName, "table_" + i + "_desc");
@@ -1971,7 +1991,8 @@ public class BigQueryIOWriteTest implements Serializable {
         expectedRowsPerTable.putAll(tableDestination, rows);
         String tableJson = toJsonString(tempTable);
         tempTables.put(tableDestination, tableJson);
-        tempTablesElement.add(KV.of(tableDestination, tableJson));
+        tempTablesElement.add(
+            KV.of(tableDestination, new AutoValue_WriteTables_Result(tableJson, true)));
       }
     }
 
@@ -1987,7 +2008,8 @@ public class BigQueryIOWriteTest implements Serializable {
             3,
             "kms_key");
 
-    DoFnTester<Iterable<KV<TableDestination, String>>, Void> tester = DoFnTester.of(writeRename);
+    DoFnTester<Iterable<KV<TableDestination, WriteTables.Result>>, Void> tester =
+        DoFnTester.of(writeRename);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
     tester.processElement(tempTablesElement);
     tester.finishBundle();
