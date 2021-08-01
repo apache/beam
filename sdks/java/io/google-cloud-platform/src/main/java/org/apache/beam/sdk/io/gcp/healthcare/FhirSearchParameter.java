@@ -46,26 +46,11 @@ public class FhirSearchParameter<T> {
     this.queries = queries;
   }
 
-  /**
-   * Creates a FhirSearchParameter to represent a FHIR Search request.
-   *
-   * @param resourceType resource type for search, leave empty for all
-   * @param key optional key to index searches by
-   * @param queries search query, with field as key and search as value
-   * @return FhirSearchParameter
-   */
   public static <T> FhirSearchParameter<T> of(
       String resourceType, @Nullable String key, @Nullable Map<String, T> queries) {
     return new FhirSearchParameter<>(resourceType, key, queries);
   }
 
-  /**
-   * Creates a FhirSearchParameter to represent a FHIR Search request.
-   *
-   * @param resourceType resource type for search, leave empty for all
-   * @param queries search query, with field as key and search as value
-   * @return FhirSearchParameter
-   */
   public static <T> FhirSearchParameter<T> of(
       String resourceType, @Nullable Map<String, T> queries) {
     return new FhirSearchParameter<>(resourceType, null, queries);

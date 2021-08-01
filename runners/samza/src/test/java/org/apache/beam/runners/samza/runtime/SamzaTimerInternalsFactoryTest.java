@@ -70,6 +70,7 @@ import org.rocksdb.WriteOptions;
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SamzaTimerInternalsFactoryTest {
   @Rule public transient TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -302,7 +303,16 @@ public class SamzaTimerInternalsFactoryTest {
             "timer2", nameSpace, new Instant(100), new Instant(100), TimeDomain.PROCESSING_TIME);
     timerInternals.setTimer(timer2);
 
-    assertEquals(2, timerRegistry.timers.size());
+    final TimerInternals.TimerData timer3 =
+        TimerInternals.TimerData.of(
+            "timer3",
+            "timerFamilyId3",
+            nameSpace,
+            new Instant(100),
+            new Instant(100),
+            TimeDomain.PROCESSING_TIME);
+    timerInternals.setTimer(timer3);
+    assertEquals(3, timerRegistry.timers.size());
 
     store.close();
 
@@ -312,14 +322,14 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaTimerInternalsFactory<String> restoredFactory =
         createTimerInternalsFactory(restoredRegistry, "timer", pipelineOptions, store);
 
-    assertEquals(2, restoredRegistry.timers.size());
+    assertEquals(3, restoredRegistry.timers.size());
 
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     StringUtf8Coder.of().encode("testKey", baos);
     final byte[] keyBytes = baos.toByteArray();
-    restoredFactory.removeProcessingTimer(new KeyedTimerData(keyBytes, "testKey", timer1));
-    restoredFactory.removeProcessingTimer(new KeyedTimerData(keyBytes, "testKey", timer2));
-
+    restoredFactory.removeProcessingTimer(new KeyedTimerData<>(keyBytes, "testKey", timer1));
+    restoredFactory.removeProcessingTimer(new KeyedTimerData<>(keyBytes, "testKey", timer2));
+    restoredFactory.removeProcessingTimer(new KeyedTimerData<>(keyBytes, "testKey", timer3));
     store.close();
   }
 

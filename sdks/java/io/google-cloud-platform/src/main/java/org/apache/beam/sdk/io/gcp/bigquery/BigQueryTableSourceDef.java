@@ -78,7 +78,10 @@ class BigQueryTableSourceDef implements BigQuerySourceDef {
           "Project ID not set in {}. Using default project from {}.",
           TableReference.class.getSimpleName(),
           BigQueryOptions.class.getSimpleName());
-      tableReference.setProjectId(bqOptions.getProject());
+      tableReference.setProjectId(
+          bqOptions.getBigQueryProject() == null
+              ? bqOptions.getProject()
+              : bqOptions.getBigQueryProject());
     }
     return tableReference;
   }

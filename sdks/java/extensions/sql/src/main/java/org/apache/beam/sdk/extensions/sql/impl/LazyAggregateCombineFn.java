@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.Iterator;
@@ -73,10 +74,9 @@ public class LazyAggregateCombineFn<InputT, AccumT, OutputT>
 
   @Override
   public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
-    Iterator<AccumT> it = accumulators.iterator();
-    AccumT first = it.next();
-    it.remove();
-    return getAggregateFn().mergeAccumulators(first, accumulators);
+    AccumT first = accumulators.iterator().next();
+    Iterable<AccumT> rest = new SkipFirstElementIterable<>(accumulators);
+    return getAggregateFn().mergeAccumulators(first, rest);
   }
 
   @Override
@@ -98,5 +98,71 @@ public class LazyAggregateCombineFn<InputT, AccumT, OutputT>
   @Override
   public TypeVariable<?> getAccumTVariable() {
     return AggregateFn.class.getTypeParameters()[1];
+  }
+
+  public UdafImpl getUdafImpl() {
+    return new LazyUdafImpl<>(this);
+  }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "%s %s from jar %s",
+        LazyAggregateCombineFn.class.getSimpleName(), String.join(".", functionPath), jarPath);
+  }
+
+  /** Wrapper {@link Iterable} which always skips its first element. */
+  private static class SkipFirstElementIterable<T> implements Iterable<T> {
+    private final Iterable<T> all;
+
+    SkipFirstElementIterable(Iterable<T> all) {
+      this.all = all;
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+      Iterator<T> it = all.iterator();
+      it.next();
+      return it;
+    }
+  }
+
+  /** {@link UdafImpl} that defers type inference to the underlying {@link AggregateFn}. */
+  private static class LazyUdafImpl<InputT, AccumT, OutputT> extends UdafImpl {
+    private final LazyAggregateCombineFn<InputT, AccumT, OutputT> lazyFn;
+
+    public LazyUdafImpl(LazyAggregateCombineFn lazyFn) {
+      super(lazyFn);
+      this.lazyFn = lazyFn;
+    }
+
+    private Type[] getTypeArguments() {
+      Class clazz = lazyFn.getAggregateFn().getClass();
+      while (clazz != null) {
+        for (Type genericInterface : clazz.getGenericInterfaces()) {
+          if (genericInterface instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = ((ParameterizedType) genericInterface);
+            if (parameterizedType.getRawType().equals(AggregateFn.class)) {
+              return parameterizedType.getActualTypeArguments();
+            }
+          }
+        }
+        clazz = clazz.getSuperclass();
+      }
+      throw new IllegalStateException(
+          String.format(
+              "Cannot get type arguments for %s: must implement parameterized %s",
+              lazyFn, AggregateFn.class.getSimpleName()));
+    }
+
+    @Override
+    protected Type getInputType() {
+      return getTypeArguments()[0];
+    }
+
+    @Override
+    protected Type getOutputType() {
+      return getTypeArguments()[2];
+    }
   }
 }

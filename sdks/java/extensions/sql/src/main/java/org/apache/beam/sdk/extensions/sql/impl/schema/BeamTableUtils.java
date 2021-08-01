@@ -146,6 +146,9 @@ public final class BeamTableUtils {
         && ((rawObj instanceof String)
             || (rawObj instanceof BigDecimal && type.getTypeName() != TypeName.DECIMAL))) {
       String raw = rawObj.toString();
+      if (raw.trim().isEmpty()) {
+        return null;
+      }
       switch (type.getTypeName()) {
         case BYTE:
           return Byte.valueOf(raw);
@@ -154,16 +157,10 @@ public final class BeamTableUtils {
         case INT32:
           return Integer.valueOf(raw);
         case INT64:
-          if (raw.equals("")) {
-            return null;
-          }
           return Long.valueOf(raw);
         case FLOAT:
           return Float.valueOf(raw);
         case DOUBLE:
-          if (raw.equals("")) {
-            return null;
-          }
           return Double.valueOf(raw);
         default:
           throw new UnsupportedOperationException(

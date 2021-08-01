@@ -230,8 +230,8 @@ Much like the schema case, the parameter with `additional_bq_parameters` can
 also take a callable that receives a table reference.
 
 
-[1] https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#\
-configuration.load
+[1] https://cloud.google.com/bigquery/docs/reference/rest/v2/Job\
+        #jobconfigurationload
 [2] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
 [3] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
 
@@ -714,7 +714,7 @@ class _CustomBigQuerySource(BoundedSource):
       if (isinstance(self.table_reference, vp.ValueProvider) and
           self.table_reference.is_accessible()):
         table_ref = bigquery_tools.parse_table_reference(
-            table_ref, project=self._get_project())
+            self.table_reference.get(), project=self._get_project())
       elif isinstance(self.table_reference, vp.ValueProvider):
         # Size estimation is best effort. We return None as we have
         # no access to the table that we're querying.
@@ -1312,10 +1312,11 @@ class BigQueryWriteFn(DoFn):
           skip_invalid_rows=True)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
-      failed_rows = [rows[entry.index] for entry in errors]
+      failed_rows = [rows[entry['index']] for entry in errors]
       should_retry = any(
           RetryStrategy.should_retry(
-              self._retry_strategy, entry.errors[0].reason) for entry in errors)
+              self._retry_strategy, entry['errors'][0]['reason'])
+          for entry in errors)
       if not passed:
         self.failed_rows_metric.update(len(failed_rows))
         message = (
@@ -1592,7 +1593,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         with additional parameters to pass to BQ when creating / loading data
         into a table. These can be 'timePartitioning', 'clustering', etc. They
         are passed directly to the job load configuration. See
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
       table_side_inputs (tuple): A tuple with ``AsSideInput`` PCollections to be
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
@@ -1898,7 +1899,8 @@ class ReadFromBigQuery(PTransform):
       To learn more about type conversions between BigQuery and Avro, see:
       https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
               #avro_conversions
-    temp_dataset (``google.cloud.bigquery.dataset.DatasetReference``):
+    temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.\
+DatasetReference``):
         The dataset in which to create temporary tables when performing file
         loads. By default, a new dataset is created in the execution project for
         temporary tables.
@@ -2084,5 +2086,5 @@ class ReadAllFromBigQuery(PTransform):
 
     return (
         sources_to_read
-        | SDFBoundedSourceReader()
+        | SDFBoundedSourceReader(data_to_display=self.display_data())
         | _PassThroughThenCleanup(beam.pvalue.AsIter(cleanup_locations)))

@@ -134,8 +134,8 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
@@ -1142,8 +1142,11 @@ public class StreamingDataflowWorker {
 
     @Override
     public String toString() {
-      return String.format(
-          "%016x-%s", shardingKey(), TextFormat.escapeBytes(key().substring(0, 100)));
+      ByteString keyToDisplay = key();
+      if (keyToDisplay.size() > 100) {
+        keyToDisplay = keyToDisplay.substring(0, 100);
+      }
+      return String.format("%016x-%s", shardingKey(), TextFormat.escapeBytes(keyToDisplay));
     }
   }
 
@@ -2326,7 +2329,7 @@ public class StreamingDataflowWorker {
           if (work.getState() == State.COMMITTING
               && work.getStateStartTime().isBefore(stuckCommitDeadline)) {
             LOG.error(
-                "Detected key with sharding key 0x{} stuck in COMMITTING state since {}, completing it with error.",
+                "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
                 shardedKey,
                 work.getStateStartTime());
             stuckCommits.put(shardedKey, work.getWorkItem().getWorkToken());

@@ -1530,7 +1530,8 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
       try {
         cancelPendingTimerById(getContextTimerId(timerId, namespace));
       } catch (Exception e) {
@@ -1545,6 +1546,7 @@ public class DoFnOperator<InputT, OutputT>
       deleteTimer(
           timer.getNamespace(),
           constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
+          timer.getTimerFamilyId(),
           timer.getDomain());
     }
 

@@ -26,7 +26,6 @@ import java.util.Map.Entry;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -41,17 +40,16 @@ public class ReplacementOutputs {
   private ReplacementOutputs() {}
 
   public static Map<PCollection<?>, ReplacementOutput> singleton(
-      Map<TupleTag<?>, PCollection<?>> original, PValue replacement) {
+      Map<TupleTag<?>, PCollection<?>> original, POutput replacement) {
     Entry<TupleTag<?>, PCollection<?>> originalElement =
         Iterables.getOnlyElement(original.entrySet());
-    TupleTag<?> replacementTag = Iterables.getOnlyElement(replacement.expand().entrySet()).getKey();
-    PCollection<?> replacementCollection =
-        (PCollection<?>) Iterables.getOnlyElement(replacement.expand().entrySet()).getValue();
+    Entry<TupleTag<?>, PCollection<?>> replacementElement =
+        Iterables.getOnlyElement(PValues.expandOutput(replacement).entrySet());
     return Collections.singletonMap(
-        replacementCollection,
+        replacementElement.getValue(),
         ReplacementOutput.of(
             TaggedPValue.of(originalElement.getKey(), originalElement.getValue()),
-            TaggedPValue.of(replacementTag, replacementCollection)));
+            TaggedPValue.of(replacementElement.getKey(), replacementElement.getValue())));
   }
 
   public static Map<PCollection<?>, ReplacementOutput> tagged(

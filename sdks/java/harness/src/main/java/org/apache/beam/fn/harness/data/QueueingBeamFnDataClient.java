@@ -19,7 +19,8 @@ package org.apache.beam.fn.harness.data;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
@@ -30,7 +31,7 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -55,11 +56,11 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
             },
             new Object());
 
-    private final LinkedBlockingQueue<ConsumerAndData<?>> queue;
+    private final BlockingQueue<ConsumerAndData<?>> queue;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     ClosableQueue(int queueSize) {
-      this.queue = new LinkedBlockingQueue<ConsumerAndData<?>>(queueSize);
+      this.queue = new ArrayBlockingQueue<>(queueSize);
     }
 
     // Closes the queue indicating that no additional elements will be added. May be called

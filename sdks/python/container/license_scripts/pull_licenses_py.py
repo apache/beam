@@ -30,10 +30,9 @@ import tempfile
 import traceback
 import yaml
 
-from future.moves.urllib.request import urlopen
-from future.moves.urllib.parse import urlparse
-from future.moves.urllib.parse import urljoin
-
+from urllib.request import urlopen
+from urllib.parse import urlparse
+from urllib.parse import urljoin
 from tenacity import retry
 from tenacity import stop_after_attempt
 from tenacity import wait_exponential

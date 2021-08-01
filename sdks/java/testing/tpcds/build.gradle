@@ -92,7 +92,7 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Ptpcds.runner
-//       Specify a runner subproject, such as ":runners:spark:2" or ":runners:flink:1.10"
+//       Specify a runner subproject, such as ":runners:spark:2" or ":runners:flink:1.13"
 //       Defaults to ":runners:direct-java"
 //
 //   -Ptpcds.args

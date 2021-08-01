@@ -33,7 +33,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.junit.Test;
@@ -162,7 +162,7 @@ public class StateFetchingIteratorsTest {
       Iterator<T> valuesIter = values.iterator();
       assertEquals(0, callCount.get());
 
-      // No more is read than necissary.
+      // No more is read than necessary.
       if (valuesIter.hasNext()) {
         valuesIter.next();
       }
@@ -175,6 +175,13 @@ public class StateFetchingIteratorsTest {
         valuesIter2.next();
       }
       assertEquals(1, callCount.get());
+
+      if (valuesIter.hasNext()) {
+        valuesIter.next();
+        // Subsequent pages are pre-fetched, so after accessing the second page,
+        // the third should be requested.
+        assertEquals(3, callCount.get());
+      }
 
       // The contents agree.
       assertArrayEquals(expected, Iterables.toArray(values, Object.class));

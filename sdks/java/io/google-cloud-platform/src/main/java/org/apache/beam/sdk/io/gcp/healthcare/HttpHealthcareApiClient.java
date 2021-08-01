@@ -100,7 +100,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class HttpHealthcareApiClient implements HealthcareApiClient, Serializable {
-
   private static final String USER_AGENT =
       String.format(
           "apache-beam-io-google-cloud-platform-healthcare/%s",
@@ -108,7 +107,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   private static final String FHIRSTORE_HEADER_CONTENT_TYPE = "application/fhir+json";
   private static final String FHIRSTORE_HEADER_ACCEPT = "application/fhir+json; charset=utf-8";
   private static final String FHIRSTORE_HEADER_ACCEPT_CHARSET = "utf-8";
-  private static final String FHIRSTORE_PATCH_CONTENT_TYPE = "application/json-patch+json";
   private static final Logger LOG = LoggerFactory.getLogger(HttpHealthcareApiClient.class);
   private transient CloudHealthcare client;
   private transient HttpClient httpClient;
@@ -596,61 +594,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     return responseModel;
   }
 
-  @Override
-  public HttpBody patchFhirResource(
-      String resourceName, String patch, @Nullable Map<String, String> query)
-      throws IOException, HealthcareHttpException {
-    if (httpClient == null || client == null) {
-      initClient();
-    }
-
-    credentials.refreshIfExpired();
-    StringEntity requestEntity = new StringEntity(patch, ContentType.APPLICATION_JSON);
-    URI uri;
-    try {
-      URIBuilder uriBuilder = new URIBuilder(client.getRootUrl() + "v1beta1/" + resourceName);
-      if (query != null) {
-        for (Map.Entry<String, String> q : query.entrySet()) {
-          uriBuilder.addParameter(q.getKey(), q.getValue());
-        }
-      }
-      uri = uriBuilder.build();
-    } catch (URISyntaxException e) {
-      LOG.error("URL error when making patch request to FHIR API. " + e.getMessage());
-      throw new IllegalArgumentException(e);
-    }
-
-    RequestBuilder requestBuilder =
-        RequestBuilder.patch()
-            .setUri(uri)
-            .setEntity(requestEntity)
-            .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
-            .addHeader("User-Agent", USER_AGENT)
-            .addHeader("Content-Type", FHIRSTORE_PATCH_CONTENT_TYPE)
-            .addHeader("Accept", FHIRSTORE_HEADER_ACCEPT)
-            .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET);
-
-    HttpUriRequest request = requestBuilder.build();
-    HttpResponse response = httpClient.execute(request);
-    HttpEntity responseEntity = response.getEntity();
-    String content = EntityUtils.toString(responseEntity);
-
-    // Check 2XX code.
-    int statusCode = response.getStatusLine().getStatusCode();
-    if (!(statusCode / 100 == 2)) {
-      throw HealthcareHttpException.of(statusCode, content);
-    }
-    HttpBody responseModel = new HttpBody();
-    responseModel.setData(content);
-    return responseModel;
-  }
-
   /**
    * Wraps {@link HttpResponse} in an exception with a statusCode field for use with {@link
    * HealthcareIOError}.
    */
   public static class HealthcareHttpException extends Exception {
-
     private final int statusCode;
 
     private HealthcareHttpException(int statusCode, String message) {
@@ -682,15 +630,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody readFhirResource(String resourceName) throws IOException {
-    return client
-        .projects()
-        .locations()
-        .datasets()
-        .fhirStores()
-        .fhir()
-        .read(resourceName)
-        .execute();
+  public HttpBody readFhirResource(String resourceId) throws IOException {
+    return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
   }
 
   @Override

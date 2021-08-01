@@ -35,11 +35,10 @@ dependencies {
   compile project(":runners:java-fn-execution")
   compile project(":runners:java-job-service")
   compile project(path: ":sdks:java:harness", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_grpc_1_36_0
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile "org.hamcrest:hamcrest:2.1"
-  compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(path: ":model:job-management:", configuration: "shadow")
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(":runners:core-construction-java")

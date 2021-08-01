@@ -65,16 +65,10 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import copy
 import logging
 import typing
-from builtins import next
-from builtins import zip
-
-from future.utils import with_metaclass
 
 __all__ = [
     'Any',
@@ -324,6 +318,19 @@ class CompositeTypeHint(object):
     raise NotImplementedError
 
 
+def is_typing_generic(type_param):
+  """Determines if an object is a subscripted typing.Generic type, such as
+  PCollection[int].
+
+  Such objects are considered valid type parameters.
+
+  Always returns false for Python versions below 3.7.
+  """
+  if hasattr(typing, '_GenericAlias'):
+    return isinstance(type_param, typing._GenericAlias)
+  return False
+
+
 def validate_composite_type_param(type_param, error_msg_prefix):
   """Determines if an object is a valid type parameter to a
   :class:`CompositeTypeHint`.
@@ -344,6 +351,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   # Must either be a TypeConstraint instance or a basic Python type.
   possible_classes = [type, TypeConstraint]
   is_not_type_constraint = (
+      not is_typing_generic(type_param) and
       not isinstance(type_param, tuple(possible_classes)) and
       type_param is not None and
       getattr(type_param, '__module__', None) != 'typing')
@@ -357,6 +365,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
         (error_msg_prefix, type_param, type_param.__class__.__name__))
 
 
+# TODO(BEAM-12469): Remove this function and use plain repr() instead.
 def _unified_repr(o):
   """Given an object return a qualified name for the object.
 
@@ -370,7 +379,10 @@ def _unified_repr(o):
   Returns:
     A qualified name for the passed Python object fit for string formatting.
   """
-  return repr(o) if isinstance(o, (TypeConstraint, type(None))) else o.__name__
+  if isinstance(o, (TypeConstraint, type(None))) or not hasattr(o, '__name__'):
+    return repr(o)
+  else:
+    return o.__name__
 
 
 def check_constraint(type_constraint, object_instance):
@@ -1038,8 +1050,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint)
-                             ):  # type: ignore[misc]
+class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.
@@ -1095,9 +1106,9 @@ class GeneratorHint(IteratorHint):
   def __getitem__(self, type_params):
     if isinstance(type_params, tuple) and len(type_params) == 3:
       yield_type, send_type, return_type = type_params
-      if send_type is not None:
+      if send_type is not type(None):
         _LOGGER.warning('Ignoring send_type hint: %s' % send_type)
-      if return_type is not None:
+      if return_type is not type(None):
         _LOGGER.warning('Ignoring return_type hint: %s' % return_type)
     else:
       yield_type = type_params

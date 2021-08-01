@@ -26,10 +26,10 @@ import time
 import unittest
 
 import mock
+import pytest
 from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 from hamcrest.core.core.is_ import is_
-from nose.plugins.attrib import attr
 from parameterized import param
 from parameterized import parameterized
 
@@ -41,6 +41,7 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
@@ -648,8 +649,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         with_auto_sharding=with_auto_sharding)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    test_options.view_as(StandardOptions).streaming = is_streaming
     with TestPipeline(runner='BundleBasedDirectRunner',
-                      options=StandardOptions(streaming=is_streaming)) as p:
+                      options=test_options) as p:
       if is_streaming:
         _SIZE = len(_ELEMENTS)
         fisrt_batch = [
@@ -741,7 +744,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
@@ -821,7 +824,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
               max_file_size=20,
               max_files_per_bundle=-1))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_bqfl_streaming(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
@@ -837,7 +840,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(state_matcher, bq_matcher), streaming=True)
+        on_success_matcher=all_of(state_matcher, bq_matcher),
+        streaming=True,
+        allow_unsafe_triggers=True)
     with beam.Pipeline(argv=args) as p:
       stream_source = (
           TestStream().advance_watermark_to(0).advance_processing_time(
@@ -857,7 +862,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                         .Method.FILE_LOADS,
                                       triggering_frequency=100))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_one_job_fails_all_jobs_fail(self):
 
     # If one of the import jobs fails, then other jobs must not be performed.

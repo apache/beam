@@ -19,17 +19,12 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import http.server
 import json
 import logging
 import os
 import re
 import sys
-import threading
 import traceback
-from builtins import object
 
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
@@ -43,44 +38,11 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
-from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class StatusServer(object):
-  def start(self, status_http_port=0):
-    """Executes the serving loop for the status server.
-
-    Args:
-      status_http_port(int): Binding port for the debug server.
-        Default is 0 which means any free unsecured port
-    """
-    class StatusHttpHandler(http.server.BaseHTTPRequestHandler):
-      """HTTP handler for serving stacktraces of all threads."""
-      def do_GET(self):  # pylint: disable=invalid-name
-        """Return all thread stacktraces information for GET request."""
-        self.send_response(200)
-        self.send_header('Content-Type', 'text/plain')
-        self.end_headers()
-
-        self.wfile.write(thread_dump().encode('utf-8'))
-
-      def log_message(self, f, *args):
-        """Do not log any messages."""
-        pass
-
-    self.httpd = httpd = http.server.HTTPServer(('localhost', status_http_port),
-                                                StatusHttpHandler)
-    _LOGGER.info(
-        'Status HTTP server running at %s:%s',
-        httpd.server_name,
-        httpd.server_port)
-
-    httpd.serve_forever()
 
 
 def create_harness(environment, dry_run=False):
@@ -123,6 +85,11 @@ def create_harness(environment, dry_run=False):
 
   try:
     _load_main_session(semi_persistent_directory)
+  except CorruptMainSessionException:
+    exception_details = traceback.format_exc()
+    _LOGGER.error(
+        'Could not load main session: %s', exception_details, exc_info=True)
+    raise
   except Exception:  # pylint: disable=broad-except
     exception_details = traceback.format_exc()
     _LOGGER.error(
@@ -154,15 +121,28 @@ def create_harness(environment, dry_run=False):
       profiler_factory=profiler.Profile.factory_from_options(
           sdk_pipeline_options.view_as(ProfilingOptions)),
       enable_heap_dump=enable_heap_dump)
-  return fn_log_handler, sdk_harness
+  return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
-  fn_log_handler, sdk_harness = create_harness(os.environ)
+  fn_log_handler, sdk_harness, sdk_pipeline_options = create_harness(os.environ)
+  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+  if 'enable_google_cloud_profiler' in experiments:
+    try:
+      import googlecloudprofiler
+      job_id = os.environ["JOB_ID"]
+      job_name = os.environ["JOB_NAME"]
+      if job_id and job_name:
+        googlecloudprofiler.start(
+            service=job_name, service_version=job_id, verbose=1)
+      else:
+        raise RuntimeError('Unable to find the job id or job name from envvar.')
+    except Exception as e:  # pylint: disable=broad-except
+      _LOGGER.warning(
+          'Unable to start google cloud profiler due to error: %s' % e)
   try:
     _LOGGER.info('Python sdk harness starting.')
-    _start_status_server()
     sdk_harness.run()
     _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
@@ -171,15 +151,6 @@ def main(unused_argv):
   finally:
     if fn_log_handler:
       fn_log_handler.close()
-
-
-def _start_status_server():
-  # Start status HTTP server thread.
-  thread = threading.Thread(
-      name='status_http_server', target=StatusServer().start)
-  thread.daemon = True
-  thread.setName('status-server-demon')
-  thread.start()
 
 
 def _load_pipeline_options(options_json):
@@ -245,12 +216,29 @@ def _get_data_buffer_time_limit_ms(experiments):
   return 0
 
 
+class CorruptMainSessionException(Exception):
+  """
+  Used to crash this worker if a main session file was provided but
+  is not valid.
+  """
+  pass
+
+
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
   if semi_persistent_directory:
     session_file = os.path.join(
         semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
     if os.path.isfile(session_file):
+      # If the expected session file is present but empty, it's likely that
+      # the user code run by this worker will likely crash at runtime.
+      # This can happen if the worker fails to download the main session.
+      # Raise a fatal error and crash this worker, forcing a restart.
+      if os.path.getsize(session_file) == 0:
+        raise CorruptMainSessionException(
+            'Session file found, but empty: %s. Functions defined in __main__ '
+            '(interactive session) will almost certainly fail.' %
+            (session_file, ))
       pickler.load_session(session_file)
     else:
       _LOGGER.warning(

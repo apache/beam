@@ -49,7 +49,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 * [Model export and on-worker serving using BQML and TFX_BSL](/documentation/patterns/bqml/#bigquery-ml-integration)
 
 **Cross-language patterns** - Patterns for creating cross-language pipelines
-* [](/documentation/patterns/cross-language/#cross-language-transforms)
+* [Cross-language patterns](/documentation/patterns/cross-language/#cross-language-transforms)
 
 **State & timers patterns** - Patterns for using state & timers
 * [Grouping elements for efficient external service calls](/documentation/patterns/grouping-elements-for-efficient-external-service-calls/#grouping-elements-for-efficient-external-service-calls-using-the-`GroupIntoBatches`-transform)

@@ -21,13 +21,8 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import logging
 import re
-from builtins import object
-
-from past.builtins import unicode
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -115,6 +110,8 @@ class PipelineOptionsValidator(object):
       'Option environment_config is incompatible with option(s) %s.')
   ERR_MISSING_REQUIRED_ENVIRONMENT_OPTION = (
       'Option %s is required for environment type %s.')
+  ERR_NUM_WORKERS_TOO_HIGH = (
+      'num_workers (%s) cannot exceed max_num_workers (%s)')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -220,8 +217,7 @@ class PipelineOptionsValidator(object):
             'Transform name mapping option is only useful when '
             '--update and --streaming is specified')
       for _, (key, value) in enumerate(view.transform_name_mapping.items()):
-        if not isinstance(key, (str, unicode)) \
-            or not isinstance(value, (str, unicode)):
+        if not isinstance(key, str) or not isinstance(value, str):
           errors.extend(
               self._validate_error(
                   self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
@@ -247,12 +243,28 @@ class PipelineOptionsValidator(object):
     elif view.worker_harness_container_image:
       # Warn about legacy flag and set new flag to value of old flag.
       _LOGGER.warning(
-          'Setting sdk_container_image to value of legacy flag'
+          'Setting sdk_container_image to value of legacy flag '
           'worker_harness_container_image.')
       view.sdk_container_image = view.worker_harness_container_image
     elif view.sdk_container_image:
       # Set legacy option to value of new option.
       view.worker_harness_container_image = view.sdk_container_image
+
+    return errors
+
+  def validate_num_workers(self, view):
+    """Validates that Dataflow worker number is valid."""
+    errors = self.validate_optional_argument_positive(view, 'num_workers')
+    errors.extend(
+        self.validate_optional_argument_positive(view, 'max_num_workers'))
+
+    num_workers = view.num_workers
+    max_num_workers = view.max_num_workers
+    if (num_workers is not None and max_num_workers is not None and
+        num_workers > max_num_workers):
+      errors.extend(
+          self._validate_error(
+              self.ERR_NUM_WORKERS_TOO_HIGH, num_workers, max_num_workers))
 
     return errors
 

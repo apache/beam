@@ -42,6 +42,13 @@ We also see how we can read from CSV files, read from a SQLite database, write f
 
 {{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/reading-and-writing-data.ipynb" >}}
 
+### Windowing
+
+In this notebook we go through how to aggregate data based on time intervals, or in streaming pipelines.
+We introduce the `GlobalWindow`, `FixedWindows`, `SlidingWindows`, and `Sessions`.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/windowing.ipynb" >}}
+
 ## Transforms
 
 Check the [Python transform catalog](/documentation/transforms/python/overview/)

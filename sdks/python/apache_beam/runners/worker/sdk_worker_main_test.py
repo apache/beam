@@ -19,10 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import logging
 import unittest
 
@@ -51,7 +47,6 @@ class SdkWorkerMainTest(unittest.TestCase):
           '--m_m_option', action='append', help='mock multi option')
 
   def test_status_server(self):
-
     # Wrapping the method to see if it appears in threadump
     def wrapped_method_for_test():
       threaddump = worker_status.thread_dump()

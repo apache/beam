@@ -23,7 +23,6 @@ import warnings
 import pandas as pd
 
 import apache_beam as beam
-from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import background_caching_job as bcj
@@ -64,6 +63,13 @@ class ElementStream:
 
     """Returns the variable named that defined this PCollection."""
     return self._var
+
+  @property
+  def pcoll(self):
+    # type: () -> beam.pvalue.PCollection
+
+    """Returns the PCollection that supplies this stream with data."""
+    return self._pcoll
 
   @property
   def cache_key(self):
@@ -296,8 +302,14 @@ class RecordingManager:
           watched_pcollections.add(val)
         elif isinstance(val, DeferredBase):
           watched_dataframes.add(val)
-    # Convert them all in a single step for efficiency.
-    for pcoll in to_pcollection(*watched_dataframes, always_return_tuple=True):
+
+    # Convert them one-by-one to generate a unique label for each. This allows
+    # caching at a more fine-grained granularity.
+    #
+    # TODO(BEAM-12388): investigate the mixing pcollections in multiple
+    # pipelines error when using the default label.
+    for df in watched_dataframes:
+      pcoll, _ = utils.deferred_df_to_pcollection(df)
       watched_pcollections.add(pcoll)
     for pcoll in pcolls:
       if pcoll not in watched_pcollections:

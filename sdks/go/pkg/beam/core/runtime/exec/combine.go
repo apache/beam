@@ -286,8 +286,17 @@ func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, 
 
 func (n *Combine) fail(err error) error {
 	n.status = Broken
-	n.err.TrySetError(err)
-	return err
+	if err2, ok := err.(*doFnError); ok {
+		return err2
+	}
+	combineError := &doFnError{
+		doFn: n.Fn.Name(),
+		err:  err,
+		uid:  n.UID,
+		pid:  n.PID,
+	}
+	n.err.TrySetError(combineError)
+	return combineError
 }
 
 func (n *Combine) String() string {
@@ -303,7 +312,8 @@ func (n *Combine) String() string {
 // FinishBundle step.
 type LiftedCombine struct {
 	*Combine
-	KeyCoder *coder.Coder
+	KeyCoder    *coder.Coder
+	WindowCoder *coder.WindowCoder
 
 	keyHash elementHasher
 	cache   map[uint64]FullValue
@@ -318,7 +328,7 @@ func (n *LiftedCombine) Up(ctx context.Context) error {
 	if err := n.Combine.Up(ctx); err != nil {
 		return err
 	}
-	n.keyHash = makeElementHasher(n.KeyCoder)
+	n.keyHash = makeElementHasher(n.KeyCoder, n.WindowCoder)
 	return nil
 }
 
@@ -338,8 +348,19 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 	if n.status != Active {
 		return errors.Errorf("invalid status for precombine %v: %v", n.UID, n.status)
 	}
+	// The cache layer in lifted combines implicitly observes windows. Process each individually.
+	for _, w := range value.Windows {
+		err := n.processElementPerWindow(ctx, value, w)
+		if err != nil {
+			return n.fail(err)
+		}
+	}
+	return nil
+}
 
-	key, err := n.keyHash.Hash(value.Elm)
+func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *FullValue, w typex.Window) error {
+	// In lifted combines, the window is always observed, so it's included in the hash key.
+	key, err := n.keyHash.Hash(value.Elm, w)
 	if err != nil {
 		return n.fail(err)
 	}
@@ -392,7 +413,7 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 	}
 
 	// Cache the accumulator with the key
-	n.cache[key] = FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
+	n.cache[key] = FullValue{Windows: []typex.Window{w}, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
 
 	return nil
 }

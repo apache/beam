@@ -30,7 +30,6 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -90,7 +89,6 @@ import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -99,7 +97,6 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -111,7 +108,6 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
-import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -120,8 +116,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
@@ -140,21 +134,20 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValues;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -1628,42 +1621,38 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testGetContainerImageForJobFromOptionWithPlaceholder() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    // When image option contains placeholder, container image should
-    // have placeholder replaced with default image for job.
     options.setSdkContainerImage("gcr.io/IMAGE/foo");
 
-    // batch, legacy
-    options.setExperiments(null);
-    options.setStreaming(false);
-    System.setProperty("java.specification.version", "1.8");
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-batch/foo"));
-    // batch, legacy, jdk11
-    options.setStreaming(false);
-    System.setProperty("java.specification.version", "11");
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java11-batch/foo"));
-    // streaming, legacy
-    System.setProperty("java.specification.version", "1.8");
-    options.setStreaming(true);
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-streaming/foo"));
-    // streaming, legacy, jdk11
-    System.setProperty("java.specification.version", "11");
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java11-streaming/foo"));
-    // streaming, fnapi
-    options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
-  }
+    for (Environments.JavaVersion javaVersion : Environments.JavaVersion.values()) {
+      System.setProperty("java.specification.version", javaVersion.specification());
+      // batch legacy
+      options.setExperiments(null);
+      options.setStreaming(false);
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(String.format("gcr.io/beam-%s-batch/foo", javaVersion.legacyName())));
 
-  @Test
-  public void testStreamingWriteWithNoShardingReturnsNewTransform() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.as(DataflowPipelineWorkerPoolOptions.class).setMaxNumWorkers(10);
-    testStreamingWriteOverride(options, 20);
-  }
+      // streaming, legacy
+      options.setExperiments(null);
+      options.setStreaming(true);
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(String.format("gcr.io/beam-%s-streaming/foo", javaVersion.legacyName())));
 
-  @Test
-  public void testStreamingWriteWithNoShardingReturnsNewTransformMaxWorkersUnset() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    testStreamingWriteOverride(options, StreamingShardedWriteFactory.DEFAULT_NUM_SHARDS);
+      // batch, FnAPI
+      options.setExperiments(ImmutableList.of("beam_fn_api"));
+      options.setStreaming(false);
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
+
+      // streaming, FnAPI
+      options.setExperiments(ImmutableList.of("beam_fn_api"));
+      options.setStreaming(true);
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
+    }
   }
 
   private void verifyMergingStatefulParDoRejected(PipelineOptions options) throws Exception {
@@ -1700,19 +1689,21 @@ public class DataflowRunnerTest implements Serializable {
     verifyMergingStatefulParDoRejected(options);
   }
 
-  private void verifyGroupIntoBatchesOverride(
+  private void verifyGroupIntoBatchesOverrideCount(
       Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
     final int batchSize = 2;
     List<KV<String, Integer>> testValues =
         Arrays.asList(KV.of("A", 1), KV.of("B", 0), KV.of("A", 2), KV.of("A", 4), KV.of("A", 8));
-    PCollection<KV<String, Integer>> input = p.apply(Create.of(testValues));
+    PCollection<KV<String, Integer>> input = p.apply("CreateValuesCount", Create.of(testValues));
     PCollection<KV<String, Iterable<Integer>>> output;
     if (withShardedKey) {
       output =
           input
-              .apply(GroupIntoBatches.<String, Integer>ofSize(batchSize).withShardedKey())
               .apply(
-                  "StripShardId",
+                  "GroupIntoBatchesCount",
+                  GroupIntoBatches.<String, Integer>ofSize(batchSize).withShardedKey())
+              .apply(
+                  "StripShardIdCount",
                   MapElements.via(
                       new SimpleFunction<
                           KV<ShardedKey<String>, Iterable<Integer>>,
@@ -1724,28 +1715,99 @@ public class DataflowRunnerTest implements Serializable {
                         }
                       }));
     } else {
-      output = input.apply(GroupIntoBatches.ofSize(batchSize));
+      output = input.apply("GroupIntoBatchesCount", GroupIntoBatches.ofSize(batchSize));
     }
     PAssert.thatMultimap(output)
         .satisfies(
-            new SerializableFunction<Map<String, Iterable<Iterable<Integer>>>, Void>() {
-              @Override
-              public Void apply(Map<String, Iterable<Iterable<Integer>>> input) {
-                assertEquals(2, input.size());
-                assertThat(input.keySet(), containsInAnyOrder("A", "B"));
-                Map<String, Integer> sums = new HashMap<>();
-                for (Map.Entry<String, Iterable<Iterable<Integer>>> entry : input.entrySet()) {
-                  for (Iterable<Integer> batch : entry.getValue()) {
-                    assertThat(Iterables.size(batch), lessThanOrEqualTo(batchSize));
-                    for (Integer value : batch) {
-                      sums.put(entry.getKey(), value + sums.getOrDefault(entry.getKey(), 0));
-                    }
+            i -> {
+              assertEquals(2, i.size());
+              assertThat(i.keySet(), containsInAnyOrder("A", "B"));
+              Map<String, Integer> sums = new HashMap<>();
+              for (Map.Entry<String, Iterable<Iterable<Integer>>> entry : i.entrySet()) {
+                for (Iterable<Integer> batch : entry.getValue()) {
+                  assertThat(Iterables.size(batch), lessThanOrEqualTo(batchSize));
+                  for (Integer value : batch) {
+                    sums.put(entry.getKey(), value + sums.getOrDefault(entry.getKey(), 0));
                   }
                 }
-                assertEquals(15, (int) sums.get("A"));
-                assertEquals(0, (int) sums.get("B"));
-                return null;
               }
+              assertEquals(15, (int) sums.get("A"));
+              assertEquals(0, (int) sums.get("B"));
+              return null;
+            });
+    p.run();
+
+    AtomicBoolean sawGroupIntoBatchesOverride = new AtomicBoolean(false);
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform() instanceof GroupIntoBatchesOverride.BatchGroupIntoBatches) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.BatchGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    if (expectOverriden) {
+      assertTrue(sawGroupIntoBatchesOverride.get());
+    } else {
+      assertFalse(sawGroupIntoBatchesOverride.get());
+    }
+  }
+
+  private void verifyGroupIntoBatchesOverrideBytes(
+      Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
+    final long batchSizeBytes = 2;
+    List<KV<String, String>> testValues =
+        Arrays.asList(
+            KV.of("A", "a"),
+            KV.of("A", "ab"),
+            KV.of("A", "abc"),
+            KV.of("A", "abcd"),
+            KV.of("A", "abcde"));
+    PCollection<KV<String, String>> input = p.apply("CreateValuesBytes", Create.of(testValues));
+    PCollection<KV<String, Iterable<String>>> output;
+    if (withShardedKey) {
+      output =
+          input
+              .apply(
+                  "GroupIntoBatchesBytes",
+                  GroupIntoBatches.<String, String>ofByteSize(batchSizeBytes).withShardedKey())
+              .apply(
+                  "StripShardIdBytes",
+                  MapElements.via(
+                      new SimpleFunction<
+                          KV<ShardedKey<String>, Iterable<String>>,
+                          KV<String, Iterable<String>>>() {
+                        @Override
+                        public KV<String, Iterable<String>> apply(
+                            KV<ShardedKey<String>, Iterable<String>> input) {
+                          return KV.of(input.getKey().getKey(), input.getValue());
+                        }
+                      }));
+    } else {
+      output = input.apply("GroupIntoBatchesBytes", GroupIntoBatches.ofByteSize(batchSizeBytes));
+    }
+    PAssert.thatMultimap(output)
+        .satisfies(
+            i -> {
+              assertEquals(1, i.size());
+              assertThat(i.keySet(), containsInAnyOrder("A"));
+              Iterable<Iterable<String>> batches = i.get("A");
+              assertEquals(5, Iterables.size(batches));
+              return null;
             });
     p.run();
 
@@ -1781,29 +1843,52 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testBatchGroupIntoBatchesOverride() {
+  public void testBatchGroupIntoBatchesOverrideCount() {
     // Ignore this test for streaming pipelines.
     assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
-    verifyGroupIntoBatchesOverride(pipeline, false, true);
+    verifyGroupIntoBatchesOverrideCount(pipeline, false, true);
   }
 
   @Test
-  public void testBatchGroupIntoBatchesWithShardedKeyOverride() throws IOException {
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testBatchGroupIntoBatchesOverrideBytes() {
+    // Ignore this test for streaming pipelines.
+    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
+    verifyGroupIntoBatchesOverrideBytes(pipeline, false, true);
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyOverrideCount() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     Pipeline p = Pipeline.create(options);
-    verifyGroupIntoBatchesOverride(p, true, true);
+    verifyGroupIntoBatchesOverrideCount(p, true, true);
   }
 
   @Test
-  public void testStreamingGroupIntoBatchesOverride() throws IOException {
+  public void testBatchGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, true, true);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesOverrideCount() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     options.as(StreamingOptions.class).setStreaming(true);
     Pipeline p = Pipeline.create(options);
-    verifyGroupIntoBatchesOverride(p, false, false);
+    verifyGroupIntoBatchesOverrideCount(p, false, false);
   }
 
   @Test
-  public void testStreamingGroupIntoBatchesWithShardedKeyOverride() throws IOException {
+  public void testStreamingGroupIntoBatchesOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, false, false);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyOverrideCount() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     List<String> experiments =
         new ArrayList<>(
@@ -1815,43 +1900,86 @@ public class DataflowRunnerTest implements Serializable {
     dataflowOptions.setExperiments(experiments);
     dataflowOptions.setStreaming(true);
     Pipeline p = Pipeline.create(options);
-    verifyGroupIntoBatchesOverride(p, true, true);
+    verifyGroupIntoBatchesOverrideCount(p, true, true);
   }
 
-  private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
-    TestPipeline p = TestPipeline.fromOptions(options);
-
-    StreamingShardedWriteFactory<Object, Void, Object> factory =
-        new StreamingShardedWriteFactory<>(p.getOptions());
-    WriteFiles<Object, Void, Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
-    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
-    AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
-        originalApplication =
-            AppliedPTransform.of(
-                "writefiles",
-                PValues.expandInput(objs),
-                Collections.emptyMap(),
-                original,
-                ResourceHints.create(),
-                p);
-
-    WriteFiles<Object, Void, Object> replacement =
-        (WriteFiles<Object, Void, Object>)
-            factory.getReplacementTransform(originalApplication).getTransform();
-    assertThat(replacement, not(equalTo((Object) original)));
-    assertThat(replacement.getNumShardsProvider().get(), equalTo(expectedNumShards));
-
-    WriteFilesResult<Void> originalResult = objs.apply(original);
-    WriteFilesResult<Void> replacementResult = objs.apply(replacement);
-    Map<PCollection<?>, ReplacementOutput> res =
-        factory.mapOutputs(PValues.expandOutput(originalResult), replacementResult);
-    assertEquals(1, res.size());
-    assertEquals(
-        originalResult.getPerDestinationOutputFilenames(),
-        res.get(replacementResult.getPerDestinationOutputFilenames()).getOriginal().getValue());
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setExperiments(experiments);
+    dataflowOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideBytes(p, true, true);
   }
 
-  private static class TestSink extends FileBasedSink<Object, Void, Object> {
+  @Test
+  public void testStreamingWriteWithRunnerDeterminedSharding() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    ExperimentalOptions.addExperiment(dataflowOptions, "enable_streaming_engine");
+    Pipeline p = Pipeline.create(options);
+    testStreamingWriteFilesOverride(p, 0);
+  }
+
+  @Test
+  public void testStreamingWriteWithFixedNumShards() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    ExperimentalOptions.addExperiment(dataflowOptions, "enable_streaming_engine");
+    Pipeline p = Pipeline.create(options);
+    testStreamingWriteFilesOverride(p, 10);
+  }
+
+  private void testStreamingWriteFilesOverride(Pipeline p, int numFileShards) {
+    List<String> testValues = Arrays.asList("A", "C", "123", "foo");
+    PCollection<String> input = p.apply(Create.of(testValues));
+    WriteFiles<String, Void, String> write =
+        WriteFiles.<String, Void, String>to(new TestSink<>(tmpFolder.toString()))
+            .withWindowedWrites();
+    boolean withRunnerDeterminedSharding = numFileShards == 0;
+    if (withRunnerDeterminedSharding) {
+      write = write.withRunnerDeterminedSharding();
+    } else {
+      write = write.withNumShards(numFileShards);
+    }
+    input.setIsBoundedInternal(IsBounded.UNBOUNDED);
+    input.apply(Window.into(FixedWindows.of(Duration.standardSeconds(10)))).apply(write);
+    p.run();
+
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!(node.getTransform() instanceof WriteFiles)) {
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()) {
+              if (withRunnerDeterminedSharding) {
+                assertThat(
+                    ((WriteFiles) node.getTransform()).getNumShardsProvider(), equalTo(null));
+              } else {
+                assertThat(
+                    ((WriteFiles) node.getTransform()).getNumShardsProvider().get(),
+                    equalTo(numFileShards));
+              }
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+  }
+
+  private static class TestSink<UserT, OutputT> extends FileBasedSink<UserT, Void, OutputT> {
 
     @Override
     public void validate(PipelineOptions options) {}
@@ -1881,10 +2009,10 @@ public class DataflowRunnerTest implements Serializable {
     }
 
     @Override
-    public WriteOperation<Void, Object> createWriteOperation() {
-      return new WriteOperation<Void, Object>(this) {
+    public WriteOperation<Void, OutputT> createWriteOperation() {
+      return new WriteOperation<Void, OutputT>(this) {
         @Override
-        public Writer<Void, Object> createWriter() {
+        public Writer<Void, OutputT> createWriter() {
           throw new UnsupportedOperationException();
         }
       };
