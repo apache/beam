@@ -972,6 +972,24 @@ class RunnerApiTest(unittest.TestCase):
     for transform_id in runner_api_proto.components.transforms:
       self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
 
+  def test_input_names(self):
+    class MyPTransform(beam.PTransform):
+      def expand(self, pcolls):
+        return pcolls.values() | beam.Flatten()
+
+    p = beam.Pipeline()
+    input_names = set('ABC')
+    inputs = {x: p | x >> beam.Create([x]) for x in input_names}
+    inputs | MyPTransform()  # pylint: disable=expression-not-assigned
+    runner_api_proto = Pipeline.to_runner_api(p)
+
+    for transform_proto in runner_api_proto.components.transforms.values():
+      if transform_proto.unique_name == 'MyPTransform':
+        self.assertEqual(set(transform_proto.inputs.keys()), input_names)
+        break
+    else:
+      self.fail('Unable to find transform.')
+
   def test_display_data(self):
     class MyParentTransform(beam.PTransform):
       def expand(self, p):

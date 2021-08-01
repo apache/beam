@@ -69,6 +69,7 @@ class BigQueryResourceNaming {
 
   public enum JobType {
     LOAD,
+    TEMP_TABLE_LOAD,
     COPY,
     EXPORT,
     QUERY,
