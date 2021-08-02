@@ -17,19 +17,19 @@ package teststream
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 )
 
 func TestNewConfig(t *testing.T) {
 	con := NewConfig()
-	if con.elmCoder != nil {
-		t.Fatalf("coder is not correct, expected nil, got %v", con.elmCoder.Kind)
+	if con.elmType != nil {
+		t.Errorf("type is not correct, expected nil, got %v", con.elmType)
 	}
 	if len(con.events) != 0 {
-		t.Fatalf("config has too many elements, expected 0, got %v", len(con.events))
+		t.Errorf("config has too many elements, expected 0, got %v", len(con.events))
 	}
 	if con.endpoint.Url != "" {
 		t.Errorf("config has URL endpoint when it should be empty")
@@ -43,7 +43,7 @@ func TestAdvanceWatermark(t *testing.T) {
 		t.Errorf("default watermark expected 500, got %v", w)
 	}
 	if len(con.events) != 1 {
-		t.Errorf("expected only 1 event in config, got %v", len(con.events))
+		t.Fatalf("expected only 1 event in config, got %v", len(con.events))
 	}
 	if eventWatermark := con.events[0].GetWatermarkEvent().NewWatermark; eventWatermark != 500 {
 		t.Errorf("expected watermark in event was 500, got %v", eventWatermark)
@@ -76,37 +76,32 @@ func TestAddElements(t *testing.T) {
 	tests := []struct {
 		name          string
 		elementGroups [][]interface{}
-		elementCoder  *coder.Coder
 	}{
 		{
 			"bools",
 			[][]interface{}{{true, false}},
-			coder.NewBool(),
 		},
 		{
 			"multiple bools",
 			[][]interface{}{{true, false}, {true, false}},
-			coder.NewBool(),
 		},
 		{
 			"strings",
 			[][]interface{}{{"test", "other test"}},
-			coder.NewString(),
 		},
 		{
 			"doubles",
 			[][]interface{}{{1.1, 2.2, 3.3}},
-			coder.NewDouble(),
 		},
 	}
 	for _, tc := range tests {
 		con := NewConfig()
-		dec := beam.NewElementDecoder(tc.elementCoder.T.Type())
 		for i, elements := range tc.elementGroups {
 			if err := con.AddElements(100, elements...); err != nil {
 				t.Fatalf("%v failed to add elements to config, got %v", tc.name, err)
 			}
 			for j, event := range con.events[i].GetElementEvent().GetElements() {
+				dec := beam.NewElementDecoder(reflect.TypeOf(elements[j]))
 				buf := bytes.NewReader(event.GetEncodedElement())
 				val, err := dec.Decode(buf)
 				if err != nil {

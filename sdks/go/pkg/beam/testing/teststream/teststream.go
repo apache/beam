@@ -27,8 +27,8 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
@@ -38,7 +38,7 @@ const urn = "beam:transform:teststream:v1"
 
 // Config holds information used to create a TestStreamPayload object.
 type Config struct {
-	elmCoder  *coder.Coder
+	elmType   typex.FullType
 	events    []*pipepb.TestStreamPayload_Event
 	endpoint  *pipepb.ApiServiceDescriptor
 	watermark int64
@@ -47,7 +47,7 @@ type Config struct {
 // NewConfig returns a Config to build a sequence of a test stream's events.
 // Requires that users provide the coder for the elements they are trying to emit.
 func NewConfig() Config {
-	return Config{elmCoder: nil,
+	return Config{elmType: nil,
 		events:    []*pipepb.TestStreamPayload_Event{},
 		endpoint:  &pipepb.ApiServiceDescriptor{},
 		watermark: 0,
@@ -101,28 +101,17 @@ func (c *Config) AdvanceProcessingTimeToInfinity() {
 // AddElements adds a number of elements to the stream at the specified event timestamp. Must be called with
 // at least one element.
 //
-// On the first call, a coder will be inferred from the passed in elements, which must be of all the same type.
+// On the first call, a type will be inferred from the passed in elements, which must be of all the same type.
 // Type mismatches on this or subsequent calls will cause AddElements to return an error.
 func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
-	if c.elmCoder == nil {
-		elmType := reflect.TypeOf(elements[0])
-		var newCoder *coder.Coder
-		switch elmType.Kind() {
-		case reflect.Bool:
-			newCoder = coder.NewBool()
-		case reflect.String:
-			newCoder = coder.NewString()
-		case reflect.Float32, reflect.Float64:
-			newCoder = coder.NewDouble()
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			newCoder = coder.NewVarInt()
-		default:
-			return fmt.Errorf("unsupported element type %v", elmType.Kind())
-		}
-		c.elmCoder = newCoder
+	t := reflect.TypeOf(elements[0])
+	if c.elmType == nil {
+		c.elmType = typex.New(t)
+	} else if c.elmType.Type() != t {
+		return fmt.Errorf("element type mismatch, previous additions were of type %v, tried to add type %v", c.elmType, t)
 	}
 	newElements := []*pipepb.TestStreamPayload_TimestampedElement{}
-	enc := beam.NewElementEncoder(c.elmCoder.T.Type())
+	enc := beam.NewElementEncoder(t)
 	for _, e := range elements {
 		var buf bytes.Buffer
 		if err := enc.Encode(e, &buf); err != nil {
@@ -141,14 +130,10 @@ func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 // pipeline.
 func Create(s beam.Scope, c Config) beam.PCollection {
 	pyld := protox.MustEncode(c.createPayload())
-	outputs := []beam.FullType{c.elmCoder.T}
+	outputs := []beam.FullType{c.elmType}
 
-	outputMap := beam.External(s, urn, pyld, []beam.PCollection{}, outputs, false)
+	output := beam.External(s, urn, pyld, []beam.PCollection{}, outputs, false)
 
-	var ret []beam.PCollection
-	for _, val := range outputMap {
-		ret = append(ret, val)
-	}
 	// This should only ever contain one PCollection.
-	return ret[0]
+	return output[0]
 }
