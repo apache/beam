@@ -1064,128 +1064,57 @@ public class FnApiDoFnRunnerTest implements Serializable {
           eventTimer, timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
       fakeTimerClient.sendTimer(
           eventTimer, timerInGlobalWindow("B", new Instant(1500L), new Instant(2500L)));
+      // This will be ignored since there are earlier timers, and the earlier timer will eventually
+      // push
+      // the timer past 1600L.
       fakeTimerClient.sendTimer(
           eventTimer, timerInGlobalWindow("A", new Instant(1600L), new Instant(2600L)));
+      // This will be ignored since the timer was already cleared in this bundle.
       fakeTimerClient.sendTimer(
           processingTimer, timerInGlobalWindow("X", new Instant(1700L), new Instant(2700L)));
       fakeTimerClient.sendTimer(
           processingTimer, timerInGlobalWindow("C", new Instant(1800L), new Instant(2800L)));
       fakeTimerClient.sendTimer(
-          processingTimer, timerInGlobalWindow("B", new Instant(1900L), new Instant(2900L)));
+          processingTimer, timerInGlobalWindow("B", new Instant(1500), new Instant(10032)));
       fakeTimerClient.sendTimer(
           eventFamilyTimer,
-          dynamicTimerInGlobalWindow("B", "event-timer2", new Instant(2000L), new Instant(3000L)));
+          dynamicTimerInGlobalWindow("B", "event-timer2", new Instant(2000L), new Instant(1650L)));
       fakeTimerClient.sendTimer(
           processingFamilyTimer,
           dynamicTimerInGlobalWindow(
               "Y", "processing-timer2", new Instant(2100L), new Instant(3100L)));
+
       assertThat(
           mainOutputValues,
           contains(
-              timestampedValueInGlobalWindow("mainX[X0]", new Instant(1000L)),
-              timestampedValueInGlobalWindow("mainY[]", new Instant(1100L)),
-              timestampedValueInGlobalWindow("mainX[X0, X1]", new Instant(1200L)),
-              timestampedValueInGlobalWindow("mainY[Y1]", new Instant(1300L)),
-              timestampedValueInGlobalWindow("event[A0]", new Instant(1400L)),
-              timestampedValueInGlobalWindow("event[]", new Instant(1500L)),
-              timestampedValueInGlobalWindow("event[A0, event]", new Instant(1600L)),
-              timestampedValueInGlobalWindow("processing[X0, X1, X2]", new Instant(1700L)),
-              timestampedValueInGlobalWindow("processing[C0]", new Instant(1800L)),
-              timestampedValueInGlobalWindow("processing[event]", new Instant(1900L)),
-              timestampedValueInGlobalWindow("event-family[event, processing]", new Instant(2000L)),
-              timestampedValueInGlobalWindow("processing-family[Y1, Y2]", new Instant(2100L))));
-      assertThat(
-          fakeTimerClient.getTimers(eventTimer),
-          contains(
-              timerInGlobalWindow("X", new Instant(1000L), new Instant(1001L)),
-              clearedTimerInGlobalWindow("X"),
-              timerInGlobalWindow("Y", new Instant(1100L), new Instant(1101L)),
-              clearedTimerInGlobalWindow("Y"),
-              timerInGlobalWindow("X", new Instant(1200L), new Instant(1201L)),
-              clearedTimerInGlobalWindow("X"),
-              timerInGlobalWindow("Y", new Instant(1300L), new Instant(1301L)),
-              clearedTimerInGlobalWindow("Y"),
-              timerInGlobalWindow("A", new Instant(1400L), new Instant(2411L)),
-              timerInGlobalWindow("B", new Instant(1500L), new Instant(2511L)),
-              timerInGlobalWindow("A", new Instant(1600L), new Instant(2611L)),
-              timerInGlobalWindow("X", new Instant(1700L), new Instant(1721L)),
-              timerInGlobalWindow("C", new Instant(1800L), new Instant(1821L)),
-              timerInGlobalWindow("B", new Instant(1900L), new Instant(1921L)),
-              timerInGlobalWindow("B", new Instant(2000L), new Instant(2031L)),
-              timerInGlobalWindow("Y", new Instant(2100L), new Instant(2141L))));
-      assertThat(
-          fakeTimerClient.getTimers(processingTimer),
-          contains(
-              timerInGlobalWindow("X", new Instant(1000L), new Instant(10002L)),
-              clearedTimerInGlobalWindow("X"),
-              timerInGlobalWindow("Y", new Instant(1100L), new Instant(10002L)),
-              clearedTimerInGlobalWindow("Y"),
-              timerInGlobalWindow("X", new Instant(1200L), new Instant(10002L)),
-              clearedTimerInGlobalWindow("X"),
-              timerInGlobalWindow("Y", new Instant(1300L), new Instant(10002L)),
-              clearedTimerInGlobalWindow("Y"),
-              timerInGlobalWindow("A", new Instant(1400L), new Instant(10012L)),
-              timerInGlobalWindow("B", new Instant(1500L), new Instant(10012L)),
-              timerInGlobalWindow("A", new Instant(1600L), new Instant(10012L)),
-              timerInGlobalWindow("X", new Instant(1700L), new Instant(10022L)),
-              timerInGlobalWindow("C", new Instant(1800L), new Instant(10022L)),
-              timerInGlobalWindow("B", new Instant(1900L), new Instant(10022L)),
-              timerInGlobalWindow("B", new Instant(2000L), new Instant(10032L)),
-              timerInGlobalWindow("Y", new Instant(2100L), new Instant(10042L))));
-      assertThat(
-          fakeTimerClient.getTimers(eventFamilyTimer),
-          contains(
-              dynamicTimerInGlobalWindow(
-                  "X", "event-timer1", new Instant(1000L), new Instant(1003L)),
-              dynamicTimerInGlobalWindow(
-                  "Y", "event-timer1", new Instant(1100L), new Instant(1103L)),
-              dynamicTimerInGlobalWindow(
-                  "X", "event-timer1", new Instant(1200L), new Instant(1203L)),
-              dynamicTimerInGlobalWindow(
-                  "Y", "event-timer1", new Instant(1300L), new Instant(1303L)),
-              dynamicTimerInGlobalWindow(
-                  "A", "event-timer1", new Instant(1400L), new Instant(2413L)),
-              dynamicTimerInGlobalWindow(
-                  "B", "event-timer1", new Instant(1500L), new Instant(2513L)),
-              dynamicTimerInGlobalWindow(
-                  "A", "event-timer1", new Instant(1600L), new Instant(2613L)),
-              dynamicTimerInGlobalWindow(
-                  "X", "event-timer1", new Instant(1700L), new Instant(1723L)),
-              dynamicTimerInGlobalWindow(
-                  "C", "event-timer1", new Instant(1800L), new Instant(1823L)),
-              dynamicTimerInGlobalWindow(
-                  "B", "event-timer1", new Instant(1900L), new Instant(1923L)),
-              dynamicTimerInGlobalWindow(
-                  "B", "event-timer1", new Instant(2000L), new Instant(2033L)),
-              dynamicTimerInGlobalWindow(
-                  "Y", "event-timer1", new Instant(2100L), new Instant(2143L))));
-      assertThat(
-          fakeTimerClient.getTimers(processingFamilyTimer),
-          contains(
-              dynamicTimerInGlobalWindow(
-                  "X", "processing-timer1", new Instant(1000L), new Instant(10004L)),
-              dynamicTimerInGlobalWindow(
-                  "Y", "processing-timer1", new Instant(1100L), new Instant(10004L)),
-              dynamicTimerInGlobalWindow(
-                  "X", "processing-timer1", new Instant(1200L), new Instant(10004L)),
-              dynamicTimerInGlobalWindow(
-                  "Y", "processing-timer1", new Instant(1300L), new Instant(10004L)),
-              dynamicTimerInGlobalWindow(
-                  "A", "processing-timer1", new Instant(1400L), new Instant(10014L)),
-              dynamicTimerInGlobalWindow(
-                  "B", "processing-timer1", new Instant(1500L), new Instant(10014L)),
-              dynamicTimerInGlobalWindow(
-                  "A", "processing-timer1", new Instant(1600L), new Instant(10014L)),
-              dynamicTimerInGlobalWindow(
-                  "X", "processing-timer1", new Instant(1700L), new Instant(10024L)),
-              dynamicTimerInGlobalWindow(
-                  "C", "processing-timer1", new Instant(1800L), new Instant(10024L)),
-              dynamicTimerInGlobalWindow(
-                  "B", "processing-timer1", new Instant(1900L), new Instant(10024L)),
-              dynamicTimerInGlobalWindow(
-                  "B", "processing-timer1", new Instant(2000L), new Instant(10034L)),
-              dynamicTimerInGlobalWindow(
-                  "Y", "processing-timer1", new Instant(2100L), new Instant(10044L))));
+              timestampedValueInGlobalWindow("key:X mainX[X0]", new Instant(1000L)),
+              timestampedValueInGlobalWindow("key:Y mainY[]", new Instant(1100L)),
+              timestampedValueInGlobalWindow("key:X mainX[X0, X1]", new Instant(1200L)),
+              timestampedValueInGlobalWindow("key:Y mainY[Y1]", new Instant(1300L)),
+              timestampedValueInGlobalWindow("key:A event[A0]", new Instant(1400L)),
+              timestampedValueInGlobalWindow("key:B event[]", new Instant(1500L)),
+              timestampedValueInGlobalWindow("key:A event[A0, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow("key:A event[A0, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow(
+                  "key:A event[A0, event, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow(
+                  "key:A event[A0, event, event, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow(
+                  "key:A event[A0, event, event, event, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow(
+                  "key:A event[A0, event, event, event, event, event, event]", new Instant(1400L)),
+              timestampedValueInGlobalWindow("key:C processing[C0]", new Instant(1800L)),
+              timestampedValueInGlobalWindow("key:B processing[event]", new Instant(1500L)),
+              timestampedValueInGlobalWindow("key:B event[event, processing]", new Instant(1500)),
+              timestampedValueInGlobalWindow(
+                  "key:B event[event, processing, event]", new Instant(1500)),
+              timestampedValueInGlobalWindow(
+                  "key:B event[event, processing, event, event]", new Instant(1500)),
+              timestampedValueInGlobalWindow(
+                  "key:B event-family[event, processing, event, event, event]", new Instant(2000L)),
+              timestampedValueInGlobalWindow(
+                  "key:Y processing-family[Y1, Y2]", new Instant(2100L))));
+
       mainOutputValues.clear();
 
       assertFalse(fakeTimerClient.isOutboundClosed(eventTimer));
@@ -1197,7 +1126,57 @@ public class FnApiDoFnRunnerTest implements Serializable {
       fakeTimerClient.closeInbound(eventFamilyTimer);
       fakeTimerClient.closeInbound(processingFamilyTimer);
 
+      // Timers will get delivered to the client when finishBundle is called.
       Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+
+      assertThat(
+          fakeTimerClient.getTimers(eventTimer),
+          contains(
+              clearedTimerInGlobalWindow("X"),
+              timerInGlobalWindow("Y", new Instant(2100L), new Instant(2181L)),
+              timerInGlobalWindow("A", new Instant(1400L), new Instant(2617L)),
+              timerInGlobalWindow("B", new Instant(2000L), new Instant(2071L)),
+              timerInGlobalWindow("C", new Instant(1800L), new Instant(1861L))));
+      assertThat(
+          fakeTimerClient.getTimers(processingTimer),
+          contains(
+              clearedTimerInGlobalWindow("X"),
+              timerInGlobalWindow("Y", new Instant(2100L), new Instant(10082L)),
+              timerInGlobalWindow("A", new Instant(1400L), new Instant(10032L)),
+              timerInGlobalWindow("B", new Instant(2000L), new Instant(10072L)),
+              timerInGlobalWindow("C", new Instant(1800L), new Instant(10062L))));
+
+      assertThat(
+          fakeTimerClient.getTimers(eventFamilyTimer),
+          containsInAnyOrder(
+              dynamicTimerInGlobalWindow(
+                  "X", "event-timer1", new Instant(1200L), new Instant(1203L)),
+              clearedTimerInGlobalWindow("X", "to-delete-event"),
+              clearedTimerInGlobalWindow("Y", "to-delete-event"),
+              dynamicTimerInGlobalWindow(
+                  "Y", "event-timer1", new Instant(2100L), new Instant(2183L)),
+              dynamicTimerInGlobalWindow(
+                  "A", "event-timer1", new Instant(1400L), new Instant(2619L)),
+              dynamicTimerInGlobalWindow(
+                  "B", "event-timer1", new Instant(2000L), new Instant(2073L)),
+              dynamicTimerInGlobalWindow(
+                  "C", "event-timer1", new Instant(1800L), new Instant(1863L))));
+      assertThat(
+          fakeTimerClient.getTimers(processingFamilyTimer),
+          containsInAnyOrder(
+              dynamicTimerInGlobalWindow(
+                  "X", "processing-timer1", new Instant(1200L), new Instant(10004L)),
+              clearedTimerInGlobalWindow("X", "to-delete-processing"),
+              dynamicTimerInGlobalWindow(
+                  "Y", "processing-timer1", new Instant(2100L), new Instant(10084L)),
+              clearedTimerInGlobalWindow("Y", "to-delete-processing"),
+              dynamicTimerInGlobalWindow(
+                  "A", "processing-timer1", new Instant(1400L), new Instant(10034L)),
+              dynamicTimerInGlobalWindow(
+                  "B", "processing-timer1", new Instant(2000L), new Instant(10074L)),
+              dynamicTimerInGlobalWindow(
+                  "C", "processing-timer1", new Instant(1800L), new Instant(10064L))));
+
       assertThat(mainOutputValues, empty());
 
       assertTrue(fakeTimerClient.isOutboundClosed(eventTimer));
@@ -1210,10 +1189,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
       assertEquals(
           ImmutableMap.<StateKey, ByteString>builder()
-              .put(bagUserStateKey("bag", "X"), encode("X0", "X1", "X2", "processing"))
+              .put(bagUserStateKey("bag", "X"), encode("X0", "X1", "X2"))
               .put(bagUserStateKey("bag", "Y"), encode("Y1", "Y2", "processing-family"))
-              .put(bagUserStateKey("bag", "A"), encode("A0", "event", "event"))
-              .put(bagUserStateKey("bag", "B"), encode("event", "processing", "event-family"))
+              .put(
+                  bagUserStateKey("bag", "A"),
+                  encode("A0", "event", "event", "event", "event", "event", "event", "event"))
+              .put(
+                  bagUserStateKey("bag", "B"),
+                  encode("event", "processing", "event", "event", "event", "event-family"))
               .put(bagUserStateKey("bag", "C"), encode("C0", "processing"))
               .build(),
           fakeStateClient.getData());
@@ -1226,8 +1209,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     private <K> org.apache.beam.runners.core.construction.Timer<K> clearedTimerInGlobalWindow(
         K userKey) {
+      return clearedTimerInGlobalWindow(userKey, "");
+    }
+
+    private <K> org.apache.beam.runners.core.construction.Timer<K> clearedTimerInGlobalWindow(
+        K userKey, String dynamicTimerTag) {
       return org.apache.beam.runners.core.construction.Timer.cleared(
-          userKey, "", Collections.singletonList(GlobalWindow.INSTANCE));
+          userKey, dynamicTimerTag, Collections.singletonList(GlobalWindow.INSTANCE));
     }
 
     private <K> org.apache.beam.runners.core.construction.Timer<K> dynamicTimerInGlobalWindow(
@@ -1275,7 +1263,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
-        context.output("main" + context.element().getKey() + Iterables.toString(bagState.read()));
+        context.output(
+            "key:"
+                + context.element().getKey()
+                + " main"
+                + context.element().getKey()
+                + Iterables.toString(bagState.read()));
         bagState.add(context.element().getValue());
 
         eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(1L));
@@ -1287,96 +1280,105 @@ public class FnApiDoFnRunnerTest implements Serializable {
             .get("event-timer1")
             .withOutputTimestamp(context.timestamp())
             .set(context.timestamp().plus(3L));
+        eventTimerFamily.get("to-delete-event").set(context.timestamp().plus(5L));
+        eventTimerFamily.get("to-delete-event").clear();
         processingTimerFamily.get("processing-timer1").offset(Duration.millis(4L)).setRelative();
+        processingTimerFamily.get("to-delete-processing").offset(Duration.millis(4L)).setRelative();
+        processingTimerFamily.get("to-delete-processing").clear();
       }
 
       @OnTimer("event")
       public void eventTimer(
           OnTimerContext context,
+          @Key String key,
           @StateId("bag") BagState<String> bagState,
           @TimerId("event") Timer eventTimeTimer,
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
-        context.output("event" + Iterables.toString(bagState.read()));
+        context.output("key:" + key + " event" + Iterables.toString(bagState.read()));
         bagState.add("event");
         eventTimeTimer
             .withOutputTimestamp(context.timestamp())
-            .set(context.fireTimestamp().plus(11L));
-        processingTimeTimer.offset(Duration.millis(12L));
-        processingTimeTimer.setRelative();
-        eventTimerFamily
-            .get("event-timer1")
-            .withOutputTimestamp(context.timestamp())
-            .set(context.fireTimestamp().plus(13L));
-
-        processingTimerFamily.get("processing-timer1").offset(Duration.millis(14L)).setRelative();
-      }
-
-      @OnTimer("processing")
-      public void processingTimer(
-          OnTimerContext context,
-          @StateId("bag") BagState<String> bagState,
-          @TimerId("event") Timer eventTimeTimer,
-          @TimerId("processing") Timer processingTimeTimer,
-          @TimerFamily("event-family") TimerMap eventTimerFamily,
-          @TimerFamily("processing-family") TimerMap processingTimerFamily) {
-        context.output("processing" + Iterables.toString(bagState.read()));
-        bagState.add("processing");
-
-        eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(21L));
-        processingTimeTimer.offset(Duration.millis(22L));
-        processingTimeTimer.setRelative();
-        eventTimerFamily
-            .get("event-timer1")
-            .withOutputTimestamp(context.timestamp())
-            .set(context.timestamp().plus(23L));
-
-        processingTimerFamily.get("processing-timer1").offset(Duration.millis(24L)).setRelative();
-      }
-
-      @OnTimerFamily("event-family")
-      public void eventFamilyOnTimer(
-          OnTimerContext context,
-          @StateId("bag") BagState<String> bagState,
-          @TimerId("event") Timer eventTimeTimer,
-          @TimerId("processing") Timer processingTimeTimer,
-          @TimerFamily("event-family") TimerMap eventTimerFamily,
-          @TimerFamily("processing-family") TimerMap processingTimerFamily) {
-        context.output("event-family" + Iterables.toString(bagState.read()));
-        bagState.add("event-family");
-
-        eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(31L));
+            .set(context.fireTimestamp().plus(31L));
         processingTimeTimer.offset(Duration.millis(32L));
         processingTimeTimer.setRelative();
         eventTimerFamily
             .get("event-timer1")
             .withOutputTimestamp(context.timestamp())
-            .set(context.timestamp().plus(33L));
+            .set(context.fireTimestamp().plus(33L));
 
         processingTimerFamily.get("processing-timer1").offset(Duration.millis(34L)).setRelative();
       }
 
-      @OnTimerFamily("processing-family")
-      public void processingFamilyOnTimer(
+      @OnTimer("processing")
+      public void processingTimer(
           OnTimerContext context,
+          @Key String key,
           @StateId("bag") BagState<String> bagState,
           @TimerId("event") Timer eventTimeTimer,
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
-        context.output("processing-family" + Iterables.toString(bagState.read()));
-        bagState.add("processing-family");
+        context.output("key:" + key + " processing" + Iterables.toString(bagState.read()));
+        bagState.add("processing");
 
-        eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(41L));
-        processingTimeTimer.offset(Duration.millis(42L));
+        eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(61L));
+        processingTimeTimer.offset(Duration.millis(62L));
         processingTimeTimer.setRelative();
         eventTimerFamily
             .get("event-timer1")
             .withOutputTimestamp(context.timestamp())
-            .set(context.timestamp().plus(43L));
+            .set(context.timestamp().plus(63L));
 
-        processingTimerFamily.get("processing-timer1").offset(Duration.millis(44L)).setRelative();
+        processingTimerFamily.get("processing-timer1").offset(Duration.millis(64L)).setRelative();
+      }
+
+      @OnTimerFamily("event-family")
+      public void eventFamilyOnTimer(
+          OnTimerContext context,
+          @Key String key,
+          @Timestamp Instant ts,
+          @StateId("bag") BagState<String> bagState,
+          @TimerId("event") Timer eventTimeTimer,
+          @TimerId("processing") Timer processingTimeTimer,
+          @TimerFamily("event-family") TimerMap eventTimerFamily,
+          @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        context.output("key:" + key + " event-family" + Iterables.toString(bagState.read()));
+        bagState.add("event-family");
+
+        eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(71L));
+        processingTimeTimer.offset(Duration.millis(72L));
+        processingTimeTimer.setRelative();
+        eventTimerFamily
+            .get("event-timer1")
+            .withOutputTimestamp(context.timestamp())
+            .set(context.timestamp().plus(73L));
+
+        processingTimerFamily.get("processing-timer1").offset(Duration.millis(74L)).setRelative();
+      }
+
+      @OnTimerFamily("processing-family")
+      public void processingFamilyOnTimer(
+          OnTimerContext context,
+          @Key String key,
+          @StateId("bag") BagState<String> bagState,
+          @TimerId("event") Timer eventTimeTimer,
+          @TimerId("processing") Timer processingTimeTimer,
+          @TimerFamily("event-family") TimerMap eventTimerFamily,
+          @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        context.output("key:" + key + " processing-family" + Iterables.toString(bagState.read()));
+        bagState.add("processing-family");
+
+        eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(81L));
+        processingTimeTimer.offset(Duration.millis(82L));
+        processingTimeTimer.setRelative();
+        eventTimerFamily
+            .get("event-timer1")
+            .withOutputTimestamp(context.timestamp())
+            .set(context.timestamp().plus(83L));
+
+        processingTimerFamily.get("processing-timer1").offset(Duration.millis(84L)).setRelative();
       }
     }
 

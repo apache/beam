@@ -617,6 +617,8 @@ class BigQueryWrapper(object):
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
       /rest/v2/tabledata/insertAll."""
+    from google.api_core.exceptions import ClientError
+    from google.api_core.exceptions import GoogleAPICallError
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
     # required by the InsertAll() method.
@@ -652,9 +654,13 @@ class BigQueryWrapper(object):
       else:
         for insert_error in errors:
           service_call_metric.call(insert_error['errors'][0])
+    except (ClientError, GoogleAPICallError) as e:
+      # e.code.value contains the numeric http status code.
+      service_call_metric.call(e.code.value)
+      # Re-reise the exception so that we re-try appropriately.
+      raise
     except HttpError as e:
       service_call_metric.call(e)
-
       # Re-reise the exception so that we re-try appropriately.
       raise
     finally:
