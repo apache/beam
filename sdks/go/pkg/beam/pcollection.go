@@ -51,7 +51,7 @@ func (p PCollection) IsValid() bool {
 
 // TODO(herohde) 5/30/2017: add name for PCollections? Java supports it.
 
-// TODO(herohde) 5/30/2017: add windowing strategy and documentation.
+// WindowingStrategy returns the WindowingStrategy of PCollection.
 func (p PCollection) WindowingStrategy() *window.WindowingStrategy {
 	return p.n.WindowingStrategy()
 }

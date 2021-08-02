@@ -21,21 +21,50 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
+type WindowIntoOption interface {
+	private()
+}
+
+type WindowTrigger struct {
+	Name window.TriggerType
+}
+
+func (t WindowTrigger) private() {}
+
+func (t WindowTrigger) GetName() window.TriggerType {
+	return t.Name
+}
+
 // WindowInto applies the windowing strategy to each element.
-func WindowInto(s Scope, ws *window.Fn, col PCollection) PCollection {
-	return Must(TryWindowInto(s, ws, col))
+func WindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOption) PCollection {
+	return Must(TryWindowInto(s, ws, col, opts...))
 }
 
 // TryWindowInto attempts to insert a WindowInto transform.
-func TryWindowInto(s Scope, ws *window.Fn, col PCollection) (PCollection, error) {
+func TryWindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOption) (PCollection, error) {
 	if !s.IsValid() {
 		return PCollection{}, errors.New("invalid scope")
 	}
 	if !col.IsValid() {
 		return PCollection{}, errors.New("invalid input pcollection")
 	}
+	var edge *graph.MultiEdge
+	for _, opt := range opts {
+		switch opt.(type) {
+		case WindowTrigger:
+			edge = graph.NewWindowInto(s.real, s.scope, ws, opt.(WindowTrigger).GetName(), col.n)
+		default:
+			edge = graph.NewWindowInto(s.real, s.scope, ws, window.Default, col.n)
+		}
+	}
 
-	edge := graph.NewWindowInto(s.real, s.scope, ws, col.n)
-	ret := PCollection{edge.Output[0].To}
+	if len(opts) == 0 {
+		edge = graph.NewWindowInto(s.real, s.scope, ws, window.Default, col.n)
+	}
+
+	var ret PCollection
+	if edge != nil {
+		ret = PCollection{edge.Output[0].To}
+	}
 	return ret, nil
 }

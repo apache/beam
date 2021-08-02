@@ -999,6 +999,7 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	}
 	return ws, nil
 }
+
 func makeTrigger(t window.TriggerType) (*pipepb.Trigger, error) {
 	switch t {
 	case window.Default:
@@ -1021,6 +1022,7 @@ func makeTrigger(t window.TriggerType) (*pipepb.Trigger, error) {
 		}, nil
 	}
 }
+
 func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
