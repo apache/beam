@@ -15,8 +15,10 @@
 
 // Package teststream contains code configuring the TestStream primitive for
 // use in testing code that is meant to be run on streaming data sources.
+//
 // See https://beam.apache.org/blog/test-stream/ for more information.
-// TestStream is supported on Flink.
+//
+// TestStream is supported on the Flink runner.
 package teststream
 
 import (
@@ -42,7 +44,7 @@ type Config struct {
 	watermark int64
 }
 
-// MakeConfig initializes a Config struct to begin inserting TestStream events/endpoints into.
+// NewConfig returns a Config to build a sequence of a test stream's events.
 // Requires that users provide the coder for the elements they are trying to emit.
 func NewConfig() Config {
 	return Config{elmCoder: nil,
@@ -96,9 +98,11 @@ func (c *Config) AdvanceProcessingTimeToInfinity() {
 	c.AdvanceProcessingTime(mtime.MaxTimestamp.Milliseconds())
 }
 
-// AddElements adds a number of elements to the Config object at the specified event timestamp.
-// The encoder will panic if there is a type mismatch between the provided coder and the
-// elements.
+// AddElements adds a number of elements to the stream at the specified event timestamp. Must be called with
+// at least one element.
+//
+// On the first call, a coder will be inferred from the passed in elements, which must be of all the same type.
+// Type mismatches on this or subsequent calls will cause AddElements to return an error.
 func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 	if c.elmCoder == nil {
 		elmType := reflect.TypeOf(elements[0])

@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 )
 
-func TestMakeConfig(t *testing.T) {
+func TestNewConfig(t *testing.T) {
 	con := NewConfig()
 	if con.elmCoder != nil {
 		t.Fatalf("coder is not correct, expected nil, got %v", con.elmCoder.Kind)
