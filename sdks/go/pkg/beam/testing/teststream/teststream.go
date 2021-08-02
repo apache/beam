@@ -38,7 +38,7 @@ const urn = "beam:transform:teststream:v1"
 
 // Config holds information used to create a TestStreamPayload object.
 type Config struct {
-	elmType   typex.FullType
+	elmType   beam.FullType
 	events    []*pipepb.TestStreamPayload_Event
 	endpoint  *pipepb.ApiServiceDescriptor
 	watermark int64
@@ -57,7 +57,7 @@ func NewConfig() Config {
 // SetEndpoint sets a URL for a TestStreamService that will emit events instead of having them
 // defined manually. Currently does not support authentication, so the TestStreamService should
 // be accessed in a trusted context.
-func (c *Config) SetEndpoint(url string) {
+func (c *Config) setEndpoint(url string) {
 	c.endpoint.Url = url
 }
 
@@ -136,4 +136,15 @@ func Create(s beam.Scope, c Config) beam.PCollection {
 
 	// This should only ever contain one PCollection.
 	return output[0]
+}
+
+// CreateWithEndpoint inserts a TestStream primitive into a pipeline, taking a scope, a url to a
+// TestStreamService, and a FullType object describing the elements that will be returned by the
+// TestStreamService. Authentication is currently not supported, so the service the URL points to
+// should be accessed in a trusted context.
+func CreateWithEndpoint(s beam.Scope, url string, elementType beam.FullType) beam.PCollection {
+	c := NewConfig()
+	c.setEndpoint(url)
+	c.elmType = elementType
+	return Create(s, c)
 }
