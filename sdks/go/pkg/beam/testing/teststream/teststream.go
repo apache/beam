@@ -133,7 +133,7 @@ func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 }
 
 // Create inserts a TestStream primitive into a pipeline, taking a scope and a Config object and
-// producing an array of output PCollections. The TestStream must be the first PTransform in the
+// producing an output PCollection. The TestStream must be the first PTransform in the
 // pipeline.
 func Create(s beam.Scope, c Config) beam.PCollection {
 	pyld := protox.MustEncode(c.createPayload())
