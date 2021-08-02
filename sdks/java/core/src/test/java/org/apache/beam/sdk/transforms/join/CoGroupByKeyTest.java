@@ -482,7 +482,7 @@ public class CoGroupByKeyTest implements Serializable {
     PAssert.that(clickOfPurchase)
         .containsInAnyOrder(
             KV.of("Click t0:Boat t1", "0:3"),
-            KV.of("Click t0:Shoesi t2", "0:3"),
+            KV.of("Click t0:Shoes t2", "0:3"),
             KV.of("Click t0:Pens t3", "0:3"),
             KV.of("Click t4:Car t6", "4:7"),
             KV.of("Click t4:Book t7", "4:7"),
