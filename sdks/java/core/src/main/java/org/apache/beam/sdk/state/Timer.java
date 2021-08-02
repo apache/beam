@@ -99,9 +99,10 @@ public interface Timer {
    */
   Timer withOutputTimestamp(Instant outputTime);
 
-  /*** Returns the current relative time used by {@link #setRelative()} and {@link #offset}. This can
-   * be used by a client that self-manages relative timers (e.g. one that stores the current timer
-   * time in a state variable.
+  /**
+   * * Returns the current relative time used by {@link #setRelative()} and {@link #offset}. This
+   * can be used by a client that self-manages relative timers (e.g. one that stores the current
+   * timer time in a state variable.
    */
   Instant getCurrentRelativeTime();
 }
