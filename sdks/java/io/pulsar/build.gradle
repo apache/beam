@@ -1,27 +1,22 @@
-plugins {
-    id 'org.apache.beam.module'
-}
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.pulsar')
 
-description = "Apache Beam :: SDKs :: Java :: IO :: Pulsar"
-ext.summary = "IO to read and write to Pulsar."
-
 version '2.32.0-SNAPSHOT'
-
-repositories {
-    mavenCentral()
-}
 
 def pulsarVersion = '2.8.0'
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+
+
+    testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+
     testImplementation "org.testcontainers:pulsar:1.15.3"
+}
 
-
-    testImplementation('org.apache.pulsar:pulsar-functions-local-runner-original:2.5.0') {
-        exclude group: 'log4j'
-        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-    }
-
+test {
+    useJUnitPlatform()
 }
