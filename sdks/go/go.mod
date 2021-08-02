@@ -18,6 +18,7 @@ require (
 	github.com/andreiavrammsd/validator v9.31.0+incompatible // indirect
 	github.com/andygrunwald/go-gerrit v0.0.0-20210726065827-cc4e14e40b5b // indirect
 	github.com/apache/thrift/lib/go/thrift v0.0.0-20210120171102-e27e82c46ba4 // indirect
+	github.com/armon/go-metrics v0.3.9 // indirect
 	github.com/aws/aws-sdk-go v1.40.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.6.0 // indirect
 	github.com/beyang/hgo v0.0.0-20150825035631-d45f1891a48a // indirect
@@ -25,7 +26,6 @@ require (
 	github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b // indirect
 	github.com/casbin/casbin v1.9.1 // indirect
 	github.com/circonus-labs/circonus-gometrics v2.3.1+incompatible // indirect
-	github.com/circonus-labs/circonusllhist v0.3.0 // indirect
 	github.com/codahale/hdrhistogram v1.1.0 // indirect
 	github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0 // indirect
 	github.com/coreos/etcd v3.3.25+incompatible // indirect
@@ -64,7 +64,9 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/graph-gophers/graphql-go v1.1.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
+	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hudl/fargo v1.4.0 // indirect
 	github.com/iancoleman/strcase v0.2.0 // indirect
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac // indirect
@@ -147,9 +149,7 @@ require (
 	sourcegraph.com/sourcegraph/go-vcs v0.0.0-20190409071845-d784c9520ccd // indirect
 )
 
-replace github.com/circonus-labs/circonusllhist v0.3.0 => github.com/openhistogram/circonusllhist v0.3.0
-
-replace github.com/codahale/hdrhistogram v1.1.0 => github.com/HdrHistogram/hdrhistogram-go v1.1.0
+replace github.com/codahale/hdrhistogram => github.com/HdrHistogram/hdrhistogram-go v1.1.0
 
 replace go.etcd.io/bbolt => github.com/coreos/bbolt v1.3.6
 
