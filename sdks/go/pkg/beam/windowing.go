@@ -31,37 +31,30 @@ type WindowTrigger struct {
 
 func (t WindowTrigger) windowIntoOption() {}
 
-func (t WindowTrigger) GetName() window.TriggerType {
-	return t.Name
-}
-
 // WindowInto applies the windowing strategy to each element.
 func WindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOption) PCollection {
 	return Must(TryWindowInto(s, ws, col, opts...))
 }
 
 // TryWindowInto attempts to insert a WindowInto transform.
-func TryWindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOption) (PCollection, error) {
+func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoOption) (PCollection, error) {
 	if !s.IsValid() {
 		return PCollection{}, errors.New("invalid scope")
 	}
 	if !col.IsValid() {
 		return PCollection{}, errors.New("invalid input pcollection")
 	}
-	var edge *graph.MultiEdge
+	ws := window.WindowingStrategy{Fn: wfn, Trigger: window.Default}
 	for _, opt := range opts {
 		switch opt.(type) {
 		case WindowTrigger:
-			edge = graph.NewWindowInto(s.real, s.scope, &window.WindowingStrategy{Fn: ws, Trigger: opt.(WindowTrigger).GetName()}, col.n)
+			ws.Trigger = opt.(WindowTrigger).Name
 		default:
-			edge = graph.NewWindowInto(s.real, s.scope, &window.WindowingStrategy{Fn: ws, Trigger: window.Default}, col.n)
+			ws.Trigger = window.Default
 		}
 	}
 
-	if len(opts) == 0 {
-		edge = graph.NewWindowInto(s.real, s.scope, &window.WindowingStrategy{Fn: ws, Trigger: window.Default}, col.n)
-	}
-
+	edge := graph.NewWindowInto(s.real, s.scope, &ws, col.n)
 	ret := PCollection{edge.Output[0].To}
 	return ret, nil
 }

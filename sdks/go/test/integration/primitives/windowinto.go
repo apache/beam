@@ -117,5 +117,5 @@ func TriggerWindowSums(s beam.Scope, sumPerKey func(beam.Scope, beam.PCollection
 }
 
 func TriggerWindowSums_GBK(s beam.Scope) {
-	TriggerWindowSums(s.Scope("Trigger_GBK"), stats.SumPerKey)
+	TriggerWindowSums(s.Scope("Trigger_GBK"), gbkSumPerKey)
 }
