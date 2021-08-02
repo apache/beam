@@ -22,14 +22,14 @@ import (
 )
 
 type WindowIntoOption interface {
-	private()
+	windowIntoOption()
 }
 
 type WindowTrigger struct {
 	Name window.TriggerType
 }
 
-func (t WindowTrigger) private() {}
+func (t WindowTrigger) windowIntoOption() {}
 
 func (t WindowTrigger) GetName() window.TriggerType {
 	return t.Name
@@ -52,14 +52,14 @@ func TryWindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOp
 	for _, opt := range opts {
 		switch opt.(type) {
 		case WindowTrigger:
-			edge = graph.NewWindowInto(s.real, s.scope, ws, opt.(WindowTrigger).GetName(), col.n)
+			edge = graph.NewWindowInto(s.real, s.scope, &window.WindowingStrategy{Fn: ws, Trigger: opt.(WindowTrigger).GetName()}, col.n)
 		default:
-			edge = graph.NewWindowInto(s.real, s.scope, ws, window.Default, col.n)
+			edge = graph.NewWindowInto(s.real, s.scope, &window.WindowingStrategy{Fn: ws, Trigger: window.Default}, col.n)
 		}
 	}
 
 	if len(opts) == 0 {
-		edge = graph.NewWindowInto(s.real, s.scope, ws, window.Default, col.n)
+		edge = graph.NewWindowInto(s.real, s.scope, &window.WindowingStrategy{Fn: ws, Trigger: window.Default}, col.n)
 	}
 
 	ret := PCollection{edge.Output[0].To}

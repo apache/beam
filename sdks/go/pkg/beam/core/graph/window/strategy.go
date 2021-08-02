@@ -19,8 +19,7 @@ package window
 // WindowingStrategy defines the types of windowing used in a pipeline and contains
 // the data to support executing a windowing strategy.
 type WindowingStrategy struct {
-	Fn *Fn
-	// TODO(BEAM-3304): trigger support
+	Fn      *Fn
 	Trigger TriggerType
 }
 
