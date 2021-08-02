@@ -131,6 +131,8 @@ task needsRunnerTests(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    // https://issues.apache.org/jira/browse/BEAM-2791
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
   testLogging {
     outputs.upToDateWhen {false}

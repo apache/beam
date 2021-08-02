@@ -21,7 +21,7 @@
 
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
@@ -55,7 +55,7 @@ class AutocompleteTest(unittest.TestCase):
               ('that', ((1, 'that'), )),
           ]))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_autocomplete_it(self):
     with TestPipeline(is_integration_test=True) as p:
       words = p | beam.io.ReadFromText(self.KINGLEAR_INPUT)

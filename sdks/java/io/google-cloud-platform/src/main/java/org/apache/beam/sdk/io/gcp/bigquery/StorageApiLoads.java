@@ -142,6 +142,6 @@ public class StorageApiLoads<DestinationT, ElementT>
     // large.
     PCollection<TableRow> empty =
         p.apply("CreateEmptyFailedInserts", Create.empty(TypeDescriptor.of(TableRow.class)));
-    return WriteResult.in(p, new TupleTag<>("failedInserts"), empty);
+    return WriteResult.in(p, new TupleTag<>("failedInserts"), empty, null);
   }
 }

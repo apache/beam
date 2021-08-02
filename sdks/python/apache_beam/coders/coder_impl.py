@@ -1483,3 +1483,31 @@ class ShardedKeyCoderImpl(StreamCoderImpl):
     estimated_size += (
         self._key_coder_impl.estimate_size(value.key, nested=True))
     return estimated_size
+
+
+class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for custom window types, which prefix required max_timestamp to
+  encoded original window.
+
+  The coder encodes and decodes custom window types with following format:
+    window's max_timestamp()
+    encoded window using it's own coder.
+  """
+  def __init__(self, window_coder_impl: CoderImpl) -> None:
+    self._window_coder_impl = window_coder_impl
+
+  def encode_to_stream(self, value, stream, nested):
+    TimestampCoderImpl().encode_to_stream(value.max_timestamp(), stream, nested)
+    self._window_coder_impl.encode_to_stream(value, stream, nested)
+
+  def decode_from_stream(self, stream, nested):
+    TimestampCoderImpl().decode_from_stream(stream, nested)
+    return self._window_coder_impl.decode_from_stream(stream, nested)
+
+  def estimate_size(self, value: Any, nested: bool = False) -> int:
+    estimated_size = 0
+    estimated_size += TimestampCoderImpl().estimate_size(value)
+    estimated_size += self._window_coder_impl.estimate_size(value, nested)
+    return estimated_size

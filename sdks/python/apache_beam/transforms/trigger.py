@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Support for Dataflow triggers.
+"""Support for Apache Beam triggers.
 
 Triggers control when in processing time windows get emitted.
 """

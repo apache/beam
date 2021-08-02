@@ -54,7 +54,9 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -69,6 +71,7 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -348,6 +351,8 @@ public class PubsubIOTest {
   private transient PipelineOptions options;
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("test-project", "testSubscription");
+  private static final TopicPath TOPIC =
+      PubsubClient.topicPathFromName("test-project", "testTopic");
   private static final Clock CLOCK = (Clock & Serializable) () -> 673L;
   transient TestPipeline readPipeline;
 
@@ -421,6 +426,52 @@ public class PubsubIOTest {
       clientFactory.close();
       clientFactory = null;
     }
+  }
+
+  @Test
+  public void testFailedParseWithDeadLetterConfigured() {
+    ByteString data = ByteString.copyFrom("Hello, World!".getBytes(StandardCharsets.UTF_8));
+    RuntimeException exception = new RuntimeException("Some error message");
+    ImmutableList<IncomingMessage> expectedReads =
+        ImmutableList.of(
+            IncomingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder().setData(data).build(),
+                1234L,
+                0,
+                UUID.randomUUID().toString(),
+                UUID.randomUUID().toString()));
+    ImmutableList<OutgoingMessage> expectedWrites =
+        ImmutableList.of(
+            OutgoingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                    .setData(data)
+                    .putAttributes("exceptionClassName", exception.getClass().getName())
+                    .putAttributes("exceptionMessage", exception.getMessage())
+                    .putAttributes("pubsubMessageId", "<null>")
+                    .build(),
+                1234L,
+                null));
+    clientFactory =
+        PubsubTestClient.createFactoryForPullAndPublish(
+            SUBSCRIPTION, TOPIC, CLOCK, 60, expectedReads, expectedWrites, ImmutableList.of());
+
+    PCollection<String> read =
+        readPipeline.apply(
+            PubsubIO.readStrings()
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withDeadLetterTopic(TOPIC.getPath())
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory)
+                .withCoderAndParseFn(
+                    StringUtf8Coder.of(),
+                    SimpleFunction.fromSerializableFunctionWithOutputType(
+                        message -> {
+                          throw exception;
+                        },
+                        TypeDescriptors.strings())));
+
+    PAssert.that(read).empty();
+    readPipeline.run();
   }
 
   @Test

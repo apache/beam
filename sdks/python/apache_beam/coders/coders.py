@@ -1509,3 +1509,47 @@ class ShardedKeyCoder(FastCoder):
 
 Coder.register_structured_urn(
     common_urns.coders.SHARDED_KEY.urn, ShardedKeyCoder)
+
+
+class TimestampPrefixingWindowCoder(FastCoder):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder which prefixes the max timestamp of arbitrary window to its encoded
+  form."""
+  def __init__(self, window_coder: Coder) -> None:
+    self._window_coder = window_coder
+
+  def _create_impl(self):
+    return coder_impl.TimestampPrefixingWindowCoderImpl(
+        self._window_coder.get_impl())
+
+  def to_type_hint(self):
+    return self._window_coder.to_type_hint()
+
+  def _get_component_coders(self) -> List[Coder]:
+    return [self._window_coder]
+
+  def is_deterministic(self) -> bool:
+    return self._window_coder.is_deterministic()
+
+  def as_cloud_object(self, coders_context=None):
+    return {
+        '@type': 'kind:custom_window',
+        'component_encodings': [
+            self._window_coder.as_cloud_object(coders_context)
+        ],
+    }
+
+  def __repr__(self):
+    return 'TimestampPrefixingWindowCoder[%r]' % self._window_coder
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self._window_coder == other._window_coder)
+
+  def __hash__(self):
+    return hash((type(self), self._window_coder))
+
+
+Coder.register_structured_urn(
+    common_urns.coders.CUSTOM_WINDOW.urn, TimestampPrefixingWindowCoder)
