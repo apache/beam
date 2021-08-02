@@ -1446,6 +1446,8 @@ def create_split_and_size_restrictions(*args):
       element, (restriction, _) = element_restriction
       for part, size in self.restriction_provider.split_and_size(
           element, restriction):
+        if size < 0:
+          raise ValueError('Expected size >= 0 but received %s.' % size)
         estimator_state = (
             self.watermark_estimator_provider.initial_estimator_state(
                 element, part))
@@ -1470,6 +1472,10 @@ def create_truncate_sized_restriction(*args):
         truncated_restriction_size = (
             self.restriction_provider.restriction_size(
                 element, truncated_restriction))
+        if truncated_restriction_size < 0:
+          raise ValueError(
+              'Expected size >= 0 but received %s.' %
+              truncated_restriction_size)
         yield ((element, (truncated_restriction, estimator_state)),
                truncated_restriction_size)
 

@@ -23,7 +23,6 @@ import warnings
 import pandas as pd
 
 import apache_beam as beam
-from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import background_caching_job as bcj
@@ -310,7 +309,7 @@ class RecordingManager:
     # TODO(BEAM-12388): investigate the mixing pcollections in multiple
     # pipelines error when using the default label.
     for df in watched_dataframes:
-      pcoll = to_pcollection(df, yield_elements='pandas', label=str(df._expr))
+      pcoll, _ = utils.deferred_df_to_pcollection(df)
       watched_pcollections.add(pcoll)
     for pcoll in pcolls:
       if pcoll not in watched_pcollections:

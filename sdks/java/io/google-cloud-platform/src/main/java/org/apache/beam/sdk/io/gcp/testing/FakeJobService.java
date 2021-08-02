@@ -173,7 +173,6 @@ public class FakeJobService implements JobService, Serializable {
         FileSystems.copy(sourceFiles.build(), loadFiles.build());
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
       }
-
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
     }
   }

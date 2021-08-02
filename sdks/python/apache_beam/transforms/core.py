@@ -302,10 +302,12 @@ class RestrictionProvider(object):
     return coders.registry.get_coder(object)
 
   def restriction_size(self, element, restriction):
-    """Returns the size of an element with respect to the given element.
+    """Returns the size of a restriction with respect to the given element.
 
     By default, asks a newly-created restriction tracker for the default size
     of the restriction.
+
+    The return value must be non-negative.
 
     This API is required to be implemented.
     """
@@ -313,6 +315,8 @@ class RestrictionProvider(object):
 
   def split_and_size(self, element, restriction):
     """Like split, but also does sizing, returning (restriction, size) pairs.
+
+    For each pair, size must be non-negative.
 
     This API is optional if ``split`` and ``restriction_size`` have been
     implemented.

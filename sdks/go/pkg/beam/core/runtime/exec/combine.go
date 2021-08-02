@@ -286,8 +286,17 @@ func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, 
 
 func (n *Combine) fail(err error) error {
 	n.status = Broken
-	n.err.TrySetError(err)
-	return err
+	if err2, ok := err.(*doFnError); ok {
+		return err2
+	}
+	combineError := &doFnError{
+		doFn: n.Fn.Name(),
+		err:  err,
+		uid:  n.UID,
+		pid:  n.PID,
+	}
+	n.err.TrySetError(combineError)
+	return combineError
 }
 
 func (n *Combine) String() string {

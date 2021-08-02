@@ -67,9 +67,8 @@ func WindowSums(s beam.Scope, sumPerKey func(beam.Scope, beam.PCollection) beam.
 	validate(s.Scope("SlidingFixed"), window.NewSlidingWindows(windowSize, windowSize), timestampedData, 15, 15, 15)
 	// This will have overlap, but each value should be a multiple of the magic number.
 	validate(s.Scope("Sliding"), window.NewSlidingWindows(windowSize, 3*windowSize), timestampedData, 15, 30, 45, 30, 15)
-	// TODO(BEAM-4152): This will do a smoke test of session windows, once implemented through.
 	// With such a large gap, there should be a single session which will sum to 45.
-	// validate(s.Scope("Session"), window.NewSessions(windowSize), timestampedData, 45)
+	validate(s.Scope("Session"), window.NewSessions(windowSize), timestampedData, 45)
 }
 
 func sumPerKey(ws beam.Window, ts beam.EventTime, key beam.U, iter func(*int) bool) (beam.U, int) {

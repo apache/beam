@@ -33,6 +33,7 @@ applyJavaNature(
   ],
   automaticModuleName: 'org.apache.beam.fn.harness',
   validateShadowJar: false,
+  enableJmh: true,
   testShadowJar: true,
   shadowClosure:
   // Create an uber jar without repackaging for the SDK harness
@@ -72,4 +73,6 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":runners:core-construction-java")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
+  jmhCompile project(path: ":sdks:java:harness", configuration: "shadowTest")
+  jmhRuntime library.java.slf4j_jdk14
 }
