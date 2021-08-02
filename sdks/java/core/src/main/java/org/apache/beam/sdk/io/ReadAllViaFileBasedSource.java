@@ -49,7 +49,7 @@ public class ReadAllViaFileBasedSource<T>
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
-  private Integer readerThreadCount;
+  private @Nullable Integer readerThreadCount;
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
