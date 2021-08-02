@@ -169,6 +169,35 @@ spec:
               secretKeyRef:
                 name: beamcrawler-gh-access-token
                 key: token
+      - name: beammetricsrungithubactions
+        image: gcr.io/apache-beam-testing/beammetricsrungithubactions
+        imagePullPolicy: Always
+        env:
+          - name: DB_HOST
+            value: 127.0.0.1
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_DBNAME
+            value: beammetrics
+          - name: DB_DBUSERNAME
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: username
+          - name: DB_DBPWD
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: password
+          - name: GITHUB_PERSONAL_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: runners-gh-access-token
+                key: token
+          - name: GITHUB_REPOSITORY
+            value: "beam"
+          - name: GITHUB_OWNER
+            value: "fernando-wizeline"
       volumes:
       - name: beammetrics-psql-credentials
         secret:
