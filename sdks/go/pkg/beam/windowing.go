@@ -62,9 +62,6 @@ func TryWindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOp
 		edge = graph.NewWindowInto(s.real, s.scope, ws, window.Default, col.n)
 	}
 
-	var ret PCollection
-	if edge != nil {
-		ret = PCollection{edge.Output[0].To}
-	}
+	ret := PCollection{edge.Output[0].To}
 	return ret, nil
 }

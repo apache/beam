@@ -102,7 +102,8 @@ func TriggerWindowSums(s beam.Scope, sumPerKey func(beam.Scope, beam.PCollection
 	validate := func(s beam.Scope, wfn *window.Fn, in beam.PCollection, expected ...interface{}) {
 		// Window the data.
 		windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: window.Default})
-
+		// To get the pane decoding error, change above statement to
+		// windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: window.Always})
 		// Perform the appropriate sum operation.
 		sums := sumPerKey(s, windowed)
 		// Drop back to Global windows, and drop the key otherwise passert.Equals doesn't work.
