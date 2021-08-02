@@ -29,6 +29,7 @@ import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.core.ApiFuture;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.ServerStream;
@@ -86,9 +87,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -98,7 +101,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -814,7 +816,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
         boolean ignoreUnkownValues,
-        boolean ignoreInsertIds)
+        boolean ignoreInsertIds,
+        List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
@@ -829,6 +832,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                 + "as many elements as rowList");
       }
 
+      final Set<Integer> failedIndices = new HashSet<>();
       long retTotalDataSize = 0;
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
       // These lists contain the rows to publish. Initially the contain the entire list.
@@ -839,22 +843,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         idsToPublish = insertIdList;
       }
 
-      HashMap<String, String> baseLabels = new HashMap<String, String>();
-      // TODO(ajamato): Add Ptransform label. Populate it as empty for now to prevent the
-      // SpecMonitoringInfoValidator from dropping the MonitoringInfo.
-      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
-      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
-      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.RESOURCE,
-          GcpResourceIdentifiers.bigQueryTable(
-              ref.getProjectId(), ref.getDatasetId(), ref.getTableId()));
-      baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, ref.getProjectId());
-      baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, ref.getDatasetId());
-      baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, ref.getTableId());
-
-      ServiceCallMetric serviceCallMetric =
-          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+      ServiceCallMetric serviceCallMetric = BigQueryUtils.writeCallMetric(ref);
 
       while (true) {
         List<FailsafeValueInSingleWindow<TableRow, TableRow>> retryRows = new ArrayList<>();
@@ -981,6 +970,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                 throw new IOException("Insert failed: " + error + ", other errors: " + allErrors);
               }
               int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
+              failedIndices.add(errorIndex);
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                 allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
@@ -1022,6 +1012,18 @@ class BigQueryServicesImpl implements BigQueryServices {
         allErrors.clear();
         LOG.info("Retrying {} failed inserts to BigQuery", rowsToPublish.size());
       }
+      if (successfulRows != null) {
+        for (int i = 0; i < rowsToPublish.size(); i++) {
+          if (!failedIndices.contains(i)) {
+            successfulRows.add(
+                ValueInSingleWindow.of(
+                    rowsToPublish.get(i).getValue(),
+                    rowsToPublish.get(i).getTimestamp(),
+                    rowsToPublish.get(i).getWindow(),
+                    rowsToPublish.get(i).getPane()));
+          }
+        }
+      }
       if (!allErrors.isEmpty()) {
         throw new IOException("Insert failed: " + allErrors);
       } else {
@@ -1039,7 +1041,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
         boolean ignoreUnknownValues,
-        boolean ignoreInsertIds)
+        boolean ignoreInsertIds,
+        List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException {
       return insertAll(
           ref,
@@ -1053,7 +1056,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           errorContainer,
           skipInvalidRows,
           ignoreUnknownValues,
-          ignoreInsertIds);
+          ignoreInsertIds,
+          successfulRows);
     }
 
     protected GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
@@ -1344,9 +1348,31 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.client = BigQueryReadClient.create(settingsBuilder.build());
     }
 
+    // Since BigQueryReadClient client's methods are final they cannot be mocked with Mockito for
+    // testing
+    // So this wrapper method can be mocked in tests, instead.
+    ReadSession callCreateReadSession(CreateReadSessionRequest request) {
+      return client.createReadSession(request);
+    }
+
     @Override
     public ReadSession createReadSession(CreateReadSessionRequest request) {
-      return client.createReadSession(request);
+      TableReference tableReference =
+          BigQueryUtils.toTableReference(request.getReadSession().getTable());
+      ServiceCallMetric serviceCallMetric = BigQueryUtils.readCallMetric(tableReference);
+      try {
+        ReadSession session = callCreateReadSession(request);
+        if (serviceCallMetric != null) {
+          serviceCallMetric.call("ok");
+        }
+        return session;
+
+      } catch (ApiException e) {
+        if (serviceCallMetric != null) {
+          serviceCallMetric.call(e.getStatusCode().getCode().name());
+        }
+        throw e;
+      }
     }
 
     @Override
@@ -1355,8 +1381,45 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
+    public BigQueryServerStream<ReadRowsResponse> readRows(
+        ReadRowsRequest request, String fullTableId) {
+      TableReference tableReference = BigQueryUtils.toTableReference(fullTableId);
+      ServiceCallMetric serviceCallMetric = BigQueryUtils.readCallMetric(tableReference);
+      try {
+        BigQueryServerStream<ReadRowsResponse> response = readRows(request);
+        serviceCallMetric.call("ok");
+        return response;
+      } catch (ApiException e) {
+        if (serviceCallMetric != null) {
+          serviceCallMetric.call(e.getStatusCode().getCode().name());
+        }
+        throw e;
+      }
+    }
+
+    @Override
     public SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request) {
       return client.splitReadStream(request);
+    }
+
+    @Override
+    public SplitReadStreamResponse splitReadStream(
+        SplitReadStreamRequest request, String fullTableId) {
+      TableReference tableReference = BigQueryUtils.toTableReference(fullTableId);
+      ServiceCallMetric serviceCallMetric = BigQueryUtils.readCallMetric(tableReference);
+      try {
+        SplitReadStreamResponse response = splitReadStream(request);
+
+        if (serviceCallMetric != null) {
+          serviceCallMetric.call("ok");
+        }
+        return response;
+      } catch (ApiException e) {
+        if (serviceCallMetric != null) {
+          serviceCallMetric.call(e.getStatusCode().getCode().name());
+        }
+        throw e;
+      }
     }
 
     @Override

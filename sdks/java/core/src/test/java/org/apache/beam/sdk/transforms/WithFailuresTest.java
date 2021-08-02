@@ -30,6 +30,8 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionAsMapHandler;
+import org.apache.beam.sdk.transforms.WithFailures.ThrowableHandler;
+import org.apache.beam.sdk.values.EncodableThrowable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -46,6 +48,35 @@ import org.junit.runners.JUnit4;
 public class WithFailuresTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDirectException() {
+    List<PCollection<KV<Integer, EncodableThrowable>>> errorCollections = new ArrayList<>();
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(0, 1))
+            .apply(
+                MapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> 1 / i)
+                    .exceptionsVia(new ThrowableHandler<Integer>() {}))
+            .failuresTo(errorCollections);
+
+    PAssert.that(output).containsInAnyOrder(1);
+
+    PAssert.thatSingleton(PCollectionList.of(errorCollections).apply(Flatten.pCollections()))
+        .satisfies(
+            kv -> {
+              assertEquals(Integer.valueOf(0), kv.getKey());
+
+              Throwable throwable = kv.getValue().throwable();
+              assertEquals("java.lang.ArithmeticException", throwable.getClass().getName());
+              assertEquals("/ by zero", throwable.getMessage());
+              return null;
+            });
+
+    pipeline.run();
+  }
 
   /** Test of {@link WithFailures.Result#failuresTo(List)}. */
   @Test

@@ -70,8 +70,9 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class BatchedStreamingWrite<ErrorT, ElementT>
-    extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollection<ErrorT>> {
+    extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollectionTuple> {
   private static final TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
+  static final TupleTag<TableRow> SUCCESSFUL_ROWS_TAG = new TupleTag<>("successfulRows");
   private static final Logger LOG = LoggerFactory.getLogger(BatchedStreamingWrite.class);
 
   private final BigQueryServices bqServices;
@@ -191,23 +192,24 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   }
 
   @Override
-  public PCollection<ErrorT> expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
+  public PCollectionTuple expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
     return batchViaStateful
         ? input.apply(new ViaStateful())
         : input.apply(new ViaBundleFinalization());
   }
 
   private class ViaBundleFinalization
-      extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollection<ErrorT>> {
+      extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollectionTuple> {
     @Override
-    public PCollection<ErrorT> expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
+    public PCollectionTuple expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
       PCollectionTuple result =
           input.apply(
               ParDo.of(new BatchAndInsertElements())
-                  .withOutputTags(mainOutputTag, TupleTagList.of(failedOutputTag)));
-      PCollection<ErrorT> failedInserts = result.get(failedOutputTag);
-      failedInserts.setCoder(failedOutputCoder);
-      return failedInserts;
+                  .withOutputTags(
+                      mainOutputTag, TupleTagList.of(failedOutputTag).and(SUCCESSFUL_ROWS_TAG)));
+      result.get(failedOutputTag).setCoder(failedOutputCoder);
+      result.get(SUCCESSFUL_ROWS_TAG).setCoder(TableRowJsonCoder.of());
+      return result;
     }
   }
 
@@ -249,6 +251,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
       List<ValueInSingleWindow<ErrorT>> failedInserts = Lists.newArrayList();
+      List<ValueInSingleWindow<TableRow>> successfulInserts = Lists.newArrayList();
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
       for (Map.Entry<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> entry :
           tableRows.entrySet()) {
@@ -258,7 +261,8 @@ class BatchedStreamingWrite<ErrorT, ElementT>
             entry.getValue(),
             uniqueIdsForTableRows.get(entry.getKey()),
             options,
-            failedInserts);
+            failedInserts,
+            successfulInserts);
       }
       tableRows.clear();
       uniqueIdsForTableRows.clear();
@@ -274,9 +278,9 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   private static final Duration BATCH_MAX_BUFFERING_DURATION = Duration.millis(200);
 
   private class ViaStateful
-      extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollection<ErrorT>> {
+      extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollectionTuple> {
     @Override
-    public PCollection<ErrorT> expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
+    public PCollectionTuple expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
       BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
       Duration maxBufferingDuration =
           options.getMaxBufferingDurationMilliSec() > 0
@@ -306,10 +310,12 @@ class BatchedStreamingWrite<ErrorT, ElementT>
                       ShardedKey.Coder.of(StringUtf8Coder.of()), IterableCoder.of(valueCoder)))
               .apply(
                   ParDo.of(new InsertBatchedElements())
-                      .withOutputTags(mainOutputTag, TupleTagList.of(failedOutputTag)));
-      PCollection<ErrorT> failedInserts = result.get(failedOutputTag);
-      failedInserts.setCoder(failedOutputCoder);
-      return failedInserts;
+                      .withOutputTags(
+                          mainOutputTag,
+                          TupleTagList.of(failedOutputTag).and(SUCCESSFUL_ROWS_TAG)));
+      result.get(failedOutputTag).setCoder(failedOutputCoder);
+      result.get(SUCCESSFUL_ROWS_TAG).setCoder(TableRowJsonCoder.of());
+      return result;
     }
   }
 
@@ -340,10 +346,14 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
       TableReference tableReference = BigQueryHelpers.parseTableSpec(input.getKey().getKey());
       List<ValueInSingleWindow<ErrorT>> failedInserts = Lists.newArrayList();
-      flushRows(tableReference, tableRows, uniqueIds, options, failedInserts);
+      List<ValueInSingleWindow<TableRow>> successfulInserts = Lists.newArrayList();
+      flushRows(tableReference, tableRows, uniqueIds, options, failedInserts, successfulInserts);
 
       for (ValueInSingleWindow<ErrorT> row : failedInserts) {
         out.get(failedOutputTag).output(row.getValue());
+      }
+      for (ValueInSingleWindow<TableRow> row : successfulInserts) {
+        out.get(SUCCESSFUL_ROWS_TAG).output(row.getValue());
       }
       reportStreamingApiLogging(options);
     }
@@ -367,7 +377,8 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       List<FailsafeValueInSingleWindow<TableRow, TableRow>> tableRows,
       List<String> uniqueIds,
       BigQueryOptions options,
-      List<ValueInSingleWindow<ErrorT>> failedInserts)
+      List<ValueInSingleWindow<ErrorT>> failedInserts,
+      List<ValueInSingleWindow<TableRow>> successfulInserts)
       throws InterruptedException {
     if (!tableRows.isEmpty()) {
       try {
@@ -382,7 +393,8 @@ class BatchedStreamingWrite<ErrorT, ElementT>
                     errorContainer,
                     skipInvalidRows,
                     ignoreUnknownValues,
-                    ignoreInsertIds);
+                    ignoreInsertIds,
+                    successfulInserts);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);

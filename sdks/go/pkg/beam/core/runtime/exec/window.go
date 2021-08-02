@@ -73,6 +73,11 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 			ret = append(ret, window.IntervalWindow{Start: start, End: start.Add(wfn.Size)})
 		}
 		return ret
+	case window.Sessions:
+		// Assign each element into a window from its timestamp until Gap in the
+		// future.  Overlapping windows (representing elements within Gap of
+		// each other) will be merged.
+		return []typex.Window{window.IntervalWindow{Start: ts, End: ts.Add(wfn.Gap)}}
 
 	default:
 		panic(fmt.Sprintf("Unexpected window fn: %v", wfn))

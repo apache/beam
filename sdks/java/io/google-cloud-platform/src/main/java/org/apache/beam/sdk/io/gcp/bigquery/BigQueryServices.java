@@ -166,7 +166,8 @@ public interface BigQueryServices extends Serializable {
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
         boolean ignoreUnknownValues,
-        boolean ignoreInsertIds)
+        boolean ignoreInsertIds,
+        List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */
@@ -230,13 +231,22 @@ public interface BigQueryServices extends Serializable {
 
   /** An interface representing a client object for making calls to the BigQuery Storage API. */
   interface StorageClient extends AutoCloseable {
-    /** Create a new read session against an existing table. */
+    /**
+     * Create a new read session against an existing table. This method variant collects request
+     * count metric, table id in the request.
+     */
     ReadSession createReadSession(CreateReadSessionRequest request);
 
     /** Read rows in the context of a specific read stream. */
     BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request);
 
+    /* This method variant collects request count metric, using the fullTableID metadata. */
+    BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request, String fullTableId);
+
     SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
+
+    /* This method variant collects request count metric, using the fullTableID metadata. */
+    SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request, String fullTableId);
 
     /**
      * Close the client object.

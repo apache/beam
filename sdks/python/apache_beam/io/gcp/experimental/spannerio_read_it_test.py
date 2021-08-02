@@ -21,7 +21,7 @@ import sys
 import unittest
 import uuid
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -101,7 +101,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     cls._add_dummy_entries()
     _LOGGER.info("Spanner Read IT Setup Complete...")
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_read_via_table(self):
     _LOGGER.info("Spanner Read via table")
     with beam.Pipeline(argv=self.args) as p:
@@ -113,7 +113,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           columns=["UserId", "Key"])
     assert_that(r, equal_to(self._data))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_read_via_sql(self):
     _LOGGER.info("Running Spanner via sql")
     with beam.Pipeline(argv=self.args) as p:

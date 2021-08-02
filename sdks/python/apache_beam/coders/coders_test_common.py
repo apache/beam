@@ -749,6 +749,19 @@ class CodersTest(unittest.TestCase):
             coders.TupleCoder((coder, other_coder)),
             (ShardedKey(key, b'123'), ShardedKey(other_key, b'')))
 
+  def test_timestamp_prefixing_window_coder(self):
+    self.check_coder(
+        coders.TimestampPrefixingWindowCoder(coders.IntervalWindowCoder()),
+        *[
+            window.IntervalWindow(x, y) for x in [-2**52, 0, 2**52]
+            for y in range(-100, 100)
+        ])
+    self.check_coder(
+        coders.TupleCoder((
+            coders.TimestampPrefixingWindowCoder(
+                coders.IntervalWindowCoder()), )),
+        (window.IntervalWindow(0, 10), ))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
