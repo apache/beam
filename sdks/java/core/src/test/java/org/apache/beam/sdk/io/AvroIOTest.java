@@ -475,6 +475,7 @@ public class AvroIOTest implements Serializable {
                       "ParseFilesGenericRecords",
                       AvroIO.parseFilesGenericRecords(new ParseGenericClass())
                           .withCoder(AvroCoder.of(GenericClass.class))
+                          .withReaderThreadCount(new Integer(10))
                           .withDesiredBundleSizeBytes(10)))
           .containsInAnyOrder(values);
       PAssert.that(
