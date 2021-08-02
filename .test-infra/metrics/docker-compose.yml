@@ -85,6 +85,21 @@ services:
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
       - GH_ACCESS_TOKEN=<GithubAccessToken>
+  rungithubactions:
+    image: rungithubactions
+    container_name: beamrungithubactions
+    build:
+      context: ./sync/githubactions
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=beampostgresql
+      - DB_PORT=5432
+      - DB_DBNAME=beam_metrics
+      - DB_DBUSERNAME=admin
+      - DB_DBPWD=<PGPasswordHere>
+      - GITHUB_PERSONAL_TOKEN=<GitHubPATHere>
+      - GITHUB_REPOSITORY=<GitHubRepositoryHere>
+      - GITHUB_OWNER=<GitHubRepositoryOwnerHere>
   syncjenkins:
     image: syncjenkins
     container_name: beamsyncjenkins
