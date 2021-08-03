@@ -699,7 +699,7 @@ class _WriteShardedRecordsFn(beam.DoFn):
     records = element[1]
 
     sink = self.sink_fn(destination)
-    
+
     full_file_name, writer = _create_writer(
         base_path=self.base_path.get(),
         writer_key=(destination, w),
