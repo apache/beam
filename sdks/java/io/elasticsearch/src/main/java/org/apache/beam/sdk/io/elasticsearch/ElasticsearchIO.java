@@ -211,7 +211,6 @@ public class ElasticsearchIO {
 
   public static DocToBulk docToBulk() {
     return new AutoValue_ElasticsearchIO_DocToBulk.Builder()
-        .setUsePartialUpdate(false) // default is document upsert
         .build();
   }
 
@@ -1339,10 +1338,22 @@ public class ElasticsearchIO {
 
     /**
      * Provide an instruction to control whether the target index should be considered append-only.
-     * For append-only indexes and/or data streams, only {@code create} operations will be issued.
+     * For append-only indexes and/or data streams, only {@code create} operations will be issued,
+     * instead of {@code index}, which is the default.
+     *
+     * {@code create} fails if a document with the same ID already exists in the target,
+     * {@code index} adds or replaces a document as necessary. If no ID is provided, both
+     * operations are equivalent, unless you are writing to a
+     * <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/data-streams.html">data stream</a>.
+     * Data streams only support the {@code create} operation. For more information see the
+     * <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc>
+     * Elasticsearch documentation</a>
+     *
      * Updates and deletions are not allowed, so related options will be ignored.
      *
-     * @param appendOnly set to true to allow one document appending
+     * When the documents contain
+     *
+     * @param appendOnly set to true to allow only document appending
      * @return the {@link DocToBulk} with the-append only control set
      */
     public DocToBulk withAppendOnly(boolean appendOnly) {
@@ -1534,23 +1545,25 @@ public class ElasticsearchIO {
         checkState(!isAppendOnly, "No deletions allowed for append-only indices");
         // delete request used for deleting a document
         return String.format("{ \"delete\" : %s }%n", documentMetadata);
-      } else if (isAppendOnly) {
+      }
+
+      if (isAppendOnly) {
         return String.format("{ \"create\" : %s }%n%s%n", documentMetadata, document);
+      }
+
+      // index is an insert/upsert and update is a partial update (or insert if not
+      // existing)
+      if (Boolean.TRUE.equals(spec.getUsePartialUpdate())) {
+        return String.format(
+            "{ \"update\" : %s }%n{ \"doc\" : %s, " + "\"doc_as_upsert\" : true }%n",
+            documentMetadata, document);
+      } else if (spec.getUpsertScript() != null) {
+        return String.format(
+            "{ \"update\" : %s }%n{ \"script\" : {\"source\": \"%s\", "
+                + "\"params\": %s}, \"upsert\" : %s, \"scripted_upsert\": true}%n",
+            documentMetadata, spec.getUpsertScript(), document, document);
       } else {
-        // index is an insert/upsert and update is a partial update (or insert if not
-        // existing)
-        if (spec.getUsePartialUpdate()) {
-          return String.format(
-              "{ \"update\" : %s }%n{ \"doc\" : %s, " + "\"doc_as_upsert\" : true }%n",
-              documentMetadata, document);
-        } else if (spec.getUpsertScript() != null) {
-          return String.format(
-              "{ \"update\" : %s }%n{ \"script\" : {\"source\": \"%s\", "
-                  + "\"params\": %s}, \"upsert\" : %s, \"scripted_upsert\": true}%n",
-              documentMetadata, spec.getUpsertScript(), document, document);
-        } else {
-          return String.format("{ \"index\" : %s }%n%s%n", documentMetadata, document);
-        }
+        return String.format("{ \"index\" : %s }%n%s%n", documentMetadata, document);
       }
     }
 
@@ -1578,7 +1591,7 @@ public class ElasticsearchIO {
                   : null,
               spec.getTypeFn() != null ? spec.getTypeFn().apply(parsedDocument) : null,
               spec.getIdFn() != null ? spec.getIdFn().apply(parsedDocument) : null,
-              (spec.getUsePartialUpdate()
+              (Boolean.TRUE.equals(spec.getUsePartialUpdate())
                       || (spec.getUpsertScript() != null && !spec.getUpsertScript().isEmpty()))
                   ? DEFAULT_RETRY_ON_CONFLICT
                   : null,
@@ -1630,7 +1643,6 @@ public class ElasticsearchIO {
 
     private DocToBulk docToBulk =
         new AutoValue_ElasticsearchIO_DocToBulk.Builder()
-            .setUsePartialUpdate(false) // default is document upsert
             .build();
 
     private BulkIO bulkIO =
