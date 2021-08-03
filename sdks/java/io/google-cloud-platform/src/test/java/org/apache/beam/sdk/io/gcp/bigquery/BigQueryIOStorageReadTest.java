@@ -774,7 +774,7 @@ public class BigQueryIOStorageReadTest {
             createResponse(AVRO_SCHEMA, records.subList(2, 3), 0.5, 0.75));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
-    when(fakeStorageClient.readRows(expectedRequest))
+    when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryStorageStreamSource<TableRow> streamSource =
@@ -830,7 +830,7 @@ public class BigQueryIOStorageReadTest {
             createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.7, 1.0));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
-    when(fakeStorageClient.readRows(expectedRequest))
+    when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryStorageStreamSource<TableRow> streamSource =
@@ -899,7 +899,7 @@ public class BigQueryIOStorageReadTest {
             createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.800, 0.875));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
-    when(fakeStorageClient.readRows(expectedRequest))
+    when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
 
     when(fakeStorageClient.splitReadStream(
@@ -916,7 +916,7 @@ public class BigQueryIOStorageReadTest {
             createResponse(AVRO_SCHEMA, records.subList(3, 4), 0.8, 1.0));
 
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("primaryStream").setOffset(1).build()))
+            ReadRowsRequest.newBuilder().setReadStream("primaryStream").setOffset(1).build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(primaryResponses));
 
     BigQueryStorageStreamSource<TableRow> streamSource =
@@ -974,7 +974,7 @@ public class BigQueryIOStorageReadTest {
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("parentStream").build()))
+            ReadRowsRequest.newBuilder().setReadStream("parentStream").build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
 
     // Mocks the split call.
@@ -993,11 +993,12 @@ public class BigQueryIOStorageReadTest {
                 // This test will read rows 0 and 1 from the parent before calling split,
                 // so we expect the primary read to start at offset 2.
                 .setOffset(2)
-                .build()))
+                .build(),
+            ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses.subList(1, 2)));
 
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("remainderStream").build()))
+            ReadRowsRequest.newBuilder().setReadStream("remainderStream").build(), ""))
         .thenReturn(
             new FakeBigQueryServerStream<>(parentResponses.subList(2, parentResponses.size())));
 
@@ -1051,7 +1052,7 @@ public class BigQueryIOStorageReadTest {
 
     // Mock the initial ReadRows call.
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream(readStreams.get(0).getName()).build()))
+            ReadRowsRequest.newBuilder().setReadStream(readStreams.get(0).getName()).build(), ""))
         .thenReturn(
             new FakeBigQueryServerStream<>(
                 Lists.newArrayList(
@@ -1091,7 +1092,8 @@ public class BigQueryIOStorageReadTest {
             ReadRowsRequest.newBuilder()
                 .setReadStream(readStreams.get(1).getName())
                 .setOffset(1)
-                .build()))
+                .build(),
+            ""))
         .thenReturn(
             new FakeBigQueryServerStream<>(
                 Lists.newArrayList(
@@ -1125,7 +1127,8 @@ public class BigQueryIOStorageReadTest {
             ReadRowsRequest.newBuilder()
                 .setReadStream(readStreams.get(2).getName())
                 .setOffset(2)
-                .build()))
+                .build(),
+            ""))
         .thenReturn(
             new FakeBigQueryServerStream<>(
                 Lists.newArrayList(
@@ -1191,7 +1194,7 @@ public class BigQueryIOStorageReadTest {
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("parentStream").build()))
+            ReadRowsRequest.newBuilder().setReadStream("parentStream").build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
 
     // Mocks the split call. A response without a primary_stream and remainder_stream means
@@ -1259,7 +1262,7 @@ public class BigQueryIOStorageReadTest {
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("parentStream").build()))
+            ReadRowsRequest.newBuilder().setReadStream("parentStream").build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
 
     // Mocks the split call. A response without a primary_stream and remainder_stream means
@@ -1280,7 +1283,8 @@ public class BigQueryIOStorageReadTest {
                 // This test will read rows 0 and 1 from the parent before calling split,
                 // so we expect the primary read to start at offset 2.
                 .setOffset(2)
-                .build()))
+                .build(),
+            ""))
         .thenThrow(
             new FailedPreconditionException(
                 "Given row offset is invalid for stream.",
@@ -1373,7 +1377,7 @@ public class BigQueryIOStorageReadTest {
     StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
     when(fakeStorageClient.createReadSession(expectedCreateReadSessionRequest))
         .thenReturn(readSession);
-    when(fakeStorageClient.readRows(expectedReadRowsRequest))
+    when(fakeStorageClient.readRows(expectedReadRowsRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
 
     PCollection<KV<String, Long>> output =
@@ -1439,7 +1443,7 @@ public class BigQueryIOStorageReadTest {
     StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
     when(fakeStorageClient.createReadSession(expectedCreateReadSessionRequest))
         .thenReturn(readSession);
-    when(fakeStorageClient.readRows(expectedReadRowsRequest))
+    when(fakeStorageClient.readRows(expectedReadRowsRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
 
     PCollection<TableRow> output =
@@ -1507,7 +1511,7 @@ public class BigQueryIOStorageReadTest {
     StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
     when(fakeStorageClient.createReadSession(expectedCreateReadSessionRequest))
         .thenReturn(readSession);
-    when(fakeStorageClient.readRows(expectedReadRowsRequest))
+    when(fakeStorageClient.readRows(expectedReadRowsRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
 
     PCollection<KV<String, Long>> output =
@@ -1553,7 +1557,7 @@ public class BigQueryIOStorageReadTest {
                 ARROW_SCHEMA, names.subList(2, 3), values.subList(2, 3), 0.5, 0.75));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
-    when(fakeStorageClient.readRows(expectedRequest))
+    when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryStorageStreamSource<TableRow> streamSource =
@@ -1602,7 +1606,7 @@ public class BigQueryIOStorageReadTest {
             createResponseArrow(ARROW_SCHEMA, names.subList(4, 7), values.subList(4, 7), 0.7, 1.0));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
-    when(fakeStorageClient.readRows(expectedRequest))
+    when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryStorageStreamSource<TableRow> streamSource =
@@ -1668,7 +1672,7 @@ public class BigQueryIOStorageReadTest {
                 ARROW_SCHEMA, names.subList(4, 7), values.subList(4, 7), 0.7, 0.875));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
-    when(fakeStorageClient.readRows(expectedRequest))
+    when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponse));
 
     when(fakeStorageClient.splitReadStream(
@@ -1685,7 +1689,7 @@ public class BigQueryIOStorageReadTest {
             createResponseArrow(ARROW_SCHEMA, names.subList(3, 4), values.subList(3, 4), 0.8, 1.0));
 
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("primaryStream").setOffset(1).build()))
+            ReadRowsRequest.newBuilder().setReadStream("primaryStream").setOffset(1).build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(primaryResponses));
 
     BigQueryStorageStreamSource<TableRow> streamSource =
@@ -1734,7 +1738,7 @@ public class BigQueryIOStorageReadTest {
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("parentStream").build()))
+            ReadRowsRequest.newBuilder().setReadStream("parentStream").build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
 
     // Mocks the split call.
@@ -1753,11 +1757,12 @@ public class BigQueryIOStorageReadTest {
                 // This test will read rows 0 and 1 from the parent before calling split,
                 // so we expect the primary read to start at offset 2.
                 .setOffset(2)
-                .build()))
+                .build(),
+            ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses.subList(1, 2)));
 
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("remainderStream").build()))
+            ReadRowsRequest.newBuilder().setReadStream("remainderStream").build(), ""))
         .thenReturn(
             new FakeBigQueryServerStream<>(parentResponses.subList(2, parentResponses.size())));
 
@@ -1824,7 +1829,7 @@ public class BigQueryIOStorageReadTest {
 
     // Mock the initial ReadRows call.
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream(readStreams.get(0).getName()).build()))
+            ReadRowsRequest.newBuilder().setReadStream(readStreams.get(0).getName()).build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
 
     // Mock the first SplitReadStream call.
@@ -1850,7 +1855,8 @@ public class BigQueryIOStorageReadTest {
             ReadRowsRequest.newBuilder()
                 .setReadStream(readStreams.get(1).getName())
                 .setOffset(1)
-                .build()))
+                .build(),
+            ""))
         .thenReturn(new FakeBigQueryServerStream<>(otherResponses));
 
     // Mock the second SplitReadStream call.
@@ -1875,7 +1881,8 @@ public class BigQueryIOStorageReadTest {
             ReadRowsRequest.newBuilder()
                 .setReadStream(readStreams.get(2).getName())
                 .setOffset(2)
-                .build()))
+                .build(),
+            ""))
         .thenReturn(new FakeBigQueryServerStream<>(lastResponses));
 
     BoundedSource<TableRow> source =
@@ -1929,7 +1936,7 @@ public class BigQueryIOStorageReadTest {
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("parentStream").build()))
+            ReadRowsRequest.newBuilder().setReadStream("parentStream").build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
 
     // Mocks the split call. A response without a primary_stream and remainder_stream means
@@ -1994,7 +2001,7 @@ public class BigQueryIOStorageReadTest {
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("parentStream").build()))
+            ReadRowsRequest.newBuilder().setReadStream("parentStream").build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
 
     // Mocks the split call. A response without a primary_stream and remainder_stream means
@@ -2015,7 +2022,8 @@ public class BigQueryIOStorageReadTest {
                 // This test will read rows 0 and 1 from the parent before calling split,
                 // so we expect the primary read to start at offset 2.
                 .setOffset(2)
-                .build()))
+                .build(),
+            ""))
         .thenThrow(
             new FailedPreconditionException(
                 "Given row offset is invalid for stream.",
