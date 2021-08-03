@@ -69,10 +69,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     String fullName = node.getFullName();
     writeLine(
         "{ \"fullName\":\"%s\",", escapeString(fullName.isEmpty() ? OUTERMOST_NODE : fullName));
-    writeLine(
-        "  \"shortName\":\"%s\",",
-        escapeString(fullName.isEmpty() ? OUTERMOST_NODE : node.getTransform().getName()));
-    writeLine("  \"id\":\"%s\",", escapeString(fullName.isEmpty() ? OUTERMOST_NODE : fullName));
     if (!fullName.isEmpty()) {
       String enclosingNodeName = node.getEnclosingNode().getFullName();
       writeLine(
@@ -100,12 +96,10 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     String fullName = node.getFullName();
     writeLine("{ \"fullName\":\"%s\",", escapeString(fullName));
-    writeLine("  \"shortName\":\"%s\",", escapeString(node.getTransform().getName()));
     String enclosingNodeName = node.getEnclosingNode().getFullName();
     writeLine(
         "  \"enclosingNode\":\"%s\",",
         escapeString(enclosingNodeName.isEmpty() ? OUTERMOST_NODE : enclosingNodeName));
-    writeLine("  \"id\":\"%s\"},", escapeString(fullName));
 
     node.getOutputs().values().forEach(x -> valueToProducerNodeName.put(x, fullName));
     node.getInputs()

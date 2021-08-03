@@ -52,8 +52,6 @@ public class PipelineJsonRendererTest {
     assertEquals(
         "{  \"RootNode\": ["
             + "    { \"fullName\":\"OuterMostNode\","
-            + "      \"shortName\":\"OuterMostNode\","
-            + "      \"id\":\"OuterMostNode\","
             + "      \"ChildNode\":[    ]}],\"graphLinks\": []"
             + "}",
         PipelineJsonRenderer.toJsonString(p).replaceAll(System.lineSeparator(), ""));
