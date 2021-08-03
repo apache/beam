@@ -3750,7 +3750,11 @@ public class ParDoTest implements Serializable {
           };
 
       PCollection<Integer> output =
-          pipeline.apply(Create.of(KV.of("hello", 42))).apply(ParDo.of(fn));
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("hello", 42), Instant.ofEpochMilli(0))))
+              .apply(ParDo.of(fn));
 
       PAssert.that(output).containsInAnyOrder(0, 1, 2, 3, 4);
       pipeline.run();

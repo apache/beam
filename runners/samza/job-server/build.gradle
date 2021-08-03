@@ -98,6 +98,7 @@ createPortableValidatesRunnerTask(
             excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
             excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
             excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
         },
         testFilter: {
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput"
