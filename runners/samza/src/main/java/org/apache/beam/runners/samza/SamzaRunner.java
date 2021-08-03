@@ -81,7 +81,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   }
 
   public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
-    final String jsonGraph = PipelineJsonRenderer.toJsonString(pipeline);
+    final String jsonGraph = PipelineJsonRenderer.toJsonString(pipeline).toString();
     LOG.info("Portable pipeline to run json graph:\n{}", jsonGraph);
 
     final ConfigBuilder configBuilder = new ConfigBuilder(options);

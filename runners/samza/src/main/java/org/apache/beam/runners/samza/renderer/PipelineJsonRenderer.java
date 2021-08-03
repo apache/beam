@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.renderer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.samza.SamzaIOInfo;
@@ -48,8 +49,8 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     return visitor.jsonBuilder.toString();
   }
 
-  public static String toJsonString(RunnerApi.Pipeline pipeline) {
-    return null;
+  public static Optional<Object> toJsonString(RunnerApi.Pipeline pipeline) {
+    return Optional.empty();
   }
 
   private final StringBuilder jsonBuilder = new StringBuilder();
@@ -106,10 +107,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
         .forEach(
             (key, value) -> {
               final String producerName = valueToProducerNodeName.get(value);
-              String style = "solid";
-              if (node.getTransform().getAdditionalInputs().containsKey(key)) {
-                style = "dashed";
-              }
               graphLinks.append(
                   String.format("{\"from\":\"%s\"," + "\"to\":\"%s\"},", producerName, fullName));
             });
