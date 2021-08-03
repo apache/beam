@@ -112,9 +112,9 @@ func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 	} else if c.elmType.Type() != t {
 		return fmt.Errorf("element type mismatch, previous additions were of type %v, tried to add type %v", c.elmType, t)
 	}
-	for _, ele := range elements {
+	for i, ele := range elements {
 		if reflect.TypeOf(ele) != c.elmType.Type() {
-			return fmt.Errorf("element type mismatch, wanted type %v, got element %v of type %v", c.elmType, ele, reflect.TypeOf(ele))
+			return fmt.Errorf("element %d was type %T, previous additions were of type %v", i, ele, c.elmType)
 		}
 	}
 	newElements := []*pipepb.TestStreamPayload_TimestampedElement{}
