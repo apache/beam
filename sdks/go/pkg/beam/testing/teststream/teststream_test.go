@@ -40,13 +40,13 @@ func TestAdvanceWatermark(t *testing.T) {
 	con := NewConfig()
 	con.AdvanceWatermark(500)
 	if w := con.watermark; w != 500 {
-		t.Errorf("default watermark expected 500, got %v", w)
+		t.Errorf("want default watermark to be 500, got %v", w)
 	}
 	if len(con.events) != 1 {
-		t.Fatalf("expected only 1 event in config, got %v", len(con.events))
+		t.Fatalf("want only 1 event in config, got %v", len(con.events))
 	}
 	if eventWatermark := con.events[0].GetWatermarkEvent().NewWatermark; eventWatermark != 500 {
-		t.Errorf("expected watermark in event was 500, got %v", eventWatermark)
+		t.Errorf("want watermark in event to be 500, got %v", eventWatermark)
 	}
 }
 
@@ -64,11 +64,11 @@ func TestAdvanceProcessingTime(t *testing.T) {
 	con := NewConfig()
 	con.AdvanceProcessingTime(100)
 	if len(con.events) != 1 {
-		t.Fatalf("expected only 1 event in config, got %v", len(con.events))
+		t.Fatalf("want only 1 event in config, got %v", len(con.events))
 	}
 	event := con.events[0].GetProcessingTimeEvent()
 	if event.GetAdvanceDuration() != 100 {
-		t.Errorf("expected duration of 100, got %v", event.GetAdvanceDuration())
+		t.Errorf("want duration of 100, got %v", event.GetAdvanceDuration())
 	}
 }
 
@@ -108,7 +108,7 @@ func TestAddElements(t *testing.T) {
 					t.Errorf("%v, error decoding element, got %v", tc.name, err)
 				}
 				if val != elements[j] {
-					t.Errorf("%v added element mismatch, expected %v, got %v", tc.name, elements[j], val)
+					t.Errorf("%v added element mismatch, want %v, got %v", tc.name, elements[j], val)
 				}
 			}
 		}

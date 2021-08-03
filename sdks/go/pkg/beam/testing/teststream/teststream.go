@@ -50,7 +50,7 @@ func NewConfig() Config {
 	return Config{elmType: nil,
 		events:    []*pipepb.TestStreamPayload_Event{},
 		endpoint:  &pipepb.ApiServiceDescriptor{},
-		watermark: 0,
+		watermark: mtime.MinTimestamp.Milliseconds(),
 	}
 }
 
@@ -63,6 +63,8 @@ func (c *Config) setEndpoint(url string) {
 
 // createPayload converts the Config object into a TestStreamPayload to be sent to the runner.
 func (c *Config) createPayload() *pipepb.TestStreamPayload {
+	// c0 is always the first coder in the pipeline, and inserting the TestStream as the first
+	// element in the pipeline guarantees that the c0 coder corresponds to the type it outputs.
 	return &pipepb.TestStreamPayload{CoderId: "c0", Events: c.events, Endpoint: c.endpoint}
 }
 
@@ -109,6 +111,11 @@ func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 		c.elmType = typex.New(t)
 	} else if c.elmType.Type() != t {
 		return fmt.Errorf("element type mismatch, previous additions were of type %v, tried to add type %v", c.elmType, t)
+	}
+	for _, ele := range elements {
+		if reflect.TypeOf(ele) != c.elmType.Type() {
+			return fmt.Errorf("element type mismatch, wanted type %v, got element %v of type %v", c.elmType, ele, reflect.TypeOf(ele))
+		}
 	}
 	newElements := []*pipepb.TestStreamPayload_TimestampedElement{}
 	enc := beam.NewElementEncoder(t)
