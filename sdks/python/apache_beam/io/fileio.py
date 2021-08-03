@@ -101,7 +101,6 @@ from typing import DefaultDict
 from typing import Dict
 from typing import Iterable
 from typing import List
-from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -616,7 +615,9 @@ def _create_writer(
   file_name = '%s_%s' % (abs(hash(writer_key)), uuid.uuid4())
   full_file_name = filesystems.FileSystems.join(base_path, file_name)
   metadata = create_metadata_fn(destination, full_file_name)
-  return full_file_name, filesystems.FileSystems.create(full_file_name, **metadata._asdict())
+  return full_file_name, filesystems.FileSystems.create(
+      full_file_name,
+      **metadata._asdict())
 
 
 class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
@@ -697,10 +698,13 @@ class _WriteShardedRecordsFn(beam.DoFn):
     shard = destination_and_shard[1]
     records = element[1]
 
-    full_file_name, writer = _create_writer(base_path=self.base_path.get(),
-                                            writer_key=(destination, w),
-                                            create_metadata_fn=sink.create_metadata)
     sink = self.sink_fn(destination)
+    
+    full_file_name, writer = _create_writer(
+        base_path=self.base_path.get(),
+        writer_key=(destination, w),
+        create_metadata_fn=sink.create_metadata)
+
     sink.open(writer)
 
     for r in records:
@@ -795,9 +799,10 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
       return None, None
     else:
       # The writer does not exist, but we can still create a new one.
-      full_file_name, writer = _create_writer(base_path=self.base_path.get(),
-                                              writer_key=writer_key,
-                                              create_metadata_fn=sink.create_metadata)
+      full_file_name, writer = _create_writer(
+          base_path=self.base_path.get(),
+          writer_key=writer_key,
+          create_metadata_fn=sink.create_metadata)
       sink = self.sink_fn(destination)
 
       sink.open(writer)
