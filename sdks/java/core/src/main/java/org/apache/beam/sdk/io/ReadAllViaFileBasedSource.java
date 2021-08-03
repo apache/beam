@@ -77,8 +77,10 @@ public class ReadAllViaFileBasedSource<T>
     // }
     return input
         .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
-        .apply("Reshuffle", Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey()
-            .withNumBuckets((Integer) readerThreadCount))
+        .apply(
+            "Reshuffle",
+            Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey()
+                .withNumBuckets((Integer) readerThreadCount))
         .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
         .setCoder(coder);
   }
