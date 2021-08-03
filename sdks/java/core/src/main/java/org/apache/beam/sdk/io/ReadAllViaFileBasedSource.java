@@ -71,12 +71,14 @@ public class ReadAllViaFileBasedSource<T>
 
   @Override
   public PCollection<T> expand(PCollection<ReadableFile> input) {
+    // Reshuffle shuffle = Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey();
+    // if (readerThreadCount != null) {
+    //   shuffle = shuffle.withNumBuckets((Integer) readerThreadCount);
+    // }
     return input
         .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
-        .apply(
-            "Reshuffle",
-            Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey()
-                .withNumBuckets(this.readerThreadCount))
+        .apply("Reshuffle", Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey()
+            .withNumBuckets((Integer) readerThreadCount))
         .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
         .setCoder(coder);
   }
