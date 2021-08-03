@@ -88,7 +88,8 @@ import org.joda.time.Instant;
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "keyfor"
+  "keyfor",
+  "nullness"
 }) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SamzaStoreStateInternals<K> implements StateInternals {
   static final String BEAM_STORE = "beamStore";
@@ -123,7 +124,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   }
 
   /**
-   * Creates non keyed state internal factory to persist states in {@link SamzaStoreStateInternals#BEAM_STORE}.
+   * Creates non keyed state internal factory to persist states in {@link
+   * SamzaStoreStateInternals#BEAM_STORE}.
    */
   static <K> Factory<K> createStateInternalFactory(
       String id, TaskContext context, SamzaPipelineOptions pipelineOptions) {

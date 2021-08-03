@@ -60,7 +60,8 @@ public class SamzaStateRequestHandlers {
     final StateRequestHandler sideInputStateHandler =
         createSideInputStateHandler(executableStage, sideInputIds, sideInputHandler);
     final StateRequestHandler userStateRequestHandler =
-        createUserStateRequestHandler(transformId, executableStage, context, pipelineOptions, stageBundleFactory);
+        createUserStateRequestHandler(
+            transformId, executableStage, context, pipelineOptions, stageBundleFactory);
     final EnumMap<BeamFnApi.StateKey.TypeCase, StateRequestHandler> handlerMap =
         new EnumMap<>(BeamFnApi.StateKey.TypeCase.class);
     handlerMap.put(BeamFnApi.StateKey.TypeCase.ITERABLE_SIDE_INPUT, sideInputStateHandler);
@@ -104,18 +105,15 @@ public class SamzaStateRequestHandlers {
 
     final SamzaStoreStateInternals.Factory<ByteString> stateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            transformId,
-            ByteStringCoder.of(),
-            context,
-            pipelineOptions,
-            executableStage);
+            transformId, ByteStringCoder.of(), context, pipelineOptions, executableStage);
 
     return StateRequestHandlers.forBagUserStateHandlerFactory(
         stageBundleFactory.getProcessBundleDescriptor(),
         new BagUserStateFactory<>(stateInternalsFactory));
   }
 
-  static class BagUserStateFactory<K extends ByteString, V extends ByteString, W extends BoundedWindow>
+  static class BagUserStateFactory<
+          K extends ByteString, V extends ByteString, W extends BoundedWindow>
       implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
 
     private final SamzaStoreStateInternals.Factory<ByteString> stateInternalsFactory;
@@ -125,13 +123,12 @@ public class SamzaStateRequestHandlers {
     }
 
     @Override
-    public StateRequestHandlers.BagUserStateHandler<K, V, W>
-        forUserState(
-            String pTransformId,
-            String userStateId,
-            Coder<K> keyCoder,
-            Coder<V> valueCoder,
-            Coder<W> windowCoder) {
+    public StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
+        String pTransformId,
+        String userStateId,
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        Coder<W> windowCoder) {
       return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
         @Override
         public Iterable<V> get(K key, W window) {

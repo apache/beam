@@ -421,7 +421,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
       return Collections.emptyMap();
     }
 
-    final Map<String, String> config = new HashMap<>(ConfigBuilder.createRocksDBStoreConfig(options));
+    final Map<String, String> config =
+        new HashMap<>(ConfigBuilder.createRocksDBStoreConfig(options));
     for (RunnerApi.ExecutableStagePayload.UserStateId stateId : stagePayload.getUserStatesList()) {
       final String storeId = stateId.getLocalName();
 
