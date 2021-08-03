@@ -42,8 +42,8 @@ public class JoinUtils {
   }
 
   /**
-   * Returns the key coder for the given PCollection. Assumes that the value coder is an instance
-   * of {@code KvCoder<K, V>}.
+   * Returns the key coder for the given PCollection. Assumes that the value coder is an instance of
+   * {@code KvCoder<K, V>}.
    */
   public static <K, V> Coder<K> getKeyCoder(PCollection<KV<K, V>> pCollection) {
     // Assumes that the PCollection uses a KvCoder.

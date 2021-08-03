@@ -17,50 +17,28 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
+
 import java.util.Objects;
 import javax.annotation.Nullable;
 
 /** A pair of two different objects. */
-public class Pair<V1, V2> {
-  private final V1 first;
-  private final V2 second;
+@DefaultSchema(AutoValueSchema.class)
+@AutoValue
+public abstract class Pair<V1, V2> {
 
-  public Pair(V1 first, V2 second) {
-    this.first = first;
-    this.second = second;
-  }
+  abstract V1 getFirst();
 
-  public static <V1, V2> Pair<V1, V2> of(V1 first, V2 second) {
-    return new Pair<>(first, second);
-  }
+  abstract V2 getSecond();
 
-  public V1 getFirst() {
-    return first;
-  }
-
-  public V2 getSecond() {
-    return second;
-  }
-
-  @Override
-  public String toString() {
-    return "(" + first.toString() + ", " + second.toString() + ")";
-  }
-
-  @Override
-  public boolean equals(@Nullable Object object) {
-    if (this == object) {
-      return true;
-    }
-    if (!(object instanceof Pair)) {
-      return false;
-    }
-    Pair other = (Pair) object;
-    return first.equals(other.getFirst()) && second.equals(other.getSecond());
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(first, second);
+  @SchemaCreate
+  public static <V1, V2> Pair of(V1 first, V2 second) {
+    return new AutoValue_Pair(first, second);
   }
 }
