@@ -340,8 +340,11 @@ class FileSink(object):
    - The ``create_metadata`` method, which creates all metadata passed to
      Filesystems.create.
    """
-  def create_metadata(self, destination:str, full_file_name:str) -> FileMetadata:
-    return FileMetadata(mime_type="application/octet-stream", compression_type=CompressionTypes.AUTO)
+  def create_metadata(
+      self, destination: str, full_file_name: str) -> FileMetadata:
+    return FileMetadata(
+      mime_type="application/octet-stream",
+      compression_type=CompressionTypes.AUTO)
 
   def open(self, fh):
     # type: (BinaryIO) -> None
@@ -596,10 +599,10 @@ class WriteToFiles(beam.PTransform):
 
 
 def _create_writer(
-      base_path,
-      writer_key: Tuple[str, IntervalWindow],
-      create_metadata_fn: CreateFileMetadataFn,
-  ):
+    base_path,
+    writer_key: Tuple[str, IntervalWindow],
+    create_metadata_fn: CreateFileMetadataFn,
+):
   try:
     filesystems.FileSystems.mkdirs(base_path)
   except IOError:
@@ -607,7 +610,7 @@ def _create_writer(
     pass
 
   destination = writer_key[0]
-  
+
   # The file name has a prefix determined by destination+window, along with
   # a random string. This allows us to retrieve orphaned files later on.
   file_name = '%s_%s' % (abs(hash(writer_key)), uuid.uuid4())
