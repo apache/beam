@@ -210,8 +210,7 @@ public class ElasticsearchIO {
   }
 
   public static DocToBulk docToBulk() {
-    return new AutoValue_ElasticsearchIO_DocToBulk.Builder()
-        .build();
+    return new AutoValue_ElasticsearchIO_DocToBulk.Builder().build();
   }
 
   public static BulkIO bulkIO() {
@@ -1341,17 +1340,18 @@ public class ElasticsearchIO {
      * For append-only indexes and/or data streams, only {@code create} operations will be issued,
      * instead of {@code index}, which is the default.
      *
-     * {@code create} fails if a document with the same ID already exists in the target,
-     * {@code index} adds or replaces a document as necessary. If no ID is provided, both
-     * operations are equivalent, unless you are writing to a
-     * <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/data-streams.html">data stream</a>.
-     * Data streams only support the {@code create} operation. For more information see the
-     * <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc>
+     * <p>{@code create} fails if a document with the same ID already exists in the target, {@code
+     * index} adds or replaces a document as necessary. If no ID is provided, both operations are
+     * equivalent, unless you are writing to a <a
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/data-streams.html">data
+     * stream</a>. Data streams only support the {@code create} operation. For more information see
+     * the <a
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc>
      * Elasticsearch documentation</a>
      *
-     * Updates and deletions are not allowed, so related options will be ignored.
+     * <p>Updates and deletions are not allowed, so related options will be ignored.
      *
-     * When the documents contain
+     * <p>When the documents contain
      *
      * @param appendOnly set to true to allow only document appending
      * @return the {@link DocToBulk} with the-append only control set
@@ -1641,9 +1641,7 @@ public class ElasticsearchIO {
 
     public interface BooleanFieldValueExtractFn extends SerializableFunction<JsonNode, Boolean> {}
 
-    private DocToBulk docToBulk =
-        new AutoValue_ElasticsearchIO_DocToBulk.Builder()
-            .build();
+    private DocToBulk docToBulk = new AutoValue_ElasticsearchIO_DocToBulk.Builder().build();
 
     private BulkIO bulkIO =
         new AutoValue_ElasticsearchIO_BulkIO.Builder()
