@@ -184,7 +184,7 @@ public class EventTimeEquiJoinTest implements Serializable {
 
     PCollection<KV<Integer, Integer>> listTwo = createIntegers(Arrays.asList(KV.of(1, 3)));
 
-    EventTimeEquiJoin.Impl<Integer, String, Integer> join =
+    EventTimeEquiJoin<Integer, String, Integer> join =
         EventTimeEquiJoin.<Integer, String, Integer>of(listTwo).within(new Duration(4L));
 
     List<KV<Integer, Pair<String, Integer>>> expected = new ArrayList<>();

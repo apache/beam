@@ -39,28 +39,34 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-public class EventTimeEquiJoin {
+/**
+ * Returns a {@link PTransform} that performs a {@link EventTimeEquiJoin} on two PCollections. A
+ * {@link EventTimeEquiJoin} joins elements with equal keys bounded by the difference in event time.
+ *
+ * <p>Example of performing a {@link EventTimeEquiJoin}:
+ *
+ * <pre>{@code
+ * PCollection<KV<K, V1>> pt1 = ...;
+ * PCollection<KV<K, V2>> pt2 = ...;
+ *
+ * PCollection<KV<K, Pair<V1, V2>> eventTimeEquiJoinCollection =
+ *   pt1.apply(EventTimeEquiJoin.<K, V1, V2>of(pt2));
+ *
+ * @param secondCollection the second collection to use in the join.
+ * @param <K> the type of the keys in the input {@code PCollection}s
+ * @param <V1> the type of the value in the first {@code PCollection}
+ * @param <V2> the type of the value in the second {@code PCollection}
+ * </pre>
+ */
+@AutoValue
+public abstract class EventTimeEquiJoin<K, V1, V2>
+    extends PTransform<PCollection<KV<K, V1>>, PCollection<KV<K, Pair<V1, V2>>>> {
   /**
-   * Returns a {@link PTransform} that performs a {@link EventTimeEquiJoin} on two PCollections. A
-   * {@link EventTimeEquiJoin} joins elements with equal keys bounded by the difference in event time.
-   *
-   * <p>Example of performing a {@link EventTimeEquiJoin}:
-   *
-   * <pre>{@code
-   * PCollection<KV<K, V1>> pt1 = ...;
-   * PCollection<KV<K, V2>> pt2 = ...;
-   *
-   * PCollection<KV<K, Pair<V1, V2>> eventTimeEquiJoinCollection =
-   *   pt1.apply(EventTimeEquiJoin.<K, V1, V2>of(pt2));
-   *
-   * @param secondCollection the second collection to use in the join.
-   * @param <K> the type of the keys in the input {@code PCollection}s
-   * @param <V1> the type of the value in the first {@code PCollection}
-   * @param <V2> the type of the value in the second {@code PCollection}
-   * </pre>
+   * Returns a {@link PTransform} that performs a {@link EventTimeEquiJoin} on two PCollections.
    */
-  public static <K, V1, V2> Impl<K, V1, V2> of(PCollection<KV<K, V2>> secondCollection) {
-    return new AutoValue_EventTimeEquiJoin_Impl.Builder<K, V1, V2>()
+  public static <K, V1, V2> EventTimeEquiJoin<K, V1, V2> of(
+      PCollection<KV<K, V2>> secondCollection) {
+    return new AutoValue_EventTimeEquiJoin.Builder<K, V1, V2>()
         .setSecondCollection(secondCollection)
         .setFirstCollectionValidFor(Duration.ZERO)
         .setSecondCollectionValidFor(Duration.ZERO)
@@ -68,94 +74,90 @@ public class EventTimeEquiJoin {
         .build();
   }
 
-  @AutoValue
-  public abstract static class Impl<K, V1, V2>
-      extends PTransform<PCollection<KV<K, V1>>, PCollection<KV<K, Pair<V1, V2>>>> {
-    abstract PCollection<KV<K, V2>> getSecondCollection();
+  abstract PCollection<KV<K, V2>> getSecondCollection();
 
-    abstract Duration getFirstCollectionValidFor();
+  abstract Duration getFirstCollectionValidFor();
 
-    abstract Duration getSecondCollectionValidFor();
+  abstract Duration getSecondCollectionValidFor();
 
-    abstract Duration getAllowedLateness();
+  abstract Duration getAllowedLateness();
 
-    abstract Builder<K, V1, V2> toBuilder();
+  abstract Builder<K, V1, V2> toBuilder();
 
-    @AutoValue.Builder
-    abstract static class Builder<K, V1, V2> {
-      abstract Builder<K, V1, V2> setSecondCollection(PCollection<KV<K, V2>> rhsCollection);
+  @AutoValue.Builder
+  abstract public static class Builder<K, V1, V2> {
+    public abstract Builder<K, V1, V2> setSecondCollection(PCollection<KV<K, V2>> value);
 
-      public abstract Builder<K, V1, V2> setFirstCollectionValidFor(Duration value);
+    public abstract Builder<K, V1, V2> setFirstCollectionValidFor(Duration value);
 
-      public abstract Builder<K, V1, V2> setSecondCollectionValidFor(Duration value);
+    public abstract Builder<K, V1, V2> setSecondCollectionValidFor(Duration value);
 
-      public abstract Builder<K, V1, V2> setAllowedLateness(Duration value);
+    public abstract Builder<K, V1, V2> setAllowedLateness(Duration value);
 
-      abstract Impl<K, V1, V2> build();
-    }
+    abstract EventTimeEquiJoin<K, V1, V2> build();
+  }
 
-    /**
-     * Returns a {@code Impl<K, V1, V2>} {@code PTransform} that matches elements from the first and
-     * second collection with the same keys if their timestamps are within the given interval.
-     *
-     * @param interval the allowed difference between the timestamps to allow a match
-     */
-    public Impl<K, V1, V2> within(Duration interval) {
-      return toBuilder()
-          .setFirstCollectionValidFor(interval)
-          .setSecondCollectionValidFor(interval)
-          .build();
-    }
+  /**
+   * Returns a {@code Impl<K, V1, V2>} {@code PTransform} that matches elements from the first and
+   * second collection with the same keys if their timestamps are within the given interval.
+   *
+   * @param interval the allowed difference between the timestamps to allow a match
+   */
+  public EventTimeEquiJoin<K, V1, V2> within(Duration interval) {
+    return toBuilder()
+        .setFirstCollectionValidFor(interval)
+        .setSecondCollectionValidFor(interval)
+        .build();
+  }
 
-    /**
-     * Returns a {@code Impl<K, V1, V2>} {@code PTransform} that matches elements from the first and
-     * second collection with the same keys if the collection's element comes within the valid time
-     * range for the other collection.
-     *
-     * @param firstCollectionValidFor the valid time range for the first collection
-     * @param secondCollectionValidFor the valid time range for the second collection
-     */
-    public Impl<K, V1, V2> within(
-        Duration firstCollectionValidFor, Duration secondCollectionValidFor) {
-      return toBuilder()
-          .setFirstCollectionValidFor(firstCollectionValidFor)
-          .setSecondCollectionValidFor(secondCollectionValidFor)
-          .build();
-    }
+  /**
+   * Returns a {@code Impl<K, V1, V2>} {@code PTransform} that matches elements from the first and
+   * second collection with the same keys if the collection's element comes within the valid time
+   * range for the other collection.
+   *
+   * @param firstCollectionValidFor the valid time range for the first collection
+   * @param secondCollectionValidFor the valid time range for the second collection
+   */
+  public EventTimeEquiJoin<K, V1, V2> within(
+      Duration firstCollectionValidFor, Duration secondCollectionValidFor) {
+    return toBuilder()
+        .setFirstCollectionValidFor(firstCollectionValidFor)
+        .setSecondCollectionValidFor(secondCollectionValidFor)
+        .build();
+  }
 
-    /**
-     * Returns a {@code Impl<K, V1, V2>} {@code PTransform} that matches elements from the first and
-     * second collection with the same keys and allows for late elements
-     *
-     * @param allowedLateness the amount of time late elements are allowed.
-     */
-    public Impl<K, V1, V2> withAllowedLateness(Duration allowedLateness) {
-      return toBuilder().setAllowedLateness(allowedLateness).build();
-    }
+  /**
+   * Returns a {@code Impl<K, V1, V2>} {@code PTransform} that matches elements from the first and
+   * second collection with the same keys and allows for late elements
+   *
+   * @param allowedLateness the amount of time late elements are allowed.
+   */
+  public EventTimeEquiJoin<K, V1, V2> withAllowedLateness(Duration allowedLateness) {
+    return toBuilder().setAllowedLateness(allowedLateness).build();
+  }
 
-    @Override
-    public PCollection<KV<K, Pair<V1, V2>>> expand(PCollection<KV<K, V1>> input) {
-      Coder<K> keyCoder = JoinUtils.getKeyCoder(input);
-      Coder<V1> firstValueCoder = JoinUtils.getValueCoder(input);
-      Coder<V2> secondValueCoder = JoinUtils.getValueCoder(getSecondCollection());
-      UnionCoder unionCoder = UnionCoder.of(ImmutableList.of(firstValueCoder, secondValueCoder));
-      KvCoder<K, RawUnionValue> kvCoder = KvCoder.of(JoinUtils.getKeyCoder(input), unionCoder);
-      PCollectionList<KV<K, RawUnionValue>> union =
-          PCollectionList.of(JoinUtils.makeUnionTable(0, input, kvCoder))
-              .and(JoinUtils.makeUnionTable(1, getSecondCollection(), kvCoder));
-      return union
-          .apply("Flatten", Flatten.pCollections())
-          .apply(
-              "Join",
-              ParDo.of(
-                  new EventTimeEquiJoinDoFn<>(
-                      firstValueCoder,
-                      secondValueCoder,
-                      getFirstCollectionValidFor(),
-                      getSecondCollectionValidFor(),
-                      getAllowedLateness())))
-          .setCoder(KvCoder.of(keyCoder, PairCoder.<V1, V2>of(firstValueCoder, secondValueCoder)));
-    }
+  @Override
+  public PCollection<KV<K, Pair<V1, V2>>> expand(PCollection<KV<K, V1>> input) {
+    Coder<K> keyCoder = JoinUtils.getKeyCoder(input);
+    Coder<V1> firstValueCoder = JoinUtils.getValueCoder(input);
+    Coder<V2> secondValueCoder = JoinUtils.getValueCoder(getSecondCollection());
+    UnionCoder unionCoder = UnionCoder.of(ImmutableList.of(firstValueCoder, secondValueCoder));
+    KvCoder<K, RawUnionValue> kvCoder = KvCoder.of(JoinUtils.getKeyCoder(input), unionCoder);
+    PCollectionList<KV<K, RawUnionValue>> union =
+        PCollectionList.of(JoinUtils.makeUnionTable(0, input, kvCoder))
+            .and(JoinUtils.makeUnionTable(1, getSecondCollection(), kvCoder));
+    return union
+        .apply("Flatten", Flatten.pCollections())
+        .apply(
+            "Join",
+            ParDo.of(
+                new EventTimeEquiJoinDoFn<>(
+                    firstValueCoder,
+                    secondValueCoder,
+                    getFirstCollectionValidFor(),
+                    getSecondCollectionValidFor(),
+                    getAllowedLateness())))
+        .setCoder(KvCoder.of(keyCoder, PairCoder.<V1, V2>of(firstValueCoder, secondValueCoder)));
   }
 
   private static class EventTimeEquiJoinDoFn<K, V1, V2>
