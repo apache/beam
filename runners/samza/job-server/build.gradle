@@ -70,8 +70,6 @@ createPortableValidatesRunnerTask(
         environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
         testCategories: {
             includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-            // TODO: BEAM-12348
-            excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
             // TODO: BEAM-12349
             excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
             // TODO: BEAM-12350

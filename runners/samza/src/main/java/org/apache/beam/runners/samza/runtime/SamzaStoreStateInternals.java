@@ -26,18 +26,23 @@ import java.lang.ref.SoftReference;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
@@ -83,13 +88,12 @@ import org.joda.time.Instant;
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "keyfor",
-  "nullness"
+  "keyfor"
 }) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SamzaStoreStateInternals<K> implements StateInternals {
   static final String BEAM_STORE = "beamStore";
 
-  private static ThreadLocal<SoftReference<ByteArrayOutputStream>> threadLocalBaos =
+  private static final ThreadLocal<SoftReference<ByteArrayOutputStream>> threadLocalBaos =
       new ThreadLocal<>();
 
   // the stores include both beamStore for system states as well as stores for user state
@@ -118,27 +122,57 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
         context.getStore(SamzaStoreStateInternals.BEAM_STORE);
   }
 
-  @SuppressWarnings("unchecked")
+  /**
+   * Creates non keyed state internal factory to persist states in {@link SamzaStoreStateInternals#BEAM_STORE}.
+   */
+  static <K> Factory<K> createStateInternalFactory(
+      String id, TaskContext context, SamzaPipelineOptions pipelineOptions) {
+    return createStateInternalFactory(id, null, context, pipelineOptions, Collections.emptySet());
+  }
+
   static <K> Factory<K> createStateInternalFactory(
       String id,
       Coder<K> keyCoder,
       TaskContext context,
       SamzaPipelineOptions pipelineOptions,
       DoFnSignature signature) {
+
+    return createStateInternalFactory(
+        id, keyCoder, context, pipelineOptions, signature.stateDeclarations().keySet());
+  }
+
+  static <K> Factory<K> createStateInternalFactory(
+      String id,
+      Coder<K> keyCoder,
+      TaskContext context,
+      SamzaPipelineOptions pipelineOptions,
+      ExecutableStage executableStage) {
+
+    Set<String> stateIds =
+        executableStage.getUserStates().stream()
+            .map(UserStateReference::localName)
+            .collect(Collectors.toSet());
+
+    return createStateInternalFactory(id, keyCoder, context, pipelineOptions, stateIds);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <K> Factory<K> createStateInternalFactory(
+      String id,
+      @Nullable Coder<K> keyCoder,
+      TaskContext context,
+      SamzaPipelineOptions pipelineOptions,
+      Collection<String> stateIds) {
     final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
     final Map<String, KeyValueStore<ByteArray, StateValue<?>>> stores = new HashMap<>();
     stores.put(BEAM_STORE, getBeamStore(context));
 
     final Coder<K> stateKeyCoder;
     if (keyCoder != null) {
-      signature
-          .stateDeclarations()
-          .keySet()
-          .forEach(
-              stateId ->
-                  stores.put(
-                      stateId,
-                      (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(stateId)));
+      stateIds.forEach(
+          stateId ->
+              stores.put(
+                  stateId, (KeyValueStore<ByteArray, StateValue<?>>) context.getStore(stateId)));
       stateKeyCoder = keyCoder;
     } else {
       stateKeyCoder = (Coder<K>) VoidCoder.of();

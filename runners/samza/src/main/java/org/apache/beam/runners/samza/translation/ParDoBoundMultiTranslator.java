@@ -301,12 +301,19 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
+    final boolean stateful = isStateful(stagePayload);
+    final Coder<?> keyCoder =
+        stateful
+            ? ((KvCoder)
+                    ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder())
+                .getKeyCoder()
+            : null;
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             mainOutputTag,
             new NoOpDoFn<>(),
-            null, // key coder not in use
+            keyCoder,
             windowedInputCoder.getValueCoder(), // input coder not in use
             windowedInputCoder,
             Collections.emptyMap(), // output coders not in use
@@ -400,8 +407,42 @@ class ParDoBoundMultiTranslator<InT, OutT>
   @Override
   public Map<String, String> createPortableConfig(
       PipelineNode.PTransformNode transform, SamzaPipelineOptions options) {
-    // TODO: Add beamStore configs when portable use case supports stateful ParDo.
-    return Collections.emptyMap();
+
+    final RunnerApi.ExecutableStagePayload stagePayload;
+    try {
+      stagePayload =
+          RunnerApi.ExecutableStagePayload.parseFrom(
+              transform.getTransform().getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    if (!isStateful(stagePayload)) {
+      return Collections.emptyMap();
+    }
+
+    final Map<String, String> config = new HashMap<>(ConfigBuilder.createRocksDBStoreConfig(options));
+    for (RunnerApi.ExecutableStagePayload.UserStateId stateId : stagePayload.getUserStatesList()) {
+      final String storeId = stateId.getLocalName();
+
+      config.put(
+          "stores." + storeId + ".factory",
+          "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+      config.put("stores." + storeId + ".key.serde", "byteArraySerde");
+      config.put("stores." + storeId + ".msg.serde", "stateValueSerde");
+      config.put("stores." + storeId + ".rocksdb.compression", "lz4");
+
+      if (options.getStateDurable()) {
+        config.put(
+            "stores." + storeId + ".changelog", ConfigBuilder.getChangelogTopic(options, storeId));
+      }
+    }
+
+    return config;
+  }
+
+  private static boolean isStateful(RunnerApi.ExecutableStagePayload stagePayload) {
+    return stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0;
   }
 
   @SuppressWarnings("unchecked")

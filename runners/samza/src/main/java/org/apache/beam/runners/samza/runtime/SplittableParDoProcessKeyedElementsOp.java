@@ -116,7 +116,7 @@ public class SplittableParDoProcessKeyedElementsOp<
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            transformId, null, context.getTaskContext(), pipelineOptions, null);
+            transformId, context.getTaskContext(), pipelineOptions);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 

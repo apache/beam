@@ -101,10 +101,8 @@ public class SamzaTimerInternalsFactoryTest {
       SamzaPipelineOptions pipelineOptions, KeyValueStore<ByteArray, StateValue<?>> store) {
     final TaskContext context = mock(TaskContext.class);
     when(context.getStore(anyString())).thenReturn((KeyValueStore) store);
-    final TupleTag<?> mainOutputTag = new TupleTag<>("output");
 
-    return SamzaStoreStateInternals.createStateInternalFactory(
-        "42", null, context, pipelineOptions, null);
+    return SamzaStoreStateInternals.createStateInternalFactory("42", context, pipelineOptions);
   }
 
   private static SamzaTimerInternalsFactory<String> createTimerInternalsFactory(

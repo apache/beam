@@ -31,7 +31,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -39,18 +38,15 @@ import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -195,7 +191,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     final String stateId = "pardo-" + transformId;
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stateId, null, context.getTaskContext(), samzaPipelineOptions, signature);
+            stateId, context.getTaskContext(), samzaPipelineOptions);
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 
     this.bundleManager =
@@ -221,26 +217,21 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         new SideInputHandler(sideInputs, nonKeyedStateInternalsFactory.stateInternalsForKey(null));
 
     if (isPortable) {
-      // storing events within a bundle in states
-      final BagState<WindowedValue<InT>> bundledEventsBagState =
-          nonKeyedStateInternalsFactory
-              .stateInternalsForKey(null)
-              .state(StateNamespaces.global(), StateTags.bag(bundleStateId, windowedValueCoder));
       final ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       stageContext = SamzaExecutableStageContextFactory.getInstance().get(jobInfo);
       stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
-      final StateRequestHandler stateRequestHandler =
-          SamzaStateRequestHandlers.of(
-              executableStage,
-              (Map<SideInputId, PCollectionView<?>>) sideInputMapping,
-              sideInputHandler);
       this.fnRunner =
           SamzaDoFnRunners.createPortable(
+              transformId,
+              bundleStateId,
+              windowedValueCoder,
+              executableStage,
+              sideInputMapping,
+              sideInputHandler,
+              nonKeyedStateInternalsFactory,
               samzaPipelineOptions,
-              bundledEventsBagState,
               outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
-              stateRequestHandler,
               mainOutputTag,
               idToTupleTagMap,
               context,

@@ -20,13 +20,17 @@ package org.apache.beam.runners.samza.runtime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -50,6 +54,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.context.Context;
 import org.joda.time.Instant;
@@ -171,18 +176,40 @@ public class SamzaDoFnRunners {
 
   /** Create DoFnRunner for portable runner. */
   public static <InT, FnOutT> DoFnRunner<InT, FnOutT> createPortable(
+      String transformId,
+      String bundleStateId,
+      Coder<WindowedValue<InT>> windowedValueCoder,
+      ExecutableStage executableStage,
+      Map<?, PCollectionView<?>> sideInputMapping,
+      SideInputHandler sideInputHandler,
+      SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       SamzaPipelineOptions pipelineOptions,
-      BagState<WindowedValue<InT>> bundledEventsBag,
       DoFnRunners.OutputManager outputManager,
       StageBundleFactory stageBundleFactory,
-      StateRequestHandler stateRequestHandler,
       TupleTag<FnOutT> mainOutputTag,
       Map<String, TupleTag<?>> idToTupleTagMap,
       Context context,
       String transformFullName) {
+    // storing events within a bundle in states
+    final BagState<WindowedValue<InT>> bundledEventsBag =
+        nonKeyedStateInternalsFactory
+            .stateInternalsForKey(null)
+            .state(StateNamespaces.global(), StateTags.bag(bundleStateId, windowedValueCoder));
+
+    final StateRequestHandler stateRequestHandler =
+        SamzaStateRequestHandlers.of(
+            transformId,
+            context.getTaskContext(),
+            pipelineOptions,
+            executableStage,
+            stageBundleFactory,
+            (Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>)
+                sideInputMapping,
+            sideInputHandler);
+
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
-    final DoFnRunner<InT, FnOutT> sdkHarnessDoFnRunner =
+    final DoFnRunner<InT, FnOutT> underlyingRunner =
         new SdkHarnessDoFnRunner<>(
             outputManager,
             stageBundleFactory,
@@ -190,8 +217,13 @@ public class SamzaDoFnRunners {
             idToTupleTagMap,
             bundledEventsBag,
             stateRequestHandler);
-    return DoFnRunnerWithMetrics.wrap(
-        sdkHarnessDoFnRunner, executionContext.getMetricsContainer(), transformFullName);
+    final DoFnRunner<InT, FnOutT> doFnRunnerWithMetrics =
+        pipelineOptions.getEnableMetrics()
+            ? DoFnRunnerWithMetrics.wrap(
+                underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
+            : underlyingRunner;
+
+    return doFnRunnerWithMetrics;
   }
 
   private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
