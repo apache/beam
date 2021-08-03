@@ -794,7 +794,7 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
       # The writer does not exist, but we can still create a new one.
       full_file_name, writer = _create_writer(base_path=self.base_path.get(),
                                               writer_key=writer_key,
-                                              create_metadata_fn=sink.create_metadata))
+                                              create_metadata_fn=sink.create_metadata)
       sink = self.sink_fn(destination)
 
       sink.open(writer)
