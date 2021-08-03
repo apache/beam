@@ -33,10 +33,11 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -85,9 +86,9 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
   }
 
   @NewWatermarkEstimator
-  public WatermarkEstimator<Instant> newWatermarkEstimator(
+  public ManualWatermarkEstimator<Instant> newWatermarkEstimator(
       @WatermarkEstimatorState Instant watermarkEstimatorState) {
-    return new MonotonicallyIncreasing(watermarkEstimatorState);
+    return new Manual(watermarkEstimatorState);
   }
 
   @GetInitialRestriction
@@ -110,7 +111,14 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
 
   @ProcessElement
   public ProcessContinuation processElement(
-      RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<PartitionMetadata> receiver) {
+      @Element ChangeStreamSourceDescriptor desc,
+      RestrictionTracker<OffsetRange, Long> tracker,
+      OutputReceiver<PartitionMetadata> receiver,
+      ManualWatermarkEstimator<Instant> watermarkEstimator) {
+
+    // Set the watermark to the max value to unblock the downstream windows.
+    watermarkEstimator.setWatermark(
+        new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() - 1000));
 
     try (ResultSet resultSet = partitionMetadataDao.getPartitionsInState(State.CREATED)) {
       long currentIndex = tracker.currentRestriction().getFrom();

@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 public class PartitionRestrictionSplitChecker {
 
   private static final Logger LOG = LoggerFactory.getLogger(PartitionRestrictionSplitChecker.class);
-  private static final long SECONDS_REQUIRED_BEFORE_SPLIT = 1L;
+  private static final long MICRO_SECONDS_REQUIRED_BEFORE_SPLIT = 1L;
 
   public boolean isSplitAllowed(
       PartitionRestriction restriction,
@@ -86,6 +86,9 @@ public class PartitionRestrictionSplitChecker {
     final Timestamp claimedTimestamp = currentPosition.getTimestamp().get();
     final Duration duration =
         Timestamps.between(lastClaimedTimestamp.toProto(), claimedTimestamp.toProto());
-    return duration.getSeconds() >= SECONDS_REQUIRED_BEFORE_SPLIT;
+    if (duration.getSeconds() >= 1) {
+      return true;
+    }
+    return (duration.getNanos() / 1000.0) >= MICRO_SECONDS_REQUIRED_BEFORE_SPLIT;
   }
 }

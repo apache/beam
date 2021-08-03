@@ -46,6 +46,7 @@ public class QueryChangeStreamAction {
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
+  private final int maxCountForResuming = 5000;
 
   public QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -75,6 +76,7 @@ public class QueryChangeStreamAction {
             partition.getEndTimestamp(),
             partition.isInclusiveEnd(),
             partition.getHeartbeatMillis())) {
+      int count = 0;
       while (resultSet.next()) {
         // TODO: Check what should we do if there is an error here
         final List<ChangeStreamRecord> records =
@@ -108,6 +110,14 @@ public class QueryChangeStreamAction {
             return maybeContinuation;
           }
         }
+
+        // TODO: this is a temporary solution to solve the issue that if the
+        // function does not resume, the system watermark seems not to be
+        // updated and the downstream windows would not work.
+        if (count >= maxCountForResuming) {
+          return Optional.of(ProcessContinuation.resume());
+        }
+        count++;
       }
       LOG.debug("[" + token + "] = Query change stream action completed successfully");
       return Optional.empty();

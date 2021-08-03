@@ -64,6 +64,11 @@ public class ChangeStreamDao {
             + "   read_options => null,"
             + "   heartbeat_milliseconds => @heartbeatMillis"
             + ")";
+    // Change stream query does not support nano secs. If the end timestamp
+    // is unspecified, set it to a null value.
+    if (endTimestamp.equals(Timestamp.MAX_VALUE)) {
+      endTimestamp = null;
+    }
     final ResultSet resultSet =
         databaseClient
             .singleUse()

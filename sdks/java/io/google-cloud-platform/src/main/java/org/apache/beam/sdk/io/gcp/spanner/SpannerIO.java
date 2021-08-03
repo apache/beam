@@ -416,9 +416,12 @@ public class SpannerIO {
   public static ReadChangeStream readChangeStream() {
     return new AutoValue_SpannerIO_ReadChangeStream.Builder()
         .setSpannerConfig(SpannerConfig.create())
-        // TODO(hengfeng): revisit this to find a better way to create an uninitialized instance.
         .setChangeStreamName("")
         .setInclusiveStartAt(Timestamp.MIN_VALUE)
+        // Set a default value to the end timestamp. Do not delete this.
+        // Otherwise, we will get a null pointer exception when we try to access
+        // it later.
+        .setInclusiveEndAt(Timestamp.MAX_VALUE)
         .build();
   }
 
