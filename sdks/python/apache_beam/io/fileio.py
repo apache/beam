@@ -343,8 +343,8 @@ class FileSink(object):
   def create_metadata(
       self, destination: str, full_file_name: str) -> FileMetadata:
     return FileMetadata(
-      mime_type="application/octet-stream",
-      compression_type=CompressionTypes.AUTO)
+        mime_type="application/octet-stream",
+        compression_type=CompressionTypes.AUTO)
 
   def open(self, fh):
     # type: (BinaryIO) -> None
