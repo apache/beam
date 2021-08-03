@@ -623,6 +623,8 @@ public class DatastoreV1Test {
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
+    verifyMetricWasSet("BatchDatastoreWrite", "unknown", "", 1);
   }
 
   /**
@@ -772,6 +774,8 @@ public class DatastoreV1Test {
     DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(query);
+    verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 1);
+    verifyMetricWasSet("BatchDatastoreRead", "unknown", NAMESPACE, 1);
   }
 
   @Test
