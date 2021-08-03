@@ -43,7 +43,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for BiTemporalJoin. Implements Serializable for anonymous DoFns. */
 @RunWith(JUnit4.class)
-public class BiTemporalJoinTest implements Serializable {
+public class EventTimeEquiJoinTest implements Serializable {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   /**
@@ -134,41 +134,39 @@ public class BiTemporalJoinTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class})
-  public void testOnlySecondElementDelay() {
+  public void testFirstCollectionValidFor() {
 
     PCollection<KV<Integer, String>> listOne = createStrings(Arrays.asList(KV.of(1, 4)));
     PCollection<KV<Integer, Integer>> listTwo =
         createIntegers(Arrays.asList(KV.of(1, 0), KV.of(1, 4), KV.of(1, 8)));
 
-    // secondElementWithin = 4, int must follow string by up to 4 seconds.
-    PCollection<KV<Integer, Pair<String, Integer>>> result =
-        listOne.apply(
-            EventTimeEquiJoin.<Integer, String, Integer>of(listTwo)
-                .within(Duration.ZERO, new Duration(4L)));
-
-    PAssert.that(result)
-        .containsInAnyOrder(
-            Arrays.asList(KV.of(1, Pair.of("4", 4)), KV.of(1, Pair.of("4", 8))));
-    p.run();
-  }
-
-  @Test
-  @Category({ValidatesRunner.class})
-  public void testOnlyFirstElementDelay() {
-
-    PCollection<KV<Integer, String>> listOne =
-        createStrings(Arrays.asList(KV.of(1, 0), KV.of(1, 4), KV.of(1, 8)));
-    PCollection<KV<Integer, Integer>> listTwo = createIntegers(Arrays.asList(KV.of(1, 4)));
-
-    // firstElementWithin = 4, string must follow int by up to 4 seconds.
+    // First collection matches with following seconds for up to 4 ms.
     PCollection<KV<Integer, Pair<String, Integer>>> result =
         listOne.apply(
             EventTimeEquiJoin.<Integer, String, Integer>of(listTwo)
                 .within(new Duration(4L), Duration.ZERO));
 
     PAssert.that(result)
-        .containsInAnyOrder(
-            Arrays.asList(KV.of(1, Pair.of("4", 4)), KV.of(1, Pair.of("8", 4))));
+        .containsInAnyOrder(Arrays.asList(KV.of(1, Pair.of("4", 4)), KV.of(1, Pair.of("4", 8))));
+    p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testSecondCollectionValidFor() {
+
+    PCollection<KV<Integer, String>> listOne =
+        createStrings(Arrays.asList(KV.of(1, 0), KV.of(1, 4), KV.of(1, 8)));
+    PCollection<KV<Integer, Integer>> listTwo = createIntegers(Arrays.asList(KV.of(1, 4)));
+
+    // Second collection matches with following seconds for up to 4 ms.
+    PCollection<KV<Integer, Pair<String, Integer>>> result =
+        listOne.apply(
+            EventTimeEquiJoin.<Integer, String, Integer>of(listTwo)
+                .within(Duration.ZERO, new Duration(4L)));
+
+    PAssert.that(result)
+        .containsInAnyOrder(Arrays.asList(KV.of(1, Pair.of("4", 4)), KV.of(1, Pair.of("8", 4))));
     p.run();
   }
 
@@ -177,27 +175,26 @@ public class BiTemporalJoinTest implements Serializable {
    */
   public void runCleanupTest(boolean useAllowedLateness) {
     Coder<KV<Integer, String>> coder = KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of());
-    TestStream<KV<Integer, String>> createEvents = TestStream.create(coder)
-        .addElements(TimestampedValue.of(KV.of(1, "1"), new Instant(1L)))
-        .advanceWatermarkTo(new Instant(0L).plus(Duration.standardMinutes(3)))
-        .addElements(TimestampedValue.of(KV.of(1, "3"), new Instant(3L)))   // Late element
-        .advanceWatermarkToInfinity();
+    TestStream<KV<Integer, String>> createEvents =
+        TestStream.create(coder)
+            .addElements(TimestampedValue.of(KV.of(1, "1"), new Instant(1L)))
+            .advanceWatermarkTo(new Instant(0L).plus(Duration.standardMinutes(3)))
+            .addElements(TimestampedValue.of(KV.of(1, "3"), new Instant(3L))) // Late element
+            .advanceWatermarkToInfinity();
 
-    PCollection<KV<Integer, Integer>> listTwo =
-        createIntegers(Arrays.asList(KV.of(1, 3)));
+    PCollection<KV<Integer, Integer>> listTwo = createIntegers(Arrays.asList(KV.of(1, 3)));
 
-    EventTimeEquiJoin.Impl<Integer, String, Integer> join = EventTimeEquiJoin.<Integer, String, Integer>of(listTwo)
-        .within(new Duration(4L));
+    EventTimeEquiJoin.Impl<Integer, String, Integer> join =
+        EventTimeEquiJoin.<Integer, String, Integer>of(listTwo).within(new Duration(4L));
 
-    List<KV<Integer, Pair<String, Integer>>> expected = Arrays.asList(KV.of(1, Pair.of("1", 3)));
+    List<KV<Integer, Pair<String, Integer>>> expected = new ArrayList<>();
+    expected.add(KV.of(1, Pair.of("1", 3)));
+
     if (useAllowedLateness) {
       join = join.withAllowedLateness(Duration.standardMinutes(4));
       // 3 is late, but within allowed lateness.
-      expected.add(KV.of(1, Pair.of("1", 3)));
+      expected.add(KV.of(1, Pair.of("3", 3)));
     }
-
-    PCollection<KV<Integer, Pair<String, Integer>>> result =
-        p.apply(createEvents).apply(join);
 
     PAssert.that(p.apply(createEvents).apply(join)).containsInAnyOrder(expected);
     p.run();
