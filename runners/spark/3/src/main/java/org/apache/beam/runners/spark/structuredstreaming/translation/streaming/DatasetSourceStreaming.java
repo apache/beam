@@ -18,7 +18,8 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 /**
- * Empty impl needed for compilation. Spark DataSourceV2 API was removed in Spark3. Need to code a
- * Beam source using new spark 3 API.
+ * Spark structured streaming framework does not support more than one aggregation in streaming mode
+ * because of watermark implementation. As a consequence, this runner, does not support streaming
+ * mode yet see https://issues.apache.org/jira/browse/BEAM-9933
  */
 class DatasetSourceStreaming {}

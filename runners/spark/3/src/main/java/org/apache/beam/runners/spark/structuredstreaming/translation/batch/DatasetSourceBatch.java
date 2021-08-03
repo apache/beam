@@ -24,7 +24,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.Sch
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.parquet.Strings;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
@@ -52,8 +52,8 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 /**
- * Empty impl needed for compilation. Spark DataSourceV2 API was removed in Spark3. Need to code a
- * Beam source using new spark 3 API.
+ * Spark DataSourceV2 API was removed in Spark3. This is a Beam source wrapper using the new spark 3
+ * source API.
  */
 public class DatasetSourceBatch implements TableProvider {
 
@@ -113,8 +113,8 @@ public class DatasetSourceBatch implements TableProvider {
 
     @Override
     public Set<TableCapability> capabilities() {
-      final HashSet<TableCapability> capabilities = new HashSet<>();
-      capabilities.add(TableCapability.BATCH_READ);
+      final ImmutableSet<TableCapability> capabilities =
+          ImmutableSet.of(TableCapability.BATCH_READ);
       return capabilities;
     }
 
