@@ -92,6 +92,7 @@ import collections
 import logging
 import random
 import uuid
+from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import BinaryIO  # pylint: disable=unused-import
@@ -100,6 +101,7 @@ from typing import DefaultDict
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -108,12 +110,14 @@ from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
@@ -131,6 +135,10 @@ __all__ = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
+
+FileMetadata = namedtuple("FileMetadata", "mime_type compression_type")
+
+CreateFileMetadataFn = Callable[[str, str], FileMetadata]
 
 
 class EmptyMatchTreatment(object):
@@ -328,7 +336,13 @@ class FileSink(object):
    - The ``flush`` method, which flushes any buffered state. This is most often
      called before closing a file (but not exclusively called in that
      situation). The sink is not responsible for closing the file handler.
+  A Sink class can override the following:
+   - The ``create_metadata`` method, which creates all metadata passed to
+     Filesystems.create.
    """
+  def create_metadata(self, destination:str, full_file_name:str) -> FileMetadata:
+    return FileMetadata(mime_type="application/octet-stream", compression_type=CompressionTypes.AUTO)
+
   def open(self, fh):
     # type: (BinaryIO) -> None
     raise NotImplementedError
@@ -581,18 +595,25 @@ class WriteToFiles(beam.PTransform):
     return file_results
 
 
-def _create_writer(base_path, writer_key):
+def _create_writer(
+      base_path,
+      writer_key: Tuple[str, IntervalWindow],
+      create_metadata_fn: CreateFileMetadataFn,
+  ):
   try:
     filesystems.FileSystems.mkdirs(base_path)
   except IOError:
     # Directory already exists.
     pass
 
+  destination = writer_key[0]
+  
   # The file name has a prefix determined by destination+window, along with
   # a random string. This allows us to retrieve orphaned files later on.
   file_name = '%s_%s' % (abs(hash(writer_key)), uuid.uuid4())
   full_file_name = filesystems.FileSystems.join(base_path, file_name)
-  return full_file_name, filesystems.FileSystems.create(full_file_name)
+  metadata = create_metadata_fn(destination, full_file_name)
+  return full_file_name, filesystems.FileSystems.create(full_file_name, **metadata._asdict())
 
 
 class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
@@ -674,7 +695,8 @@ class _WriteShardedRecordsFn(beam.DoFn):
     records = element[1]
 
     full_file_name, writer = _create_writer(base_path=self.base_path.get(),
-                                            writer_key=(destination, w))
+                                            writer_key=(destination, w),
+                                            create_metadata_fn=sink.create_metadata)
     sink = self.sink_fn(destination)
     sink.open(writer)
 
@@ -771,7 +793,8 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
     else:
       # The writer does not exist, but we can still create a new one.
       full_file_name, writer = _create_writer(base_path=self.base_path.get(),
-                                              writer_key=writer_key)
+                                              writer_key=writer_key,
+                                              create_metadata_fn=sink.create_metadata))
       sink = self.sink_fn(destination)
 
       sink.open(writer)
