@@ -55,7 +55,7 @@ public class ReadAllViaFileBasedSource<T>
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder) {
-    this(desiredBundleSizeBytes, createSource, coder, null);
+    this(desiredBundleSizeBytes, createSource, coder, (Integer) null);
   }
 
   public ReadAllViaFileBasedSource(
