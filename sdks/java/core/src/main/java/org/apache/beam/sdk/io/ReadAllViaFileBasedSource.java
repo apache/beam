@@ -34,6 +34,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Reads each file in the input {@link PCollection} of {@link ReadableFile} using given parameters
@@ -46,27 +48,31 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Experimental(Kind.SOURCE_SINK)
 public class ReadAllViaFileBasedSource<T>
     extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
+  private static final Logger LOG = LoggerFactory.getLogger(ReadAllViaFileBasedSource.class);
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
+  private final boolean supressRuntimeExceptions;
   private @Nullable Integer readerThreadCount;
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder) {
-    this(desiredBundleSizeBytes, createSource, coder, null);
+    this(desiredBundleSizeBytes, createSource, coder, null, false);
   }
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder,
-      @Nullable Integer readerThreadCount) {
+      @Nullable Integer readerThreadCount,
+      boolean supressRuntimeExceptions) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
     this.coder = coder;
     this.readerThreadCount = readerThreadCount;
+    this.supressRuntimeExceptions = supressRuntimeExceptions;
   }
 
   @Override
@@ -77,7 +83,8 @@ public class ReadAllViaFileBasedSource<T>
             "Reshuffle",
             Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey()
                 .withNumBuckets(this.readerThreadCount))
-        .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
+        .apply("Read ranges", ParDo.of(
+            new ReadFileRangesFn<>(createSource, supressRuntimeExceptions)))
         .setCoder(coder);
   }
 
@@ -104,10 +111,13 @@ public class ReadAllViaFileBasedSource<T>
 
   private static class ReadFileRangesFn<T> extends DoFn<KV<ReadableFile, OffsetRange>, T> {
     private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
+    private final boolean supressRuntimeExceptions;
 
     private ReadFileRangesFn(
-        SerializableFunction<String, ? extends FileBasedSource<T>> createSource) {
+        SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
+        boolean supressRuntimeExceptions) {
       this.createSource = createSource;
+      this.supressRuntimeExceptions = supressRuntimeExceptions;
     }
 
     @ProcessElement
@@ -126,6 +136,15 @@ public class ReadAllViaFileBasedSource<T>
               .createReader(c.getPipelineOptions())) {
         for (boolean more = reader.start(); more; more = reader.advance()) {
           c.output(reader.getCurrent());
+        }
+      } catch (IllegalStateException e) {
+        if (supressRuntimeExceptions) {
+          LOG.error(
+              String.format(
+                  "ReadFileRange failure for file %s", file.getMetadata().resourceId().toString()),
+              e);
+        } else {
+          throw e;
         }
       }
     }
