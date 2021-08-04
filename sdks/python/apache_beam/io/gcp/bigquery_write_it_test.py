@@ -367,21 +367,40 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     self.create_table(table_name)
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
-    input_data = [{"int64": 1, "bool": True}, {"int64": 2, "bool": False}]
+    input_data = [{
+        "int64": num, "bool": True, "nested_field": {
+            "fruit": "Apple"
+        }
+    } for num in range(1, 3)]
 
     table_schema = {
         "fields": [{
             "name": "int64", "type": "INT64"
         }, {
             "name": "bool", "type": "BOOL"
-        }]
+        },
+                   {
+                       "name": "nested_field",
+                       "type": "RECORD",
+                       "mode": "REPEATED",
+                       "fields": [
+                           {
+                               "name": "fruit",
+                               "type": "STRING",
+                               "mode": "NULLABLE"
+                           },
+                       ]
+                   }]
     }
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT bytes, date, time, int64, bool FROM %s" % table_id,
-            data=[(None, None, None, 1, True), (None, None, None, 2, False)]))
+            query=
+            "SELECT bytes, date, time, int64, bool, nested_field.fruit FROM %s"
+            % table_id,
+            data=[(None, None, None, num, True, "Apple")
+                  for num in range(1, 3)]))
 
     with beam.Pipeline(argv=args) as p:
       # pylint: disable=expression-not-assigned

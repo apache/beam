@@ -117,7 +117,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	// (4) Wait for completion.
 	err = WaitForCompletion(ctx, client, opts.Project, opts.Region, upd.Id)
 
-	res, presultErr := newDataflowPipelineResult(ctx, client, job, opts.Project, opts.Region, upd.Id)
+	res, presultErr := newDataflowPipelineResult(ctx, client, p, opts.Project, opts.Region, upd.Id)
 	if presultErr != nil {
 		if err != nil {
 			return presult, errors.Wrap(err, presultErr.Error())
@@ -141,13 +141,12 @@ type dataflowPipelineResult struct {
 	metrics *metrics.Results
 }
 
-func newDataflowPipelineResult(ctx context.Context, client *df.Service, job *df.Job, project, region, jobID string) (*dataflowPipelineResult, error) {
+func newDataflowPipelineResult(ctx context.Context, client *df.Service, p *pipepb.Pipeline, project, region, jobID string) (*dataflowPipelineResult, error) {
 	res, err := GetMetrics(ctx, client, project, region, jobID)
 	if err != nil {
 		return &dataflowPipelineResult{jobID, nil}, errors.Wrap(err, "failed to get metrics")
 	}
-
-	return &dataflowPipelineResult{jobID, FromMetricUpdates(res.Metrics, job)}, nil
+	return &dataflowPipelineResult{jobID, FromMetricUpdates(res.Metrics, p)}, nil
 }
 
 func (pr dataflowPipelineResult) Metrics() metrics.Results {
