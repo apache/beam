@@ -36,6 +36,8 @@ public interface ExperimentalOptions extends PipelineOptions {
 
   String STATE_CACHE_SIZE = "state_cache_size";
 
+  String STATE_CACHE_MEM_PERCENT = "state_cache_mem_percent";
+
   String STATE_SAMPLING_PERIOD_MILLIS = "state_sampling_period_millis";
 
   @Description(

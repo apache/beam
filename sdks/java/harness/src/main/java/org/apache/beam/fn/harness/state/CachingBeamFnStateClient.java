@@ -100,8 +100,10 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         // Otherwise, complete the response with the cached data.
         if (cachedPage == null) {
           response.thenAccept(
-              stateResponse ->
-                  stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet()));
+              stateResponse -> {
+                stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet());
+                stateCache.refresh(stateKey);
+              });
           beamFnStateClient.handle(requestBuilder, response);
 
         } else {
@@ -113,12 +115,14 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
 
       case APPEND:
         // TODO(BEAM-12637): Support APPEND in CachingBeamFnStateClient.
-        beamFnStateClient.handle(requestBuilder, response);
 
         // Invalidate last page of cached values (entry with a blank continuation token response)
         Map<StateCacheKey, StateGetResponse> map = stateCache.getUnchecked(stateKey);
         map.entrySet()
             .removeIf(entry -> (entry.getValue().getContinuationToken().equals(ByteString.EMPTY)));
+        stateCache.refresh(stateKey);
+
+        beamFnStateClient.handle(requestBuilder, response);
         return;
 
       case CLEAR:
@@ -128,6 +132,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         StateCacheKey newKey = StateCacheKey.create(cacheToken, ByteString.EMPTY);
         clearedData.put(newKey, StateGetResponse.getDefaultInstance());
         stateCache.put(stateKey, clearedData);
+        stateCache.refresh(stateKey);
         return;
 
       default:

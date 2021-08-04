@@ -86,12 +86,15 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -156,6 +159,30 @@ public class ProcessBundleHandler {
                 BeamFnApi.StateKey key) {
               return new HashMap<>();
             }
+
+            @Override
+            public ListenableFuture<
+                    Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+                reload(
+                    final BeamFnApi.StateKey key,
+                    Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>
+                        prevMap) {
+              return Futures.immediateFuture(prevMap);
+            }
+          };
+
+  private Weigher<
+          BeamFnApi.StateKey,
+          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+      mapWeigher =
+          (stateKey, map) -> {
+            int mapWeight = 0;
+            for (Map.Entry<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>
+                entry : map.entrySet()) {
+              mapWeight += entry.getValue().getData().size();
+              mapWeight += entry.getValue().getContinuationToken().size();
+            }
+            return mapWeight;
           };
 
   private final PipelineOptions options;
@@ -208,7 +235,11 @@ public class ProcessBundleHandler {
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
-    this.stateCache = CacheBuilder.newBuilder().build(stateKeyMapCacheLoader);
+    this.stateCache =
+        CacheBuilder.newBuilder()
+            .maximumWeight(10000)
+            .weigher(mapWeigher)
+            .build(stateKeyMapCacheLoader);
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
     this.runnerAcceptsShortIds =

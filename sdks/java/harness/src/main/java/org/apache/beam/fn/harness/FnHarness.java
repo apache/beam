@@ -68,6 +68,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import oshi.SystemInfo;
 
 /**
  * Main entry point into the Beam SDK Fn Harness for Java.
@@ -246,6 +247,42 @@ public class FnHarness {
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(
               idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
+
+      // Calculate state cache memory limit. Default is 10% of available memory
+      String stateCacheMemString =
+          ExperimentalOptions.getExperimentValue(options, "state_cache_mem_percent");
+      int stateCacheMemPercent =
+          stateCacheMemString == null ? 10 : Integer.parseInt(stateCacheMemString);
+      long availableMem = new SystemInfo().getHardware().getMemory().getAvailable();
+      long availableCacheMem = (long) (availableMem * stateCacheMemPercent * .01);
+
+      // Create memory sensitive state cache using memory limit
+      LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache =
+          CacheBuilder.newBuilder()
+              .maximumWeight(availableCacheMem)
+              .weigher(
+                  (Weigher<StateKey, Map<StateCacheKey, StateGetResponse>>)
+                      (key, map) -> {
+                        int mapWeight = 0;
+                        for (Map.Entry<StateCacheKey, StateGetResponse> entry : map.entrySet()) {
+                          mapWeight += entry.getValue().getData().size();
+                          mapWeight += entry.getValue().getContinuationToken().size();
+                        }
+                        return mapWeight;
+                      })
+              .build(
+                  new CacheLoader<StateKey, Map<StateCacheKey, StateGetResponse>>() {
+                    @Override
+                    public Map<StateCacheKey, StateGetResponse> load(StateKey key) {
+                      return new HashMap<>();
+                    }
+
+                    @Override
+                    public ListenableFuture<Map<StateCacheKey, StateGetResponse>> reload(
+                        final StateKey key, Map<StateCacheKey, StateGetResponse> prevMap) {
+                      return Futures.immediateFuture(prevMap);
+                    }
+                  });
 
       FinalizeBundleHandler finalizeBundleHandler =
           new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());

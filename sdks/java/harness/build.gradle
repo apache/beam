@@ -68,6 +68,7 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_36_0
+  compile 'com.github.oshi:oshi-core:5.8.0'
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
