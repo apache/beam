@@ -533,10 +533,22 @@ func MergeCounters(
 	attempted map[StepKey]int64,
 	committed map[StepKey]int64) []CounterResult {
 	res := make([]CounterResult, 0)
+	merged := map[StepKey]CounterResult{}
 
-	for k := range attempted {
-		v := committed[k]
-		res = append(res, CounterResult{Attempted: attempted[k], Committed: v, Key: k})
+	for k, v := range attempted {
+		merged[k] = CounterResult{Attempted: v, Key: k}
+	}
+	for k, v := range committed {
+		m, ok := merged[k]
+		if ok {
+			merged[k] = CounterResult{Attempted: m.Attempted, Committed: v, Key: k}
+		} else {
+			merged[k] = CounterResult{Committed: v, Key: k}
+		}
+	}
+
+	for _, v := range merged {
+		res = append(res, v)
 	}
 	return res
 }
@@ -563,10 +575,22 @@ func MergeDistributions(
 	attempted map[StepKey]DistributionValue,
 	committed map[StepKey]DistributionValue) []DistributionResult {
 	res := make([]DistributionResult, 0)
+	merged := map[StepKey]DistributionResult{}
 
-	for k := range attempted {
-		v := committed[k]
-		res = append(res, DistributionResult{Attempted: attempted[k], Committed: v, Key: k})
+	for k, v := range attempted {
+		merged[k] = DistributionResult{Attempted: v, Key: k}
+	}
+	for k, v := range committed {
+		m, ok := merged[k]
+		if ok {
+			merged[k] = DistributionResult{Attempted: m.Attempted, Committed: v, Key: k}
+		} else {
+			merged[k] = DistributionResult{Committed: v, Key: k}
+		}
+	}
+
+	for _, v := range merged {
+		res = append(res, v)
 	}
 	return res
 }
@@ -598,10 +622,22 @@ func MergeGauges(
 	attempted map[StepKey]GaugeValue,
 	committed map[StepKey]GaugeValue) []GaugeResult {
 	res := make([]GaugeResult, 0)
+	merged := map[StepKey]GaugeResult{}
 
-	for k := range attempted {
-		v := committed[k]
-		res = append(res, GaugeResult{Attempted: attempted[k], Committed: v, Key: k})
+	for k, v := range attempted {
+		merged[k] = GaugeResult{Attempted: v, Key: k}
+	}
+	for k, v := range committed {
+		m, ok := merged[k]
+		if ok {
+			merged[k] = GaugeResult{Attempted: m.Attempted, Committed: v, Key: k}
+		} else {
+			merged[k] = GaugeResult{Committed: v, Key: k}
+		}
+	}
+
+	for _, v := range merged {
+		res = append(res, v)
 	}
 	return res
 }
