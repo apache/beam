@@ -162,6 +162,8 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
+    // https://issues.apache.org/jira/browse/BEAM-2791
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
 }
 
