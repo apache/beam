@@ -44,6 +44,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -67,6 +69,13 @@ public class CachingBeamFnStateClientTest {
         @Override
         public Map<StateCacheKey, StateGetResponse> load(StateKey key) {
           return new HashMap<>();
+        }
+
+        @Override
+        public ListenableFuture<Map<StateCacheKey, StateGetResponse>> reload(
+            final BeamFnApi.StateKey key,
+            Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse> prevMap) {
+          return Futures.immediateFuture(prevMap);
         }
       };
 
