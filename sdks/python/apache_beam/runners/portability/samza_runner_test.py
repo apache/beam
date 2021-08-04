@@ -137,6 +137,12 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Samza portable runner supports distribution metrics.
     raise unittest.SkipTest("BEAM-12614")
 
+  def test_flattened_side_input(self):
+    # Blocked on support for transcoding
+    # https://issues.apache.org/jira/browse/BEAM-12681
+    super(SamzaRunnerTest,
+          self).test_flattened_side_input(with_transcoding=False)
+
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused
     # by translations.greedily_fuse, which prevent the stages
