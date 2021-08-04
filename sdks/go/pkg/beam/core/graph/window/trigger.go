@@ -15,13 +15,14 @@
 
 package window
 
+// TODO [BEAM-3304](riteshghorse): add configurable parameters to trigger
 type TriggerType string
 
 const (
 	Default  TriggerType = "Trigger_Default_"
 	Always   TriggerType = "Trigger_Always_"
 	AfterAny TriggerType = "Trigger_AfterAny_"
-	AfterAll TriggerType = "Trigger_AfterAny_"
+	AfterAll TriggerType = "Trigger_AfterAll_"
 )
 
 func (ws *WindowingStrategy) SetAfterAll() {

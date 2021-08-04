@@ -119,7 +119,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 		if n.incrementIndexAndCheckSplit() {
 			return nil
 		}
-		ws, t, err := DecodeWindowedValueHeader(wc, r)
+		ws, t, pn, err := DecodeWindowedValueHeader(wc, r)
 		if err != nil {
 			if err == io.EOF {
 				return nil
@@ -134,7 +134,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 		}
 		pe.Timestamp = t
 		pe.Windows = ws
-
+		pe.Pane = pn
 		var valReStreams []ReStream
 		for _, cv := range cvs {
 			values, err := n.makeReStream(ctx, pe, cv, r)
@@ -506,7 +506,7 @@ func splitHelper(
 
 func encodeElm(elm *FullValue, wc WindowEncoder, ec ElementEncoder) ([]byte, error) {
 	var b bytes.Buffer
-	if err := EncodeWindowedValueHeader(wc, elm.Windows, elm.Timestamp, &b); err != nil {
+	if err := EncodeWindowedValueHeader(wc, elm.Windows, elm.Timestamp, elm.Pane, &b); err != nil {
 		return nil, err
 	}
 	if err := ec.Encode(elm, &b); err != nil {

@@ -68,7 +68,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values 
 	var b bytes.Buffer
 
 	atomic.AddInt64(&n.count, 1)
-	if err := EncodeWindowedValueHeader(n.wEnc, value.Windows, value.Timestamp, &b); err != nil {
+	if err := EncodeWindowedValueHeader(n.wEnc, value.Windows, value.Timestamp, value.Pane, &b); err != nil {
 		return err
 	}
 	if err := n.enc.Encode(value, &b); err != nil {

@@ -37,7 +37,7 @@ type FullValue struct {
 
 	Timestamp typex.EventTime
 	Windows   []typex.Window
-	Pane      []byte
+	Pane      typex.PaneInfo
 }
 
 func (v *FullValue) String() string {

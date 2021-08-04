@@ -16,13 +16,14 @@
 package primitives
 
 import (
+	"reflect"
+	"time"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"reflect"
-	"time"
 )
 
 func init() {
@@ -101,7 +102,7 @@ func TriggerWindowSums(s beam.Scope, sumPerKey func(beam.Scope, beam.PCollection
 
 	validate := func(s beam.Scope, wfn *window.Fn, in beam.PCollection, expected ...interface{}) {
 		// Window the data.
-		windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: window.Default})
+		windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: window.Always})
 		// To get the pane decoding error, change above statement to
 		// windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: window.Always})
 		// Perform the appropriate sum operation.

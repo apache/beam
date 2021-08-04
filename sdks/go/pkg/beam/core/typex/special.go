@@ -35,6 +35,7 @@ var (
 
 	EventTimeType = reflect.TypeOf((*EventTime)(nil)).Elem()
 	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
+	PaneInfoType  = reflect.TypeOf((*PaneInfo)(nil)).Elem()
 
 	KVType            = reflect.TypeOf((*KV)(nil)).Elem()
 	CoGBKType         = reflect.TypeOf((*CoGBK)(nil)).Elem()
@@ -62,6 +63,23 @@ type Window interface {
 
 	// Equals returns true iff the windows are identical.
 	Equals(o Window) bool
+}
+
+type Timing string
+
+const (
+	EARLY   Timing = "EARLY"
+	ON_TIME Timing = "ON_TIME"
+	LATE    Timing = "LATE"
+	UNKNOWN Timing = "UNKNOWN"
+)
+
+type PaneInfo struct {
+	Timing              Timing
+	IsFirst             bool
+	IsLast              bool
+	Index               int64
+	NonSpeculativeIndex int64
 }
 
 // KV, CoGBK, WindowedValue represent composite generic types. They are not used

@@ -188,6 +188,8 @@ const (
 	//
 	// TODO(BEAM-490): once this JIRA is done, this coder should become the new thing.
 	CoGBK Kind = "CoGBK"
+
+	PaneInfo Kind = "PaneInfo"
 )
 
 // Coder is a description of how to encode and decode values of a given type.
@@ -295,6 +297,11 @@ func NewString() *Coder {
 // IsW returns true iff the coder is for a WindowedValue.
 func IsW(c *Coder) bool {
 	return c.Kind == WindowedValue
+}
+
+// NewPI returns a PaneInfo coder
+func NewPI() *Coder {
+	return &Coder{Kind: PaneInfo, T: typex.New(typex.PaneInfoType)}
 }
 
 // NewW returns a WindowedValue coder for the window of elements.
