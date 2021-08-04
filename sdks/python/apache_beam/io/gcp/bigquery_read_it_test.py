@@ -264,11 +264,11 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
-          method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-          project=self.temp_table_reference.projectId,
-          dataset=self.temp_table_reference.datasetId,
-          table=self.temp_table_reference.tableId,
-          use_fastavro=False))
+              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
+              project=self.temp_table_reference.projectId,
+              dataset=self.temp_table_reference.datasetId,
+              table=self.temp_table_reference.tableId,
+              use_fastavro=False))
       assert_that(result, equal_to(self.TABLE_DATA))
 
   def test_iobase_source_with_column_selection(self):
