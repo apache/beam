@@ -44,7 +44,7 @@ func TestDataSource_PerElement(t *testing.T) {
 				wc := MakeWindowEncoder(c.Window)
 				ec := MakeElementEncoder(coder.SkipW(c))
 				for _, v := range expected {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.PaneInfo{}, pw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw)
 					ec.Encode(&FullValue{Elm: v}, pw)
 				}
 				pw.Close()
@@ -99,7 +99,7 @@ func TestDataSource_Iterators(t *testing.T) {
 			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.PaneInfo{}, dmw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 					coder.EncodeInt32(int32(len(vs)), dmw) // Number of elements.
 					for _, v := range vs {
@@ -117,7 +117,7 @@ func TestDataSource_Iterators(t *testing.T) {
 			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.PaneInfo{}, dmw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 
 					coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam runner proto says to use 0)
@@ -138,7 +138,7 @@ func TestDataSource_Iterators(t *testing.T) {
 			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.PaneInfo{}, dmw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 					coder.EncodeInt32(-1, dmw)  // Mark as multi-chunk (though beam, runner says to use 0)
 					coder.EncodeVarInt(-1, dmw) // Mark subsequent chunks as "state backed"
@@ -226,7 +226,7 @@ func TestDataSource_Split(t *testing.T) {
 			wc := MakeWindowEncoder(c.Window)
 			ec := MakeElementEncoder(coder.SkipW(c))
 			for _, v := range elements {
-				EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.PaneInfo{}, pw)
+				EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw)
 				ec.Encode(&FullValue{Elm: v}, pw)
 			}
 			pw.Close()

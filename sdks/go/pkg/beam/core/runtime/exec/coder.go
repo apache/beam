@@ -1109,8 +1109,6 @@ func (*intervalWindowDecoder) DecodeSingle(r io.Reader) (typex.Window, error) {
 	return window.IntervalWindow{Start: mtime.FromMilliseconds(end.Milliseconds() - int64(duration)), End: end}, nil
 }
 
-var paneNoFiring = []byte{0xf}
-
 // EncodeWindowedValueHeader serializes a windowed value header.
 func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.EventTime, p typex.PaneInfo, w io.Writer) error {
 	// Encoding: Timestamp, Window, Pane (header) + Element
@@ -1128,15 +1126,23 @@ func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.Eve
 // DecodeWindowedValueHeader deserializes a windowed value header.
 func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, typex.EventTime, typex.PaneInfo, error) {
 	// Encoding: Timestamp, Window, Pane (header) + Element
-	pn := typex.PaneInfo{}
+
+	onError := func(err error) ([]typex.Window, typex.EventTime, typex.PaneInfo, error) {
+		return nil, mtime.ZeroTimestamp, typex.PaneInfo{}, err
+	}
+
 	t, err := coder.DecodeEventTime(r)
 	if err != nil {
-		return nil, mtime.ZeroTimestamp, pn, err
+		return onError(err)
 	}
 	ws, err := dec.Decode(r)
 	if err != nil {
-		return nil, mtime.ZeroTimestamp, pn, err
+		return onError(err)
 	}
-	pn, err = coder.DecodePane(r)
+	pn, err := coder.DecodePane(r)
+	if err != nil {
+		return onError(err)
+	}
+
 	return ws, t, pn, nil
 }

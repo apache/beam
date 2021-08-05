@@ -279,7 +279,7 @@ func createSdfPlan(t *testing.T, name string, fn *graph.DoFn, cdr *coder.Coder) 
 func writeElm(elm *FullValue, cdr *coder.Coder, pw *io.PipeWriter) {
 	wc := MakeWindowEncoder(cdr.Window)
 	ec := MakeElementEncoder(coder.SkipW(cdr))
-	if err := EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.PaneInfo{}, pw); err != nil {
+	if err := EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw); err != nil {
 		panic("err")
 	}
 	if err := ec.Encode(elm, pw); err != nil {

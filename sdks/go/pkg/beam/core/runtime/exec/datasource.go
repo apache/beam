@@ -135,6 +135,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 		pe.Timestamp = t
 		pe.Windows = ws
 		pe.Pane = pn
+
 		var valReStreams []ReStream
 		for _, cv := range cvs {
 			values, err := n.makeReStream(ctx, pe, cv, r)

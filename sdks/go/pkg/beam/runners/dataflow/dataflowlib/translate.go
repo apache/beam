@@ -118,7 +118,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		// URL Query-escaped windowed _unnested_ value. It is read back in
 		// a nested context at runtime.
 		var buf bytes.Buffer
-		if err := exec.EncodeWindowedValueHeader(exec.MakeWindowEncoder(coder.NewGlobalWindow()), window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.PaneInfo{}, &buf); err != nil {
+		if err := exec.EncodeWindowedValueHeader(exec.MakeWindowEncoder(coder.NewGlobalWindow()), window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), &buf); err != nil {
 			return nil, err
 		}
 		value := string(append(buf.Bytes(), t.GetSpec().Payload...))

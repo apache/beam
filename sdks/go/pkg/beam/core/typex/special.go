@@ -65,21 +65,17 @@ type Window interface {
 	Equals(o Window) bool
 }
 
-type Timing string
-
 const (
-	EARLY   Timing = "EARLY"
-	ON_TIME Timing = "ON_TIME"
-	LATE    Timing = "LATE"
-	UNKNOWN Timing = "UNKNOWN"
+	PaneEarly   int = 0 // EARLY
+	PaneOnTime  int = 1 // ON_TIME
+	PaneLate    int = 2 // LATE
+	PaneUnknown int = 3 // UNKNOWN
 )
 
 type PaneInfo struct {
-	Timing              Timing
-	IsFirst             bool
-	IsLast              bool
-	Index               int64
-	NonSpeculativeIndex int64
+	Timing                     int
+	IsFirst, IsLast            bool
+	Index, NonSpeculativeIndex int64
 }
 
 // KV, CoGBK, WindowedValue represent composite generic types. They are not used

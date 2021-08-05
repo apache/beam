@@ -1002,16 +1002,22 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 
 func makeTrigger(t window.TriggerType) (*pipepb.Trigger, error) {
 	switch t {
-	case window.Default:
+	case window.DefaultTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
 				Default: &pipepb.Trigger_Default{},
 			},
 		}, nil
-	case window.Always:
+	case window.AlwaysTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Always_{
 				Always: &pipepb.Trigger_Always{},
+			},
+		}, nil
+	case window.AfterAnyTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterAny_{
+				AfterAny: &pipepb.Trigger_AfterAny{},
 			},
 		}, nil
 	default:

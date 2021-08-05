@@ -33,5 +33,5 @@ func (ws *WindowingStrategy) String() string {
 
 // DefaultWindowingStrategy returns the default windowing strategy.
 func DefaultWindowingStrategy() *WindowingStrategy {
-	return &WindowingStrategy{Fn: NewGlobalWindows(), Trigger: Default}
+	return &WindowingStrategy{Fn: NewGlobalWindows(), Trigger: DefaultTrigger}
 }

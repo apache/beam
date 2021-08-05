@@ -19,24 +19,8 @@ package window
 type TriggerType string
 
 const (
-	Default  TriggerType = "Trigger_Default_"
-	Always   TriggerType = "Trigger_Always_"
-	AfterAny TriggerType = "Trigger_AfterAny_"
-	AfterAll TriggerType = "Trigger_AfterAll_"
+	DefaultTrigger  TriggerType = "Trigger_Default_"
+	AlwaysTrigger   TriggerType = "Trigger_Always_"
+	AfterAnyTrigger TriggerType = "Trigger_AfterAny_"
+	AfterAllTrigger TriggerType = "Trigger_AfterAll_"
 )
-
-func (ws *WindowingStrategy) SetAfterAll() {
-	ws.Trigger = AfterAll
-}
-
-func (ws *WindowingStrategy) SetAfterAny() {
-	ws.Trigger = AfterAny
-}
-
-func (ws *WindowingStrategy) SetAlways() {
-	ws.Trigger = Always
-}
-
-func (ws *WindowingStrategy) SetDefault() {
-	ws.Trigger = Default
-}
