@@ -33,7 +33,6 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Reads each file in the input {@link PCollection} of {@link ReadableFile} using given parameters
@@ -49,34 +48,34 @@ public class ReadAllViaFileBasedSource<T>
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
-  private @Nullable Integer readerThreadCount;
+  private final boolean usesReshuffle;
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder) {
-    this(desiredBundleSizeBytes, createSource, coder, (Integer) null);
+    this(desiredBundleSizeBytes, createSource, coder, true);
   }
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder,
-      @Nullable Integer readerThreadCount) {
+      boolean usesReshuffle) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
     this.coder = coder;
-    this.readerThreadCount = readerThreadCount;
+    this.usesReshuffle = usesReshuffle;
   }
 
   @Override
   public PCollection<T> expand(PCollection<ReadableFile> input) {
-    return input
-        .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
-        .apply(
-            "Reshuffle",
-            Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey()
-                .withNumBuckets((Integer) readerThreadCount))
+    PCollection<KV<ReadableFile, OffsetRange>> ranges =
+        input.apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)));
+    if (usesReshuffle) {
+      ranges = ranges.apply("Reshuffle", Reshuffle.viaRandomKey());
+    }
+    return ranges
         .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
         .setCoder(coder);
   }
