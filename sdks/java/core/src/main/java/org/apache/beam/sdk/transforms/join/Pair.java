@@ -18,12 +18,9 @@
 package org.apache.beam.sdk.transforms.join;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 
 /** A pair of two different objects. */
-@DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class Pair<V1, V2> {
 

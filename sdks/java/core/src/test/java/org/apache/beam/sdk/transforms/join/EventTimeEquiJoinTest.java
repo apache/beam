@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -30,6 +31,9 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.join.EventTimeEquiJoin.OutputTimestampFrom;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -89,7 +93,7 @@ public class EventTimeEquiJoinTest implements Serializable {
     PCollection<KV<Integer, Integer>> listTwo = createIntegers(kvs);
 
     PCollection<KV<Integer, Pair<String, Integer>>> result =
-        listOne.apply(EventTimeEquiJoin.of(listTwo));
+        listOne.apply(EventTimeEquiJoin.innerJoin(listTwo));
 
     List<KV<Integer, Pair<String, Integer>>> expected =
         Arrays.asList(
@@ -114,7 +118,8 @@ public class EventTimeEquiJoinTest implements Serializable {
 
     PCollection<KV<Integer, Pair<String, Integer>>> result =
         listOne.apply(
-            EventTimeEquiJoin.<Integer, String, Integer>of(listTwo).within(new Duration(4L)));
+            EventTimeEquiJoin.<Integer, String, Integer>innerJoin(listTwo)
+                .within(new Duration(4L)));
 
     List<KV<Integer, Pair<String, Integer>>> expected =
         Arrays.asList(
@@ -143,7 +148,7 @@ public class EventTimeEquiJoinTest implements Serializable {
     // First collection matches with following seconds for up to 4 ms.
     PCollection<KV<Integer, Pair<String, Integer>>> result =
         listOne.apply(
-            EventTimeEquiJoin.<Integer, String, Integer>of(listTwo)
+            EventTimeEquiJoin.<Integer, String, Integer>innerJoin(listTwo)
                 .within(new Duration(4L), Duration.ZERO));
 
     PAssert.that(result)
@@ -162,7 +167,7 @@ public class EventTimeEquiJoinTest implements Serializable {
     // Second collection matches with following seconds for up to 4 ms.
     PCollection<KV<Integer, Pair<String, Integer>>> result =
         listOne.apply(
-            EventTimeEquiJoin.<Integer, String, Integer>of(listTwo)
+            EventTimeEquiJoin.<Integer, String, Integer>innerJoin(listTwo)
                 .within(Duration.ZERO, new Duration(4L)));
 
     PAssert.that(result)
@@ -185,7 +190,7 @@ public class EventTimeEquiJoinTest implements Serializable {
     PCollection<KV<Integer, Integer>> listTwo = createIntegers(Arrays.asList(KV.of(1, 3)));
 
     EventTimeEquiJoin<Integer, String, Integer> join =
-        EventTimeEquiJoin.<Integer, String, Integer>of(listTwo).within(new Duration(4L));
+        EventTimeEquiJoin.<Integer, String, Integer>innerJoin(listTwo).within(new Duration(4L));
 
     List<KV<Integer, Pair<String, Integer>>> expected = new ArrayList<>();
     expected.add(KV.of(1, Pair.of("1", 3)));
@@ -197,6 +202,86 @@ public class EventTimeEquiJoinTest implements Serializable {
     }
 
     PAssert.that(p.apply(createEvents).apply(join)).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /** A DoFn that extracts the value and timestamp from a KV. */
+  static class ExtractPairAndTimestamps<K, V> extends DoFn<KV<K, V>, KV<V, Instant>> {
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<K, V> element, @Timestamp Instant ts, OutputReceiver<KV<V, Instant>> output) {
+      output.output(KV.of(element.getValue(), ts));
+    }
+  }
+
+  /**
+   * Runs a join with given outputTimestampFrom setting and a function to generate expected output
+   * timestamps.
+   */
+  public void runOutputTimestampTest(
+      OutputTimestampFrom timestamp, BiFunction<Long, Long, Long> expectedTs) {
+    PCollection<KV<Integer, String>> listOne = createStrings(Arrays.asList(KV.of(1, 4)));
+    PCollection<KV<Integer, Integer>> listTwo =
+        createIntegers(Arrays.asList(KV.of(1, 0), KV.of(1, 4), KV.of(1, 8)));
+
+    // First collection matches with following seconds for up to 4 ms.
+    PCollection<KV<Integer, Pair<String, Integer>>> result =
+        listOne.apply(
+            EventTimeEquiJoin.<Integer, String, Integer>innerJoin(listTwo)
+                .within(new Duration(4L), new Duration(4L))
+                .withOutputTimestampFrom(timestamp));
+
+    PAssert.that(result.apply("extract ts", ParDo.of(new ExtractPairAndTimestamps<>())))
+        .containsInAnyOrder(
+            Arrays.asList(
+                KV.of(Pair.of("4", 0), new Instant(expectedTs.apply(4L, 0L))),
+                KV.of(Pair.of("4", 4), new Instant(expectedTs.apply(4L, 4L))),
+                KV.of(Pair.of("4", 8), new Instant(expectedTs.apply(4L, 8L)))));
+    p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testMinTimestamps() {
+    runOutputTimestampTest(
+        OutputTimestampFrom.MINIMUM_TIMESTAMP, (Long a, Long b) -> Math.min(a, b));
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testMaxTimestamps() {
+    runOutputTimestampTest(
+        OutputTimestampFrom.MAXIMUM_TIMESTAMP, (Long a, Long b) -> Math.max(a, b));
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testFirstTimestamps() {
+    runOutputTimestampTest(OutputTimestampFrom.FIRST_COLLECTION, (Long a, Long b) -> a);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testSecondTimestamps() {
+    runOutputTimestampTest(OutputTimestampFrom.SECOND_COLLECTION, (Long a, Long b) -> b);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testNoWatermarkHold() {
+    // Test the case where no watermark hold is needed by basing timestamps on the empty collection.
+    PCollection<KV<Integer, String>> listOne = createStrings(new ArrayList<>());
+    PCollection<KV<Integer, Integer>> listTwo =
+        createIntegers(Arrays.asList(KV.of(1, 0), KV.of(1, 4), KV.of(1, 8)));
+
+    PCollection<KV<Integer, Pair<String, Integer>>> result =
+        listOne.apply(
+            EventTimeEquiJoin.<Integer, String, Integer>innerJoin(listTwo)
+                .within(new Duration(4L), new Duration(4L))
+                .withOutputTimestampFrom(OutputTimestampFrom.FIRST_COLLECTION));
+
+    PAssert.that(result).empty();
     p.run();
   }
 

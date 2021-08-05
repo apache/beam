@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
+import com.facebook.presto.hadoop.$internal.org.apache.http.annotation.Experimental;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -24,13 +27,16 @@ import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -42,6 +48,7 @@ import org.joda.time.Instant;
 /**
  * Returns a {@link PTransform} that performs a {@link EventTimeEquiJoin} on two PCollections. A
  * {@link EventTimeEquiJoin} joins elements with equal keys bounded by the difference in event time.
+ * Currently only inner join is supported.
  *
  * <p>Example of performing a {@link EventTimeEquiJoin}:
  *
@@ -52,23 +59,36 @@ import org.joda.time.Instant;
  * PCollection<KV<K, Pair<V1, V2>> eventTimeEquiJoinCollection =
  *   pt1.apply(EventTimeEquiJoin.<K, V1, V2>of(pt2));
  *
- * @param secondCollection the second collection to use in the join.
  * @param <K> the type of the keys in the input {@code PCollection}s
  * @param <V1> the type of the value in the first {@code PCollection}
  * @param <V2> the type of the value in the second {@code PCollection}
  * </pre>
  */
 @AutoValue
+@Experimental
 public abstract class EventTimeEquiJoin<K, V1, V2>
     extends PTransform<PCollection<KV<K, V1>>, PCollection<KV<K, Pair<V1, V2>>>> {
-  /** Returns a {@link PTransform} that performs a {@link EventTimeEquiJoin} on two PCollections. */
-  public static <K, V1, V2> EventTimeEquiJoin<K, V1, V2> of(
+
+  /* Where the output timestamp for each element is taken from. */
+  public enum OutputTimestampFrom {
+    FIRST_COLLECTION,
+    SECOND_COLLECTION,
+    MINIMUM_TIMESTAMP,
+    MAXIMUM_TIMESTAMP
+  }
+
+  /**
+   * Returns a {@link PTransform} that performs a {@link EventTimeEquiJoin} inner join on two
+   * PCollections.
+   */
+  public static <K, V1, V2> EventTimeEquiJoin<K, V1, V2> innerJoin(
       PCollection<KV<K, V2>> secondCollection) {
     return new AutoValue_EventTimeEquiJoin.Builder<K, V1, V2>()
         .setSecondCollection(secondCollection)
         .setFirstCollectionValidFor(Duration.ZERO)
         .setSecondCollectionValidFor(Duration.ZERO)
         .setAllowedLateness(Duration.ZERO)
+        .setOutputTimestampFrom(OutputTimestampFrom.MINIMUM_TIMESTAMP)
         .build();
   }
 
@@ -79,6 +99,8 @@ public abstract class EventTimeEquiJoin<K, V1, V2>
   abstract Duration getSecondCollectionValidFor();
 
   abstract Duration getAllowedLateness();
+
+  abstract OutputTimestampFrom getOutputTimestampFrom();
 
   abstract Builder<K, V1, V2> toBuilder();
 
@@ -91,6 +113,9 @@ public abstract class EventTimeEquiJoin<K, V1, V2>
     public abstract Builder<K, V1, V2> setSecondCollectionValidFor(Duration value);
 
     public abstract Builder<K, V1, V2> setAllowedLateness(Duration value);
+
+    public abstract Builder<K, V1, V2> setOutputTimestampFrom(
+        OutputTimestampFrom outputTimestampFrom);
 
     abstract EventTimeEquiJoin<K, V1, V2> build();
   }
@@ -126,12 +151,26 @@ public abstract class EventTimeEquiJoin<K, V1, V2>
 
   /**
    * Returns a {@code Impl<K, V1, V2>} {@code PTransform} that matches elements from the first and
-   * second collection with the same keys and allows for late elements
+   * second collection with the same keys and allows for late elements.
    *
    * @param allowedLateness the amount of time late elements are allowed.
    */
   public EventTimeEquiJoin<K, V1, V2> withAllowedLateness(Duration allowedLateness) {
+    checkArgument(
+        allowedLateness.isLongerThan(Duration.ZERO),
+        "Allowed lateness for EventTimeEquiJoin must be positive.");
     return toBuilder().setAllowedLateness(allowedLateness).build();
+  }
+
+  /**
+   * Returns a {@code Impl<K, V1, V2>} {@code PTransform} that matches elements from the first and
+   * second collection with the same keys and allows for late elements.
+   *
+   * @param outputTimestampFrom where to pull the output timestamp from
+   */
+  public EventTimeEquiJoin<K, V1, V2> withOutputTimestampFrom(
+      OutputTimestampFrom outputTimestampFrom) {
+    return toBuilder().setOutputTimestampFrom(outputTimestampFrom).build();
   }
 
   @Override
@@ -154,7 +193,8 @@ public abstract class EventTimeEquiJoin<K, V1, V2>
                     secondValueCoder,
                     getFirstCollectionValidFor(),
                     getSecondCollectionValidFor(),
-                    getAllowedLateness())))
+                    getAllowedLateness(),
+                    getOutputTimestampFrom())))
         .setCoder(KvCoder.of(keyCoder, PairCoder.<V1, V2>of(firstValueCoder, secondValueCoder)));
   }
 
@@ -173,100 +213,194 @@ public abstract class EventTimeEquiJoin<K, V1, V2>
     // How long past the watermark that late elements can show up.
     private final Duration allowedLateness;
 
-    @StateId("v1Items")
+    // How to generate the output timestamp.
+    private final OutputTimestampFrom outputTimestampFrom;
+
+    @StateId("firstItems")
     private final StateSpec<OrderedListState<V1>> firstCollectionItems;
 
-    @StateId("v2Items")
+    @StateId("secondItems")
     private final StateSpec<OrderedListState<V2>> secondCollectionItems;
+
+    // Timestamp of the oldest element that has not already been cleaned up used to ensure we don't
+    // accept elements for timestamps we already cleaned up.
+    @StateId("oldestFirstTimestamp")
+    private final StateSpec<ValueState<Instant>> oldestFirstTimestamp;
+
+    @StateId("oldestSecondTimestamp")
+    private final StateSpec<ValueState<Instant>> oldestSecondTimestamp;
 
     @TimerFamily("cleanupTimers")
     private final TimerSpec cleanupTimers = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+    // Watermark holds for elements in the first collection.
+    @TimerFamily("firstCollectionHolds")
+    private final TimerSpec firstCollectionHolds = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+    // Watermark holds for elements in the second collection.
+    @TimerFamily("secondCollectionHolds")
+    private final TimerSpec secondCollectionHolds = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
     public EventTimeEquiJoinDoFn(
         Coder<V1> firstValueCoder,
         Coder<V2> secondValueCoder,
         Duration firstValidFor,
         Duration secondValidFor,
-        Duration allowedLateness) {
+        Duration allowedLateness,
+        OutputTimestampFrom outputTimestampFrom) {
       this.firstCollectionValidFor = firstValidFor;
       this.secondCollectionValidFor = secondValidFor;
       this.allowedLateness = allowedLateness;
+      this.outputTimestampFrom = outputTimestampFrom;
       firstCollectionItems = StateSpecs.orderedList(firstValueCoder);
       secondCollectionItems = StateSpecs.orderedList(secondValueCoder);
+      oldestFirstTimestamp = StateSpecs.value();
+      oldestSecondTimestamp = StateSpecs.value();
     }
 
     @FunctionalInterface
     private interface Output<T1, T2> {
-      void apply(T1 one, T2 two);
+      void output(T1 one, T2 two, Instant tsOne, Instant tsTwo);
     }
 
-    private <T, O> void processHelper(
-        Output<T, O> output,
+    /** Adds a timer at the next bucket past time to fire at the bucket boundary. */
+    private Timer addTimer(TimerMap timers, Instant time) {
+      Instant nextBucketStart =
+          Instant.ofEpochMilli(time.getMillis() / TIMER_BUCKET * TIMER_BUCKET + TIMER_BUCKET);
+      Timer timer = timers.get(Long.toString(nextBucketStart.getMillis()));
+      timer.set(nextBucketStart);
+      return timer;
+    }
+
+    private <ThisT, OtherT> void processHelper(
+        Output<ThisT, OtherT> output,
         KV<K, RawUnionValue> element,
         Instant ts,
-        OrderedListState<T> thisCollection,
-        OrderedListState<O> otherCollection,
+        OrderedListState<ThisT> thisCollection,
+        OrderedListState<OtherT> otherCollection,
+        ValueState<Instant> oldestTimestampState,
         TimerMap cleanupTimers,
+        TimerMap watermarkHolds,
+        boolean elementAffectsWatermarkHolds,
         Duration thisCollectionValidFor,
         Duration otherCollectionValidFor) {
-      thisCollection.add(TimestampedValue.of((T) element.getValue().getValue(), ts));
+      Instant oldestTimestamp = oldestTimestampState.read();
+      if (oldestTimestamp == null) {
+        oldestTimestamp = new Instant(BoundedWindow.TIMESTAMP_MIN_VALUE);
+        oldestTimestampState.write(new Instant(BoundedWindow.TIMESTAMP_MIN_VALUE));
+      }
+      if (ts.isBefore(oldestTimestamp)) {
+        return; // Skip elements that are already cleaned up.
+      }
+      thisCollection.add(TimestampedValue.of((ThisT) element.getValue().getValue(), ts));
       Instant beginning = ts.minus(otherCollectionValidFor);
       Instant end = ts.plus(thisCollectionValidFor).plus(1L);
-      for (TimestampedValue<O> value : otherCollection.readRange(beginning, end)) {
-        output.apply((T) element.getValue().getValue(), value.getValue());
+      for (TimestampedValue<OtherT> value : otherCollection.readRange(beginning, end)) {
+        output.output(
+            (ThisT) element.getValue().getValue(), value.getValue(), ts, value.getTimestamp());
       }
-      Instant cleanupTime = ts.plus(allowedLateness).plus(thisCollectionValidFor);
-      Instant nextBucketStart =
-          Instant.ofEpochMilli(
-              cleanupTime.getMillis() / TIMER_BUCKET * TIMER_BUCKET + TIMER_BUCKET);
-      cleanupTimers.get(Long.toString(nextBucketStart.getMillis())).set(nextBucketStart);
+
+      addTimer(cleanupTimers, ts.plus(allowedLateness).plus(thisCollectionValidFor));
+
+      if (elementAffectsWatermarkHolds) {
+        addTimer(watermarkHolds, ts.plus(thisCollectionValidFor)).withOutputTimestamp(ts);
+      }
     }
 
     @ProcessElement
     public void process(
-        ProcessContext context,
+        OutputReceiver<KV<K, Pair<V1, V2>>> output,
         @Element KV<K, RawUnionValue> element,
         @Timestamp Instant ts,
-        @StateId("v1Items") OrderedListState<V1> firstItems,
-        @StateId("v2Items") OrderedListState<V2> secondItems,
-        @TimerFamily("cleanupTimers") TimerMap cleanupTimers) {
+        @StateId("firstItems") OrderedListState<V1> firstItems,
+        @StateId("secondItems") OrderedListState<V2> secondItems,
+        @StateId("oldestFirstTimestamp") ValueState<Instant> oldestFirstTimestamp,
+        @StateId("oldestSecondTimestamp") ValueState<Instant> oldestSecondTimestamp,
+        @TimerFamily("cleanupTimers") TimerMap cleanupTimers,
+        @TimerFamily("firstCollectionHolds") TimerMap firstCollectionHolds,
+        @TimerFamily("secondCollectionHolds") TimerMap secondCollectionHolds) {
+      boolean isMin = outputTimestampFrom == OutputTimestampFrom.MINIMUM_TIMESTAMP;
       switch (element.getValue().getUnionTag()) {
         case FIRST_TAG:
           processHelper(
-              (V1 v1, V2 v2) -> {
-                context.output(KV.of(element.getKey(), Pair.of(v1, v2)));
-              },
+              (V1 v1, V2 v2, Instant t1, Instant t2) ->
+                  output.outputWithTimestamp(
+                      KV.of(element.getKey(), Pair.of(v1, v2)), getOutputTimestamp(t1, t2)),
               element,
               ts,
               firstItems,
               secondItems,
+              oldestFirstTimestamp,
               cleanupTimers,
+              firstCollectionHolds,
+              isMin || outputTimestampFrom == OutputTimestampFrom.FIRST_COLLECTION,
               firstCollectionValidFor,
               secondCollectionValidFor);
           break;
         case SECOND_TAG:
           processHelper(
-              (V2 v2, V1 v1) -> {
-                context.output(KV.of(element.getKey(), Pair.of(v1, v2)));
-              },
+              (V2 v2, V1 v1, Instant t2, Instant t1) ->
+                  output.outputWithTimestamp(
+                      KV.of(element.getKey(), Pair.of(v1, v2)), getOutputTimestamp(t1, t2)),
               element,
               ts,
               secondItems,
               firstItems,
+              oldestSecondTimestamp,
               cleanupTimers,
+              secondCollectionHolds,
+              isMin || outputTimestampFrom == OutputTimestampFrom.SECOND_COLLECTION,
               secondCollectionValidFor,
               firstCollectionValidFor);
+          break;
+        default:
+          throw new RuntimeException("Unexpected union tag for EventTimeEquiJoin.");
       }
     }
 
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      // We don't need the check because we hold the watermark back with timers.
+      return Duration.millis(Long.MAX_VALUE);
+    }
+
+    /** Calculates the output timestamp from the timestamps of each element. * */
+    private Instant getOutputTimestamp(Instant tsOne, Instant tsTwo) {
+      switch (outputTimestampFrom) {
+        case FIRST_COLLECTION:
+          return tsOne;
+        case SECOND_COLLECTION:
+          return tsTwo;
+        case MAXIMUM_TIMESTAMP:
+          return tsOne.isAfter(tsTwo) ? tsOne : tsTwo;
+        case MINIMUM_TIMESTAMP:
+          return tsOne.isBefore(tsTwo) ? tsOne : tsTwo;
+        default:
+          throw new RuntimeException("Unexpected enum option.");
+      }
+    }
+
+    @OnTimerFamily("firstCollectionHolds")
+    public void onFirstCollectionHolds() {}
+
+    @OnTimerFamily("secondCollectionHolds")
+    public void onSecondCollectionHolds() {}
+
     @OnTimerFamily("cleanupTimers")
     public void onCleanupTimer(
-        @TimerId String timerId,
-        @StateId("v1Items") OrderedListState<V1> firstItems,
-        @StateId("v2Items") OrderedListState<V2> secondItems) {
-      Instant currentTime = Instant.ofEpochMilli(Long.valueOf(timerId)).minus(allowedLateness);
-      firstItems.clearRange(Instant.ofEpochMilli(0), currentTime.minus(firstCollectionValidFor));
-      secondItems.clearRange(Instant.ofEpochMilli(0), currentTime.minus(secondCollectionValidFor));
+        OnTimerContext context,
+        @StateId("firstItems") OrderedListState<V1> firstItems,
+        @StateId("secondItems") OrderedListState<V2> secondItems,
+        @StateId("oldestFirstTimestamp") ValueState<Instant> oldestFirstTimestampState,
+        @StateId("oldestSecondTimestamp") ValueState<Instant> oldestSecondTimestampState) {
+      Instant ts = context.fireTimestamp();
+      Instant currentTime = ts.minus(allowedLateness);
+      Instant oldestFirstTimestamp = currentTime.minus(firstCollectionValidFor);
+      Instant oldestSecondTimestamp = currentTime.minus(secondCollectionValidFor);
+      oldestFirstTimestampState.write(oldestFirstTimestamp);
+      oldestSecondTimestampState.write(oldestSecondTimestamp);
+      firstItems.clearRange(BoundedWindow.TIMESTAMP_MIN_VALUE, oldestFirstTimestamp);
+      secondItems.clearRange(BoundedWindow.TIMESTAMP_MIN_VALUE, oldestSecondTimestamp);
     }
   }
 }

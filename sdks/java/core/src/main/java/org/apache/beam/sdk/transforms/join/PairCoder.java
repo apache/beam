@@ -42,15 +42,30 @@ public class PairCoder<V1, V2> extends StructuredCoder<Pair<V1, V2>> {
   }
 
   @Override
+  public void encode(Pair<V1, V2> value, OutputStream outStream, Context context)
+      throws IOException, CoderException {
+    if (value == null) {
+      throw new CoderException("cannot encode a null pair coder");
+    }
+    firstCoder.encode(value.getFirst(), outStream);
+    secondCoder.encode(value.getSecond(), outStream, context);
+  }
+
+  @Override
   public void encode(Pair<V1, V2> value, OutputStream outStream)
       throws CoderException, IOException {
-    firstCoder.encode(value.getFirst(), outStream);
-    secondCoder.encode(value.getSecond(), outStream);
+    encode(value, outStream, Context.NESTED);
   }
 
   @Override
   public Pair<V1, V2> decode(InputStream inStream) throws CoderException, IOException {
-    return Pair.of(firstCoder.decode(inStream), secondCoder.decode(inStream));
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
+  public Pair<V1, V2> decode(InputStream inStream, Context context) throws CoderException,
+      IOException {
+    return Pair.of(firstCoder.decode(inStream), secondCoder.decode(inStream, context));
   }
 
   @Override
