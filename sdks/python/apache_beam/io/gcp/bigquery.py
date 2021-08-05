@@ -284,14 +284,12 @@ from typing import Dict
 from typing import List
 from typing import Union
 
-import sys
-import inspect
-
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io import range_trackers
 from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
@@ -328,9 +326,6 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
-
-from apache_beam.io import range_trackers
-from avro import io as avroio
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
@@ -992,7 +987,7 @@ class _CustomBigQueryStorageSourceBase(BoundedSource):
 
     storage_client = bq_storage.BigQueryReadClient()
     stream_count = 0
-    if (desired_bundle_size > 0):
+    if desired_bundle_size > 0:
       table_size = self._get_table_size(self.table, self.dataset, self.project)
       stream_count = min(
           int(table_size / desired_bundle_size),
