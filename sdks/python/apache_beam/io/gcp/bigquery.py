@@ -2116,19 +2116,20 @@ class ReadFromBigQuery(PTransform):
     on GCS, and then reads from each produced file. File format is Avro by
     default.
 
+  .. warning::
+      DATETIME columns are not supported. They are currently parsed as strings
+      in the fastavro library.
+
   Args:
     method: The method to use to read from BigQuery. It may be EXPORT or
       DIRECT_READ. EXPORT invokes a BigQuery export request
       (https://cloud.google.com/bigquery/docs/exporting-data). DIRECT_READ reads
       directly from BigQuery storage using the BigQuery Read API
       (https://cloud.google.com/bigquery/docs/reference/storage). If
-      unspecified, the default method is currently EXPORT.
-    use_fastavro (bool): If :method:`DIRECT_READ` and :data:`True`, the
+      unspecified, the default is currently EXPORT.
+    use_fastavro (bool): If method is `DIRECT_READ` and :data:`True`, the
        fastavro library is used to deserialize the data received from the
        BigQuery Read API. The default here is :data:`True`.
-       warning::
-            DATETIME columns are not supported. They are currently parsed as
-            strings in the fastavro library.
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
       numbers ``0-9``, or underscores ``_``. If dataset argument is
