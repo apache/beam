@@ -99,7 +99,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     writeLine("{ \"fullName\":\"%s\",", escapeString(fullName));
     String enclosingNodeName = node.getEnclosingNode().getFullName();
     writeLine(
-        "  \"enclosingNode\":\"%s\",",
+        "  \"enclosingNode\":\"%s\"},",
         escapeString(enclosingNodeName.isEmpty() ? OUTERMOST_NODE : enclosingNodeName));
 
     node.getOutputs().values().forEach(x -> valueToProducerNodeName.put(x, fullName));
