@@ -15,20 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation;
+package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
-import org.apache.spark.sql.streaming.DataStreamWriter;
-
-/** Subclass of {@link AbstractTranslationContext} that address spark breaking changes. */
-public class TranslationContext extends AbstractTranslationContext {
-
-  public TranslationContext(SparkStructuredStreamingPipelineOptions options) {
-    super(options);
-  }
-
-  @Override
-  public void launchStreaming(DataStreamWriter<?> dataStreamWriter) {
-    dataStreamWriter.start();
-  }
-}
+/**
+ * Spark structured streaming framework does not support more than one aggregation in streaming mode
+ * because of watermark implementation. As a consequence, this runner, does not support streaming
+ * mode yet see https://issues.apache.org/jira/browse/BEAM-9933
+ */
+class DatasetSourceStreaming {}
