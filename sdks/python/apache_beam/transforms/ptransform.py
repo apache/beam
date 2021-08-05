@@ -50,7 +50,6 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
-from typing import Mapping
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -254,7 +253,7 @@ class _FinalizeMaterialization(_PValueishTransform):
       return self.visit_nested(node)
 
 
-def get_named_nested_pvalues(pvalueish, as_inputs=False):
+def get_named_nested_pvalues(pvalueish):
   if isinstance(pvalueish, tuple):
     # Check to see if it's a named tuple.
     fields = getattr(pvalueish, '_fields', None)
@@ -263,22 +262,16 @@ def get_named_nested_pvalues(pvalueish, as_inputs=False):
     else:
       tagged_values = enumerate(pvalueish)
   elif isinstance(pvalueish, list):
-    if as_inputs:
-      # Full list treated as a list of value for eager evaluation.
-      yield None, pvalueish
-      return
     tagged_values = enumerate(pvalueish)
   elif isinstance(pvalueish, dict):
     tagged_values = pvalueish.items()
   else:
-    if as_inputs or isinstance(pvalueish,
-                               (pvalue.PValue, pvalue.DoOutputsTuple)):
+    if isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
       yield None, pvalueish
     return
 
   for tag, subvalue in tagged_values:
-    for subtag, subsubvalue in get_named_nested_pvalues(
-        subvalue, as_inputs=as_inputs):
+    for subtag, subsubvalue in get_named_nested_pvalues(subvalue):
       if subtag is None:
         yield tag, subsubvalue
       else:
@@ -576,8 +569,6 @@ class PTransform(WithTypeHints, HasDisplayData):
   def __ror__(self, left, label=None):
     """Used to apply this PTransform to non-PValues, e.g., a tuple."""
     pvalueish, pvalues = self._extract_input_pvalues(left)
-    if isinstance(pvalues, dict):
-      pvalues = tuple(pvalues.values())
     pipelines = [v.pipeline for v in pvalues if isinstance(v, pvalue.PValue)]
     if pvalues and not pipelines:
       deferred = False
@@ -606,7 +597,8 @@ class PTransform(WithTypeHints, HasDisplayData):
     # pylint: enable=wrong-import-order, wrong-import-position
     replacements = {
         id(v): p | 'CreatePInput%s' % ix >> Create(v, reshuffle=False)
-        for (ix, v) in enumerate(pvalues)
+        for ix,
+        v in enumerate(pvalues)
         if not isinstance(v, pvalue.PValue) and v is not None
     }
     pvalueish = _SetInputPValues().visit(pvalueish, replacements)
@@ -636,11 +628,19 @@ class PTransform(WithTypeHints, HasDisplayData):
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)
 
-    return pvalueish, {
-        str(tag): value
-        for (tag, value) in get_named_nested_pvalues(
-            pvalueish, as_inputs=True)
-    }
+    def _dict_tuple_leaves(pvalueish):
+      if isinstance(pvalueish, tuple):
+        for a in pvalueish:
+          for p in _dict_tuple_leaves(a):
+            yield p
+      elif isinstance(pvalueish, dict):
+        for a in pvalueish.values():
+          for p in _dict_tuple_leaves(a):
+            yield p
+      else:
+        yield pvalueish
+
+    return pvalueish, tuple(_dict_tuple_leaves(pvalueish))
 
   def _pvaluish_from_dict(self, input_dict):
     if len(input_dict) == 1:
@@ -648,15 +648,16 @@ class PTransform(WithTypeHints, HasDisplayData):
     else:
       return input_dict
 
-  def _named_inputs(self, main_inputs, side_inputs):
-    # type: (Mapping[str, pvalue.PValue], Sequence[Any]) -> Dict[str, pvalue.PValue]
+  def _named_inputs(self, inputs, side_inputs):
+    # type: (Sequence[pvalue.PValue], Sequence[Any]) -> Dict[str, pvalue.PValue]
 
     """Returns the dictionary of named inputs (including side inputs) as they
     should be named in the beam proto.
     """
+    # TODO(BEAM-1833): Push names up into the sdk construction.
     main_inputs = {
-        tag: input
-        for (tag, input) in main_inputs.items()
+        str(ix): input
+        for (ix, input) in enumerate(inputs)
         if isinstance(input, pvalue.PCollection)
     }
     named_side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
