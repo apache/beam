@@ -515,14 +515,16 @@ public class ProcessBundleHandler {
     }
 
     // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor was
-    // specified. If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
-    // User state caching is currently not supported in streaming mode.
+    // specified.
     HandleStateCallsForBundle beamFnStateClient;
     if (bundleDescriptor.hasStateApiServiceDescriptor()) {
       BeamFnStateClient underlyingClient =
           beamFnStateGrpcClientCache.forApiServiceDescriptor(
               bundleDescriptor.getStateApiServiceDescriptor());
 
+      // If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
+      // Once streaming is supported, always use CachingBeamFnStateClient as the arg
+      // to BlockTillStateCallsFinish
       beamFnStateClient =
           new BlockTillStateCallsFinish(
               options.as(StreamingOptions.class).isStreaming()
