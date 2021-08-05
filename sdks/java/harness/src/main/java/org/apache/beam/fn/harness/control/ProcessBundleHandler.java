@@ -76,6 +76,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
@@ -513,17 +514,25 @@ public class ProcessBundleHandler {
       }
     }
 
-    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor
-    // was specified. If specified, uses a CachingBeamFnStateClient to store state responses.
-    HandleStateCallsForBundle beamFnStateClient =
-        bundleDescriptor.hasStateApiServiceDescriptor()
-            ? new BlockTillStateCallsFinish(
-                new CachingBeamFnStateClient(
-                    beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                        bundleDescriptor.getStateApiServiceDescriptor()),
-                    stateCache,
-                    processBundleRequest.getCacheTokensList()))
-            : new FailAllStateCallsForBundle(processBundleRequest);
+    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor was
+    // specified. If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
+    // User state caching is currently not supported in streaming mode.
+    HandleStateCallsForBundle beamFnStateClient;
+    if (bundleDescriptor.hasStateApiServiceDescriptor()) {
+      BeamFnStateClient underlyingClient =
+          beamFnStateGrpcClientCache.forApiServiceDescriptor(
+              bundleDescriptor.getStateApiServiceDescriptor());
+
+      beamFnStateClient =
+          new BlockTillStateCallsFinish(
+              options.as(StreamingOptions.class).isStreaming()
+                  ? underlyingClient
+                  : new CachingBeamFnStateClient(
+                      underlyingClient, stateCache, processBundleRequest.getCacheTokensList()));
+
+    } else {
+      beamFnStateClient = new FailAllStateCallsForBundle(processBundleRequest);
+    }
 
     // Instantiate a Timer client registration handler depending on whether a Timer
     // ApiServiceDescriptor was specified.
