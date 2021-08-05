@@ -792,6 +792,7 @@ public class AvroIO {
     }
 
     /** Specifies if a Reshuffle should run before file reads occur */
+    @Experimental(Kind.FILESYSTEM)
     public ReadFiles<T> withUsesReshuffle(boolean usesReshuffle) {
       return toBuilder().setUsesReshuffle(usesReshuffle).build();
     }
@@ -1116,6 +1117,7 @@ public class AvroIO {
     }
 
     /** Specifies if a Reshuffle should run before file reads occur */
+    @Experimental(Kind.FILESYSTEM)
     public ParseFiles<T> withUsesReshuffle(boolean usesReshuffle) {
       return toBuilder().setUsesReshuffle(usesReshuffle).build();
     }
