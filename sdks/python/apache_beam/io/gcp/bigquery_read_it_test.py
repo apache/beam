@@ -25,8 +25,8 @@ import datetime
 import logging
 import random
 import time
-import uuid
 import unittest
+import uuid
 from decimal import Decimal
 from functools import wraps
 
