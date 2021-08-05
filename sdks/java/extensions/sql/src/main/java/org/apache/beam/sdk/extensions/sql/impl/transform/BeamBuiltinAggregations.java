@@ -252,6 +252,11 @@ public class BeamBuiltinAggregations {
     public Long apply(Long left, Long right) {
       return Math.addExact(left, right);
     }
+
+    @Override
+    public @Nullable Long identity() {
+      return 0L;
+    }
   }
 
   static class BigDecimalSum extends Combine.BinaryCombineFn<BigDecimal> {
