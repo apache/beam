@@ -54,9 +54,14 @@ from apache_beam.options.value_provider import StaticValueProvider
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.api_core.exceptions import ClientError, DeadlineExceeded
+  from google.api_core.exceptions import InternalServerError
 except ImportError:
+  ClientError = None
+  DeadlineExceeded = None
   HttpError = None
   HttpForbiddenError = None
+  InternalServerError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -459,15 +464,15 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertTrue(
         found, "Did not find write call metric with status: %s" % status)
 
+  @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
   def test_insert_rows_sets_metric_on_failure(self):
-    from google.api_core import exceptions
     MetricsEnvironment.process_wide_container().reset()
     client = mock.Mock()
     client.insert_rows_json = mock.Mock(
         # Fail a few times, then succeed.
         side_effect=[
-            exceptions.DeadlineExceeded("Deadline Exceeded"),
-            exceptions.InternalServerError("Internal Error"),
+            DeadlineExceeded("Deadline Exceeded"),
+            InternalServerError("Internal Error"),
             [],
         ])
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
