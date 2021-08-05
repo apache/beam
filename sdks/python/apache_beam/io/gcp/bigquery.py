@@ -2117,8 +2117,9 @@ class ReadFromBigQuery(PTransform):
     default.
 
   .. warning::
-      DATETIME columns are not supported. They are currently parsed as strings
-      in the fastavro library.
+      DATETIME columns are parsed as strings in the fastavro library. As a
+      result, such columns will be converted to Python strings instead of native
+      Python DATETIME types.
 
   Args:
     method: The method to use to read from BigQuery. It may be EXPORT or
