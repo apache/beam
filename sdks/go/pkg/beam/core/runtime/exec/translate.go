@@ -87,7 +87,7 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			if err != nil {
 				return nil, err
 			}
-			// Elide the PCollection Node for DataSources.
+			// Elide the PCollection Node for DataSources
 			// DataSources can get byte samples directly, and can handle CoGBKs.
 			u.PCol = *u.Out.(*PCollection)
 			u.Out = u.PCol.Out
@@ -514,7 +514,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			for _, dc := range c.Components[1:] {
 				decoders = append(decoders, MakeElementDecoder(dc))
 			}
-			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
+			// Strip PCollections from Expand nodes, as CoGBK metrics are handled by
+			// the DataSource that preceeds them.
+			trueOut := out[0].(*PCollection).Out
+			b.units = b.units[:len(b.units)-1]
+			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 
 		case graphx.URNReshuffleInput:
 			c, w, err := b.makeCoderForPCollection(from)
