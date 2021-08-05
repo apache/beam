@@ -1061,7 +1061,7 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 
   def get_range_tracker(self, start_position, stop_position):
     # TODO: Implement dynamic work rebalancing.
-    assert start_position == None
+    assert start_position is None
     # Defaulting to the start of the stream.
     start_position = 0
     # Since the streams are unsplittable we choose OFFSET_INFINITY as the
