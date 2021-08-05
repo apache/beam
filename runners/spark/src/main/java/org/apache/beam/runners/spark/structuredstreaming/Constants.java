@@ -15,20 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
-import org.apache.spark.sql.streaming.DataStreamWriter;
+package org.apache.beam.runners.spark.structuredstreaming;
 
-/** Subclass of {@link AbstractTranslationContext} that address spark breaking changes. */
-public class TranslationContext extends AbstractTranslationContext {
+public class Constants {
 
-  public TranslationContext(SparkStructuredStreamingPipelineOptions options) {
-    super(options);
-  }
-
-  @Override
-  public void launchStreaming(DataStreamWriter<?> dataStreamWriter) {
-    dataStreamWriter.start();
-  }
+  public static final String BEAM_SOURCE_OPTION = "beam-source";
+  public static final String DEFAULT_PARALLELISM = "default-parallelism";
+  public static final String PIPELINE_OPTIONS = "pipeline-options";
 }

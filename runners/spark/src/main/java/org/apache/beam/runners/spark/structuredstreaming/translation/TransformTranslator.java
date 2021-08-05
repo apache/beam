@@ -17,18 +17,15 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
-import org.apache.spark.sql.streaming.DataStreamWriter;
+import java.io.Serializable;
+import org.apache.beam.sdk.transforms.PTransform;
 
-/** Subclass of {@link AbstractTranslationContext} that address spark breaking changes. */
-public class TranslationContext extends AbstractTranslationContext {
+/** Supports translation between a Beam transform, and Spark's operations on Datasets. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
+public interface TransformTranslator<TransformT extends PTransform> extends Serializable {
 
-  public TranslationContext(SparkStructuredStreamingPipelineOptions options) {
-    super(options);
-  }
-
-  @Override
-  public void launchStreaming(DataStreamWriter<?> dataStreamWriter) {
-    dataStreamWriter.start();
-  }
+  /** Base class for translators of {@link PTransform}. */
+  void translateTransform(TransformT transform, AbstractTranslationContext context);
 }

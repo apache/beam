@@ -15,20 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation;
+package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
-import org.apache.spark.sql.streaming.DataStreamWriter;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 
-/** Subclass of {@link AbstractTranslationContext} that address spark breaking changes. */
-public class TranslationContext extends AbstractTranslationContext {
+/** A {@link SchemaHelpers} for the Spark Batch Runner. */
+public class SchemaHelpers {
+  private static final StructType BINARY_SCHEMA =
+      new StructType(
+          new StructField[] {
+            StructField.apply("binaryStructField", DataTypes.BinaryType, true, Metadata.empty())
+          });
 
-  public TranslationContext(SparkStructuredStreamingPipelineOptions options) {
-    super(options);
-  }
-
-  @Override
-  public void launchStreaming(DataStreamWriter<?> dataStreamWriter) {
-    dataStreamWriter.start();
+  public static StructType binarySchema() {
+    // we use a binary schema for now because:
+    // using a empty schema raises a indexOutOfBoundsException
+    // using a NullType schema stores null in the elements
+    return BINARY_SCHEMA;
   }
 }
