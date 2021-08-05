@@ -128,7 +128,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return new AvroCoder<>(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
+    return of(clazz, false);
   }
 
   /**
