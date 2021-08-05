@@ -678,6 +678,7 @@ public class RemoteExecutionTest implements Serializable {
               valueInGlobalWindow(KV.of("X", "C"))));
     }
 
+    // Only expect one read to the sideInput
     assertEquals(1, stateRequestHandler.receivedRequests.size());
     BeamFnApi.StateRequest receivedRequest = stateRequestHandler.receivedRequests.get(0);
     assertEquals(
@@ -1364,6 +1365,7 @@ public class RemoteExecutionTest implements Serializable {
                 CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C", Coder.Context.NESTED))));
     assertThat(userStateData.get(stateId2), IsEmptyIterable.emptyIterable());
 
+    // 3 Requests expected: state read, state2 read, and state2 clear
     assertEquals(3, stateRequestHandler.getRequestCount());
     ByteString.Output out = ByteString.newOutput();
     StringUtf8Coder.of().encode("X", out);
@@ -1408,6 +1410,10 @@ public class RemoteExecutionTest implements Serializable {
     assertTrue(stateRequestHandler.receivedRequests.get(2).hasClear());
   }
 
+  /**
+   * A state handler that stores each state request made - used to validate that cached requests are
+   * not forwarded to the state client.
+   */
   private static class StoringStateRequestHandler implements StateRequestHandler {
 
     private StateRequestHandler stateRequestHandler;

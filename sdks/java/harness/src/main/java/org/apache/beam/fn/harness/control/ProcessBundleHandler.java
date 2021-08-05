@@ -129,6 +129,20 @@ public class ProcessBundleHandler {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   @VisibleForTesting static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;
 
+  static {
+    Set<Registrar> pipelineRunnerRegistrars =
+        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
+    pipelineRunnerRegistrars.addAll(
+        Lists.newArrayList(ServiceLoader.load(Registrar.class, ReflectHelpers.findClassLoader())));
+
+    // Load all registered PTransform runner factories.
+    ImmutableMap.Builder<String, PTransformRunnerFactory> builder = ImmutableMap.builder();
+    for (Registrar registrar : pipelineRunnerRegistrars) {
+      builder.putAll(registrar.getPTransformRunnerFactories());
+    }
+    REGISTERED_RUNNER_FACTORIES = builder.build();
+  }
+
   // Creates a new map of state data for newly encountered state keys
   private CacheLoader<
           BeamFnApi.StateKey,
@@ -143,20 +157,6 @@ public class ProcessBundleHandler {
               return new HashMap<>();
             }
           };
-
-  static {
-    Set<Registrar> pipelineRunnerRegistrars =
-        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-    pipelineRunnerRegistrars.addAll(
-        Lists.newArrayList(ServiceLoader.load(Registrar.class, ReflectHelpers.findClassLoader())));
-
-    // Load all registered PTransform runner factories.
-    ImmutableMap.Builder<String, PTransformRunnerFactory> builder = ImmutableMap.builder();
-    for (Registrar registrar : pipelineRunnerRegistrars) {
-      builder.putAll(registrar.getPTransformRunnerFactories());
-    }
-    REGISTERED_RUNNER_FACTORIES = builder.build();
-  }
 
   private final PipelineOptions options;
   private final Function<String, Message> fnApiRegistry;
