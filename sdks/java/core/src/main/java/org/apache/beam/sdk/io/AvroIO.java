@@ -791,9 +791,7 @@ public class AvroIO {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
-    /**
-     * Specifies if a Reshuffle should run before file reads occur
-     */
+    /** Specifies if a Reshuffle should run before file reads occur */
     public ReadFiles<T> withUsesReshuffle(boolean usesReshuffle) {
       return toBuilder().setUsesReshuffle(usesReshuffle).build();
     }
@@ -1117,9 +1115,7 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
-    /**
-     * Specifies if a Reshuffle should run before file reads occur
-     */
+    /** Specifies if a Reshuffle should run before file reads occur */
     public ParseFiles<T> withUsesReshuffle(boolean usesReshuffle) {
       return toBuilder().setUsesReshuffle(usesReshuffle).build();
     }
