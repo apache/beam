@@ -164,11 +164,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --pytest)
-      PYTEST="$2"
-      shift # past argument
-      shift # past value
-      ;;
     --collect)
       COLLECT_MARKERS="-m=$2"
       shift # past argument
