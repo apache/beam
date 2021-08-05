@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness.logging;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -248,8 +249,13 @@ public class BeamFnLoggingClient implements AutoCloseable {
         }
       } else {
         // Never blocks caller, will drop log message if buffer is full.
-        bufferedLogEntries.offer(builder.build());
+        dropIfBufferFull(builder.build());
       }
+    }
+
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
+    private void dropIfBufferFull(BeamFnApi.LogEntry logEntry) {
+      bufferedLogEntries.offer(logEntry);
     }
 
     @Override
