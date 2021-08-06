@@ -479,13 +479,13 @@ public class AvroIOTest implements Serializable {
                           .withDesiredBundleSizeBytes(10)))
           .containsInAnyOrder(values);
       PAssert.that(
-              path.apply("MatchAllParseFilesGenericRecords", FileIO.matchAll())
+              path.apply("MatchAllParseFilesGenericRecordsWithShuffle", FileIO.matchAll())
                   .apply(
-                      "ReadMatchesParseFilesGenericRecords",
+                      "ReadMatchesParseFilesGenericRecordsWithShuffle",
                       FileIO.readMatches()
                           .withDirectoryTreatment(FileIO.ReadMatches.DirectoryTreatment.PROHIBIT))
                   .apply(
-                      "ParseFilesGenericRecords",
+                      "ParseFilesGenericRecordsWithShuffle",
                       AvroIO.parseFilesGenericRecords(new ParseGenericClass())
                           .withCoder(AvroCoder.of(GenericClass.class))
                           .withUsesReshuffle(true)
