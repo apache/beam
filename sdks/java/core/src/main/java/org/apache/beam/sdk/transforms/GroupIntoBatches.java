@@ -322,16 +322,19 @@ public class GroupIntoBatches<K, InputT>
     @TimerId(END_OF_WINDOW_ID)
     private final TimerSpec windowTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
+    // This timer expires when it's time to batch and output the buffered data.
     private static final String END_OF_BUFFERING_ID = "endOfBuffering";
 
     @TimerId(END_OF_BUFFERING_ID)
     private final TimerSpec bufferingTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+    // The set of elements that will go in the next batch.
     private static final String BATCH_ID = "batch";
 
     @StateId(BATCH_ID)
     private final StateSpec<BagState<InputT>> batchSpec;
 
+    // The size of the current batch.
     private static final String NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch";
 
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
@@ -339,14 +342,19 @@ public class GroupIntoBatches<K, InputT>
 
     private static final String NUM_BYTES_IN_BATCH_ID = "numBytesInBatch";
 
+    // The byte size of the current batch.
     @StateId(NUM_BYTES_IN_BATCH_ID)
     private final StateSpec<CombiningState<Long, long[], Long>> batchSizeBytesSpec;
 
     private static final String TIMER_TIMESTAMP = "timerTs";
 
+    // The timestamp of the current active timer.
     @StateId(TIMER_TIMESTAMP)
     private final StateSpec<ValueState<Long>> timerTsSpec;
 
+    // The minimum element timestamp currently buffered in the bag. This is used to set the output
+    // timestamp
+    // on the timer which ensures that the watermark correctly tracks the buffered elements.
     private static final String MIN_BUFFERED_TS = "minBufferedTs";
 
     @StateId(MIN_BUFFERED_TS)
