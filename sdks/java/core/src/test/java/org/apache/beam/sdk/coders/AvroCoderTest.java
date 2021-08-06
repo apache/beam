@@ -330,6 +330,19 @@ public class AvroCoderTest {
   }
 
   @Test
+  public void testReflectRecordEncoding() throws Exception {
+    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, true);
+    AvroCoder<TestAvro> coderWithSchema =
+        AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema(), true);
+
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
+
+    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+    CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
+  }
+
+  @Test
   public void testGenericRecordEncoding() throws Exception {
     String schemaString =
         "{\"namespace\": \"example.avro\",\n"
@@ -396,6 +409,14 @@ public class AvroCoderTest {
   @Test
   public void testAvroCoderIsSerializable() throws Exception {
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+
+    // Check that the coder is serializable using the regular JSON approach.
+    SerializableUtils.ensureSerializable(coder);
+  }
+
+  @Test
+  public void testAvroReflectCoderIsSerializable() throws Exception {
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class, true);
 
     // Check that the coder is serializable using the regular JSON approach.
     SerializableUtils.ensureSerializable(coder);
