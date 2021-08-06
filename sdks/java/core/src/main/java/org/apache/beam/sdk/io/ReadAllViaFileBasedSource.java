@@ -50,11 +50,11 @@ public class ReadAllViaFileBasedSource<T>
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadAllViaFileBasedSource.class);
   protected static final boolean DEFAULT_USES_RESHUFFLE = true;
-  protected static final boolean DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS = false;
+  protected static final boolean DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS = false;
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
-  private final boolean supressRuntimeExceptions;
+  private final boolean suppressRuntimeExceptions;
   private final boolean usesReshuffle;
 
   public ReadAllViaFileBasedSource(
@@ -66,7 +66,7 @@ public class ReadAllViaFileBasedSource<T>
         createSource,
         coder,
         DEFAULT_USES_RESHUFFLE,
-        DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS);
+        DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS);
   }
 
   public ReadAllViaFileBasedSource(
@@ -74,12 +74,12 @@ public class ReadAllViaFileBasedSource<T>
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder,
       boolean usesReshuffle,
-      boolean supressRuntimeExceptions) {
+      boolean suppressRuntimeExceptions) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
     this.coder = coder;
     this.usesReshuffle = usesReshuffle;
-    this.supressRuntimeExceptions = supressRuntimeExceptions;
+    this.suppressRuntimeExceptions = suppressRuntimeExceptions;
   }
 
   @Override
@@ -92,7 +92,7 @@ public class ReadAllViaFileBasedSource<T>
     return ranges
         .apply(
             "Read ranges",
-            ParDo.of(new ReadFileRangesFn<T>(createSource, supressRuntimeExceptions)))
+            ParDo.of(new ReadFileRangesFn<T>(createSource, suppressRuntimeExceptions)))
         .setCoder(coder);
   }
 
@@ -119,13 +119,13 @@ public class ReadAllViaFileBasedSource<T>
 
   private static class ReadFileRangesFn<T> extends DoFn<KV<ReadableFile, OffsetRange>, T> {
     private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
-    private final boolean supressRuntimeExceptions;
+    private final boolean suppressRuntimeExceptions;
 
     private ReadFileRangesFn(
         SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
-        boolean supressRuntimeExceptions) {
+        boolean suppressRuntimeExceptions) {
       this.createSource = createSource;
-      this.supressRuntimeExceptions = supressRuntimeExceptions;
+      this.suppressRuntimeExceptions = suppressRuntimeExceptions;
     }
 
     @ProcessElement
@@ -146,7 +146,7 @@ public class ReadAllViaFileBasedSource<T>
           c.output(reader.getCurrent());
         }
       } catch (IllegalStateException e) {
-        if (supressRuntimeExceptions) {
+        if (suppressRuntimeExceptions) {
           LOG.error(
               String.format(
                   "ReadFileRange failure for file %s", file.getMetadata().resourceId().toString()),

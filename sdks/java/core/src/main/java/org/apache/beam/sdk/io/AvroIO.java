@@ -360,7 +360,7 @@ public class AvroIO {
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
-        .setSupressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS)
+        .setSuppressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS)
         .build();
   }
 
@@ -404,7 +404,7 @@ public class AvroIO {
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
-        .setSupressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS)
+        .setSuppressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS)
         .build();
   }
 
@@ -477,7 +477,7 @@ public class AvroIO {
         .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
-        .setSupressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS)
+        .setSuppressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS)
         .build();
   }
 
@@ -584,9 +584,6 @@ public class AvroIO {
    * large as to exhaust a typical runner's maximum amount of output per ProcessElement call.
    */
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
-
-  /** ReShuffle before avro file reads by default */
-  private static final boolean DEFAULT_USES_RESHUFFLE = true;
 
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
@@ -764,7 +761,7 @@ public class AvroIO {
 
     abstract boolean getUsesReshuffle();
 
-    abstract boolean getSupressRuntimeExceptions();
+    abstract boolean getSuppressRuntimeExceptions();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -782,7 +779,7 @@ public class AvroIO {
 
       abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
 
-      abstract Builder<T> setSupressRuntimeExceptions(boolean supressRuntimeExceptions);
+      abstract Builder<T> setSuppressRuntimeExceptions(boolean suppressRuntimeExceptions);
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
@@ -806,8 +803,8 @@ public class AvroIO {
 
     /** Specifies if exceptions should be logged only for streaming pipelines. */
     @Experimental(Kind.FILESYSTEM)
-    public ReadFiles<T> withSupressRuntimeExceptions(boolean supressRuntimeExceptions) {
-      return toBuilder().setSupressRuntimeExceptions(supressRuntimeExceptions).build();
+    public ReadFiles<T> withSuppressRuntimeExceptions(boolean suppressRuntimeExceptions) {
+      return toBuilder().setSuppressRuntimeExceptions(suppressRuntimeExceptions).build();
     }
 
     /**
@@ -835,7 +832,7 @@ public class AvroIO {
                       getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
                   AvroCoder.of(getRecordClass(), getSchema()),
                   getUsesReshuffle(),
-                  getSupressRuntimeExceptions()));
+                  getSuppressRuntimeExceptions()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
@@ -1108,7 +1105,7 @@ public class AvroIO {
 
     abstract boolean getUsesReshuffle();
 
-    abstract boolean getSupressRuntimeExceptions();
+    abstract boolean getSuppressRuntimeExceptions();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -1122,7 +1119,7 @@ public class AvroIO {
 
       abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
 
-      abstract Builder<T> setSupressRuntimeExceptions(boolean supressRuntimeExceptions);
+      abstract Builder<T> setSuppressRuntimeExceptions(boolean suppressRuntimeExceptions);
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
@@ -1142,8 +1139,8 @@ public class AvroIO {
 
     /** Specifies if exceptions should be logged only for streaming pipelines. */
     @Experimental(Kind.FILESYSTEM)
-    public ParseFiles<T> withSupressRuntimeExceptions(boolean supressRuntimeExceptions) {
-      return toBuilder().setSupressRuntimeExceptions(supressRuntimeExceptions).build();
+    public ParseFiles<T> withSuppressRuntimeExceptions(boolean suppressRuntimeExceptions) {
+      return toBuilder().setSuppressRuntimeExceptions(suppressRuntimeExceptions).build();
     }
 
     @VisibleForTesting
@@ -1165,7 +1162,7 @@ public class AvroIO {
               createSource,
               coder,
               getUsesReshuffle(),
-              getSupressRuntimeExceptions()));
+              getSuppressRuntimeExceptions()));
     }
 
     @Override
