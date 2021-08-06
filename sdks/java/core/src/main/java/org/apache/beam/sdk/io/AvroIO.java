@@ -582,7 +582,7 @@ public class AvroIO {
    */
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
-  /** ReShuffle before avro file reads by default */
+  /** ReShuffle before avro file reads by default. */
   private static final boolean DEFAULT_USES_RESHUFFLE = true;
 
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
@@ -791,7 +791,7 @@ public class AvroIO {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
-    /** Specifies if a Reshuffle should run before file reads occur */
+    /** Specifies if a Reshuffle should run before file reads occur. */
     @Experimental(Kind.FILESYSTEM)
     public ReadFiles<T> withUsesReshuffle(boolean usesReshuffle) {
       return toBuilder().setUsesReshuffle(usesReshuffle).build();
@@ -1116,7 +1116,7 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
-    /** Specifies if a Reshuffle should run before file reads occur */
+    /** Specifies if a Reshuffle should run before file reads occur. */
     @Experimental(Kind.FILESYSTEM)
     public ParseFiles<T> withUsesReshuffle(boolean usesReshuffle) {
       return toBuilder().setUsesReshuffle(usesReshuffle).build();
