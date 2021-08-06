@@ -68,6 +68,7 @@ from apache_beam.utils.histogram import LinearBucket
 try:
   from apitools.base.py.transfer import Upload
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   gcp_bigquery = None
@@ -617,8 +618,6 @@ class BigQueryWrapper(object):
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
       /rest/v2/tabledata/insertAll."""
-    from google.api_core.exceptions import ClientError
-    from google.api_core.exceptions import GoogleAPICallError
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
     # required by the InsertAll() method.
