@@ -189,6 +189,10 @@ from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.utils.annotations import experimental
 
+from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.gcp import resource_identifiers
+from apache_beam.metrics import monitoring_infos
+
 try:
   from google.cloud.spanner import Client
   from google.cloud.spanner import KeySet
@@ -1068,6 +1072,19 @@ class _WriteToSpannerDoFn(DoFn):
     self._spanner_configuration = spanner_configuration
     self._db_instance = None
     self.batches = Metrics.counter(self.__class__, 'SpannerBatches')
+    table_id = ''
+    resource = resource_identifiers.SpannerTable(
+        spanner_configuration.project, spanner_configuration.database, table_id)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Write',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_PROJECT_ID: spanner_configuration.project,
+        monitoring_infos.SPANNER_DATABASE_ID: spanner_configuration.database,
+    }
+    self.service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
@@ -1094,6 +1111,7 @@ class _WriteToSpannerDoFn(DoFn):
           raise ValueError("Unknown operation action: %s" % m.operation)
 
         batch_func(**m.kwargs)
+    self.service_call_metric.call('ok')
 
 
 @with_input_types(typing.Union[MutationGroup, _Mutator])

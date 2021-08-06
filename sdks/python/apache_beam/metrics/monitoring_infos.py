@@ -99,6 +99,14 @@ GCS_PROJECT_ID_LABEL = (
     common_urns.monitoring_info_labels.GCS_PROJECT_ID.label_props.name)
 GCS_BUCKET_LABEL = (
     common_urns.monitoring_info_labels.GCS_BUCKET.label_props.name)
+SPANNER_PROJECT_ID = (
+    common_urns.monitoring_info_labels.SPANNER_PROJECT_ID.label_props.name)
+SPANNER_DATABASE_ID = (
+    common_urns.monitoring_info_labels.SPANNER_DATABASE_ID.label_props.name)
+SPANNER_TABLE_ID = (
+    common_urns.monitoring_info_labels.SPANNER_TABLE_ID.label_props.name)
+SPANNER_QUERY_NAME = (
+    common_urns.monitoring_info_labels.SPANNER_QUERY_NAME.label_props.name)
 
 
 def extract_counter_value(monitoring_info_proto):
