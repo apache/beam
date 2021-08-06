@@ -70,6 +70,8 @@ _LOGGER = logging.getLogger(__name__)
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
 
+# Keep a set of completed instructions to discard late received data. The set
+# can have up to _MAX_CLEANED_INSTRUCTIONS items. See _GrpcDataChannel.
 _MAX_CLEANED_INSTRUCTIONS = 10000
 
 class ClosableOutputStream(OutputStream):
@@ -410,6 +412,10 @@ class _GrpcDataChannel(DataChannel):
     self._received = collections.defaultdict(
         lambda: queue.Queue(maxsize=5)
     )  # type: DefaultDict[str, queue.Queue[DataOrTimers]]
+
+    # Keep a cache of completed instructions. Data for completed instructions
+    # must be discarded. See input_elements() and _clean_receiving_queue().
+    # OrderedDict is used as FIFO set with the value being always `True`.
     self._cleaned_instruction_ids = collections.OrderedDict(
     )  # type: collections.OrderedDict[str, bool]
 
