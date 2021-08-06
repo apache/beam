@@ -150,16 +150,6 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Returns an {@code AvroCoder} instance for the given class and schema using Avro's Reflection
-   * API for encoding and decoding.
-   *
-   * @param <T> the element type
-   */
-  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, boolean useReflectApi) {
-    return new AvroCoder<>(type, schema, useReflectApi);
-  }
-
-  /**
    * Returns an {@code AvroCoder} instance for the provided element type using the provided Avro
    * schema.
    *
@@ -168,7 +158,17 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> type, Schema schema) {
-    return new AvroCoder<>(type, schema);
+    return of(type, schema, false);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the given class and schema using Avro's Reflection
+   * API for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, boolean useReflectApi) {
+    return new AvroCoder<>(type, schema, useReflectApi);
   }
 
   /**
