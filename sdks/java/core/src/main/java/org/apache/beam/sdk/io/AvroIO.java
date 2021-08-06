@@ -359,6 +359,8 @@ public class AvroIO {
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setSupressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS)
         .build();
   }
 
@@ -401,6 +403,8 @@ public class AvroIO {
         .setSchema(schema)
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setSupressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS)
         .build();
   }
 
@@ -472,6 +476,8 @@ public class AvroIO {
     return new AutoValue_AvroIO_ParseFiles.Builder<T>()
         .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setSupressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS)
         .build();
   }
 
@@ -578,6 +584,9 @@ public class AvroIO {
    * large as to exhaust a typical runner's maximum amount of output per ProcessElement call.
    */
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
+
+  /** ReShuffle before avro file reads by default */
+  private static final boolean DEFAULT_USES_RESHUFFLE = true;
 
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
@@ -753,7 +762,9 @@ public class AvroIO {
 
     abstract @Nullable Schema getSchema();
 
-    abstract @Nullable Integer getReaderThreadCount();
+    abstract boolean getUsesReshuffle();
+
+    abstract boolean getSupressRuntimeExceptions();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -769,7 +780,9 @@ public class AvroIO {
 
       abstract Builder<T> setSchema(Schema schema);
 
-      abstract Builder<T> setReaderThreadCount(Integer readerThreadCount);
+      abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
+
+      abstract Builder<T> setSupressRuntimeExceptions(boolean supressRuntimeExceptions);
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
@@ -785,12 +798,16 @@ public class AvroIO {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
-    /**
-     * If set, the number of threads used to read files will be limited to the value supplied. This
-     * can be used to avoid causing OOM errors.
-     */
-    public ReadFiles<T> withReaderThreadCount(Integer readerThreadCount) {
-      return toBuilder().setReaderThreadCount(readerThreadCount).build();
+    /** Specifies if a Reshuffle should run before file reads occur. */
+    @Experimental(Kind.FILESYSTEM)
+    public ReadFiles<T> withUsesReshuffle(boolean usesReshuffle) {
+      return toBuilder().setUsesReshuffle(usesReshuffle).build();
+    }
+
+    /** Specifies if exceptions should be logged only for streaming pipelines. */
+    @Experimental(Kind.FILESYSTEM)
+    public ReadFiles<T> withSupressRuntimeExceptions(boolean supressRuntimeExceptions) {
+      return toBuilder().setSupressRuntimeExceptions(supressRuntimeExceptions).build();
     }
 
     /**
@@ -817,7 +834,8 @@ public class AvroIO {
                   new CreateSourceFn<>(
                       getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
                   AvroCoder.of(getRecordClass(), getSchema()),
-                  getReaderThreadCount()));
+                  getUsesReshuffle(),
+                  getSupressRuntimeExceptions()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
@@ -1088,7 +1106,9 @@ public class AvroIO {
 
     abstract @Nullable Coder<T> getCoder();
 
-    abstract @Nullable Integer getReaderThreadCount();
+    abstract boolean getUsesReshuffle();
+
+    abstract boolean getSupressRuntimeExceptions();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -1100,7 +1120,9 @@ public class AvroIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
-      abstract Builder<T> setReaderThreadCount(Integer readerThreadCount);
+      abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
+
+      abstract Builder<T> setSupressRuntimeExceptions(boolean supressRuntimeExceptions);
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
@@ -1112,12 +1134,16 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
-    /**
-     * If set, the number of threads used to read files will be limited to the value supplied. This
-     * can be used to avoid causing OOM errors.
-     */
-    public ParseFiles<T> withReaderThreadCount(Integer readerThreadCount) {
-      return toBuilder().setReaderThreadCount(readerThreadCount).build();
+    /** Specifies if a Reshuffle should run before file reads occur. */
+    @Experimental(Kind.FILESYSTEM)
+    public ParseFiles<T> withUsesReshuffle(boolean usesReshuffle) {
+      return toBuilder().setUsesReshuffle(usesReshuffle).build();
+    }
+
+    /** Specifies if exceptions should be logged only for streaming pipelines. */
+    @Experimental(Kind.FILESYSTEM)
+    public ParseFiles<T> withSupressRuntimeExceptions(boolean supressRuntimeExceptions) {
+      return toBuilder().setSupressRuntimeExceptions(supressRuntimeExceptions).build();
     }
 
     @VisibleForTesting
@@ -1135,7 +1161,11 @@ public class AvroIO {
       return input.apply(
           "Parse Files via FileBasedSource",
           new ReadAllViaFileBasedSource<>(
-              getDesiredBundleSizeBytes(), createSource, coder, getReaderThreadCount()));
+              getDesiredBundleSizeBytes(),
+              createSource,
+              coder,
+              getUsesReshuffle(),
+              getSupressRuntimeExceptions()));
     }
 
     @Override

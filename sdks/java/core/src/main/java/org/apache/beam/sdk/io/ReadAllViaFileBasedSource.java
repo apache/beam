@@ -33,7 +33,6 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,43 +47,52 @@ import org.slf4j.LoggerFactory;
 @Experimental(Kind.SOURCE_SINK)
 public class ReadAllViaFileBasedSource<T>
     extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
+
   private static final Logger LOG = LoggerFactory.getLogger(ReadAllViaFileBasedSource.class);
+  protected static final boolean DEFAULT_USES_RESHUFFLE = true;
+  protected static final boolean DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS = false;
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
   private final boolean supressRuntimeExceptions;
-  private @Nullable Integer readerThreadCount;
+  private final boolean usesReshuffle;
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder) {
-    this(desiredBundleSizeBytes, createSource, coder, null, false);
+    this(
+        desiredBundleSizeBytes,
+        createSource,
+        coder,
+        DEFAULT_USES_RESHUFFLE,
+        DEFAULT_SUPRESS_RUNTIME_EXCEPTIONS);
   }
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder,
-      @Nullable Integer readerThreadCount,
+      boolean usesReshuffle,
       boolean supressRuntimeExceptions) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
     this.coder = coder;
-    this.readerThreadCount = readerThreadCount;
+    this.usesReshuffle = usesReshuffle;
     this.supressRuntimeExceptions = supressRuntimeExceptions;
   }
 
   @Override
   public PCollection<T> expand(PCollection<ReadableFile> input) {
-    return input
-        .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
+    PCollection<KV<ReadableFile, OffsetRange>> ranges =
+        input.apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)));
+    if (usesReshuffle) {
+      ranges = ranges.apply("Reshuffle", Reshuffle.viaRandomKey());
+    }
+    return ranges
         .apply(
-            "Reshuffle",
-            Reshuffle.<KV<ReadableFile, OffsetRange>>viaRandomKey()
-                .withNumBuckets(this.readerThreadCount))
-        .apply("Read ranges", ParDo.of(
-            new ReadFileRangesFn<>(createSource, supressRuntimeExceptions)))
+            "Read ranges",
+            ParDo.of(new ReadFileRangesFn<T>(createSource, supressRuntimeExceptions)))
         .setCoder(coder);
   }
 

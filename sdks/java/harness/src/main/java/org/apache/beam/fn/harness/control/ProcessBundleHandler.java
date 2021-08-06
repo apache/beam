@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
+import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -74,6 +76,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
@@ -140,10 +143,29 @@ public class ProcessBundleHandler {
     REGISTERED_RUNNER_FACTORIES = builder.build();
   }
 
+  // Creates a new map of state data for newly encountered state keys
+  private CacheLoader<
+          BeamFnApi.StateKey,
+          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+      stateKeyMapCacheLoader =
+          new CacheLoader<
+              BeamFnApi.StateKey,
+              Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>() {
+            @Override
+            public Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse> load(
+                BeamFnApi.StateKey key) {
+              return new HashMap<>();
+            }
+          };
+
   private final PipelineOptions options;
   private final Function<String, Message> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
+  private final LoadingCache<
+          BeamFnApi.StateKey,
+          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+      stateCache;
   private final FinalizeBundleHandler finalizeBundleHandler;
   private final ShortIdMap shortIds;
   private final boolean runnerAcceptsShortIds;
@@ -186,6 +208,7 @@ public class ProcessBundleHandler {
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
+    this.stateCache = CacheBuilder.newBuilder().build(stateKeyMapCacheLoader);
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
     this.runnerAcceptsShortIds =
@@ -491,14 +514,27 @@ public class ProcessBundleHandler {
       }
     }
 
-    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor
-    // was specified.
-    HandleStateCallsForBundle beamFnStateClient =
-        bundleDescriptor.hasStateApiServiceDescriptor()
-            ? new BlockTillStateCallsFinish(
-                beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                    bundleDescriptor.getStateApiServiceDescriptor()))
-            : new FailAllStateCallsForBundle(processBundleRequest);
+    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor was
+    // specified.
+    HandleStateCallsForBundle beamFnStateClient;
+    if (bundleDescriptor.hasStateApiServiceDescriptor()) {
+      BeamFnStateClient underlyingClient =
+          beamFnStateGrpcClientCache.forApiServiceDescriptor(
+              bundleDescriptor.getStateApiServiceDescriptor());
+
+      // If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
+      // Once streaming is supported, always use CachingBeamFnStateClient as the arg
+      // to BlockTillStateCallsFinish
+      beamFnStateClient =
+          new BlockTillStateCallsFinish(
+              options.as(StreamingOptions.class).isStreaming()
+                  ? underlyingClient
+                  : new CachingBeamFnStateClient(
+                      underlyingClient, stateCache, processBundleRequest.getCacheTokensList()));
+
+    } else {
+      beamFnStateClient = new FailAllStateCallsForBundle(processBundleRequest);
+    }
 
     // Instantiate a Timer client registration handler depending on whether a Timer
     // ApiServiceDescriptor was specified.
