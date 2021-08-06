@@ -133,9 +133,8 @@ def main(unused_argv):
   dataflow_service_options = (
       sdk_pipeline_options.view_as(GoogleCloudOptions).dataflow_service_options
       or [])
-  if (_ENABLE_GOOGLE_CLOUD_PROFILER
-      in experiments) or (_ENABLE_GOOGLE_CLOUD_PROFILER
-                          in dataflow_service_options):
+  if (_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or (
+      _ENABLE_GOOGLE_CLOUD_PROFILER in dataflow_service_options):
     try:
       import googlecloudprofiler
       job_id = os.environ["JOB_ID"]
