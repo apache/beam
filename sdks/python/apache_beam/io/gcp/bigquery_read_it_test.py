@@ -257,7 +257,8 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
               project=self.temp_table_reference.projectId,
               dataset=self.temp_table_reference.datasetId,
-              table=self.temp_table_reference.tableId))
+              table=self.temp_table_reference.tableId,
+              use_fastavro=True))
       assert_that(result, equal_to(self.TABLE_DATA))
 
   def test_iobase_source_without_fastavro(self):

@@ -279,6 +279,7 @@ import time
 import uuid
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Union
 
 import avro.schema
@@ -902,17 +903,18 @@ class _CustomBigQueryStorageSourceBase(BoundedSource):
       **dataset** argument is :data:`None` then the table argument must
       contain the entire table reference specified as:
       ``'PROJECT:DATASET.TABLE'`` or must specify a TableReference.
-    dataset (str): The ID of the dataset containing this table or
+    dataset (str): Optional ID of the dataset containing this table or
       :data:`None` if the table argument specifies a TableReference.
-    project (str): The ID of the project containing this table or
+    project (str): Optional ID of the project containing this table or
       :data:`None` if the table argument specifies a TableReference.
-    selected_fields (List[str]): Names of the fields in the table that should be
-      read. If empty, all fields will be read. If the specified field is a
-      nested field, all the sub-fields in the field will be selected. The output
-      field order is unrelated to the order of fields in selected_fields.
-    row_restriction (str): SQL text filtering statement, similar to a WHERE
-      clause in a query. Aggregates are not supported.Restricted to a maximum
-      length for 1 MB.
+    selected_fields (List[str]): Optional List of names of the fields in the
+      table that should be read. If empty, all fields will be read. If the
+      specified field is a nested field, all the sub-fields in the field will be
+      selected. The output field order is unrelated to the order of fields in
+      selected_fields.
+    row_restriction (str): Optional SQL text filtering statement, similar to a
+      WHERE clause in a query. Aggregates are not supported. Restricted to a
+      maximum length for 1 MB.
   """
 
   # The maximum number of streams which will be requested when creating a read
@@ -927,12 +929,12 @@ class _CustomBigQueryStorageSourceBase(BoundedSource):
   def __init__(
       self,
       table: Union[str, TableReference],
-      dataset: str = None,
-      project: str = None,
-      selected_fields: List[str] = None,
-      row_restriction: str = None,
-      use_fastavro: bool = None,
-      pipeline_options: GoogleCloudOptions = None):
+      dataset: Optional[str] = None,
+      project: Optional[str] = None,
+      selected_fields: Optional[List[str]] = None,
+      row_restriction: Optional[str] = None,
+      use_fastavro: Optional[bool] = None,
+      pipeline_options: Optional[GoogleCloudOptions] = None):
 
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
@@ -941,7 +943,7 @@ class _CustomBigQueryStorageSourceBase(BoundedSource):
     self.project = self.table_reference.projectId
     self.selected_fields = selected_fields
     self.row_restriction = row_restriction
-    self.use_fastavro = True if use_fastavro is not None else use_fastavro
+    self.use_fastavro = True if use_fastavro is None else use_fastavro
     self.pipeline_options = pipeline_options
     self.split_result = None
 
@@ -968,7 +970,8 @@ class _CustomBigQueryStorageSourceBase(BoundedSource):
         'dataset': str(self.dataset),
         'table': str(self.table),
         'selected_fields': str(self.selected_fields),
-        'row_restriction': str(self.row_restriction)
+        'row_restriction': str(self.row_restriction),
+        'use_fastavro': str(self.use_fastavro)
     }
 
   def estimate_size(self):
