@@ -278,6 +278,7 @@ public class ProcessBundleHandlerTest {
             null,
             beamFnDataClient,
             null /* beamFnStateClient */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(),
@@ -306,6 +307,7 @@ public class ProcessBundleHandlerTest {
             null,
             beamFnDataClient,
             null /* beamFnStateClient */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(),
@@ -396,6 +398,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateClient */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(
@@ -517,6 +520,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateClient */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             urnToPTransformRunnerFactoryMap,
@@ -565,6 +569,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(
@@ -712,6 +717,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(
@@ -770,6 +776,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
+            null /* stateCache */,
             mockFinalizeBundleHandler,
             new ShortIdMap(),
             ImmutableMap.of(
@@ -841,6 +848,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(
@@ -903,6 +911,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(
@@ -1002,6 +1011,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             mockBeamFnStateGrpcClient,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(
@@ -1070,6 +1080,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(
@@ -1139,6 +1150,7 @@ public class ProcessBundleHandlerTest {
             fnApiRegistry::get,
             beamFnDataClient,
             null /* beamFnStateGrpcClientCache */,
+            null /* stateCache */,
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(
