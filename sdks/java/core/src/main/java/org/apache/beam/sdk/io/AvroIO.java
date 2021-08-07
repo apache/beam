@@ -359,6 +359,7 @@ public class AvroIO {
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(DEFAULT_USES_RESHUFFLE)
         .build();
   }
 
@@ -401,6 +402,7 @@ public class AvroIO {
         .setSchema(schema)
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(DEFAULT_USES_RESHUFFLE)
         .build();
   }
 
@@ -472,6 +474,7 @@ public class AvroIO {
     return new AutoValue_AvroIO_ParseFiles.Builder<T>()
         .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(DEFAULT_USES_RESHUFFLE)
         .build();
   }
 
@@ -578,6 +581,9 @@ public class AvroIO {
    * large as to exhaust a typical runner's maximum amount of output per ProcessElement call.
    */
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
+
+  /** ReShuffle before avro file reads by default. */
+  private static final boolean DEFAULT_USES_RESHUFFLE = true;
 
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
@@ -753,6 +759,8 @@ public class AvroIO {
 
     abstract @Nullable Schema getSchema();
 
+    abstract boolean getUsesReshuffle();
+
     abstract long getDesiredBundleSizeBytes();
 
     abstract boolean getInferBeamSchema();
@@ -767,6 +775,8 @@ public class AvroIO {
 
       abstract Builder<T> setSchema(Schema schema);
 
+      abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract Builder<T> setInferBeamSchema(boolean infer);
@@ -779,6 +789,12 @@ public class AvroIO {
     @VisibleForTesting
     ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    /** Specifies if a Reshuffle should run before file reads occur. */
+    @Experimental(Kind.FILESYSTEM)
+    public ReadFiles<T> withUsesReshuffle(boolean usesReshuffle) {
+      return toBuilder().setUsesReshuffle(usesReshuffle).build();
     }
 
     /**
@@ -804,7 +820,8 @@ public class AvroIO {
                   getDesiredBundleSizeBytes(),
                   new CreateSourceFn<>(
                       getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
-                  AvroCoder.of(getRecordClass(), getSchema())));
+                  AvroCoder.of(getRecordClass(), getSchema()),
+                  getUsesReshuffle()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
@@ -1075,6 +1092,8 @@ public class AvroIO {
 
     abstract @Nullable Coder<T> getCoder();
 
+    abstract boolean getUsesReshuffle();
+
     abstract long getDesiredBundleSizeBytes();
 
     abstract Builder<T> toBuilder();
@@ -1085,6 +1104,8 @@ public class AvroIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
+      abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ParseFiles<T> build();
@@ -1093,6 +1114,12 @@ public class AvroIO {
     /** Specifies the coder for the result of the {@code parseFn}. */
     public ParseFiles<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
+    }
+
+    /** Specifies if a Reshuffle should run before file reads occur. */
+    @Experimental(Kind.FILESYSTEM)
+    public ParseFiles<T> withUsesReshuffle(boolean usesReshuffle) {
+      return toBuilder().setUsesReshuffle(usesReshuffle).build();
     }
 
     @VisibleForTesting
@@ -1109,7 +1136,8 @@ public class AvroIO {
           new CreateParseSourceFn<>(parseFn, coder);
       return input.apply(
           "Parse Files via FileBasedSource",
-          new ReadAllViaFileBasedSource<>(getDesiredBundleSizeBytes(), createSource, coder));
+          new ReadAllViaFileBasedSource<>(
+              getDesiredBundleSizeBytes(), createSource, coder, getUsesReshuffle()));
     }
 
     @Override

@@ -48,21 +48,34 @@ public class ReadAllViaFileBasedSource<T>
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
+  private final boolean usesReshuffle;
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder) {
+    this(desiredBundleSizeBytes, createSource, coder, true);
+  }
+
+  public ReadAllViaFileBasedSource(
+      long desiredBundleSizeBytes,
+      SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
+      Coder<T> coder,
+      boolean usesReshuffle) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
     this.coder = coder;
+    this.usesReshuffle = usesReshuffle;
   }
 
   @Override
   public PCollection<T> expand(PCollection<ReadableFile> input) {
-    return input
-        .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
-        .apply("Reshuffle", Reshuffle.viaRandomKey())
+    PCollection<KV<ReadableFile, OffsetRange>> ranges =
+        input.apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)));
+    if (usesReshuffle) {
+      ranges = ranges.apply("Reshuffle", Reshuffle.viaRandomKey());
+    }
+    return ranges
         .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
         .setCoder(coder);
   }
