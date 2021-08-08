@@ -97,31 +97,31 @@ class Repositories {
       // https://github.com/mark-vieira/gradle-maven-settings-plugin/
       project.apply plugin: 'net.linguica.maven-settings'
 
-    // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-    // repository. This offline repository satisfies all Gradle build dependencies and Java
-    // project dependencies. The offline repository is placed within $rootDir/offline-repo
-    // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
-    // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-    // by specifying '--no-parallel', see
-    // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-    project.apply plugin: "io.pry.gradle.offline_dependencies"
-    project.offlineDependencies {
-      repositories {
-        mavenLocal()
-        mavenCentral()
-        jcenter()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://repo.spring.io/plugins-release" }
-        maven { url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release" }
-        maven { url "https://packages.confluent.io/maven/" }
-        maven { url project.offlineRepositoryRoot }
+      // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
+      // repository. This offline repository satisfies all Gradle build dependencies and Java
+      // project dependencies. The offline repository is placed within $rootDir/offline-repo
+      // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
+      // Note that parallel build must be disabled when executing 'updateOfflineRepository'
+      // by specifying '--no-parallel', see
+      // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
+      project.apply plugin: "io.pry.gradle.offline_dependencies"
+      project.offlineDependencies {
+        repositories {
+          mavenLocal()
+          mavenCentral()
+          jcenter()
+          maven { url "https://plugins.gradle.org/m2/" }
+          maven { url "https://repo.spring.io/plugins-release" }
+          maven { url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release" }
+          maven { url "https://packages.confluent.io/maven/" }
+          maven { url project.offlineRepositoryRoot }
+        }
+        includeSources = false
+        includeJavadocs = false
+        includeIvyXmls = false
       }
-      includeSources = false
-      includeJavadocs = false
-      includeIvyXmls = false
     }
   }
-}
 
   /**
    * parses the settings.xml in the home directory for repository configuration
