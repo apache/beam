@@ -105,5 +105,4 @@ class RecommendationAIIT(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  print(recommendationengine.CatalogItem.__module__)
   unittest.main()
