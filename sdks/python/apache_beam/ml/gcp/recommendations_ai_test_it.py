@@ -40,6 +40,16 @@ except ImportError:
 
 GCP_TEST_PROJECT = 'apache-beam-testing'
 
+CATALOG_ITEM = {
+    "id": str(int(random.randrange(100000))),
+    "title": "Sample laptop",
+    "description": "Indisputably the most fantastic laptop ever created.",
+    "language_code": "en",
+    "category_hierarchies": [{
+        "categories": ["Electronic", "Computers"]
+    }]
+}
+
 
 def extract_id(response):
   yield response["id"]
@@ -60,16 +70,6 @@ def extract_prediction(response):
 @unittest.skip('https://issues.apache.org/jira/browse/BEAM-12683')
 class RecommendationAIIT(unittest.TestCase):
   def test_create_catalog_item(self):
-
-    CATALOG_ITEM = {
-        "id": str(int(random.randrange(100000))),
-        "title": "Sample laptop",
-        "description": "Indisputably the most fantastic laptop ever created.",
-        "language_code": "en",
-        "category_hierarchies": [{
-            "categories": ["Electronic", "Computers"]
-        }]
-    }
 
     with TestPipeline(is_integration_test=True) as p:
       output = (
@@ -102,6 +102,12 @@ class RecommendationAIIT(unittest.TestCase):
           | beam.ParDo(extract_prediction))
 
       assert_that(output, is_not_empty())
+
+  @classmethod
+  def tearDownClass(cls):
+    client = recommendationengine.CatalogServiceClient()
+    client.delete_catalog_item(
+        name=f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/default_catalog/catalogItems/{CATALOG_ITEM['id']}")
 
 
 if __name__ == '__main__':
