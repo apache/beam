@@ -101,7 +101,7 @@ public class SamzaTimerInternalsFactoryTest {
     final TaskContext context = mock(TaskContext.class);
     when(context.getStore(anyString())).thenReturn((KeyValueStore) store);
 
-    return SamzaStoreStateInternals.createStateInternalFactory("42", context, pipelineOptions);
+    return SamzaStoreStateInternals.createNonKeyedStateInternalsFactory("42", context, pipelineOptions);
   }
 
   private static SamzaTimerInternalsFactory<String> createTimerInternalsFactory(

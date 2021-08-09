@@ -191,7 +191,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     final String stateId = "pardo-" + transformId;
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        SamzaStoreStateInternals.createStateInternalFactory(
+        SamzaStoreStateInternals.createNonKeyedStateInternalsFactory(
             stateId, context.getTaskContext(), samzaPipelineOptions);
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 

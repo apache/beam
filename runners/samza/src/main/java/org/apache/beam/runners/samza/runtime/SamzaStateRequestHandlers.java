@@ -105,7 +105,7 @@ public class SamzaStateRequestHandlers {
     }
 
     final SamzaStoreStateInternals.Factory<ByteString> stateInternalsFactory =
-        SamzaStoreStateInternals.createStateInternalFactory(
+        SamzaStoreStateInternals.createStateInternalsFactory(
             transformId, ByteStringCoder.of(), context, pipelineOptions, executableStage);
 
     return StateRequestHandlers.forBagUserStateHandlerFactory(

@@ -127,23 +127,23 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
    * Creates non keyed state internal factory to persist states in {@link
    * SamzaStoreStateInternals#BEAM_STORE}.
    */
-  static <K> Factory<K> createStateInternalFactory(
+  static <K> Factory<K> createNonKeyedStateInternalsFactory(
       String id, TaskContext context, SamzaPipelineOptions pipelineOptions) {
-    return createStateInternalFactory(id, null, context, pipelineOptions, Collections.emptySet());
+    return createStateInternalsFactory(id, null, context, pipelineOptions, Collections.emptySet());
   }
 
-  static <K> Factory<K> createStateInternalFactory(
+  static <K> Factory<K> createStateInternalsFactory(
       String id,
       Coder<K> keyCoder,
       TaskContext context,
       SamzaPipelineOptions pipelineOptions,
       DoFnSignature signature) {
 
-    return createStateInternalFactory(
+    return createStateInternalsFactory(
         id, keyCoder, context, pipelineOptions, signature.stateDeclarations().keySet());
   }
 
-  static <K> Factory<K> createStateInternalFactory(
+  static <K> Factory<K> createStateInternalsFactory(
       String id,
       Coder<K> keyCoder,
       TaskContext context,
@@ -155,11 +155,11 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
             .map(UserStateReference::localName)
             .collect(Collectors.toSet());
 
-    return createStateInternalFactory(id, keyCoder, context, pipelineOptions, stateIds);
+    return createStateInternalsFactory(id, keyCoder, context, pipelineOptions, stateIds);
   }
 
   @SuppressWarnings("unchecked")
-  private static <K> Factory<K> createStateInternalFactory(
+  private static <K> Factory<K> createStateInternalsFactory(
       String id,
       @Nullable Coder<K> keyCoder,
       TaskContext context,
