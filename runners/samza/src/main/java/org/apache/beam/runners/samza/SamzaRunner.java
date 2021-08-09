@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.SplittableParDo;
@@ -81,7 +82,11 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   }
 
   public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
-    final String jsonGraph = PipelineJsonRenderer.toJsonString(pipeline).toString();
+    Optional<String> jsonGraphOpt = PipelineJsonRenderer.toJsonString(pipeline);
+    String jsonGraph = "";
+    if (jsonGraphOpt.isPresent()) {
+      jsonGraph = jsonGraphOpt.get();
+    }
     LOG.info("Portable pipeline to run json graph:\n{}", jsonGraph);
 
     final ConfigBuilder configBuilder = new ConfigBuilder(options);

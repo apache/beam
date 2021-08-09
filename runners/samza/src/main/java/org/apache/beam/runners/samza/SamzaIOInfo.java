@@ -31,7 +31,7 @@ public interface SamzaIOInfo {
   String getIOInfo(TransformHierarchy.Node node);
 
   /** A registrar for {@link SamzaIOInfo}. */
-  interface BeamIORegistrar {
-    SamzaIOInfo getBeamIO();
+  interface SamzaIORegistrar {
+    SamzaIOInfo getSamzaIO();
   }
 }

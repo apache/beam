@@ -40,6 +40,8 @@ import org.slf4j.LoggerFactory;
 public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineJsonRenderer.class);
   private static final String OUTERMOST_NODE = "OuterMostNode";
+  private final Iterator<SamzaIOInfo.SamzaIORegistrar> beamIORegistrarIterator =
+      ServiceLoader.load(SamzaIOInfo.SamzaIORegistrar.class).iterator();
 
   public static String toJsonString(Pipeline pipeline) {
     final PipelineJsonRenderer visitor = new PipelineJsonRenderer();
@@ -49,7 +51,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     return visitor.jsonBuilder.toString();
   }
 
-  public static Optional<Object> toJsonString(RunnerApi.Pipeline pipeline) {
+  public static Optional<String> toJsonString(RunnerApi.Pipeline pipeline) {
     return Optional.empty();
   }
 
@@ -68,21 +70,16 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     String fullName = node.getFullName();
-    writeLine(
-        "{ \"fullName\":\"%s\",", escapeString(fullName.isEmpty() ? OUTERMOST_NODE : fullName));
-    if (!fullName.isEmpty()) {
+    writeLine("{ \"fullName\":\"%s\",", assignNodeName(fullName));
+    if (node.getEnclosingNode() != null) {
       String enclosingNodeName = node.getEnclosingNode().getFullName();
-      writeLine(
-          "  \"enclosingNode\":\"%s\",",
-          escapeString(enclosingNodeName.isEmpty() ? OUTERMOST_NODE : enclosingNodeName));
+      writeLine("  \"enclosingNode\":\"%s\",", assignNodeName(enclosingNodeName));
     }
 
-    String ioInfo = getIOTopicInfo(node);
-    if (!ioInfo.isEmpty()) {
-      writeLine(" \"ioInfo\":\"%s\",", escapeString(ioInfo));
-    }
+    Optional<String> ioInfo = getIOTopicInfo(node);
+    ioInfo.ifPresent(s -> writeLine(" \"ioInfo\":\"%s\",", escapeString(s)));
 
-    writeLine("  \"ChildNode\":[");
+    writeLine("  \"ChildNodes\":[");
     enterBlock();
     return CompositeBehavior.ENTER_TRANSFORM;
   }
@@ -98,9 +95,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     String fullName = node.getFullName();
     writeLine("{ \"fullName\":\"%s\",", escapeString(fullName));
     String enclosingNodeName = node.getEnclosingNode().getFullName();
-    writeLine(
-        "  \"enclosingNode\":\"%s\"},",
-        escapeString(enclosingNodeName.isEmpty() ? OUTERMOST_NODE : enclosingNodeName));
+    writeLine("  \"enclosingNode\":\"%s\"},", assignNodeName(enclosingNodeName));
 
     node.getOutputs().values().forEach(x -> valueToProducerNodeName.put(x, fullName));
     node.getInputs()
@@ -167,18 +162,20 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     return tag.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
   }
 
-  private String getIOTopicInfo(TransformHierarchy.Node node) {
+  private String assignNodeName(String nodeName) {
+    return escapeString(nodeName.isEmpty() ? OUTERMOST_NODE : nodeName);
+  }
+
+  private Optional<String> getIOTopicInfo(TransformHierarchy.Node node) {
     final SamzaIOInfo samzaIOInfo;
-    final Iterator<SamzaIOInfo.BeamIORegistrar> beamIORegistrarIterator =
-        ServiceLoader.load(SamzaIOInfo.BeamIORegistrar.class).iterator();
     samzaIOInfo =
         beamIORegistrarIterator.hasNext()
-            ? Iterators.getOnlyElement(beamIORegistrarIterator).getBeamIO()
+            ? Iterators.getOnlyElement(beamIORegistrarIterator).getSamzaIO()
             : null;
 
-    String nodeInfo = "";
+    Optional<String> nodeInfo = Optional.empty();
     if (samzaIOInfo != null) {
-      nodeInfo = samzaIOInfo.getIOInfo(node);
+      nodeInfo = Optional.of(samzaIOInfo.getIOInfo(node));
     }
     return nodeInfo;
   }

@@ -1,27 +1,28 @@
 {
   "RootNode": [
     { "fullName":"OuterMostNode",
-      "ChildNode":[
+      "ioInfo":"TestTopic",
+      "ChildNodes":[
         { "fullName":"Create.TimestampedValues",
           "enclosingNode":"OuterMostNode",
-          "ChildNode":[
+          "ChildNodes":[
             { "fullName":"Create.TimestampedValues/Create.Values",
               "enclosingNode":"Create.TimestampedValues",
-              "ChildNode":[
+              "ChildNodes":[
                 { "fullName":"Create.TimestampedValues/Create.Values/Read(CreateSource)",
                   "enclosingNode":"Create.TimestampedValues/Create.Values",
-                  "ChildNode":[
+                  "ChildNodes":[
                     { "fullName":"Create.TimestampedValues/Create.Values/Read(CreateSource)/Impulse",
                       "enclosingNode":"Create.TimestampedValues/Create.Values/Read(CreateSource)"},
                     { "fullName":"Create.TimestampedValues/Create.Values/Read(CreateSource)/ParDo(OutputSingleSource)",
                       "enclosingNode":"Create.TimestampedValues/Create.Values/Read(CreateSource)",
-                      "ChildNode":[
+                      "ChildNodes":[
                         { "fullName":"Create.TimestampedValues/Create.Values/Read(CreateSource)/ParDo(OutputSingleSource)/ParMultiDo(OutputSingleSource)",
                           "enclosingNode":"Create.TimestampedValues/Create.Values/Read(CreateSource)/ParDo(OutputSingleSource)"}
                       ]},
                     { "fullName":"Create.TimestampedValues/Create.Values/Read(CreateSource)/ParDo(BoundedSourceAsSDFWrapper)",
                       "enclosingNode":"Create.TimestampedValues/Create.Values/Read(CreateSource)",
-                      "ChildNode":[
+                      "ChildNodes":[
                         { "fullName":"Create.TimestampedValues/Create.Values/Read(CreateSource)/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper)",
                           "enclosingNode":"Create.TimestampedValues/Create.Values/Read(CreateSource)/ParDo(BoundedSourceAsSDFWrapper)"}
                       ]}
@@ -29,28 +30,28 @@
               ]},
             { "fullName":"Create.TimestampedValues/ParDo(ConvertTimestamps)",
               "enclosingNode":"Create.TimestampedValues",
-              "ChildNode":[
+              "ChildNodes":[
                 { "fullName":"Create.TimestampedValues/ParDo(ConvertTimestamps)/ParMultiDo(ConvertTimestamps)",
                   "enclosingNode":"Create.TimestampedValues/ParDo(ConvertTimestamps)"}
               ]}
           ]},
         { "fullName":"Window.Into()",
           "enclosingNode":"OuterMostNode",
-          "ChildNode":[
+          "ChildNodes":[
             { "fullName":"Window.Into()/Window.Assign",
               "enclosingNode":"Window.Into()"}
           ]},
         { "fullName":"Combine.perKey(SumInteger)",
           "enclosingNode":"OuterMostNode",
-          "ChildNode":[
+          "ChildNodes":[
             { "fullName":"Combine.perKey(SumInteger)/GroupByKey",
               "enclosingNode":"Combine.perKey(SumInteger)"},
             { "fullName":"Combine.perKey(SumInteger)/Combine.GroupedValues",
               "enclosingNode":"Combine.perKey(SumInteger)",
-              "ChildNode":[
+              "ChildNodes":[
                 { "fullName":"Combine.perKey(SumInteger)/Combine.GroupedValues/ParDo(Anonymous)",
                   "enclosingNode":"Combine.perKey(SumInteger)/Combine.GroupedValues",
-                  "ChildNode":[
+                  "ChildNodes":[
                     { "fullName":"Combine.perKey(SumInteger)/Combine.GroupedValues/ParDo(Anonymous)/ParMultiDo(Anonymous)",
                       "enclosingNode":"Combine.perKey(SumInteger)/Combine.GroupedValues/ParDo(Anonymous)"}
                   ]}

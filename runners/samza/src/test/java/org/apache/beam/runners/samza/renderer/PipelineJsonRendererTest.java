@@ -19,15 +19,18 @@ package org.apache.beam.runners.samza.renderer;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.auto.service.AutoService;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import org.apache.beam.runners.samza.SamzaIOInfo;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.SamzaRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -48,13 +51,18 @@ public class PipelineJsonRendererTest {
 
     Pipeline p = Pipeline.create(options);
 
-    System.out.println(PipelineJsonRenderer.toJsonString(p));
-    assertEquals(
+    String jsonDag =
         "{  \"RootNode\": ["
             + "    { \"fullName\":\"OuterMostNode\","
-            + "      \"ChildNode\":[    ]}],\"graphLinks\": []"
-            + "}",
-        PipelineJsonRenderer.toJsonString(p).replaceAll(System.lineSeparator(), ""));
+            + "      \"ioInfo\":\"TestTopic\","
+            + "      \"ChildNodes\":[    ]}],\"graphLinks\": []"
+            + "}";
+
+    System.out.println(PipelineJsonRenderer.toJsonString(p));
+    assertEquals(
+        JsonParser.parseString(jsonDag),
+        JsonParser.parseString(
+            PipelineJsonRenderer.toJsonString(p).replaceAll(System.lineSeparator(), "")));
   }
 
   @Test
@@ -76,5 +84,19 @@ public class PipelineJsonRendererTest {
         JsonParser.parseString(jsonDag),
         JsonParser.parseString(
             PipelineJsonRenderer.toJsonString(p).replaceAll(System.lineSeparator(), "")));
+  }
+
+  @AutoService(SamzaIOInfo.SamzaIORegistrar.class)
+  public static class Registrar implements SamzaIOInfo.SamzaIORegistrar {
+
+    @Override
+    public SamzaIOInfo getSamzaIO() {
+      return new SamzaIOInfo() {
+        @Override
+        public String getIOInfo(TransformHierarchy.Node node) {
+          return "TestTopic";
+        }
+      };
+    }
   }
 }
