@@ -31,9 +31,9 @@ class SqlOperatorMappingTable {
   static final Map<String, SqlOperator> ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR =
       ImmutableMap.<String, SqlOperator>builder()
           // grouped window function
-          .put("TUMBLE", SqlStdOperatorTable.TUMBLE)
-          .put("HOP", SqlStdOperatorTable.HOP)
-          .put("SESSION", SqlStdOperatorTable.SESSION)
+          .put("TUMBLE", SqlStdOperatorTable.TUMBLE_OLD)
+          .put("HOP", SqlStdOperatorTable.HOP_OLD)
+          .put("SESSION", SqlStdOperatorTable.SESSION_OLD)
 
           // ZetaSQL functions
           .put("$and", SqlStdOperatorTable.AND)
