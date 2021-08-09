@@ -816,4 +816,4 @@ class _RemoveDuplicates(beam.DoFn):
       _LOGGER.debug('Generated entry for file %s', path)
       yield file_metadata
     else:
-      _LOGGER.debug("File %s was already read", path)
+      _LOGGER.debug('File %s was already read, seen %d times', path, counter)
