@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,11 +51,10 @@ public class ReadAllViaFileBasedSource<T>
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadAllViaFileBasedSource.class);
   protected static final boolean DEFAULT_USES_RESHUFFLE = true;
-  protected static final boolean DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS = false;
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
-  private final boolean suppressRuntimeExceptions;
+  private final ReadFileRangesFnExceptionHandler exceptionHandler;
   private final boolean usesReshuffle;
 
   public ReadAllViaFileBasedSource(
@@ -66,7 +66,7 @@ public class ReadAllViaFileBasedSource<T>
         createSource,
         coder,
         DEFAULT_USES_RESHUFFLE,
-        DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS);
+        new ReadFileRangesFnExceptionHandler());
   }
 
   public ReadAllViaFileBasedSource(
@@ -74,12 +74,12 @@ public class ReadAllViaFileBasedSource<T>
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder,
       boolean usesReshuffle,
-      boolean suppressRuntimeExceptions) {
+      ReadFileRangesFnExceptionHandler exceptionHandler) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
     this.coder = coder;
     this.usesReshuffle = usesReshuffle;
-    this.suppressRuntimeExceptions = suppressRuntimeExceptions;
+    this.exceptionHandler = exceptionHandler;
   }
 
   @Override
@@ -90,9 +90,7 @@ public class ReadAllViaFileBasedSource<T>
       ranges = ranges.apply("Reshuffle", Reshuffle.viaRandomKey());
     }
     return ranges
-        .apply(
-            "Read ranges",
-            ParDo.of(new ReadFileRangesFn<T>(createSource, suppressRuntimeExceptions)))
+        .apply("Read ranges", ParDo.of(new ReadFileRangesFn<T>(createSource, exceptionHandler)))
         .setCoder(coder);
   }
 
@@ -119,13 +117,13 @@ public class ReadAllViaFileBasedSource<T>
 
   private static class ReadFileRangesFn<T> extends DoFn<KV<ReadableFile, OffsetRange>, T> {
     private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
-    private final boolean suppressRuntimeExceptions;
+    private final ReadFileRangesFnExceptionHandler exceptionHandler;
 
     private ReadFileRangesFn(
         SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
-        boolean suppressRuntimeExceptions) {
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
       this.createSource = createSource;
-      this.suppressRuntimeExceptions = suppressRuntimeExceptions;
+      this.exceptionHandler = exceptionHandler;
     }
 
     @ProcessElement
@@ -145,16 +143,23 @@ public class ReadAllViaFileBasedSource<T>
         for (boolean more = reader.start(); more; more = reader.advance()) {
           c.output(reader.getCurrent());
         }
-      } catch (IllegalStateException e) {
-        if (suppressRuntimeExceptions) {
-          LOG.error(
-              String.format(
-                  "ReadFileRange failure for file %s", file.getMetadata().resourceId().toString()),
-              e);
-        } else {
+      } catch (RuntimeException e) {
+        if (exceptionHandler.apply(file, range, e)) {
           throw e;
         }
       }
+    }
+  }
+
+  /** A class to handle errors which occur during file reads. */
+  public static class ReadFileRangesFnExceptionHandler implements Serializable {
+
+    /*
+     * Applies the desired handler logic to the given exception and returns
+     * if the exception should be thrown.
+     */
+    public boolean apply(ReadableFile file, OffsetRange range, Exception e) {
+      return true;
     }
   }
 }

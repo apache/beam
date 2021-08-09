@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -360,7 +361,7 @@ public class AvroIO {
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
-        .setSuppressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
@@ -404,7 +405,7 @@ public class AvroIO {
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
-        .setSuppressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
@@ -477,7 +478,7 @@ public class AvroIO {
         .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
-        .setSuppressRuntimeExceptions(ReadAllViaFileBasedSource.DEFAULT_SUPPRESS_RUNTIME_EXCEPTIONS)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
@@ -761,7 +762,7 @@ public class AvroIO {
 
     abstract boolean getUsesReshuffle();
 
-    abstract boolean getSuppressRuntimeExceptions();
+    abstract ReadFileRangesFnExceptionHandler getFileExceptionHandler();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -779,7 +780,8 @@ public class AvroIO {
 
       abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
 
-      abstract Builder<T> setSuppressRuntimeExceptions(boolean suppressRuntimeExceptions);
+      abstract Builder<T> setFileExceptionHandler(
+          ReadFileRangesFnExceptionHandler exceptionHandler);
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
@@ -803,8 +805,9 @@ public class AvroIO {
 
     /** Specifies if exceptions should be logged only for streaming pipelines. */
     @Experimental(Kind.FILESYSTEM)
-    public ReadFiles<T> withSuppressRuntimeExceptions(boolean suppressRuntimeExceptions) {
-      return toBuilder().setSuppressRuntimeExceptions(suppressRuntimeExceptions).build();
+    public ReadFiles<T> withFileExceptionHandler(
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
+      return toBuilder().setFileExceptionHandler(exceptionHandler).build();
     }
 
     /**
@@ -832,7 +835,7 @@ public class AvroIO {
                       getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
                   AvroCoder.of(getRecordClass(), getSchema()),
                   getUsesReshuffle(),
-                  getSuppressRuntimeExceptions()));
+                  getFileExceptionHandler()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
@@ -1105,7 +1108,7 @@ public class AvroIO {
 
     abstract boolean getUsesReshuffle();
 
-    abstract boolean getSuppressRuntimeExceptions();
+    abstract ReadFileRangesFnExceptionHandler getFileExceptionHandler();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -1119,7 +1122,8 @@ public class AvroIO {
 
       abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
 
-      abstract Builder<T> setSuppressRuntimeExceptions(boolean suppressRuntimeExceptions);
+      abstract Builder<T> setFileExceptionHandler(
+          ReadFileRangesFnExceptionHandler exceptionHandler);
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
@@ -1139,8 +1143,9 @@ public class AvroIO {
 
     /** Specifies if exceptions should be logged only for streaming pipelines. */
     @Experimental(Kind.FILESYSTEM)
-    public ParseFiles<T> withSuppressRuntimeExceptions(boolean suppressRuntimeExceptions) {
-      return toBuilder().setSuppressRuntimeExceptions(suppressRuntimeExceptions).build();
+    public ParseFiles<T> withFileExceptionHandler(
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
+      return toBuilder().setFileExceptionHandler(exceptionHandler).build();
     }
 
     @VisibleForTesting
@@ -1162,7 +1167,7 @@ public class AvroIO {
               createSource,
               coder,
               getUsesReshuffle(),
-              getSuppressRuntimeExceptions()));
+              getFileExceptionHandler()));
     }
 
     @Override
