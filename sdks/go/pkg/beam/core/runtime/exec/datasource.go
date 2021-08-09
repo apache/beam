@@ -28,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
@@ -263,7 +262,6 @@ func readStreamToBuffer(cv ElementDecoder, r io.ReadCloser, size int64, buf []Fu
 func (n *DataSource) FinishBundle(ctx context.Context) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	log.Infof(ctx, "DataSource: %d elements in %d ns", n.index, time.Now().Sub(n.start))
 	n.source = nil
 	n.splitIdx = 0 // Ensure errors are returned for split requests if this plan is re-used.
 	return n.Out.FinishBundle(ctx)

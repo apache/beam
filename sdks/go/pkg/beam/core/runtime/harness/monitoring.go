@@ -72,7 +72,7 @@ func (c *shortIDCache) getShortID(l metrics.Labels, urn metricsx.Urn) string {
 	c.shortIds2Infos[s] = &pipepb.MonitoringInfo{
 		Urn:    metricsx.UrnToString(urn),
 		Type:   metricsx.UrnToType(urn),
-		Labels: userLabels(l),
+		Labels: l.Map(),
 	}
 	return s
 }
@@ -124,7 +124,7 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 				&pipepb.MonitoringInfo{
 					Urn:     metricsx.UrnToString(metricsx.UrnUserSumInt64),
 					Type:    metricsx.UrnToType(metricsx.UrnUserSumInt64),
-					Labels:  userLabels(l),
+					Labels:  l.Map(),
 					Payload: payload,
 				})
 		},
@@ -139,7 +139,7 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 				&pipepb.MonitoringInfo{
 					Urn:     metricsx.UrnToString(metricsx.UrnUserDistInt64),
 					Type:    metricsx.UrnToType(metricsx.UrnUserDistInt64),
-					Labels:  userLabels(l),
+					Labels:  l.Map(),
 					Payload: payload,
 				})
 		},
@@ -154,7 +154,7 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 				&pipepb.MonitoringInfo{
 					Urn:     metricsx.UrnToString(metricsx.UrnUserLatestMsInt64),
 					Type:    metricsx.UrnToType(metricsx.UrnUserLatestMsInt64),
-					Labels:  userLabels(l),
+					Labels:  l.Map(),
 					Payload: payload,
 				})
 
@@ -192,10 +192,12 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 			if err != nil {
 				panic(err)
 			}
+			payloads[getShortID(metrics.PCollectionLabels(pcol.ID), metricsx.UrnSampledByteSize)] = payload
+
 			monitoringInfo = append(monitoringInfo,
 				&pipepb.MonitoringInfo{
-					Urn:  "beam:metric:sampled_byte_size:v1",
-					Type: "beam:metrics:distribution_int_64",
+					Urn:  metricsx.UrnToString(metricsx.UrnSampledByteSize),
+					Type: metricsx.UrnToType(metricsx.UrnSampledByteSize),
 					Labels: map[string]string{
 						"PCOLLECTION": pcol.ID,
 					},
@@ -221,12 +223,4 @@ func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, m
 		})
 
 	return monitoringInfo, payloads
-}
-
-func userLabels(l metrics.Labels) map[string]string {
-	return map[string]string{
-		"PTRANSFORM": l.Transform(),
-		"NAMESPACE":  l.Namespace(),
-		"NAME":       l.Name(),
-	}
 }

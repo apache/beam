@@ -20,12 +20,9 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync/atomic"
-	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // DataSink is a Node.
@@ -38,7 +35,6 @@ type DataSink struct {
 	wEnc  WindowEncoder
 	w     io.WriteCloser
 	count int64
-	start time.Time
 }
 
 func (n *DataSink) ID() UnitID {
@@ -57,8 +53,6 @@ func (n *DataSink) StartBundle(ctx context.Context, id string, data DataContext)
 		return err
 	}
 	n.w = w
-	atomic.StoreInt64(&n.count, 0)
-	n.start = time.Now()
 	return nil
 }
 
@@ -67,7 +61,6 @@ func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values 
 	// unit.
 	var b bytes.Buffer
 
-	atomic.AddInt64(&n.count, 1)
 	if err := EncodeWindowedValueHeader(n.wEnc, value.Windows, value.Timestamp, &b); err != nil {
 		return err
 	}
@@ -81,7 +74,6 @@ func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values 
 }
 
 func (n *DataSink) FinishBundle(ctx context.Context) error {
-	log.Infof(ctx, "DataSink: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
 	return n.w.Close()
 }
 

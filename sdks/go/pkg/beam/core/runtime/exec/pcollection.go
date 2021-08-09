@@ -63,7 +63,7 @@ func (p *PCollection) Up(ctx context.Context) error {
 // StartBundle resets collected metrics for this PCollection, and propagates bundle start.
 func (p *PCollection) StartBundle(ctx context.Context, id string, data DataContext) error {
 	atomic.StoreInt64(&p.elementCount, 0)
-	p.nextSampleIdx = p.r.Int63n(3)
+	p.nextSampleIdx = 1
 	p.resetSize()
 	return MultiStartBundle(ctx, id, data, p.Out)
 }
@@ -81,13 +81,18 @@ func (w *byteCounter) Write(p []byte) (n int, err error) {
 func (p *PCollection) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	cur := atomic.AddInt64(&p.elementCount, 1)
 	if cur == p.nextSampleIdx {
+		// Always encode the first 3 elements. Otherwise...
 		// We pick the next sampling index based on how large this pcollection already is.
 		// We don't want to necessarily wait until the pcollection has doubled, so we reduce the range.
 		// We don't want to always encode the first consecutive elements, so we add 2 to give some variance.
-		// Finally we add 1 no matter what, so that there's always the potential to trigger again.
+		// Finally we add 1 no matter what, so that it can trigger again.
 		// Otherwise, there's the potential for the random int to be 0, which means we don't change the
 		// nextSampleIdx at all.
-		p.nextSampleIdx = cur + p.r.Int63n(cur/10+2) + 1
+		if p.nextSampleIdx < 4 {
+			p.nextSampleIdx++
+		} else {
+			p.nextSampleIdx = cur + p.r.Int63n(cur/10+2) + 1
+		}
 		var w byteCounter
 		p.elementCoder.Encode(elm, &w)
 		p.addSize(int64(w.count))

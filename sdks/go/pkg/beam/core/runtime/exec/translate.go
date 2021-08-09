@@ -541,7 +541,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
 
 		default:
-			return nil, errors.Errorf("unexpected payload: %v", tp)
+			return nil, errors.Errorf("unexpected payload: %v", &tp)
 		}
 
 	case graphx.URNWindow:
