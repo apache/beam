@@ -70,15 +70,14 @@ class _ArrowTableToRowDictionaries(DoFn):
       table = table[1]
     num_rows = table.num_rows
     data_items = table.to_pydict().items()
-    rows = []
     for n in range(num_rows):
       row = {}
       for column, values in data_items:
         row[column] = values[n]
-      rows.append(row)
-    if with_filename:
-      return [(file_name, row) for row in rows]
-    return rows
+      if with_filename:
+        yield (file_name, row)
+      else:
+        yield row
 
 
 class ReadFromParquetBatched(PTransform):

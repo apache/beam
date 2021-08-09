@@ -587,9 +587,10 @@ class TextSourceTest(unittest.TestCase):
     assert len(expected_data) == 8
 
     with TestPipeline() as pipeline:
-      pcoll = pipeline \
-              | 'Create' >> Create([pattern]) \
-              | 'ReadAll' >> ReadAllFromText(with_filename=True)
+      pcoll = (
+          pipeline
+          | 'Create' >> Create([pattern])
+          | 'ReadAll' >> ReadAllFromText(with_filename=True))
       assert_that(pcoll, equal_to(expected_data))
 
   def test_read_auto_bzip2(self):

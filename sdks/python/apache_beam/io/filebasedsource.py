@@ -383,12 +383,11 @@ class _ReadRange(DoFn):
       return
     source = source_list[0].source
 
-    data = []
-    for record in source.read(range.new_tracker()):
-      data.append(record)
     if self._with_filename:
-      return [(metadata.path, record) for record in data]
-    return data
+      return [(metadata.path, record)
+              for record in source.read(range.new_tracker())]
+    else:
+      return [record for record in source.read(range.new_tracker())]
 
 
 class ReadAllFiles(PTransform):
