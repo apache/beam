@@ -346,6 +346,10 @@ class BeamModulePlugin implements Plugin<Project> {
     return project.hasProperty('isRelease')
   }
 
+  def isLinkedin(Project project) {
+    return project.hasProperty('isLinkedin')
+  }
+
   def defaultArchivesBaseName(Project p) {
     return 'beam' + p.path.replace(':', '-')
   }
@@ -363,6 +367,9 @@ class BeamModulePlugin implements Plugin<Project> {
     project.version = '3.2260.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
+    }
+    if (isLinkedin(project)) {
+      project.version += '-LI'
     }
 
     // Default to dash-separated directories for artifact base name,
@@ -654,22 +661,14 @@ class BeamModulePlugin implements Plugin<Project> {
         url "file://${project.rootProject.projectDir}/testPublication/"
       }
       maven {
-        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-            ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-            : 'https://repository.apache.org/content/repositories/snapshots')
-        name(project.properties['distMgmtServerId'] ?: isRelease(project)
-            ? 'apache.releases.https' : 'apache.snapshots.https')
+        name "linkedin.jfrog.https"
+        url "https://linkedin.jfrog.io/artifactory/beam/"
         // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
         // <settings>
         //   <servers>
         //     <server>
-        //       <id>apache.releases.https</id>
-        //       <username>USER_TOKEN</username>
-        //       <password>PASS_TOKEN</password>
-        //     </server>
-        //     <server>
-        //       <id>apache.snapshots.https</id>
+        //       <id>linkedin.jfrog.https</id>
         //       <username>USER_TOKEN</username>
         //       <password>PASS_TOKEN</password>
         //     </server>
@@ -1156,6 +1155,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if ((isRelease(project) || project.hasProperty('publishing')) &&
       configuration.publish) {
         project.apply plugin: "maven-publish"
+        project.apply plugin: 'com.jfrog.artifactory'
 
         // Create a task which emulates the maven-archiver plugin in generating a
         // pom.properties file.
