@@ -72,6 +72,7 @@ def run(
           ride['passenger_count'])
 
   def convert_kafka_record_to_dictionary(record):
+    # the records have 'value' attribute when --with_metadata is given
     if hasattr(record, 'value'):
       ride_bytes = record.value
     elif isinstance(record, tuple):
