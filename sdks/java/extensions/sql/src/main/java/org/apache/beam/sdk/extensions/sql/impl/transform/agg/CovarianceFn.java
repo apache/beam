@@ -124,6 +124,11 @@ public class CovarianceFn<T extends Number>
     BigDecimal adjustedCount =
         this.isSample ? covariance.count().subtract(BigDecimal.ONE) : covariance.count();
 
+    // Avoid ArithmeticException: Division is undefined when adjustedCount and covariance are 0
+    if (adjustedCount.equals(BigDecimal.ZERO) && covariance.covariance().equals(BigDecimal.ZERO)) {
+      return BigDecimal.ZERO;
+    }
+
     return covariance.covariance().divide(adjustedCount, MATH_CTX);
   }
 }

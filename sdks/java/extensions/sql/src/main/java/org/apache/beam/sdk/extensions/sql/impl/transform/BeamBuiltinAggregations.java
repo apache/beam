@@ -231,6 +231,11 @@ public class BeamBuiltinAggregations {
     public Short apply(Short left, Short right) {
       return (short) (left + right);
     }
+
+    @Override
+    public @Nullable Short identity() {
+      return 0;
+    }
   }
 
   static class ByteSum extends Combine.BinaryCombineFn<Byte> {
@@ -238,12 +243,22 @@ public class BeamBuiltinAggregations {
     public Byte apply(Byte left, Byte right) {
       return (byte) (left + right);
     }
+
+    @Override
+    public @Nullable Byte identity() {
+      return 0;
+    }
   }
 
   static class FloatSum extends Combine.BinaryCombineFn<Float> {
     @Override
     public Float apply(Float left, Float right) {
       return left + right;
+    }
+
+    @Override
+    public @Nullable Float identity() {
+      return 0F;
     }
   }
 
@@ -263,6 +278,11 @@ public class BeamBuiltinAggregations {
     @Override
     public BigDecimal apply(BigDecimal left, BigDecimal right) {
       return left.add(right);
+    }
+
+    @Override
+    public @Nullable BigDecimal identity() {
+      return BigDecimal.ZERO;
     }
   }
 
