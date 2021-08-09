@@ -1648,7 +1648,7 @@ def sdf_basic_example():
 
   # [START SDF_BasicExample]
   class FileToWordsRestrictionProvider(
-        beam.transforms.core.RestrictionProvider):
+      beam.transforms.core.RestrictionProvider):
     def initial_restriction(self, file_name):
       return OffsetRange(0, os.stat(file_name).st_size)
 
