@@ -94,8 +94,6 @@ var sparkFilters = []string{
 var dataflowFilters = []string{
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
-	// The Dataflow runner does not support the TestStream primitive
-	"TestTestStream.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

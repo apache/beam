@@ -18,7 +18,7 @@
 //
 // See https://beam.apache.org/blog/test-stream/ for more information.
 //
-// TestStream is supported on the Flink runner.
+// TestStream is supported on the Flink runner and Dataflow.
 package teststream
 
 import (
