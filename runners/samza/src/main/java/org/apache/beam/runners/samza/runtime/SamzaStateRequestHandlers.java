@@ -113,6 +113,10 @@ public class SamzaStateRequestHandlers {
         new BagUserStateFactory<>(stateInternalsFactory));
   }
 
+  /**
+   * Factory to create {@link StateRequestHandlers.BagUserStateHandler} to provide bag state access
+   * with provided {@link K key} and {@link W window}
+   */
   static class BagUserStateFactory<
           K extends ByteString, V extends ByteString, W extends BoundedWindow>
       implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
