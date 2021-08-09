@@ -29,6 +29,7 @@ import (
 func init() {
 	beam.RegisterFunction(sumPerKey)
 	beam.RegisterType(reflect.TypeOf((*createTimestampedData)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*timestampedData)(nil)).Elem())
 }
 
 // createTimestampedData produces data timestamped with the ordinal.
@@ -36,12 +37,12 @@ type createTimestampedData struct {
 	Data []int
 }
 
-// func (f *createTimestampedData) ProcessElement(_ []byte, emit func(beam.EventTime, string, int)) {
-// 	for i, v := range f.Data {
-// 		timestamp := mtime.FromMilliseconds(int64((i + 1) * 1000)).Subtract(10 * time.Millisecond)
-// 		emit(timestamp, "magic", v)
-// 	}
-// }
+func (f *createTimestampedData) ProcessElement(_ []byte, emit func(beam.EventTime, string, int)) {
+	for i, v := range f.Data {
+		timestamp := mtime.FromMilliseconds(int64((i + 1) * 1000)).Subtract(10 * time.Millisecond)
+		emit(timestamp, "magic", v)
+	}
+}
 
 // WindowSums produces a pipeline that generates the numbers of a 3x3 magic square, and
 // configures the pipeline so that PCollection. Sum is a closure to handle summing data over the window, in a few conditions.
@@ -92,7 +93,11 @@ func WindowSums_Lifted(s beam.Scope) {
 	WindowSums(s.Scope("Lifted"), stats.SumPerKey)
 }
 
-func (f *createTimestampedData) ProcessElement(_ []byte, emit func(beam.EventTime, string, int)) {
+type timestampedData struct {
+	Data []int
+}
+
+func (f *timestampedData) ProcessElement(_ []byte, emit func(beam.EventTime, string, int)) {
 	for _, v := range f.Data {
 		timestamp := mtime.FromMilliseconds(int64(v) * 1000)
 		emit(timestamp, "magic", v)
@@ -108,7 +113,7 @@ func validate(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigg
 }
 
 func TriggerAfterEndOfWindow(s beam.Scope) {
-	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
+	timestampedData := beam.ParDo(s, &timestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
 
 	windowSize := 10 * time.Second
 
@@ -116,7 +121,7 @@ func TriggerAfterEndOfWindow(s beam.Scope) {
 }
 
 func TriggerAlways(s beam.Scope) {
-	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
+	timestampedData := beam.ParDo(s, &timestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
 
 	windowSize := 10 * time.Second
 
@@ -132,7 +137,7 @@ func TriggerAlways(s beam.Scope) {
 // }
 
 func TriggerElementCount(s beam.Scope) {
-	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 4, 13, 17, 33, 59, 90, 112}}, beam.Impulse(s))
+	timestampedData := beam.ParDo(s, &timestampedData{Data: []int{1, 2, 4, 13, 17, 33, 59, 90, 112}}, beam.Impulse(s))
 
 	windowSize := 10 * time.Second
 
