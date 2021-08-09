@@ -77,6 +77,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import oshi.SystemInfo;
+import oshi.util.FileUtil;
 
 /**
  * Main entry point into the Beam SDK Fn Harness for Java.
@@ -261,7 +262,10 @@ public class FnHarness {
           ExperimentalOptions.getExperimentValue(options, "state_cache_mem_percent");
       int stateCacheMemPercent =
           stateCacheMemString == null ? 10 : Integer.parseInt(stateCacheMemString);
-      long availableMem = new SystemInfo().getHardware().getMemory().getAvailable();
+
+      // Alternative is to use SystemInfo().getHardware().getMemory().getAvailable() or Runtime.getRuntime().maxMemory()
+      // If the max memory of the harness is set during creation
+      long availableMem = FileUtil.getLongFromFile("/sys/fs/cgroup/memory/memory.limit_in_bytes");
       long availableCacheMem = (long) (availableMem * stateCacheMemPercent * .01);
 
       // Create memory sensitive state cache using memory limit
