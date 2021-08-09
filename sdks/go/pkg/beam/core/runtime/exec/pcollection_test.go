@@ -56,7 +56,7 @@ func TestPCollection(t *testing.T) {
 	if want, got := int64(len(expected)), snap.ElementCount; got != want {
 		t.Errorf("snapshot miscounted: got %v, want %v", got, want)
 	}
-	checkPCollectionSizeSample(t, snap, 2, 6, 1, 5)
+	checkPCollectionSizeSample(t, snap, 3, 7, 1, 5)
 }
 
 func TestPCollection_sizeReset(t *testing.T) {
