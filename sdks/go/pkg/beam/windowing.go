@@ -26,7 +26,7 @@ type WindowIntoOption interface {
 }
 
 type WindowTrigger struct {
-	Name window.TriggerType
+	Name window.Trigger
 }
 
 func (t WindowTrigger) windowIntoOption() {}
@@ -44,7 +44,7 @@ func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoO
 	if !col.IsValid() {
 		return PCollection{}, errors.New("invalid input pcollection")
 	}
-	ws := window.WindowingStrategy{Fn: wfn, Trigger: window.DefaultTrigger}
+	ws := window.WindowingStrategy{Fn: wfn, Trigger: window.Trigger{}}
 	for _, opt := range opts {
 		switch opt.(type) {
 		case WindowTrigger:

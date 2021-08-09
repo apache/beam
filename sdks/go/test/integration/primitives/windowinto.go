@@ -36,12 +36,12 @@ type createTimestampedData struct {
 	Data []int
 }
 
-func (f *createTimestampedData) ProcessElement(_ []byte, emit func(beam.EventTime, string, int)) {
-	for i, v := range f.Data {
-		timestamp := mtime.FromMilliseconds(int64((i + 1) * 1000)).Subtract(10 * time.Millisecond)
-		emit(timestamp, "magic", v)
-	}
-}
+// func (f *createTimestampedData) ProcessElement(_ []byte, emit func(beam.EventTime, string, int)) {
+// 	for i, v := range f.Data {
+// 		timestamp := mtime.FromMilliseconds(int64((i + 1) * 1000)).Subtract(10 * time.Millisecond)
+// 		emit(timestamp, "magic", v)
+// 	}
+// }
 
 // WindowSums produces a pipeline that generates the numbers of a 3x3 magic square, and
 // configures the pipeline so that PCollection. Sum is a closure to handle summing data over the window, in a few conditions.
@@ -92,31 +92,54 @@ func WindowSums_Lifted(s beam.Scope) {
 	WindowSums(s.Scope("Lifted"), stats.SumPerKey)
 }
 
-// TriggerWindowSums, much like WindowSums described above has an addition of configuring
-// a trigger here. SetDefault works fine. Other triggers such as SetAlways throws
-// pane decoding error.
-func TriggerWindowSums(s beam.Scope, sumPerKey func(beam.Scope, beam.PCollection) beam.PCollection) {
-	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{4, 9, 2, 3, 5, 7, 8, 1, 6}}, beam.Impulse(s))
-
-	windowSize := 3 * time.Second
-
-	validate := func(s beam.Scope, wfn *window.Fn, in beam.PCollection, expected ...interface{}) {
-		// Window the data.
-		windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: window.AlwaysTrigger})
-		// To get the pane decoding error, change above statement to
-		// windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: window.Always})
-		// Perform the appropriate sum operation.
-		sums := sumPerKey(s, windowed)
-		// Drop back to Global windows, and drop the key otherwise passert.Equals doesn't work.
-		sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
-		sums = beam.DropKey(s, sums)
-		passert.Equals(s, sums, expected...)
+func (f *createTimestampedData) ProcessElement(_ []byte, emit func(beam.EventTime, string, int)) {
+	for _, v := range f.Data {
+		timestamp := mtime.FromMilliseconds(int64(v) * 1000)
+		emit(timestamp, "magic", v)
 	}
-
-	// Use fixed windows to divide the data into 3 chunks.
-	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, 15, 15, 15)
 }
 
-func TriggerWindowSums_GBK(s beam.Scope) {
-	TriggerWindowSums(s.Scope("Trigger_GBK"), gbkSumPerKey)
+func validate(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, expected ...interface{}) {
+	windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: tr})
+	sums := gbkSumPerKey(s, windowed)
+	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
+	sums = beam.DropKey(s, sums)
+	passert.Equals(s, sums, expected...)
+}
+
+func TriggerAfterEndOfWindow(s beam.Scope) {
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
+
+	windowSize := 10 * time.Second
+
+	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.AfterEndOfWindowTrigger}, 3, 13)
+}
+
+func TriggerAlways(s beam.Scope) {
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
+
+	windowSize := 10 * time.Second
+
+	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.AlwaysTrigger}, 3, 13)
+}
+
+// func TriggerAfterProcessingTime(s beam.Scope) {
+// 	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
+
+// 	windowSize := 10 * time.Second
+
+// 	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.RepeatTrigger, SubTriggers: []window.Trigger{window.Trigger{Kind: window.AfterProcessingTimeTrigger, Delay: 1}}}, 3, 13)
+// }
+
+func TriggerElementCount(s beam.Scope) {
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 4, 13, 17, 33, 59, 90, 112}}, beam.Impulse(s))
+
+	windowSize := 10 * time.Second
+
+	// this case will produce two outputs only because in all other windows, only 1 element arrives and we require at least two
+	// for ex: in time window 30 sec - 40 sec, only 33 arrives so that pane will never be fired
+	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 2}, 7, 30)
+
+	// in this case all outputs will be fired as we wait only for 1 element.
+	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 1}, 7, 30, 33, 59, 90, 112)
 }

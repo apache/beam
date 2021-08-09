@@ -981,10 +981,7 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	} else {
 		mergeStat = pipepb.MergeStatus_NON_MERGING
 	}
-	trigger, err := makeTrigger(w.Trigger)
-	if err != nil {
-		return nil, err
-	}
+	trigger := makeTrigger(w.Trigger)
 
 	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
@@ -992,7 +989,7 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 		AccumulationMode: pipepb.AccumulationMode_DISCARDING,
 		WindowCoderId:    windowCoderId,
 		Trigger:          trigger,
-		OutputTime:       pipepb.OutputTime_END_OF_WINDOW,
+		OutputTime:       pipepb.OutputTime_EARLIEST_IN_PANE,
 		ClosingBehavior:  pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
 		AllowedLateness:  0,
 		OnTimeBehavior:   pipepb.OnTimeBehavior_FIRE_ALWAYS,
@@ -1000,32 +997,79 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	return ws, nil
 }
 
-func makeTrigger(t window.TriggerType) (*pipepb.Trigger, error) {
-	switch t {
+func makeTrigger(t window.Trigger) *pipepb.Trigger {
+	switch t.Kind {
 	case window.DefaultTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
 				Default: &pipepb.Trigger_Default{},
 			},
-		}, nil
+		}
 	case window.AlwaysTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Always_{
 				Always: &pipepb.Trigger_Always{},
 			},
-		}, nil
+		}
 	case window.AfterAnyTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAny_{
 				AfterAny: &pipepb.Trigger_AfterAny{},
 			},
-		}, nil
+		}
+	case window.AfterProcessingTimeTrigger:
+		// TODO: change it to set user's time transforms
+		ttd := &pipepb.TimestampTransform{
+			TimestampTransform: &pipepb.TimestampTransform_Delay_{
+				Delay: &pipepb.TimestampTransform_Delay{DelayMillis: t.Delay},
+			}}
+		tt := []*pipepb.TimestampTransform{ttd}
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterProcessingTime_{
+				AfterProcessingTime: &pipepb.Trigger_AfterProcessingTime{TimestampTransforms: tt},
+			},
+		}
+	case window.ElementCountTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_ElementCount_{
+				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount},
+			},
+		}
+	case window.AfterEndOfWindowTrigger:
+		// TODO: change it to take user config triggers for early and late firings
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
+				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
+					EarlyFirings: makeTrigger(window.Trigger{Kind: window.DefaultTrigger}),
+					LateFirings:  nil,
+				},
+			},
+		}
+	case window.RepeatTrigger:
+		// TODO: change it to take user config trigger for Subtrigger
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Repeat_{
+				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTriggers[0])},
+			},
+		}
+	case window.NeverTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Never_{
+				Never: &pipepb.Trigger_Never{},
+			},
+		}
+	case window.AfterSynchronizedProcessingTimeTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterSynchronizedProcessingTime_{
+				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
+			},
+		}
 	default:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
 				Default: &pipepb.Trigger_Default{},
 			},
-		}, nil
+		}
 	}
 }
 

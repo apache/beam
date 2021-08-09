@@ -15,12 +15,23 @@
 
 package window
 
-// TODO [BEAM-3304](riteshghorse): add configurable parameters to trigger
-type TriggerType string
+type Trigger struct {
+	Kind         string
+	SubTriggers  []Trigger
+	Delay        int64
+	ElementCount int32
+}
 
 const (
-	DefaultTrigger  TriggerType = "Trigger_Default_"
-	AlwaysTrigger   TriggerType = "Trigger_Always_"
-	AfterAnyTrigger TriggerType = "Trigger_AfterAny_"
-	AfterAllTrigger TriggerType = "Trigger_AfterAll_"
+	DefaultTrigger                         string = "Trigger_Default_"
+	AlwaysTrigger                          string = "Trigger_Always_"
+	AfterAnyTrigger                        string = "Trigger_AfterAny_"
+	AfterAllTrigger                        string = "Trigger_AfterAll_"
+	AfterProcessingTimeTrigger             string = "Trigger_AfterProcessing_Time_"
+	ElementCountTrigger                    string = "Trigger_ElementCount_"
+	AfterEndOfWindowTrigger                string = "Trigger_AfterEndOfWindow_"
+	RepeatTrigger                          string = "Trigger_Repeat_"
+	OrFinallyTrigger                       string = "Trigger_OrFinally_"
+	NeverTrigger                           string = "Trigger_Never_"
+	AfterSynchronizedProcessingTimeTrigger string = "Trigger_AfterSynchronizedProcessingTime_"
 )

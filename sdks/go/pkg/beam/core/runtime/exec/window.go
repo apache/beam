@@ -50,6 +50,7 @@ func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values 
 		Timestamp: elm.Timestamp,
 		Elm:       elm.Elm,
 		Elm2:      elm.Elm2,
+		Pane:      elm.Pane,
 	}
 	return w.Out.ProcessElement(ctx, windowed, values...)
 }
