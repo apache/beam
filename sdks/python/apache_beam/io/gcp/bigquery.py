@@ -975,9 +975,8 @@ class _CustomBigQueryStorageSourceBase(BoundedSource):
     }
 
   def estimate_size(self):
-    # The size of stream source cannot be estimate due to server-side liquid
-    # sharding
-    return None
+    # Returns the pre-filtering size of the table being read.
+    return self._get_table_size(self.table, self.dataset, self.project)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     requested_session = bq_storage.types.ReadSession()
