@@ -44,7 +44,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.MapConfig;
 import org.apache.samza.context.TaskContext;
@@ -101,10 +100,9 @@ public class SamzaTimerInternalsFactoryTest {
       SamzaPipelineOptions pipelineOptions, KeyValueStore<ByteArray, StateValue<?>> store) {
     final TaskContext context = mock(TaskContext.class);
     when(context.getStore(anyString())).thenReturn((KeyValueStore) store);
-    final TupleTag<?> mainOutputTag = new TupleTag<>("output");
 
-    return SamzaStoreStateInternals.createStateInternalFactory(
-        "42", null, context, pipelineOptions, null);
+    return SamzaStoreStateInternals.createNonKeyedStateInternalsFactory(
+        "42", context, pipelineOptions);
   }
 
   private static SamzaTimerInternalsFactory<String> createTimerInternalsFactory(
