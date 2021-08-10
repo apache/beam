@@ -457,26 +457,32 @@ class GrpcServer(object):
                worker_manager,  # type: WorkerHandlerManager
               ):
     # type: (...) -> None
-    self.state = state
-    self.provision_info = provision_info
-    self.control_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance())
-    self.control_port = self.control_server.add_insecure_port('[::]:0')
-    self.control_address = 'localhost:%s' % self.control_port
 
     # Options to have no limits (-1) on the size of the messages
     # received or sent over the data plane. The actual buffer size
-    # is controlled in a layer above.
-    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
-                            ("grpc.max_send_message_length", -1)]
+    # is controlled in a layer above. Also, options to keep the server alive
+    # when too many pings are received.
+    options = [("grpc.max_receive_message_length", -1),
+               ("grpc.max_send_message_length", -1),
+               ("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
+
+    self.state = state
+    self.provision_info = provision_info
+    self.control_server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance(),
+        options=options)
+    self.control_port = self.control_server.add_insecure_port('[::]:0')
+    self.control_address = 'localhost:%s' % self.control_port
+
     self.data_server = grpc.server(
         thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        options=options)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
         thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        options=options)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
     self.control_handler = BeamFnControlServicer(worker_manager)
@@ -511,7 +517,7 @@ class GrpcServer(object):
 
     self.logging_server = grpc.server(
         thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        options=options)
     self.logging_port = self.logging_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         BasicLoggingService(), self.logging_server)
