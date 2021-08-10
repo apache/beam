@@ -28,15 +28,22 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.InitialPartition;
 // TODO: Add java docs
 public class ChangeStreamDao {
 
+  private static final String REQUEST_TAG = "change_stream";
+
   private final String changeStreamName;
   private final DatabaseClient databaseClient;
   private final RpcPriority rpcPriority;
+  private final String jobName;
 
   public ChangeStreamDao(
-      String changeStreamName, DatabaseClient databaseClient, RpcPriority rpcPriority) {
+      String changeStreamName,
+      DatabaseClient databaseClient,
+      RpcPriority rpcPriority,
+      String jobName) {
     this.changeStreamName = changeStreamName;
     this.databaseClient = databaseClient;
     this.rpcPriority = rpcPriority;
+    this.jobName = jobName;
   }
 
   public ChangeStreamResultSet changeStreamQuery(
@@ -83,7 +90,8 @@ public class ChangeStreamDao {
                     .bind("heartbeatMillis")
                     .to(heartbeatMillis)
                     .build(),
-                Options.priority(rpcPriority));
+                Options.priority(rpcPriority),
+                Options.tag("action=" + REQUEST_TAG + ",job=" + jobName));
 
     return new ChangeStreamResultSet(resultSet);
   }

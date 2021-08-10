@@ -39,6 +39,7 @@ public class DaoFactory implements Serializable {
   private final String partitionMetadataTableName;
   private final MapperFactory mapperFactory;
   private final RpcPriority rpcPriority;
+  private final String jobName;
 
   public DaoFactory(
       SpannerConfig changeStreamSpannerConfig,
@@ -46,13 +47,15 @@ public class DaoFactory implements Serializable {
       SpannerConfig partitionMetadataSpannerConfig,
       String partitionMetadataTableName,
       MapperFactory mapperFactory,
-      RpcPriority rpcPriority) {
+      RpcPriority rpcPriority,
+      String jobName) {
     this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
     this.partitionMetadataSpannerConfig = partitionMetadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
     this.mapperFactory = mapperFactory;
     this.rpcPriority = rpcPriority;
+    this.jobName = jobName;
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
@@ -90,7 +93,7 @@ public class DaoFactory implements Serializable {
     if (changeStreamDaoInstance == null) {
       changeStreamDaoInstance =
           new ChangeStreamDao(
-              this.changeStreamName, spannerAccessor.getDatabaseClient(), rpcPriority);
+              this.changeStreamName, spannerAccessor.getDatabaseClient(), rpcPriority, jobName);
     }
     return changeStreamDaoInstance;
   }
