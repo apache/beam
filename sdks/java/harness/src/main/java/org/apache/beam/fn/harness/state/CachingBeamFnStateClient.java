@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -200,7 +201,8 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       this.weight = 0;
     }
 
-    public BeamFnApi.StateGetResponse get(CachingBeamFnStateClient.StateCacheKey cacheKey) {
+    public @Nullable BeamFnApi.StateGetResponse get(
+        CachingBeamFnStateClient.StateCacheKey cacheKey) {
       return cachedResponses.get(cacheKey);
     }
 
@@ -224,7 +226,8 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
     public void invalidateLastPage() {
       for (Map.Entry<StateCacheKey, StateGetResponse> entry : cachedResponses.entrySet()) {
         if (entry.getValue().getContinuationToken().equals(ByteString.EMPTY)) {
-          StateGetResponse removed = cachedResponses.remove(entry.getKey());
+          StateGetResponse removed = entry.getValue();
+          cachedResponses.remove(entry.getKey());
           this.weight =
               this.weight
                   - HASH_MAP_ENTRY_OVERHEAD
