@@ -94,7 +94,10 @@ public class PipelineJsonRendererTest {
       return new SamzaIOInfo() {
         @Override
         public String getIOInfo(TransformHierarchy.Node node) {
-          return "TestTopic";
+          if (node.isRootNode()) {
+            return "TestTopic";
+          }
+          return "";
         }
       };
     }

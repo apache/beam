@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.samza.SamzaIOInfo;
 import org.apache.beam.sdk.Pipeline;
@@ -40,8 +41,7 @@ import org.slf4j.LoggerFactory;
 public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineJsonRenderer.class);
   private static final String OUTERMOST_NODE = "OuterMostNode";
-  private final Iterator<SamzaIOInfo.SamzaIORegistrar> beamIORegistrarIterator =
-      ServiceLoader.load(SamzaIOInfo.SamzaIORegistrar.class).iterator();
+  @Nullable private static final SamzaIOInfo SAMZA_IO_INFO = loadSamzaIOInfo();
 
   public static String toJsonString(Pipeline pipeline) {
     final PipelineJsonRenderer visitor = new PipelineJsonRenderer();
@@ -51,8 +51,8 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     return visitor.jsonBuilder.toString();
   }
 
-  public static Optional<String> toJsonString(RunnerApi.Pipeline pipeline) {
-    return Optional.empty();
+  public static String toJsonString(RunnerApi.Pipeline pipeline) {
+    return "";
   }
 
   private final StringBuilder jsonBuilder = new StringBuilder();
@@ -63,6 +63,15 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   private int nextNodeId;
 
   private PipelineJsonRenderer() {}
+
+  @Nullable
+  private static SamzaIOInfo loadSamzaIOInfo() {
+    final Iterator<SamzaIOInfo.SamzaIORegistrar> beamIORegistrarIterator =
+        ServiceLoader.load(SamzaIOInfo.SamzaIORegistrar.class).iterator();
+    return beamIORegistrarIterator.hasNext()
+        ? Iterators.getOnlyElement(beamIORegistrarIterator).getSamzaIO()
+        : null;
+  }
 
   @Override
   public void enterPipeline(Pipeline p) {}
@@ -77,7 +86,9 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     }
 
     Optional<String> ioInfo = getIOTopicInfo(node);
-    ioInfo.ifPresent(s -> writeLine(" \"ioInfo\":\"%s\",", escapeString(s)));
+    if (ioInfo.isPresent() && !ioInfo.get().isEmpty()) {
+      writeLine(" \"ioInfo\":\"%s\",", escapeString(ioInfo.get()));
+    }
 
     writeLine("  \"ChildNodes\":[");
     enterBlock();
@@ -167,16 +178,9 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   }
 
   private Optional<String> getIOTopicInfo(TransformHierarchy.Node node) {
-    final SamzaIOInfo samzaIOInfo;
-    samzaIOInfo =
-        beamIORegistrarIterator.hasNext()
-            ? Iterators.getOnlyElement(beamIORegistrarIterator).getSamzaIO()
-            : null;
-
-    Optional<String> nodeInfo = Optional.empty();
-    if (samzaIOInfo != null) {
-      nodeInfo = Optional.of(samzaIOInfo.getIOInfo(node));
+    if (SAMZA_IO_INFO == null) {
+      return Optional.empty();
     }
-    return nodeInfo;
+    return Optional.of(SAMZA_IO_INFO.getIOInfo(node));
   }
 }
