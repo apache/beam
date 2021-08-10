@@ -125,11 +125,13 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     return 'localhost'
 
   def start_grpc_server(self, port=0):
-    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
-                            ("grpc.max_send_message_length", -1)]
+    options = [("grpc.max_receive_message_length", -1),
+               ("grpc.max_send_message_length", -1),
+               ("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
     self._server = grpc.server(
         thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        options=options)
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
@@ -183,8 +185,11 @@ class SubprocessSdkWorker(object):
     self._worker_id = worker_id
 
   def run(self):
+    options = [("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
     logging_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance())
+        thread_pool_executor.shared_unbounded_instance(),
+        options=options)
     logging_port = logging_server.add_insecure_port('[::]:0')
     logging_server.start()
     logging_servicer = BeamFnLoggingServicer()
