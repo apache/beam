@@ -115,7 +115,10 @@ public class SamzaStateRequestHandlers {
 
   /**
    * Factory to create {@link StateRequestHandlers.BagUserStateHandler} to provide bag state access
-   * with provided {@link K key} and {@link W window}
+   * for the given {@link K key} and {@link W window} provided by SDK worker, unlike classic
+   * pipeline where {@link K key} is set at {@link DoFnRunnerWithKeyedInternals#processElement} and
+   * {@link W window} is set at {@link
+   * org.apache.beam.runners.core.SimpleDoFnRunner.DoFnProcessContext#window()}}.
    */
   static class BagUserStateFactory<
           K extends ByteString, V extends ByteString, W extends BoundedWindow>
@@ -135,6 +138,8 @@ public class SamzaStateRequestHandlers {
         Coder<V> valueCoder,
         Coder<W> windowCoder) {
       return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
+
+        /** {@inheritDoc} */
         @Override
         public Iterable<V> get(K key, W window) {
           StateNamespace namespace = StateNamespaces.window(windowCoder, window);
@@ -145,6 +150,7 @@ public class SamzaStateRequestHandlers {
           return bagState.read();
         }
 
+        /** {@inheritDoc} */
         @Override
         public void append(K key, W window, Iterator<V> values) {
           StateNamespace namespace = StateNamespaces.window(windowCoder, window);
@@ -157,6 +163,7 @@ public class SamzaStateRequestHandlers {
           }
         }
 
+        /** {@inheritDoc} */
         @Override
         public void clear(K key, W window) {
           StateNamespace namespace = StateNamespaces.window(windowCoder, window);
