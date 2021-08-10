@@ -86,7 +86,8 @@ dependencies {
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
   runtime project(":sdks:java:extensions:google-cloud-platform-core")
   runtime library.java.slf4j_simple
-//  TODO: Enable AWS and HDFS file system.
+  //  TODO: Enable HDFS file system.
+  runtime project(":sdks:java:io:amazon-web-services2")
   // External transform expansion
   // Kafka
   runtimeOnly project(":sdks:java:io:kafka")
