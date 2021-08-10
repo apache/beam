@@ -32,6 +32,7 @@ import apache_beam as beam
 import apache_beam.io.source_test_utils as source_test_utils
 from apache_beam import coders
 from apache_beam.io import ReadAllFromText
+from apache_beam.io import ReadAllFromTextWithFilename
 from apache_beam.io import iobase
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.textio import _TextSink as TextSink
@@ -497,6 +498,15 @@ class TextSourceTest(unittest.TestCase):
           [file_name]) | 'ReadAll' >> ReadAllFromText()
       assert_that(pcoll, equal_to(expected_data))
 
+  def test_read_all_with_file_name_single_file(self):
+    file_name, data = write_data(5)
+    expected_data = [(file_name, el) for el in data]
+    assert len(expected_data) == 5
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Create' >> Create(
+          [file_name]) | 'ReadAll' >> ReadAllFromTextWithFilename()
+      assert_that(pcoll, equal_to(expected_data))
+
   def test_read_all_many_single_files(self):
     file_name1, expected_data1 = write_data(5)
     assert len(expected_data1) == 5
@@ -512,6 +522,23 @@ class TextSourceTest(unittest.TestCase):
       pcoll = pipeline | 'Create' >> Create([
           file_name1, file_name2, file_name3
       ]) | 'ReadAll' >> ReadAllFromText()
+      assert_that(pcoll, equal_to(expected_data))
+
+  def test_read_all_with_file_name_many_single_files(self):
+    file_name1, data1 = write_data(5)
+    assert len(data1) == 5
+    file_name2, data2 = write_data(10)
+    assert len(data2) == 10
+    file_name3, data3 = write_data(15)
+    assert len(data3) == 15
+    expected_data = []
+    expected_data.extend((file_name1, el) for el in data1)
+    expected_data.extend((file_name2, el) for el in data2)
+    expected_data.extend((file_name3, el) for el in data3)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Create' >> Create([
+          file_name1, file_name2, file_name3
+      ]) | 'ReadAll' >> ReadAllFromTextWithFilename()
       assert_that(pcoll, equal_to(expected_data))
 
   def test_read_all_unavailable_files_ignored(self):
@@ -534,7 +561,6 @@ class TextSourceTest(unittest.TestCase):
       assert_that(pcoll, equal_to(expected_data))
 
   def test_read_from_text_single_file_with_coder(self):
-
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
     with TestPipeline() as pipeline:
@@ -566,6 +592,17 @@ class TextSourceTest(unittest.TestCase):
           | 'ReadAll' >> ReadAllFromText())
       assert_that(pcoll, equal_to(expected_data))
 
+  def test_read_all_with_file_name_file_pattern(self):
+    pattern, expected_data = write_pattern(
+      [5, 3, 12, 8, 8, 4], return_filenames=True)
+    assert len(expected_data) == 40
+    with TestPipeline() as pipeline:
+      pcoll = (
+          pipeline
+          | 'Create' >> Create([pattern])
+          | 'ReadAll' >> ReadAllFromTextWithFilename())
+      assert_that(pcoll, equal_to(expected_data))
+
   def test_read_all_many_file_patterns(self):
     pattern1, expected_data1 = write_pattern([5, 3, 12, 8, 8, 4])
     assert len(expected_data1) == 40
@@ -580,6 +617,25 @@ class TextSourceTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'Create' >> Create(
           [pattern1, pattern2, pattern3]) | 'ReadAll' >> ReadAllFromText()
+      assert_that(pcoll, equal_to(expected_data))
+
+  def test_read_all_with_file_name_many_file_patterns(self):
+    pattern1, expected_data1 = write_pattern(
+      [5, 3, 12, 8, 8, 4], return_filenames=True)
+    assert len(expected_data1) == 40
+    pattern2, expected_data2 = write_pattern([3, 7, 9], return_filenames=True)
+    assert len(expected_data2) == 19
+    pattern3, expected_data3 = write_pattern(
+      [11, 20, 5, 5], return_filenames=True)
+    assert len(expected_data3) == 41
+    expected_data = []
+    expected_data.extend(expected_data1)
+    expected_data.extend(expected_data2)
+    expected_data.extend(expected_data3)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Create' >> Create([
+          pattern1, pattern2, pattern3
+      ]) | 'ReadAll' >> ReadAllFromTextWithFilename()
       assert_that(pcoll, equal_to(expected_data))
 
   def test_read_auto_bzip2(self):

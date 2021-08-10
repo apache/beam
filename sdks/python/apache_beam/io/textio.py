@@ -38,6 +38,7 @@ __all__ = [
     'ReadFromText',
     'ReadFromTextWithFilename',
     'ReadAllFromText',
+    'ReadAllFromTextWithFilename',
     'WriteToText'
 ]
 
@@ -429,8 +430,9 @@ def _create_text_source(
     compression_type=None,
     strip_trailing_newlines=None,
     coder=None,
-    skip_header_lines=None):
-  return _TextSource(
+    skip_header_lines=None,
+    source_class=_TextSource):
+  return source_class(
       file_pattern=file_pattern,
       min_bundle_size=min_bundle_size,
       compression_type=compression_type,
@@ -441,19 +443,22 @@ def _create_text_source(
 
 
 class ReadAllFromText(PTransform):
-  """A ``PTransform`` for reading a ``PCollection`` of text files.
+  r"""A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
+  a ``PCollection`` of text files.
 
-   Reads a ``PCollection`` of text files or file patterns and produces a
-   ``PCollection`` of strings.
+  Reads a ``PCollection`` of text files or file patterns and produces a
+  ``PCollection`` of strings.
 
   Parses a text file as newline-delimited elements, by default assuming
-  UTF-8 encoding. Supports newline delimiters '\\n' and '\\r\\n'.
+  UTF-8 encoding. Supports newline delimiters '\n' and '\r\n'.
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
   """
 
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
+
+  _source_class = _TextSource
 
   def __init__(
       self,
@@ -492,7 +497,8 @@ class ReadAllFromText(PTransform):
         compression_type=compression_type,
         strip_trailing_newlines=strip_trailing_newlines,
         coder=coder,
-        skip_header_lines=skip_header_lines)
+        skip_header_lines=skip_header_lines,
+        source_class=self._source_class)
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
@@ -505,6 +511,23 @@ class ReadAllFromText(PTransform):
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files
+
+
+class ReadAllFromTextWithFilename(ReadAllFromText):
+  r"""A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
+  a ``PCollection`` of text files.
+
+  Reads a ``PCollection`` of text files or file patterns and produces a
+  ``PCollection`` of tuples of name of the file and lines from the file.
+
+  Parses a text file as newline-delimited elements, by default assuming
+  UTF-8 encoding. Supports newline delimiters '\n' and '\r\n'.
+
+  This implementation only supports reading text encoded using UTF-8 or ASCII.
+  This does not support other encodings such as UTF-16 or UTF-32.
+  """
+
+  _source_class = _TextSourceWithFilename
 
 
 class ReadFromText(PTransform):
@@ -570,10 +593,10 @@ class ReadFromText(PTransform):
 
 
 class ReadFromTextWithFilename(ReadFromText):
-  r"""A :class:`~apache_beam.io.textio.ReadFromText` for reading text
+  r"""A :class:`~apache_beam.transforms.ptransform.PTransform` for reading text
   files returning the name of the file and the content of the file.
 
-  This class extend ReadFromText class just setting a different
+  This class extends ReadFromText class just setting a different
   _source_class attribute.
   """
 
