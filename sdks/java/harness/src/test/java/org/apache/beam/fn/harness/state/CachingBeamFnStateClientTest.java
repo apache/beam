@@ -18,9 +18,7 @@
 package org.apache.beam.fn.harness.state;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -220,29 +218,22 @@ public class CachingBeamFnStateClientTest {
 
     // Append works with no pages in cache
     appendToKey(key("A"), encode("A2"), cachingClient);
-    assertTrue(stateCache.getUnchecked(key("A")).isEmpty());
     assertEquals(fakeClient.getData().get(key("A")), getALlDataForKey(key("A"), cachingClient));
     assertEquals(3, fakeClient.getCallCount());
 
     // Append works with multiple pages in cache
     appendToKey(key("A"), encode("A3"), cachingClient);
-    assertFalse(
-        stateCache
-            .getUnchecked(key("A"))
-            .containsValue(StateGetResponse.newBuilder().setData(encode("A2")).build()));
     assertEquals(fakeClient.getData().get(key("A")), getALlDataForKey(key("A"), cachingClient));
     assertEquals(6, fakeClient.getCallCount());
 
     // Append works with one page in the cache
     assertEquals(fakeClient.getData().get(key("B")), getALlDataForKey(key("B"), cachingClient));
     appendToKey(key("B"), encode("B2"), cachingClient);
-    assertTrue(stateCache.getUnchecked(key("B")).isEmpty());
     assertEquals(fakeClient.getData().get(key("B")), getALlDataForKey(key("B"), cachingClient));
     assertEquals(10, fakeClient.getCallCount());
 
     // Append works with no prior data
     appendToKey(key("C"), encode("C1"), cachingClient);
-    assertTrue(stateCache.getUnchecked(key("C")).isEmpty());
     assertEquals(fakeClient.getData().get(key("C")), getALlDataForKey(key("C"), cachingClient));
   }
 
