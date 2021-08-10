@@ -43,7 +43,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCac
 public class CachingBeamFnStateClient implements BeamFnStateClient {
 
   private final BeamFnStateClient beamFnStateClient;
-  private final LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache;
+  private final LoadingCache<StateKey, StateCacheEntry> stateCache;
   private final Map<CacheToken.SideInput, ByteString> sideInputCacheTokens;
   private final ByteString userStateToken;
 
@@ -53,7 +53,7 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
    */
   public CachingBeamFnStateClient(
       BeamFnStateClient beamFnStateClient,
-      LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache,
+      LoadingCache<StateKey, StateCacheEntry> stateCache,
       List<CacheToken> cacheTokenList) {
     this.beamFnStateClient = beamFnStateClient;
     this.stateCache = stateCache;
@@ -89,12 +89,12 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       return;
     }
 
+    StateCacheEntry stateKeyMap = stateCache.getUnchecked(stateKey);
     switch (requestBuilder.getRequestCase()) {
       case GET:
         // Check if data is in the cache.
         StateCacheKey cacheKey =
             StateCacheKey.create(cacheToken, requestBuilder.getGet().getContinuationToken());
-        Map<StateCacheKey, StateGetResponse> stateKeyMap = stateCache.getUnchecked(stateKey);
         StateGetResponse cachedPage = stateKeyMap.get(cacheKey);
 
         // If data is not cached, add callback to add response to cache on completion.
@@ -102,11 +102,11 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
         if (cachedPage == null) {
           response.thenAccept(
               stateResponse -> {
-                stateCache.getUnchecked(stateKey).put(cacheKey, stateResponse.getGet());
-                stateCache.refresh(stateKey);
+                stateKeyMap.put(cacheKey, stateResponse.getGet());
+                stateCache.put(stateKey, stateKeyMap);
               });
-          beamFnStateClient.handle(requestBuilder, response);
 
+          beamFnStateClient.handle(requestBuilder, response);
         } else {
           response.complete(
               StateResponse.newBuilder().setId(requestBuilder.getId()).setGet(cachedPage).build());
@@ -117,23 +117,20 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
       case APPEND:
         // TODO(BEAM-12637): Support APPEND in CachingBeamFnStateClient.
 
-        // Invalidate last page of cached values (entry with a blank continuation token response)
-        Map<StateCacheKey, StateGetResponse> map = stateCache.getUnchecked(stateKey);
-        map.entrySet()
-            .removeIf(entry -> (entry.getValue().getContinuationToken().equals(ByteString.EMPTY)));
-        stateCache.refresh(stateKey);
+        stateKeyMap.invalidateLastPage();
+        stateCache.put(stateKey, stateKeyMap);
 
         beamFnStateClient.handle(requestBuilder, response);
         return;
 
       case CLEAR:
         // Remove all state key data and replace with an empty response.
-        beamFnStateClient.handle(requestBuilder, response);
-        Map<StateCacheKey, StateGetResponse> clearedData = new HashMap<>();
+        stateKeyMap.clear();
         StateCacheKey newKey = StateCacheKey.create(cacheToken, ByteString.EMPTY);
-        clearedData.put(newKey, StateGetResponse.getDefaultInstance());
-        stateCache.put(stateKey, clearedData);
-        stateCache.refresh(stateKey);
+        stateKeyMap.put(newKey, StateGetResponse.getDefaultInstance());
+        stateCache.put(stateKey, stateKeyMap);
+
+        beamFnStateClient.handle(requestBuilder, response);
         return;
 
       default:

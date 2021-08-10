@@ -19,9 +19,7 @@ package org.apache.beam.fn.harness;
 
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,13 +35,12 @@ import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
-import org.apache.beam.fn.harness.state.CachingBeamFnStateClient.StateCacheKey;
+import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
 import org.apache.beam.fn.harness.status.BeamFnStatusClient;
 import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -71,12 +68,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCac
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import oshi.SystemInfo;
 import oshi.util.FileUtil;
 
 /**
@@ -263,36 +257,34 @@ public class FnHarness {
       int stateCacheMemPercent =
           stateCacheMemString == null ? 10 : Integer.parseInt(stateCacheMemString);
 
-      // Alternative is to use SystemInfo().getHardware().getMemory().getAvailable() or Runtime.getRuntime().maxMemory()
+      // Alternative is to use SystemInfo().getHardware().getMemory().getAvailable() or
+      // Runtime.getRuntime().maxMemory()
       // If the max memory of the harness is set during creation
       long availableMem = FileUtil.getLongFromFile("/sys/fs/cgroup/memory/memory.limit_in_bytes");
       long availableCacheMem = (long) (availableMem * stateCacheMemPercent * .01);
 
+      // Default to 100 MB if not running in a container
+      if (availableMem == 0) {
+        availableCacheMem = 1024 * 1024 * 100;
+      }
+
       // Create memory sensitive state cache using memory limit
-      LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache =
+      LoadingCache<StateKey, CachingBeamFnStateClient.StateCacheEntry> stateCache =
           CacheBuilder.newBuilder()
               .maximumWeight(availableCacheMem)
+              .recordStats()
               .weigher(
-                  (Weigher<StateKey, Map<StateCacheKey, StateGetResponse>>)
-                      (key, map) -> {
-                        int mapWeight = 0;
-                        for (Map.Entry<StateCacheKey, StateGetResponse> entry : map.entrySet()) {
-                          mapWeight += entry.getValue().getData().size();
-                          mapWeight += entry.getValue().getContinuationToken().size();
-                        }
-                        return mapWeight;
+                  (Weigher<StateKey, CachingBeamFnStateClient.StateCacheEntry>)
+                      (key, entry) -> {
+                        return (int)
+                            Math.min(
+                                key.toString().length() + entry.getWeight(), Integer.MAX_VALUE);
                       })
               .build(
-                  new CacheLoader<StateKey, Map<StateCacheKey, StateGetResponse>>() {
+                  new CacheLoader<StateKey, CachingBeamFnStateClient.StateCacheEntry>() {
                     @Override
-                    public Map<StateCacheKey, StateGetResponse> load(StateKey key) {
-                      return new HashMap<>();
-                    }
-
-                    @Override
-                    public ListenableFuture<Map<StateCacheKey, StateGetResponse>> reload(
-                        final StateKey key, Map<StateCacheKey, StateGetResponse> prevMap) {
-                      return Futures.immediateFuture(prevMap);
+                    public CachingBeamFnStateClient.StateCacheEntry load(StateKey key) {
+                      return new CachingBeamFnStateClient.StateCacheEntry();
                     }
                   });
 

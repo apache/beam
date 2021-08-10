@@ -32,7 +32,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.Cache
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
@@ -42,8 +41,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,7 +50,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CachingBeamFnStateClientTest {
 
-  private LoadingCache<StateKey, Map<StateCacheKey, StateGetResponse>> stateCache;
+  private LoadingCache<StateKey, CachingBeamFnStateClient.StateCacheEntry> stateCache;
   private List<CacheToken> cacheTokenList;
   private CacheToken userStateToken =
       CacheToken.newBuilder()
@@ -62,18 +59,11 @@ public class CachingBeamFnStateClientTest {
           .build();
   private StateCacheKey defaultCacheKey =
       StateCacheKey.create(ByteString.copyFromUtf8("1"), ByteString.EMPTY);
-  private CacheLoader<StateKey, Map<StateCacheKey, StateGetResponse>> loader =
-      new CacheLoader<StateKey, Map<StateCacheKey, StateGetResponse>>() {
+  private CacheLoader<StateKey, CachingBeamFnStateClient.StateCacheEntry> loader =
+      new CacheLoader<StateKey, CachingBeamFnStateClient.StateCacheEntry>() {
         @Override
-        public Map<StateCacheKey, StateGetResponse> load(StateKey key) {
-          return new HashMap<>();
-        }
-
-        @Override
-        public ListenableFuture<Map<StateCacheKey, StateGetResponse>> reload(
-            final BeamFnApi.StateKey key,
-            Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse> prevMap) {
-          return Futures.immediateFuture(prevMap);
+        public CachingBeamFnStateClient.StateCacheEntry load(StateKey key) {
+          return new CachingBeamFnStateClient.StateCacheEntry();
         }
       };
 

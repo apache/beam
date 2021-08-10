@@ -146,9 +146,7 @@ public class ProcessBundleHandler {
   private final Function<String, Message> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
-  private final LoadingCache<
-          BeamFnApi.StateKey,
-          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+  private final LoadingCache<BeamFnApi.StateKey, CachingBeamFnStateClient.StateCacheEntry>
       stateCache;
   private final FinalizeBundleHandler finalizeBundleHandler;
   private final ShortIdMap shortIds;
@@ -163,10 +161,7 @@ public class ProcessBundleHandler {
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
-      LoadingCache<
-              BeamFnApi.StateKey,
-              Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
-          stateCache,
+      LoadingCache<BeamFnApi.StateKey, CachingBeamFnStateClient.StateCacheEntry> stateCache,
       FinalizeBundleHandler finalizeBundleHandler,
       ShortIdMap shortIds) {
     this(
@@ -189,10 +184,7 @@ public class ProcessBundleHandler {
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
-      LoadingCache<
-              BeamFnApi.StateKey,
-              Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
-          stateCache,
+      LoadingCache<BeamFnApi.StateKey, CachingBeamFnStateClient.StateCacheEntry> stateCache,
       FinalizeBundleHandler finalizeBundleHandler,
       ShortIdMap shortIds,
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap,
