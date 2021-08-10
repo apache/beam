@@ -260,12 +260,12 @@ public class FnHarness {
 
       // Attempt to get container memory limit, if not default to using system memory if not in a
       // container
-//      long availableMem = FileUtil.getLongFromFile("/sys/fs/cgroup/memory/memory.limit_in_bytes");
-//      if (availableMem == 0) {
-//        availableMem = new SystemInfo().getHardware().getMemory().getAvailable();
-//      }
-//      long availableCacheMem = (long) (availableMem * stateCacheMemPercent * .01);
-      long availableCacheMem = 1024 * 1024 * 100;
+      // long availableMem = FileUtil.getLongFromFile("/sys/fs/cgroup/memory/memory.limit_in_bytes");
+      // if (availableMem == 0) {
+      long availableMem = new SystemInfo().getHardware().getMemory().getAvailable();
+      //}
+      long availableCacheMem = (long) (availableMem * stateCacheMemPercent * .01);
+      // long availableCacheMem = 1024 * 1024 * 100;
 
       // Create memory sensitive state cache using memory limit
       LoadingCache<StateKey, CachingBeamFnStateClient.StateCacheEntry> stateCache =
