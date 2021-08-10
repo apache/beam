@@ -161,25 +161,17 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Samza portable runner supports timer in ParDo.
     raise unittest.SkipTest("BEAM-12349")
 
-  def test_pardo_state_only(self):
-    # Skip until Samza portable runner supports state in ParDo.
-    raise unittest.SkipTest("BEAM-12348")
-
   def test_pardo_state_timers(self):
-    # Skip until Samza portable runner supports timer and state in ParDo.
-    raise unittest.SkipTest("BEAM-12349, BEAM-12348")
+    # Skip until Samza portable runner supports timer in ParDo.
+    raise unittest.SkipTest("BEAM-12349")
 
   def test_pardo_state_timers_non_standard_coder(self):
-    # Skip until Samza portable runner supports timer and state in ParDo.
-    raise unittest.SkipTest("BEAM-12349, BEAM-12348")
-
-  def test_pardo_state_with_custom_key_coder(self):
-    # Skip until Samza portable runner supports timer and state in ParDo.
-    raise unittest.SkipTest("BEAM-12349, BEAM-12348")
+    # Skip until Samza portable runner supports timer in ParDo.
+    raise unittest.SkipTest("BEAM-12349")
 
   def test_windowed_pardo_state_timers(self):
-    # Skip until Samza portable runner supports timer and state in ParDo.
-    raise unittest.SkipTest("BEAM-12349, BEAM-12348")
+    # Skip until Samza portable runner supports timer in ParDo.
+    raise unittest.SkipTest("BEAM-12349")
 
   def test_register_finalizations(self):
     # Skip until Samza runner supports bundle finalization.
