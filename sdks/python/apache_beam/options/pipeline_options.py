@@ -935,8 +935,7 @@ class WorkerOptions(PipelineOptions):
     errors.extend(validator.validate_sdk_container_image_options(self))
 
     if validator.is_service_runner():
-      errors.extend(
-          validator.validate_optional_argument_positive(self, 'num_workers'))
+      errors.extend(validator.validate_num_workers(self))
       errors.extend(validator.validate_worker_region_zone(self))
     return errors
 
@@ -1316,7 +1315,8 @@ class SparkRunnerOptions(PipelineOptions):
         'the execution.')
     parser.add_argument(
         '--spark_job_server_jar',
-        help='Path or URL to a Beam Spark jobserver jar.')
+        help='Path or URL to a Beam Spark job server jar. '
+        'Overrides --spark_version.')
     parser.add_argument(
         '--spark_submit_uber_jar',
         default=False,
@@ -1329,6 +1329,11 @@ class SparkRunnerOptions(PipelineOptions):
         help='URL for the Spark REST endpoint. '
         'Only required when using spark_submit_uber_jar. '
         'For example, http://hostname:6066')
+    parser.add_argument(
+        '--spark_version',
+        default='2',
+        choices=['2', '3'],
+        help='Spark major version to use.')
 
 
 class TestOptions(PipelineOptions):

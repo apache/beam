@@ -29,7 +29,7 @@ import unittest
 from decimal import Decimal
 from functools import wraps
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -157,7 +157,7 @@ class ReadTests(BigQueryReadIntegrationTests):
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
 
   @skip(['PortableRunner', 'FlinkRunner'])
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_native_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
@@ -165,7 +165,7 @@ class ReadTests(BigQueryReadIntegrationTests):
               beam.io.BigQuerySource(query=self.query, use_standard_sql=True)))
       assert_that(result, equal_to(self.TABLE_DATA))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_iobase_source(self):
     query = StaticValueProvider(str, self.query)
     with beam.Pipeline(argv=self.args) as p:
@@ -272,7 +272,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     return expected_data
 
   @skip(['PortableRunner', 'FlinkRunner'])
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_native_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
@@ -281,7 +281,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
               beam.io.BigQuerySource(query=self.query, use_standard_sql=True)))
       assert_that(result, equal_to(self.get_expected_data()))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_iobase_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
@@ -378,7 +378,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     return table_schema
 
   @skip(['PortableRunner', 'FlinkRunner'])
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_read_queries(self):
     # TODO(BEAM-11311): Remove experiment when tests run on r_v2.
     args = self.args + ["--experiments=use_runner_v2"]

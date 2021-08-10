@@ -18,13 +18,17 @@
 """Utilities to be used in  Interactive Beam.
 """
 
+import functools
 import hashlib
 import json
 import logging
 
 import pandas as pd
 
+from apache_beam.dataframe.convert import to_pcollection
+from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive.caching.expression_cache import ExpressionCache
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.typehints.schemas import named_fields_from_element_type
 
@@ -240,6 +244,7 @@ def progress_indicated(func):
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
+  @functools.wraps(func)
   def run_within_progress_indicator(*args, **kwargs):
     with ProgressIndicator('Processing...', 'Done.'):
       return func(*args, **kwargs)
@@ -265,3 +270,17 @@ def as_json(func):
       return str(return_value)
 
   return return_as_json
+
+
+def deferred_df_to_pcollection(df):
+  assert isinstance(df, DeferredBase), '{} is not a DeferredBase'.format(df)
+
+  # The proxy is used to output a DataFrame with the correct columns.
+  #
+  # TODO(BEAM-11064): Once type hints are implemented for pandas, use those
+  # instead of the proxy.
+  cache = ExpressionCache()
+  cache.replace_with_cached(df._expr)
+
+  proxy = df._expr.proxy()
+  return to_pcollection(df, yield_elements='pandas', label=str(df._expr)), proxy

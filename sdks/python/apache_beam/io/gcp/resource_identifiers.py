@@ -33,3 +33,7 @@ If an official GCP format does not exist, try to use the following format.
 def BigQueryTable(project_id, dataset_id, table_id):
   return '//bigquery.googleapis.com/projects/%s/datasets/%s/tables/%s' % (
       project_id, dataset_id, table_id)
+
+
+def GoogleCloudStorageBucket(bucket_id):
+  return '//storage.googleapis.com/buckets/%s' % bucket_id

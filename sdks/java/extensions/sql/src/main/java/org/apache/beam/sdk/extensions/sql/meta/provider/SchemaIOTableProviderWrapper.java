@@ -22,16 +22,22 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
+import org.apache.beam.sdk.schemas.io.PushdownProjector;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -116,6 +122,45 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     public PCollection<Row> buildIOReader(PBegin begin) {
       PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
       return begin.apply(readerTransform);
+    }
+
+    @Override
+    public PCollection<Row> buildIOReader(
+        PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+      PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
+      if (!(filters instanceof DefaultTableFilter)) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Filter pushdown is not yet supported in %s. BEAM-12663",
+                SchemaIOTableWrapper.class));
+      }
+      if (!fieldNames.isEmpty()) {
+        if (readerTransform instanceof PushdownProjector) {
+          PushdownProjector pushdownProjector = (PushdownProjector) readerTransform;
+          FieldAccessDescriptor fieldAccessDescriptor =
+              FieldAccessDescriptor.withFieldNames(fieldNames);
+          // The pushdown must return a PTransform that can be applied to a PBegin, or this cast
+          // will fail.
+          readerTransform =
+              (PTransform<PBegin, PCollection<Row>>)
+                  pushdownProjector.withProjectionPushdown(fieldAccessDescriptor);
+        } else {
+          throw new UnsupportedOperationException(
+              String.format("%s does not support projection pushdown.", this.getClass()));
+        }
+      }
+      return begin.apply(readerTransform);
+    }
+
+    @Override
+    public ProjectSupport supportsProjects() {
+      PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
+      if (readerTransform instanceof PushdownProjector) {
+        return ((PushdownProjector) readerTransform).supportsFieldReordering()
+            ? ProjectSupport.WITH_FIELD_REORDERING
+            : ProjectSupport.WITHOUT_FIELD_REORDERING;
+      }
+      return ProjectSupport.NONE;
     }
 
     @Override

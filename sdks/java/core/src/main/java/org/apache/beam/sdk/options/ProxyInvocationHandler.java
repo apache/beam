@@ -324,6 +324,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             continue;
           }
 
+          if (optionSpec.getGetterMethod().isAnnotationPresent(Hidden.class)) {
+            continue;
+          }
+
           builder.add(
               DisplayData.item(option.getKey(), resolved.getType(), resolved.getValue())
                   .withNamespace(optionSpec.getDefiningInterface()));
@@ -347,6 +351,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
         for (PipelineOptionSpec spec : specs) {
           if (!spec.shouldSerialize()) {
+            continue;
+          }
+
+          if (spec.getGetterMethod().isAnnotationPresent(Hidden.class)) {
             continue;
           }
 

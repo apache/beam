@@ -61,6 +61,11 @@ class KinesisReaderCheckpoint
     return (nominator + denominator - 1) / denominator;
   }
 
+  String getStreamName() {
+    Iterator<ShardCheckpoint> iterator = iterator();
+    return iterator.hasNext() ? iterator.next().getStreamName() : "[unknown]";
+  }
+
   @Override
   public void finalizeCheckpoint() throws IOException {}
 

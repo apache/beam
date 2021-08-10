@@ -55,7 +55,7 @@ import os
 import typing
 import unittest
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -237,7 +237,6 @@ class CrossLanguageTestPipelines(object):
       assert_that(res['1'], equal_to([1, 3, 5]), label='check_odd')
 
 
-@attr('UsesCrossLanguageTransforms')
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
@@ -249,34 +248,43 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     test_pipeline.not_use_test_runner_api = True
     return test_pipeline
 
+  @pytest.mark.xlang_transforms
   def test_prefix(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_prefix(
         test_pipeline or self.create_pipeline())
 
+  @pytest.mark.xlang_transforms
   def test_multi_input_output_with_sideinput(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_multi_input_output_with_sideinput(
         test_pipeline or self.create_pipeline())
 
+  @pytest.mark.xlang_transforms
   def test_group_by_key(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_group_by_key(
         test_pipeline or self.create_pipeline())
 
+  @pytest.mark.xlang_transforms
   def test_cogroup_by_key(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_cogroup_by_key(
         test_pipeline or self.create_pipeline())
 
+  @pytest.mark.xlang_transforms
   def test_combine_globally(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_combine_globally(
         test_pipeline or self.create_pipeline())
 
+  @pytest.mark.xlang_transforms
   def test_combine_per_key(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_combine_per_key(
         test_pipeline or self.create_pipeline())
 
+  # TODO: enable after fixing BEAM-10507
+  # @pytest.mark.xlang_transforms
   def test_flatten(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_flatten(
         test_pipeline or self.create_pipeline())
 
+  @pytest.mark.xlang_transforms
   def test_partition(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_partition(
         test_pipeline or self.create_pipeline())

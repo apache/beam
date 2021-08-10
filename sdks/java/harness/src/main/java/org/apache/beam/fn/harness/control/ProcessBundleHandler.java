@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,8 +48,10 @@ import org.apache.beam.fn.harness.data.BeamFnTimerGrpcClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
+import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
+import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -73,6 +76,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
@@ -139,10 +143,29 @@ public class ProcessBundleHandler {
     REGISTERED_RUNNER_FACTORIES = builder.build();
   }
 
+  // Creates a new map of state data for newly encountered state keys
+  private CacheLoader<
+          BeamFnApi.StateKey,
+          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+      stateKeyMapCacheLoader =
+          new CacheLoader<
+              BeamFnApi.StateKey,
+              Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>() {
+            @Override
+            public Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse> load(
+                BeamFnApi.StateKey key) {
+              return new HashMap<>();
+            }
+          };
+
   private final PipelineOptions options;
   private final Function<String, Message> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
+  private final LoadingCache<
+          BeamFnApi.StateKey,
+          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
+      stateCache;
   private final FinalizeBundleHandler finalizeBundleHandler;
   private final ShortIdMap shortIds;
   private final boolean runnerAcceptsShortIds;
@@ -185,6 +208,7 @@ public class ProcessBundleHandler {
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
+    this.stateCache = CacheBuilder.newBuilder().build(stateKeyMapCacheLoader);
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
     this.runnerAcceptsShortIds =
@@ -309,12 +333,14 @@ public class ProcessBundleHandler {
                 throw new RuntimeException(e);
               }
             });
-    PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
-    ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
-    QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
-
     try {
+      BeamFnLoggingMDC.setInstructionId(request.getInstructionId());
+      PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
+      PTransformFunctionRegistry finishFunctionRegistry =
+          bundleProcessor.getFinishFunctionRegistry();
+      ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
+      QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
+
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
         try (Closeable closeTracker = stateTracker.activate()) {
           // Already in reverse topological order so we don't need to do anything.
@@ -354,14 +380,18 @@ public class ProcessBundleHandler {
           response.setRequiresFinalization(true);
         }
       }
+
+      // Mark the bundle processor as re-usable.
       bundleProcessorCache.release(
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
+      return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
     } catch (Exception e) {
-      bundleProcessorCache.release(
-          request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
+      // Make sure we clean-up from the active set of bundle processors.
+      bundleProcessorCache.discard(bundleProcessor);
       throw e;
+    } finally {
+      BeamFnLoggingMDC.setInstructionId(null);
     }
-    return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
   public BeamFnApi.InstructionResponse.Builder progress(BeamFnApi.InstructionRequest request)
@@ -484,14 +514,27 @@ public class ProcessBundleHandler {
       }
     }
 
-    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor
-    // was specified.
-    HandleStateCallsForBundle beamFnStateClient =
-        bundleDescriptor.hasStateApiServiceDescriptor()
-            ? new BlockTillStateCallsFinish(
-                beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                    bundleDescriptor.getStateApiServiceDescriptor()))
-            : new FailAllStateCallsForBundle(processBundleRequest);
+    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor was
+    // specified.
+    HandleStateCallsForBundle beamFnStateClient;
+    if (bundleDescriptor.hasStateApiServiceDescriptor()) {
+      BeamFnStateClient underlyingClient =
+          beamFnStateGrpcClientCache.forApiServiceDescriptor(
+              bundleDescriptor.getStateApiServiceDescriptor());
+
+      // If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
+      // Once streaming is supported, always use CachingBeamFnStateClient as the arg
+      // to BlockTillStateCallsFinish
+      beamFnStateClient =
+          new BlockTillStateCallsFinish(
+              options.as(StreamingOptions.class).isStreaming()
+                  ? underlyingClient
+                  : new CachingBeamFnStateClient(
+                      underlyingClient, stateCache, processBundleRequest.getCacheTokensList()));
+
+    } else {
+      beamFnStateClient = new FailAllStateCallsForBundle(processBundleRequest);
+    }
 
     // Instantiate a Timer client registration handler depending on whether a Timer
     // ApiServiceDescriptor was specified.
@@ -648,8 +691,8 @@ public class ProcessBundleHandler {
     }
 
     /**
-     * Add a {@link BundleProcessor} to cache. The {@link BundleProcessor} will be reset before
-     * being added to the cache and will be marked as inactive.
+     * Add a {@link BundleProcessor} to cache. The {@link BundleProcessor} will be marked as
+     * inactive and reset before being added to the cache.
      */
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
       activeBundleProcessors.remove(bundleProcessor.getInstructionId());
@@ -662,6 +705,11 @@ public class ProcessBundleHandler {
             bundleDescriptorId,
             e);
       }
+    }
+
+    /** Discard an active {@link BundleProcessor} instead of being re-used. */
+    void discard(BundleProcessor bundleProcessor) {
+      activeBundleProcessors.remove(bundleProcessor.getInstructionId());
     }
 
     /** Shutdown all the cached {@link BundleProcessor}s, running the tearDown() functions. */
@@ -732,15 +780,16 @@ public class ProcessBundleHandler {
 
     abstract Collection<BeamFnDataReadRunner> getChannelRoots();
 
-    String getInstructionId() {
+    synchronized String getInstructionId() {
       return this.instructionId;
     }
 
-    void setInstructionId(String instructionId) {
+    synchronized void setInstructionId(String instructionId) {
       this.instructionId = instructionId;
     }
 
     void reset() throws Exception {
+      setInstructionId(null);
       getStartFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();
       getSplitListener().clear();

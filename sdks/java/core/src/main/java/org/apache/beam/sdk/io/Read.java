@@ -552,12 +552,6 @@ public class Read {
       UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction =
           tracker.currentRestriction();
 
-      // Advance the watermark even if zero elements may have been output, if we have not
-      // split the restriction
-      if (!currentRestriction.isSplit()) {
-        watermarkEstimator.setWatermark(currentRestriction.getWatermark());
-      }
-
       // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial and is not
       // the initial restriction. The initial restriction would have been finalized as part of
       // a prior bundle being executed.
@@ -577,6 +571,10 @@ public class Read {
       if (currentRestriction.getSource() instanceof EmptyUnboundedSource) {
         return ProcessContinuation.stop();
       }
+
+      // Advance the watermark even if zero elements may have been output. Only report it if we
+      // are resuming.
+      watermarkEstimator.setWatermark(currentRestriction.getWatermark());
       return ProcessContinuation.resume();
     }
 
@@ -614,7 +612,6 @@ public class Read {
      */
     @AutoValue
     abstract static class UnboundedSourceValue<T> {
-
       public static <T> UnboundedSourceValue<T> create(
           byte[] id, T value, Instant timestamp, Instant watermark) {
 
@@ -653,10 +650,6 @@ public class Read {
       public abstract @Nullable CheckpointT getCheckpoint();
 
       public abstract Instant getWatermark();
-
-      public boolean isSplit() {
-        return getSource() instanceof EmptyUnboundedSource;
-      }
     }
 
     /** A {@link Coder} for {@link UnboundedSourceRestriction}s. */
@@ -849,6 +842,16 @@ public class Read {
         }
       }
 
+      private void cacheCurrentReader(
+          UnboundedSourceRestriction<OutputT, CheckpointT> restriction) {
+        if (!(currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader)) {
+          // We only put the reader into the cache when we know it possibly will be reused by
+          // residuals.
+          cachedReaders.put(
+              createCacheKey(restriction.getSource(), restriction.getCheckpoint()), currentReader);
+        }
+      }
+
       @Override
       public boolean tryClaim(UnboundedSourceValue<OutputT>[] position) {
         try {
@@ -933,14 +936,7 @@ public class Read {
                     EmptyUnboundedSource.INSTANCE, null, BoundedWindow.TIMESTAMP_MAX_VALUE),
                 currentRestriction);
 
-        if (!(currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader)) {
-          // We only put the reader into the cache when we know it possibly will be reused by
-          // residuals.
-          cachedReaders.put(
-              createCacheKey(currentRestriction.getSource(), currentRestriction.getCheckpoint()),
-              currentReader);
-        }
-
+        cacheCurrentReader(currentRestriction);
         currentReader =
             EmptyUnboundedSource.INSTANCE.createReader(null, currentRestriction.getCheckpoint());
         return result;
@@ -966,29 +962,38 @@ public class Read {
           return RestrictionTracker.Progress.from(1, 0);
         }
 
+        boolean resetReaderAfter = false;
         if (currentReader == null) {
           try {
             initializeCurrentReader();
+            resetReaderAfter = true;
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
         }
 
-        long size = currentReader.getSplitBacklogBytes();
-        if (size != UnboundedReader.BACKLOG_UNKNOWN) {
-          // The UnboundedSource/UnboundedReader API has no way of reporting how much work
-          // has been completed so runners can only see the work remaining changing.
-          return RestrictionTracker.Progress.from(0, size);
+        try {
+          long size = currentReader.getSplitBacklogBytes();
+          if (size != UnboundedReader.BACKLOG_UNKNOWN) {
+            // The UnboundedSource/UnboundedReader API has no way of reporting how much work
+            // has been completed so runners can only see the work remaining changing.
+            return RestrictionTracker.Progress.from(0, size);
+          }
+
+          // TODO: Support "global" backlog reporting
+          // size = reader.getTotalBacklogBytes();
+          // if (size != UnboundedReader.BACKLOG_UNKNOWN) {
+          //   return size;
+          // }
+
+          // We treat unknown as 0 progress
+          return RestrictionTracker.Progress.from(0, 1);
+        } finally {
+          if (resetReaderAfter) {
+            cacheCurrentReader(initialRestriction);
+            currentReader = null;
+          }
         }
-
-        // TODO: Support "global" backlog reporting
-        // size = reader.getTotalBacklogBytes();
-        // if (size != UnboundedReader.BACKLOG_UNKNOWN) {
-        //   return size;
-        // }
-
-        // We treat unknown as 0 progress
-        return RestrictionTracker.Progress.from(0, 1);
       }
     }
   }

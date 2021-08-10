@@ -591,6 +591,7 @@ public class BigQueryIO {
         .setParseFn(parseFn)
         .setMethod(Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
+        .setFormat(DataFormat.AVRO)
         .build();
   }
 
@@ -780,6 +781,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setMethod(Method method);
 
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setFormat(DataFormat method);
+
       abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
 
       abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
@@ -827,6 +831,9 @@ public class BigQueryIO {
     abstract @Nullable String getQueryTempDataset();
 
     abstract Method getMethod();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    abstract DataFormat getFormat();
 
     abstract @Nullable ValueProvider<List<String>> getSelectedFields();
 
@@ -917,6 +924,7 @@ public class BigQueryIO {
           getQueryLocation(),
           getQueryTempDataset(),
           getKmsKey(),
+          getFormat(),
           getParseFn(),
           outputCoder,
           getBigQueryServices());
@@ -971,7 +979,9 @@ public class BigQueryIO {
           JobService jobService = getBigQueryServices().getJobService(bqOptions);
           try {
             jobService.dryRunQuery(
-                bqOptions.getProject(),
+                bqOptions.getBigQueryProject() == null
+                    ? bqOptions.getProject()
+                    : bqOptions.getBigQueryProject(),
                 new JobConfigurationQuery()
                     .setQuery(getQuery().get())
                     .setFlattenResults(getFlattenResults())
@@ -990,7 +1000,10 @@ public class BigQueryIO {
             // validation
             TableReference tempTable =
                 new TableReference()
-                    .setProjectId(bqOptions.getProject())
+                    .setProjectId(
+                        bqOptions.getBigQueryProject() == null
+                            ? bqOptions.getProject()
+                            : bqOptions.getBigQueryProject())
                     .setDatasetId(getQueryTempDataset())
                     .setTableId("dummy table");
             BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
@@ -1162,7 +1175,10 @@ public class BigQueryIO {
               String jobUuid = c.getJobId();
               final String extractDestinationDir =
                   resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", jobUuid);
-              final String executingProject = bqOptions.getProject();
+              final String executingProject =
+                  bqOptions.getBigQueryProject() == null
+                      ? bqOptions.getProject()
+                      : bqOptions.getBigQueryProject();
               JobReference jobRef =
                   new JobReference()
                       .setProjectId(executingProject)
@@ -1205,6 +1221,7 @@ public class BigQueryIO {
             org.apache.beam.sdk.io.Read.from(
                 BigQueryStorageTableSource.create(
                     tableProvider,
+                    getFormat(),
                     getSelectedFields(),
                     getRowRestriction(),
                     getParseFn(),
@@ -1287,7 +1304,10 @@ public class BigQueryIO {
                             CreateReadSessionRequest request =
                                 CreateReadSessionRequest.newBuilder()
                                     .setParent(
-                                        BigQueryHelpers.toProjectResourceName(options.getProject()))
+                                        BigQueryHelpers.toProjectResourceName(
+                                            options.getBigQueryProject() == null
+                                                ? options.getProject()
+                                                : options.getBigQueryProject()))
                                     .setReadSession(
                                         ReadSession.newBuilder()
                                             .setTable(
@@ -1374,7 +1394,9 @@ public class BigQueryIO {
 
               TableReference tempTable =
                   createTempTableReference(
-                      options.getProject(),
+                      options.getBigQueryProject() == null
+                          ? options.getProject()
+                          : options.getBigQueryProject(),
                       BigQueryResourceNaming.createJobIdPrefix(
                           options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
@@ -1544,6 +1566,12 @@ public class BigQueryIO {
     /** See {@link Method}. */
     public TypedRead<T> withMethod(Method method) {
       return toBuilder().setMethod(method).build();
+    }
+
+    /** See {@link DataFormat}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withFormat(DataFormat format) {
+      return toBuilder().setFormat(format).build();
     }
 
     /** See {@link #withSelectedFields(ValueProvider)}. */
@@ -2916,7 +2944,10 @@ public class BigQueryIO {
         // If user does not specify a project we assume the table to be located in
         // the default project.
         TableReference tableRef = table.get();
-        tableRef.setProjectId(bqOptions.getProject());
+        tableRef.setProjectId(
+            bqOptions.getBigQueryProject() == null
+                ? bqOptions.getProject()
+                : bqOptions.getBigQueryProject());
         return NestedValueProvider.of(
             StaticValueProvider.of(BigQueryHelpers.toJsonString(tableRef)),
             new JsonTableRefToTableRef());

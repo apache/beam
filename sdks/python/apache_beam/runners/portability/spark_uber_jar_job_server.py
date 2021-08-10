@@ -47,12 +47,12 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   def __init__(self, rest_url, options):
     super(SparkUberJarJobServer, self).__init__()
     self._rest_url = rest_url
-    self._executable_jar = (
-        options.view_as(
-            pipeline_options.SparkRunnerOptions).spark_job_server_jar)
     self._artifact_port = (
         options.view_as(pipeline_options.JobServerOptions).artifact_port)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-spark')
+    spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
+    self._executable_jar = spark_options.spark_job_server_jar
+    self._spark_version = spark_options.spark_version
 
   def start(self):
     return self
@@ -73,9 +73,13 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
               self._executable_jar)
       url = self._executable_jar
     else:
-      url = job_server.JavaJarJobServer.path_to_beam_jar(
-          ':runners:spark:2:job-server:shadowJar',
-          artifact_id='beam-runners-spark-job-server')
+      if self._spark_version == '3':
+        url = job_server.JavaJarJobServer.path_to_beam_jar(
+            ':runners:spark:3:job-server:shadowJar')
+      else:
+        url = job_server.JavaJarJobServer.path_to_beam_jar(
+            ':runners:spark:2:job-server:shadowJar',
+            artifact_id='beam-runners-spark-job-server')
     return job_server.JavaJarJobServer.local_jar(url)
 
   def create_beam_job(self, job_id, job_name, pipeline, options):

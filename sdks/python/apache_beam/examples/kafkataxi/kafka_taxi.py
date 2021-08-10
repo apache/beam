@@ -25,15 +25,24 @@
 # pytype: skip-file
 
 import logging
+import sys
 import typing
 
 import apache_beam as beam
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
 
-def run(bootstrap_servers, topic, pipeline_args):
+def run(
+    bootstrap_servers,
+    topic,
+    with_metadata,
+    bq_dataset,
+    bq_table_name,
+    project,
+    pipeline_options):
   # bootstrap_servers = '123.45.67.89:123:9092'
   # topic = 'kafka_taxirides_realtime'
   # pipeline_args = ['--project', 'my-project',
@@ -43,20 +52,44 @@ def run(bootstrap_servers, topic, pipeline_args):
   #                  '--num_workers', 'my-num-workers',
   #                  '--experiments', 'use_runner_v2']
 
-  pipeline_options = PipelineOptions(
-      pipeline_args, save_main_session=True, streaming=True)
   window_size = 15  # size of the Window in seconds.
 
-  def log_ride(ride_bytes):
+  def log_ride(ride):
+    if 'timestamp' in ride:
+      logging.info(
+          'Found ride at latitude %r and longitude %r with %r '
+          'passengers at timestamp %r',
+          ride['latitude'],
+          ride['longitude'],
+          ride['passenger_count'],
+          ride['timestamp'])
+    else:
+      logging.info(
+          'Found ride at latitude %r and longitude %r with %r '
+          'passengers',
+          ride['latitude'],
+          ride['longitude'],
+          ride['passenger_count'])
+
+  def convert_kafka_record_to_dictionary(record):
+    # the records have 'value' attribute when --with_metadata is given
+    if hasattr(record, 'value'):
+      ride_bytes = record.value
+    elif isinstance(record, tuple):
+      ride_bytes = record[1]
+    else:
+      raise RuntimeError('unknown record type: %s' % type(record))
     # Converting bytes record from Kafka to a dictionary.
     import ast
     ride = ast.literal_eval(ride_bytes.decode("UTF-8"))
-    logging.info(
-        'Found ride at latitude %r and longitude %r with %r '
-        'passengers',
-        ride['latitude'],
-        ride['longitude'],
-        ride['passenger_count'])
+    output = {
+        key: ride[key]
+        for key in ['latitude', 'longitude', 'passenger_count']
+    }
+    if hasattr(record, 'timestamp'):
+      # timestamp is read from Kafka metadata
+      output['timestamp'] = record.timestamp
+    return output
 
   with beam.Pipeline(options=pipeline_options) as pipeline:
     _ = (
@@ -71,12 +104,23 @@ def run(bootstrap_servers, topic, pipeline_args):
             producer_config={'bootstrap.servers': bootstrap_servers},
             topic=topic))
 
-    _ = (
+    ride_col = (
         pipeline
         | ReadFromKafka(
             consumer_config={'bootstrap.servers': bootstrap_servers},
-            topics=[topic])
-        | beam.FlatMap(lambda kv: log_ride(kv[1])))
+            topics=[topic],
+            with_metadata=with_metadata)
+        | beam.Map(lambda record: convert_kafka_record_to_dictionary(record)))
+
+    if bq_dataset:
+      schema = 'latitude:STRING,longitude:STRING,passenger_count:INTEGER'
+      if with_metadata:
+        schema += ',timestamp:STRING'
+      _ = (
+          ride_col
+          | beam.io.WriteToBigQuery(bq_table_name, bq_dataset, project, schema))
+    else:
+      _ = ride_col | beam.FlatMap(lambda ride: log_ride(ride))
 
 
 if __name__ == '__main__':
@@ -95,6 +139,39 @@ if __name__ == '__main__':
       dest='topic',
       default='kafka_taxirides_realtime',
       help='Kafka topic to write to and read from')
+  parser.add_argument(
+      '--with_metadata',
+      default=False,
+      action='store_true',
+      help='If set, also reads metadata from the Kafka broker.')
+  parser.add_argument(
+      '--bq_dataset',
+      type=str,
+      default='',
+      help='BigQuery Dataset to write tables to. '
+      'If set, export data to a BigQuery table instead of just logging. '
+      'Must already exist.')
+  parser.add_argument(
+      '--bq_table_name',
+      default='xlang_kafka_taxi',
+      help='The BigQuery table name. Should not already exist.')
   known_args, pipeline_args = parser.parse_known_args()
 
-  run(known_args.bootstrap_servers, known_args.topic, pipeline_args)
+  pipeline_options = PipelineOptions(
+      pipeline_args, save_main_session=True, streaming=True)
+
+  # We also require the --project option to access --bq_dataset
+  project = pipeline_options.view_as(GoogleCloudOptions).project
+  if project is None:
+    parser.print_usage()
+    print(sys.argv[0] + ': error: argument --project is required')
+    sys.exit(1)
+
+  run(
+      known_args.bootstrap_servers,
+      known_args.topic,
+      known_args.with_metadata,
+      known_args.bq_dataset,
+      known_args.bq_table_name,
+      project,
+      pipeline_options)

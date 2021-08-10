@@ -20,8 +20,10 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -70,7 +72,16 @@ public class UdafImpl<InputT, AccumT, OutputT>
 
           @Override
           public RelDataType getType(RelDataTypeFactory typeFactory) {
-            return CalciteUtils.sqlTypeWithAutoCast(typeFactory, getInputType());
+            Type inputType = getInputType();
+            if (inputType instanceof TypeVariable) {
+              throw new IllegalArgumentException(
+                  "Unable to infer SQL type from type variable "
+                      + inputType
+                      + ". This usually means you are trying to use a generic type whose type information "
+                      + "is not known at runtime. You can wrap your CombineFn into typed subclass"
+                      + " by 'new TypedCombineFnDelegate<...>(combineFn) {}'");
+            }
+            return CalciteUtils.sqlTypeWithAutoCast(typeFactory, inputType);
           }
 
           @Override
@@ -94,6 +105,10 @@ public class UdafImpl<InputT, AccumT, OutputT>
   }
 
   protected Type getInputType() {
+    @Nullable Type inputType = combineFn.getInputType().getType();
+    if (inputType != null && !(inputType instanceof TypeVariable)) {
+      return inputType;
+    }
     ParameterizedType parameterizedType = findCombineFnSuperClass();
     return parameterizedType.getActualTypeArguments()[0];
   }
@@ -103,7 +118,9 @@ public class UdafImpl<InputT, AccumT, OutputT>
   }
 
   private ParameterizedType findCombineFnSuperClass() {
+
     Class clazz = combineFn.getClass();
+
     while (!clazz.getSuperclass().equals(CombineFn.class)) {
       clazz = clazz.getSuperclass();
     }
@@ -111,8 +128,7 @@ public class UdafImpl<InputT, AccumT, OutputT>
     if (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
       throw new IllegalStateException(
           "Subclass of " + CombineFn.class + " must be parameterized to be used as a UDAF");
-    } else {
-      return (ParameterizedType) clazz.getGenericSuperclass();
     }
+    return (ParameterizedType) clazz.getGenericSuperclass();
   }
 }

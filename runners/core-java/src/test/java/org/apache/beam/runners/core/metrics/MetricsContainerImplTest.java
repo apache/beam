@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -265,6 +266,15 @@ public class MetricsContainerImplTest {
       actualMonitoringInfos.add(mi);
     }
     assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build()));
+  }
+
+  @Test
+  public void testProcessWideMetricContainerThrowsWhenReset() {
+    MetricsContainerImpl testObject = MetricsContainerImpl.createProcessWideContainer();
+    CounterCell c1 = testObject.getCounter(MetricName.named("ns", "name1"));
+    c1.inc(2L);
+
+    assertThrows(RuntimeException.class, () -> testObject.reset());
   }
 
   @Test

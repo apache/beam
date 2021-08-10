@@ -28,7 +28,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ArtifactResolver;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.DefaultArtifactResolver;
-import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;

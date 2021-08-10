@@ -20,6 +20,7 @@ from typing import Iterable
 from typing import Tuple
 from typing import TypeVar
 
+import numpy as np
 import pandas as pd
 
 Frame = TypeVar('Frame', bound=pd.core.generic.NDFrame)
@@ -113,7 +114,7 @@ class Index(Partitioning):
     else:
       levels = self._levels
     return sum(
-        pd.util.hash_array(df.index.get_level_values(level))
+        pd.util.hash_array(np.asarray(df.index.get_level_values(level)))
         for level in levels)
 
   def partition_fn(self, df, num_partitions):
