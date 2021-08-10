@@ -28,6 +28,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Java SDK: Update Google Cloud Healthcare IO connectors from using v1beta1 to using the GA version.
 
 ## New Features / Improvements
 
