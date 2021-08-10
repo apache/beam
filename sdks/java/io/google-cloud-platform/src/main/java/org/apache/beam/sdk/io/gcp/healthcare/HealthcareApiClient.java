@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
-import com.google.api.services.healthcare.v1beta1.model.DicomStore;
-import com.google.api.services.healthcare.v1beta1.model.Empty;
-import com.google.api.services.healthcare.v1beta1.model.FhirStore;
-import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
-import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
-import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
-import com.google.api.services.healthcare.v1beta1.model.Message;
-import com.google.api.services.healthcare.v1beta1.model.Operation;
+import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
+import com.google.api.services.healthcare.v1.model.DicomStore;
+import com.google.api.services.healthcare.v1.model.Empty;
+import com.google.api.services.healthcare.v1.model.FhirStore;
+import com.google.api.services.healthcare.v1.model.Hl7V2Store;
+import com.google.api.services.healthcare.v1.model.HttpBody;
+import com.google.api.services.healthcare.v1.model.IngestMessageResponse;
+import com.google.api.services.healthcare.v1.model.ListMessagesResponse;
+import com.google.api.services.healthcare.v1.model.Message;
+import com.google.api.services.healthcare.v1.model.Operation;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.text.ParseException;
