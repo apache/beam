@@ -181,6 +181,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     if (SAMZA_IO_INFO == null) {
       return Optional.empty();
     }
-    return Optional.of(SAMZA_IO_INFO.getIOInfo(node));
+    return SAMZA_IO_INFO.getIOInfo(node);
   }
 }

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Optional;
 import org.apache.beam.runners.samza.SamzaIOInfo;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.SamzaRunner;
@@ -93,11 +94,11 @@ public class PipelineJsonRendererTest {
     public SamzaIOInfo getSamzaIO() {
       return new SamzaIOInfo() {
         @Override
-        public String getIOInfo(TransformHierarchy.Node node) {
+        public Optional<String> getIOInfo(TransformHierarchy.Node node) {
           if (node.isRootNode()) {
-            return "TestTopic";
+            return Optional.of("TestTopic");
           }
-          return "";
+          return Optional.empty();
         }
       };
     }

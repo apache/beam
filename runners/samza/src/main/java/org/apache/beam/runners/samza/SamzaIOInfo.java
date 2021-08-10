@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza;
 
+import java.util.Optional;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 public interface SamzaIOInfo {
 
   /** Get I/O topic name and cluster. */
-  String getIOInfo(TransformHierarchy.Node node);
+  Optional<String> getIOInfo(TransformHierarchy.Node node);
 
   /** A registrar for {@link SamzaIOInfo}. */
   interface SamzaIORegistrar {
