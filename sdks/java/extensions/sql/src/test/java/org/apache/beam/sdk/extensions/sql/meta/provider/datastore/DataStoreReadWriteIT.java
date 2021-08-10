@@ -100,7 +100,7 @@ public class DataStoreReadWriteIT {
     BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
     writePipeline.run().waitUntilFinish();
 
-    String selectTableStatement = "SELECT * FROM TEST";
+    String selectTableStatement = "SELECT * FROM TESTEDWRONG";
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
 
