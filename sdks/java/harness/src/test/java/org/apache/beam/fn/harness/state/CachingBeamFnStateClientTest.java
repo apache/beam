@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness.state;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -66,6 +67,7 @@ public class CachingBeamFnStateClientTest {
           return new CachingBeamFnStateClient.StateCacheEntry();
         }
       };
+  private static final int PER_CACHE_ENTRY_OVERHEAD = 16 * 4 + 8;
 
   @Before
   public void setup() {
@@ -252,6 +254,23 @@ public class CachingBeamFnStateClientTest {
     assertNull(fakeClient.getData().get(key("B")));
     assertEquals(ByteString.EMPTY, getALlDataForKey(key("B"), cachingClient));
     assertEquals(4, fakeClient.getCallCount());
+  }
+
+  @Test
+  public void testCacheEntryWeightChanges() throws Exception {
+    CachingBeamFnStateClient.StateCacheEntry entry = new CachingBeamFnStateClient.StateCacheEntry();
+    long prevWeight = entry.getWeight();
+    assertEquals(PER_CACHE_ENTRY_OVERHEAD, (int) entry.getWeight());
+    entry.put(
+        defaultCacheKey, BeamFnApi.StateGetResponse.newBuilder().setData(encode("A")).build());
+    assertTrue(prevWeight < entry.getWeight());
+    prevWeight = entry.getWeight();
+    entry.invalidateLastPage();
+    assertTrue(prevWeight > entry.getWeight());
+    entry.put(
+        defaultCacheKey, BeamFnApi.StateGetResponse.newBuilder().setData(encode("A")).build());
+    entry.clear();
+    assertEquals(PER_CACHE_ENTRY_OVERHEAD, (int) entry.getWeight());
   }
 
   private StateKey key(String id) throws IOException {
