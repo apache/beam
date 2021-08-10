@@ -35,20 +35,6 @@ evaluationDependsOn(":sdks:java:core")
 
 repositories {
   maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
-    metadataSources {
-      mavenPom()
-      artifact()
-    }
-  }
-  maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/mintdev-publish-repo/"
-    metadataSources {
-      mavenPom()
-      artifact()
-    }
-  }
-  maven {
     url "file://" + System.getProperty("user.home") + "/local-repo"
     metadataSources {
       mavenPom()
@@ -61,17 +47,7 @@ configurations {
   validatesRunner
 }
 
-def get_samza_version = { ->
-  def path = file("${project.rootDir}" + "/../build/dependency-spec.json").getCanonicalPath()
-  def stdout = new ByteArrayOutputStream()
-  exec {
-    commandLine "bash", "-c", "grep 'com.linkedin.samza-li:samza-api' ${path} | awk -F ':' '{print \$4}' | tr -d \"\\\",\""
-    standardOutput = stdout
-  }
-  return stdout.toString().trim()
-}
-
-def samza_version = get_samza_version()
+def samza_version = "1.5.0"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
@@ -91,14 +67,13 @@ dependencies {
   compile "org.rocksdb:rocksdbjni:6.15.2"
   compile "org.apache.commons:commons-collections4:4.0"
   compile "org.scala-lang:scala-library:2.11.8"
-  compile "com.linkedin.samza-li:samza-api:$samza_version"
-  compile "com.linkedin.samza-li:samza-core_2.11:$samza_version"
-  runtimeOnly "com.linkedin.samza-li:samza-kafka_2.11:$samza_version"
-  compile "com.linkedin.samza-li:samza-kv_2.11:$samza_version"
-  compile "com.linkedin.samza-li:samza-kv-rocksdb_2.11:$samza_version"
-  compile "com.linkedin.samza-li:samza-kv-inmemory_2.11:$samza_version"
-  compile "com.linkedin.samza-li:samza-li-core-adapters:$samza_version"
-  compile "com.linkedin.samza-li:samza-yarn_2.11:$samza_version"
+  compile "org.apache.samza:samza-api:$samza_version"
+  compile "org.apache.samza:samza-core_2.11:$samza_version"
+  runtimeOnly "org.apache.samza:samza-kafka_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
+  compile "org.apache.samza:samza-yarn_2.11:$samza_version"
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
   compile library.java.vendored_grpc_1_26_0
   compile project(path: ":model:fn-execution", configuration: "shadow")

@@ -359,12 +359,11 @@ class BeamModulePlugin implements Plugin<Project> {
     /** ***********************************************************************************************/
     // Apply common properties/repositories and tasks to all projects.
 
-    //project.group = 'com.linkedin.beam'
-    project.ext.mavenGroupId = 'com.linkedin.beam'
+    project.ext.mavenGroupId = 'org.apache.beam'
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '3.2260.0'
+    project.version = '3.2260.1'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }

@@ -63,7 +63,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterator
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.samza.context.ContainerContext;
 import org.apache.samza.context.JobContext;
-import org.apache.samza.job.model.TaskModel;
 import org.apache.samza.metrics.MetricsRegistry;
 import org.apache.samza.serializers.Serde;
 import org.apache.samza.storage.StorageEngineFactory;
@@ -200,7 +199,6 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     @Override
     public KeyValueStore<byte[], byte[]> getKVStore(
         String storeName,
-        TaskModel taskModel,
         File storeDir,
         MetricsRegistry registry,
         SystemStreamPartition changeLogSystemStreamPartition,
