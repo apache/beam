@@ -115,8 +115,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
     this.pipelineOptions = samzaExecutionContext.getPipelineOptions();
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        SamzaStoreStateInternals.createStateInternalFactory(
-            transformId, null, context.getTaskContext(), pipelineOptions, null);
+        SamzaStoreStateInternals.createNonKeyedStateInternalsFactory(
+            transformId, context.getTaskContext(), pipelineOptions);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
