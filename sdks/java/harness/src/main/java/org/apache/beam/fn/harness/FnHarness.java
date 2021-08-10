@@ -71,6 +71,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import oshi.SystemInfo;
 import oshi.util.FileUtil;
 
 /**
@@ -257,16 +258,13 @@ public class FnHarness {
       int stateCacheMemPercent =
           stateCacheMemString == null ? 10 : Integer.parseInt(stateCacheMemString);
 
-      // Alternative is to use SystemInfo().getHardware().getMemory().getAvailable() or
-      // Runtime.getRuntime().maxMemory()
-      // If the max memory of the harness is set during creation
+      // Attempt to get container memory limit, if not default to using system memory if not in a
+      // container
       long availableMem = FileUtil.getLongFromFile("/sys/fs/cgroup/memory/memory.limit_in_bytes");
-      long availableCacheMem = (long) (availableMem * stateCacheMemPercent * .01);
-
-      // Default to 100 MB if not running in a container
       if (availableMem == 0) {
-        availableCacheMem = 1024 * 1024 * 100;
+        availableMem = new SystemInfo().getHardware().getMemory().getAvailable();
       }
+      long availableCacheMem = (long) (availableMem * stateCacheMemPercent * .01);
 
       // Create memory sensitive state cache using memory limit
       LoadingCache<StateKey, CachingBeamFnStateClient.StateCacheEntry> stateCache =
