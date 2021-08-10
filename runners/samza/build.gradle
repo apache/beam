@@ -47,7 +47,7 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "1.5.0"
+def samza_version = "1.6.0"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
