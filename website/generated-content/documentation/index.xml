@@ -3394,7 +3394,7 @@ limitations under the License.
 &lt;p>Transforms that can be shared across Beam SDKs. With cross-language transforms, you can use transforms written in any supported SDK language (currently, Java and Python) in a pipeline written in a different SDK language. For example, you could use the Apache Kafka connector from the Java SDK in a Python streaming pipeline. Cross-language transforms make it possible to provide new functionality simultaneously in different SDKs.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
-&lt;li>&lt;a href="/documentation/programming-guide/#mulit-language-pipelines">Multi-language pipelines&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#multi-language-pipelines">Multi-language pipelines&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="deferred-execution">Deferred execution&lt;/h2>
 &lt;p>A feature of the Beam execution model. Beam operations are deferred, meaning that the result of a given operation may not be available for control flow. Deferred execution allows the Beam API to support parallel processing of data.&lt;/p>
@@ -3488,7 +3488,7 @@ limitations under the License.
 &lt;p>A pipeline that uses cross-language transforms. You can combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline.&lt;/p>
 &lt;p>To learn more, see:&lt;/p>
 &lt;ul>
-&lt;li>&lt;a href="/documentation/programming-guide/#mulit-language-pipelines">Multi-language pipelines&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#multi-language-pipelines">Multi-language pipelines&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="pardo">ParDo&lt;/h2>
 &lt;p>The lowest-level element-wise PTransform. For each element in an input PCollection, ParDo applies a function and emits zero, one, or multiple elements to an output PCollection. “ParDo” is short for “Parallel Do.” It’s similar to the map operation in a &lt;a href="https://en.wikipedia.org/wiki/MapReduce">MapReduce&lt;/a> algorithm, the &lt;code>apply&lt;/code> method from a DataFrame, or the &lt;code>UPDATE&lt;/code> keyword from SQL.&lt;/p>
@@ -10549,7 +10549,7 @@ use case.&lt;/p>
 &lt;span class="n">bundle_finalizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">register&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">my_callback_func&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;h2 id="mulit-language-pipelines">13. Multi-language pipelines&lt;/h2>
+&lt;h2 id="multi-language-pipelines">13. Multi-language pipelines&lt;/h2>
 &lt;p>Beam allows you to combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">Apache Kafka connector&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py">SQL transform&lt;/a> from the Java SDK can be used in Python streaming pipelines.&lt;/p>
 &lt;p>Pipelines that use transforms from more than one SDK-language are known as &lt;em>multi-language pipelines&lt;/em>.&lt;/p>
 &lt;h3 id="create-x-lang-transforms">13.1. Creating cross-language transforms&lt;/h3>
