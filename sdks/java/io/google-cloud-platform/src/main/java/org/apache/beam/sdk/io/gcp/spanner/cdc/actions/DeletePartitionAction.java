@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+
+import io.opencensus.common.Scope;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -31,6 +37,8 @@ import org.slf4j.LoggerFactory;
 public class DeletePartitionAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(DeletePartitionAction.class);
+  private static final Tracer TRACER = Tracing.getTracer();
+
   private final PartitionMetadataDao partitionMetadataDao;
 
   public DeletePartitionAction(PartitionMetadataDao partitionMetadataDao) {
@@ -40,16 +48,25 @@ public class DeletePartitionAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Deleting partition");
+    try (Scope scope =
+        TRACER.spanBuilder("DeletePartitionAction").setRecordEvents(true).startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL,
+              AttributeValue.stringAttributeValue(partition.getPartitionToken()));
 
-    if (!tracker.tryClaim(PartitionPosition.deletePartition())) {
-      LOG.debug("[" + token + "] Could not claim deletePartition(), stopping");
-      return Optional.of(ProcessContinuation.stop());
+      final String token = partition.getPartitionToken();
+      LOG.debug("[" + token + "] Deleting partition");
+
+      if (!tracker.tryClaim(PartitionPosition.deletePartition())) {
+        LOG.debug("[" + token + "] Could not claim deletePartition(), stopping");
+        return Optional.of(ProcessContinuation.stop());
+      }
+      partitionMetadataDao.delete(token);
+
+      LOG.debug("[" + token + "] Delete partition action completed successfully");
+      return Optional.empty();
     }
-    partitionMetadataDao.delete(token);
-
-    LOG.debug("[" + token + "] Delete partition action completed successfully");
-    return Optional.empty();
   }
 }

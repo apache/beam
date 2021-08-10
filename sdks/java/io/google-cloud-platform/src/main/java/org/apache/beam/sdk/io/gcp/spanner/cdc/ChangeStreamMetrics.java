@@ -99,4 +99,9 @@ public class ChangeStreamMetrics {
 
   public static final Distribution DAO_COUNT_PARTITIONS_MS =
       Metrics.distribution(ReadChangeStream.class, "dao_count_partitions_ms");
+
+  // ----
+  // Tracing Labels
+
+  public static final String PARTITION_ID_ATTRIBUTE_LABEL = "PartitionID";
 }

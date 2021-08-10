@@ -23,6 +23,9 @@ import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITI
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_RECORD_COUNT;
 
 import com.google.cloud.spanner.ResultSet;
+import io.opencensus.common.Scope;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.MapperFactory;
@@ -61,6 +64,8 @@ import org.slf4j.LoggerFactory;
 public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, PartitionMetadata> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DetectNewPartitionsDoFn.class);
+  private static final Tracer TRACER = Tracing.getTracer();
+
   private static final long serialVersionUID = 1523712495885011374L;
   // TODO(hengfeng): Make this field configurable via constructor or spanner config.
   private Duration resumeDuration;
@@ -116,36 +121,42 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
       OutputReceiver<PartitionMetadata> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
-    // Set the watermark to the max value to unblock the downstream windows.
-    watermarkEstimator.setWatermark(
-        new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() - 1000));
+    try (Scope scope =
+        TRACER
+            .spanBuilder("DetectNewPartitionsDoFn.processElement")
+            .setRecordEvents(true)
+            .startScopedSpan()) {
+      // Set the watermark to the max value to unblock the downstream windows.
+      watermarkEstimator.setWatermark(
+          new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() - 1000));
 
-    try (ResultSet resultSet = partitionMetadataDao.getPartitionsInState(State.CREATED)) {
-      long currentIndex = tracker.currentRestriction().getFrom();
+      try (ResultSet resultSet = partitionMetadataDao.getPartitionsInState(State.CREATED)) {
+        long currentIndex = tracker.currentRestriction().getFrom();
 
-      while (resultSet.next()) {
-        if (!tracker.tryClaim(currentIndex)) {
-          return ProcessContinuation.stop();
+        while (resultSet.next()) {
+          if (!tracker.tryClaim(currentIndex)) {
+            return ProcessContinuation.stop();
+          }
+
+          final PartitionMetadata partition = partitionMetadataMapper.from(resultSet);
+          final PartitionMetadata updatedPartition = updateToScheduled(partition);
+          receiver.output(updatedPartition);
+
+          PARTITION_RECORD_COUNT.inc();
+          currentIndex++;
         }
-
-        final PartitionMetadata partition = partitionMetadataMapper.from(resultSet);
-        final PartitionMetadata updatedPartition = updateToScheduled(partition);
-        receiver.output(updatedPartition);
-
-        PARTITION_RECORD_COUNT.inc();
-        currentIndex++;
       }
-    }
 
-    // If there are no partitions in the table, we should stop this SDF function.
-    final long numberOfPartitions = countPartitions();
-    if (numberOfPartitions == 0) {
-      if (!tracker.tryClaim(tracker.currentRestriction().getTo() - 1)) {
-        LOG.warn("Failed to claim the end of range in DetectNewPartitionsDoFn.");
+      // If there are no partitions in the table, we should stop this SDF function.
+      final long numberOfPartitions = countPartitions();
+      if (numberOfPartitions == 0) {
+        if (!tracker.tryClaim(tracker.currentRestriction().getTo() - 1)) {
+          LOG.warn("Failed to claim the end of range in DetectNewPartitionsDoFn.");
+        }
+        return ProcessContinuation.stop();
       }
-      return ProcessContinuation.stop();
+      return ProcessContinuation.resume().withResumeDelay(resumeDuration);
     }
-    return ProcessContinuation.resume().withResumeDelay(resumeDuration);
   }
 
   private PartitionMetadata updateToScheduled(PartitionMetadata partition) {

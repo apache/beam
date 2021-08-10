@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+
+import io.opencensus.common.Scope;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
@@ -28,19 +34,29 @@ import org.slf4j.LoggerFactory;
 // TODO: Add java docs
 public class DonePartitionAction {
   private static final Logger LOG = LoggerFactory.getLogger(DonePartitionAction.class);
+  private static final Tracer TRACER = Tracing.getTracer();
 
   public ProcessContinuation run(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Marking partition as done");
+    try (Scope scope =
+        TRACER.spanBuilder("DonePartitionAction").setRecordEvents(true).startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL,
+              AttributeValue.stringAttributeValue(partition.getPartitionToken()));
 
-    if (!tracker.tryClaim(PartitionPosition.done())) {
-      LOG.info("[" + token + "] Could not claim done(), stopping");
+      final String token = partition.getPartitionToken();
+      LOG.debug("[" + token + "] Marking partition as done");
+
+      if (!tracker.tryClaim(PartitionPosition.done())) {
+        LOG.info("[" + token + "] Could not claim done(), stopping");
+        return ProcessContinuation.stop();
+      }
+
+      LOG.info("[" + token + "] Done partition action completed successfully");
       return ProcessContinuation.stop();
     }
-
-    LOG.info("[" + token + "] Done partition action completed successfully");
-    return ProcessContinuation.stop();
   }
 }

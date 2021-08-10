@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+
 import com.google.cloud.Timestamp;
+import io.opencensus.common.Scope;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -33,23 +39,34 @@ import org.slf4j.LoggerFactory;
 // TODO: Add java docs
 public class HeartbeatRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(HeartbeatRecordAction.class);
+  private static final Tracer TRACER = Tracing.getTracer();
 
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       HeartbeatRecord record,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Processing heartbeat record " + record);
 
-    final Timestamp timestamp = record.getTimestamp();
-    if (!tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))) {
-      LOG.debug("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
-      return Optional.of(ProcessContinuation.stop());
+    try (Scope scope =
+        TRACER.spanBuilder("HeartbeatRecordAction").setRecordEvents(true).startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL,
+              AttributeValue.stringAttributeValue(partition.getPartitionToken()));
+
+      final String token = partition.getPartitionToken();
+      LOG.debug("[" + token + "] Processing heartbeat record " + record);
+
+      final Timestamp timestamp = record.getTimestamp();
+      if (!tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))) {
+        LOG.debug("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
+        return Optional.of(ProcessContinuation.stop());
+      }
+      watermarkEstimator.setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
+
+      LOG.debug("[" + token + "] Heartbeat record action completed successfully");
+      return Optional.empty();
     }
-    watermarkEstimator.setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
-
-    LOG.debug("[" + token + "] Heartbeat record action completed successfully");
-    return Optional.empty();
   }
 }

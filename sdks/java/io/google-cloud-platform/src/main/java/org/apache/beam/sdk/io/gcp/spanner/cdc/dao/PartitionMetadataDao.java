@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
@@ -26,6 +28,10 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
+import io.opencensus.common.Scope;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +44,7 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State;
 
 // TODO: Add java docs
 public class PartitionMetadataDao {
+  private static final Tracer TRACER = Tracing.getTracer();
 
   // Metadata table column names
   public static final String COLUMN_PARTITION_TOKEN = "PartitionToken";
@@ -66,70 +73,93 @@ public class PartitionMetadataDao {
 
   public long countChildPartitionsInStates(
       String partitionToken, List<PartitionMetadata.State> states) {
-    final Statement statement =
-        Statement.newBuilder(
-                "SELECT COUNT(*)"
-                    + " FROM "
-                    + tableName
-                    + " WHERE @partition IN UNNEST ("
-                    + COLUMN_PARENT_TOKENS
-                    + ")"
-                    + " AND "
-                    + COLUMN_STATE
-                    + " IN UNNEST (@states)")
-            .bind("partition")
-            .to(partitionToken)
-            .bind("states")
-            .toStringArray(states.stream().map(State::toString).collect(Collectors.toList()))
-            .build();
-    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
-      resultSet.next();
-      return resultSet.getLong(0);
+    try (Scope scope =
+        TRACER
+            .spanBuilder("countChildPartitionsInStates")
+            .setRecordEvents(true)
+            .startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+      final Statement statement =
+          Statement.newBuilder(
+                  "SELECT COUNT(*)"
+                      + " FROM "
+                      + tableName
+                      + " WHERE @partition IN UNNEST ("
+                      + COLUMN_PARENT_TOKENS
+                      + ")"
+                      + " AND "
+                      + COLUMN_STATE
+                      + " IN UNNEST (@states)")
+              .bind("partition")
+              .to(partitionToken)
+              .bind("states")
+              .toStringArray(states.stream().map(State::toString).collect(Collectors.toList()))
+              .build();
+      try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+        resultSet.next();
+        return resultSet.getLong(0);
+      }
     }
   }
 
   public long countExistingParents(String partitionToken) {
-    final Statement statement =
-        Statement.newBuilder(
-                "SELECT COUNT(*)"
-                    + " FROM "
-                    + tableName
-                    + " WHERE "
-                    + COLUMN_PARTITION_TOKEN
-                    + " IN UNNEST (("
-                    + " SELECT "
-                    + COLUMN_PARENT_TOKENS
-                    + " FROM "
-                    + tableName
-                    + " WHERE "
-                    + COLUMN_PARTITION_TOKEN
-                    + " = "
-                    + "@partition"
-                    + "))")
-            .bind("partition")
-            .to(partitionToken)
-            .build();
-    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
-      resultSet.next();
-      return resultSet.getLong(0);
+    try (Scope scope =
+        TRACER.spanBuilder("countExistingParents").setRecordEvents(true).startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+      final Statement statement =
+          Statement.newBuilder(
+                  "SELECT COUNT(*)"
+                      + " FROM "
+                      + tableName
+                      + " WHERE "
+                      + COLUMN_PARTITION_TOKEN
+                      + " IN UNNEST (("
+                      + " SELECT "
+                      + COLUMN_PARENT_TOKENS
+                      + " FROM "
+                      + tableName
+                      + " WHERE "
+                      + COLUMN_PARTITION_TOKEN
+                      + " = "
+                      + "@partition"
+                      + "))")
+              .bind("partition")
+              .to(partitionToken)
+              .build();
+      try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+        resultSet.next();
+        return resultSet.getLong(0);
+      }
     }
   }
 
   public long countPartitions() {
-    final Statement statement = Statement.newBuilder("SELECT COUNT(*) FROM " + tableName).build();
-    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
-      resultSet.next();
-      return resultSet.getLong(0);
+    try (Scope scope =
+        TRACER.spanBuilder("countPartitions").setRecordEvents(true).startScopedSpan()) {
+      final Statement statement = Statement.newBuilder("SELECT COUNT(*) FROM " + tableName).build();
+      try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+        resultSet.next();
+        return resultSet.getLong(0);
+      }
     }
   }
 
   public ResultSet getPartitionsInState(State state) {
-    Statement statement =
-        Statement.newBuilder("SELECT * FROM " + tableName + " WHERE State = @state")
-            .bind("state")
-            .to(state.toString())
-            .build();
-    return databaseClient.singleUse().executeQuery(statement);
+    try (Scope scope =
+        TRACER.spanBuilder("getPartitionsInState").setRecordEvents(true).startScopedSpan()) {
+      Statement statement =
+          Statement.newBuilder("SELECT * FROM " + tableName + " WHERE State = @state")
+              .bind("state")
+              .to(state.toString())
+              .build();
+      return databaseClient.singleUse().executeQuery(statement);
+    }
   }
 
   public Timestamp insert(PartitionMetadata row) {
@@ -170,6 +200,7 @@ public class PartitionMetadataDao {
 
   public static class InTransactionContext {
 
+    private static final Tracer TRACER = Tracing.getTracer();
     private final String tableName;
     private final TransactionContext transaction;
     private final PartitionMetadataMapper mapper;
@@ -188,70 +219,115 @@ public class PartitionMetadataDao {
     }
 
     public Void insert(PartitionMetadata row) {
-      transaction.buffer(createInsertMutationFrom(row));
-      return null;
+      try (Scope scope = TRACER.spanBuilder("insert").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL,
+                AttributeValue.stringAttributeValue(row.getPartitionToken()));
+        transaction.buffer(createInsertMutationFrom(row));
+        return null;
+      }
     }
 
     public Void updateToScheduled(String partitionToken) {
-      transaction.buffer(createUpdateMutationFrom(partitionToken, State.SCHEDULED));
-      return null;
+      try (Scope scope =
+          TRACER.spanBuilder("updateToScheduled").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+        transaction.buffer(createUpdateMutationFrom(partitionToken, State.SCHEDULED));
+        return null;
+      }
     }
 
     public Void updateToRunning(String partitionToken) {
-      transaction.buffer(createUpdateMutationFrom(partitionToken, State.RUNNING));
-      return null;
+      try (Scope scope =
+          TRACER.spanBuilder("updateToRunning").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+        transaction.buffer(createUpdateMutationFrom(partitionToken, State.RUNNING));
+        return null;
+      }
     }
 
     public Void updateToFinished(String partitionToken) {
-      transaction.buffer(createUpdateMutationFrom(partitionToken, State.FINISHED));
-      return null;
+      try (Scope scope =
+          TRACER.spanBuilder("updateToFinished").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+        transaction.buffer(createUpdateMutationFrom(partitionToken, State.FINISHED));
+        return null;
+      }
     }
 
     public Void delete(String partitionToken) {
-      transaction.buffer(createDeleteMutationFrom(partitionToken));
-      return null;
+      try (Scope scope = TRACER.spanBuilder("delete").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+        transaction.buffer(createDeleteMutationFrom(partitionToken));
+        return null;
+      }
     }
 
     public long countPartitionsInStates(
         Set<String> partitionTokens, List<PartitionMetadata.State> states) {
-      try (ResultSet resultSet =
-          transaction.executeQuery(
-              Statement.newBuilder(
-                      "SELECT COUNT(*)"
-                          + " FROM "
-                          + tableName
-                          + " WHERE "
-                          + COLUMN_PARTITION_TOKEN
-                          + " IN UNNEST (@partitions)"
-                          + " AND "
-                          + COLUMN_STATE
-                          + " IN UNNEST (@states)")
-                  .bind("partitions")
-                  .toStringArray(partitionTokens)
-                  .bind("states")
-                  .toStringArray(states.stream().map(State::toString).collect(Collectors.toList()))
-                  .build())) {
-        resultSet.next();
-        return resultSet.getLong(0);
+      try (Scope scope =
+          TRACER.spanBuilder("countPartitionsInStates").setRecordEvents(true).startScopedSpan()) {
+        try (ResultSet resultSet =
+            transaction.executeQuery(
+                Statement.newBuilder(
+                        "SELECT COUNT(*)"
+                            + " FROM "
+                            + tableName
+                            + " WHERE "
+                            + COLUMN_PARTITION_TOKEN
+                            + " IN UNNEST (@partitions)"
+                            + " AND "
+                            + COLUMN_STATE
+                            + " IN UNNEST (@states)")
+                    .bind("partitions")
+                    .toStringArray(partitionTokens)
+                    .bind("states")
+                    .toStringArray(
+                        states.stream().map(State::toString).collect(Collectors.toList()))
+                    .build())) {
+          resultSet.next();
+          return resultSet.getLong(0);
+        }
       }
     }
 
     public PartitionMetadata getPartition(String partitionToken) {
-      try (ResultSet resultSet =
-          transaction.executeQuery(
-              Statement.newBuilder(
-                      "SELECT * FROM "
-                          + tableName
-                          + " WHERE "
-                          + COLUMN_PARTITION_TOKEN
-                          + " = @partition")
-                  .bind("partition")
-                  .to(partitionToken)
-                  .build())) {
-        if (resultSet.next()) {
-          return mapper.from(resultSet);
+      try (Scope scope =
+          TRACER.spanBuilder("getPartition").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+        try (ResultSet resultSet =
+            transaction.executeQuery(
+                Statement.newBuilder(
+                        "SELECT * FROM "
+                            + tableName
+                            + " WHERE "
+                            + COLUMN_PARTITION_TOKEN
+                            + " = @partition")
+                    .bind("partition")
+                    .to(partitionToken)
+                    .build())) {
+          if (resultSet.next()) {
+            return mapper.from(resultSet);
+          }
+          return null;
         }
-        return null;
       }
     }
 

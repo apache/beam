@@ -40,6 +40,12 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
+import io.opencensus.common.Scope;
+import io.opencensus.trace.Sampler;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
+import io.opencensus.trace.config.TraceConfig;
+import io.opencensus.trace.config.TraceParams;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -1296,6 +1302,8 @@ public class SpannerIO {
 
     abstract @Nullable RpcPriority getRpcPriority();
 
+    abstract @Nullable Sampler getTraceSampler();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1316,6 +1324,8 @@ public class SpannerIO {
       abstract Builder setDeserializer(Deserializer deserializer);
 
       abstract Builder setRpcPriority(RpcPriority rpcPriority);
+
+      abstract Builder setTraceSampler(Sampler traceSampler);
 
       abstract ReadChangeStream build();
     }
@@ -1395,6 +1405,10 @@ public class SpannerIO {
       return toBuilder().setRpcPriority(rpcPriority).build();
     }
 
+    public ReadChangeStream withTraceSampler(Sampler traceSampler) {
+      return toBuilder().setTraceSampler(traceSampler).build();
+    }
+
     @Override
     public PCollection<DataChangeRecord> expand(PBegin input) {
       checkArgument(
@@ -1440,51 +1454,63 @@ public class SpannerIO {
       final String partitionMetadataTableName =
           generatePartitionMetadataTableName(partitionMetadataDatabaseId);
 
-      final SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
-      final SpannerConfig partitionMetadataSpannerConfig =
-          SpannerConfig.create()
-              .withProjectId(changeStreamSpannerConfig.getProjectId())
-              .withHost(changeStreamSpannerConfig.getHost())
-              .withInstanceId(partitionMetadataInstanceId)
-              .withDatabaseId(partitionMetadataDatabaseId)
-              .withCommitDeadline(changeStreamSpannerConfig.getCommitDeadline())
-              .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
-              .withMaxCumulativeBackoff(changeStreamSpannerConfig.getMaxCumulativeBackoff());
-      final MapperFactory mapperFactory = new MapperFactory();
-      final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.LOW);
-      final DaoFactory daoFactory =
-          new DaoFactory(
-              changeStreamSpannerConfig,
-              getChangeStreamName(),
-              partitionMetadataSpannerConfig,
-              partitionMetadataTableName,
-              mapperFactory,
-              rpcPriority,
-              input.getPipeline().getOptions().getJobName());
-      final ActionFactory actionFactory = new ActionFactory();
+      if (getTraceSampler() != null) {
+        TraceConfig globalTraceConfig = Tracing.getTraceConfig();
+        globalTraceConfig.updateActiveTraceParams(
+            TraceParams.DEFAULT.toBuilder().setSampler(getTraceSampler()).build());
+      }
+      Tracer tracer = Tracing.getTracer();
+      try (Scope scope =
+          tracer
+              .spanBuilder("SpannerIO.ReadChangeStream.expand")
+              .setRecordEvents(true)
+              .startScopedSpan()) {
+        final SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
+        final SpannerConfig partitionMetadataSpannerConfig =
+            SpannerConfig.create()
+                .withProjectId(changeStreamSpannerConfig.getProjectId())
+                .withHost(changeStreamSpannerConfig.getHost())
+                .withInstanceId(partitionMetadataInstanceId)
+                .withDatabaseId(partitionMetadataDatabaseId)
+                .withCommitDeadline(changeStreamSpannerConfig.getCommitDeadline())
+                .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
+                .withMaxCumulativeBackoff(changeStreamSpannerConfig.getMaxCumulativeBackoff());
+        final MapperFactory mapperFactory = new MapperFactory();
+        final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.LOW);
+        final DaoFactory daoFactory =
+            new DaoFactory(
+                changeStreamSpannerConfig,
+                getChangeStreamName(),
+                partitionMetadataSpannerConfig,
+                partitionMetadataTableName,
+                mapperFactory,
+                rpcPriority,
+                input.getPipeline().getOptions().getJobName());
+        final ActionFactory actionFactory = new ActionFactory();
 
-      final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(daoFactory, mapperFactory);
-      final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-          new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory);
-      final PostProcessingMetricsDoFn postProcessingMetricsDoFn = new PostProcessingMetricsDoFn();
+        final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
+            new DetectNewPartitionsDoFn(daoFactory, mapperFactory);
+        final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
+            new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory);
+        final PostProcessingMetricsDoFn postProcessingMetricsDoFn = new PostProcessingMetricsDoFn();
 
-      PipelineInitializer.initialize(
-          daoFactory.getPartitionMetadataAdminDao(),
-          daoFactory.getPartitionMetadataDao(),
-          getInclusiveStartAt(),
-          getInclusiveEndAt());
-      final List<ChangeStreamSourceDescriptor> sources = new ArrayList<>();
-      sources.add(
-          ChangeStreamSourceDescriptor.of(
-              getChangeStreamName(), getInclusiveStartAt(), getInclusiveEndAt()));
-      return input
-          .apply("Generate change stream sources", Create.of(sources))
-          .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
-          .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
-          .apply("Post processing metrics", ParDo.of(postProcessingMetricsDoFn));
+        PipelineInitializer.initialize(
+            daoFactory.getPartitionMetadataAdminDao(),
+            daoFactory.getPartitionMetadataDao(),
+            getInclusiveStartAt(),
+            getInclusiveEndAt());
+        final List<ChangeStreamSourceDescriptor> sources = new ArrayList<>();
+        sources.add(
+            ChangeStreamSourceDescriptor.of(
+                getChangeStreamName(), getInclusiveStartAt(), getInclusiveEndAt()));
+        return input
+            .apply("Generate change stream sources", Create.of(sources))
+            .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
+            .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
+            .apply("Post processing metrics", ParDo.of(postProcessingMetricsDoFn));
 
-      // TODO: We need to perform cleanup after everything has terminated (delete metadata table)
+        // TODO: We need to perform cleanup after everything has terminated (delete metadata table)
+      }
     }
   }
 

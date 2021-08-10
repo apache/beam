@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+
 import com.google.cloud.Timestamp;
+import io.opencensus.common.Scope;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -34,6 +40,7 @@ import org.slf4j.LoggerFactory;
 // TODO: Add java docs
 public class DataChangeRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
+  private static final Tracer TRACER = Tracing.getTracer();
 
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
@@ -41,20 +48,30 @@ public class DataChangeRecordAction {
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
 
-    final Timestamp commitTimestamp = record.getCommitTimestamp();
-    if (!tracker.tryClaim(PartitionPosition.queryChangeStream(commitTimestamp))) {
-      LOG.debug(
-          "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
-      return Optional.of(ProcessContinuation.stop());
+    try (Scope scope =
+        TRACER.spanBuilder("DataChangeRecordAction").setRecordEvents(true).startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL,
+              AttributeValue.stringAttributeValue(partition.getPartitionToken()));
+
+      final String token = partition.getPartitionToken();
+      LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
+
+      final Timestamp commitTimestamp = record.getCommitTimestamp();
+      if (!tracker.tryClaim(PartitionPosition.queryChangeStream(commitTimestamp))) {
+        LOG.debug(
+            "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
+        return Optional.of(ProcessContinuation.stop());
+      }
+      // TODO: Ask about this, do we need to output with timestamp?
+      outputReceiver.output(record);
+      watermarkEstimator.setWatermark(new Instant(commitTimestamp.toSqlTimestamp().getTime()));
+
+      LOG.debug("[" + token + "] Data record action completed successfully");
+      return Optional.empty();
     }
-    // TODO: Ask about this, do we need to output with timestamp?
-    outputReceiver.output(record);
-    watermarkEstimator.setWatermark(new Instant(commitTimestamp.toSqlTimestamp().getTime()));
-
-    LOG.debug("[" + token + "] Data record action completed successfully");
-    return Optional.empty();
   }
 }

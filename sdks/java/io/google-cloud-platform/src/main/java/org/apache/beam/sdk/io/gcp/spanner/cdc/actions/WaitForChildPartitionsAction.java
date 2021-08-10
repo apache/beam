@@ -17,8 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
 
+import io.opencensus.common.Scope;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
@@ -35,6 +40,8 @@ import org.slf4j.LoggerFactory;
 public class WaitForChildPartitionsAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(WaitForChildPartitionsAction.class);
+  private static final Tracer TRACER = Tracing.getTracer();
+
   private final PartitionMetadataDao partitionMetadataDao;
   private final Duration resumeDuration;
 
@@ -47,29 +54,42 @@ public class WaitForChildPartitionsAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker) {
-    final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Waiting for child partitions");
 
-    if (!tracker.tryClaim(PartitionPosition.waitForChildPartitions())) {
-      LOG.debug("[" + token + "] Could not claim waitForChildPartitions(), stopping");
-      return Optional.of(ProcessContinuation.stop());
+    try (Scope scope =
+        TRACER
+            .spanBuilder("WaitForChildPartitionsAction")
+            .setRecordEvents(true)
+            .startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL,
+              AttributeValue.stringAttributeValue(partition.getPartitionToken()));
+
+      final String token = partition.getPartitionToken();
+      LOG.debug("[" + token + "] Waiting for child partitions");
+
+      if (!tracker.tryClaim(PartitionPosition.waitForChildPartitions())) {
+        LOG.debug("[" + token + "] Could not claim waitForChildPartitions(), stopping");
+        return Optional.of(ProcessContinuation.stop());
+      }
+      long numberOfUnscheduledChildren =
+          partitionMetadataDao.countChildPartitionsInStates(
+              token, Collections.singletonList(CREATED));
+      LOG.debug("[" + token + "] Number of unscheduled children is " + numberOfUnscheduledChildren);
+      if (numberOfUnscheduledChildren > 0) {
+        LOG.debug(
+            "["
+                + token
+                + " ] Resuming, there are "
+                + numberOfUnscheduledChildren
+                + " unscheduled / not finished children");
+
+        return Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration));
+      }
+
+      LOG.debug("[" + token + "] Wait for child partitions action completed successfully");
+      return Optional.empty();
     }
-    long numberOfUnscheduledChildren =
-        partitionMetadataDao.countChildPartitionsInStates(
-            token, Collections.singletonList(CREATED));
-    LOG.debug("[" + token + "] Number of unscheduled children is " + numberOfUnscheduledChildren);
-    if (numberOfUnscheduledChildren > 0) {
-      LOG.debug(
-          "["
-              + token
-              + " ] Resuming, there are "
-              + numberOfUnscheduledChildren
-              + " unscheduled / not finished children");
-
-      return Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration));
-    }
-
-    LOG.debug("[" + token + "] Wait for child partitions action completed successfully");
-    return Optional.empty();
   }
 }

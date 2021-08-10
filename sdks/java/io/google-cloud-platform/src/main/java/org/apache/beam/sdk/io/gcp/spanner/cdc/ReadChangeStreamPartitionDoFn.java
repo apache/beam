@@ -18,8 +18,13 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITIONS_RUNNING_COUNTER;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_SCHEDULED_TO_RUNNING_MS;
 
+import io.opencensus.common.Scope;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.actions.ChildPartitionsRecordAction;
@@ -60,6 +65,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
+  private static final Tracer TRACER = Tracing.getTracer();
 
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
@@ -201,28 +207,41 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-    final String token = partition.getPartitionToken();
-    LOG.debug(
-        "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
 
-    final PartitionMode mode = tracker.currentRestriction().getMode();
-    switch (mode) {
-      case QUERY_CHANGE_STREAM:
-        return queryChangeStream(partition, tracker, receiver, watermarkEstimator);
-      case WAIT_FOR_CHILD_PARTITIONS:
-        return waitForChildPartitions(partition, tracker);
-      case FINISH_PARTITION:
-        return finishPartition(partition, tracker);
-      case WAIT_FOR_PARENT_PARTITIONS:
-        return waitForParentPartitions(partition, tracker);
-      case DELETE_PARTITION:
-        return deletePartition(partition, tracker);
-      case DONE:
-        return done(partition, tracker);
-      default:
-        // TODO: Verify what to do here
-        LOG.error("[" + token + "] Unknown mode " + mode);
-        throw new IllegalArgumentException("Unknown mode " + mode);
+    try (Scope scope =
+        TRACER
+            .spanBuilder("ReadChangeStreamPartitionDoFn.processElement")
+            .setRecordEvents(true)
+            .startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL,
+              AttributeValue.stringAttributeValue(partition.getPartitionToken()));
+
+      final String token = partition.getPartitionToken();
+      LOG.debug(
+          "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
+
+      final PartitionMode mode = tracker.currentRestriction().getMode();
+      switch (mode) {
+        case QUERY_CHANGE_STREAM:
+          return queryChangeStream(partition, tracker, receiver, watermarkEstimator);
+        case WAIT_FOR_CHILD_PARTITIONS:
+          return waitForChildPartitions(partition, tracker);
+        case FINISH_PARTITION:
+          return finishPartition(partition, tracker);
+        case WAIT_FOR_PARENT_PARTITIONS:
+          return waitForParentPartitions(partition, tracker);
+        case DELETE_PARTITION:
+          return deletePartition(partition, tracker);
+        case DONE:
+          return done(partition, tracker);
+        default:
+          // TODO: Verify what to do here
+          LOG.error("[" + token + "] Unknown mode " + mode);
+          throw new IllegalArgumentException("Unknown mode " + mode);
+      }
     }
   }
 
