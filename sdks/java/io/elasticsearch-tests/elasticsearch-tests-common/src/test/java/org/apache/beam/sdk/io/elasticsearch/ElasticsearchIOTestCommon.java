@@ -956,6 +956,25 @@ class ElasticsearchIOTestCommon implements Serializable {
     executeWriteTest(write);
   }
 
+  void testWriteAppendOnly() throws Exception {
+    Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withIdFn(new ExtractValueFn("id"))
+            .withAppendOnly(true);
+    executeWriteTest(write);
+  }
+
+  void testWriteAppendOnlyDeleteNotAllowed() throws Exception {
+    Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withIdFn(new ExtractValueFn("id"))
+            .withAppendOnly(true)
+            .withIsDeleteFn(doc -> true);
+    executeWriteTest(write);
+  }
+
   private void executeWriteTest(ElasticsearchIO.Write write) throws Exception {
     List<String> data =
         ElasticsearchIOTestUtils.createDocuments(
