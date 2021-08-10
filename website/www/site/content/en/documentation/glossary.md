@@ -114,7 +114,7 @@ Transforms that can be shared across Beam SDKs. With cross-language transforms, 
 
 To learn more, see:
 
-* [Multi-language pipelines](/documentation/programming-guide/#mulit-language-pipelines)
+* [Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines)
 
 ## Deferred execution
 
@@ -241,7 +241,7 @@ A pipeline that uses cross-language transforms. You can combine transforms writt
 
 To learn more, see:
 
-* [Multi-language pipelines](/documentation/programming-guide/#mulit-language-pipelines)
+* [Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines)
 
 ## ParDo
 
