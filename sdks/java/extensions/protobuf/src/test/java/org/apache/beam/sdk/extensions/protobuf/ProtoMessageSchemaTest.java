@@ -42,6 +42,9 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OPTIONAL_
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OUTER_ONEOF_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OUTER_ONEOF_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OUTER_ONEOF_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.PRIMITIVE_CAMEL_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.PRIMITIVE_CAMEL_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.PRIMITIVE_CAMEL_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.PRIMITIVE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.PRIMITIVE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.PRIMITIVE_SCHEMA;
@@ -67,6 +70,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.PrimitiveCamel;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.RepeatPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.WktMessage;
 import org.apache.beam.sdk.schemas.Schema;
@@ -102,6 +106,26 @@ public class ProtoMessageSchemaTest {
     SerializableFunction<Row, Primitive> fromRow =
         new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(Primitive.class));
     assertEquals(PRIMITIVE_PROTO, fromRow.apply(PRIMITIVE_ROW));
+  }
+
+  @Test
+  public void testPrimitiveCamelSchema() {
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(PrimitiveCamel.class));
+    assertEquals(PRIMITIVE_CAMEL_SCHEMA, schema);
+  }
+
+  @Test
+  public void testPrimitiveCamelProtoToRow() {
+    SerializableFunction<PrimitiveCamel, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(PrimitiveCamel.class));
+    assertEquals(PRIMITIVE_CAMEL_ROW, toRow.apply(PRIMITIVE_CAMEL_PROTO));
+  }
+
+  @Test
+  public void testPrimitiveCamelRowToProto() {
+    SerializableFunction<Row, PrimitiveCamel> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(PrimitiveCamel.class));
+    assertEquals(PRIMITIVE_CAMEL_PROTO, fromRow.apply(PRIMITIVE_CAMEL_ROW));
   }
 
   @Test

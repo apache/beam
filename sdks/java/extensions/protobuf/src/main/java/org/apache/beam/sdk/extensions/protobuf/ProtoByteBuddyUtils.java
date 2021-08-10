@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
@@ -190,15 +191,27 @@ class ProtoByteBuddyUtils {
   private static final String DEFAULT_PROTO_GETTER_PREFIX = "get";
   private static final String DEFAULT_PROTO_SETTER_PREFIX = "set";
 
-  static String protoGetterName(String name, FieldType fieldType) {
+  static String protoGetterNameFromSnake(String name, FieldType fieldType) {
     final String camel = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
     return DEFAULT_PROTO_GETTER_PREFIX
         + camel
         + PROTO_GETTER_SUFFIX.getOrDefault(fieldType.getTypeName(), "");
   }
 
-  static String protoSetterName(String name, FieldType fieldType) {
+  static String protoSetterNameFromSnake(String name, FieldType fieldType) {
     final String camel = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
+    return protoSetterPrefix(fieldType) + camel;
+  }
+
+  static String protoGetterNameFromCamel(String name, FieldType fieldType) {
+    final String camel = CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_CAMEL, name);
+    return DEFAULT_PROTO_GETTER_PREFIX
+        + camel
+        + PROTO_GETTER_SUFFIX.getOrDefault(fieldType.getTypeName(), "");
+  }
+
+  static String protoSetterNameFromCamel(String name, FieldType fieldType) {
+    final String camel = CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_CAMEL, name);
     return protoSetterPrefix(fieldType) + camel;
   }
 
@@ -916,10 +929,8 @@ class ProtoByteBuddyUtils {
 
       // The case accessor method in the proto is named getOneOfNameCase.
       Method caseMethod =
-          getProtoGetter(
-              methods,
-              field.getName() + "_case",
-              FieldType.logicalType(oneOfType.getCaseEnumType()));
+          getProtoGetterForOneOfCase(
+              methods, field.getName(), FieldType.logicalType(oneOfType.getCaseEnumType()));
       // Create a map of case enum value to getter. This must be sorted, so store in a TreeMap.
       TreeMap<Integer, FieldValueGetter<ProtoT, OneOfType.Value>> oneOfGetters = Maps.newTreeMap();
       Map<String, FieldValueTypeInformation> oneOfFieldTypes =
@@ -956,20 +967,37 @@ class ProtoByteBuddyUtils {
   static Method getProtoSetter(Multimap<String, Method> methods, String name, FieldType fieldType) {
     final TypeDescriptor<MessageLite.Builder> builderDescriptor =
         TypeDescriptor.of(MessageLite.Builder.class);
-    return methods.get(protoSetterName(name, fieldType)).stream()
+    // consider snake-case proto field names matches first, then camel-case if none are identified
+    return Stream.concat(
+            methods.get(protoSetterNameFromSnake(name, fieldType)).stream(),
+            methods.get(protoSetterNameFromCamel(name, fieldType)).stream())
         // Setter methods take only a single parameter.
         .filter(m -> m.getParameterCount() == 1)
         // For nested types, we don't use the version that takes a builder.
         .filter(
             m -> !TypeDescriptor.of(m.getGenericParameterTypes()[0]).isSubtypeOf(builderDescriptor))
-        .findAny()
+        .findFirst()
         .orElseThrow(IllegalArgumentException::new);
   }
 
   static Method getProtoGetter(Multimap<String, Method> methods, String name, FieldType fieldType) {
-    return methods.get(protoGetterName(name, fieldType)).stream()
+    // consider snake-case proto field names matches first, then camel-case if none are identified.
+    return Stream.concat(
+            methods.get(protoGetterNameFromSnake(name, fieldType)).stream(),
+            methods.get(protoGetterNameFromCamel(name, fieldType)).stream())
         .filter(m -> m.getParameterCount() == 0)
-        .findAny()
+        .findFirst()
+        .orElseThrow(IllegalArgumentException::new);
+  }
+
+  static Method getProtoGetterForOneOfCase(
+      Multimap<String, Method> methods, String name, FieldType fieldType) {
+    // consider snake-case proto field names matches first, then camel-case if none are identified.
+    return Stream.concat(
+            methods.get(protoGetterNameFromSnake(name + "_case", fieldType)).stream(),
+            methods.get(protoGetterNameFromCamel(name + "Case", fieldType)).stream())
+        .filter(m -> m.getParameterCount() == 0)
+        .findFirst()
         .orElseThrow(IllegalArgumentException::new);
   }
 

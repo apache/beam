@@ -51,6 +51,24 @@ message Primitive {
     bytes primitive_bytes = 15;
 }
 
+message PrimitiveCamel {
+    double primitiveDoubleCamel = 1;
+    float primitiveFloatCamel = 2;
+    int32 primitiveInt32Camel = 3;
+    int64 primitiveInt64Camel = 4;
+    uint32 primitiveUint32Camel = 5;
+    uint64 primitiveUint64Camel = 6;
+    sint32 primitiveSint32Camel = 7;
+    sint64 primitiveSint64Camel = 8;
+    fixed32 primitiveFixed32Camel = 9;
+    fixed64 primitiveFixed64Camel = 10;
+    sfixed32 primitiveSfixed32Camel = 11;
+    sfixed64 primitiveSfixed64Camel = 12;
+    bool primitiveBoolCamel = 13;
+    string primitiveStringCamel = 14;
+    bytes primitiveBytesCamel = 15;
+}
+
 message RepeatPrimitive {
     repeated double repeated_double = 1;
     repeated float repeated_float = 2;

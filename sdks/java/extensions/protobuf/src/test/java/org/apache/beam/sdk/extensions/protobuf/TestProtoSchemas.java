@@ -46,6 +46,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.PrimitiveCamel;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.RepeatPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.WktMessage;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
@@ -137,10 +138,46 @@ class TestProtoSchemas {
                       "proto2_schema_messages.RequiredPrimitive"))
           .build();
 
+  static final Schema PRIMITIVE_CAMEL_SCHEMA =
+      Schema.builder()
+          .addField(withFieldNumber("primitiveDoubleCamel", FieldType.DOUBLE, 1))
+          .addField(withFieldNumber("primitiveFloatCamel", FieldType.FLOAT, 2))
+          .addField(withFieldNumber("primitiveInt32Camel", FieldType.INT32, 3))
+          .addField(withFieldNumber("primitiveInt64Camel", FieldType.INT64, 4))
+          .addField(withFieldNumber("primitiveUint32Camel", FieldType.logicalType(new UInt32()), 5))
+          .addField(withFieldNumber("primitiveUint64Camel", FieldType.logicalType(new UInt64()), 6))
+          .addField(withFieldNumber("primitiveSint32Camel", FieldType.logicalType(new SInt32()), 7))
+          .addField(withFieldNumber("primitiveSint64Camel", FieldType.logicalType(new SInt64()), 8))
+          .addField(
+              withFieldNumber("primitiveFixed32Camel", FieldType.logicalType(new Fixed32()), 9))
+          .addField(
+              withFieldNumber("primitiveFixed64Camel", FieldType.logicalType(new Fixed64()), 10))
+          .addField(
+              withFieldNumber("primitiveSfixed32Camel", FieldType.logicalType(new SFixed32()), 11))
+          .addField(
+              withFieldNumber("primitiveSfixed64Camel", FieldType.logicalType(new SFixed64()), 12))
+          .addField(withFieldNumber("primitiveBoolCamel", FieldType.BOOLEAN, 13))
+          .addField(withFieldNumber("primitiveStringCamel", FieldType.STRING, 14))
+          .addField(withFieldNumber("primitiveBytesCamel", FieldType.BYTES, 15))
+          .setOptions(
+              Schema.Options.builder()
+                  .setOption(
+                      SCHEMA_OPTION_META_TYPE_NAME,
+                      FieldType.STRING,
+                      "proto3_schema_messages.PrimitiveCamel"))
+          .build();
+
   // A sample instance of the  row.
   private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
   static final Row PRIMITIVE_ROW =
       Row.withSchema(PRIMITIVE_SCHEMA)
+          .addValues(
+              1.1, 2.2F, 32, 64L, 33, 65L, 123, 124L, 30, 62L, 31, 63L, true, "horsey", BYTE_ARRAY)
+          .build();
+
+  // A sample instance of the camel-case row.
+  static final Row PRIMITIVE_CAMEL_ROW =
+      Row.withSchema(PRIMITIVE_CAMEL_SCHEMA)
           .addValues(
               1.1, 2.2F, 32, 64L, 33, 65L, 123, 124L, 30, 62L, 31, 63L, true, "horsey", BYTE_ARRAY)
           .build();
@@ -163,6 +200,26 @@ class TestProtoSchemas {
           .setPrimitiveBool(true)
           .setPrimitiveString("horsey")
           .setPrimitiveBytes(ByteString.copyFrom(BYTE_ARRAY))
+          .build();
+
+  // A sample instance of the camel-case proto.
+  static final PrimitiveCamel PRIMITIVE_CAMEL_PROTO =
+      PrimitiveCamel.newBuilder()
+          .setPrimitiveDoubleCamel(1.1)
+          .setPrimitiveFloatCamel(2.2F)
+          .setPrimitiveInt32Camel(32)
+          .setPrimitiveInt64Camel(64)
+          .setPrimitiveUint32Camel(33)
+          .setPrimitiveUint64Camel(65)
+          .setPrimitiveSint32Camel(123)
+          .setPrimitiveSint64Camel(124)
+          .setPrimitiveFixed32Camel(30)
+          .setPrimitiveFixed64Camel(62)
+          .setPrimitiveSfixed32Camel(31)
+          .setPrimitiveSfixed64Camel(63)
+          .setPrimitiveBoolCamel(true)
+          .setPrimitiveStringCamel("horsey")
+          .setPrimitiveBytesCamel(ByteString.copyFrom(BYTE_ARRAY))
           .build();
 
   // A sample instance of the  row.
