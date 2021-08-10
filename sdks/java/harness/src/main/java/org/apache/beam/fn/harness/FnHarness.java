@@ -59,6 +59,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -258,19 +259,20 @@ public class FnHarness {
       int stateCacheMemPercent =
           stateCacheMemString == null ? 10 : Integer.parseInt(stateCacheMemString);
 
-      // Attempt to get container memory limit, if not default to using system memory if not in a
-      // container
-      // long availableMem = FileUtil.getLongFromFile("/sys/fs/cgroup/memory/memory.limit_in_bytes");
-      // if (availableMem == 0) {
-      long availableMem = new SystemInfo().getHardware().getMemory().getAvailable();
-      //}
-      long availableCacheMem = (long) (availableMem * stateCacheMemPercent * .01);
-      // long availableCacheMem = 1024 * 1024 * 100;
+      // Attempt to get container memory limit, if not in a container use system memory
+      String env = options.as(PortablePipelineOptions.class).getDefaultEnvironmentType();
+      long availableMem = 0;
+
+      if (env != null && env.equals("DOCKER")) {
+        availableMem = FileUtil.getLongFromFile("/sys/fs/cgroup/memory/memory.limit_in_bytes");
+      } else {
+        availableMem = new SystemInfo().getHardware().getMemory().getAvailable();
+      }
 
       // Create memory sensitive state cache using memory limit
       LoadingCache<StateKey, CachingBeamFnStateClient.StateCacheEntry> stateCache =
           CacheBuilder.newBuilder()
-              .maximumWeight(availableCacheMem)
+              .maximumWeight((long) (availableMem * stateCacheMemPercent * .01))
               .recordStats()
               .weigher(
                   (Weigher<StateKey, CachingBeamFnStateClient.StateCacheEntry>)
