@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -178,6 +179,71 @@ public class CachingBeamFnStateClient implements BeamFnStateClient {
 
     static StateCacheKey create(ByteString cacheToken, ByteString continuationToken) {
       return new AutoValue_CachingBeamFnStateClient_StateCacheKey(cacheToken, continuationToken);
+    }
+  }
+
+  /**
+   * Entry for a key in the state cache that adds a weight counter onto the map of cache keys to
+   * state responses.
+   */
+  public static class StateCacheEntry {
+    // Initial size of hash tables per entry.
+    private static final int INITIAL_HASH_MAP_CAPACITY = 4;
+    // Overhead of each hash map entry.
+    private static final int HASH_MAP_ENTRY_OVERHEAD = 16;
+    // Overhead of each StateCacheEntry. One long, plus a concurrent hash map
+    private static final int PER_CACHE_ENTRY_OVERHEAD =
+        8 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
+
+    private final ConcurrentHashMap<StateCacheKey, StateGetResponse> cachedResponses;
+    private long weight;
+
+    public StateCacheEntry() {
+      this.cachedResponses = new ConcurrentHashMap<>(INITIAL_HASH_MAP_CAPACITY);
+      this.weight = 0;
+    }
+
+    public BeamFnApi.StateGetResponse get(CachingBeamFnStateClient.StateCacheKey cacheKey) {
+      return cachedResponses.get(cacheKey);
+    }
+
+    // Add new cached response and increment weight based on response size
+    public void put(
+        CachingBeamFnStateClient.StateCacheKey cacheKey,
+        BeamFnApi.StateGetResponse stateGetResponse) {
+      cachedResponses.computeIfAbsent(
+          cacheKey,
+          k -> {
+            this.weight +=
+                HASH_MAP_ENTRY_OVERHEAD
+                    + stateGetResponse.getContinuationToken().size()
+                    + stateGetResponse.getData().size();
+            return stateGetResponse;
+          });
+    }
+
+    // Remove last page (response with blank continuation token) and decrement weight based on
+    // response size
+    public void invalidateLastPage() {
+      for (Map.Entry<StateCacheKey, StateGetResponse> entry : cachedResponses.entrySet()) {
+        if (entry.getValue().getContinuationToken().equals(ByteString.EMPTY)) {
+          StateGetResponse removed = cachedResponses.remove(entry.getKey());
+          this.weight =
+              this.weight
+                  - HASH_MAP_ENTRY_OVERHEAD
+                  - removed.getContinuationToken().size()
+                  - removed.getData().size();
+        }
+      }
+    }
+
+    public void clear() {
+      cachedResponses.clear();
+      this.weight = 0;
+    }
+
+    public long getWeight() {
+      return weight + PER_CACHE_ENTRY_OVERHEAD;
     }
   }
 }
