@@ -920,11 +920,13 @@ public class DatastoreV1 {
           try {
             RunQueryResponse response = datastore.runQuery(request);
             serviceCallMetric.call("ok");
+            LOG.error("AOPM OK BatchDatastoreRead");
             rpcSuccesses.inc();
             return response;
           } catch (DatastoreException exception) {
             rpcErrors.inc();
             serviceCallMetric.call(exception.getCode().getNumber());
+            LOG.error("AOPM ERROR BatchDatastoreRead");
 
             if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
               throw exception;
@@ -1480,6 +1482,7 @@ public class DatastoreV1 {
           datastore.commit(commitRequest.build());
           endTime = System.currentTimeMillis();
           serviceCallMetric.call("ok");
+          LOG.error("AOPM OK BatchDatastoreWrite");
 
           writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
           adaptiveThrottler.successfulRequest(startTime);
@@ -1491,6 +1494,7 @@ public class DatastoreV1 {
           break;
         } catch (DatastoreException exception) {
           serviceCallMetric.call(exception.getCode().getNumber());
+          LOG.error("AOPM ERROR BatchDatastoreWrite");
           if (exception.getCode() == Code.DEADLINE_EXCEEDED) {
             /* Most errors are not related to request size, and should not change our expectation of
              * the latency of successful requests. DEADLINE_EXCEEDED can be taken into
