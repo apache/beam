@@ -599,7 +599,8 @@ class PTransform(WithTypeHints, HasDisplayData):
         for pp in pipelines:
           if p != pp:
             raise ValueError(
-                'Mixing value from different pipelines not allowed.')
+                'Mixing values in different pipelines is not allowed.'
+                '\n{%r} != {%r}' % (p, pp))
       deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
