@@ -286,35 +286,35 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  static class DropNullFn<T> extends CombineFn<T, Object, Object> {
-    CombineFn<T, Object, Object> combineFn;
+  static class DropNullFn<InputT, AccumT, OutputT> extends CombineFn<InputT, AccumT, OutputT> {
+    CombineFn<InputT, AccumT, OutputT> combineFn;
 
-    DropNullFn(CombineFn<T, Object, Object> combineFn) {
+    DropNullFn(CombineFn<InputT, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
     }
 
     @Override
-    public Object createAccumulator() {
+    public AccumT createAccumulator() {
       return combineFn.createAccumulator();
     }
 
     @Override
-    public Object addInput(Object accumulator, T input) {
+    public AccumT addInput(AccumT accumulator, InputT input) {
       return (input == null) ? accumulator : combineFn.addInput(accumulator, input);
     }
 
     @Override
-    public Object mergeAccumulators(Iterable<Object> accumulators) {
+    public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
       return combineFn.mergeAccumulators(accumulators);
     }
 
     @Override
-    public Object extractOutput(Object accumulator) {
+    public OutputT extractOutput(AccumT accumulator) {
       return combineFn.extractOutput(accumulator);
     }
 
     @Override
-    public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder)
+    public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
         throws CannotProvideCoderException {
       return combineFn.getAccumulatorCoder(registry, inputCoder);
     }

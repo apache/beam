@@ -247,27 +247,27 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       if (windowFn != null) {
         windowedStream = assignTimestampsAndWindow(upstream);
       }
-
       validateWindowIsSupported(windowedStream);
-
-      PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner();
-
-      boolean verifyRowValues =
-          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
-      return windowedStream
-          .apply(combiner)
-          .apply(
-              "mergeRecord",
-              ParDo.of(mergeRecord(outputSchema, windowFieldIndex, ignoreValues, verifyRowValues)))
-          .setRowSchema(outputSchema);
+      return createCombiner(pinput, windowedStream);
     }
 
-    private PTransform<PCollection<Row>, PCollection<Row>> createCombiner() {
+    private PCollection<Row> createCombiner(
+        PCollectionList<Row> pinput, PCollection<Row> windowedStream) {
       // Check if have fields to be grouped
       if (groupSetCount > 0) {
-        return createGroupCombiner();
+        PTransform<PCollection<Row>, PCollection<Row>> combiner = createGroupCombiner();
+        boolean verifyRowValues =
+            pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
+        return windowedStream
+            .apply(combiner)
+            .apply(
+                "mergeRecord",
+                ParDo.of(
+                    mergeRecord(outputSchema, windowFieldIndex, ignoreValues, verifyRowValues)))
+            .setRowSchema(outputSchema);
       }
-      return createGlobalCombiner();
+      PTransform<PCollection<Row>, PCollection<Row>> combiner = createGlobalCombiner();
+      return windowedStream.apply(combiner).setRowSchema(outputSchema);
     }
 
     private PTransform<PCollection<Row>, PCollection<Row>> createGlobalCombiner() {
@@ -396,25 +396,15 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         @ProcessElement
         public void processElement(
             @Element Row kvRow, BoundedWindow window, OutputReceiver<Row> o) {
-          List<Object> fieldValues = null;
+          int capacity =
+              kvRow.getRow(0).getFieldCount()
+                  + (!ignoreValues ? kvRow.getRow(1).getFieldCount() : 0);
+          List<Object> fieldValues = Lists.newArrayListWithCapacity(capacity);
 
-          int capacity;
-          if (kvRow.getFieldCount() > 1) {
-            capacity =
-                kvRow.getRow(0).getFieldCount()
-                    + (!ignoreValues ? kvRow.getRow(1).getFieldCount() : 0);
-            fieldValues = Lists.newArrayListWithCapacity(capacity);
-
-            fieldValues.addAll(kvRow.getRow(0).getValues());
-            if (!ignoreValues) {
-              fieldValues.addAll(kvRow.getRow(1).getValues());
-            }
-          } else {
-            capacity = kvRow.getFieldCount();
-            fieldValues = Lists.newArrayListWithCapacity(capacity);
-            fieldValues.addAll(kvRow.getValues());
+          fieldValues.addAll(kvRow.getRow(0).getValues());
+          if (!ignoreValues) {
+            fieldValues.addAll(kvRow.getRow(1).getValues());
           }
-
           if (windowStartFieldIndex != -1) {
             fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());
           }

@@ -90,7 +90,7 @@ public class SqlOperators {
       createUdafOperator(
           "array_agg",
           x -> createTypeFactory().createArrayType(x.getOperandType(0), -1),
-          new UdafImpl<>(new ArrayAgg.ArrayAggArray()));
+          new UdafImpl<>(new ArrayAgg.ArrayAggArray<>()));
 
   public static final SqlOperator START_WITHS =
       createUdfOperator(
