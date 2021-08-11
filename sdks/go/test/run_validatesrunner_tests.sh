@@ -79,6 +79,9 @@ RUNNER=portable
 # packages are executed in parallel.
 TIMEOUT=1h
 
+# Default limit on simultaneous test binaries/packages being executed.
+PARALLEL=3
+
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
@@ -356,6 +359,11 @@ else
   CONTAINER=apache/beam_go_sdk
 fi
 
+
+# -p dictates the number of parallel test binaries running tests.
+# --parallel indicates within a test binary level of parallism.
+ARGS="$ARGS -p $PARALLEL"
+
 # Assemble test arguments and pipeline options.
 ARGS="$ARGS --timeout=$TIMEOUT"
 ARGS="$ARGS --runner=$RUNNER"
@@ -394,7 +402,7 @@ if [[ "$JENKINS" == true ]]; then
   echo ">>> For Jenkins environment, changing test targets to: $TESTS"
 
   echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-  GOPATH=$TEMP_GOPATH go test -v $TESTS $ARGS \
+  GOPATH=$TEMP_GOPATH go test -v  $TESTS $ARGS \
       || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 else
   echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
