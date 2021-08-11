@@ -147,8 +147,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if !portaSubmission {
 		experiments = append(experiments, "use_portable_job_submission")
 	}
-	// TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-	experiments = append(experiments, "shuffle_mode=appliance")
 
 	if *minCPUPlatform != "" {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
