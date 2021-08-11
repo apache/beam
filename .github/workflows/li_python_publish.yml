@@ -1,0 +1,54 @@
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Build python source distribution and wheels
+
+on:
+  push:
+    branches: ['li_trunk']
+    tags: 'v*'
+  pull_request:
+    branches: ['li_trunk']
+    tags: 'v*'
+    paths: ['sdks/python/**', 'model/**', 'release/**']
+
+jobs:
+
+  build_source:
+    runs-on: ubuntu-latest
+    name: Build python source distribution
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: python -m pip install -r build-requirements.txt -r build-requirements-linkedin.txt
+      - name: Install wheels
+        run: python -m pip install wheel
+      - name: Build source
+        working-directory: ./sdks/python
+        run: python setup.py sdist --formats=zip upload -r lijfrog
+      - name: Add checksums
+        working-directory: ./sdks/python/dist
+        run: |
+          file=$(ls | grep .zip | head -n 1)
+          sha512sum $file > ${file}.sha512
+      - name: Unzip source
+        working-directory: ./sdks/python
+        run: unzip dist/$(ls dist | grep .zip | head -n 1)
+      - name: Rename source directory
+        working-directory: ./sdks/python
+        run: mv $(ls | grep apache-beam) apache-beam-source
+      - name: Upload source as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: source
+          path: sdks/python/apache-beam-source
+      - name: Upload compressed sources as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: source_zip
+          path: sdks/python/dist
