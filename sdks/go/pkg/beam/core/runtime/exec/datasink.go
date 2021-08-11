@@ -31,10 +31,9 @@ type DataSink struct {
 	SID   StreamID
 	Coder *coder.Coder
 
-	enc   ElementEncoder
-	wEnc  WindowEncoder
-	w     io.WriteCloser
-	count int64
+	enc  ElementEncoder
+	wEnc WindowEncoder
+	w    io.WriteCloser
 }
 
 func (n *DataSink) ID() UnitID {
