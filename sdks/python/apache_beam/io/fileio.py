@@ -104,7 +104,6 @@ from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
-from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
@@ -112,7 +111,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
-from apache_beam.transforms.userstate import BagStateSpec
+from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -279,8 +278,8 @@ class MatchContinuously(beam.PTransform):
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
 
-  def expand(self, pcol):
-    impulse = pcol | PeriodicImpulse(
+  def expand(self, pcoll):
+    impulse = pcoll | PeriodicImpulse(
         start_timestamp=self.start_ts,
         stop_timestamp=self.stop_ts,
         fire_interval=self.interval)
@@ -804,16 +803,17 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
 
 class _RemoveDuplicates(beam.DoFn):
 
-  FILES_STATE = BagStateSpec('files', StrUtf8Coder())
+  COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
-  def process(self, element, file_state=beam.DoFn.StateParam(FILES_STATE)):
+  def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+
     path = element[0]
     file_metadata = element[1]
-    bag_content = [x for x in file_state.read()]
+    counter = count_state.read()
 
-    if not bag_content:
-      file_state.add(path)
+    if counter == 0:
+      count_state.add(1)
       _LOGGER.debug('Generated entry for file %s', path)
       yield file_metadata
     else:
-      _LOGGER.debug('File %s was already read', path)
+      _LOGGER.debug('File %s was already read, seen %d times', path, counter)

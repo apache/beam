@@ -1070,7 +1070,8 @@ public class SnowflakeIO {
 
     private PCollection writeBatchFiles(
         PCollection<T> input, ValueProvider<String> outputDirectory) {
-      return writeFiles(input, outputDirectory, DEFAULT_BATCH_SHARDS_NUMBER);
+      int shards = (getShardsNumber() > 0) ? getShardsNumber() : DEFAULT_BATCH_SHARDS_NUMBER;
+      return writeFiles(input, outputDirectory, shards);
     }
 
     private PCollection<String> writeFiles(

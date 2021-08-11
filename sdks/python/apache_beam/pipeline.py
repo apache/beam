@@ -61,6 +61,7 @@ from typing import Dict
 from typing import FrozenSet
 from typing import Iterable
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Sequence
 from typing import Set
@@ -271,7 +272,7 @@ class Pipeline(object):
     output_replacements = {
     }  # type: Dict[AppliedPTransform, List[Tuple[pvalue.PValue, Optional[str]]]]
     input_replacements = {
-    }  # type: Dict[AppliedPTransform, Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+    }  # type: Dict[AppliedPTransform, Mapping[str, Union[pvalue.PBegin, pvalue.PCollection]]]
     side_input_replacements = {
     }  # type: Dict[AppliedPTransform, List[pvalue.AsSideInput]]
 
@@ -297,7 +298,7 @@ class Pipeline(object):
               original_transform_node.parent,
               replacement_transform,
               original_transform_node.full_label,
-              original_transform_node.inputs)
+              original_transform_node.main_inputs)
 
           replacement_transform_node.resource_hints = (
               original_transform_node.resource_hints)
@@ -437,11 +438,11 @@ class Pipeline(object):
                 output_replacements[transform_node].append((tag, replacement))
 
         if replace_input:
-          new_input = [
-              input if not input in output_map else output_map[input]
-              for input in transform_node.inputs
-          ]
-          input_replacements[transform_node] = new_input
+          new_inputs = {
+              tag: input if not input in output_map else output_map[input]
+              for (tag, input) in transform_node.main_inputs.items()
+          }
+          input_replacements[transform_node] = new_inputs
 
         if replace_side_inputs:
           new_side_inputs = []
@@ -670,15 +671,18 @@ class Pipeline(object):
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
     try:
-      inputs = tuple(inputs)
-      for leaf_input in inputs:
-        if not isinstance(leaf_input, pvalue.PValue):
-          raise TypeError
+      if not isinstance(inputs, dict):
+        inputs = {str(ix): input for (ix, input) in enumerate(inputs)}
     except TypeError:
       raise NotImplementedError(
           'Unable to extract PValue inputs from %s; either %s does not accept '
           'inputs of this format, or it does not properly override '
           '_extract_input_pvalues' % (pvalueish, transform))
+    for t, leaf_input in inputs.items():
+      if not isinstance(leaf_input, pvalue.PValue) or not isinstance(t, str):
+        raise NotImplementedError(
+            '%s does not properly override _extract_input_pvalues, '
+            'returned %s from %s' % (transform, inputs, pvalueish))
 
     current = AppliedPTransform(
         self._current_transform(), transform, full_label, inputs)
@@ -705,7 +709,8 @@ class Pipeline(object):
         if result.producer is None:
           result.producer = current
 
-        self._infer_result_type(transform, inputs, result)
+        # TODO(BEAM-1833): Pass full tuples dict.
+        self._infer_result_type(transform, tuple(inputs.values()), result)
 
         assert isinstance(result.producer.inputs, tuple)
         # The DoOutputsTuple adds the PCollection to the outputs when accessed
@@ -940,7 +945,7 @@ class Pipeline(object):
     for id in proto.components.transforms:
       transform = context.transforms.get_by_id(id)
       if not transform.inputs and transform.transform.__class__ in has_pbegin:
-        transform.inputs = (pvalue.PBegin(p), )
+        transform.main_inputs = {'None': pvalue.PBegin(p)}
 
     if return_context:
       return p, context  # type: ignore  # too complicated for now
@@ -1030,7 +1035,7 @@ class AppliedPTransform(object):
       parent,  # type:  Optional[AppliedPTransform]
       transform,  # type: Optional[ptransform.PTransform]
       full_label,  # type: str
-      inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+      main_inputs,  # type: Optional[Mapping[str, Union[pvalue.PBegin, pvalue.PCollection]]]
       environment_id=None,  # type: Optional[str]
       annotations=None, # type: Optional[Dict[str, bytes]]
   ):
@@ -1043,7 +1048,7 @@ class AppliedPTransform(object):
     # reusing PTransform instances in different contexts (apply() calls) without
     # any interference. This is particularly useful for composite transforms.
     self.full_label = full_label
-    self.inputs = inputs or ()
+    self.main_inputs = dict(main_inputs or {})
 
     self.side_inputs = tuple() if transform is None else transform.side_inputs
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
@@ -1075,6 +1080,10 @@ class AppliedPTransform(object):
           a in transform.annotations().items()
       }
     self.annotations = annotations
+
+  @property
+  def inputs(self):
+    return tuple(self.main_inputs.values())
 
   def __repr__(self):
     # type: () -> str
@@ -1109,8 +1118,8 @@ class AppliedPTransform(object):
     if isinstance(self.transform, external.ExternalTransform):
       self.transform.replace_named_outputs(self.named_outputs())
 
-  def replace_inputs(self, inputs):
-    self.inputs = inputs
+  def replace_inputs(self, main_inputs):
+    self.main_inputs = main_inputs
 
     # Importing locally to prevent circular dependency issues.
     from apache_beam.transforms import external
@@ -1215,12 +1224,11 @@ class AppliedPTransform(object):
 
   def named_inputs(self):
     # type: () -> Dict[str, pvalue.PValue]
-    # TODO(BEAM-1833): Push names up into the sdk construction.
     if self.transform is None:
-      assert not self.inputs and not self.side_inputs
+      assert not self.main_inputs and not self.side_inputs
       return {}
     else:
-      return self.transform._named_inputs(self.inputs, self.side_inputs)
+      return self.transform._named_inputs(self.main_inputs, self.side_inputs)
 
   def named_outputs(self):
     # type: () -> Dict[str, pvalue.PCollection]
@@ -1309,10 +1317,10 @@ class AppliedPTransform(object):
       pardo_payload = None
       side_input_tags = []
 
-    main_inputs = [
-        context.pcollections.get_by_id(id) for tag,
-        id in proto.inputs.items() if tag not in side_input_tags
-    ]
+    main_inputs = {
+        tag: context.pcollections.get_by_id(id)
+        for (tag, id) in proto.inputs.items() if tag not in side_input_tags
+    }
 
     transform = ptransform.PTransform.from_runner_api(proto, context)
     if transform and proto.environment_id:
@@ -1334,7 +1342,7 @@ class AppliedPTransform(object):
         parent=None,
         transform=transform,
         full_label=proto.unique_name,
-        inputs=main_inputs,
+        main_inputs=main_inputs,
         environment_id=None,
         annotations=proto.annotations)
 
