@@ -31,6 +31,12 @@ type WindowTrigger struct {
 
 func (t WindowTrigger) windowIntoOption() {}
 
+type AccumulationMode struct {
+	Mode window.AccumulationMode
+}
+
+func (m AccumulationMode) windowIntoOption() {}
+
 // WindowInto applies the windowing strategy to each element.
 func WindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOption) PCollection {
 	return Must(TryWindowInto(s, ws, col, opts...))
@@ -46,9 +52,11 @@ func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoO
 	}
 	ws := window.WindowingStrategy{Fn: wfn, Trigger: window.Trigger{}}
 	for _, opt := range opts {
-		switch opt.(type) {
+		switch opt := opt.(type) {
 		case WindowTrigger:
-			ws.Trigger = opt.(WindowTrigger).Name
+			ws.Trigger = opt.Name
+		case AccumulationMode:
+			ws.AccumulationMode = opt.Mode
 		default:
 			panic("Invalid option for Windowing Strategy")
 		}

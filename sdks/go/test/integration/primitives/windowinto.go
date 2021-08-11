@@ -23,13 +23,13 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/teststream"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 func init() {
 	beam.RegisterFunction(sumPerKey)
 	beam.RegisterType(reflect.TypeOf((*createTimestampedData)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*timestampedData)(nil)).Elem())
 }
 
 // createTimestampedData produces data timestamped with the ordinal.
@@ -93,58 +93,59 @@ func WindowSums_Lifted(s beam.Scope) {
 	WindowSums(s.Scope("Lifted"), stats.SumPerKey)
 }
 
-type timestampedData struct {
-	Data []int
-}
-
-func (f *timestampedData) ProcessElement(_ []byte, emit func(beam.EventTime, string, int)) {
-	for _, v := range f.Data {
-		timestamp := mtime.FromMilliseconds(int64(v) * 1000)
-		emit(timestamp, "magic", v)
-	}
-}
-
-func validate(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, expected ...interface{}) {
-	windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: tr})
-	sums := gbkSumPerKey(s, windowed)
+func validate(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigger, m window.AccumulationMode, expected ...interface{}) {
+	windowed := beam.WindowInto(s, wfn, in, beam.WindowTrigger{Name: tr}, beam.AccumulationMode{Mode: m})
+	sums := stats.Sum(s, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
-	sums = beam.DropKey(s, sums)
 	passert.Equals(s, sums, expected...)
 }
 
-func TriggerAfterEndOfWindow(s beam.Scope) {
-	timestampedData := beam.ParDo(s, &timestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
+// TriggerDefault tests the default trigger which fires the pane after the end of the window
+func TriggerDefault(s beam.Scope) {
+	// create a teststream pipeline and get the pcollection
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+	con.AddElements(12000, 4.0, 5.0)
+	con.AdvanceWatermark(13000)
 
+	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
+	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.Trigger{Kind: window.DefaultTrigger}, window.Accumulating, 6.0, 9.0)
 
-	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.AfterEndOfWindowTrigger}, 3, 13)
 }
 
+// TriggerAlways tests the Always trigger, it is expected to receive every input value as the output.
+// It also return an extra empty pane. Not sure why it is so. It is only in the case of this trigger
 func TriggerAlways(s beam.Scope) {
-	timestampedData := beam.ParDo(s, &timestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
-
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
 
-	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.AlwaysTrigger}, 3, 13)
+	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.Trigger{Kind: window.AlwaysTrigger}, window.Discarding, 1.0, 2.0, 3.0, 0.0)
 }
 
-// func TriggerAfterProcessingTime(s beam.Scope) {
-// 	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 13}}, beam.Impulse(s))
-
-// 	windowSize := 10 * time.Second
-
-// 	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.RepeatTrigger, SubTriggers: []window.Trigger{window.Trigger{Kind: window.AfterProcessingTimeTrigger, Delay: 1}}}, 3, 13)
-// }
-
+// TriggerElementCount tests the ElementCount Trigger, it waits for atleast N elements to be ready
+// to fire an output pane
 func TriggerElementCount(s beam.Scope) {
-	timestampedData := beam.ParDo(s, &timestampedData{Data: []int{1, 2, 4, 13, 17, 33, 59, 90, 112}}, beam.Impulse(s))
+	// create a teststream pipeline and get the pcollection
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(2000)
+	con.AddElements(6000, 4.0, 5.0)
+	con.AdvanceWatermark(10000)
+	con.AddElements(52000, 10.0)
+	con.AdvanceWatermark(53000)
 
-	windowSize := 10 * time.Second
+	col := teststream.Create(s, con)
 
-	// this case will produce two outputs only because in all other windows, only 1 element arrives and we require at least two
-	// for ex: in time window 30 sec - 40 sec, only 33 arrives so that pane will never be fired
-	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 2}, 7, 30)
-
-	// in this case all outputs will be fired as we wait only for 1 element.
-	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), timestampedData, window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 1}, 7, 30, 33, 59, 90, 112)
+	// waits only for two elements to arrive and fires output after that and never fires that.
+	// For the trigger to fire every 2 elements, combine it with Repeat Trigger
+	tr := window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 2}
+	windowed := beam.WindowInto(s, window.NewGlobalWindows(), col, beam.WindowTrigger{Name: tr}, beam.AccumulationMode{Mode: window.Discarding})
+	sums := stats.Sum(s, windowed)
+	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
+	passert.Count(s, sums, "total collections", 1)
 }

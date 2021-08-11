@@ -982,19 +982,35 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 		mergeStat = pipepb.MergeStatus_NON_MERGING
 	}
 	trigger := makeTrigger(w.Trigger)
-
+	accMode := makeAccumulationMode(w.AccumulationMode)
 	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
 		MergeStatus:      mergeStat,
-		AccumulationMode: pipepb.AccumulationMode_DISCARDING,
 		WindowCoderId:    windowCoderId,
 		Trigger:          trigger,
+		AccumulationMode: accMode,
 		OutputTime:       pipepb.OutputTime_EARLIEST_IN_PANE,
 		ClosingBehavior:  pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
-		AllowedLateness:  0,
+		AllowedLateness:  10,
 		OnTimeBehavior:   pipepb.OnTimeBehavior_FIRE_ALWAYS,
+		EnvironmentId:    "",
 	}
 	return ws, nil
+}
+
+func makeAccumulationMode(m window.AccumulationMode) pipepb.AccumulationMode_Enum {
+	switch m {
+	case window.Accumulating:
+		return pipepb.AccumulationMode_ACCUMULATING
+	case window.Discarding:
+		return pipepb.AccumulationMode_DISCARDING
+	case window.Unspecified:
+		return pipepb.AccumulationMode_UNSPECIFIED
+	case window.Retracting:
+		return pipepb.AccumulationMode_RETRACTING
+	default:
+		return pipepb.AccumulationMode_DISCARDING
+	}
 }
 
 func makeTrigger(t window.Trigger) *pipepb.Trigger {
@@ -1012,13 +1028,15 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.AfterAnyTrigger:
+		// TODO: change it to subtrigger from 't'
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAny_{
 				AfterAny: &pipepb.Trigger_AfterAny{},
 			},
 		}
 	case window.AfterProcessingTimeTrigger:
-		// TODO: change it to set user's time transforms
+		// TODO: Right now would work only for single delay value.
+		// could be configured to take more than one delay values later.
 		ttd := &pipepb.TimestampTransform{
 			TimestampTransform: &pipepb.TimestampTransform_Delay_{
 				Delay: &pipepb.TimestampTransform_Delay{DelayMillis: t.Delay},
@@ -1040,13 +1058,13 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
 				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
-					EarlyFirings: makeTrigger(window.Trigger{Kind: window.DefaultTrigger}),
+					EarlyFirings: makeTrigger(window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 1}),
 					LateFirings:  nil,
 				},
 			},
 		}
 	case window.RepeatTrigger:
-		// TODO: change it to take user config trigger for Subtrigger
+		// NOTE: It assumes only one trigger is passed as a subtrigger.
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Repeat_{
 				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTriggers[0])},

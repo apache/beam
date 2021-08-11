@@ -1128,7 +1128,7 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
 	onError := func(err error) ([]typex.Window, typex.EventTime, typex.PaneInfo, error) {
-		return nil, mtime.ZeroTimestamp, typex.PaneInfo{}, err
+		return nil, mtime.ZeroTimestamp, typex.NoFiringPane(), err
 	}
 
 	t, err := coder.DecodeEventTime(r)
