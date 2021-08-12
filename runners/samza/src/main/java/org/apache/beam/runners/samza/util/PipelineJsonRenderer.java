@@ -51,7 +51,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   }
 
   /** A registrar for {@link SamzaIOInfo}. */
-  interface SamzaIORegistrar {
+  public interface SamzaIORegistrar {
 
     SamzaIOInfo getSamzaIO();
   }
