@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /** Options used to configure TPC-DS test. */
-public interface TpcdsOptions extends PipelineOptions {
+public interface TpcdsOptions extends BeamSqlPipelineOptions {
   @Description(
       "The size of TPC-DS data to run query on, user input should contain the unit, such as '1G', '10G'")
   @Validation.Required
@@ -55,4 +55,10 @@ public interface TpcdsOptions extends PipelineOptions {
   String getResultsDirectory();
 
   void setResultsDirectory(String path);
+
+  @Description("Where the data comes from.")
+  @Default.Enum("CSV")
+  TpcdsUtils.SourceType getSourceType();
+
+  void setSourceType(TpcdsUtils.SourceType sourceType);
 }
