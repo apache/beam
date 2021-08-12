@@ -24,44 +24,38 @@ If you make changes to .proto files, you will need to rebuild the generated Go c
 First, follow this one-time setup:
 
 1. Download [the protobuf compiler](https://github.com/google/protobuf/releases).
-   The simplest approach is to download one of the prebuilt binaries and extract
-   it somewhere in your machine's `$PATH`.
-1. A properly installed Go development environment per [the official
-   instructions](https://golang.org/doc/install). `$GOPATH` must be set properly.
-   If it's not set, follow
-   [these instructions](https://github.com/golang/go/wiki/SettingGOPATH).
+   The simplest approach is to download one of the prebuilt binaries (named
+   `protoc`) and extract it somewhere in your machine's `$PATH`.
 1. Add `$GOBIN` to your `$PATH`. (Note: If `$GOBIN` is not set, add `$GOPATH/bin`
    instead.)
 
 To generate the code:
 
 1. Navigate to this directory (`pkg/beam/model`).
-1. `go get -u github.com/golang/protobuf/protoc-gen-go`
+1. `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`
+1. `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`
 1. `go generate`
 
 ## Generated Go code fails to build
 
 Occasionally, after following the steps above and updating the generated .pb.go
 files, they may fail to build. This usually indicates a version mismatch in the
-[golang/protobuf](https://github.com/golang/protobuf) package. Specifically,
-the version of protoc-gen-go in the local Go workspace (used during
-`go generate`) differs from the cached version of golang/protobuf used for
-building Beam (specified in [gogradle.lock](https://github.com/apache/beam/blob/master/sdks/go/gogradle.lock)).
+[google.golang.org/protobuf](https://github.com/protocolbuffers/protobuf-go)
+package. Specifically, the version of protoc-gen-go installed in your `$GOBIN`
+(used during `go generate`) differs from the version of
+google.golang.org/protobuf used for building Beam (specified in
+[go.mod](https://github.com/apache/beam/blob/master/sdks/go.mod)).
 
 The preferred way to fix this issue is to update the fixed Beam version of
-golang/protobuf to a recent commit. This can be done by manually changing the
-commit hash for golang/protobuf in [gogradle.lock](https://github.com/apache/beam/blob/master/sdks/go/gogradle.lock).
+google.golang.org/protobuf to a recent one that works. This can be done by
+changing the required version number for google.golang.org/protobuf in
+[go.mod](https://github.com/apache/beam/blob/master/sdks/go.mod).
 
 If that fails due to dependency issues, an alternate approach is to downgrade
-the local version of protoc-gen-go to match the commit in gogradle.lock, with
-the following commands.
+your installed version of protoc-gen-go to match the version in go.mod, with
+the following command.
 
 ```bash
-# Replace <commit hash> with the commit of golang/protobuf in gogradle.lock.
-go get -d -u github.com/golang/protobuf/protoc-gen-go
-git -C "$(go env GOPATH)"/src/github.com/golang/protobuf checkout <commit hash>
-go install github.com/golang/protobuf/protoc-gen-go
+# Replace <version> with the version of google.golang.org/protobuf in go.mod.
+go install google.golang.org/protobuf/cmd/protoc-gen-go@<version>
 ```
-> **Note:** This leaves the local repository of protoc-gen-go in a detached
-> head state, which may cause problems when updating it in the future. To fix
-> this, navigate to the protoc-gen-go directory and run `git checkout master`.

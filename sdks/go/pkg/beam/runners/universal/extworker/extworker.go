@@ -48,6 +48,8 @@ func StartLoopback(ctx context.Context, port int) (*Loopback, error) {
 
 // Loopback implements fnpb.BeamFnExternalWorkerPoolServer
 type Loopback struct {
+	fnpb.UnimplementedBeamFnExternalWorkerPoolServer
+
 	lis        net.Listener
 	root       context.Context
 	rootCancel context.CancelFunc
