@@ -272,6 +272,7 @@ public class FileSystems {
   public static void copy(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
       throws IOException {
+    validateSrcDestLists(srcResourceIds, destResourceIds);
     FilterResult filtered = filterFiles(srcResourceIds, destResourceIds, moveOptions);
     if (!filtered.resultSources.isEmpty()) {
       getFileSystemInternal(filtered.resultSources.iterator().next().getScheme())
@@ -297,22 +298,25 @@ public class FileSystems {
   public static void rename(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
       throws IOException {
-    FilterResult filtered = filterFiles(srcResourceIds, destResourceIds, moveOptions);
-    if (!filtered.resultSources.isEmpty()) {
-      try {
-        getFileSystemInternal(filtered.resultSources.iterator().next().getScheme())
-            .rename(filtered.resultSources, filtered.resultDestinations, moveOptions);
-      } catch (UnsupportedOperationException e) {
-        // Some file systems do not yet support specifying the move options.  We handle the move
-        // options above with filtering so specifying them is just an optimization for error
-        // handling and it is safe to rename without specifying them.
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      return;
+    }
+    try {
+      getFileSystemInternal(srcResourceIds.iterator().next().getScheme())
+          .rename(srcResourceIds, destResourceIds, moveOptions);
+    }  catch (UnsupportedOperationException e) {
+      // Some file systems do not yet support specifying the move options. Instead we
+      // perform filtering using match calls before renaming.
+      FilterResult filtered = filterFiles(srcResourceIds, destResourceIds, moveOptions);
+      if (!filtered.resultSources.isEmpty()) {
         getFileSystemInternal(filtered.resultSources.iterator().next().getScheme())
             .rename(filtered.resultSources, filtered.resultDestinations);
       }
-    }
-    if (!filtered.filteredExistingSrcs.isEmpty()) {
-      getFileSystemInternal(filtered.filteredExistingSrcs.iterator().next().getScheme())
-          .delete(filtered.filteredExistingSrcs);
+      if (!filtered.filteredExistingSrcs.isEmpty()) {
+        getFileSystemInternal(filtered.filteredExistingSrcs.iterator().next().getScheme())
+            .delete(filtered.filteredExistingSrcs);
+      }
     }
   }
 
@@ -384,7 +388,6 @@ public class FileSystems {
   private static FilterResult filterFiles(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
       throws IOException {
-    validateSrcDestLists(srcResourceIds, destResourceIds);
     FilterResult result = new FilterResult();
     if (moveOptions.length == 0 || srcResourceIds.isEmpty()) {
       // Nothing will be filtered.
