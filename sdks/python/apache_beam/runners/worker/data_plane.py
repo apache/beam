@@ -606,7 +606,7 @@ class _GrpcDataChannel(DataChannel):
     next_discard_log_time = 0  # type: float
 
     def _put_queue(instruction_id, element):
-      # type: (str, bytes) -> None
+      # type: (str, Union[beam_fn_api_pb2.Elements.Data, beam_fn_api_pb2.Elements.Timers]) -> None
 
       """
       Puts element to the queue of the instruction_id, or discards it if the
