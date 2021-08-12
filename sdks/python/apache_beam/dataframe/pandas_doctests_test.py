@@ -20,6 +20,7 @@ import unittest
 import pandas as pd
 
 from apache_beam.dataframe import doctests
+from apache_beam.dataframe.frames import PD_VERSION
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
@@ -68,7 +69,8 @@ class DoctestTest(unittest.TestCase):
                 "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
             ],
             'pandas.core.generic.NDFrame.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.generic.NDFrame.sort_values': ['*'],
@@ -164,7 +166,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.cumprod': ['*'],
             'pandas.core.frame.DataFrame.diff': ['*'],
             'pandas.core.frame.DataFrame.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.frame.DataFrame.items': ['*'],
@@ -237,6 +240,8 @@ class DoctestTest(unittest.TestCase):
                 # reindex not supported
                 's2 = s.reindex([1, 0, 2, 3])',
             ],
+            'pandas.core.frame.DataFrame.resample': ['*'],
+            'pandas.core.frame.DataFrame.values': ['*'],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': [
@@ -244,6 +249,8 @@ class DoctestTest(unittest.TestCase):
                 # frames_test.py::DeferredFrameTest::test_groupby_transform_sum
                 "df.groupby('Date')['Data'].transform('sum')",
             ],
+            'pandas.core.frame.DataFrame.swaplevel': ['*'],
+            'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
             'pandas.core.frame.DataFrame.round': [
                 'df.round(decimals)',
@@ -267,6 +274,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.set_index': [
                 "df.set_index([s, s**2])",
             ],
+
+            # TODO(BEAM-12495)
+            'pandas.core.frame.DataFrame.value_counts': [
+              'df.value_counts(dropna=False)'
+            ],
         },
         skip={
             # s2 created with reindex
@@ -274,6 +286,8 @@ class DoctestTest(unittest.TestCase):
                 'df.dot(s2)',
             ],
 
+            'pandas.core.frame.DataFrame.resample': ['df'],
+            'pandas.core.frame.DataFrame.asfreq': ['*'],
             # Throws NotImplementedError when modifying df
             'pandas.core.frame.DataFrame.axes': [
                 # Returns deferred index.
@@ -301,6 +315,14 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
+
+            # Raises right exception, but testing framework has matching issues.
+            # Tested in `frames_test.py`.
+            'pandas.core.frame.DataFrame.insert': [
+                'df',
+                'df.insert(1, "newcol", [99, 99])',
+                'df.insert(0, "col1", [100, 100], allow_duplicates=True)'
+            ],
 
             'pandas.core.frame.DataFrame.to_records': [
                 'df.index = df.index.rename("I")',
@@ -385,7 +407,8 @@ class DoctestTest(unittest.TestCase):
                 's.dot(arr)',  # non-deferred result
             ],
             'pandas.core.series.Series.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.series.Series.items': ['*'],
@@ -434,11 +457,11 @@ class DoctestTest(unittest.TestCase):
                 's.drop_duplicates()',
                 "s.drop_duplicates(keep='last')",
             ],
-            'pandas.core.series.Series.repeat': [
-                's.repeat([1, 2, 3])'
-            ],
             'pandas.core.series.Series.reindex': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
+            'pandas.core.series.Series.repeat': ['s.repeat([1, 2, 3])'],
+            'pandas.core.series.Series.resample': ['*'],
+            'pandas.core.series.Series': ['ser.iloc[0] = 999'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': [
@@ -451,8 +474,11 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
             ],
+            'pandas.core.series.Series.swaplevel' :['*']
         },
         skip={
+            # Relies on setting values with iloc
+            'pandas.core.series.Series': ['ser', 'r'],
             'pandas.core.series.Series.groupby': [
                 # TODO(BEAM-11393): This example requires aligning two series
                 # with non-unique indexes. It only works in pandas because
@@ -460,6 +486,7 @@ class DoctestTest(unittest.TestCase):
                 # alignment.
                 'ser.groupby(ser > 100).mean()',
             ],
+            'pandas.core.series.Series.asfreq': ['*'],
             # error formatting
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
@@ -491,12 +518,12 @@ class DoctestTest(unittest.TestCase):
                 # Inspection after modification.
                 's'
             ],
+            'pandas.core.series.Series.resample': ['df'],
         })
     self.assertEqual(result.failed, 0)
 
   def test_string_tests(self):
-    PD_VERSION = tuple(int(v) for v in pd.__version__.split('.'))
-    if PD_VERSION < (1, 2, 0):
+    if PD_VERSION < (1, 2):
       module = pd.core.strings
     else:
       # Definitions were moved to accessor in pandas 1.2.0
@@ -668,11 +695,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.SeriesGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.groupby.generic.SeriesGroupBy.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
         },
@@ -682,6 +711,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.apply': ['*'],
         },
         skip={
             'pandas.core.groupby.generic.SeriesGroupBy.cov': [
@@ -698,6 +728,14 @@ class DoctestTest(unittest.TestCase):
             # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.aggregate': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.aggregate': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.transform': [
+                # Dropping invalid columns during a transform is unsupported.
+                'grouped.transform(lambda x: (x - x.mean()) / x.std())'
+            ],
+            'pandas.core.groupby.generic.DataFrameGroupBy.transform': [
+                # Dropping invalid columns during a transform is unsupported.
+                'grouped.transform(lambda x: (x - x.mean()) / x.std())'
+            ],
         })
     self.assertEqual(result.failed, 0)
 
