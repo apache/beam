@@ -233,10 +233,6 @@ print(s.getsockname()[1])
 s.close()
 "
 
-# The go test flag -p dictates the number of simultaneous test binaries running tests.
-# Note that --parallel indicates within a test binary level of parallism.
-ARGS="-p $SIMULTANEOUS"
-
 # Set up environment based on runner.
 if [[ "$RUNNER" == "dataflow" ]]; then
   if [[ -z "$DATAFLOW_WORKER_JAR" ]]; then
@@ -270,14 +266,14 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      ARGS="-p 1"
+      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "samza" ]]; then
       java \
           -jar $SAMZA_JOB_SERVER_JAR \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      ARGS="-p 1"
+      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "spark" ]]; then
       java \
           -jar $SPARK_JOB_SERVER_JAR \
@@ -285,7 +281,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      ARGS="-p 1" # Spark runner fails if jobs are run concurrently.
+      SIMULTANEOUS=1  # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
       python3 \
           -m apache_beam.runners.portability.local_job_service_main \
@@ -371,6 +367,10 @@ else
   ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
   CONTAINER=apache/beam_go_sdk
 fi
+
+# The go test flag -p dictates the number of simultaneous test binaries running tests.
+# Note that --parallel indicates within a test binary level of parallism.
+ARGS="$ARGS -p $SIMULTANEOUS"
 
 # Assemble test arguments and pipeline options.
 ARGS="$ARGS --timeout=$TIMEOUT"
