@@ -21,7 +21,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/teststream"
 )
 
-// TestStreamByteSlic tests the TestStream primitive by inserting byte slice elements
+// TestStreamByteSlice tests the TestStream primitive by inserting byte slice elements
 // then advancing the watermark to infinity and comparing the output..
 func TestStreamByteSlice() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()

@@ -138,7 +138,7 @@ func (c *Config) AddElements(timestamp int64, elements ...interface{}) error {
 	return nil
 }
 
-// AddElementSlice inserts a slice of elements into the stream at the specified event timestamp. Must be called with
+// AddElementList inserts a slice of elements into the stream at the specified event timestamp. Must be called with
 // at least one element.
 //
 // Calls into AddElements, which panics if an inserted type does not match a previously inserted element type.
