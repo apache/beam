@@ -582,6 +582,17 @@ class TextSourceTest(unittest.TestCase):
           [pattern1, pattern2, pattern3]) | 'ReadAll' >> ReadAllFromText()
       assert_that(pcoll, equal_to(expected_data))
 
+  def test_read_all_with_filename(self):
+    pattern, expected_data = write_pattern([5, 3], return_filenames=True)
+    assert len(expected_data) == 8
+
+    with TestPipeline() as pipeline:
+      pcoll = (
+          pipeline
+          | 'Create' >> Create([pattern])
+          | 'ReadAll' >> ReadAllFromText(with_filename=True))
+      assert_that(pcoll, equal_to(expected_data))
+
   def test_read_auto_bzip2(self):
     _, lines = write_data(15)
     with TempDir() as tempdir:

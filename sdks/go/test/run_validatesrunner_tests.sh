@@ -33,6 +33,9 @@
 #    --tests -> A space-seperated list of targets for "go test". Defaults to
 #        all packages in the integration and regression directories.
 #    --timeout -> Timeout for the go test command, on a per-package level.
+#    --simultaneous -> Number of simultaneous packages to test.
+#        Controls the -p flag for the go test command.
+#        Not used for Flink, Spark, or Samza runners.  Defaults to 3 otherwise.
 #    --endpoint -> An endpoint for an existing job server outside the script.
 #        If present, job server jar flags are ignored.
 #    --test_expansion_jar -> Filepath to jar for an expansion service, for
@@ -79,6 +82,9 @@ RUNNER=portable
 # packages are executed in parallel.
 TIMEOUT=1h
 
+# Default limit on simultaneous test binaries/packages being executed.
+SIMULTANEOUS=3
+
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
@@ -117,6 +123,11 @@ case $key in
         ;;
     --timeout)
         TIMEOUT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --simultaneous)
+        SIMULTANEOUS="$2"
         shift # past argument
         shift # past value
         ;;
@@ -255,13 +266,14 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
+      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "samza" ]]; then
       java \
           -jar $SAMZA_JOB_SERVER_JAR \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      ARGS="-p 1"
+      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "spark" ]]; then
       java \
           -jar $SPARK_JOB_SERVER_JAR \
@@ -269,7 +281,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      ARGS="-p 1" # Spark runner fails if jobs are run concurrently.
+      SIMULTANEOUS=1  # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
       python3 \
           -m apache_beam.runners.portability.local_job_service_main \
@@ -355,6 +367,10 @@ else
   ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
   CONTAINER=apache/beam_go_sdk
 fi
+
+# The go test flag -p dictates the number of simultaneous test binaries running tests.
+# Note that --parallel indicates within a test binary level of parallism.
+ARGS="$ARGS -p $SIMULTANEOUS"
 
 # Assemble test arguments and pipeline options.
 ARGS="$ARGS --timeout=$TIMEOUT"

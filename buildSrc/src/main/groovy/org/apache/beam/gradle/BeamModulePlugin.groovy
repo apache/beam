@@ -130,6 +130,17 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean validateShadowJar = true
 
     /**
+     * Controls whether the 'jmh' source set is enabled for JMH benchmarks.
+     *
+     * Add additional dependencies to the jmhCompile and jmhRuntime dependency
+     * sets.
+     *
+     * Note that the JMH annotation processor is enabled by default and that
+     * a 'jmh' task is created which executes JMH.
+     */
+    boolean enableJmh = false
+
+    /**
      * The set of excludes that should be used during validation of the shadow jar. Projects should override
      * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
      *
@@ -361,7 +372,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.32.0'
+    project.version = '2.33.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -462,6 +473,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
     def arrow_version = "4.0.0"
+    def jmh_version = "1.32"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -526,7 +538,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20210326-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20210331-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20210408-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20210407-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20210603-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20210322-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20210127-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
@@ -628,7 +640,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_firestore_v1             : "com.google.api.grpc:proto-google-cloud-firestore-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
-        proto_google_cloud_spanner_v1: "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
@@ -848,6 +860,7 @@ class BeamModulePlugin implements Plugin<Project> {
       List<String> skipDefRegexes = []
       skipDefRegexes << "AutoValue_.*"
       skipDefRegexes << "AutoOneOf_.*"
+      skipDefRegexes << ".*\\.jmh_generated\\..*"
       skipDefRegexes += configuration.generatedClassPatterns
       skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
       String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
@@ -1238,6 +1251,45 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.RSA"
         })
         project.artifacts.testRuntime project.testJar
+      }
+
+      if (configuration.enableJmh) {
+        // We specifically use a separate source set for JMH to ensure that it does not
+        // become a required artifact
+        project.sourceSets {
+          jmh {
+            java {
+              srcDir "src/jmh/java"
+            }
+            resources {
+              srcDir "src/jmh/resources"
+            }
+          }
+        }
+
+        project.dependencies {
+          jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:$jmh_version"
+          jmhCompile "org.openjdk.jmh:jmh-core:$jmh_version"
+        }
+
+        project.task("jmh", type: JavaExec, dependsOn: project.jmhClasses, {
+          main = "org.openjdk.jmh.Main"
+          classpath = project.sourceSets.jmh.compileClasspath + project.sourceSets.jmh.runtimeClasspath
+          // For a list of arguments, see
+          // https://github.com/guozheng/jmh-tutorial/blob/master/README.md
+          //
+          // Filter for a specific benchmark to run (uncomment below)
+          // Note that multiple regex are supported each as a separate argument.
+          // args 'BeamFnLoggingClientBenchmark.testLoggingWithAllOptionalParameters'
+          // args 'additional regexp...'
+          //
+          // Enumerate available benchmarks and exit (uncomment below)
+          // args '-l'
+          //
+          // Enable connecting a debugger by disabling forking (uncomment below)
+          // Useful for debugging via an IDE such as Intellij
+          // args '-f0'
+        })
       }
 
       project.ext.includeInJavaBom = configuration.publish
@@ -1738,6 +1790,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.docker { noCache true }
       project.tasks.create(name: "copyLicenses", type: Copy) {
         from "${project.rootProject.projectDir}/LICENSE"
+        from "${project.rootProject.projectDir}/LICENSE.python"
         from "${project.rootProject.projectDir}/NOTICE"
         into "build/target"
       }

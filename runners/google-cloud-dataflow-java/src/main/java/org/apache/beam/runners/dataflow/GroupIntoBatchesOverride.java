@@ -105,9 +105,7 @@ public class GroupIntoBatchesOverride {
                             || (maxBatchSizeBytes != Long.MAX_VALUE
                                 && batchSizeBytes >= maxBatchSizeBytes)) {
                           c.output(KV.of(c.element().getKey(), currentBatch));
-                          // Call clear() since that allows us to reuse the array memory for
-                          // subsequent batches.
-                          currentBatch.clear();
+                          currentBatch = Lists.newArrayList();
                           batchSizeBytes = 0;
                         }
                       }

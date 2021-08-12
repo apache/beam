@@ -15,7 +15,10 @@
 
 package reflectx
 
-import "reflect"
+import (
+    "reflect"
+    "fmt"    
+)
 
 // Generated arity-specialized Func implementations to avoid runtime temporary
 // slices. Code that knows the arity can potentially avoid that overhead in
@@ -57,7 +60,7 @@ func (c *shimFunc{{$in}}x{{$out}}) Call{{$in}}x{{$out}}({{mkargs $in "arg%v" "in
 
 func ToFunc{{$in}}x{{$out}}(c Func) Func{{$in}}x{{$out}} {
     if c.Type().NumIn() != {{$in}} || c.Type().NumOut() != {{$out}} {
-        panic("incompatible func type")
+        panic(fmt.Sprintf("Incompatible func type: got func %v with %v inputs and %v outputs, want {{$in}} inputs and {{$out}} outputs", c.Type(), c.Type().NumIn(), c.Type().NumOut()))
     }
     if sc, ok := c.(Func{{$in}}x{{$out}}); ok {
         return sc

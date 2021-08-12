@@ -70,13 +70,11 @@ createPortableValidatesRunnerTask(
         environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
         testCategories: {
             includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-            // TODO: BEAM-12348
-            excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
             // TODO: BEAM-12349
             excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
             // TODO: BEAM-12350
             excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-
+            // TODO: BEAM-12681
             excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
             // Larger keys are possible, but they require more memory.
             excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
@@ -98,8 +96,11 @@ createPortableValidatesRunnerTask(
             excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
             excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
             excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
         },
         testFilter: {
+            // TODO(BEAM-12677)
+            excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty"

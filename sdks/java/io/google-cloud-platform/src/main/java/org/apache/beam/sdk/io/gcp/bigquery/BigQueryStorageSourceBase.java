@@ -94,6 +94,8 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
    */
   protected abstract Table getTargetTable(BigQueryOptions options) throws Exception;
 
+  protected abstract @Nullable String getTargetTableId(BigQueryOptions options) throws Exception;
+
   @Override
   public Coder<T> getOutputCoder() {
     return outputCoder;
@@ -105,9 +107,16 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     Table targetTable = getTargetTable(bqOptions);
 
-    ReadSession.Builder readSessionBuilder =
-        ReadSession.newBuilder()
-            .setTable(BigQueryHelpers.toTableResourceName(targetTable.getTableReference()));
+    String tableReferenceId = "";
+    if (targetTable != null) {
+      tableReferenceId = BigQueryHelpers.toTableResourceName(targetTable.getTableReference());
+    } else {
+      // If the table does not exist targetTable will be null.
+      // Construct the table id if we can generate it. For error recording/logging.
+      tableReferenceId = getTargetTableId(bqOptions);
+    }
+
+    ReadSession.Builder readSessionBuilder = ReadSession.newBuilder().setTable(tableReferenceId);
 
     if (selectedFieldsProvider != null || rowRestrictionProvider != null) {
       ReadSession.TableReadOptions.Builder tableReadOptionsBuilder =

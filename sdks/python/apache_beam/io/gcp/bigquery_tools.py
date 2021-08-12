@@ -68,6 +68,7 @@ from apache_beam.utils.histogram import LinearBucket
 try:
   from apitools.base.py.transfer import Upload
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   gcp_bigquery = None
@@ -641,17 +642,24 @@ class BigQueryWrapper(object):
 
     started_millis = int(time.time() * 1000)
     try:
-      table_ref = gcp_bigquery.DatasetReference(project_id,
-                                                dataset_id).table(table_id)
+      table_ref_str = '%s.%s.%s' % (project_id, dataset_id, table_id)
       errors = self.gcp_bq_client.insert_rows_json(
-          table_ref, json_rows=rows, row_ids=insert_ids, skip_invalid_rows=True)
+          table_ref_str,
+          json_rows=rows,
+          row_ids=insert_ids,
+          skip_invalid_rows=True)
       if not errors:
         service_call_metric.call('ok')
-      for insert_error in errors:
-        service_call_metric.call(insert_error['errors'][0])
+      else:
+        for insert_error in errors:
+          service_call_metric.call(insert_error['errors'][0])
+    except (ClientError, GoogleAPICallError) as e:
+      # e.code.value contains the numeric http status code.
+      service_call_metric.call(e.code.value)
+      # Re-reise the exception so that we re-try appropriately.
+      raise
     except HttpError as e:
       service_call_metric.call(e)
-
       # Re-reise the exception so that we re-try appropriately.
       raise
     finally:
