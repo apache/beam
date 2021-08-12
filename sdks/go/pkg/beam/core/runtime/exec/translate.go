@@ -82,12 +82,16 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 		for key, pid := range transform.GetOutputs() {
 			u.SID = StreamID{PtransformID: id, Port: port}
 			u.Name = key
-			u.outputPID = pid
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
 				return nil, err
 			}
+			// Elide the PCollection Node for DataSources
+			// DataSources can get byte samples directly, and can handle CoGBKs.
+			u.PCol = *u.Out.(*PCollection)
+			u.Out = u.PCol.Out
+			b.units = b.units[:len(b.units)-1]
 		}
 
 		b.units = append(b.units, u)
@@ -103,8 +107,8 @@ type builder struct {
 	succ map[string][]linkID // PCollectionID -> []linkID
 
 	windowing map[string]*window.WindowingStrategy
-	nodes     map[string]Node // PCollectionID -> Node (cache)
-	links     map[linkID]Node // linkID -> Node (cache)
+	nodes     map[string]*PCollection // PCollectionID -> Node (cache)
+	links     map[linkID]Node         // linkID -> Node (cache)
 
 	units []Unit // result
 	idgen *GenID
@@ -146,7 +150,7 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		succ: succ,
 
 		windowing: make(map[string]*window.WindowingStrategy),
-		nodes:     make(map[string]Node),
+		nodes:     make(map[string]*PCollection),
 		links:     make(map[linkID]Node),
 
 		idgen: &GenID{},
@@ -263,7 +267,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	return c, wc, nil
 }
 
-func (b *builder) makePCollection(id string) (Node, error) {
+func (b *builder) makePCollection(id string) (*PCollection, error) {
 	if n, exists := b.nodes[id]; exists {
 		return n, nil
 	}
@@ -278,8 +282,11 @@ func (b *builder) makePCollection(id string) (Node, error) {
 		u = &Discard{UID: b.idgen.New()}
 
 	case 1:
-		return b.makeLink(id, list[0])
-
+		out, err := b.makeLink(id, list[0])
+		if err != nil {
+			return nil, err
+		}
+		return b.newPCollectionNode(id, out)
 	default:
 		// Multiplex.
 
@@ -296,7 +303,16 @@ func (b *builder) makePCollection(id string) (Node, error) {
 		b.units = append(b.units, u)
 		u = &Flatten{UID: b.idgen.New(), N: count, Out: u}
 	}
+	b.units = append(b.units, u)
+	return b.newPCollectionNode(id, u)
+}
 
+func (b *builder) newPCollectionNode(id string, out Node) (*PCollection, error) {
+	ec, _, err := b.makeCoderForPCollection(id)
+	if err != nil {
+		return nil, err
+	}
+	u := &PCollection{UID: b.idgen.New(), Out: out, PColID: id, Coder: ec, Seed: rand.Int63()}
 	b.nodes[id] = u
 	b.units = append(b.units, u)
 	return u, nil
@@ -498,7 +514,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			for _, dc := range c.Components[1:] {
 				decoders = append(decoders, MakeElementDecoder(dc))
 			}
-			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
+			// Strip PCollections from Expand nodes, as CoGBK metrics are handled by
+			// the DataSource that preceeds them.
+			trueOut := out[0].(*PCollection).Out
+			b.units = b.units[:len(b.units)-1]
+			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 
 		case graphx.URNReshuffleInput:
 			c, w, err := b.makeCoderForPCollection(from)
@@ -521,7 +541,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
 
 		default:
-			return nil, errors.Errorf("unexpected payload: %v", tp)
+			return nil, errors.Errorf("unexpected payload: %v", &tp)
 		}
 
 	case graphx.URNWindow:

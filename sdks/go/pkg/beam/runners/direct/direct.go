@@ -47,6 +47,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 	log.Info(ctx, "Pipeline:")
 	log.Info(ctx, p)
+	ctx = metrics.SetBundleID(ctx, "direct") // Ensure a metrics.Store exists.
 
 	if *jobopts.Strict {
 		log.Info(ctx, "Strict mode enabled, applying additional validation.")
@@ -75,7 +76,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	}
 	// TODO(lostluck) 2020/01/24: What's the right way to expose the
 	// metrics store for the direct runner?
-	metrics.DumpToLogFromStore(ctx, plan.Store())
+	metrics.DumpToLog(ctx)
 	return nil, nil
 }
 
