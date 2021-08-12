@@ -77,6 +77,7 @@
 * Added ability to use JdbcIO.Write.withResults without statement and preparedStatementSetter. ([BEAM-12511](https://issues.apache.org/jira/browse/BEAM-12511))
 - Added ability to register URI schemes to use the S3 protocol via FileIO. ([BEAM-12435](https://issues.apache.org/jira/browse/BEAM-12435)).
 * Respect number of shards set in SnowflakeWrite batch mode. ([BEAM-12715](https://issues.apache.org/jira/browse/BEAM-12715))
+* Java SDK: Update Google Cloud Healthcare IO connectors from using v1beta1 to using the GA version.
 
 ## New Features / Improvements
 
