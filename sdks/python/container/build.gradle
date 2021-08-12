@@ -24,6 +24,7 @@ description = "Apache Beam :: SDKs :: Python :: Container"
 // Disable gogradle's dependency resolution so it uses Go modules instead.
 installDependencies.enabled = false
 resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 configurations {
   sdkSourceTarball

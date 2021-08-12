@@ -25,6 +25,7 @@ description = "Apache Beam :: SDKs :: Go :: Test"
 // Disable gogradle's dependency resolution so it uses Go modules instead.
 installDependencies.enabled = false
 resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 clean.dependsOn cleanVendor
 
@@ -62,9 +63,6 @@ task dataflowValidatesRunner() {
             "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -87,9 +85,6 @@ task flinkValidatesRunner {
             "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -112,9 +107,6 @@ task samzaValidatesRunner {
             "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -136,9 +128,6 @@ task sparkValidatesRunner {
             "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -166,9 +155,6 @@ task ulrValidatesRunner {
             "--runner portable",
             "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
-    if (project.jenkins.isCIBuild) { // Needed when running this task on Jenkins.
-      options.add("--jenkins")
-    }
     exec {
       executable "sh"
       workingDir "${project.rootDir}/sdks/python"

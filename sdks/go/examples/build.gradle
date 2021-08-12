@@ -24,17 +24,13 @@ description = "Apache Beam :: SDKs :: Go :: Examples"
 // Disable gogradle's dependency resolution so it uses Go modules instead.
 installDependencies.enabled = false
 resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 def getLocalPlatform = {
   String hostOs = com.github.blindpirate.gogradle.crossplatform.Os.getHostOs()
   String hostArch = com.github.blindpirate.gogradle.crossplatform.Arch.getHostArch()
   return hostOs + '-' + hostArch
 }
-
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
 clean.dependsOn cleanVendor
 

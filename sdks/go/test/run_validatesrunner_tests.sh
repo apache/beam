@@ -206,10 +206,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --jenkins)
-        JENKINS=true
-        shift # past argument
-        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -395,30 +391,11 @@ if [[ -n "$SDK_OVERRIDES" ]]; then
 fi
 ARGS="$ARGS $PIPELINE_OPTS"
 
-# Running "go test" requires some additional setup on Jenkins.
-if [[ "$JENKINS" == true ]]; then
-  # Copy the go repo as it is on Jenkins, to ensure we compile with the code
-  # being tested.
-  cd ..
-  mkdir -p temp_gopath/src/github.com/apache/beam/sdks
-  cp -a ./src/sdks/go ./temp_gopath/src/github.com/apache/beam/sdks
-  TEMP_GOPATH=$(pwd)/temp_gopath
-  cd ./src
-
-  # Search and replace working directory on test targets with new directory.
-  TESTS="${TESTS//"./"/"github.com/apache/beam/sdks/go"}"
-  echo ">>> For Jenkins environment, changing test targets to: $TESTS"
-
-  echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-  GOPATH=$TEMP_GOPATH go test -v $TESTS $ARGS \
-      || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
-else
-  cd sdks/go
-  echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-  go test -v $TESTS $ARGS \
-      || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
-  cd ../..
-fi
+cd sdks/go
+echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
+go test -v $TESTS $ARGS \
+    || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
+cd ../..
 
 if [[ "$RUNNER" == "dataflow" ]]; then
   # Delete the container locally and remotely
