@@ -26,28 +26,28 @@ import (
 func EncodePane(v typex.PaneInfo, w io.Writer) error {
 	// Encoding: typex.PaneInfo
 
-	pane := 0
+	pane := byte(0)
 	if v.IsFirst {
-		pane |= 1
+		pane |= 0x01
 	}
 	if v.IsLast {
-		pane |= 2
+		pane |= 0x02
 	}
-	pane |= v.Timing << 2
+	pane |= byte(v.Timing << 2)
 
 	switch {
-	case (v.Index == 0 || v.NonSpeculativeIndex == 0) || v.Timing == typex.PaneUnknown:
+	case v.Index == 0 || v.NonSpeculativeIndex == 0 || v.Timing == typex.PaneUnknown:
 		// The entire pane info is encoded as a single byte
-		paneByte := []byte{byte(pane)}
+		paneByte := []byte{pane}
 		w.Write(paneByte)
 	case v.Index == v.NonSpeculativeIndex || v.Timing == typex.PaneEarly:
 		// The pane info is encoded as this byte plus a single VarInt encoded integer
-		paneByte := []byte{byte(pane | 1<<4)}
+		paneByte := []byte{pane | 1<<4}
 		w.Write(paneByte)
 		EncodeVarInt(v.Index, w)
 	default:
 		// The pane info is encoded as this byte plus two VarInt encoded integer
-		paneByte := []byte{byte(pane | 2<<4)}
+		paneByte := []byte{pane | 2<<4}
 		w.Write(paneByte)
 		EncodeVarInt(v.Index, w)
 		EncodeVarInt(v.NonSpeculativeIndex, w)
@@ -67,7 +67,7 @@ func NewPane(b byte) typex.PaneInfo {
 		pn.IsLast = true
 	}
 
-	pn.Timing = int((b >> 2) & 0x03)
+	pn.Timing = typex.PaneTiming((b >> 2) & 0x03)
 	return pn
 }
 

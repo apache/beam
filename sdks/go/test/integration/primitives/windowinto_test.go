@@ -57,3 +57,10 @@ func TestTriggerElementCount(t *testing.T) {
 	TriggerElementCount(s)
 	ptest.RunAndValidate(t, p)
 }
+
+func TestTriggerRepeat(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerRepeat(s)
+	ptest.RunAndValidate(t, p)
+}

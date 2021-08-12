@@ -981,19 +981,17 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (
 	} else {
 		mergeStat = pipepb.MergeStatus_NON_MERGING
 	}
-	trigger := makeTrigger(w.Trigger)
-	accMode := makeAccumulationMode(w.AccumulationMode)
+
 	ws := &pipepb.WindowingStrategy{
 		WindowFn:         windowFn,
 		MergeStatus:      mergeStat,
 		WindowCoderId:    windowCoderId,
-		Trigger:          trigger,
-		AccumulationMode: accMode,
-		OutputTime:       pipepb.OutputTime_EARLIEST_IN_PANE,
+		Trigger:          makeTrigger(w.Trigger),
+		AccumulationMode: makeAccumulationMode(w.AccumulationMode),
+		OutputTime:       pipepb.OutputTime_END_OF_WINDOW,
 		ClosingBehavior:  pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
-		AllowedLateness:  10,
-		OnTimeBehavior:   pipepb.OnTimeBehavior_FIRE_ALWAYS,
-		EnvironmentId:    "",
+		AllowedLateness:  0,
+		OnTimeBehavior:   pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY,
 	}
 	return ws, nil
 }

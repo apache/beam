@@ -31,7 +31,7 @@ type WindowingStrategy struct {
 	Fn               *Fn
 	Trigger          Trigger
 	AccumulationMode AccumulationMode
-	AllowedLateness  int
+	AllowedLateness  int // in milliseconds
 }
 
 func (ws *WindowingStrategy) Equals(o *WindowingStrategy) bool {

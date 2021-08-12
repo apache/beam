@@ -65,15 +65,17 @@ type Window interface {
 	Equals(o Window) bool
 }
 
+type PaneTiming byte
+
 const (
-	PaneEarly   int = 0 // EARLY
-	PaneOnTime  int = 1 // ON_TIME
-	PaneLate    int = 2 // LATE
-	PaneUnknown int = 3 // UNKNOWN
+	PaneEarly   PaneTiming = 0
+	PaneOnTime  PaneTiming = 1
+	PaneLate    PaneTiming = 2
+	PaneUnknown PaneTiming = 3
 )
 
 type PaneInfo struct {
-	Timing                     int
+	Timing                     PaneTiming
 	IsFirst, IsLast            bool
 	Index, NonSpeculativeIndex int64
 }

@@ -112,11 +112,9 @@ func TriggerDefault(s beam.Scope) {
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
 	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.Trigger{Kind: window.DefaultTrigger}, window.Accumulating, 6.0, 9.0)
-
 }
 
 // TriggerAlways tests the Always trigger, it is expected to receive every input value as the output.
-// It also return an extra empty pane. Not sure why it is so. It is only in the case of this trigger
 func TriggerAlways(s beam.Scope) {
 	con := teststream.NewConfig()
 	con.AddElements(1000, 1.0, 2.0, 3.0)
@@ -124,7 +122,7 @@ func TriggerAlways(s beam.Scope) {
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
 
-	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.Trigger{Kind: window.AlwaysTrigger}, window.Discarding, 1.0, 2.0, 3.0, 0.0)
+	validate(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col, window.Trigger{Kind: window.AlwaysTrigger}, window.Discarding, 1.0, 2.0, 3.0)
 }
 
 // TriggerElementCount tests the ElementCount Trigger, it waits for atleast N elements to be ready
@@ -148,4 +146,40 @@ func TriggerElementCount(s beam.Scope) {
 	sums := stats.Sum(s, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
 	passert.Count(s, sums, "total collections", 1)
+}
+
+// TriggerAfterProcessingTime tests the AfterProcessingTime Trigger, it fires output panes once 't' processing time has passed
+// Not yet supported by the flink runner:
+// java.lang.UnsupportedOperationException: Advancing Processing time is not supported by the Flink Runner.
+func TriggerAfterProcessingTime(s beam.Scope) {
+	// create a teststream pipeline and get the pcollection
+	con := teststream.NewConfig()
+	con.AdvanceProcessingTime(100)
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceProcessingTime(2000)
+	con.AddElements(22000, 4.0)
+
+	col := teststream.Create(s, con)
+
+	validate(s.Scope("Fixed"), window.NewGlobalWindows(), col, window.Trigger{Kind: window.AfterProcessingTimeTrigger, Delay: 5000}, window.Discarding, 6.0)
+}
+
+// TriggerRepeat tests the repeat trigger. As of now is it is configure to take only one trigger as a subtrigger.
+// In the below test, it is expected to receive three output panes with two elements each.
+func TriggerRepeat(s beam.Scope) {
+	// create a teststream pipeline and get the pcollection
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(2000)
+	con.AddElements(6000, 4.0, 5.0, 6.0)
+	con.AdvanceWatermark(10000)
+
+	col := teststream.Create(s, con)
+
+	subTr := window.Trigger{Kind: window.ElementCountTrigger, ElementCount: 2}
+	tr := window.Trigger{Kind: window.RepeatTrigger, SubTriggers: []window.Trigger{subTr}}
+	windowed := beam.WindowInto(s, window.NewGlobalWindows(), col, beam.WindowTrigger{Name: tr}, beam.AccumulationMode{Mode: window.Discarding})
+	sums := stats.Sum(s, windowed)
+	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
+	passert.Count(s, sums, "total collections", 3)
 }

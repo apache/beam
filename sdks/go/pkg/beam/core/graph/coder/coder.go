@@ -170,6 +170,7 @@ const (
 	Double             Kind = "double"
 	Row                Kind = "R"
 	Timer              Kind = "T"
+	PaneInfo           Kind = "PI"
 	WindowedValue      Kind = "W"
 	ParamWindowedValue Kind = "PW"
 	Iterable           Kind = "I"
@@ -188,8 +189,6 @@ const (
 	//
 	// TODO(BEAM-490): once this JIRA is done, this coder should become the new thing.
 	CoGBK Kind = "CoGBK"
-
-	PaneInfo Kind = "PaneInfo"
 )
 
 // Coder is a description of how to encode and decode values of a given type.

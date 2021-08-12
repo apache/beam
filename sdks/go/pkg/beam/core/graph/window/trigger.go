@@ -18,7 +18,7 @@ package window
 type Trigger struct {
 	Kind         string
 	SubTriggers  []Trigger
-	Delay        int64
+	Delay        int64 // in milliseconds
 	ElementCount int32
 }
 
