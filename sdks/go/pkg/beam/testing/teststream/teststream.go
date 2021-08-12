@@ -20,6 +20,9 @@
 //
 // TestStream is supported on the Flink runner and currently supports int64,
 // float64, and boolean types.
+//
+// TODO(BEAM-12753): Flink currently displays unexpected behavior with TestStream,
+// should not be used until this issue is resolved.
 package teststream
 
 import (
