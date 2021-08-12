@@ -19,7 +19,7 @@
 // See https://beam.apache.org/blog/test-stream/ for more information.
 //
 // TestStream is supported on the Flink runner and currently supports int64,
-// float 64, and boolean types.
+// float64, and boolean types.
 package teststream
 
 import (
