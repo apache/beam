@@ -55,7 +55,7 @@ dependencies {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/java/container'
+  packagePath = 'github.com/apache/beam/sdks/v2/java/container'
   goBuild {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']

@@ -42,7 +42,7 @@ dependencies {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/python/container'
+  packagePath = 'github.com/apache/beam/sdks/v2/python/container'
   goBuild {
     // Build for linux and mac.
     targetPlatform = ['linux-amd64', 'darwin-amd64']

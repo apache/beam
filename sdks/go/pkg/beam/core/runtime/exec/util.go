@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // GenID is a simple UnitID generator.
