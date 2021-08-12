@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	bq "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"

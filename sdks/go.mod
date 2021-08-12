@@ -1,4 +1,4 @@
-module github.com/apache/beam/sdks
+module github.com/apache/beam/sdks/v2
 
 go 1.16
 

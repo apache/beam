@@ -33,13 +33,13 @@ dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    build name: './github.com/apache/beam/sdks/v2/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/v2/go', dir: project(':sdks:go').projectDir
   }
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/go/container'
+  packagePath = 'github.com/apache/beam/sdks/v2/go/container'
   goBuild {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']

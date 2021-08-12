@@ -22,10 +22,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 
 	// ptest uses the direct runner to execute pipelines by default.
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 )
 
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
@@ -95,7 +95,7 @@ func RunAndValidate(t *testing.T, p *beam.Pipeline) {
 // To enable this behavior, _ import the desired runner, and set the flag
 // accordingly. For example:
 //
-//	import _ "github.com/apache/beam/sdks/go/pkg/runners/flink"
+//	import _ "github.com/apache/beam/sdks/v2/go/pkg/runners/flink"
 //
 //	func TestMain(m *testing.M) {
 //		ptest.Main(m)

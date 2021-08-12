@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // TestCombineFn3String verifies that the accumulator correctly
