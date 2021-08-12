@@ -17,17 +17,7 @@
 # under the License.
 #
 
-title: Beam Katas - Python
-language: English
-summary: "This course provides a series of katas to get familiar with Apache Beam.\
-  \ \n\nApache Beam website – https://beam.apache.org/"
-programming_language: Python
-programming_language_version: 3.7
 content:
-- Introduction
-- Core Transforms
-- Common Transforms
-- IO
-- Windowing
-- Triggers
-- Examples
+- Event Time Triggers
+- Early Triggers
+- Window Accumulation Mode
