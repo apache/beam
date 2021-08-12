@@ -121,25 +121,26 @@ task validatesRunner(type: Test) {
     excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
     // TODO(BEAM-12036)
     excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
-
+    // TODO(BEAM-12743)
     excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException'
     excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException'
     excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException'
     excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException'
-
+    // TODO(BEAM-12744)
     excludeTestsMatching 'org.apache.beam.sdk.PipelineTest.testEmptyPipeline'
-
+    // TODO(BEAM-12745)
     excludeTestsMatching 'org.apache.beam.sdk.io.AvroIOTest*'
+    // TODO(BEAM-12746)
     excludeTestsMatching 'org.apache.beam.sdk.io.FileIOTest*'
-
+    // TODO(BEAM-12747)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow'
-
+    // TODO(BEAM-12748)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput'
-
+    // TODO(BEAM-12749)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction'
-
+    // TODO(BEAM-12750)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow'
