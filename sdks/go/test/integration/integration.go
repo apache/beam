@@ -69,6 +69,8 @@ var directFilters = []string{
 var portableFilters = []string{
 	// The portable runner does not support the TestStream primitive
 	"TestTestStream.*",
+	// The trigger tests uses TestStream
+	"TestTrigger.*",
 }
 
 var flinkFilters = []string{
