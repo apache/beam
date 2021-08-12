@@ -34,7 +34,8 @@
 #        all packages in the integration and regression directories.
 #    --timeout -> Timeout for the go test command, on a per-package level.
 #    --simultaneous -> Number of simultaneous packages to test.
-#        Controls the -p flag for the go test command. Defaults to 3. 
+#        Controls the -p flag for the go test command.
+#        Not used for Flink, Spark, or Samza runners.  Defaults to 3 otherwise.
 #    --endpoint -> An endpoint for an existing job server outside the script.
 #        If present, job server jar flags are ignored.
 #    --test_expansion_jar -> Filepath to jar for an expansion service, for
@@ -409,7 +410,7 @@ if [[ "$JENKINS" == true ]]; then
   echo ">>> For Jenkins environment, changing test targets to: $TESTS"
 
   echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-  GOPATH=$TEMP_GOPATH go test -v  $TESTS $ARGS \
+  GOPATH=$TEMP_GOPATH go test -v $TESTS $ARGS \
       || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 else
   echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
