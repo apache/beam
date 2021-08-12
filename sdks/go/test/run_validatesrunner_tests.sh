@@ -33,6 +33,8 @@
 #    --tests -> A space-seperated list of targets for "go test". Defaults to
 #        all packages in the integration and regression directories.
 #    --timeout -> Timeout for the go test command, on a per-package level.
+#    --simultaneous -> Number of simultaneous packages to test.
+#        Controls the -p flag for the go test command. Defaults to 3. 
 #    --endpoint -> An endpoint for an existing job server outside the script.
 #        If present, job server jar flags are ignored.
 #    --test_expansion_jar -> Filepath to jar for an expansion service, for
@@ -80,7 +82,7 @@ RUNNER=portable
 TIMEOUT=1h
 
 # Default limit on simultaneous test binaries/packages being executed.
-PARALLEL=3
+SIMULTANEOUS=3
 
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
@@ -120,6 +122,11 @@ case $key in
         ;;
     --timeout)
         TIMEOUT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --simultaneous)
+        SIMULTANEOUS="$2"
         shift # past argument
         shift # past value
         ;;
@@ -360,9 +367,9 @@ else
 fi
 
 
-# -p dictates the number of parallel test binaries running tests.
-# --parallel indicates within a test binary level of parallism.
-ARGS="$ARGS -p $PARALLEL"
+# The go test flag -p dictates the number of simultaneous test binaries running tests.
+# Note that --parallel indicates within a test binary level of parallism.
+ARGS="$ARGS -p $SIMULTANEOUS"
 
 # Assemble test arguments and pipeline options.
 ARGS="$ARGS --timeout=$TIMEOUT"
