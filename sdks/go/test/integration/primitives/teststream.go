@@ -21,6 +21,22 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/teststream"
 )
 
+// TestStreamByteSlice runs a byte slice through the runner's TestStream implementation
+// to prevent memory errors from being thrown by Flink.
+//
+// TODO(BEAM-12753) Update this test once the first TestStream call on Flink stops throwing
+// memory errors.
+func TestStreamByteSlice() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+	con := teststream.NewConfig()
+	b := []byte{91, 92, 93}
+	con.AddElements(1, b)
+	con.AdvanceWatermarkToInfinity()
+	col := teststream.Create(s, con)
+	passert.Count(s, col, "byte primer", 1)
+	return p
+}
+
 // TestStreamInt64Sequence tests the TestStream primitive by inserting int64 elements
 // then advancing the watermark past the point where they were inserted.
 func TestStreamInt64Sequence() *beam.Pipeline {
