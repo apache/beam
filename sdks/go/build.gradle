@@ -24,6 +24,7 @@ description = "Apache Beam :: SDKs :: Go"
 // Disable gogradle's dependency resolution so it uses Go modules instead.
 installDependencies.enabled = false
 resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/go'

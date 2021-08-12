@@ -230,7 +230,7 @@ task("goIntegrationTests") {
   doLast {
     exec {
       executable("sh")
-      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow --jenkins")
+      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow")
     }
   }
   dependsOn(":sdks:go:test:build")
