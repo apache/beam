@@ -27,12 +27,15 @@ import logging
 import time
 
 from apache_beam import typehints
+from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
 from apache_beam.io.gcp.datastore.v1new import util
 from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import AdaptiveThrottler
 from apache_beam.io.gcp.datastore.v1new.rampup_throttling_fn import RampupThrottlingFn
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
@@ -267,8 +270,26 @@ class ReadFromDatastore(PTransform):
     def process(self, query, *unused_args, **unused_kwargs):
       _client = helper.get_client(query.project, query.namespace)
       client_query = query._to_client_query(_client)
-      for client_entity in client_query.fetch(query.limit):
-        yield types.Entity.from_client_entity(client_entity)
+      # Create request count metric
+      resource = resource_identifiers.DatastoreNamespace(
+          query.project, query.namespace)
+      labels = {
+          monitoring_infos.SERVICE_LABEL: 'Datastore',
+          monitoring_infos.METHOD_LABEL: 'BatchDatastoreRead',
+          monitoring_infos.RESOURCE_LABEL: resource,
+          monitoring_infos.DATASTORE_NAMESPACE_LABEL: query.namespace,
+          monitoring_infos.DATASTORE_PROJECT_ID_LABEL: query.project,
+          monitoring_infos.STATUS_LABEL: 'ok'
+      }
+      service_call_metric = ServiceCallMetric(
+          request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+          base_labels=labels)
+      try:
+        for client_entity in client_query.fetch(query.limit):
+          yield types.Entity.from_client_entity(client_entity)
+        service_call_metric.call('ok')
+      except Exception as e:
+        service_call_metric.call(e.code)
 
 
 class _Mutate(PTransform):
@@ -395,17 +416,34 @@ class _Mutate(PTransform):
         for element in self._batch_elements:
           self.add_to_batch(element)
 
+      # Create request count metric
+      resource = resource_identifiers.DatastoreNamespace(self._project, None)
+      labels = {
+          monitoring_infos.SERVICE_LABEL: 'Datastore',
+          monitoring_infos.METHOD_LABEL: 'BatchDatastoreWrite',
+          monitoring_infos.RESOURCE_LABEL: resource,
+          monitoring_infos.DATASTORE_NAMESPACE_LABEL: None,
+          monitoring_infos.DATASTORE_PROJECT_ID_LABEL: self._project,
+          monitoring_infos.STATUS_LABEL: 'ok'
+      }
+
+      service_call_metric = ServiceCallMetric(
+          request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+          base_labels=labels)
+
       try:
         start_time = time.time()
         self._batch.commit()
         end_time = time.time()
+        service_call_metric.call('ok')
 
         rpc_stats_callback(successes=1)
         throttler.successful_request(start_time * 1000)
         commit_time_ms = int((end_time - start_time) * 1000)
         return commit_time_ms
-      except Exception:
+      except Exception as e:
         self._batch = None
+        service_call_metric.call(e.code)
         rpc_stats_callback(errors=1)
         raise
 

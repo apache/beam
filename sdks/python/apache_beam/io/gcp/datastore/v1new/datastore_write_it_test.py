@@ -35,6 +35,10 @@ from datetime import datetime
 import pytest
 from hamcrest.core.core.allof import all_of
 
+from apache_beam.io.gcp import resource_identifiers
+from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -49,28 +53,66 @@ class DatastoreWriteIT(unittest.TestCase):
   NUM_ENTITIES = 1001
   LIMIT = 500
 
-  def run_datastore_write(self, limit=None):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    current_time = datetime.now().strftime("%m%d%H%M%S")
-    seed = random.randint(0, 100000)
-    kind = 'testkind%s%d' % (current_time, seed)
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.project = self._get_project(self.test_pipeline)
+
+  def tearDown(self):
+    # Clear container after each test
+    MetricsEnvironment.process_wide_container().reset()
+
+  def run_datastore_write(self, limit=None, num_entities=None, kind=None):
+    if kind is None:
+      current_time = datetime.now().strftime("%m%d%H%M%S")
+      seed = random.randint(0, 100000)
+      kind = 'testkind%s%d' % (current_time, seed)
     pipeline_verifiers = [PipelineStateMatcher()]
     extra_opts = {
         'kind': kind,
-        'num_entities': self.NUM_ENTITIES,
+        'num_entities': num_entities,
         'on_success_matcher': all_of(*pipeline_verifiers)
     }
     if limit is not None:
       extra_opts['limit'] = limit
 
     datastore_write_it_pipeline.run(
-        test_pipeline.get_full_options_as_args(**extra_opts))
+        self.test_pipeline.get_full_options_as_args(**extra_opts))
 
   @pytest.mark.it_postcommit
   @unittest.skipIf(
       datastore_write_it_pipeline is None, 'GCP dependencies are not installed')
   def test_datastore_write_limit(self):
-    self.run_datastore_write(limit=self.LIMIT)
+    self.run_datastore_write(limit=self.LIMIT, num_entities=self.NUM_ENTITIES)
+
+  def _get_project(self, pipeline):
+    project = list(
+        filter(lambda opt: opt.startswith('--project'),
+               pipeline.options_list))[0].split('=')[1]
+    return project
+
+  def test_datastore_monitoring_info(self):
+    self.run_datastore_write(num_entities=1)
+    write_metric_value = self._get_metric_value('BatchDatastoreWrite')
+    read_metric_value = self._get_metric_value('BatchDatastoreRead')
+
+    self.assertEqual(read_metric_value, 3)
+    self.assertEqual(write_metric_value, 2)
+
+  def _get_metric_value(self, label):
+    resource = resource_identifiers.DatastoreNamespace(self.project, None)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Datastore',
+        monitoring_infos.METHOD_LABEL: label,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.DATASTORE_NAMESPACE_LABEL: None,
+        monitoring_infos.DATASTORE_PROJECT_ID_LABEL: self.project,
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+    return metric_value
 
 
 if __name__ == '__main__':

@@ -30,6 +30,7 @@ from mock import ANY
 
 # Protect against environments where datastore library is not available.
 try:
+  from apache_beam.io.gcp import resource_identifiers
   from apache_beam.io.gcp.datastore.v1new import helper, util
   from apache_beam.io.gcp.datastore.v1new import query_splitter
   from apache_beam.io.gcp.datastore.v1new import datastoreio
@@ -37,6 +38,9 @@ try:
   from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
   from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
   from apache_beam.io.gcp.datastore.v1new.types import Key
+  from apache_beam.metrics import monitoring_infos
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
   from google.cloud.datastore import client
   from google.cloud.datastore import entity
   from google.cloud.datastore import helpers
@@ -199,6 +203,10 @@ class DatastoreioTest(unittest.TestCase):
         # Don't do any network requests.
         _http=MagicMock())
 
+  def tearDown(self):
+    # Clear container after each test
+    MetricsEnvironment.process_wide_container().reset()
+
   def test_SplitQueryFn_with_num_splits(self):
     with patch.object(helper, 'get_client', return_value=self._mock_client):
       num_splits = 23
@@ -337,6 +345,26 @@ class DatastoreioTest(unittest.TestCase):
       datastore_write_fn.finish_bundle()
 
       self.assertEqual(2, commit_count[0])
+
+  def test_DatastoreWrite_monitoring_info(self):
+    num_entities_to_write = 1
+    self.check_DatastoreWriteFn(num_entities_to_write)
+    resource = resource_identifiers.DatastoreNamespace(self._PROJECT, None)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Datastore',
+        monitoring_infos.METHOD_LABEL: 'BatchDatastoreWrite',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.DATASTORE_NAMESPACE_LABEL: None,
+        monitoring_infos.DATASTORE_PROJECT_ID_LABEL: self._PROJECT,
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 1)
 
   def check_estimated_size_bytes(self, entity_bytes, timestamp, namespace=None):
     """A helper method to test get_estimated_size_bytes"""
