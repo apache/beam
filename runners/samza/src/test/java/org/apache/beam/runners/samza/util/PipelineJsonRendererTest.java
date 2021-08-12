@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.renderer;
+package org.apache.beam.runners.samza.util;
 
 import static org.junit.Assert.assertEquals;
 
@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Optional;
-import org.apache.beam.runners.samza.SamzaIOInfo;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.SamzaRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -42,7 +41,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-/** Tests for {@link PipelineJsonRenderer}. */
+/** Tests for {@link org.apache.beam.runners.samza.util.PipelineJsonRenderer}. */
 public class PipelineJsonRendererTest {
 
   @Test
@@ -87,12 +86,12 @@ public class PipelineJsonRendererTest {
             PipelineJsonRenderer.toJsonString(p).replaceAll(System.lineSeparator(), "")));
   }
 
-  @AutoService(SamzaIOInfo.SamzaIORegistrar.class)
-  public static class Registrar implements SamzaIOInfo.SamzaIORegistrar {
+  @AutoService(PipelineJsonRenderer.SamzaIORegistrar.class)
+  public static class Registrar implements PipelineJsonRenderer.SamzaIORegistrar {
 
     @Override
-    public SamzaIOInfo getSamzaIO() {
-      return new SamzaIOInfo() {
+    public PipelineJsonRenderer.SamzaIOInfo getSamzaIO() {
+      return new PipelineJsonRenderer.SamzaIOInfo() {
         @Override
         public Optional<String> getIOInfo(TransformHierarchy.Node node) {
           if (node.isRootNode()) {

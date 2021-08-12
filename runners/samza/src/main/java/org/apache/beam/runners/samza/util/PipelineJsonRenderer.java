@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.renderer;
+package org.apache.beam.runners.samza.util;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,7 +24,6 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.samza.SamzaIOInfo;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -39,42 +38,72 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental
 public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
+
+  /**
+   * Interface to get I/O information for a Beam job. This will help add I/O information to the Beam
+   * DAG.
+   */
+  @Experimental
+  public interface SamzaIOInfo {
+
+    /** Get I/O topic name and cluster. */
+    Optional<String> getIOInfo(TransformHierarchy.Node node);
+  }
+
+  /** A registrar for {@link SamzaIOInfo}. */
+  interface SamzaIORegistrar {
+
+    SamzaIOInfo getSamzaIO();
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(PipelineJsonRenderer.class);
   private static final String OUTERMOST_NODE = "OuterMostNode";
   @Nullable private static final SamzaIOInfo SAMZA_IO_INFO = loadSamzaIOInfo();
 
+  /**
+   * This method creates a JSON representation of the Beam pipeline.
+   *
+   * @param pipeline The beam pipeline
+   * @return JSON string representation of the pipeline
+   */
   public static String toJsonString(Pipeline pipeline) {
     final PipelineJsonRenderer visitor = new PipelineJsonRenderer();
-    visitor.begin();
     pipeline.traverseTopologically(visitor);
-    visitor.end();
     return visitor.jsonBuilder.toString();
   }
 
+  /**
+   * This method creates a JSON representation for Beam Portable Pipeline.
+   *
+   * @param pipeline The beam portable pipeline
+   * @return JSON string representation of the pipeline
+   */
   public static String toJsonString(RunnerApi.Pipeline pipeline) {
-    return "";
+    throw new UnsupportedOperationException("JSON DAG for portable pipeline is not supported yet.");
   }
 
   private final StringBuilder jsonBuilder = new StringBuilder();
   private final StringBuilder graphLinks = new StringBuilder();
-  private final Map<TransformHierarchy.Node, Integer> nodeToId = new HashMap<>();
   private final Map<PValue, String> valueToProducerNodeName = new HashMap<>();
   private int indent;
-  private int nextNodeId;
 
   private PipelineJsonRenderer() {}
 
   @Nullable
   private static SamzaIOInfo loadSamzaIOInfo() {
-    final Iterator<SamzaIOInfo.SamzaIORegistrar> beamIORegistrarIterator =
-        ServiceLoader.load(SamzaIOInfo.SamzaIORegistrar.class).iterator();
+    final Iterator<SamzaIORegistrar> beamIORegistrarIterator =
+        ServiceLoader.load(SamzaIORegistrar.class).iterator();
     return beamIORegistrarIterator.hasNext()
         ? Iterators.getOnlyElement(beamIORegistrarIterator).getSamzaIO()
         : null;
   }
 
   @Override
-  public void enterPipeline(Pipeline p) {}
+  public void enterPipeline(Pipeline p) {
+    writeLine("{ \n \"RootNode\": [");
+    graphLinks.append(",\"graphLinks\": [");
+    enterBlock();
+  }
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
@@ -85,7 +114,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
       writeLine("  \"enclosingNode\":\"%s\",", assignNodeName(enclosingNodeName));
     }
 
-    Optional<String> ioInfo = getIOTopicInfo(node);
+    Optional<String> ioInfo = getIOInfo(node);
     if (ioInfo.isPresent() && !ioInfo.get().isEmpty()) {
       writeLine(" \"ioInfo\":\"%s\",", escapeString(ioInfo.get()));
     }
@@ -122,15 +151,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   public void visitValue(PValue value, TransformHierarchy.Node producer) {}
 
   @Override
-  public void leavePipeline(Pipeline pipeline) {}
-
-  private void begin() {
-    writeLine("{ \n \"RootNode\": [");
-    graphLinks.append(",\"graphLinks\": [");
-    enterBlock();
-  }
-
-  private void end() {
+  public void leavePipeline(Pipeline pipeline) {
     exitBlock();
     writeLine("]");
     // delete the last comma
@@ -152,6 +173,8 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   }
 
   private void writeLine(String format, Object... args) {
+    // Since we append a comma after every entry to the graph, we will need to remove that one extra
+    // comma towards the end of the JSON.
     int secondLastCharIndex = jsonBuilder.length() - 2;
     if (jsonBuilder.length() > 1
         && jsonBuilder.charAt(secondLastCharIndex) == ','
@@ -177,7 +200,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     return escapeString(nodeName.isEmpty() ? OUTERMOST_NODE : nodeName);
   }
 
-  private Optional<String> getIOTopicInfo(TransformHierarchy.Node node) {
+  private Optional<String> getIOInfo(TransformHierarchy.Node node) {
     if (SAMZA_IO_INFO == null) {
       return Optional.empty();
     }
