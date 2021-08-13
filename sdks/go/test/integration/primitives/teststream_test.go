@@ -23,8 +23,8 @@ import (
 )
 
 func TestTestStreamStrings(t *testing.T) {
-        integration.CheckFilters(t)
-        ptest.RunAndValidate(t, TestStreamStrings())
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, TestStreamStrings())
 }
 
 func TestTestStreamByteSliceSequence(t *testing.T) {
