@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.json.GenericJson;
 import com.google.cloud.recommendationengine.v1beta1.CatalogItem;
+import com.google.cloud.recommendationengine.v1beta1.CatalogServiceClient;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,13 +43,14 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RecommendationAICatalogItemIT {
   @Rule public TestPipeline testPipeline = TestPipeline.create();
+  static String randomId = Integer.toString(new Random().nextInt());
 
   private static GenericJson getCatalogItem() {
     List<Object> categories = new ArrayList<Object>();
     categories.add(new GenericJson().set("categories", Arrays.asList("Electronics", "Computers")));
     categories.add(new GenericJson().set("categories", Arrays.asList("Laptops")));
     return new GenericJson()
-        .set("id", Integer.toString(new Random().nextInt()))
+        .set("id", randomId)
         .set("title", "Sample Laptop")
         .set("description", "Indisputably the most fantastic laptop ever created.")
         .set("categoryHierarchies", categories)
@@ -91,6 +93,14 @@ public class RecommendationAICatalogItemIT {
     PAssert.that(importCatalogItemResult.get(RecommendationAIImportCatalogItems.SUCCESS_TAG))
         .satisfies(new VerifyCatalogItemResult(2, (String) catalogItem1.get("id")));
     testPipeline.run().waitUntilFinish();
+  }
+
+  @AfterClass
+  public static void tearDownAfterClass() throws Exception {
+    try (CatalogServiceClient catalogServiceClient = CatalogServiceClient.create()) {
+      catalogServiceClient.deleteCatalogItem(
+          "projects/matthias-sandbox/locations/global/catalogs/default_catalog/catalogItems/-1164723756");
+    }
   }
 
   private static class VerifyCatalogItemResult
