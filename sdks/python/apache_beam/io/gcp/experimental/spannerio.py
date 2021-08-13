@@ -288,6 +288,8 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
                                            ["project",
                                             "instance",
                                             "database",
+                                            "table",
+                                            "query_name"
                                             "credentials",
                                             "pool",
                                             "snapshot_read_timestamp",
@@ -309,7 +311,7 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
 @with_input_types(ReadOperation, typing.Dict[typing.Any, typing.Any])
 @with_output_types(typing.List[typing.Any])
 class _NaiveSpannerReadDoFn(DoFn):
-  def __init__(self, spanner_configuration):
+  def __init__(self, spanner_configuration, table_metric, query_metric):
     """
     A naive version of Spanner read which uses the transaction API of the
     cloud spanner.
@@ -324,6 +326,8 @@ class _NaiveSpannerReadDoFn(DoFn):
     self._spanner_configuration = spanner_configuration
     self._snapshot = None
     self._session = None
+    self._table_metric = table_metric
+    self._query_metric = query_metric
 
   def _get_session(self):
     if self._session is None:
@@ -371,6 +375,15 @@ class _NaiveSpannerReadDoFn(DoFn):
 
       for row in transaction_read(**element.kwargs):
         yield row
+
+    table_id = self._spanner_configuration.table
+    query_name = self._spanner_configuration.query_name
+    if element.is_sql:
+      self._query_metric(query_name)
+    elif element.is_table:
+      self._table_metric(table_id)
+    else:
+      pass
 
 
 @with_input_types(ReadOperation)
@@ -525,8 +538,10 @@ class _ReadFromPartitionFn(DoFn):
   """
   A DoFn to perform reads from the partition.
   """
-  def __init__(self, spanner_configuration):
+  def __init__(self, spanner_configuration, table_metric, query_metric):
     self._spanner_configuration = spanner_configuration
+    self._table_metric = table_metric
+    self._query_metric = query_metric
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
@@ -552,6 +567,15 @@ class _ReadFromPartitionFn(DoFn):
     for row in read_action(element['partitions']):
       yield row
 
+    table_id = self._spanner_configuration.table
+    query_name = self._spanner_configuration.query_name
+    if element.get('is_sql'):
+      self._query_metric(query_name)
+    elif element.get('is_table'):
+      self._table_metric(table_id)
+    else:
+      pass
+
   def teardown(self):
     if self._snapshot:
       self._snapshot.close()
@@ -567,7 +591,8 @@ class ReadFromSpanner(PTransform):
   def __init__(self, project_id, instance_id, database_id, pool=None,
                read_timestamp=None, exact_staleness=None, credentials=None,
                sql=None, params=None, param_types=None,  # with_query
-               table=None, columns=None, index="", keyset=None,  # with_table
+               table=None, query_name=None, columns=None, index="",
+               keyset=None,  # with_table
                read_operations=None,  # for read all
                transaction=None
               ):
@@ -615,6 +640,8 @@ class ReadFromSpanner(PTransform):
         project=project_id,
         instance=instance_id,
         database=database_id,
+        table=table,
+        query_name=query_name,
         credentials=credentials,
         pool=pool,
         snapshot_read_timestamp=read_timestamp,
@@ -622,6 +649,12 @@ class ReadFromSpanner(PTransform):
 
     self._read_operations = read_operations
     self._transaction = transaction
+    self.base_labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: self._configuration.project,
+        monitoring_infos.SPANNER_DATABASE_ID: self._configuration.database,
+    }
 
     if self._read_operations is None:
       if table is not None:
@@ -636,6 +669,34 @@ class ReadFromSpanner(PTransform):
             ReadOperation.query(
                 sql=sql, params=params, param_types=param_types)
         ]
+
+  def _table_metric(self, table_id):
+    database_id = self._configuration.database
+    project_id = self._configuration.project
+    resource = resource_identifiers.SpannerTable(
+        project_id, database_id, table_id)
+    labels = {
+        **self.base_labels,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: table_id
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+    service_call_metric.call('ok')
+
+  def _query_metric(self, query_name):
+    project_id = self._configuration.project
+    resource = resource_identifiers.SpannerSqlQuery(project_id, query_name)
+    labels = {
+        **self.base_labels,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_QUERY_NAME: query_name
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+    service_call_metric.call('ok')
 
   def expand(self, pbegin):
     if self._read_operations is not None and isinstance(pbegin, PBegin):
@@ -660,7 +721,10 @@ class ReadFromSpanner(PTransform):
               _CreateReadPartitions(spanner_configuration=self._configuration))
           | 'Reshuffle' >> Reshuffle()
           | 'Read From Partitions' >> ParDo(
-              _ReadFromPartitionFn(spanner_configuration=self._configuration)))
+              _ReadFromPartitionFn(
+                  spanner_configuration=self._configuration,
+                  table_metric=self._table_metric,
+                  query_metric=self._query_metric)))
     else:
       # reading as naive read, in which we don't make batches and execute the
       # queries as a single read.
@@ -668,7 +732,10 @@ class ReadFromSpanner(PTransform):
           pcoll
           | 'Reshuffle' >> Reshuffle().with_input_types(ReadOperation)
           | 'Perform Read' >> ParDo(
-              _NaiveSpannerReadDoFn(spanner_configuration=self._configuration),
+              _NaiveSpannerReadDoFn(
+                  spanner_configuration=self._configuration,
+                  table_metric=self._table_metric,
+                  query_metric=self._query_metric),
               AsSingleton(self._transaction)))
     return p
 
@@ -1072,19 +1139,28 @@ class _WriteToSpannerDoFn(DoFn):
     self._spanner_configuration = spanner_configuration
     self._db_instance = None
     self.batches = Metrics.counter(self.__class__, 'SpannerBatches')
-    table_id = ''
-    resource = resource_identifiers.SpannerTable(
-        spanner_configuration.project, spanner_configuration.database, table_id)
-    labels = {
+    self.base_labels = {
         monitoring_infos.SERVICE_LABEL: 'Spanner',
         monitoring_infos.METHOD_LABEL: 'Write',
-        monitoring_infos.RESOURCE_LABEL: resource,
         monitoring_infos.SPANNER_PROJECT_ID: spanner_configuration.project,
         monitoring_infos.SPANNER_DATABASE_ID: spanner_configuration.database,
     }
-    self.service_call_metric = ServiceCallMetric(
+
+  def table_write_service_call_metric(self, table_id):
+    database_id = self._spanner_configuration.database
+    project_id = self._spanner_configuration.project
+    resource = resource_identifiers.SpannerTable(
+        project_id, database_id, table_id)
+    labels = {
+        **self.base_labels,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: table_id
+    }
+
+    service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
+    service_call_metric.call('ok')
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
@@ -1097,6 +1173,7 @@ class _WriteToSpannerDoFn(DoFn):
     self.batches.inc()
     with self._db_instance.batch() as b:
       for m in element:
+        table_id = m.kwargs['table']
         if m.operation == WriteMutation._OPERATION_DELETE:
           batch_func = b.delete
         elif m.operation == WriteMutation._OPERATION_REPLACE:
@@ -1111,7 +1188,7 @@ class _WriteToSpannerDoFn(DoFn):
           raise ValueError("Unknown operation action: %s" % m.operation)
 
         batch_func(**m.kwargs)
-    self.service_call_metric.call('ok')
+        self.table_write_service_call_metric(table_id)
 
 
 @with_input_types(typing.Union[MutationGroup, _Mutator])

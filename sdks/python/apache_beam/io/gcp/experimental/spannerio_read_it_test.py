@@ -124,6 +124,22 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           sql="select * from Users")
     assert_that(r, equal_to(self._data))
 
+  @pytest.mark.it_postcommit
+  def test_transaction_read_via_table(self):
+    _LOGGER.info("Spanner Read via table")
+    with beam.Pipeline(argv=self.args) as p:
+      transaction = (
+          p
+          | create_transaction(self.project, self.instance, self.TEST_DATABASE))
+      r = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          table="Users",
+          columns=["UserId", "Key"],
+          transaction=transaction)
+    assert_that(r, equal_to(self._data))
+
   @classmethod
   def tearDownClass(cls):
     # drop the testing database after the tests
