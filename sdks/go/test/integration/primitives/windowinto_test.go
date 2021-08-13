@@ -64,10 +64,3 @@ func TestTriggerRepeat(t *testing.T) {
 	TriggerRepeat(s)
 	ptest.RunAndValidate(t, p)
 }
-
-func TestTriggerAfterAny(t *testing.T) {
-	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerAfterAny(s)
-	ptest.RunAndValidate(t, p)
-}
