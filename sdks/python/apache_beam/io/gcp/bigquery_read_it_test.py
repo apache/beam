@@ -258,7 +258,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               project=self.temp_table_reference.projectId,
               dataset=self.temp_table_reference.datasetId,
               table=self.temp_table_reference.tableId,
-              use_fastavro=True))
+              use_fastavro_for_direct_read=True))
       assert_that(result, equal_to(self.TABLE_DATA))
 
   def test_iobase_source_without_fastavro(self):
@@ -269,7 +269,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               project=self.temp_table_reference.projectId,
               dataset=self.temp_table_reference.datasetId,
               table=self.temp_table_reference.tableId,
-              use_fastavro=False))
+              use_fastavro_for_direct_read=False))
       assert_that(result, equal_to(self.TABLE_DATA))
 
   def test_iobase_source_with_column_selection(self):

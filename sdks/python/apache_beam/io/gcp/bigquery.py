@@ -933,7 +933,7 @@ class _CustomBigQueryStorageSourceBase(BoundedSource):
       project: Optional[str] = None,
       selected_fields: Optional[List[str]] = None,
       row_restriction: Optional[str] = None,
-      use_fastavro: Optional[bool] = None,
+      use_fastavro_for_direct_read: Optional[bool] = None,
       pipeline_options: Optional[GoogleCloudOptions] = None):
 
     self.table_reference = bigquery_tools.parse_table_reference(
@@ -943,7 +943,9 @@ class _CustomBigQueryStorageSourceBase(BoundedSource):
     self.project = self.table_reference.projectId
     self.selected_fields = selected_fields
     self.row_restriction = row_restriction
-    self.use_fastavro = True if use_fastavro is None else use_fastavro
+    self.use_fastavro = \
+      True if use_fastavro_for_direct_read is None else \
+      use_fastavro_for_direct_read
     self.pipeline_options = pipeline_options
     self.split_result = None
 
@@ -2130,9 +2132,9 @@ class ReadFromBigQuery(PTransform):
       directly from BigQuery storage using the BigQuery Read API
       (https://cloud.google.com/bigquery/docs/reference/storage). If
       unspecified, the default is currently EXPORT.
-    use_fastavro (bool): If method is `DIRECT_READ` and :data:`True`, the
-       fastavro library is used to deserialize the data received from the
-       BigQuery Read API. The default here is :data:`True`.
+    use_fastavro_for_direct_read (bool): If method is `DIRECT_READ` and
+       :data:`True`, the fastavro library is used to deserialize the data
+       received from the BigQuery Read API. The default here is :data:`True`.
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
       numbers ``0-9``, or underscores ``_``. If dataset argument is
