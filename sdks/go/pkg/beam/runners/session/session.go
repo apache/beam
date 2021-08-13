@@ -54,6 +54,8 @@ var sessionFile = flag.String("session_file", "", "Session file for the runner")
 
 // controlServer manages the FnAPI control channel.
 type controlServer struct {
+	fnpb.UnimplementedBeamFnControlServer
+
 	filename   string
 	wg         *sync.WaitGroup // used to signal when the session is completed
 	ctrlStream fnpb.BeamFnControl_ControlServer
@@ -214,6 +216,8 @@ func extractPortSpec(spec *pipepb.FunctionSpec) string {
 
 // dataServer manages the FnAPI data channel.
 type dataServer struct {
+	fnpb.UnimplementedBeamFnDataServer
+
 	ctrl *controlServer
 }
 
@@ -241,7 +245,9 @@ func (d *dataServer) Data(stream fnpb.BeamFnData_DataServer) error {
 }
 
 // loggingServer manages the FnAPI logging channel.
-type loggingServer struct{} // no data content
+type loggingServer struct {
+	fnpb.UnimplementedBeamFnLoggingServer
+}
 
 func (l *loggingServer) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 	// This stream object is only used here. The stream is used for receiving, and
