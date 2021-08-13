@@ -22,9 +22,14 @@ import (
 	"github.com/apache/beam/sdks/go/test/integration"
 )
 
-func TestTestStreamByteSlice(t *testing.T) {
+func TestTestStreamStrings(t *testing.T) {
+        integration.CheckFilters(t)
+        ptest.RunAndValidate(t, TestStreamStrings())
+}
+
+func TestTestStreamByteSliceSequence(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamByteSlice())
+	ptest.RunAndValidate(t, TestStreamByteSliceSequence())
 }
 
 func TestTestStreamInt64Sequence(t *testing.T) {

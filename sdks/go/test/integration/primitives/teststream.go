@@ -21,9 +21,24 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/teststream"
 )
 
+// TestStreamSequence tests the TestStream primitive by inserting string elements
+// then advancing the watermark past the point where they were inserted.
+func TestStreamStrings() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+	con := teststream.NewConfig()
+	con.AddElements(100, "a", "b", "c")
+	con.AdvanceWatermarkToInfinity()
+
+	col := teststream.Create(s, con)
+
+	passert.Count(s, col, "teststream strings", 3)
+
+	return p
+}
+
 // TestStreamByteSlice tests the TestStream primitive by inserting byte slice elements
 // then advancing the watermark to infinity and comparing the output..
-func TestStreamByteSlice() *beam.Pipeline {
+func TestStreamByteSliceSequence() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 	con := teststream.NewConfig()
 	b := []byte{91, 92, 93}
