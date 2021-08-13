@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -359,6 +360,8 @@ public class AvroIO {
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
@@ -401,6 +404,8 @@ public class AvroIO {
         .setSchema(schema)
         .setInferBeamSchema(false)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
@@ -472,6 +477,8 @@ public class AvroIO {
     return new AutoValue_AvroIO_ParseFiles.Builder<T>()
         .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setUsesReshuffle(ReadAllViaFileBasedSource.DEFAULT_USES_RESHUFFLE)
+        .setFileExceptionHandler(new ReadFileRangesFnExceptionHandler())
         .build();
   }
 
@@ -753,6 +760,10 @@ public class AvroIO {
 
     abstract @Nullable Schema getSchema();
 
+    abstract boolean getUsesReshuffle();
+
+    abstract ReadFileRangesFnExceptionHandler getFileExceptionHandler();
+
     abstract long getDesiredBundleSizeBytes();
 
     abstract boolean getInferBeamSchema();
@@ -767,6 +778,11 @@ public class AvroIO {
 
       abstract Builder<T> setSchema(Schema schema);
 
+      abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
+
+      abstract Builder<T> setFileExceptionHandler(
+          ReadFileRangesFnExceptionHandler exceptionHandler);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract Builder<T> setInferBeamSchema(boolean infer);
@@ -779,6 +795,19 @@ public class AvroIO {
     @VisibleForTesting
     ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    /** Specifies if a Reshuffle should run before file reads occur. */
+    @Experimental(Kind.FILESYSTEM)
+    public ReadFiles<T> withUsesReshuffle(boolean usesReshuffle) {
+      return toBuilder().setUsesReshuffle(usesReshuffle).build();
+    }
+
+    /** Specifies if exceptions should be logged only for streaming pipelines. */
+    @Experimental(Kind.FILESYSTEM)
+    public ReadFiles<T> withFileExceptionHandler(
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
+      return toBuilder().setFileExceptionHandler(exceptionHandler).build();
     }
 
     /**
@@ -804,7 +833,9 @@ public class AvroIO {
                   getDesiredBundleSizeBytes(),
                   new CreateSourceFn<>(
                       getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
-                  AvroCoder.of(getRecordClass(), getSchema())));
+                  AvroCoder.of(getRecordClass(), getSchema()),
+                  getUsesReshuffle(),
+                  getFileExceptionHandler()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
@@ -1075,6 +1106,10 @@ public class AvroIO {
 
     abstract @Nullable Coder<T> getCoder();
 
+    abstract boolean getUsesReshuffle();
+
+    abstract ReadFileRangesFnExceptionHandler getFileExceptionHandler();
+
     abstract long getDesiredBundleSizeBytes();
 
     abstract Builder<T> toBuilder();
@@ -1085,6 +1120,11 @@ public class AvroIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
+      abstract Builder<T> setUsesReshuffle(boolean usesReshuffle);
+
+      abstract Builder<T> setFileExceptionHandler(
+          ReadFileRangesFnExceptionHandler exceptionHandler);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ParseFiles<T> build();
@@ -1093,6 +1133,19 @@ public class AvroIO {
     /** Specifies the coder for the result of the {@code parseFn}. */
     public ParseFiles<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
+    }
+
+    /** Specifies if a Reshuffle should run before file reads occur. */
+    @Experimental(Kind.FILESYSTEM)
+    public ParseFiles<T> withUsesReshuffle(boolean usesReshuffle) {
+      return toBuilder().setUsesReshuffle(usesReshuffle).build();
+    }
+
+    /** Specifies if exceptions should be logged only for streaming pipelines. */
+    @Experimental(Kind.FILESYSTEM)
+    public ParseFiles<T> withFileExceptionHandler(
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
+      return toBuilder().setFileExceptionHandler(exceptionHandler).build();
     }
 
     @VisibleForTesting
@@ -1109,7 +1162,12 @@ public class AvroIO {
           new CreateParseSourceFn<>(parseFn, coder);
       return input.apply(
           "Parse Files via FileBasedSource",
-          new ReadAllViaFileBasedSource<>(getDesiredBundleSizeBytes(), createSource, coder));
+          new ReadAllViaFileBasedSource<>(
+              getDesiredBundleSizeBytes(),
+              createSource,
+              coder,
+              getUsesReshuffle(),
+              getFileExceptionHandler()));
     }
 
     @Override

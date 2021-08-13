@@ -344,15 +344,24 @@ class UpdateDestinationSchema(beam.DoFn):
       write_disposition=None,
       test_client=None,
       additional_bq_parameters=None,
-      step_name=None):
+      step_name=None,
+      source_format=None):
     self._test_client = test_client
     self._write_disposition = write_disposition
     self._additional_bq_parameters = additional_bq_parameters or {}
     self._step_name = step_name
+    self._source_format = source_format
 
   def setup(self):
     self._bq_wrapper = bigquery_tools.BigQueryWrapper(client=self._test_client)
     self._bq_io_metadata = create_bigquery_io_metadata(self._step_name)
+
+  def display_data(self):
+    return {
+        'write_disposition': str(self._write_disposition),
+        'additional_bq_params': str(self._additional_bq_parameters),
+        'source_format': str(self._source_format),
+    }
 
   def process(self, element, schema_mod_job_name_prefix):
     destination = element[0]
@@ -415,7 +424,7 @@ class UpdateDestinationSchema(beam.DoFn):
     uid = _bq_uuid()
     job_name = '%s_%s_%s' % (schema_mod_job_name_prefix, destination_hash, uid)
 
-    _LOGGER.debug(
+    _LOGGER.info(
         'Triggering schema modification job %s on %s',
         job_name,
         table_reference)
@@ -429,7 +438,8 @@ class UpdateDestinationSchema(beam.DoFn):
         write_disposition='WRITE_APPEND',
         create_disposition='CREATE_NEVER',
         additional_load_parameters=additional_parameters,
-        job_labels=self._bq_io_metadata.add_additional_bq_job_labels())
+        job_labels=self._bq_io_metadata.add_additional_bq_job_labels(),
+        source_format=self._source_format)
     yield (destination, schema_update_job_reference)
 
 
@@ -573,7 +583,8 @@ class TriggerLoadJobs(beam.DoFn):
         'additional_bq_params': str(self.additional_bq_parameters),
         'schema': str(self.schema),
         'launchesBigQueryJobs': DisplayDataItem(
-            True, label="This Dataflow job launches bigquery jobs.")
+            True, label="This Dataflow job launches bigquery jobs."),
+        'source_format': str(self.source_format),
     }
     return result
 
@@ -619,8 +630,7 @@ class TriggerLoadJobs(beam.DoFn):
             table_reference.tableId))
     uid = _bq_uuid()
     job_name = '%s_%s_%s' % (load_job_name_prefix, destination_hash, uid)
-    _LOGGER.debug(
-        'Load job has %s files. Job name is %s.', len(files), job_name)
+    _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
 
     create_disposition = self.create_disposition
     if self.temporary_tables:
@@ -635,11 +645,13 @@ class TriggerLoadJobs(beam.DoFn):
 
     _LOGGER.info(
         'Triggering job %s to load data to BigQuery table %s.'
-        'Schema: %s. Additional parameters: %s',
+        'Schema: %s. Additional parameters: %s. Source format: %s',
         job_name,
         table_reference,
         schema,
-        additional_parameters)
+        additional_parameters,
+        self.source_format,
+    )
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     job_reference = self.bq_wrapper.perform_load_job(
@@ -1015,7 +1027,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 write_disposition=self.write_disposition,
                 test_client=self.test_client,
                 additional_bq_parameters=self.additional_bq_parameters,
-                step_name=step_name),
+                step_name=step_name,
+                source_format=self._temp_file_format,
+            ),
             schema_mod_job_name_pcv))
 
     finished_schema_mod_jobs_pc = (

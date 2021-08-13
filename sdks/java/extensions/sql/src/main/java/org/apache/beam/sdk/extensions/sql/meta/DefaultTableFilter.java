@@ -27,7 +27,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 public final class DefaultTableFilter implements BeamSqlTableFilter {
   private final List<RexNode> filters;
 
-  DefaultTableFilter(List<RexNode> filters) {
+  public DefaultTableFilter(List<RexNode> filters) {
     this.filters = filters;
   }
 

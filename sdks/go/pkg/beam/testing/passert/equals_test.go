@@ -185,6 +185,7 @@ func ExampleEqualsList_mismatch() {
 	fmt.Println(err)
 
 	// Output:
+	// DoFn[UID:1, PID:passert.failIfBadEntries, Name: github.com/apache/beam/sdks/go/pkg/beam/testing/passert.failIfBadEntries] failed:
 	// actual PCollection does not match expected values
 	// =========
 	// 2 correct entries (present in both)

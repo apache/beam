@@ -137,6 +137,12 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Samza portable runner supports distribution metrics.
     raise unittest.SkipTest("BEAM-12614")
 
+  def test_flattened_side_input(self):
+    # Blocked on support for transcoding
+    # https://issues.apache.org/jira/browse/BEAM-12681
+    super(SamzaRunnerTest,
+          self).test_flattened_side_input(with_transcoding=False)
+
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused
     # by translations.greedily_fuse, which prevent the stages
@@ -155,25 +161,17 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Samza portable runner supports timer in ParDo.
     raise unittest.SkipTest("BEAM-12349")
 
-  def test_pardo_state_only(self):
-    # Skip until Samza portable runner supports state in ParDo.
-    raise unittest.SkipTest("BEAM-12348")
-
   def test_pardo_state_timers(self):
-    # Skip until Samza portable runner supports timer and state in ParDo.
-    raise unittest.SkipTest("BEAM-12349, BEAM-12348")
+    # Skip until Samza portable runner supports timer in ParDo.
+    raise unittest.SkipTest("BEAM-12349")
 
   def test_pardo_state_timers_non_standard_coder(self):
-    # Skip until Samza portable runner supports timer and state in ParDo.
-    raise unittest.SkipTest("BEAM-12349, BEAM-12348")
-
-  def test_pardo_state_with_custom_key_coder(self):
-    # Skip until Samza portable runner supports timer and state in ParDo.
-    raise unittest.SkipTest("BEAM-12349, BEAM-12348")
+    # Skip until Samza portable runner supports timer in ParDo.
+    raise unittest.SkipTest("BEAM-12349")
 
   def test_windowed_pardo_state_timers(self):
-    # Skip until Samza portable runner supports timer and state in ParDo.
-    raise unittest.SkipTest("BEAM-12349, BEAM-12348")
+    # Skip until Samza portable runner supports timer in ParDo.
+    raise unittest.SkipTest("BEAM-12349")
 
   def test_register_finalizations(self):
     # Skip until Samza runner supports bundle finalization.

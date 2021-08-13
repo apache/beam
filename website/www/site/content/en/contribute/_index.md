@@ -313,12 +313,12 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
    and keeps comment threads attached to the code.
    Please refrain from squashing new commits into reviewed commits before review is completed.
    Because squashing reviewed and unreviewed commits often makes it harder to
-   see the the difference between the review iterations, reviewers may ask you to unsquash new changes.
+   see the difference between the review iterations, reviewers may ask you to unsquash new changes.
 
 1. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
    Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
-   then the PR author should help squashing fixup commits to maintain a clean commmit history.
+   then the PR author should help squashing fixup commits to maintain a clean commit history.
 
 </div>
 

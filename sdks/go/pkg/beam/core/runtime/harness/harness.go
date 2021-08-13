@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -97,6 +98,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		plans:       make(map[bundleDescriptorID][]*exec.Plan),
 		active:      make(map[instructionID]*exec.Plan),
 		inactive:    newCircleBuffer(),
+		metStore:    make(map[instructionID]*metrics.Store),
 		failed:      make(map[instructionID]error),
 		data:        &DataChannelManager{},
 		state:       &StateChannelManager{},
@@ -221,6 +223,8 @@ type control struct {
 	// a plan that's either about to start or has finished recently
 	// instructions in this queue should return empty responses to control messages.
 	inactive circleBuffer // protected by mu
+	// metric stores for active plans.
+	metStore map[instructionID]*metrics.Store // protected by mu
 	// plans that have failed during execution
 	failed map[instructionID]error // protected by mu
 	mu     sync.Mutex
@@ -293,6 +297,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.mu.Lock()
 		c.inactive.Remove(instID)
 		c.active[instID] = plan
+		// Get the user metrics store for this bundle.
+		ctx = metrics.SetBundleID(ctx, string(instID))
+		store := metrics.GetStore(ctx)
+		c.metStore[instID] = store
 		c.mu.Unlock()
 
 		if err != nil {
@@ -305,7 +313,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		data.Close()
 		state.Close()
 
-		mons, pylds := monitoring(plan)
+		mons, pylds := monitoring(plan, store)
 		// Move the plan back to the candidate state
 		c.mu.Lock()
 		// Mark the instruction as failed.
@@ -316,10 +324,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			c.plans[bdID] = append(c.plans[bdID], plan)
 		}
 		delete(c.active, instID)
-
 		if removed, ok := c.inactive.Insert(instID); ok {
 			delete(c.failed, removed) // Also GC old failed bundles.
 		}
+		delete(c.metStore, instID)
 		c.mu.Unlock()
 
 		if err != nil {
@@ -341,7 +349,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		ref := instructionID(msg.GetInstructionId())
 
-		plan, resp := c.getPlanOrResponse(ctx, "progress", instID, ref)
+		plan, store, resp := c.getPlanOrResponse(ctx, "progress", instID, ref)
 		if resp != nil {
 			return resp
 		}
@@ -354,7 +362,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		mons, pylds := monitoring(plan)
+		mons, pylds := monitoring(plan, store)
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
@@ -372,7 +380,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		log.Debugf(ctx, "PB Split: %v", msg)
 		ref := instructionID(msg.GetInstructionId())
 
-		plan, resp := c.getPlanOrResponse(ctx, "split", instID, ref)
+		plan, _, resp := c.getPlanOrResponse(ctx, "split", instID, ref)
 		if resp != nil {
 			return resp
 		}
@@ -471,22 +479,23 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 // them as a parameter here instead, and relying on those proto internal would be brittle.
 //
 // Since this logic is subtle, it's been abstracted to a method to scope the defer unlock.
-func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, ref instructionID) (*exec.Plan, *fnpb.InstructionResponse) {
+func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, ref instructionID) (*exec.Plan, *metrics.Store, *fnpb.InstructionResponse) {
 	c.mu.Lock()
 	plan, ok := c.active[ref]
 	err := c.failed[ref]
+	store, _ := c.metStore[ref]
 	defer c.mu.Unlock()
 
 	if err != nil {
-		return nil, fail(ctx, instID, "failed to return %v: instruction %v failed: %v", kind, ref, err)
+		return nil, nil, fail(ctx, instID, "failed to return %v: instruction %v failed: %v", kind, ref, err)
 	}
 	if !ok {
 		if c.inactive.Contains(ref) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, fail(ctx, instID, "failed to return %v: instruction %v not active", kind, ref)
+		return nil, nil, fail(ctx, instID, "failed to return %v: instruction %v not active", kind, ref)
 	}
-	return plan, nil
+	return plan, store, nil
 }
 
 func fail(ctx context.Context, id instructionID, format string, args ...interface{}) *fnpb.InstructionResponse {
