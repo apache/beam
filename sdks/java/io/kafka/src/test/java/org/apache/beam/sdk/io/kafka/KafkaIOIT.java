@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -176,14 +177,16 @@ public class KafkaIOIT {
 
   @Test
   public void testKafkaIOReadsAndWritesCorrectlyInBatchNullKey() throws IOException {
+    int numRecords = 100;
     List<String> values = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < numRecords; i++) {
       values.add("value" + Integer.toString(i));
     }
     PCollection<String> writeInput =
         writePipeline.apply(Create.of(values)).setCoder(StringUtf8Coder.of());
 
     writeInput.apply(
+        "Write to bounded Kafka",
         KafkaIO.<byte[], String>write()
             .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
             .withTopic(options.getKafkaTopic())
@@ -192,10 +195,21 @@ public class KafkaIOIT {
 
     PCollection<String> readOutput =
         readPipeline
-            .apply("Read from bounded Kafka", readFromKafkaNullKey())
+            .apply(
+                "Read from bounded Kafka",
+                KafkaIO.<byte[], String>read()
+                    .withNullableKeys()
+                    .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                    .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+                    .withTopic(options.getKafkaTopic())
+                    .withMaxNumRecords(numRecords)
+                    .withKeyDeserializer(ByteArrayDeserializer.class)
+                    .withValueDeserializer(StringDeserializer.class))
             .apply("Materialize input", Reshuffle.viaRandomKey())
             .apply(
-                "Map records to strings", MapElements.via(new MapKafkaRecordsToStringsNullKey()));
+                "Map records to strings",
+                MapElements.into(TypeDescriptor.of(String.class))
+                    .via(record -> record.getKV().getValue()));
 
     PAssert.that(readOutput).containsInAnyOrder(values);
 
@@ -299,17 +313,6 @@ public class KafkaIOIT {
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
         .withTopic(options.getKafkaTopic());
-  }
-
-  private KafkaIO.Read<byte[], String> readFromKafkaNullKey() {
-    return KafkaIO.<byte[], String>read()
-        .withSupportsNullKeys()
-        .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-        .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
-        .withTopic(options.getKafkaTopic())
-        .withMaxNumRecords(100)
-        .withKeyDeserializer(ByteArrayDeserializer.class)
-        .withValueDeserializer(StringDeserializer.class);
   }
 
   private static class CountingFn extends DoFn<String, Void> {

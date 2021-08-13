@@ -778,8 +778,6 @@ public class KafkaIO {
         }
         throw new RuntimeException("Couldn't resolve coder for Deserializer: " + deserializer);
       }
-
-
     }
 
     /**
@@ -859,14 +857,14 @@ public class KafkaIO {
     }
 
     /**
-     * Update SupportsNullKeys for present of null keys
+     * Indicates whether the key of {@link KafkaRecord} could be null.
      *
-     * <p>By default, withSupportsNullKeys is {@code false} and will invoke {@link KafkaRecordCoder}
-     * as normal. In this case, {@link KafkaRecordCoder} will not be able to handle null keys.
-     * When nullKeyFlag is {@code true}, it wraps the key coder with a {@link NullableCoder} before
-     * invoking {@link KafkaRecordCoder}. In this case, it can handle null keys.
+     * <p>By specifying SupportsNullKeys, {@link KafkaIO.Read} is able to handle {@link
+     * KafkaRecord} with nullable keys. Otherwise, {@link KafkaIO.Read} will assume the key from
+     * {@link KafkaRecord} is not null all the time. Reading {@link KafkaRecord} with nullable keys
+     * but without specifying SupportsNullKeys may result in pipeline failures.
      */
-    public Read<K, V> withSupportsNullKeys() {
+    public Read<K, V> withNullableKeys() {
       return toBuilder().setSupportsNullKeys(true).build();
     }
 
@@ -1054,7 +1052,7 @@ public class KafkaIO {
     }
 
     /**
-     * Sets the timestamps policy based on {@link KafkaTimestampType#CREATE_TIME} timestamp of the
+     * Sets the timestamps policy based on {@link KafkaTimestampType#CREATE_TIME} timestamp of thef
      * records. It is an error if a record's timestamp type is not {@link
      * KafkaTimestampType#CREATE_TIME}. The timestamps within a partition are expected to be roughly
      * monotonically increasing with a cap on out of order delays (e.g. 'max delay' of 1 minute).
@@ -1355,12 +1353,14 @@ public class KafkaIO {
       @Override
       public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
-        Unbounded<KafkaRecord<K, V>> unbounded = org.apache.beam.sdk.io.Read.from(
-            kafkaRead.toBuilder()
-                .setKeyCoder(keyCoder)
-                .setValueCoder(valueCoder)
-                .build()
-                .makeSource());
+        Unbounded<KafkaRecord<K, V>> unbounded =
+            org.apache.beam.sdk.io.Read.from(
+                kafkaRead
+                    .toBuilder()
+                    .setKeyCoder(keyCoder)
+                    .setValueCoder(valueCoder)
+                    .build()
+                    .makeSource());
 
         PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
@@ -1440,9 +1440,11 @@ public class KafkaIO {
                   .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
         }
 
-        if(kafkaRead.isSupportsNullKeys()){
-          return output.apply(readTransform).setCoder(KafkaRecordCoder.of(NullableCoder.of(keyCoder), valueCoder));
-        }else{
+        if (kafkaRead.isSupportsNullKeys()) {
+          return output
+              .apply(readTransform)
+              .setCoder(KafkaRecordCoder.of(NullableCoder.of(keyCoder), valueCoder));
+        } else {
           return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
         }
       }
