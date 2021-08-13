@@ -68,6 +68,9 @@ type manifest struct {
 
 // server is a in-memory staging and retrieval artifact server for testing.
 type server struct {
+	jobpb.UnimplementedLegacyArtifactStagingServiceServer
+	jobpb.UnimplementedLegacyArtifactRetrievalServiceServer
+
 	m  map[string]*manifest // token -> manifest
 	mu sync.Mutex
 }
