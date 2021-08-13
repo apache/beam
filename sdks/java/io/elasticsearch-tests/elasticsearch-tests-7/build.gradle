@@ -28,7 +28,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 7.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 7.x"
 
 def log4j_version = "2.14.1"
-def elastic_search_version = "7.9.2"
+def elastic_search_version = "7.13.4"
 
 configurations.all {
   resolutionStrategy {
