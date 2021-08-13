@@ -59,6 +59,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamSourceDescriptor;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.CleanUpReadChangeStreamDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PostProcessingMetricsDoFn;
@@ -76,6 +77,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -1499,17 +1501,26 @@ public class SpannerIO {
             daoFactory.getPartitionMetadataDao(),
             getInclusiveStartAt(),
             getInclusiveEndAt());
-        final List<ChangeStreamSourceDescriptor> sources = new ArrayList<>();
-        sources.add(
-            ChangeStreamSourceDescriptor.of(
-                getChangeStreamName(), getInclusiveStartAt(), getInclusiveEndAt()));
-        return input
-            .apply("Generate change stream sources", Create.of(sources))
-            .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
-            .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
-            .apply("Post processing metrics", ParDo.of(postProcessingMetricsDoFn));
 
-        // TODO: We need to perform cleanup after everything has terminated (delete metadata table)
+        PCollection<byte[]> impulseOut = input.apply(Impulse.create());
+        PCollection<DataChangeRecord> results =
+            impulseOut
+                .apply(
+                    "Generate change stream sources",
+                    MapElements.into(TypeDescriptor.of(ChangeStreamSourceDescriptor.class))
+                        .via(
+                            ignored ->
+                                ChangeStreamSourceDescriptor.of(
+                                    getChangeStreamName(),
+                                    getInclusiveStartAt(),
+                                    getInclusiveEndAt())))
+                .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
+                .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
+                .apply("Post processing metrics", ParDo.of(postProcessingMetricsDoFn));
+        impulseOut
+            .apply(Wait.on(results))
+            .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
+        return results;
       }
     }
   }

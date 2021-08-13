@@ -106,4 +106,22 @@ public class PartitionMetadataAdminDao {
       throw SpannerExceptionFactory.propagateInterrupt(e);
     }
   }
+
+  public void deletePartitionMetadataTable() {
+    final String metadataDropStmt = "DROP TABLE " + tableName;
+    OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
+        databaseAdminClient.updateDatabaseDdl(
+            instanceId, databaseId, Collections.singletonList(metadataDropStmt), null);
+    try {
+      // Initiate the request which returns an OperationFuture.
+      op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+    } catch (ExecutionException | TimeoutException e) {
+      // If the operation failed or timed out during execution, expose the cause.
+      throw (SpannerException) e.getCause();
+    } catch (InterruptedException e) {
+      // Throw when a thread is waiting, sleeping, or otherwise occupied,
+      // and the thread is interrupted, either before or during the activity.
+      throw SpannerExceptionFactory.propagateInterrupt(e);
+    }
+  }
 }
