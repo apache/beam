@@ -1026,10 +1026,19 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.AfterAnyTrigger:
-		// TODO: change it to subtrigger from 't'
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAny_{
-				AfterAny: &pipepb.Trigger_AfterAny{},
+				AfterAny: &pipepb.Trigger_AfterAny{
+					Subtriggers: extractSubtriggers(t.SubTriggers),
+				},
+			},
+		}
+	case window.AfterAllTrigger:
+		return &pipepb.Trigger{
+			Trigger: &pipepb.Trigger_AfterAll_{
+				AfterAll: &pipepb.Trigger_AfterAll{
+					Subtriggers: extractSubtriggers(t.SubTriggers),
+				},
 			},
 		}
 	case window.AfterProcessingTimeTrigger:
@@ -1062,7 +1071,9 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.RepeatTrigger:
-		// NOTE: It assumes only one trigger is passed as a subtrigger.
+		if len(t.SubTriggers) != 1 {
+			panic("Only 1 Subtrigger should be passed to Repeat Trigger")
+		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Repeat_{
 				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTriggers[0])},
@@ -1087,6 +1098,18 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	}
+}
+
+func extractSubtriggers(t []window.Trigger) []*pipepb.Trigger {
+	if len(t) <= 0 {
+		panic("At least one subtrigger required for composite triggers.")
+	}
+
+	var result []*pipepb.Trigger
+	for _, tr := range t {
+		result = append(result, makeTrigger(tr))
+	}
+	return result
 }
 
 func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {

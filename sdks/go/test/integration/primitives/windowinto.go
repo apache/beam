@@ -102,7 +102,6 @@ func validate(s beam.Scope, wfn *window.Fn, in beam.PCollection, tr window.Trigg
 
 // TriggerDefault tests the default trigger which fires the pane after the end of the window
 func TriggerDefault(s beam.Scope) {
-	// create a teststream pipeline and get the pcollection
 	con := teststream.NewConfig()
 	con.AddElements(1000, 1.0, 2.0, 3.0)
 	con.AdvanceWatermark(11000)
@@ -128,7 +127,6 @@ func TriggerAlways(s beam.Scope) {
 // TriggerElementCount tests the ElementCount Trigger, it waits for atleast N elements to be ready
 // to fire an output pane
 func TriggerElementCount(s beam.Scope) {
-	// create a teststream pipeline and get the pcollection
 	con := teststream.NewConfig()
 	con.AddElements(1000, 1.0, 2.0, 3.0)
 	con.AdvanceWatermark(2000)
@@ -152,7 +150,6 @@ func TriggerElementCount(s beam.Scope) {
 // Not yet supported by the flink runner:
 // java.lang.UnsupportedOperationException: Advancing Processing time is not supported by the Flink Runner.
 func TriggerAfterProcessingTime(s beam.Scope) {
-	// create a teststream pipeline and get the pcollection
 	con := teststream.NewConfig()
 	con.AdvanceProcessingTime(100)
 	con.AddElements(1000, 1.0, 2.0, 3.0)
