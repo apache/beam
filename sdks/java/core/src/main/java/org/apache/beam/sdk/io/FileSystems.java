@@ -305,7 +305,7 @@ public class FileSystems {
     try {
       getFileSystemInternal(srcResourceIds.iterator().next().getScheme())
           .rename(srcResourceIds, destResourceIds, moveOptions);
-    }  catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       // Some file systems do not yet support specifying the move options. Instead we
       // perform filtering using match calls before renaming.
       FilterResult filtered = filterFiles(srcResourceIds, destResourceIds, moveOptions);
