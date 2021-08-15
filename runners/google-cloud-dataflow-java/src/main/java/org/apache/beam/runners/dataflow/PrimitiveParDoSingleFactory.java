@@ -90,7 +90,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
         new ParDoSingle<>(
             transform.getTransform(),
             Iterables.getOnlyElement(transform.getOutputs().keySet()),
-            PTransformReplacements.getSingletonMainOutput(transform).getCoder()));
+            PTransformReplacements.getSingletonMainOutput(transform).getCoder(),
+            transform.getTransform().getDoFnSchemaInformation()));
   }
 
   /** A single-output primitive {@link ParDo}. */
@@ -99,14 +100,17 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     private final ParDo.SingleOutput<InputT, OutputT> original;
     private final TupleTag<?> onlyOutputTag;
     private final Coder<OutputT> outputCoder;
+    private final DoFnSchemaInformation doFnSchemaInformation;
 
     private ParDoSingle(
         SingleOutput<InputT, OutputT> original,
         TupleTag<?> onlyOutputTag,
-        Coder<OutputT> outputCoder) {
+        Coder<OutputT> outputCoder,
+        DoFnSchemaInformation doFnSchemaInformation) {
       this.original = original;
       this.onlyOutputTag = onlyOutputTag;
       this.outputCoder = outputCoder;
+      this.doFnSchemaInformation = doFnSchemaInformation;
     }
 
     @Override
@@ -134,6 +138,10 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(getSideInputs().values());
+    }
+
+    public DoFnSchemaInformation getDoFnSchemaInformation() {
+      return doFnSchemaInformation;
     }
 
     @Override
@@ -209,9 +217,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
         keyCoder = null;
       }
 
-      final DoFnSchemaInformation doFnSchemaInformation =
-          ParDo.getDoFnSchemaInformation(doFn, mainInput);
-
       return ParDoTranslation.payloadForParDoLike(
           new ParDoTranslation.ParDoLike() {
             @Override
@@ -220,7 +225,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                   parDo.getFn(),
                   parDo.getMainOutputTag(),
                   parDo.getSideInputs(),
-                  doFnSchemaInformation,
+                  parDo.getDoFnSchemaInformation(),
                   newComponents);
             }
 

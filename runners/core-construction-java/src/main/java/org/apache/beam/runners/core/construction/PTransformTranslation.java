@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.CombineComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
 import org.apache.beam.runners.core.construction.ExternalTranslation.ExternalTranslator;
+import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoKeyFieldsTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
@@ -223,6 +224,7 @@ public class PTransformTranslation {
         .add(new RawPTransformTranslator())
         .add(new KnownTransformPayloadTranslator())
         .add(ParDoTranslator.create())
+        .add(ParDoKeyFieldsTranslator.create())
         .add(ExternalTranslator.create())
         .build();
   }

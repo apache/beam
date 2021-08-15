@@ -30,12 +30,12 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
-import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -47,6 +47,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -102,7 +104,7 @@ public class BatchStatefulParDoOverrides {
             AppliedPTransform<
                     PCollection<KV<K, InputT>>,
                     PCollection<OutputT>,
-                    SingleOutput<KV<K, InputT>, OutputT>>
+                    ParDo.SingleOutput<KV<K, InputT>, OutputT>>
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
@@ -128,7 +130,7 @@ public class BatchStatefulParDoOverrides {
             AppliedPTransform<
                     PCollection<KV<K, InputT>>,
                     PCollectionTuple,
-                    MultiOutput<KV<K, InputT>, OutputT>>
+                    ParDo.MultiOutput<KV<K, InputT>, OutputT>>
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
@@ -142,69 +144,111 @@ public class BatchStatefulParDoOverrides {
     }
   }
 
-  static class StatefulSingleOutputParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<KV<K, InputT>>, PCollection<OutputT>> {
+  static class StatefulSingleOutputParDo<InputT, OutputT>
+      extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
-    private final ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo;
+    private final ParDo.SingleOutput<InputT, OutputT> originalParDo;
 
-    StatefulSingleOutputParDo(ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo) {
+    StatefulSingleOutputParDo(ParDo.SingleOutput<InputT, OutputT> originalParDo) {
       this.originalParDo = originalParDo;
     }
 
-    ParDo.SingleOutput<KV<K, InputT>, OutputT> getOriginalParDo() {
+    ParDo.SingleOutput<InputT, OutputT> getOriginalParDo() {
       return originalParDo;
     }
 
     @Override
-    public PCollection<OutputT> expand(PCollection<KV<K, InputT>> input) {
-      DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
+    @SuppressWarnings({"rawtypes"})
+    public PCollection<OutputT> expand(PCollection<InputT> input) {
+      DoFn fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
       DataflowPipelineOptions options =
           input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
       DataflowRunner.verifyDoFnSupported(fn, false, DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
-      PTransform<
-              PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
-              PCollection<OutputT>>
+      PCollection keyedInput = input;
+      // ParDo does this in ParDo.MultiOutput.expand. However since we're replacing
+      // ParDo.SingleOutput, the results
+      // of the initial expansion of ParDo.MultiOutput are thrown away, so we need to add the key
+      // back in.
+      DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+      @Nullable FieldAccessDescriptor keyFieldAccess = originalParDo.getKeyFieldsDescriptor();
+      if (keyFieldAccess != null) {
+        if (!input.hasSchema()) {
+          throw new IllegalArgumentException(
+              "Cannot specify a @StateKeyFields if not using a schema");
+        }
+        keyedInput = input.apply("Extract schema keys", ParDo.getWithSchemaKeys(keyFieldAccess));
+      }
+      return continueExpand(keyedInput, fn);
+    }
+
+    @SuppressWarnings({"rawtypes"})
+    public <K, V> PCollection<OutputT> continueExpand(PCollection<KV<K, V>> input, DoFn fn) {
+      ParDo.SingleOutput<KV<K, Iterable<KV<Instant, WindowedValue<KV<K, V>>>>>, OutputT>
           statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<>(fn)).withSideInputs(originalParDo.getSideInputs());
+              ParDo.of(new BatchStatefulDoFn<K, V, OutputT>(fn))
+                  .withSideInputs(originalParDo.getSideInputs());
 
       return input.apply(new GbkBeforeStatefulParDo<>()).apply(statefulParDo);
     }
   }
 
-  static class StatefulMultiOutputParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
+  static class StatefulMultiOutputParDo<InputT, OutputT>
+      extends PTransform<PCollection<InputT>, PCollectionTuple> {
 
-    private final ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo;
+    private final ParDo.MultiOutput<InputT, OutputT> originalParDo;
 
-    StatefulMultiOutputParDo(ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo) {
+    StatefulMultiOutputParDo(ParDo.MultiOutput<InputT, OutputT> originalParDo) {
       this.originalParDo = originalParDo;
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
-      DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
+    @SuppressWarnings({"rawtypes"})
+    public PCollectionTuple expand(PCollection<InputT> input) {
+      DoFn fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
       DataflowPipelineOptions options =
           input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
       DataflowRunner.verifyDoFnSupported(fn, false, DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
-      PTransform<
-              PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
-              PCollectionTuple>
+      PCollection keyedInput = input;
+      // ParDo does this in ParDo.MultiOutput.expand. However since we're replacing
+      // ParDo.SingleOutput, the results
+      // of the initial expansion of ParDo.MultiOutput are thrown away, so we need to add the key
+      // back Parin.
+      DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+      @Nullable FieldAccessDescriptor keyFieldAccess = originalParDo.getKeyFieldsDescriptor();
+      if (keyFieldAccess != null) {
+        if (!input.hasSchema()) {
+          throw new IllegalArgumentException(
+              "Cannot specify a @StateKeyFields if not using a schema");
+        }
+        keyedInput = input.apply("Extract schema keys", ParDo.getWithSchemaKeys(keyFieldAccess));
+      }
+
+      DoFnSchemaInformation schemaInformation =
+          Preconditions.checkNotNull(originalParDo.getDoFnSchemaInformation());
+      return continueExpand(keyedInput, fn, schemaInformation);
+    }
+
+    @SuppressWarnings({"rawtypes"})
+    public <K, V> PCollectionTuple continueExpand(
+        PCollection<KV<K, V>> input, DoFn fn, DoFnSchemaInformation doFnSchemaInformation) {
+      ParDo.MultiOutput<KV<K, Iterable<KV<Instant, WindowedValue<KV<K, V>>>>>, OutputT>
           statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<>(fn))
+              ParDo.of(new BatchStatefulDoFn<K, V, OutputT>(fn))
                   .withSideInputs(originalParDo.getSideInputs())
                   .withOutputTags(
-                      originalParDo.getMainOutputTag(), originalParDo.getAdditionalOutputTags());
+                      originalParDo.getMainOutputTag(), originalParDo.getAdditionalOutputTags())
+                  .withDoFnSchemaInformation(doFnSchemaInformation);
 
       return input.apply(new GbkBeforeStatefulParDo<>()).apply(statefulParDo);
     }
 
-    public ParDo.MultiOutput<KV<K, InputT>, OutputT> getOriginalParDo() {
+    public ParDo.MultiOutput<InputT, OutputT> getOriginalParDo() {
       return originalParDo;
     }
   }
@@ -224,10 +268,11 @@ public class BatchStatefulParDoOverrides {
       // is not registered by default, so we explicitly set the relevant coders.
       checkState(
           input.getCoder() instanceof KvCoder,
-          "Input to a %s using state requires a %s, but the coder was %s",
+          "Input to a %s using state requires a %s, but the coder was %s. PColleciton %s",
           ParDo.class.getSimpleName(),
           KvCoder.class.getSimpleName(),
-          input.getCoder());
+          input.getCoder(),
+          input.getName());
       KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
       Coder<K> keyCoder = kvCoder.getKeyCoder();
       Coder<? extends BoundedWindow> windowCoder =
@@ -266,16 +311,16 @@ public class BatchStatefulParDoOverrides {
    * A key-preserving {@link DoFn} that explodes an iterable that has been grouped by key and
    * window.
    */
-  public static class BatchStatefulDoFn<K, V, OutputT>
-      extends DoFn<KV<K, Iterable<KV<Instant, WindowedValue<KV<K, V>>>>>, OutputT> {
+  public static class BatchStatefulDoFn<K, InputT, OutputT>
+      extends DoFn<KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>, OutputT> {
 
-    private final DoFn<KV<K, V>, OutputT> underlyingDoFn;
+    private final DoFn<?, OutputT> underlyingDoFn;
 
-    BatchStatefulDoFn(DoFn<KV<K, V>, OutputT> underlyingDoFn) {
+    BatchStatefulDoFn(DoFn<?, OutputT> underlyingDoFn) {
       this.underlyingDoFn = underlyingDoFn;
     }
 
-    public DoFn<KV<K, V>, OutputT> getUnderlyingDoFn() {
+    public DoFn<?, OutputT> getUnderlyingDoFn() {
       return underlyingDoFn;
     }
 

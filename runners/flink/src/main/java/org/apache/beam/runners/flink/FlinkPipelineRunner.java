@@ -89,7 +89,7 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
       PortablePipelineResult runPipelineWithTranslator(
           final Pipeline pipeline, JobInfo jobInfo, FlinkPortablePipelineTranslator<T> translator)
           throws Exception {
-    LOG.info("Translating pipeline to Flink program.");
+    LOG.info("Translating portable pipeline to Flink program.");
 
     // Expand any splittable ParDos within the graph to enable sizing and splitting of bundles.
     Pipeline pipelineWithSdfExpanded =

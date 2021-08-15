@@ -329,7 +329,12 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
     WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
 
-    if (fnSignature != null && fnSignature.stateDeclarations().size() > 0) {
+    // We use the state-cleanup timer to implementt onWindowExpiration, so make sure to set it if
+    // that callback has
+    // been requested.
+    if (fnSignature != null
+        && (!fnSignature.stateDeclarations().isEmpty()
+            || fnSignature.onWindowExpiration() != null)) {
       registerStateCleanup(
           (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
           (Collection<BoundedWindow>) elem.getWindows());

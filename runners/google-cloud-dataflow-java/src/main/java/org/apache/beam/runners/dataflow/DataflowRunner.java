@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -635,8 +634,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new PrimitiveCombineGroupedValuesOverrideFactory()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
-                new PrimitiveParDoSingleFactory()));
+                PTransformMatchers.parDoSingle(), new PrimitiveParDoSingleFactory()));
     return overridesBuilder.build();
   }
 

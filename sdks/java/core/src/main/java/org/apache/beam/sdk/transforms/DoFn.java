@@ -396,6 +396,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     String value();
   }
 
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.STATE)
+  public @interface StateKeyFields {}
+
   /////////////////////////////////////////////////////////////////////////////
 
   /**

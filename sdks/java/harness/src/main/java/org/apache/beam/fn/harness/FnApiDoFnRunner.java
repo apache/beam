@@ -118,6 +118,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -316,7 +317,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private RestrictionTracker<RestrictionT, PositionT> currentTracker;
 
   /** Only valid during {@link #processTimer}, null otherwise. */
-  private Timer<?> currentTimer;
+  @Nullable private Timer<?> currentTimer;
+
+  /** Only valid during {@link #processTimer}, null otherwise. */
+  @Nullable private List<SerializableFunction<?, ?>> currentTimerSchemaKeyFunctions;
 
   /** Only valid during {@link #processTimer}, null otherwise. */
   private TimeDomain currentTimeDomain;
@@ -1695,7 +1699,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           // from timer family declaration.
           String timerId =
               timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-                  ? ""
+                  ? timer.getDynamicTimerTag()
                   : timerIdOrTimerFamilyId;
           String timerFamilyId =
               timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
@@ -1707,6 +1711,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     } finally {
       currentKey = null;
       currentTimer = null;
+      currentTimerSchemaKeyFunctions = null;
       currentTimeDomain = null;
       currentWindow = null;
     }
@@ -1720,10 +1725,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private <K> void processTimerDirect(
-      String timerFamilyId, String timerId, TimeDomain timeDomain, Timer<K> timer) {
+      String timerFamily, String timerId, TimeDomain timeDomain, Timer<K> timer) {
     currentTimer = timer;
+    if (currentTimer.getDynamicTimerTag().isEmpty()) {
+      currentTimerSchemaKeyFunctions = doFnSchemaInformation.getKeyConvertersOnTimer().get(timerId);
+    } else {
+      currentTimerSchemaKeyFunctions =
+          doFnSchemaInformation.getKeyConvertersOnTimerFamily().get(timerFamily);
+    }
     currentTimeDomain = timeDomain;
-    doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+    doFnInvoker.invokeOnTimer(timerId, timerFamily, onTimerContext);
   }
 
   private void finishBundle() throws Exception {
@@ -2364,8 +2375,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public Object key() {
-      throw new UnsupportedOperationException(
-          "Cannot access key as parameter outside of @OnTimer method.");
+      Preconditions.checkNotNull(keyCoder);
+      return ((KV) currentElement.getValue()).getKey();
+    }
+
+    @Override
+    public Object schemaKey(int index) {
+      SerializableFunction converter =
+          doFnSchemaInformation.getKeyConvertersProcessElement().get(index);
+      return converter.apply(key());
     }
 
     @Override
@@ -2449,7 +2467,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public InputT element() {
-      return currentElement.getValue();
+      if (doFnSchemaInformation.getKeyFieldsDescriptor() != null) {
+        // If a key descriptor is specified, then ParDo will covert the PCollection<InputT>  into a
+        // PCollection<KV<Row, InputT>>. Extract the value before return it to the user.
+        return (InputT) ((KV) currentElement.getValue()).getValue();
+      } else {
+        return currentElement.getValue();
+      }
     }
 
     @Override
@@ -2576,6 +2600,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public K key() {
       return (K) currentTimer.getUserKey();
+    }
+
+    @Override
+    public Object schemaKey(int index) {
+      return ((SerializableFunction) currentTimerSchemaKeyFunctions.get(index)).apply(key());
     }
 
     @Override

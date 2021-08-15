@@ -221,9 +221,33 @@ public class PTransformMatchers {
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
         if (transform instanceof ParDo.SingleOutput) {
-          DoFn<?, ?> fn = ((ParDo.SingleOutput<?, ?>) transform).getFn();
+          ParDo.SingleOutput<?, ?> parDo = (ParDo.SingleOutput<?, ?>) transform;
+          DoFn<?, ?> fn = parDo.getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.usesState() || signature.usesTimers();
+        }
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("StateOrTimerParDoSingleMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} that does not have a key
+   * descriptor.
+   */
+  public static PTransformMatcher parDoSingle() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof ParDo.SingleOutput) {
+          ParDo.SingleOutput<?, ?> parDo = (ParDo.SingleOutput<?, ?>) transform;
+          return parDo.getKeyFieldsDescriptor() == null;
         }
         return false;
       }

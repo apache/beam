@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -220,9 +221,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
     }
 
+    List<SerializableFunction<?, ?>> schemaKeyFunctions =
+        timerFamilyId.isEmpty()
+            ? doFnSchemaInformation.getKeyConvertersOnTimer().get(timerId)
+            : doFnSchemaInformation.getKeyConvertersOnTimerFamily().get(timerFamilyId);
     OnTimerArgumentProvider<KeyT> argumentProvider =
         new OnTimerArgumentProvider<>(
-            timerId, key, window, timestamp, effectiveTimestamp, timeDomain);
+            timerId, key, schemaKeyFunctions, window, timestamp, effectiveTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
@@ -385,7 +390,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public InputT element() {
-      return elem.getValue();
+      if (doFnSchemaInformation.getKeyFieldsDescriptor() != null) {
+        // If a key descriptor is specified, then ParDo will covert the PCollection<InputT>  into a
+        // PCollection<KV<Row, InputT>>. Extract the value before return it to the user.
+        return (InputT) ((KV) elem.getValue()).getValue();
+      } else {
+        return elem.getValue();
+      }
     }
 
     @Override
@@ -491,8 +502,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Object key() {
-      throw new UnsupportedOperationException(
-          "Cannot access key as parameter outside of @OnTimer method.");
+      return ((KV) elem.getValue()).getKey();
+    }
+
+    @Override
+    public Object schemaKey(int index) {
+      SerializableFunction converter =
+          doFnSchemaInformation.getKeyConvertersProcessElement().get(index);
+      return converter.apply(key());
     }
 
     @Override
@@ -502,6 +519,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Object schemaElement(int index) {
+      // TODO: Memoize! Shouldn't have to do this for each element in a bundle.
       SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
       return converter.apply(element());
     }
@@ -630,6 +648,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final Instant timestamp;
     private final TimeDomain timeDomain;
     private final String timerId;
+    private final List<SerializableFunction<?, ?>> schemaKeyFunctions;
     private final KeyT key;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
@@ -652,12 +671,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private OnTimerArgumentProvider(
         String timerId,
         KeyT key,
+        List<SerializableFunction<?, ?>> schemaKeyFunctions,
         BoundedWindow window,
         Instant fireTimestamp,
         Instant timestamp,
         TimeDomain timeDomain) {
       fn.super();
       this.timerId = timerId;
+      this.schemaKeyFunctions = schemaKeyFunctions;
       this.window = window;
       this.fireTimestamp = fireTimestamp;
       this.timestamp = timestamp;
@@ -710,6 +731,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public KeyT key() {
       return key;
+    }
+
+    @Override
+    public Object schemaKey(int index) {
+      return ((SerializableFunction) schemaKeyFunctions.get(index)).apply(key());
     }
 
     @Override
@@ -967,6 +993,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public KeyT key() {
       return key;
+    }
+
+    @Override
+    public Object schemaKey(int index) {
+      SerializableFunction converter =
+          doFnSchemaInformation.getKeyConvertersOnWindowExpiration().get(index);
+      return converter.apply(key());
     }
 
     @Override

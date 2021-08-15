@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -40,27 +39,33 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
+import org.apache.beam.sdk.state.StateKeySpec;
 import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerFamilyMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaKeyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateKeyFieldsDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -127,7 +132,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <pre>{@code PCollection<String> lines = ...;
  * PCollection<String> words =
- *     lines.apply(ParDo.of(new DoFn<String, String>() }{
+ *     lines.apply(ParDo.of(new DoFn<String, String>() {
  *        {@code @ProcessElement
  *         public void processElement(@Element String line,
  *           OutputReceiver<String> r) {
@@ -136,7 +141,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *           }
  *         }}}));
  * {@code PCollection<Integer> wordLengths =
- *     words.apply(ParDo.of(new DoFn<String, Integer>() }{
+ *     words.apply(ParDo.of(new DoFn<String, Integer>() {
  *        {@code @ProcessElement
  *         public void processElement(@Element String word,
  *           OutputReceiver<Integer> r) {
@@ -178,7 +183,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * final PCollectionView<Integer> maxWordLengthCutOffView =
  *     maxWordLengthCutOff.apply(View.<Integer>asSingleton());
  * PCollection<String> wordsBelowCutOff =
- *     words.apply(ParDo.of(new DoFn<String, String>() }{
+ *     words.apply(ParDo.of(new DoFn<String, String>() {
  *        {@code @ProcessElement
  *         public void processElement(ProcessContext c) {
  *             String word = c.element();
@@ -400,7 +405,7 @@ public class ParDo {
    */
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new SingleOutput<>(fn, Collections.emptyMap(), displayDataForFn(fn));
+    return new SingleOutput<>(fn, Collections.emptyMap(), displayDataForFn(fn), null, null);
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -431,22 +436,37 @@ public class ParDo {
     }
   }
 
-  private static void validateStateApplicableForInput(DoFn<?, ?> fn, PCollection<?> input) {
+  private static void validateStateApplicableForInput(
+      DoFn<?, ?> fn, PCollection<?> input, @Nullable FieldAccessDescriptor fieldAccessDescriptor) {
     Coder<?> inputCoder = input.getCoder();
-    checkArgument(
-        inputCoder instanceof KvCoder,
-        "%s requires its input to use %s in order to use state and timers.",
-        ParDo.class.getSimpleName(),
-        KvCoder.class.getSimpleName());
+    if (fieldAccessDescriptor == null) {
+      checkArgument(
+          inputCoder instanceof KvCoder,
+          "%s requires its input to use %s in order to use state and timers.",
+          ParDo.class.getSimpleName(),
+          KvCoder.class.getSimpleName());
 
-    KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) inputCoder;
-    try {
-      kvCoder.getKeyCoder().verifyDeterministic();
-    } catch (Coder.NonDeterministicException exc) {
-      throw new IllegalArgumentException(
-          String.format(
-              "%s requires a deterministic key coder in order to use state and timers",
-              ParDo.class.getSimpleName()));
+      KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) inputCoder;
+      try {
+        kvCoder.getKeyCoder().verifyDeterministic();
+      } catch (Coder.NonDeterministicException exc) {
+        throw new IllegalArgumentException(
+            String.format(
+                "%s requires a deterministic key coder in order to use state and timers",
+                ParDo.class.getSimpleName()));
+      }
+    } else {
+      Schema keySchema =
+          SelectHelpers.getOutputSchema(
+              input.getSchema(), fieldAccessDescriptor.resolve(input.getSchema()));
+      try {
+        SchemaCoder.of(keySchema).verifyDeterministic();
+      } catch (Coder.NonDeterministicException e) {
+        throw new IllegalArgumentException(
+            String.format(
+                "%s requires a deterministic key in order to use state and timers",
+                ParDo.class.getSimpleName()));
+      }
     }
   }
 
@@ -638,38 +658,142 @@ public class ParDo {
               fn.getClass().getName()));
     }
   }
+
   /**
    * Extract information on how the DoFn uses schemas. In particular, if the schema of an element
    * parameter does not match the input PCollection's schema, convert.
    */
-  @Internal
-  public static DoFnSchemaInformation getDoFnSchemaInformation(
-      DoFn<?, ?> fn, PCollection<?> input) {
+  public static DoFnSchemaInformation inferDoFnSchemaInformation(
+      DoFn<?, ?> fn,
+      @Nullable Schema schema,
+      @Nullable FieldAccessDescriptor keyFieldsDescriptor,
+      Coder<?> coder,
+      Pipeline p) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
     if (!processElementMethod.getSchemaElementParameters().isEmpty()) {
-      if (!input.hasSchema()) {
-        throw new IllegalArgumentException("Type of @Element must match the DoFn type" + input);
+      if (schema == null) {
+        throw new IllegalArgumentException(
+            "@SchemaElement parameters can only be used when a schema is used.");
       }
     }
 
-    SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
+    SchemaRegistry schemaRegistry = p.getSchemaRegistry();
     DoFnSchemaInformation doFnSchemaInformation = DoFnSchemaInformation.create();
+    @Nullable Schema keySchema = null;
+    if (keyFieldsDescriptor != null) {
+      if (schema == null) {
+        throw new IllegalArgumentException(
+            "Cannot specify @StateKeyFields if the input collection doesn't " + "have a schema. ");
+      }
+      keyFieldsDescriptor = keyFieldsDescriptor.resolve(schema);
+      keySchema = SelectHelpers.getOutputSchema(schema, keyFieldsDescriptor);
+      doFnSchemaInformation =
+          doFnSchemaInformation.withStateKeyFieldsDescriptor(keyFieldsDescriptor);
+    } else if (!processElementMethod.getSchemaKeyParameters().isEmpty()) {
+      throw new IllegalArgumentException("@Key type must match the key type of the input KV");
+    }
+
+    for (Map.Entry<String, OnTimerMethod> entry : signature.onTimerMethods().entrySet()) {
+      for (SchemaKeyParameter parameter : entry.getValue().getSchemaKeyParameters()) {
+        TypeDescriptor<?> keyT = parameter.keyT();
+        ConvertHelpers.ConvertedSchemaInformation converted =
+            ConvertHelpers.getConvertedSchemaInformation(keySchema, keyT, schemaRegistry);
+        if (converted.outputSchemaCoder != null) {
+          doFnSchemaInformation =
+              doFnSchemaInformation.withOnTimerSchemaKeyParameter(
+                  entry.getKey(),
+                  keySchema,
+                  converted.outputSchemaCoder,
+                  converted.unboxedType != null);
+        } else {
+          // If the selected schema is a Row containing a single primitive type (which is the output
+          // of Select when selecting a primitive), attempt to unbox it and match against the
+          // parameter.
+          checkArgument(converted.unboxedType != null);
+          doFnSchemaInformation =
+              doFnSchemaInformation.withOnTimerUnboxPrimitiveKeyParameter(
+                  entry.getKey(), keySchema, keyT);
+        }
+      }
+    }
+
+    for (Map.Entry<String, OnTimerFamilyMethod> entry :
+        signature.onTimerFamilyMethods().entrySet()) {
+      for (SchemaKeyParameter parameter : entry.getValue().getSchemaKeyParameters()) {
+        TypeDescriptor<?> keyT = parameter.keyT();
+        ConvertHelpers.ConvertedSchemaInformation converted =
+            ConvertHelpers.getConvertedSchemaInformation(keySchema, keyT, schemaRegistry);
+        if (converted.outputSchemaCoder != null) {
+          doFnSchemaInformation =
+              doFnSchemaInformation.withOnTimerFamilySchemaKeyParameter(
+                  entry.getKey(),
+                  keySchema,
+                  converted.outputSchemaCoder,
+                  converted.unboxedType != null);
+        } else {
+          // If the selected schema is a Row containing a single primitive type (which is the output
+          // of Select when selecting a primitive), attempt to unbox it and match against the
+          // parameter.
+          checkArgument(converted.unboxedType != null);
+          doFnSchemaInformation =
+              doFnSchemaInformation.withOnTimerFamilyUnboxPrimitiveKeyParameter(
+                  entry.getKey(), keySchema, keyT);
+        }
+      }
+    }
+
+    if (signature.onWindowExpiration() != null) {
+      for (SchemaKeyParameter parameter : signature.onWindowExpiration().getSchemaKeyParameters()) {
+        TypeDescriptor<?> keyT = parameter.keyT();
+        ConvertHelpers.ConvertedSchemaInformation converted =
+            ConvertHelpers.getConvertedSchemaInformation(keySchema, keyT, schemaRegistry);
+        if (converted.outputSchemaCoder != null) {
+          doFnSchemaInformation =
+              doFnSchemaInformation.withOnWindowExpirationSchemaKeyParameter(
+                  keySchema, converted.outputSchemaCoder, converted.unboxedType != null);
+        } else {
+          // If the selected schema is a Row containing a single primitive type (which is the output
+          // of Select when selecting a primitive), attempt to unbox it and match against the
+          // parameter.
+          checkArgument(converted.unboxedType != null);
+          doFnSchemaInformation =
+              doFnSchemaInformation.withOnWindowExpirationUnboxPrimitiveKeyParameter(
+                  keySchema, keyT);
+        }
+      }
+    }
+
+    for (SchemaKeyParameter parameter : processElementMethod.getSchemaKeyParameters()) {
+      TypeDescriptor<?> keyT = parameter.keyT();
+      ConvertHelpers.ConvertedSchemaInformation converted =
+          ConvertHelpers.getConvertedSchemaInformation(keySchema, keyT, schemaRegistry);
+      if (converted.outputSchemaCoder != null) {
+        doFnSchemaInformation =
+            doFnSchemaInformation.withProcessElementSchemaKeyParameter(
+                keySchema, converted.outputSchemaCoder, converted.unboxedType != null);
+      } else {
+        // If the selected schema is a Row containing a single primitive type (which is the output
+        // of Select when selecting a primitive), attempt to unbox it and match against the
+        // parameter.
+        checkArgument(converted.unboxedType != null);
+        doFnSchemaInformation =
+            doFnSchemaInformation.withProcessElementUnboxPrimitiveKeyParameter(keySchema, keyT);
+      }
+    }
+
     for (SchemaElementParameter parameter : processElementMethod.getSchemaElementParameters()) {
       TypeDescriptor<?> elementT = parameter.elementT();
       FieldAccessDescriptor accessDescriptor =
           getFieldAccessDescriptorFromParameter(
-              parameter.fieldAccessString(),
-              input.getSchema(),
-              signature.fieldAccessDeclarations(),
-              fn);
-      Schema selectedSchema = SelectHelpers.getOutputSchema(input.getSchema(), accessDescriptor);
+              parameter.fieldAccessString(), schema, signature.fieldAccessDeclarations(), fn);
+      Schema selectedSchema = SelectHelpers.getOutputSchema(schema, accessDescriptor);
       ConvertHelpers.ConvertedSchemaInformation converted =
           ConvertHelpers.getConvertedSchemaInformation(selectedSchema, elementT, schemaRegistry);
       if (converted.outputSchemaCoder != null) {
         doFnSchemaInformation =
-            doFnSchemaInformation.withSelectFromSchemaParameter(
-                (SchemaCoder<?>) input.getCoder(),
+            doFnSchemaInformation.withSelectFromSchemaElementParameter(
+                (SchemaCoder<?>) coder,
                 accessDescriptor,
                 selectedSchema,
                 converted.outputSchemaCoder,
@@ -680,12 +804,26 @@ public class ParDo {
         // parameter.
         checkArgument(converted.unboxedType != null);
         doFnSchemaInformation =
-            doFnSchemaInformation.withUnboxPrimitiveParameter(
-                (SchemaCoder<?>) input.getCoder(), accessDescriptor, selectedSchema, elementT);
+            doFnSchemaInformation.withUnboxPrimitiveElementParameter(
+                (SchemaCoder<?>) coder, accessDescriptor, selectedSchema, elementT);
       }
     }
 
     return doFnSchemaInformation;
+  }
+
+  private static @Nullable FieldAccessDescriptor getDoFnFieldsDescriptor(
+      DoFnSignature signature, DoFn<?, ?> fn) {
+    StateKeyFieldsDeclaration stateKeyFieldsDeclaration = signature.stateKeyFieldsDeclaration();
+    if (stateKeyFieldsDeclaration == null) {
+      return null;
+    }
+    try {
+      StateKeySpec stateKeySpec = (StateKeySpec) stateKeyFieldsDeclaration.field().get(fn);
+      return stateKeySpec.getKeyDescriptor();
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -707,14 +845,25 @@ public class ParDo {
     private final Map<String, PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private @Nullable DoFnSchemaInformation doFnSchemaInformation;
+    private @Nullable FieldAccessDescriptor keyFieldsDescriptor;
 
     SingleOutput(
         DoFn<InputT, OutputT> fn,
         Map<String, PCollectionView<?>> sideInputs,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
+        @Nullable DoFnSchemaInformation doFnSchemaInformation,
+        @Nullable FieldAccessDescriptor keyFieldsDescriptor) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
+      this.doFnSchemaInformation = doFnSchemaInformation;
+      if (keyFieldsDescriptor != null) {
+        this.keyFieldsDescriptor = keyFieldsDescriptor;
+      } else {
+        this.keyFieldsDescriptor =
+            getDoFnFieldsDescriptor(DoFnSignatures.getSignature(fn.getClass()), fn);
+      }
     }
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
@@ -754,7 +903,9 @@ public class ParDo {
               .putAll(this.sideInputs)
               .putAll(sideInputs)
               .build(),
-          fnDisplayData);
+          fnDisplayData,
+          doFnSchemaInformation,
+          keyFieldsDescriptor);
     }
 
     /**
@@ -774,11 +925,49 @@ public class ParDo {
      */
     public MultiOutput<InputT, OutputT> withOutputTags(
         TupleTag<OutputT> mainOutputTag, TupleTagList additionalOutputTags) {
-      return new MultiOutput<>(fn, sideInputs, mainOutputTag, additionalOutputTags, fnDisplayData);
+      return new MultiOutput<>(
+          fn,
+          sideInputs,
+          mainOutputTag,
+          additionalOutputTags,
+          fnDisplayData,
+          doFnSchemaInformation,
+          keyFieldsDescriptor);
+    }
+
+    public SingleOutput<InputT, OutputT> withDoFnSchemaInformation(
+        DoFnSchemaInformation doFnSchemaInformation) {
+      return new SingleOutput<>(
+          fn, sideInputs, fnDisplayData, doFnSchemaInformation, keyFieldsDescriptor);
+    }
+
+    public SingleOutput<InputT, OutputT> withKeyFields(
+        FieldAccessDescriptor fieldAccessDescriptor) {
+      return new SingleOutput<>(
+          fn, sideInputs, fnDisplayData, doFnSchemaInformation, fieldAccessDescriptor);
+    }
+
+    public SingleOutput<InputT, OutputT> withKeyFields(String keyFields) {
+      return new SingleOutput<>(
+          fn,
+          sideInputs,
+          fnDisplayData,
+          doFnSchemaInformation,
+          FieldAccessDescriptor.withFieldNames(keyFields));
     }
 
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+      if (this.doFnSchemaInformation == null) {
+        this.doFnSchemaInformation =
+            inferDoFnSchemaInformation(
+                fn,
+                input.hasSchema() ? input.getSchema() : null,
+                keyFieldsDescriptor,
+                input.getCoder(),
+                input.getPipeline());
+      }
+
       SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
@@ -834,6 +1023,15 @@ public class ParDo {
       return sideInputs;
     }
 
+    public FieldAccessDescriptor getKeyFieldsDescriptor() {
+      return keyFieldsDescriptor;
+    }
+
+    @Internal
+    public @Nullable DoFnSchemaInformation getDoFnSchemaInformation() {
+      return doFnSchemaInformation;
+    }
+
     /**
      * Returns the side inputs of this {@link ParDo}, tagged with the tag of the {@link
      * PCollectionView}. The values of the returned map will be equal to the result of {@link
@@ -866,18 +1064,29 @@ public class ParDo {
     private final TupleTagList additionalOutputTags;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final DoFn<InputT, OutputT> fn;
+    private @Nullable DoFnSchemaInformation doFnSchemaInformation;
+    private @Nullable FieldAccessDescriptor keyFieldsDescriptor;
 
     MultiOutput(
         DoFn<InputT, OutputT> fn,
         Map<String, PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
-        ItemSpec<? extends Class<?>> fnDisplayData) {
+        ItemSpec<? extends Class<?>> fnDisplayData,
+        @Nullable DoFnSchemaInformation doFnSchemaInformation,
+        @Nullable FieldAccessDescriptor keyFieldsDescriptor) {
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
+      this.doFnSchemaInformation = doFnSchemaInformation;
+      if (keyFieldsDescriptor != null) {
+        this.keyFieldsDescriptor = keyFieldsDescriptor;
+      } else {
+        this.keyFieldsDescriptor =
+            ParDo.getDoFnFieldsDescriptor(DoFnSignatures.getSignature(fn.getClass()), fn);
+      }
     }
 
     /**
@@ -915,7 +1124,9 @@ public class ParDo {
               .build(),
           mainOutputTag,
           additionalOutputTags,
-          fnDisplayData);
+          fnDisplayData,
+          doFnSchemaInformation,
+          keyFieldsDescriptor);
     }
 
     /**
@@ -926,6 +1137,41 @@ public class ParDo {
     public MultiOutput<InputT, OutputT> withSideInput(
         String tagId, PCollectionView<?> pCollectionView) {
       return withSideInputs(Collections.singletonMap(tagId, pCollectionView));
+    }
+
+    @Internal
+    public MultiOutput<InputT, OutputT> withDoFnSchemaInformation(
+        DoFnSchemaInformation doFnSchemaInformation) {
+      return new MultiOutput<>(
+          fn,
+          sideInputs,
+          mainOutputTag,
+          additionalOutputTags,
+          fnDisplayData,
+          doFnSchemaInformation,
+          keyFieldsDescriptor);
+    }
+
+    public MultiOutput<InputT, OutputT> withKeyFields(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new MultiOutput<>(
+          fn,
+          sideInputs,
+          mainOutputTag,
+          additionalOutputTags,
+          fnDisplayData,
+          doFnSchemaInformation,
+          fieldAccessDescriptor);
+    }
+
+    public MultiOutput<InputT, OutputT> withKeyFields(String keyFields) {
+      return new MultiOutput<>(
+          fn,
+          sideInputs,
+          mainOutputTag,
+          additionalOutputTags,
+          fnDisplayData,
+          doFnSchemaInformation,
+          FieldAccessDescriptor.withFieldNames(keyFields));
     }
 
     @Override
@@ -939,24 +1185,66 @@ public class ParDo {
       finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
 
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-      if (signature.usesState() || signature.usesTimers()) {
-        validateStateApplicableForInput(fn, input);
-      }
 
       validateSideInputTypes(sideInputs, fn);
+
+      // VALIDATE NO SCHEMA ELEMENT IF NO SCHEMA
+      // VALIDAE SCHEMA KEYS
+
+      if (getKeyFieldsDescriptor() != null) {
+        if (!input.hasSchema()) {
+          throw new IllegalArgumentException(
+              "Cannot specify a @StateKeyFields if not using a schema");
+        }
+        if (!signature.usesState() && !signature.usesTimers()) {
+          throw new IllegalArgumentException(
+              "@StateKeyFields can only be used on a DoFn that users state or timers");
+        }
+      }
+      {
+        if (signature.usesState() || signature.usesTimers()) {
+          validateStateApplicableForInput(fn, input, getKeyFieldsDescriptor());
+        }
+      }
+
+      if (this.doFnSchemaInformation == null) {
+        this.doFnSchemaInformation =
+            inferDoFnSchemaInformation(
+                fn,
+                input.hasSchema() ? input.getSchema() : null,
+                keyFieldsDescriptor,
+                input.getCoder(),
+                input.getPipeline());
+      }
 
       // TODO: We should validate OutputReceiver<Row> only happens if the output PCollection
       // as schema. However coder/schema inference may not have happened yet at this point.
       // Need to figure out where to validate this.
 
-      PCollectionTuple outputs =
-          PCollectionTuple.ofPrimitiveOutputsInternal(
-              input.getPipeline(),
-              TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
-              // TODO
-              Collections.emptyMap(),
-              input.getWindowingStrategy(),
-              input.isBounded().and(signature.isBoundedPerElement()));
+      PCollectionTuple outputs;
+      if (getKeyFieldsDescriptor() == null) {
+        outputs =
+            PCollectionTuple.ofPrimitiveOutputsInternal(
+                input.getPipeline(),
+                TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
+                // TODO
+                Collections.emptyMap(),
+                input.getWindowingStrategy(),
+                input.isBounded().and(signature.isBoundedPerElement()));
+      } else {
+        outputs =
+            input
+                .apply("Extract keys", getWithSchemaKeys(getKeyFieldsDescriptor()))
+                .apply(
+                    new MultiOutputSchemaKeyFields<>(
+                        getFn(),
+                        getMainOutputTag(),
+                        getAdditionalOutputTags(),
+                        getSideInputs(),
+                        this.doFnSchemaInformation,
+                        fnDisplayData));
+      }
+
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       for (PCollection<?> out : outputs.getAll().values()) {
@@ -1015,9 +1303,126 @@ public class ParDo {
       return PCollectionViews.toAdditionalInputs(sideInputs.values());
     }
 
+    public FieldAccessDescriptor getKeyFieldsDescriptor() {
+      return keyFieldsDescriptor;
+    }
+
+    @Internal
+    public DoFnSchemaInformation getDoFnSchemaInformation() {
+      return doFnSchemaInformation;
+    }
+
     @Override
     public String toString() {
       return fn.toString();
+    }
+  }
+
+  public static <T> PTransform<PCollection<T>, PCollection<KV<Row, T>>> getWithSchemaKeys(
+      FieldAccessDescriptor fieldAccessDescriptor) {
+    return new SchemaToKv<>(fieldAccessDescriptor);
+  }
+
+  private static class SchemaToKv<T> extends PTransform<PCollection<T>, PCollection<KV<Row, T>>> {
+    private RowSelector rowSelector;
+    private final FieldAccessDescriptor fieldAccessDescriptor;
+
+    SchemaToKv(FieldAccessDescriptor fieldAccessDescriptor) {
+      this.fieldAccessDescriptor = fieldAccessDescriptor;
+    }
+
+    @Override
+    public PCollection<KV<Row, T>> expand(PCollection<T> input) {
+      Schema schema = input.getSchema();
+      TypeDescriptor<T> typeDescriptor = input.getTypeDescriptor();
+      SerializableFunction<T, Row> toRowFunction = input.getToRowFunction();
+      SerializableFunction<Row, T> fromRowFunction = input.getFromRowFunction();
+
+      FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
+      rowSelector = new RowSelectorContainer(schema, resolved, true);
+      Schema keySchema = SelectHelpers.getOutputSchema(schema, resolved);
+
+      return input
+          .apply(
+              "selectKeys",
+              ParDo.of(
+                  new DoFn<T, KV<Row, T>>() {
+                    @ProcessElement
+                    public void process(
+                        @Element Row row, // Beam will convert the element to a row.
+                        @Element T element, // Beam will return the original element.
+                        OutputReceiver<KV<Row, T>> o) {
+                      o.output(KV.of(rowSelector.select(row), element));
+                    }
+                  }))
+          .setCoder(
+              KvCoder.of(
+                  SchemaCoder.of(keySchema),
+                  SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction)));
+    }
+  }
+
+  public static class MultiOutputSchemaKeyFields<InputT, DoFnInputT, OutputT>
+      extends PTransform<PCollection<KV<Row, InputT>>, PCollectionTuple> {
+    private final DoFn<DoFnInputT, OutputT> fn;
+    private final TupleTag<OutputT> mainOutputTag;
+    private final TupleTagList additionalOutputTags;
+    private final Map<String, PCollectionView<?>> sideInputs;
+    private final DoFnSchemaInformation doFnSchemaInformation;
+    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+
+    public MultiOutputSchemaKeyFields(
+        DoFn<DoFnInputT, OutputT> fn,
+        TupleTag<OutputT> mainOutputTag,
+        TupleTagList additionalOutputTags,
+        Map<String, PCollectionView<?>> sideInputs,
+        DoFnSchemaInformation doFnSchemaInformation,
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      this.fn = fn;
+      this.mainOutputTag = mainOutputTag;
+      this.additionalOutputTags = additionalOutputTags;
+      this.sideInputs = sideInputs;
+      this.doFnSchemaInformation = doFnSchemaInformation;
+      this.fnDisplayData = fnDisplayData;
+    }
+
+    public DoFn<DoFnInputT, OutputT> getFn() {
+      return fn;
+    }
+
+    public TupleTag<OutputT> getMainOutputTag() {
+      return mainOutputTag;
+    }
+
+    public TupleTagList getAdditionalOutputTags() {
+      return additionalOutputTags;
+    }
+
+    public Map<String, PCollectionView<?>> getSideInputs() {
+      return sideInputs;
+    }
+
+    public DoFnSchemaInformation getDoFnSchemaInformation() {
+      return doFnSchemaInformation;
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<KV<Row, InputT>> input) {
+      return PCollectionTuple.ofPrimitiveOutputsInternal(
+          input.getPipeline(),
+          TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
+          // TODO
+          Collections.emptyMap(),
+          input.getWindowingStrategy(),
+          input
+              .isBounded()
+              .and(DoFnSignatures.getSignature(getFn().getClass()).isBoundedPerElement()));
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      super.populateDisplayData(builder);
+      ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
   }
 

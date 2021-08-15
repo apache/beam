@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import avro.shaded.com.google.common.collect.Iterables;
 import com.google.auto.value.AutoValue;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateKeySpec;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
@@ -68,6 +70,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOp
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaKeyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
@@ -75,6 +78,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkE
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorStateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateKeyFieldsDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerFamilyDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -128,7 +132,9 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.SideInputParameter.class,
               Parameter.TimerFamilyParameter.class,
-              Parameter.BundleFinalizerParameter.class);
+              Parameter.BundleFinalizerParameter.class,
+              Parameter.KeyParameter.class,
+              Parameter.SchemaKeyParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
@@ -174,7 +180,8 @@ public class DoFnSignatures {
           Parameter.StateParameter.class,
           Parameter.TimerFamilyParameter.class,
           Parameter.TimerIdParameter.class,
-          Parameter.KeyParameter.class);
+          Parameter.KeyParameter.class,
+          Parameter.SchemaKeyParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_FAMILY_PARAMETERS =
@@ -190,7 +197,8 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.TimerFamilyParameter.class,
               Parameter.TimerIdParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.KeyParameter.class,
+              Parameter.SchemaKeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
@@ -201,7 +209,8 @@ public class DoFnSignatures {
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.StateParameter.class,
               Parameter.TimestampParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.KeyParameter.class,
+              Parameter.SchemaKeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =
@@ -296,12 +305,17 @@ public class DoFnSignatures {
     private final Map<String, TimerDeclaration> timerDeclarations = new HashMap<>();
     private final Map<String, TimerFamilyDeclaration> timerFamilyDeclarations = new HashMap<>();
     private final Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
+    private DoFnSignature.StateKeyFieldsDeclaration stateKeyFields = null;
 
     private FnAnalysisContext() {}
 
     /** Create an empty context, with no declarations. */
     public static FnAnalysisContext create() {
       return new FnAnalysisContext();
+    }
+
+    public StateKeyFieldsDeclaration getStateKeyFields() {
+      return stateKeyFields;
     }
 
     /** State parameters declared in this context, keyed by {@link StateId}. Unmodifiable. */
@@ -325,6 +339,10 @@ public class DoFnSignatures {
     /** Field access declaration declared in this context. */
     public @Nullable Map<String, FieldAccessDeclaration> getFieldAccessDeclarations() {
       return fieldAccessDeclarations;
+    }
+
+    public void setStateKeyFieldsDeclaration(StateKeyFieldsDeclaration stateKeyFieldsDeclaration) {
+      this.stateKeyFields = stateKeyFieldsDeclaration;
     }
 
     public void addStateDeclaration(StateDeclaration decl) {
@@ -512,6 +530,7 @@ public class DoFnSignatures {
     // Find the state and timer declarations in advance of validating
     // method parameter lists
     FnAnalysisContext fnContext = FnAnalysisContext.create();
+    fnContext.setStateKeyFieldsDeclaration(getStateKeyFields(errors, fnClass));
     fnContext.addStateDeclarations(analyzeStateDeclarations(errors, fnClass).values());
     fnContext.addTimerDeclarations(analyzeTimerDeclarations(errors, fnClass).values());
     fnContext.addTimerFamilyDeclarations(analyzeTimerFamilyDeclarations(errors, fnClass).values());
@@ -828,7 +847,7 @@ public class DoFnSignatures {
     }
 
     signatureBuilder.setIsBoundedPerElement(inferBoundedness(fnT, processElement, errors));
-
+    signatureBuilder.setStateKeyFieldsDeclaration(fnContext.getStateKeyFields());
     signatureBuilder.setStateDeclarations(fnContext.getStateDeclarations());
     signatureBuilder.setTimerDeclarations(fnContext.getTimerDeclarations());
     signatureBuilder.setTimerFamilyDeclarations(fnContext.getTimerFamilyDeclarations());
@@ -1061,6 +1080,19 @@ public class DoFnSignatures {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
+  static void analyzeKeyParameters(MethodAnalysisContext methodContext) {
+    int keyIndex = 0;
+    for (int i = 0; i < methodContext.getExtraParameters().size(); ++i) {
+      Parameter parameter = methodContext.getExtraParameters().get(i);
+      if (parameter instanceof SchemaKeyParameter) {
+        SchemaKeyParameter schemaKeyParameter = (SchemaKeyParameter) parameter;
+        schemaKeyParameter = schemaKeyParameter.toBuilder().setIndex(keyIndex).build();
+        methodContext.setParameter(i, schemaKeyParameter);
+        ++keyIndex;
+      }
+    }
+  }
+
   @VisibleForTesting
   static DoFnSignature.OnTimerMethod analyzeOnTimerMethod(
       ErrorReporter errors,
@@ -1080,7 +1112,6 @@ public class DoFnSignatures {
 
     @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
 
-    List<Parameter> extraParameters = new ArrayList<>();
     ErrorReporter onTimerErrors = errors.forMethod(DoFn.OnTimer.class, m);
     for (int i = 0; i < params.length; ++i) {
       Parameter parameter =
@@ -1099,11 +1130,12 @@ public class DoFnSignatures {
 
       checkParameterOneOf(errors, parameter, ALLOWED_ON_TIMER_PARAMETERS);
 
-      extraParameters.add(parameter);
+      methodContext.addParameter(parameter);
     }
+    analyzeKeyParameters(methodContext);
 
     return DoFnSignature.OnTimerMethod.create(
-        m, timerId, requiresStableInput, windowT, extraParameters);
+        m, timerId, requiresStableInput, windowT, methodContext.getExtraParameters());
   }
 
   @VisibleForTesting
@@ -1125,7 +1157,6 @@ public class DoFnSignatures {
 
     @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
 
-    List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
     ErrorReporter onTimerErrors = errors.forMethod(DoFn.OnTimerFamily.class, m);
     for (int i = 0; i < params.length; ++i) {
       Parameter parameter =
@@ -1144,11 +1175,12 @@ public class DoFnSignatures {
 
       checkParameterOneOf(errors, parameter, ALLOWED_ON_TIMER_FAMILY_PARAMETERS);
 
-      extraParameters.add(parameter);
+      methodContext.addParameter(parameter);
     }
+    analyzeKeyParameters(methodContext);
 
     return DoFnSignature.OnTimerFamilyMethod.create(
-        m, timerFamilyId, requiresStableInput, windowT, extraParameters);
+        m, timerFamilyId, requiresStableInput, windowT, methodContext.getExtraParameters());
   }
 
   @VisibleForTesting
@@ -1169,7 +1201,6 @@ public class DoFnSignatures {
 
     @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
 
-    List<Parameter> extraParameters = new ArrayList<>();
     ErrorReporter onWindowExpirationErrors = errors.forMethod(DoFn.OnWindowExpiration.class, m);
     for (int i = 0; i < params.length; ++i) {
       Parameter parameter =
@@ -1188,11 +1219,12 @@ public class DoFnSignatures {
 
       checkParameterOneOf(errors, parameter, ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS);
 
-      extraParameters.add(parameter);
+      methodContext.addParameter(parameter);
     }
+    analyzeKeyParameters(methodContext);
 
     return DoFnSignature.OnWindowExpirationMethod.create(
-        m, requiresStableInput, windowT, extraParameters);
+        m, requiresStableInput, windowT, methodContext.getExtraParameters());
   }
 
   @VisibleForTesting
@@ -1244,6 +1276,7 @@ public class DoFnSignatures {
         ++schemaElementIndex;
       }
     }
+    analyzeKeyParameters(methodContext);
 
     TypeDescriptor<?> trackerT =
         methodContext
@@ -1331,17 +1364,21 @@ public class DoFnSignatures {
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
     } else if (hasAnnotation(DoFn.Key.class, param.getAnnotations())) {
-      methodErrors.checkArgument(
-          KV.class.equals(inputT.getRawType()),
-          "@Key argument is expected to be use with input element of type KV.");
+      if (KV.class.equals(inputT.getRawType())) {
+        methodErrors.checkArgument(
+            KV.class.equals(inputT.getRawType()),
+            "@Key argument is expected to be use with input element of type KV.");
 
-      Type keyType = ((ParameterizedType) inputT.getType()).getActualTypeArguments()[0];
-      methodErrors.checkArgument(
-          TypeDescriptor.of(keyType).equals(paramT),
-          "@Key argument is expected to be type of %s, but found %s.",
-          keyType,
-          rawType);
-      return Parameter.keyT(paramT);
+        Type keyType = ((ParameterizedType) inputT.getType()).getActualTypeArguments()[0];
+        methodErrors.checkArgument(
+            TypeDescriptor.of(keyType).equals(paramT),
+            "@Key argument is expected to be type of %s, but found %s.",
+            keyType,
+            rawType);
+        return Parameter.key(paramT);
+      } else {
+        return Parameter.schemaKey(paramT, 0);
+      }
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
@@ -2261,6 +2298,30 @@ public class DoFnSignatures {
           FieldAccessDeclaration.create(fieldAccessAnnotation.value(), field));
     }
     return fieldAccessDeclarations;
+  }
+
+  private static StateKeyFieldsDeclaration getStateKeyFields(
+      ErrorReporter errors, Class<?> fnClazz) {
+    Iterable<Field> fields =
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.StateKeyFields.class, fnClazz, DoFn.class);
+    if (Iterables.isEmpty(fields)) {
+      return null;
+    }
+    Field field = Iterables.getOnlyElement(fields);
+    field.setAccessible(true);
+    if (!TypeDescriptor.of(field.getType()).equals(TypeDescriptor.of(StateKeySpec.class))) {
+      errors.throwIllegalArgument(
+          "Field %s is of type %s. Expected type %s",
+          field.toString(), field.getType().getName(), DoFn.StateKeyFields.class);
+      return null;
+    }
+    if (!Modifier.isFinal(field.getModifiers())) {
+      errors.throwIllegalArgument(
+          "Non-final field %s annotated with %s. Key field declarations must be final.",
+          field.toString(), format(DoFn.StateKeyFields.class));
+      return null;
+    }
+    return StateKeyFieldsDeclaration.create(field);
   }
 
   private static Map<String, DoFnSignature.StateDeclaration> analyzeStateDeclarations(

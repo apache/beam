@@ -121,6 +121,10 @@ class KeyedPValueTrackingVisitor extends PipelineVisitor.Defaults {
     if (transform instanceof ParDo.MultiOutput) {
       ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) transform;
       return parDo.getFn() instanceof ParDoMultiOverrideFactory.ToKeyedWorkItem;
+    } else if (transform instanceof ParDo.MultiOutputSchemaKeyFields) {
+      ParDo.MultiOutputSchemaKeyFields<?, ?, ?> parDo =
+          (ParDo.MultiOutputSchemaKeyFields<?, ?, ?>) transform;
+      return parDo.getFn() instanceof ParDoMultiOverrideFactory.ToKeyedWorkItem;
     } else {
       return false;
     }

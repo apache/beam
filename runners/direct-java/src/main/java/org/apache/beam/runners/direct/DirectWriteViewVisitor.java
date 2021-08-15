@@ -64,6 +64,10 @@ class DirectWriteViewVisitor extends PipelineVisitor.Defaults {
     if (node.getTransform() instanceof ParDo.MultiOutput) {
       ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) node.getTransform();
       viewsToWrite.addAll(parDo.getSideInputs().values());
+    } else if (node.getTransform() instanceof ParDo.MultiOutputSchemaKeyFields) {
+      ParDo.MultiOutputSchemaKeyFields<?, ?, ?> parDo =
+          (ParDo.MultiOutputSchemaKeyFields<?, ?, ?>) node.getTransform();
+      viewsToWrite.addAll(parDo.getSideInputs().values());
     }
   }
 

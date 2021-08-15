@@ -39,6 +39,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -100,7 +101,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               windowingStrategy,
               doFnSchemaInformation,
               sideInputMapping);
-      if (DoFnSignatures.signatureForDoFn(fn).usesState()) {
+      DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+      if (signature.usesState() || signature.onWindowExpiration() != null) {
         // the coder specified on the input PCollection doesn't match type
         // of elements processed by the StatefulDoFnRunner
         // that is internal detail of how DirectRunner processes stateful DoFns

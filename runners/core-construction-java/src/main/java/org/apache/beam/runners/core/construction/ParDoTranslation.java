@@ -51,6 +51,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -60,7 +61,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -143,7 +143,7 @@ public class ParDoTranslation {
   public static final String CUSTOM_JAVA_WINDOW_MAPPING_FN_URN = "beam:windowmappingfn:javasdk:0.1";
 
   /** A {@link TransformPayloadTranslator} for {@link ParDo}. */
-  public static class ParDoTranslator implements TransformTranslator<MultiOutput<?, ?>> {
+  public static class ParDoTranslator implements TransformTranslator<ParDo.MultiOutput<?, ?>> {
 
     public static TransformTranslator create() {
       return new ParDoTranslator();
@@ -158,7 +158,8 @@ public class ParDoTranslation {
 
     @Override
     public boolean canTranslate(PTransform<?, ?> pTransform) {
-      return pTransform instanceof ParDo.MultiOutput;
+      return pTransform instanceof ParDo.MultiOutput
+          && ((ParDo.MultiOutput) pTransform).getKeyFieldsDescriptor() == null;
     }
 
     @Override
@@ -185,41 +186,160 @@ public class ParDoTranslation {
     }
   }
 
+  public static class ParDoKeyFieldsTranslator
+      implements TransformTranslator<ParDo.MultiOutputSchemaKeyFields<?, ?, ?>> {
+
+    public static TransformTranslator create() {
+      return new ParDoKeyFieldsTranslator();
+    }
+
+    private ParDoKeyFieldsTranslator() {}
+
+    @Override
+    public String getUrn(ParDo.MultiOutputSchemaKeyFields<?, ?, ?> transform) {
+      return PAR_DO_TRANSFORM_URN;
+    }
+
+    @Override
+    public boolean canTranslate(PTransform<?, ?> pTransform) {
+      return pTransform instanceof ParDo.MultiOutputSchemaKeyFields;
+    }
+
+    @Override
+    public RunnerApi.PTransform translate(
+        AppliedPTransform<?, ?, ?> appliedPTransform,
+        List<AppliedPTransform<?, ?, ?>> subtransforms,
+        SdkComponents components)
+        throws IOException {
+      RunnerApi.PTransform.Builder builder =
+          PTransformTranslation.translateAppliedPTransform(
+              appliedPTransform, subtransforms, components);
+
+      AppliedPTransform<?, ?, ParDo.MultiOutputSchemaKeyFields<?, ?, ?>> appliedParDo =
+          (AppliedPTransform<?, ?, ParDo.MultiOutputSchemaKeyFields<?, ?, ?>>) appliedPTransform;
+      ParDoPayload payload = translateParDo(appliedParDo, components);
+      builder.setSpec(
+          RunnerApi.FunctionSpec.newBuilder()
+              .setUrn(PAR_DO_TRANSFORM_URN)
+              .setPayload(payload.toByteString())
+              .build());
+      builder.setEnvironmentId(components.getEnvironmentIdFor(appliedParDo.getResourceHints()));
+
+      return builder.build();
+    }
+  }
+
   public static ParDoPayload translateParDo(
-      AppliedPTransform<?, ?, ParDo.MultiOutput<?, ?>> appliedPTransform, SdkComponents components)
-      throws IOException {
-    final ParDo.MultiOutput<?, ?> parDo = appliedPTransform.getTransform();
+      AppliedPTransform<?, ?, ?> appliedPTransform, SdkComponents components) throws IOException {
     final Pipeline pipeline = appliedPTransform.getPipeline();
-    final DoFn<?, ?> doFn = parDo.getFn();
+    Set<String> sideInputs;
+    DoFnSchemaInformation doFnSchemaInformation;
+    DoFn<?, ?> fn;
+    FieldAccessDescriptor keyFieldsDescriptor;
+    if (appliedPTransform.getTransform() instanceof ParDo.MultiOutput) {
+      ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) appliedPTransform.getTransform();
+      fn = parDo.getFn();
+      keyFieldsDescriptor = parDo.getKeyFieldsDescriptor();
+      sideInputs =
+          parDo.getSideInputs().values().stream()
+              .map(s -> s.getTagInternal().getId())
+              .collect(Collectors.toSet());
+      doFnSchemaInformation = parDo.getDoFnSchemaInformation();
+    } else if (appliedPTransform.getTransform() instanceof ParDo.MultiOutputSchemaKeyFields) {
+      ParDo.MultiOutputSchemaKeyFields<?, ?, ?> parDo =
+          (ParDo.MultiOutputSchemaKeyFields<?, ?, ?>) appliedPTransform.getTransform();
+      fn = parDo.getFn();
+      keyFieldsDescriptor = parDo.getDoFnSchemaInformation().getKeyFieldsDescriptor();
+      sideInputs =
+          parDo.getSideInputs().values().stream()
+              .map(s -> s.getTagInternal().getId())
+              .collect(Collectors.toSet());
+      doFnSchemaInformation = parDo.getDoFnSchemaInformation();
+    } else {
+      throw new RuntimeException("Invalid type " + appliedPTransform.getTransform().getClass());
+    }
 
     // Get main input.
     Set<String> allInputs =
         appliedPTransform.getInputs().keySet().stream()
             .map(TupleTag::getId)
             .collect(Collectors.toSet());
-    Set<String> sideInputs =
-        parDo.getSideInputs().values().stream()
-            .map(s -> s.getTagInternal().getId())
-            .collect(Collectors.toSet());
-    String mainInputName = Iterables.getOnlyElement(Sets.difference(allInputs, sideInputs));
-    PCollection<?> mainInput =
-        (PCollection<?>) appliedPTransform.getInputs().get(new TupleTag<>(mainInputName));
 
-    final DoFnSchemaInformation doFnSchemaInformation =
-        ParDo.getDoFnSchemaInformation(doFn, mainInput);
-    return translateParDo(
-        (ParDo.MultiOutput) parDo, mainInput, doFnSchemaInformation, pipeline, components);
+    String mainInputName = Iterables.getOnlyElement(Sets.difference(allInputs, sideInputs));
+    PCollection<?> mainInput = appliedPTransform.getInputs().get(new TupleTag<>(mainInputName));
+
+    if (doFnSchemaInformation == null) {
+      doFnSchemaInformation =
+          ParDo.inferDoFnSchemaInformation(
+              fn,
+              mainInput.hasSchema() ? mainInput.getSchema() : null,
+              keyFieldsDescriptor,
+              mainInput.getCoder(),
+              mainInput.getPipeline());
+    }
+
+    if (appliedPTransform.getTransform() instanceof ParDo.MultiOutput) {
+      return translateParDo(
+          (ParDo.MultiOutput<?, ?>) appliedPTransform.getTransform(),
+          mainInput,
+          doFnSchemaInformation,
+          pipeline,
+          components);
+    } else {
+      return translateParDo(
+          (ParDo.MultiOutputSchemaKeyFields<?, ?, ?>) appliedPTransform.getTransform(),
+          mainInput,
+          doFnSchemaInformation,
+          pipeline,
+          components);
+    }
   }
 
   /** Translate a ParDo. */
-  public static <InputT> ParDoPayload translateParDo(
-      ParDo.MultiOutput<InputT, ?> parDo,
-      PCollection<InputT> mainInput,
+  public static ParDoPayload translateParDo(
+      ParDo.MultiOutput<?, ?> parDo,
+      PCollection<?> mainInput,
       DoFnSchemaInformation doFnSchemaInformation,
       Pipeline pipeline,
       SdkComponents components)
       throws IOException {
-    final DoFn<?, ?> doFn = parDo.getFn();
+    return translateParDo(
+        parDo.getFn(),
+        parDo.getMainOutputTag(),
+        parDo.getSideInputs(),
+        mainInput,
+        doFnSchemaInformation,
+        pipeline,
+        components);
+  }
+
+  /** Translate a ParDo. */
+  public static ParDoPayload translateParDo(
+      ParDo.MultiOutputSchemaKeyFields<?, ?, ?> parDo,
+      PCollection<?> mainInput,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Pipeline pipeline,
+      SdkComponents components)
+      throws IOException {
+    return translateParDo(
+        parDo.getFn(),
+        parDo.getMainOutputTag(),
+        parDo.getSideInputs(),
+        mainInput,
+        doFnSchemaInformation,
+        pipeline,
+        components);
+  }
+
+  public static ParDoPayload translateParDo(
+      DoFn<?, ?> doFn,
+      TupleTag<?> mainOutputTag,
+      Map<String, PCollectionView<?>> sideInputs,
+      PCollection<?> mainInput,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Pipeline pipeline,
+      SdkComponents components)
+      throws IOException {
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final String restrictionCoderId;
     if (signature.processElement().isSplittable()) {
@@ -251,21 +371,17 @@ public class ParDoTranslation {
           @Override
           public FunctionSpec translateDoFn(SdkComponents newComponents) {
             return ParDoTranslation.translateDoFn(
-                parDo.getFn(),
-                parDo.getMainOutputTag(),
-                parDo.getSideInputs(),
-                doFnSchemaInformation,
-                newComponents);
+                doFn, mainOutputTag, sideInputs, doFnSchemaInformation, newComponents);
           }
 
           @Override
           public Map<String, SideInput> translateSideInputs(SdkComponents components) {
-            Map<String, SideInput> sideInputs = new HashMap<>();
-            for (PCollectionView<?> sideInput : parDo.getSideInputs().values()) {
-              sideInputs.put(
+            Map<String, SideInput> newSideInputs = new HashMap<>();
+            for (PCollectionView<?> sideInput : sideInputs.values()) {
+              newSideInputs.put(
                   sideInput.getTagInternal().getId(), translateView(sideInput, components));
             }
-            return sideInputs;
+            return newSideInputs;
           }
 
           @Override
@@ -367,6 +483,8 @@ public class ParDoTranslation {
     PTransform<?, ?> transform = application.getTransform();
     if (transform instanceof ParDo.MultiOutput) {
       return ((ParDo.MultiOutput<?, ?>) transform).getFn();
+    } else if (transform instanceof ParDo.MultiOutputSchemaKeyFields) {
+      return ((ParDo.MultiOutputSchemaKeyFields<?, ?, ?>) transform).getFn();
     }
 
     return getDoFn(getParDoPayload(application));
@@ -424,6 +542,8 @@ public class ParDoTranslation {
     PTransform<?, ?> transform = application.getTransform();
     if (transform instanceof ParDo.MultiOutput) {
       return ((ParDo.MultiOutput<?, ?>) transform).getMainOutputTag();
+    } else if (transform instanceof ParDo.MultiOutputSchemaKeyFields) {
+      return ((ParDo.MultiOutputSchemaKeyFields<?, ?, ?>) transform).getMainOutputTag();
     }
 
     return getMainOutputTag(getParDoPayload(application));
@@ -434,6 +554,8 @@ public class ParDoTranslation {
     PTransform<?, ?> transform = application.getTransform();
     if (transform instanceof ParDo.MultiOutput) {
       return ((ParDo.MultiOutput<?, ?>) transform).getAdditionalOutputTags();
+    } else if (transform instanceof ParDo.MultiOutputSchemaKeyFields) {
+      return ((ParDo.MultiOutputSchemaKeyFields<?, ?, ?>) transform).getAdditionalOutputTags();
     }
 
     RunnerApi.PTransform protoTransform =
@@ -464,6 +586,9 @@ public class ParDoTranslation {
     PTransform<?, ?> transform = application.getTransform();
     if (transform instanceof ParDo.MultiOutput) {
       return ((ParDo.MultiOutput<?, ?>) transform)
+          .getSideInputs().values().stream().collect(Collectors.toList());
+    } else if (transform instanceof ParDo.MultiOutputSchemaKeyFields) {
+      return ((ParDo.MultiOutputSchemaKeyFields<?, ?, ?>) transform)
           .getSideInputs().values().stream().collect(Collectors.toList());
     }
 

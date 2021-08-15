@@ -21,6 +21,8 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -35,6 +37,8 @@ import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Represents information about how a DoFn extracts schemas. */
 @Experimental(Kind.SCHEMAS)
@@ -51,10 +55,26 @@ public abstract class DoFnSchemaInformation implements Serializable {
    */
   public abstract List<SerializableFunction<?, ?>> getElementConverters();
 
+  public abstract List<SerializableFunction<?, ?>> getKeyConvertersProcessElement();
+
+  public abstract List<SerializableFunction<?, ?>> getKeyConvertersOnWindowExpiration();
+
+  public abstract Map<String, List<SerializableFunction<?, ?>>> getKeyConvertersOnTimer();
+
+  public abstract Map<String, List<SerializableFunction<?, ?>>> getKeyConvertersOnTimerFamily();
+
+  @Nullable
+  public abstract FieldAccessDescriptor getKeyFieldsDescriptor();
+
   /** Create an instance. */
   public static DoFnSchemaInformation create() {
     return new AutoValue_DoFnSchemaInformation.Builder()
+        .setKeyFieldsDescriptor(null)
         .setElementConverters(Collections.emptyList())
+        .setKeyConvertersProcessElement(Collections.emptyList())
+        .setKeyConvertersOnWindowExpiration(Collections.emptyList())
+        .setKeyConvertersOnTimer(Collections.emptyMap())
+        .setKeyConvertersOnTimerFamily(Collections.emptyMap())
         .build();
   }
 
@@ -63,10 +83,195 @@ public abstract class DoFnSchemaInformation implements Serializable {
   public abstract static class Builder {
     abstract Builder setElementConverters(List<SerializableFunction<?, ?>> converters);
 
+    abstract Builder setKeyConvertersProcessElement(List<SerializableFunction<?, ?>> converters);
+
+    abstract Builder setKeyConvertersOnWindowExpiration(
+        List<SerializableFunction<?, ?>> converters);
+
+    abstract Builder setKeyConvertersOnTimer(
+        Map<String, List<SerializableFunction<?, ?>>> converters);
+
+    abstract Builder setKeyConvertersOnTimerFamily(
+        Map<String, List<SerializableFunction<?, ?>>> converters);
+
+    abstract Builder setKeyFieldsDescriptor(@Nullable FieldAccessDescriptor fieldAccessDescriptor);
+
     abstract DoFnSchemaInformation build();
   }
 
   public abstract Builder toBuilder();
+
+  public DoFnSchemaInformation withStateKeyFieldsDescriptor(FieldAccessDescriptor keyDescriptor) {
+    return toBuilder().setKeyFieldsDescriptor(keyDescriptor).build();
+  }
+
+  List<SerializableFunction<?, ?>> addConverterParameter(
+      List<SerializableFunction<?, ?>> existingConverters,
+      Schema schema,
+      Schema outputSchema,
+      SerializableFunction<?, Row> toRowFunction,
+      SerializableFunction<Row, ?> fromRowFunction,
+      FieldAccessDescriptor fieldAccessDescriptor,
+      boolean unbox) {
+    List<SerializableFunction<?, ?>> converters =
+        ImmutableList.<SerializableFunction<?, ?>>builder()
+            .addAll(existingConverters)
+            .add(
+                ConversionFunction.of(
+                    schema,
+                    toRowFunction,
+                    fromRowFunction,
+                    fieldAccessDescriptor,
+                    outputSchema,
+                    unbox))
+            .build();
+    return converters;
+  }
+
+  List<SerializableFunction<?, ?>> addUnboxPrimitiveParameter(
+      List<SerializableFunction<?, ?>> existingConverters,
+      Schema schema,
+      Schema outputSchema,
+      SerializableFunction<?, Row> toRowFunction,
+      FieldAccessDescriptor fieldAccessDescriptor,
+      TypeDescriptor<?> elementT) {
+    if (outputSchema.getFieldCount() != 1) {
+      throw new RuntimeException("Parameter has no schema and the input is not a simple type.");
+    }
+    FieldType fieldType = outputSchema.getField(0).getType();
+    if (fieldType.getTypeName().isCompositeType()) {
+      throw new RuntimeException("Parameter has no schema and the input is not a primitive type.");
+    }
+
+    List<SerializableFunction<?, ?>> converters =
+        ImmutableList.<SerializableFunction<?, ?>>builder()
+            .addAll(existingConverters)
+            .add(
+                UnboxingConversionFunction.of(
+                    schema, toRowFunction, fieldAccessDescriptor, outputSchema, elementT))
+            .build();
+    return converters;
+  }
+
+  public DoFnSchemaInformation withProcessElementSchemaKeyParameter(
+      Schema keySchema, SchemaCoder<?> parameterCoder, boolean unbox) {
+    List<SerializableFunction<?, ?>> converters =
+        addConverterParameter(
+            getKeyConvertersProcessElement(),
+            keySchema,
+            keySchema,
+            SerializableFunctions.identity(),
+            parameterCoder.getFromRowFunction(),
+            FieldAccessDescriptor.withAllFields(),
+            unbox);
+    return toBuilder().setKeyConvertersProcessElement(converters).build();
+  }
+
+  public DoFnSchemaInformation withProcessElementUnboxPrimitiveKeyParameter(
+      Schema keySchema, TypeDescriptor<?> elementT) {
+    List<SerializableFunction<?, ?>> converters =
+        addUnboxPrimitiveParameter(
+            getKeyConvertersProcessElement(),
+            keySchema,
+            keySchema,
+            SerializableFunctions.identity(),
+            FieldAccessDescriptor.withAllFields(),
+            elementT);
+    return toBuilder().setKeyConvertersProcessElement(converters).build();
+  }
+
+  public DoFnSchemaInformation withOnWindowExpirationSchemaKeyParameter(
+      Schema keySchema, SchemaCoder<?> parameterCoder, boolean unbox) {
+    List<SerializableFunction<?, ?>> converters =
+        addConverterParameter(
+            getKeyConvertersOnWindowExpiration(),
+            keySchema,
+            keySchema,
+            SerializableFunctions.identity(),
+            parameterCoder.getFromRowFunction(),
+            FieldAccessDescriptor.withAllFields(),
+            unbox);
+    return toBuilder().setKeyConvertersOnWindowExpiration(converters).build();
+  }
+
+  public DoFnSchemaInformation withOnWindowExpirationUnboxPrimitiveKeyParameter(
+      Schema keySchema, TypeDescriptor<?> elementT) {
+    List<SerializableFunction<?, ?>> converters =
+        addUnboxPrimitiveParameter(
+            getKeyConvertersOnWindowExpiration(),
+            keySchema,
+            keySchema,
+            SerializableFunctions.identity(),
+            FieldAccessDescriptor.withAllFields(),
+            elementT);
+    return toBuilder().setKeyConvertersOnWindowExpiration(converters).build();
+  }
+
+  public DoFnSchemaInformation withOnTimerSchemaKeyParameter(
+      String timerId, Schema keySchema, SchemaCoder<?> parameterCoder, boolean unbox) {
+    Map<String, List<SerializableFunction<?, ?>>> onTimerConverters =
+        Maps.newHashMap(getKeyConvertersOnTimer());
+    List<SerializableFunction<?, ?>> converters =
+        addConverterParameter(
+            onTimerConverters.computeIfAbsent(timerId, t -> Lists.newArrayList()),
+            keySchema,
+            keySchema,
+            SerializableFunctions.identity(),
+            parameterCoder.getFromRowFunction(),
+            FieldAccessDescriptor.withAllFields(),
+            unbox);
+    onTimerConverters.put(timerId, converters);
+    return toBuilder().setKeyConvertersOnTimer(onTimerConverters).build();
+  }
+
+  public DoFnSchemaInformation withOnTimerUnboxPrimitiveKeyParameter(
+      String timerId, Schema keySchema, TypeDescriptor<?> elementT) {
+    Map<String, List<SerializableFunction<?, ?>>> onTimerConverters =
+        Maps.newHashMap(getKeyConvertersOnTimer());
+    List<SerializableFunction<?, ?>> converters =
+        addUnboxPrimitiveParameter(
+            onTimerConverters.computeIfAbsent(timerId, t -> Lists.newArrayList()),
+            keySchema,
+            keySchema,
+            SerializableFunctions.identity(),
+            FieldAccessDescriptor.withAllFields(),
+            elementT);
+    onTimerConverters.put(timerId, converters);
+    return toBuilder().setKeyConvertersOnTimer(onTimerConverters).build();
+  }
+
+  public DoFnSchemaInformation withOnTimerFamilySchemaKeyParameter(
+      String timerFamily, Schema keySchema, SchemaCoder<?> parameterCoder, boolean unbox) {
+    Map<String, List<SerializableFunction<?, ?>>> onTimerFamilyConverters =
+        Maps.newHashMap(getKeyConvertersOnTimerFamily());
+    List<SerializableFunction<?, ?>> converters =
+        addConverterParameter(
+            onTimerFamilyConverters.computeIfAbsent(timerFamily, t -> Lists.newArrayList()),
+            keySchema,
+            keySchema,
+            SerializableFunctions.identity(),
+            parameterCoder.getFromRowFunction(),
+            FieldAccessDescriptor.withAllFields(),
+            unbox);
+    onTimerFamilyConverters.put(timerFamily, converters);
+    return toBuilder().setKeyConvertersOnTimerFamily(onTimerFamilyConverters).build();
+  }
+
+  public DoFnSchemaInformation withOnTimerFamilyUnboxPrimitiveKeyParameter(
+      String timerFamily, Schema keySchema, TypeDescriptor<?> elementT) {
+    Map<String, List<SerializableFunction<?, ?>>> onTimerFamilyConverters =
+        Maps.newHashMap(getKeyConvertersOnTimerFamily());
+    List<SerializableFunction<?, ?>> converters =
+        addUnboxPrimitiveParameter(
+            onTimerFamilyConverters.computeIfAbsent(timerFamily, t -> Lists.newArrayList()),
+            keySchema,
+            keySchema,
+            SerializableFunctions.identity(),
+            FieldAccessDescriptor.withAllFields(),
+            elementT);
+    onTimerFamilyConverters.put(timerFamily, converters);
+    return toBuilder().setKeyConvertersOnTimerFamily(onTimerFamilyConverters).build();
+  }
 
   /**
    * Specified a parameter that is a selection from an input schema (specified using FieldAccess).
@@ -82,25 +287,21 @@ public abstract class DoFnSchemaInformation implements Serializable {
    *     unboxed.
    * @return
    */
-  DoFnSchemaInformation withSelectFromSchemaParameter(
+  public DoFnSchemaInformation withSelectFromSchemaElementParameter(
       SchemaCoder<?> inputCoder,
       FieldAccessDescriptor selectDescriptor,
       Schema selectOutputSchema,
       SchemaCoder<?> parameterCoder,
       boolean unbox) {
     List<SerializableFunction<?, ?>> converters =
-        ImmutableList.<SerializableFunction<?, ?>>builder()
-            .addAll(getElementConverters())
-            .add(
-                ConversionFunction.of(
-                    inputCoder.getSchema(),
-                    inputCoder.getToRowFunction(),
-                    parameterCoder.getFromRowFunction(),
-                    selectDescriptor,
-                    selectOutputSchema,
-                    unbox))
-            .build();
-
+        addConverterParameter(
+            getElementConverters(),
+            inputCoder.getSchema(),
+            selectOutputSchema,
+            inputCoder.getToRowFunction(),
+            parameterCoder.getFromRowFunction(),
+            selectDescriptor,
+            unbox);
     return toBuilder().setElementConverters(converters).build();
   }
 
@@ -116,31 +317,19 @@ public abstract class DoFnSchemaInformation implements Serializable {
    * @param elementT The type of the method's input parameter.
    * @return
    */
-  DoFnSchemaInformation withUnboxPrimitiveParameter(
+  public DoFnSchemaInformation withUnboxPrimitiveElementParameter(
       SchemaCoder inputCoder,
       FieldAccessDescriptor selectDescriptor,
       Schema selectOutputSchema,
       TypeDescriptor<?> elementT) {
-    if (selectOutputSchema.getFieldCount() != 1) {
-      throw new RuntimeException("Parameter has no schema and the input is not a simple type.");
-    }
-    FieldType fieldType = selectOutputSchema.getField(0).getType();
-    if (fieldType.getTypeName().isCompositeType()) {
-      throw new RuntimeException("Parameter has no schema and the input is not a primitive type.");
-    }
-
     List<SerializableFunction<?, ?>> converters =
-        ImmutableList.<SerializableFunction<?, ?>>builder()
-            .addAll(getElementConverters())
-            .add(
-                UnboxingConversionFunction.of(
-                    inputCoder.getSchema(),
-                    inputCoder.getToRowFunction(),
-                    selectDescriptor,
-                    selectOutputSchema,
-                    elementT))
-            .build();
-
+        addUnboxPrimitiveParameter(
+            getElementConverters(),
+            inputCoder.getSchema(),
+            selectOutputSchema,
+            inputCoder.getToRowFunction(),
+            selectDescriptor,
+            elementT);
     return toBuilder().setElementConverters(converters).build();
   }
 
@@ -152,7 +341,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
     private final FieldAccessDescriptor selectDescriptor;
     private final Schema selectOutputSchema;
     private final boolean unbox;
-    private final RowSelector rowSelector;
+    private final @Nullable RowSelector rowSelector;
 
     private ConversionFunction(
         Schema inputSchema,

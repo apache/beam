@@ -680,7 +680,6 @@ class FlinkStreamingTransformTranslators {
     public void translateNode(
         PTransform<PCollection<InputT>, PCollectionTuple> transform,
         FlinkStreamingTranslationContext context) {
-
       DoFn<InputT, OutputT> doFn;
       try {
         doFn = (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(context.getCurrentTransform());

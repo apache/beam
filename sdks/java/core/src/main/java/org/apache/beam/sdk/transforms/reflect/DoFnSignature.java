@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.AutoValue.Builder;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaKeyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
@@ -92,6 +94,8 @@ public abstract class DoFnSignature {
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnWindowExpiration} method. */
   public abstract @Nullable OnWindowExpirationMethod onWindowExpiration();
+
+  public abstract @Nullable StateKeyFieldsDeclaration stateKeyFieldsDeclaration();
 
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
@@ -193,6 +197,9 @@ public abstract class DoFnSignature {
 
     abstract Builder setGetWatermarkEstimatorStateCoder(
         GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder);
+
+    abstract Builder setStateKeyFieldsDeclaration(
+        StateKeyFieldsDeclaration stateKeyFieldsDeclaration);
 
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
 
@@ -313,6 +320,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((BundleFinalizerParameter) this);
       } else if (this instanceof KeyParameter) {
         return cases.dispatch((KeyParameter) this);
+      } else if (this instanceof SchemaKeyParameter) {
+        return cases.dispatch((SchemaKeyParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -370,6 +379,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(BundleFinalizerParameter p);
 
       ResultT dispatch(KeyParameter p);
+
+      ResultT dispatch(SchemaKeyParameter p);
 
       /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -495,6 +506,11 @@ public abstract class DoFnSignature {
         public ResultT dispatch(KeyParameter p) {
           return dispatchDefault(p);
         }
+
+        @Override
+        public ResultT dispatch(SchemaKeyParameter p) {
+          return dispatchDefault(p);
+        }
       }
     }
 
@@ -605,8 +621,16 @@ public abstract class DoFnSignature {
     }
 
     /** Returns a {@link KeyParameter}. */
-    public static KeyParameter keyT(TypeDescriptor<?> keyT) {
+    public static KeyParameter key(TypeDescriptor<?> keyT) {
       return new AutoValue_DoFnSignature_Parameter_KeyParameter(keyT);
+    }
+
+    /** Returns a {@link KeyParameter}. */
+    public static SchemaKeyParameter schemaKey(TypeDescriptor<?> keyT, int index) {
+      return new AutoValue_DoFnSignature_Parameter_SchemaKeyParameter.Builder()
+          .setKeyT(keyT)
+          .setIndex(index)
+          .build();
     }
 
     /** Returns a {@link PipelineOptionsParameter}. */
@@ -757,6 +781,26 @@ public abstract class DoFnSignature {
       KeyParameter() {}
 
       public abstract TypeDescriptor<?> keyT();
+    }
+
+    @AutoValue
+    public abstract static class SchemaKeyParameter extends Parameter {
+      SchemaKeyParameter() {}
+
+      public abstract TypeDescriptor<?> keyT();
+
+      public abstract int index();
+
+      @AutoValue.Builder
+      public abstract static class Builder {
+        public abstract SchemaKeyParameter.Builder setKeyT(TypeDescriptor<?> keyT);
+
+        public abstract SchemaKeyParameter.Builder setIndex(int index);
+
+        public abstract SchemaKeyParameter build();
+      }
+
+      public abstract SchemaKeyParameter.Builder toBuilder();
     }
 
     /**
@@ -1009,6 +1053,13 @@ public abstract class DoFnSignature {
           .collect(Collectors.toList());
     }
 
+    public @Nullable List<SchemaKeyParameter> getSchemaKeyParameters() {
+      return extraParameters().stream()
+          .filter(Predicates.instanceOf(SchemaKeyParameter.class)::apply)
+          .map(SchemaKeyParameter.class::cast)
+          .collect(Collectors.toList());
+    }
+
     public @Nullable List<SideInputParameter> getSideInputParameters() {
       return extraParameters().stream()
           .filter(Predicates.instanceOf(SideInputParameter.class)::apply)
@@ -1073,13 +1124,20 @@ public abstract class DoFnSignature {
           windowT,
           Collections.unmodifiableList(extraParameters));
     }
+
+    public @Nullable List<SchemaKeyParameter> getSchemaKeyParameters() {
+      return extraParameters().stream()
+          .filter(Predicates.instanceOf(SchemaKeyParameter.class)::apply)
+          .map(SchemaKeyParameter.class::cast)
+          .collect(Collectors.toList());
+    }
   }
 
   /** Describes a {@link DoFn.OnTimerFamily} method. */
   @AutoValue
   public abstract static class OnTimerFamilyMethod implements MethodWithExtraParameters {
 
-    /** The id on the method's {@link DoFn.TimerId} annotation. */
+    /** The id on the method's {@link DoFn.TimerFamily} annotation. */
     public abstract String id();
 
     /** The annotated method itself. */
@@ -1114,6 +1172,13 @@ public abstract class DoFnSignature {
           windowT,
           Collections.unmodifiableList(extraParameters));
     }
+
+    public @Nullable List<SchemaKeyParameter> getSchemaKeyParameters() {
+      return extraParameters().stream()
+          .filter(Predicates.instanceOf(SchemaKeyParameter.class)::apply)
+          .map(SchemaKeyParameter.class::cast)
+          .collect(Collectors.toList());
+    }
   }
 
   /** Describes a {@link DoFn.OnWindowExpiration} method. */
@@ -1140,6 +1205,13 @@ public abstract class DoFnSignature {
     @Override
     public abstract List<Parameter> extraParameters();
 
+    public @Nullable List<SchemaKeyParameter> getSchemaKeyParameters() {
+      return extraParameters().stream()
+          .filter(Predicates.instanceOf(SchemaKeyParameter.class)::apply)
+          .map(SchemaKeyParameter.class::cast)
+          .collect(Collectors.toList());
+    }
+
     static OnWindowExpirationMethod create(
         Method targetMethod,
         boolean requiresStableInput,
@@ -1153,6 +1225,14 @@ public abstract class DoFnSignature {
     }
   }
 
+  @AutoValue
+  public abstract static class StateKeyFieldsDeclaration {
+    public abstract Field field();
+
+    static StateKeyFieldsDeclaration create(Field field) {
+      return new AutoValue_DoFnSignature_StateKeyFieldsDeclaration(field);
+    }
+  }
   /**
    * Describes a timer declaration; a field of type {@link TimerSpec} annotated with {@link
    * DoFn.TimerId}.

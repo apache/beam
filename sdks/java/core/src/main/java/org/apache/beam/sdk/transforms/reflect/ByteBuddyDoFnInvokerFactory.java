@@ -142,6 +142,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String TIMER_FAMILY_PARAMETER_METHOD = "timerFamily";
   public static final String TIMER_ID_PARAMETER_METHOD = "timerId";
   public static final String KEY_PARAMETER_METHOD = "key";
+  public static final String SCHEMA_KEY_PARAMETER_METHOD = "schemaKey";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -1102,6 +1103,33 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             return new StackManipulation.Compound(
                 simpleExtraContextParameter(KEY_PARAMETER_METHOD),
                 TypeCasting.to(new TypeDescription.ForLoadedType(p.keyT().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(DoFnSignature.Parameter.SchemaKeyParameter p) {
+            ForLoadedType elementType = new ForLoadedType(p.keyT().getRawType());
+            ForLoadedType castType =
+                elementType.isPrimitive()
+                    ? new ForLoadedType(Primitives.wrap(p.keyT().getRawType()))
+                    : elementType;
+
+            StackManipulation stackManipulation =
+                new StackManipulation.Compound(
+                    IntegerConstant.forValue(p.index()),
+                    MethodInvocation.invoke(
+                        getExtraContextFactoryMethodDescription(
+                            SCHEMA_KEY_PARAMETER_METHOD, int.class)),
+                    TypeCasting.to(castType));
+            if (elementType.isPrimitive()) {
+              stackManipulation =
+                  new Compound(
+                      stackManipulation,
+                      Assigner.DEFAULT.assign(
+                          elementType.asBoxed().asGenericType(),
+                          elementType.asUnboxed().asGenericType(),
+                          Typing.STATIC));
+            }
+            return stackManipulation;
           }
         });
   }

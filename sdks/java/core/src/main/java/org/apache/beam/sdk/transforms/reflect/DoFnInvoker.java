@@ -182,6 +182,12 @@ public interface DoFnInvoker<InputT, OutputT> {
      */
     Object key();
 
+    /**
+     * Provide a reference to the input element key as extracted from the schema. @Key argument
+     * position specified by index.
+     */
+    Object schemaKey(int index);
+
     /** Provide a reference to the input sideInput with the specified tag. */
     Object sideInput(String tagId);
 
@@ -274,6 +280,12 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public Object key() {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
+    }
+
+    @Override
+    public Object schemaKey(int index) {
       throw new UnsupportedOperationException(
           "Cannot access key as parameter outside of @OnTimer method.");
     }
@@ -474,6 +486,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public Object key() {
       return delegate.key();
+    }
+
+    @Override
+    public Object schemaKey(int index) {
+      return delegate.schemaKey(index);
     }
 
     @Override

@@ -502,9 +502,10 @@ public class DataflowPipelineTranslator {
       TransformTranslator translator = getTransformTranslator(transform.getClass());
       checkState(
           translator != null,
-          "no translator registered for primitive transform %s at node %s",
+          "no translator registered for primitive transform %s at node %s with class %s",
           transform,
-          node.getFullName());
+          node.getFullName(),
+          transform.getClass());
       LOG.debug("Translating {}", transform);
       currentTransform = node.toAppliedPTransform(getPipeline());
       ResourceHints hints = transform.getResourceHints();
@@ -972,15 +973,18 @@ public class DataflowPipelineTranslator {
         new TransformTranslator<ParDo.MultiOutput>() {
           @Override
           public void translate(ParDo.MultiOutput transform, TranslationContext context) {
-            translateMultiHelper(transform, context);
+            // If getKeyFieldsDescriptor != null, don't translate. This will be a composite
+            // containing a
+            // ParDo.MultiOutputSchemaKeyFields, which we will translate below.
+            if (transform.getKeyFieldsDescriptor() == null) {
+              translateMultiHelper(transform, context);
+            }
           }
 
           private <InputT, OutputT> void translateMultiHelper(
               ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
-            DoFnSchemaInformation doFnSchemaInformation;
-            doFnSchemaInformation =
-                ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
             Map<String, PCollectionView<?>> sideInputMapping =
                 ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             Map<TupleTag<?>, Coder<?>> outputCoders =
@@ -1006,7 +1010,51 @@ public class DataflowPipelineTranslator {
                 context,
                 transform.getMainOutputTag(),
                 outputCoders,
-                doFnSchemaInformation,
+                transform.getDoFnSchemaInformation(),
+                sideInputMapping);
+          }
+        });
+
+    registerTransformTranslator(
+        ParDo.MultiOutputSchemaKeyFields.class,
+        new TransformTranslator<ParDo.MultiOutputSchemaKeyFields>() {
+          @Override
+          public void translate(
+              ParDo.MultiOutputSchemaKeyFields transform, TranslationContext context) {
+            translateMultiHelper(transform, context);
+          }
+
+          private <InputT, DoFnInputT, OutputT> void translateMultiHelper(
+              ParDo.MultiOutputSchemaKeyFields<InputT, DoFnInputT, OutputT> transform,
+              TranslationContext context) {
+            StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
+
+            Map<String, PCollectionView<?>> sideInputMapping =
+                ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+            Map<TupleTag<?>, Coder<?>> outputCoders =
+                context.getOutputs(transform).entrySet().stream()
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
+            translateInputs(
+                stepContext,
+                context.getInput(transform),
+                transform.getSideInputs().values(),
+                context);
+            translateOutputs(context.getOutputs(transform), stepContext);
+            String ptransformId =
+                context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+            translateFn(
+                stepContext,
+                ptransformId,
+                transform.getFn(),
+                context.getInput(transform).getWindowingStrategy(),
+                transform.getSideInputs().values(),
+                context.getInput(transform).getCoder(),
+                context,
+                transform.getMainOutputTag(),
+                outputCoders,
+                transform.getDoFnSchemaInformation(),
                 sideInputMapping);
           }
         });
@@ -1021,10 +1069,9 @@ public class DataflowPipelineTranslator {
 
           private <InputT, OutputT> void translateSingleHelper(
               ParDoSingle<InputT, OutputT> transform, TranslationContext context) {
-
-            DoFnSchemaInformation doFnSchemaInformation;
-            doFnSchemaInformation =
+            DoFnSchemaInformation doFnSchemaInformation =
                 ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
             Map<String, PCollectionView<?>> sideInputMapping =
                 ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
