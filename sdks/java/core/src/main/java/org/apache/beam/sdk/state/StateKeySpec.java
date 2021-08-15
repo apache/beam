@@ -29,11 +29,15 @@ public class StateKeySpec {
     this.keyDescriptor = keyDescriptor;
   }
 
-  public static StateKeySpec fields(String fieldNames) {
+  public static StateKeySpec fields(String... fieldNames) {
     return new StateKeySpec(FieldAccessDescriptor.withFieldNames(fieldNames));
   }
 
   public static StateKeySpec fields(FieldAccessDescriptor fieldAccessDescriptor) {
     return new StateKeySpec(fieldAccessDescriptor);
+  }
+
+  public FieldAccessDescriptor getKeyDescriptor() {
+    return keyDescriptor;
   }
 }

@@ -39,9 +39,14 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
+import org.apache.beam.sdk.state.StateKeySpec;
 import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.transforms.DoFn.FieldAccess;
 import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -52,18 +57,22 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParam
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateKeyFieldsDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -685,7 +694,24 @@ public class ParDo {
       }
     }
 
+    @Nullable FieldAccessDeclaration keyFieldAccess = getDoFnFieldsDescriptor(signature, fn);
+    if (keyFieldAccess != null) {
+      if (!input.hasSchema()) {
+        throw new IllegalArgumentException("Cannot specify @StateKeyFields if the input collection doesn't "
+                + "have a schema. " + input);
+      }
+      doFnSchemaInformation = doFnSchemaInformation.withStateKeyFieldsDescriptor(keyFieldAccess);
+    }
     return doFnSchemaInformation;
+  }
+
+  private @Nullable FieldAccessDeclaration getDoFnFieldsDescriptor(DoFnSignature signature, DoFn<?, ?> fn) {
+    StateKeyFieldsDeclaration stateKeyFieldsDeclaration = signature.stateKeyFieldsDeclaration();
+    if (stateKeyFieldsDeclaration == null) {
+      return null;
+    }
+    StateKeySpec stateKeySpec = stateKeyFieldsDeclaration.field().get(fn);
+    return stateKeySpec.getKeyDescriptor();
   }
 
   /**
@@ -939,11 +965,26 @@ public class ParDo {
       finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
 
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-      if (signature.usesState() || signature.usesTimers()) {
-        validateStateApplicableForInput(fn, input);
-      }
 
       validateSideInputTypes(sideInputs, fn);
+
+      @Nullable FieldAccessDescriptor keyFieldAccess = getDoFnFieldsDescriptor(signature, fn);
+      if (keyFieldAccess != null) {
+        if (!input.hasSchema()) {
+
+        }
+        if (!signature.usesState() && !signature.usesTimers()) {
+
+        }
+        // Add in keys
+        input.apply("Extract schema keys", new SchemaToKv(keyFieldAccess));
+
+      }
+      {
+        if (signature.usesState() || signature.usesTimers()) {
+          validateStateApplicableForInput(fn, input);
+        }
+      }
 
       // TODO: We should validate OutputReceiver<Row> only happens if the output PCollection
       // as schema. However coder/schema inference may not have happened yet at this point.
@@ -976,6 +1017,30 @@ public class ParDo {
       outputs.get(mainOutputTag).setTypeDescriptor(getFn().getOutputTypeDescriptor());
 
       return outputs;
+    }
+
+    private class SchemaToKv extends PTransform<PCollection<? extends InputT>, PCollection<KV<Row, Iterable<? extends InputT>>>> {
+      private  RowSelector rowSelector;
+      private final FieldAccessDescriptor fieldAccessDescriptor;
+
+      SchemaToKv(FieldAccessDescriptor fieldAccessDescriptor) {
+        this.fieldAccessDescriptor = fieldAccessDescriptor;
+      }
+
+      @Override
+      public PCollection<KV<Row, Iterable<? extends InputT>>> expand(PCollection<? extends InputT> input) {
+        Schema schema = input.getSchema();
+        FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
+        rowSelector = new RowSelectorContainer(schema, resolved, true);
+        Schema keySchema = SelectHelpers.getOutputSchema(schema, resolved);
+
+        return input
+                .apply("toRow", Convert.toRows())
+                .apply(
+                        "selectKeys",
+                        WithKeys.of((Row e) -> rowSelector.select(e)).withKeyType(TypeDescriptors.rows()))
+                .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(schema)));
+      }
     }
 
     @Override

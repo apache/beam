@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import avro.shaded.com.google.common.collect.Iterables;
 import com.google.auto.value.AutoValue;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateKeySpec;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
@@ -58,6 +60,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.DoFn.StateKeyFields;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
@@ -75,6 +78,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkE
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorStateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateKeyFieldsDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerFamilyDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -296,12 +300,17 @@ public class DoFnSignatures {
     private final Map<String, TimerDeclaration> timerDeclarations = new HashMap<>();
     private final Map<String, TimerFamilyDeclaration> timerFamilyDeclarations = new HashMap<>();
     private final Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
+    private DoFnSignature.StateKeyFieldsDeclaration stateKeyFields = null;
 
     private FnAnalysisContext() {}
 
     /** Create an empty context, with no declarations. */
     public static FnAnalysisContext create() {
       return new FnAnalysisContext();
+    }
+
+    public StateKeyFieldsDeclaration getStateKeyFields() {
+      return stateKeyFields;
     }
 
     /** State parameters declared in this context, keyed by {@link StateId}. Unmodifiable. */
@@ -325,6 +334,10 @@ public class DoFnSignatures {
     /** Field access declaration declared in this context. */
     public @Nullable Map<String, FieldAccessDeclaration> getFieldAccessDeclarations() {
       return fieldAccessDeclarations;
+    }
+
+    public void setStateKeyFieldsDeclaration(StateKeyFieldsDeclaration stateKeyFieldsDeclaration) {
+      this.stateKeyFields = stateKeyFieldsDeclaration;
     }
 
     public void addStateDeclaration(StateDeclaration decl) {
@@ -512,6 +525,7 @@ public class DoFnSignatures {
     // Find the state and timer declarations in advance of validating
     // method parameter lists
     FnAnalysisContext fnContext = FnAnalysisContext.create();
+    fnContext.setStateKeyFieldsDeclaration(getStateKeyFields(errors, fnClass));
     fnContext.addStateDeclarations(analyzeStateDeclarations(errors, fnClass).values());
     fnContext.addTimerDeclarations(analyzeTimerDeclarations(errors, fnClass).values());
     fnContext.addTimerFamilyDeclarations(analyzeTimerFamilyDeclarations(errors, fnClass).values());
@@ -828,7 +842,7 @@ public class DoFnSignatures {
     }
 
     signatureBuilder.setIsBoundedPerElement(inferBoundedness(fnT, processElement, errors));
-
+    signatureBuilder.setStateKeyFieldsDeclaration(fnContext.getStateKeyFields());
     signatureBuilder.setStateDeclarations(fnContext.getStateDeclarations());
     signatureBuilder.setTimerDeclarations(fnContext.getTimerDeclarations());
     signatureBuilder.setTimerFamilyDeclarations(fnContext.getTimerFamilyDeclarations());
@@ -2261,6 +2275,24 @@ public class DoFnSignatures {
           FieldAccessDeclaration.create(fieldAccessAnnotation.value(), field));
     }
     return fieldAccessDeclarations;
+  }
+
+  private static StateKeyFieldsDeclaration getStateKeyFields( ErrorReporter errors, Class<?> fnClazz) {
+    Field field = Iterables.getOnlyElement(
+            ReflectHelpers.declaredFieldsWithAnnotation(DoFn.StateKeyFields.class, fnClazz, DoFn.class));
+    field.setAccessible(true);
+    if (!TypeDescriptor.of(field.getType()).equals(TypeDesriptor.of(StateKeySpec.class))) {
+      errors.throwIllegalArgument("Field %s is of type %s. Expected type %s",
+              field.toString(), field.getType().getName(), DoFn.StateKeyFields.class);
+      return null;
+    }
+    if (!Modifier.isFinal(field.getModifiers())) {
+      errors.throwIllegalArgument(
+              "Non-final field %s annotated with %s. Key field declarations must be final.",
+              field.toString(), format(DoFn.StateKeyFields.class));
+      return null;
+    }
+    return StateKeyFieldsDeclaration.create(field);
   }
 
   private static Map<String, DoFnSignature.StateDeclaration> analyzeStateDeclarations(

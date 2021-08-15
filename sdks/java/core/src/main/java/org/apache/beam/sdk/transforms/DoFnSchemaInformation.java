@@ -36,6 +36,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
+import javax.annotation.Nullable;
+
 /** Represents information about how a DoFn extracts schemas. */
 @Experimental(Kind.SCHEMAS)
 @AutoValue
@@ -51,6 +53,9 @@ public abstract class DoFnSchemaInformation implements Serializable {
    */
   public abstract List<SerializableFunction<?, ?>> getElementConverters();
 
+  @Nullable
+  public abstract FieldAccessDescriptor getKeyFieldsDescriptor();
+
   /** Create an instance. */
   public static DoFnSchemaInformation create() {
     return new AutoValue_DoFnSchemaInformation.Builder()
@@ -62,11 +67,16 @@ public abstract class DoFnSchemaInformation implements Serializable {
   @AutoValue.Builder
   public abstract static class Builder {
     abstract Builder setElementConverters(List<SerializableFunction<?, ?>> converters);
+    abstract Builder setKeyFieldsDescriptor(FieldAccessDescriptor fieldAccessDescriptor);
 
     abstract DoFnSchemaInformation build();
   }
 
   public abstract Builder toBuilder();
+
+  DoFnSchemaInformation withStateKeyFieldsDescriptor(FieldAccessDescriptor keyDescriptor) {
+    return toBuilder().setKeyFieldsDescriptor(keyDescriptor).build();
+  }
 
   /**
    * Specified a parameter that is a selection from an input schema (specified using FieldAccess).

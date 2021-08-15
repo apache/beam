@@ -191,14 +191,14 @@ func main() {
 		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
 	}
 
-    if metadata := info.GetMetadata(); metadata != nil {
-        if jobName, nameExists := metadata["job_name"]; nameExists {
-            os.Setenv("JOB_NAME", jobName)
-        }
-        if jobID, idExists := metadata["job_id"]; idExists {
-            os.Setenv("JOB_ID", jobID)
-        }
-    }
+	if metadata := info.GetMetadata(); metadata != nil {
+		if jobName, nameExists := metadata["job_name"]; nameExists {
+			os.Setenv("JOB_NAME", jobName)
+		}
+		if jobID, idExists := metadata["job_id"]; idExists {
+			os.Setenv("JOB_ID", jobID)
+		}
+	}
 
 	args := []string{
 		"-m",

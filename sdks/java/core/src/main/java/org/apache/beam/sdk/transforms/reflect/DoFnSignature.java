@@ -93,6 +93,8 @@ public abstract class DoFnSignature {
   /** Details about this {@link DoFn}'s {@link DoFn.OnWindowExpiration} method. */
   public abstract @Nullable OnWindowExpirationMethod onWindowExpiration();
 
+  public abstract @Nullable StateKeyFieldsDeclaration stateKeyFieldsDeclaration();
+
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
 
@@ -135,6 +137,8 @@ public abstract class DoFnSignature {
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimerFamily} methods. */
   public abstract @Nullable Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
+
+
 
   /** @deprecated use {@link #usesState()}, it's cleaner */
   @Deprecated
@@ -193,6 +197,8 @@ public abstract class DoFnSignature {
 
     abstract Builder setGetWatermarkEstimatorStateCoder(
         GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder);
+
+    abstract Builder setStateKeyFieldsDeclaration(StateKeyFieldsDeclaration stateKeyFieldsDeclaration);
 
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
 
@@ -1153,6 +1159,14 @@ public abstract class DoFnSignature {
     }
   }
 
+  @AutoValue
+  public abstract static class StateKeyFieldsDeclaration {
+    public abstract Field field();
+
+    static StateKeyFieldsDeclaration create(Field field) {
+      return new AutoValue_DoFnSignature_StateKeyFieldsDeclaration(field);
+    }
+  }
   /**
    * Describes a timer declaration; a field of type {@link TimerSpec} annotated with {@link
    * DoFn.TimerId}.
