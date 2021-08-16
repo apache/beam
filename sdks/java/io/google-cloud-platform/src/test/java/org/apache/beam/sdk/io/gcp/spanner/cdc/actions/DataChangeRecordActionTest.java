@@ -57,10 +57,12 @@ public class DataChangeRecordActionTest {
 
   @Test
   public void testRestrictionClaimed() {
+    final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final DataChangeRecord record = mock(DataChangeRecord.class);
     when(record.getCommitTimestamp()).thenReturn(timestamp);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, outputReceiver, watermarkEstimator);
@@ -72,10 +74,12 @@ public class DataChangeRecordActionTest {
 
   @Test
   public void testRestrictionNotClaimed() {
+    final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
     final DataChangeRecord record = mock(DataChangeRecord.class);
     when(record.getCommitTimestamp()).thenReturn(timestamp);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(false);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, outputReceiver, watermarkEstimator);

@@ -46,7 +46,9 @@ public class DonePartitionActionTest {
 
   @Test
   public void testRestrictionClaimed() {
+    final String partitionToken = "partitionToken";
     when(tracker.tryClaim(any())).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final ProcessContinuation continuation = action.run(partition, tracker);
 
@@ -56,7 +58,9 @@ public class DonePartitionActionTest {
 
   @Test
   public void testRestrictionNotClaimed() {
+    final String partitionToken = "partitionToken";
     when(tracker.tryClaim(any())).thenReturn(false);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final ProcessContinuation continuation = action.run(partition, tracker);
 

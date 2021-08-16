@@ -40,26 +40,26 @@ public class PartitionRestrictionSplitCheckerTest {
   }
 
   @Test
-  public void testQueryChangeStreamAtLeastASecondHasPassed() {
+  public void testQueryChangeStreamAtLeastAMicrosecondHasPassed() {
     final boolean isSplitAllowed =
         splitChecker.isSplitAllowed(
             restriction,
-            PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(10L, 30)),
-            PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(11L, 30)));
+            PartitionPosition.queryChangeStream(Timestamp.ofTimeMicroseconds(10L)),
+            PartitionPosition.queryChangeStream(Timestamp.ofTimeMicroseconds(11L)));
 
-    assertTrue("After one second has passed, split should be allowed", isSplitAllowed);
+    assertTrue("After one microsecond has passed, split should be allowed", isSplitAllowed);
   }
 
   @Test
-  public void testQueryChangeStreamLessThanASecondHasPassed() {
+  public void testQueryChangeStreamLessThanAMicrosecondHasPassed() {
     final boolean isSplitAllowed =
         splitChecker.isSplitAllowed(
             restriction,
-            PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(10L, 30)),
-            PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(11L, 29)));
+            PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(0L, 1000)),
+            PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(0L, 1999)));
 
     assertFalse(
-        "Before at least one second has passed, split should not be allowed", isSplitAllowed);
+        "Before at least one microsecond has passed, split should not be allowed", isSplitAllowed);
   }
 
   @Test

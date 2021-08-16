@@ -62,8 +62,10 @@ public class DeletePartitionActionTest {
 
   @Test
   public void testRestrictionNotClaimed() {
+    final String partitionToken = "partitionToken";
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     when(tracker.tryClaim(PartitionPosition.deletePartition())).thenReturn(false);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 

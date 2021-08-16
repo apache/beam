@@ -87,6 +87,7 @@ public class ChildPartitionsRecordActionTest {
             .build();
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
 
     final Optional<ProcessContinuation> maybeContinuation =
@@ -139,6 +140,7 @@ public class ChildPartitionsRecordActionTest {
     final SpannerException spannerException = mock(SpannerException.class);
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
     when(spannerException.getErrorCode()).thenReturn(ErrorCode.ALREADY_EXISTS);
     doThrow(spannerException).when(dao).insert(any());
@@ -168,6 +170,7 @@ public class ChildPartitionsRecordActionTest {
             .build();
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
     when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
         .thenReturn(1L);
@@ -210,6 +213,7 @@ public class ChildPartitionsRecordActionTest {
     final SpannerException spannerException = mock(SpannerException.class);
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
     when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
         .thenReturn(1L);
@@ -241,6 +245,7 @@ public class ChildPartitionsRecordActionTest {
             .build();
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(true);
     when(transaction.countPartitionsInStates(parentTokens, Collections.singletonList(FINISHED)))
         .thenReturn(0L);
@@ -267,6 +272,7 @@ public class ChildPartitionsRecordActionTest {
                     new ChildPartition("childPartition1", partitionToken),
                     new ChildPartition("childPartition2", partitionToken)))
             .build();
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(startTimestamp))).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation =

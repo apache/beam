@@ -54,9 +54,11 @@ public class HeartbeatRecordActionTest {
 
   @Test
   public void testRestrictionClaimed() {
+    final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
 
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(
@@ -71,9 +73,11 @@ public class HeartbeatRecordActionTest {
 
   @Test
   public void testRestrictionNotClaimed() {
+    final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(10L, 20);
 
     when(tracker.tryClaim(PartitionPosition.queryChangeStream(timestamp))).thenReturn(false);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(

@@ -91,8 +91,10 @@ public class FinishPartitionActionTest {
 
   @Test
   public void testRestrictionNotClaimed() {
+    final String partitionToken = "partitionToken";
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     when(tracker.tryClaim(PartitionPosition.finishPartition())).thenReturn(false);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
 

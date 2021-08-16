@@ -81,7 +81,9 @@ public class WaitForChildPartitionsActionTest {
 
   @Test
   public void testRestrictionNotClaimed() {
+    final String partitionToken = "partitionToken";
     final PartitionMetadata partition = mock(PartitionMetadata.class);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
