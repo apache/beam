@@ -187,7 +187,7 @@ if [[ -z `which gnome-terminal` ]]; then
   if [[ "$INSTALL_GNOME_TERMINAL" = true ]]; then
     sudo apt-get install gnome-terminal
   else
-    echo "gnome-terminal is not installed. Validation on Python Leaderboard & GameStates will be skipped."
+    echo "gnome-terminal is not installed. Can't run validation on Python Leaderboard & GameStates. Exiting."
     exit
   fi
 fi
@@ -199,7 +199,7 @@ if [[ -z `which kubectl` ]]; then
   if [[ "$INSTALL_KUBECTL" = true ]]; then
     sudo apt-get install kubectl
   else
-    echo "kubectl is not installed. Validation on Python cross-language Kafka taxi will be skipped."
+    echo "kubectl is not installed. Can't run validation on Python cross-language Kafka taxi. Exiting."
     exit
   fi
 fi
@@ -679,7 +679,6 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       --runner DataflowRunner \
       --num_workers 5 \
       --temp_location=${USER_GCS_BUCKET}/temp/ \
-      --experiments=use_runner_v2 \
       --with_metadata \
       --sdk_location apache-beam-${RELEASE_VER}.zip; \
       exec bash"
@@ -717,7 +716,6 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       --runner DataflowRunner \
       --num_workers 5 \
       --temp_location=${USER_GCS_BUCKET}/temp/ \
-      --experiments=use_runner_v2 \
       --output_topic projects/${USER_GCP_PROJECT}/topics/${SQL_TAXI_TOPIC} \
       --sdk_location apache-beam-${RELEASE_VER}.zip; \
       exec bash"
