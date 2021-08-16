@@ -27,6 +27,8 @@ import io
 import json
 import logging
 import os
+import random
+
 import pkg_resources
 import re
 import sys
@@ -496,6 +498,11 @@ class Job(object):
         self.proto.labels.additionalProperties.append(
             dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
 
+    # Client Request ID
+    self.proto.clientRequestId = '{}-{}'.format(
+        datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
+        random.randrange(9000) + 1000)
+
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
     self.coder_str_re = re.compile(r'^([A-Za-z]+\$)([A-Za-z0-9+/]*=*)$')
 
@@ -794,6 +801,20 @@ class DataflowApplicationClient(object):
           self.google_cloud_options.dataflow_endpoint)
       _LOGGER.fatal('details of server error: %s', e)
       raise
+
+    if response.clientRequestId and \
+        response.clientRequestId != job.proto.clientRequestId:
+      if self.google_cloud_options.update:
+        raise DataflowJobAlreadyExistsError(
+            "The job named %s with id: %s has already been updated into job "
+            "id: %s and cannot be updated again." %
+            (response.name, job.proto.replaceJobId, response.id))
+      else:
+        raise DataflowJobAlreadyExistsError(
+            'There is already active job named %s with id: %s. If you want to '
+            'submit a second job, try again by setting a different name using '
+            '--job_name.' % (response.name, response.id))
+
     _LOGGER.info('Create job: %s', response)
     # The response is a Job proto with the id for the new job.
     _LOGGER.info('Created job with id: [%s]', response.id)
@@ -1026,6 +1047,13 @@ class _LegacyDataflowStager(Stager):
           Returns the PyPI package name to be staged to Google Cloud Dataflow.
     """
     return shared_names.BEAM_PACKAGE_NAME
+
+
+class DataflowJobAlreadyExistsError(retry.PermanentException):
+  """A non-retryable exception that a job with the given name already exists."""
+  # Inherits retry.PermanentException to avoid retry in
+  # DataflowApplicationClient.submit_job_description
+  pass
 
 
 def to_split_int(n):
