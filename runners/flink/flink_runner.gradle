@@ -179,6 +179,7 @@ dependencies {
   //LYFT CUSTOM
   // Required for embedded fn execution
   runtimeOnly project(":sdks:java:harness")
+
   if (flink_version.startsWith('1.13')) {
     compile "org.apache.flink:flink-connector-kafka_2.11:1.13-lyft20210804"
     compile "com.amazonaws:aws-java-sdk-s3:1.10.6"
@@ -208,40 +209,40 @@ dependencies {
       exclude group: "org.datanucleus", module: "datanucleus-rdbms"
     }
   } else if (flink_version.startsWith('1.10')) {
-      compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.10-lyft20200508"
-      compile "com.amazonaws:aws-java-sdk-s3:1.10.6"
-      compile "org.apache.hadoop:hadoop-aws:2.8.3"
-      compile "com.lyft:streamingplatform-kinesis:2.1-SNAPSHOT"
-      compile("com.lyft:streamingplatform-kafka:2.1-SNAPSHOT") {
-        exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
-        exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
-      }
-      compile("com.lyft:streamingplatform-events-source:2.1-dryft-SNAPSHOT") {
-        exclude group: "com.lyft", module: "streamingplatform-kinesis"
-        exclude group: "com.google.guava", module: "guava"
-        exclude group: "com.google.protobuf", module: "protobuf-java"
-        exclude group: "co.cask.tephra", module: "tephra-api"
-        exclude group: "co.cask.tephra", module: "tephra-core"
-        exclude group: "co.cask.tephra", module: "tephra-hbase-compat-1.0"
-        exclude group: "com.jolbox", module: "bonecp"
-        exclude group: "com.zaxxer", module: "HikariCP"
-        exclude group: "javolution", module: "javolution"
-        exclude group: "org.antlr", module: "antlr-runtime"
-        exclude group: "org.apache.hadoop", module: "hadoop-common"
-        exclude group: "org.apache.hadoop", module: "hadoop-hdfs"
-        exclude group: "org.apache.hadoop", module: "hadoop-mapreduce-client-core"
-        exclude group: "org.apache.hbase", module: "hbase-client"
-        exclude group: "org.datanucleus", module: "datanucleus-api-jdo"
-        exclude group: "org.datanucleus", module: "datanucleus-core"
-        exclude group: "org.datanucleus", module: "datanucleus-rdbms"
-      }
+    compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.10-lyft20200508"
+    compile "com.amazonaws:aws-java-sdk-s3:1.10.6"
+    compile "org.apache.hadoop:hadoop-aws:2.8.3"
+    compile "com.lyft:streamingplatform-kinesis:2.1-SNAPSHOT"
+    compile("com.lyft:streamingplatform-kafka:2.1-SNAPSHOT") {
+      exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
+      exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
+    }
+    compile("com.lyft:streamingplatform-events-source:2.1-dryft-SNAPSHOT") {
+      exclude group: "com.lyft", module: "streamingplatform-kinesis"
+      exclude group: "com.google.guava", module: "guava"
+      exclude group: "com.google.protobuf", module: "protobuf-java"
+      exclude group: "co.cask.tephra", module: "tephra-api"
+      exclude group: "co.cask.tephra", module: "tephra-core"
+      exclude group: "co.cask.tephra", module: "tephra-hbase-compat-1.0"
+      exclude group: "com.jolbox", module: "bonecp"
+      exclude group: "com.zaxxer", module: "HikariCP"
+      exclude group: "javolution", module: "javolution"
+      exclude group: "org.antlr", module: "antlr-runtime"
+      exclude group: "org.apache.hadoop", module: "hadoop-common"
+      exclude group: "org.apache.hadoop", module: "hadoop-hdfs"
+      exclude group: "org.apache.hadoop", module: "hadoop-mapreduce-client-core"
+      exclude group: "org.apache.hbase", module: "hbase-client"
+      exclude group: "org.datanucleus", module: "datanucleus-api-jdo"
+      exclude group: "org.datanucleus", module: "datanucleus-core"
+      exclude group: "org.datanucleus", module: "datanucleus-rdbms"
+    }
   } else {
-      compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.8-lyft20190924"
-      compile "com.lyft:streamingplatform-kinesis:1.4-SNAPSHOT"
-      compile("com.lyft:streamingplatform-kafka:1.4-SNAPSHOT") {
-        exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
-        exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
-      }
+    compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.8-lyft20190924"
+    compile "com.lyft:streamingplatform-kinesis:1.4-SNAPSHOT"
+    compile("com.lyft:streamingplatform-kafka:1.4-SNAPSHOT") {
+      exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
+      exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
+    }
   }
 }
 

@@ -79,11 +79,10 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer011;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.joda.time.Instant;
@@ -160,8 +159,8 @@ public class LyftFlinkStreamingPortableTranslations {
     properties.putAll(consumerProps);
     consumerBuilder.withKafkaProperties(properties);
 
-    FlinkKafkaConsumer011<WindowedValue<byte[]>> kafkaSource =
-        consumerBuilder.build(topic, new ByteArrayWindowedValueSchema());
+    FlinkKafkaConsumer<WindowedValue<byte[]>> kafkaSource =
+        consumerBuilder.build(topic, new ByteArrayWindowedValueSchema(context));
 
     if (params.getOrDefault("start_from_timestamp_millis", null) != null) {
       kafkaSource.setStartFromTimestamp(
@@ -183,7 +182,7 @@ public class LyftFlinkStreamingPortableTranslations {
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         context
             .getExecutionEnvironment()
-            .addSource(kafkaSource, FlinkKafkaConsumer011.class.getSimpleName() + "-" + topic));
+            .addSource(kafkaSource, FlinkKafkaConsumer.class.getSimpleName() + "-" + topic));
   }
 
   /**
@@ -196,10 +195,10 @@ public class LyftFlinkStreamingPortableTranslations {
 
     private final TypeInformation<WindowedValue<byte[]>> ti;
 
-    public ByteArrayWindowedValueSchema() {
-      this.ti =
-          new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+    public ByteArrayWindowedValueSchema(StreamingTranslationContext context) {
+      WindowedValue.FullWindowedValueCoder<byte[]> fullCoder = WindowedValue.getFullCoder(ByteArrayCoder.of(),
+              GlobalWindow.Coder.INSTANCE);
+      this.ti = new CoderTypeInformation<>(fullCoder, context.getPipelineOptions());
     }
 
     @Override
@@ -258,7 +257,7 @@ public class LyftFlinkStreamingPortableTranslations {
     properties.putAll(producerProps);
     producerBuilder.withKafkaProperties(properties);
 
-    FlinkKafkaProducer011<WindowedValue<byte[]>> producer =
+    FlinkKafkaProducer<WindowedValue<byte[]>> producer =
         producerBuilder.build(topic, new ByteArrayWindowedValueSerializer());
 
     String inputCollectionId = Iterables.getOnlyElement(pTransform.getInputsMap().values());
@@ -270,7 +269,7 @@ public class LyftFlinkStreamingPortableTranslations {
     inputDataStream
         .transform("setTimestamp", inputDataStream.getType(), new FlinkTimestampAssigner<>())
         .addSink(producer)
-        .name(FlinkKafkaProducer011.class.getSimpleName() + "-" + topic);
+        .name(FlinkKafkaProducer.class.getSimpleName() + "-" + topic);
   }
 
   public static class ByteArrayWindowedValueSerializer
@@ -302,11 +301,6 @@ public class LyftFlinkStreamingPortableTranslations {
       } else {
         super.output.collect(element);
       }
-    }
-
-    @Override
-    public void setup(StreamTask containingTask, StreamConfig config, Output output) {
-      super.setup(containingTask, config, output);
     }
   }
 
@@ -346,11 +340,11 @@ public class LyftFlinkStreamingPortableTranslations {
         case BYTES_ENCODING:
           source =
               FlinkLyftKinesisConsumer.create(
-                  stream, new KinesisByteArrayWindowedValueSchema(), properties);
+                  stream, new KinesisByteArrayWindowedValueSchema(context), properties);
           break;
         case LYFT_BASE64_ZLIB_JSON:
           source =
-              FlinkLyftKinesisConsumer.create(stream, new LyftBase64ZlibJsonSchema(), properties);
+              FlinkLyftKinesisConsumer.create(stream, new LyftBase64ZlibJsonSchema(context), properties);
           source.setPeriodicWatermarkAssigner(
               new WindowedTimestampExtractor<>(Time.milliseconds(maxOutOfOrdernessMillis)));
           break;
@@ -670,11 +664,12 @@ public class LyftFlinkStreamingPortableTranslations {
       implements KinesisDeserializationSchema<WindowedValue<byte[]>> {
     private final TypeInformation<WindowedValue<byte[]>> ti;
 
-    public KinesisByteArrayWindowedValueSchema() {
+    public KinesisByteArrayWindowedValueSchema(StreamingTranslationContext context) {
       this.ti =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE), context.getPipelineOptions());
     }
+
 
     @Override
     public TypeInformation<WindowedValue<byte[]>> getProducedType() {
@@ -704,9 +699,13 @@ public class LyftFlinkStreamingPortableTranslations {
   static class LyftBase64ZlibJsonSchema
       implements KinesisDeserializationSchema<WindowedValue<byte[]>> {
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final TypeInformation<WindowedValue<byte[]>> ti =
-        new CoderTypeInformation<>(
-            WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+    private final TypeInformation<WindowedValue<byte[]>> ti;
+
+    public LyftBase64ZlibJsonSchema(StreamingTranslationContext context) {
+      ti = new CoderTypeInformation<>(
+              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
+              context.getPipelineOptions());
+    }
 
     private static String inflate(byte[] deflatedData) throws IOException {
       Inflater inflater = new Inflater();
