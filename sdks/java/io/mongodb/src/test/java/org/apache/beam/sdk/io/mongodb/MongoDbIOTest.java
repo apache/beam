@@ -382,8 +382,8 @@ public class MongoDbIOTest {
                     UpdateConfiguration.create()
                         .withUpdateKey("id")
                         .withUpdateFields(
-                            UpdateField.of("$set", "scientist", "scientist"),
-                            UpdateField.of("$set", "country", "country"))));
+                            UpdateField.create().fieldUpdate("$set", "scientist", "scientist"),
+                            UpdateField.create().fieldUpdate("$set", "country", "country"))));
     pipeline.run();
 
     Document out = getCollection(collectionName).find(new Document("_id", 1)).first();

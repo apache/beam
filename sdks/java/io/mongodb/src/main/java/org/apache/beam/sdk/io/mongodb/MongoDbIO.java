@@ -994,8 +994,8 @@ public class MongoDbIO {
               Document updateSubDocument = new Document();
               for (UpdateField field : entry.getValue()) {
                 updateSubDocument.append(
-                    field.getDestField(),
-                    field.getSourceField() == null ? doc : doc.get(field.getSourceField()));
+                    field.destField(),
+                    field.sourceField() == null ? doc : doc.get(field.sourceField()));
               }
               updateDocument.append(entry.getKey(), updateSubDocument);
             }
@@ -1017,7 +1017,7 @@ public class MongoDbIO {
           List<UpdateField> updateFields) {
         Map<String, List<UpdateField>> operatorFieldsMap = new HashMap<>();
         for (UpdateField field : updateFields) {
-          String updateOperator = field.getUpdateOperator();
+          String updateOperator = field.updateOperator();
           if (operatorFieldsMap.containsKey(updateOperator)) {
             List<UpdateField> fields = operatorFieldsMap.get(updateOperator);
             fields.add(field);

@@ -17,41 +17,53 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class UpdateField implements Serializable {
+@Experimental(Kind.SOURCE_SINK)
+@AutoValue
+public abstract class UpdateField implements Serializable {
 
-  private String updateOperator;
+  abstract @Nullable String updateOperator();
 
-  private String sourceField;
+  abstract @Nullable String sourceField();
 
-  private String destField;
+  abstract @Nullable String destField();
 
-  public UpdateField(String updateOperator, String sourceField, String destField) {
-    this.updateOperator = updateOperator;
-    this.sourceField = sourceField;
-    this.destField = destField;
+  private static Builder builder() {
+    return new AutoValue_UpdateField.Builder().setSourceField(null);
   }
 
-  /** for updating field by field. */
-  public static UpdateField of(String updateOperator, String sourceField, String destField) {
-    return new UpdateField(updateOperator, sourceField, destField);
+  abstract UpdateField.Builder toBuilder();
+
+  public static UpdateField create() {
+    return builder().build();
   }
 
-  /** for updating with entire input document. */
-  public static UpdateField of(String updateOperator, String destField) {
-    return new UpdateField(updateOperator, null, destField);
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract UpdateField.Builder setUpdateOperator(@Nullable String updateOperator);
+
+    abstract UpdateField.Builder setSourceField(@Nullable String sourceField);
+
+    abstract UpdateField.Builder setDestField(@Nullable String destField);
+
+    abstract UpdateField build();
   }
 
-  public String getSourceField() {
-    return sourceField;
+  /** Sets the limit of documents to find. */
+  public UpdateField fullUpdate(String updateOperator, String destField) {
+    return toBuilder().setUpdateOperator(updateOperator).setDestField(destField).build();
   }
 
-  public String getUpdateOperator() {
-    return updateOperator;
-  }
-
-  public String getDestField() {
-    return destField;
+  public UpdateField fieldUpdate(String updateOperator, String sourceField, String destField) {
+    return toBuilder()
+        .setUpdateOperator(updateOperator)
+        .setSourceField(sourceField)
+        .setDestField(destField)
+        .build();
   }
 }
