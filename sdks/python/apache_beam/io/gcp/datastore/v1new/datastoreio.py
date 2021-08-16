@@ -26,9 +26,6 @@ different enough to require extensive changes to this and associated modules.
 import logging
 import time
 
-from google.api_core.exceptions import ClientError
-from google.api_core.exceptions import GoogleAPICallError
-
 from apache_beam import typehints
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import resource_identifiers
@@ -46,7 +43,14 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
 from apache_beam.utils import retry
-from apitools.base.py.exceptions import HttpError
+
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
+except ImportError:
+  pass
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 

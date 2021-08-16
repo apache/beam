@@ -317,6 +317,51 @@ class DatastoreioTest(unittest.TestCase):
           self.assertEqual(expected_num_splits, len(split_queries))
           self.assertEqual(self._mock_query, split_queries[0])
 
+  def test_QueryFn_metric_on_failure(self):
+    MetricsEnvironment.process_wide_container().reset()
+    with patch.object(helper, 'get_client', return_value=self._mock_client):
+      self._mock_query.project = self._PROJECT
+      self._mock_query.namespace = self._NAMESPACE
+      client_query = self._mock_query
+      _query_fn = ReadFromDatastore._QueryFn()
+      with patch.object(self._mock_query,
+                        '_to_client_query',
+                        return_value=client_query):
+        client_query.fetch.side_effect = [
+            exceptions.DeadlineExceeded("Deadline Exceeded"), []
+        ]
+        _query_fn.process(self._mock_query)
+        self.verify_read_call_metric(
+            self._PROJECT, self._NAMESPACE, "deadline_exceeded", 1)
+        self.verify_read_call_metric(self._PROJECT, self._NAMESPACE, "ok", 1)
+
+  def verify_read_call_metric(self, project_id, namespace, status, count):
+    """Check if a metric was recorded for the Datastore IO read API call."""
+    process_wide_monitoring_infos = list(
+        MetricsEnvironment.process_wide_container().
+        to_runner_api_monitoring_infos(None).values())
+    resource = resource_identifiers.DatastoreNamespace(project_id, namespace)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Datastore',
+        monitoring_infos.METHOD_LABEL: 'BatchDatastoreRead',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.DATASTORE_NAMESPACE_LABEL: namespace,
+        monitoring_infos.DATASTORE_PROJECT_ID_LABEL: project_id,
+        monitoring_infos.STATUS_LABEL: status
+    }
+    expected_mi = monitoring_infos.int64_counter(
+        monitoring_infos.API_REQUEST_COUNT_URN, count, labels=labels)
+    expected_mi.ClearField("start_time")
+
+    found = False
+    for actual_mi in process_wide_monitoring_infos:
+      actual_mi.ClearField("start_time")
+      if expected_mi == actual_mi:
+        found = True
+        break
+    self.assertTrue(
+        found, "Did not find read call metric with status: %s" % status)
+
   def check_DatastoreWriteFn(self, num_entities):
     """A helper function to test _DatastoreWriteFn."""
     with patch.object(helper, 'get_client', return_value=self._mock_client):
