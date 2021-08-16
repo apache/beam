@@ -59,7 +59,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamSourceDescriptor;
-import org.apache.beam.sdk.io.gcp.spanner.cdc.CleanUpReadChangeStreamDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PostProcessingMetricsDoFn;
@@ -426,6 +425,8 @@ public class SpannerIO {
         .setSpannerConfig(SpannerConfig.create())
         .setChangeStreamName("")
         .setInclusiveStartAt(Timestamp.MIN_VALUE)
+        // Sets the default change stream request priority as high
+        .setRpcPriority(RpcPriority.HIGH)
         // Set a default value to the end timestamp. Do not delete this.
         // Otherwise, we will get a null pointer exception when we try to access
         // it later.
@@ -1517,8 +1518,9 @@ public class SpannerIO {
                 .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
                 .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
                 .apply("Post processing metrics", ParDo.of(postProcessingMetricsDoFn));
-        
-        // TODO(zoc): investigate why the metadata table is deleted while the pipeline is still running.
+
+        // TODO(zoc): investigate why the metadata table is deleted while the pipeline is still
+        // running.
         // impulseOut
         //     .apply(Wait.on(results))
         //     .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));

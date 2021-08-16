@@ -40,7 +40,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -99,7 +98,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
   @GetInitialRestriction
   public OffsetRange initialRestriction(@Element ChangeStreamSourceDescriptor inputElement) {
     // TODO: Update this after https://issues.apache.org/jira/browse/BEAM-12756 is fixed.
-    return new OffsetRange(0, Long.MAX_VALUE-10000);
+    return new OffsetRange(0, Long.MAX_VALUE - 10000);
   }
 
   @NewTracker
@@ -127,7 +126,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
             .spanBuilder("DetectNewPartitionsDoFn.processElement")
             .setRecordEvents(true)
             .startScopedSpan()) {
-      
+
       // TODO: This is a temporary solution. Update to use a correct watermark strategy.
       watermarkEstimator.setWatermark(Instant.now());
 
