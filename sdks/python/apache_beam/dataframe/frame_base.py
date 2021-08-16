@@ -18,6 +18,8 @@ import functools
 import re
 from inspect import cleandoc
 from inspect import getfullargspec
+from inspect import isclass
+from inspect import ismodule
 from inspect import unwrap
 from typing import Any
 from typing import Callable
@@ -98,9 +100,7 @@ class UnusableUnpickledDeferredBase(object):
 
 
 class DeferredFrame(DeferredBase):
-  @property
-  def dtypes(self):
-    return self._expr.proxy().dtypes
+  pass
 
 
 class _DeferredScalar(DeferredBase):
@@ -191,7 +191,7 @@ def _elementwise_function(
 def _proxy_function(
     func,  # type: Union[Callable, str]
     name=None,  # type: Optional[str]
-    restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
+    restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
     inplace=False,  # type: bool
     base=None,  # type: Optional[type]
     requires_partition_by=partitionings.Singleton(
@@ -312,19 +312,27 @@ def _proxy_function(
     else:
       return DeferredFrame.wrap(result_expr)
 
-  # TODO(BEAM-12074): Generate docs that include "Divergences" section
-  # documenting restrictions.
-  if base is not None and not restrictions:
-    return with_docs_from(base, name=name)(wrapper)
+  wrapper.__name__ = name
+  if restrictions:
+    wrapper.__doc__ = "\n".join(
+        f"Only {kw}={value!r} is supported"
+        for (kw, value) in restrictions.items())
+
+  if base is not None:
+    return with_docs_from(base)(wrapper)
   else:
     return wrapper
 
 
-def _agg_method(func):
-  def wrapper(self, *args, **kwargs):
-    return self.agg(func, *args, **kwargs)
-
-  return wrapper
+def _prettify_pandas_type(pandas_type):
+  if pandas_type in (pd.DataFrame, pd.Series):
+    return f'pandas.{pandas_type.__name__}'
+  elif isclass(pandas_type):
+    return f'{pandas_type.__module__}.{pandas_type.__name__}'
+  elif ismodule(pandas_type):
+    return pandas_type.__name__
+  else:
+    raise TypeError(pandas_type)
 
 
 def wont_implement_method(base_type, name, reason=None, explanation=None):
@@ -356,28 +364,42 @@ def wont_implement_method(base_type, name, reason=None, explanation=None):
 
   def wrapper(*args, **kwargs):
     raise WontImplementError(
-        f"'{name}' is not supported {reason_data['explanation']}.",
+        f"'{name}' is not yet supported {reason_data['explanation']}",
         reason=reason)
 
   wrapper.__name__ = name
-  wrapper.__doc__ = f"""pandas.{base_type.__name__}.{name} is not supported in
-                    the Beam DataFrame API {reason_data['explanation']}."""
+  wrapper.__doc__ = (
+      f":meth:`{_prettify_pandas_type(base_type)}.{name}` is not yet supported "
+      f"in the Beam DataFrame API {reason_data['explanation']}")
 
   if 'url' in reason_data:
-    wrapper.__doc__ += """
-
-                    For more information see {reason_data['url']}.
-                    """
+    wrapper.__doc__ += f"\n\n For more information see {reason_data['url']}."
 
   return wrapper
 
 
-def not_implemented_method(op, jira='BEAM-9547'):
-  """Generate a stub method for `op` that simply raises a NotImplementedError.
+def not_implemented_method(op, jira='BEAM-9547', base_type=None):
+  """Generate a stub method for ``op`` that simply raises a NotImplementedError.
 
   For internal use only. No backwards compatibility guarantees."""
+  assert base_type is not None, "base_type must be specified"
+
   def wrapper(*args, **kwargs):
-    raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
+    raise NotImplementedError(
+        f"{op!r} is not implemented yet. "
+        f"If support for {op!r} is important to you, please let the Beam "
+        "community know by writing to user@beam.apache.org "
+        "(see https://beam.apache.org/community/contact-us/) or commenting on "
+        f"https://issues.apache.org/jira/{jira}.")
+
+  wrapper.__name__ = op
+  wrapper.__doc__ = (
+      f":meth:`{_prettify_pandas_type(base_type)}.{op}` is not implemented yet "
+      "in the Beam DataFrame API.\n\n"
+      f"If support for {op!r} is important to you, please let the Beam "
+      "community know by `writing to user@beam.apache.org "
+      "<https://beam.apache.org/community/contact-us/>`_ or commenting on "
+      f"`{jira} <https://issues.apache.org/jira/{jira}>`_.")
 
   return wrapper
 
@@ -567,30 +589,36 @@ def populate_defaults(base_type):
 
 _WONT_IMPLEMENT_REASONS = {
     'order-sensitive': {
-        'explanation': "because it is sensitive to the order of the data",
+        'explanation': "because it is sensitive to the order of the data.",
         'url': 'https://s.apache.org/dataframe-order-sensitive-operations',
     },
     'non-deferred-columns': {
         'explanation': (
             "because the columns in the output DataFrame depend "
-            "on the data"),
+            "on the data."),
         'url': 'https://s.apache.org/dataframe-non-deferred-columns',
     },
     'non-deferred-result': {
         'explanation': (
             "because it produces an output type that is not "
-            "deferred"),
+            "deferred."),
         'url': 'https://s.apache.org/dataframe-non-deferred-result',
     },
     'plotting-tools': {
-        'explanation': "because it is a plotting tool",
+        'explanation': "because it is a plotting tool.",
         'url': 'https://s.apache.org/dataframe-plotting-tools',
     },
+    'event-time-semantics': {
+        'explanation': (
+            "because implementing it would require integrating with Beam "
+            "event-time semantics"),
+        'url': 'https://s.apache.org/dataframe-event-time-semantics',
+    },
     'deprecated': {
-        'explanation': "because it is deprecated in pandas",
+        'explanation': "because it is deprecated in pandas.",
     },
     'experimental': {
-        'explanation': "because it is experimental in pandas",
+        'explanation': "because it is experimental in pandas.",
     },
 }
 

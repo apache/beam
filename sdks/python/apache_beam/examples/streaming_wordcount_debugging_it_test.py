@@ -23,8 +23,8 @@ import logging
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples import streaming_wordcount_debugging
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
@@ -94,7 +94,7 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
     test_utils.cleanup_topics(
         self.pub_client, [self.input_topic, self.output_topic])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   @unittest.skip(
       "Skipped due to [BEAM-3377]: assert_that not working for streaming")
   def test_streaming_wordcount_debugging_it(self):

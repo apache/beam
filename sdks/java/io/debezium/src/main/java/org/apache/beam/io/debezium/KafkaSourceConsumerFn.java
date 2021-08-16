@@ -77,8 +77,9 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   private final Class<? extends SourceConnector> connectorClass;
   private final SourceRecordMapper<T> fn;
 
-  private static long minutesToRun = -1;
-  private static Integer maxRecords;
+  private long minutesToRun = -1;
+  private Integer maxRecords;
+
   private static DateTime startTime;
   private static final Map<String, RestrictionTracker<OffsetHolder, Map<String, Object>>>
       restrictionTrackers = new ConcurrentHashMap<>();
@@ -90,11 +91,10 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    * @param fn a SourceRecordMapper
    * @param minutesToRun Maximum time to run (in minutes)
    */
-  public KafkaSourceConsumerFn(
-      Class<?> connectorClass, SourceRecordMapper<T> fn, long minutesToRun) {
+  KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, long minutesToRun) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
-    KafkaSourceConsumerFn.minutesToRun = minutesToRun;
+    this.minutesToRun = minutesToRun;
   }
 
   /**
@@ -103,18 +103,17 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    * @param connectorClass Supported Debezium connector class
    * @param fn a SourceRecordMapper
    */
-  public KafkaSourceConsumerFn(
-      Class<?> connectorClass, SourceRecordMapper<T> fn, Integer maxRecords) {
+  KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, Integer maxRecords) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
-    KafkaSourceConsumerFn.maxRecords = maxRecords;
+    this.maxRecords = maxRecords;
   }
 
   @GetInitialRestriction
   public OffsetHolder getInitialRestriction(@Element Map<String, String> unused)
       throws IOException {
     KafkaSourceConsumerFn.startTime = new DateTime();
-    return new OffsetHolder(null, null, null);
+    return new OffsetHolder(null, null, null, this.maxRecords, this.minutesToRun);
   }
 
   @NewTracker
@@ -259,14 +258,27 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     public final @Nullable Map<String, ?> offset;
     public final @Nullable List<?> history;
     public final @Nullable Integer fetchedRecords;
+    public final @Nullable Integer maxRecords;
+    public final long minutesToRun;
+
+    OffsetHolder(
+        @Nullable Map<String, ?> offset,
+        @Nullable List<?> history,
+        @Nullable Integer fetchedRecords,
+        @Nullable Integer maxRecords,
+        long minutesToRun) {
+      this.offset = offset;
+      this.history = history == null ? new ArrayList<>() : history;
+      this.fetchedRecords = fetchedRecords;
+      this.maxRecords = maxRecords;
+      this.minutesToRun = minutesToRun;
+    }
 
     OffsetHolder(
         @Nullable Map<String, ?> offset,
         @Nullable List<?> history,
         @Nullable Integer fetchedRecords) {
-      this.offset = offset;
-      this.history = history == null ? new ArrayList<>() : history;
-      this.fetchedRecords = fetchedRecords;
+      this(offset, history, fetchedRecords, null, -1);
     }
   }
 
@@ -303,19 +315,29 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       long elapsedTime = System.currentTimeMillis() - startTime.getMillis();
       int fetchedRecords =
           this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords + 1;
-      LOG.debug("-------------- Time running: {} / {}", elapsedTime, (minutesToRun * MILLIS));
-      this.restriction = new OffsetHolder(position, this.restriction.history, fetchedRecords);
+      LOG.debug("------------Fetched records {} / {}", fetchedRecords, this.restriction.maxRecords);
+      LOG.debug(
+          "-------------- Time running: {} / {}",
+          elapsedTime,
+          (this.restriction.minutesToRun * MILLIS));
+      this.restriction =
+          new OffsetHolder(
+              position,
+              this.restriction.history,
+              fetchedRecords,
+              this.restriction.maxRecords,
+              this.restriction.minutesToRun);
       LOG.debug("-------------- History: {}", this.restriction.history);
 
-      if (maxRecords == null && minutesToRun == -1) {
+      if (this.restriction.maxRecords == null && this.restriction.minutesToRun == -1) {
         return true;
       }
 
-      if (maxRecords != null) {
-        return fetchedRecords < maxRecords;
+      if (this.restriction.maxRecords != null) {
+        return fetchedRecords < this.restriction.maxRecords;
       }
 
-      return elapsedTime < minutesToRun * MILLIS;
+      return elapsedTime < this.restriction.minutesToRun * MILLIS;
     }
 
     @Override

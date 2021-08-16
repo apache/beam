@@ -19,7 +19,6 @@
 # pytype: skip-file
 
 import unittest
-from builtins import object
 
 from apache_beam.coders import coders
 from apache_beam.coders import typecoders

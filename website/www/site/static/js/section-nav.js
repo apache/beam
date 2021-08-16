@@ -83,7 +83,7 @@ $(document).ready(function () {
 
             "displayActiveItem": function () {
                 const currentLocation = window.location.pathname + window.location.hash;
-                var activeItem = document.querySelectorAll("nav [href='" + currentLocation + "']");
+                var activeItem = document.querySelectorAll("nav [href$='" + currentLocation + "']");
                 if (activeItem && activeItem.length > 0) {
                     activeItem = activeItem[0];
                     activeItem.classList.add(CONST.ACTIVE_CLASS);

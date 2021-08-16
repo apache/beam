@@ -18,9 +18,14 @@
 package org.apache.beam.runners.dataflow.worker.windmill;
 
 import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link StreamObserver} which uses synchronization on the underlying {@link CallStreamObserver}
@@ -33,27 +38,70 @@ import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
  */
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {
+  private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
   private final Phaser phaser;
+
+  @GuardedBy("outboundObserver")
   private final CallStreamObserver<T> outboundObserver;
 
-  public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
+  private final long deadlineSeconds;
+
+  @GuardedBy("outboundObserver")
+  private boolean firstMessage = true;
+
+  public DirectStreamObserver(
+      Phaser phaser, CallStreamObserver<T> outboundObserver, long deadlineSeconds) {
     this.phaser = phaser;
     this.outboundObserver = outboundObserver;
+    this.deadlineSeconds = deadlineSeconds;
   }
 
   @Override
   public void onNext(T value) {
-    int phase = phaser.getPhase();
-    if (!outboundObserver.isReady()) {
+    final int phase = phaser.getPhase();
+    long totalSecondsWaited = 0;
+    long waitSeconds = 1;
+    while (true) {
       try {
-        phaser.awaitAdvanceInterruptibly(phase);
+        synchronized (outboundObserver) {
+          // We let the first message passthrough without blocking because it is performed under the
+          // StreamPool synchronized block and single message isn't going to cause memory issues due
+          // to excessive buffering within grpc.
+          if (firstMessage || outboundObserver.isReady()) {
+            firstMessage = false;
+            outboundObserver.onNext(value);
+            return;
+          }
+        }
+        // A callback has been registered to advance the phaser whenever the observer transitions to
+        // is ready. Since we are waiting for a phase observed before the outboundObserver.isReady()
+        // returned false, we expect it to advance after the channel has become ready.  This doesn't
+        // always seem to be the case (despite documentation stating otherwise) so we poll
+        // periodically and enforce an overall timeout related to the stream deadline.
+        phaser.awaitAdvanceInterruptibly(phase, waitSeconds, TimeUnit.SECONDS);
+        synchronized (outboundObserver) {
+          outboundObserver.onNext(value);
+          return;
+        }
+      } catch (TimeoutException e) {
+        totalSecondsWaited += waitSeconds;
+        if (totalSecondsWaited > deadlineSeconds) {
+          LOG.error(
+              "Exceeded timeout waiting for the outboundObserver to become ready meaning "
+                  + "that the streamdeadline was not respected.");
+          throw new RuntimeException(e);
+        }
+        waitSeconds = waitSeconds * 2;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
-    }
-    synchronized (outboundObserver) {
-      outboundObserver.onNext(value);
+      if (totalSecondsWaited > 30) {
+        LOG.info(
+            "Output channel stalled for {}s, outbound thread {}.",
+            totalSecondsWaited,
+            Thread.currentThread().getName());
+      }
     }
   }
 

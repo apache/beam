@@ -398,7 +398,7 @@ class _DirectReadFromPubSub(PTransform):
     # type: (...) -> typing.Optional[coders.Coder]
     return coders.BytesCoder()
 
-  def get_windowing(self, inputs):
+  def get_windowing(self, unused_inputs):
     return beam.Windowing(beam.window.GlobalWindows())
 
   def expand(self, pvalue):

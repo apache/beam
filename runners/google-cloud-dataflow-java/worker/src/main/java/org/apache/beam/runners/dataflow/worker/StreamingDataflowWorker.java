@@ -1142,8 +1142,11 @@ public class StreamingDataflowWorker {
 
     @Override
     public String toString() {
-      return String.format(
-          "%016x-%s", shardingKey(), TextFormat.escapeBytes(key().substring(0, 100)));
+      ByteString keyToDisplay = key();
+      if (keyToDisplay.size() > 100) {
+        keyToDisplay = keyToDisplay.substring(0, 100);
+      }
+      return String.format("%016x-%s", shardingKey(), TextFormat.escapeBytes(keyToDisplay));
     }
   }
 
@@ -2326,7 +2329,7 @@ public class StreamingDataflowWorker {
           if (work.getState() == State.COMMITTING
               && work.getStateStartTime().isBefore(stuckCommitDeadline)) {
             LOG.error(
-                "Detected key with sharding key 0x{} stuck in COMMITTING state since {}, completing it with error.",
+                "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
                 shardedKey,
                 work.getStateStartTime());
             stuckCommits.put(shardedKey, work.getWorkItem().getWorkToken());

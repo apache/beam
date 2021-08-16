@@ -36,6 +36,8 @@ import base64
 import json
 from decimal import Decimal
 
+import mock
+
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -88,6 +90,7 @@ class SnippetUtils(object):
         transform_node.transform.fn.file_to_write = self.renames['write']
 
 
+@mock.patch('apache_beam.Pipeline', TestPipeline)
 def construct_pipeline(renames):
   """A reverse words snippet as an example for constructing a pipeline."""
   import re
@@ -97,10 +100,12 @@ def construct_pipeline(renames):
   # Unresolved reference in ReverseWords class
   import apache_beam as beam
 
-  class ReverseWords(beam.PTransform):
+  @beam.ptransform_fn
+  @beam.typehints.with_input_types(str)
+  @beam.typehints.with_output_types(str)
+  def ReverseWords(pcoll):
     """A PTransform that reverses individual elements in a PCollection."""
-    def expand(self, pcoll):
-      return pcoll | beam.Map(lambda e: e[::-1])
+    return pcoll | beam.Map(lambda word: word[::-1])
 
   def filter_words(unused_x):
     """Pass through filter to select everything."""
@@ -108,82 +113,66 @@ def construct_pipeline(renames):
 
   # [START pipelines_constructing_creating]
   import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
 
-  with beam.Pipeline(options=PipelineOptions()) as p:
+  with beam.Pipeline() as pipeline:
     pass  # build your pipeline here
     # [END pipelines_constructing_creating]
 
-    with TestPipeline() as p:  # Use TestPipeline for testing.
-      # pylint: disable=line-too-long
+    # [START pipelines_constructing_reading]
+    lines = pipeline | 'ReadMyFile' >> beam.io.ReadFromText(
+        'gs://some/inputData.txt')
+    # [END pipelines_constructing_reading]
 
-      # [START pipelines_constructing_reading]
-      lines = p | 'ReadMyFile' >> beam.io.ReadFromText(
-          'gs://some/inputData.txt')
-      # [END pipelines_constructing_reading]
+    # [START pipelines_constructing_applying]
+    words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+    reversed_words = words | ReverseWords()
+    # [END pipelines_constructing_applying]
 
-      # [START pipelines_constructing_applying]
-      words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-      reversed_words = words | ReverseWords()
-      # [END pipelines_constructing_applying]
+    # [START pipelines_constructing_writing]
+    filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
+    filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
+        'gs://some/outputData.txt')
+    # [END pipelines_constructing_writing]
 
-      # [START pipelines_constructing_writing]
-      filtered_words = reversed_words | 'FilterWords' >> beam.Filter(
-          filter_words)
-      filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
-          'gs://some/outputData.txt')
-      # [END pipelines_constructing_writing]
-
-      p.visit(SnippetUtils.RenameFiles(renames))
+    pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
-def model_pipelines(argv):
+def model_pipelines():
   """A wordcount snippet as a simple pipeline example."""
   # [START model_pipelines]
+  import argparse
   import re
 
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  class MyOptions(PipelineOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_argument(
-          '--input',
-          dest='input',
-          default='gs://dataflow-samples/shakespeare/kinglear'
-          '.txt',
-          help='Input file to process.')
-      parser.add_argument(
-          '--output',
-          dest='output',
-          required=True,
-          help='Output file to write results to.')
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--input-file',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='The file path for the input text to process.')
+  parser.add_argument(
+      '--output-path', required=True, help='The path prefix for output files.')
+  args, beam_args = parser.parse_known_args()
 
-  pipeline_options = PipelineOptions(argv)
-  my_options = pipeline_options.view_as(MyOptions)
-
-  with beam.Pipeline(options=pipeline_options) as p:
-
+  beam_options = PipelineOptions(beam_args)
+  with beam.Pipeline(options=beam_options) as pipeline:
     (
-        p
-        | beam.io.ReadFromText(my_options.input)
+        pipeline
+        | beam.io.ReadFromText(args.input_file)
         | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
         | beam.Map(lambda x: (x, 1))
         | beam.combiners.Count.PerKey()
-        | beam.io.WriteToText(my_options.output))
+        | beam.io.WriteToText(args.output_path))
   # [END model_pipelines]
 
 
-def model_pcollection(argv):
+def model_pcollection(output_path):
   """Creating a PCollection from data in local memory."""
   # [START model_pcollection]
   import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
 
-  # argv = None  # if None, uses sys.argv
-  pipeline_options = PipelineOptions(argv)
-  with beam.Pipeline(options=pipeline_options) as pipeline:
+  with beam.Pipeline() as pipeline:
     lines = (
         pipeline
         | beam.Create([
@@ -192,30 +181,18 @@ def model_pcollection(argv):
             'The slings and arrows of outrageous fortune, ',
             'Or to take arms against a sea of troubles, ',
         ]))
-
     # [END model_pcollection]
 
-    class MyOptions(PipelineOptions):
-      @classmethod
-      def _add_argparse_args(cls, parser):
-        parser.add_argument(
-            '--output',
-            dest='output',
-            required=True,
-            help='Output file to write results to.')
-
-    my_options = pipeline_options.view_as(MyOptions)
-    lines | beam.io.WriteToText(my_options.output)
+    lines | beam.io.WriteToText(output_path)
 
 
-def pipeline_options_remote(argv):
+def pipeline_options_remote():
   """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
   # [START pipeline_options_create]
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  options = PipelineOptions(flags=argv)
-
+  beam_options = PipelineOptions()
   # [END pipeline_options_create]
 
   # [START pipeline_options_define_custom]
@@ -224,45 +201,53 @@ def pipeline_options_remote(argv):
   class MyOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
-      parser.add_argument('--input')
-      parser.add_argument('--output')
+      parser.add_argument('--input-file')
+      parser.add_argument('--output-path')
 
   # [END pipeline_options_define_custom]
 
-  # [START pipeline_options_dataflow_service]
-  import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
+  @mock.patch('apache_beam.Pipeline')
+  def dataflow_options(mock_pipeline):
+    # [START pipeline_options_dataflow_service]
+    import argparse
 
-  # Create and set your PipelineOptions.
-  # For Cloud execution, specify DataflowRunner and set the Cloud Platform
-  # project, job name, temporary files location, and region.
-  # For more information about regions, check:
-  # https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
-  options = PipelineOptions(
-      flags=argv,
-      runner='DataflowRunner',
-      project='my-project-id',
-      job_name='unique-job-name',
-      temp_location='gs://my-bucket/temp',
-      region='us-central1')
+    import apache_beam as beam
+    from apache_beam.options.pipeline_options import PipelineOptions
 
-  # Create the Pipeline with the specified options.
-  # with beam.Pipeline(options=options) as pipeline:
-  #   pass  # build your pipeline here.
-  # [END pipeline_options_dataflow_service]
+    parser = argparse.ArgumentParser()
+    # parser.add_argument('--my-arg', help='description')
+    args, beam_args = parser.parse_known_args()
 
-  my_options = options.view_as(MyOptions)
+    # Create and set your PipelineOptions.
+    # For Cloud execution, specify DataflowRunner and set the Cloud Platform
+    # project, job name, temporary files location, and region.
+    # For more information about regions, check:
+    # https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+    beam_options = PipelineOptions(
+        beam_args,
+        runner='DataflowRunner',
+        project='my-project-id',
+        job_name='unique-job-name',
+        temp_location='gs://my-bucket/temp',
+        region='us-central1')
 
-  with TestPipeline() as p:  # Use TestPipeline for testing.
-    lines = p | beam.io.ReadFromText(my_options.input)
-    lines | beam.io.WriteToText(my_options.output)
+    # Create the Pipeline with the specified options.
+    with beam.Pipeline(options=beam_options) as pipeline:
+      pass  # build your pipeline here.
+    # [END pipeline_options_dataflow_service]
+    return beam_options
+
+  beam_options = dataflow_options()
+  args = beam_options.view_as(MyOptions)
+
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
+    lines = pipeline | beam.io.ReadFromText(args.input_file)
+    lines | beam.io.WriteToText(args.output_path)
 
 
-def pipeline_options_local(argv):
+@mock.patch('apache_beam.Pipeline', TestPipeline)
+def pipeline_options_local():
   """Creating a Pipeline using a PipelineOptions object for local execution."""
-
-  from apache_beam import Pipeline
-  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START pipeline_options_define_custom_with_help_and_default]
   from apache_beam.options.pipeline_options import PipelineOptions
@@ -271,31 +256,40 @@ def pipeline_options_local(argv):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument(
-          '--input',
-          help='Input for the pipeline',
-          default='gs://my-bucket/input')
+          '--input-file',
+          default='gs://dataflow-samples/shakespeare/kinglear.txt',
+          help='The file path for the input text to process.')
       parser.add_argument(
-          '--output',
-          help='Output for the pipeline',
-          default='gs://my-bucket/output')
+          '--output-path',
+          required=True,
+          help='The path prefix for output files.')
 
   # [END pipeline_options_define_custom_with_help_and_default]
 
   # [START pipeline_options_local]
+  import argparse
+
+  import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
+
+  parser = argparse.ArgumentParser()
+  # parser.add_argument('--my-arg')
+  args, beam_args = parser.parse_known_args()
+
   # Create and set your Pipeline Options.
-  options = PipelineOptions(flags=argv)
-  my_options = options.view_as(MyOptions)
+  beam_options = PipelineOptions(beam_args)
+  args = beam_options.view_as(MyOptions)
 
-  with Pipeline(options=options) as pipeline:
-    pass  # build your pipeline here.
-    # [END pipeline_options_local]
+  with beam.Pipeline(options=beam_options) as pipeline:
+    lines = (
+        pipeline
+        | beam.io.ReadFromText(args.input_file)
+        | beam.io.WriteToText(args.output_path))
+  # [END pipeline_options_local]
 
-    with TestPipeline() as p:  # Use TestPipeline for testing.
-      lines = p | beam.io.ReadFromText(my_options.input)
-      lines | beam.io.WriteToText(my_options.output)
 
-
-def pipeline_options_command_line(argv):
+@mock.patch('apache_beam.Pipeline', TestPipeline)
+def pipeline_options_command_line():
   """Creating a Pipeline by passing a list of arguments."""
 
   # [START pipeline_options_command_line]
@@ -303,17 +297,27 @@ def pipeline_options_command_line(argv):
   import argparse
 
   import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
 
+  # For more details on how to use argparse, take a look at:
+  #   https://docs.python.org/3/library/argparse.html
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input')
-  parser.add_argument('--output')
-  args, beam_args = parser.parse_known_args(argv)
+  parser.add_argument(
+      '--input-file',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='The file path for the input text to process.')
+  parser.add_argument(
+      '--output-path', required=True, help='The path prefix for output files.')
+  args, beam_args = parser.parse_known_args()
 
   # Create the Pipeline with remaining arguments.
-  with beam.Pipeline(argv=beam_args) as pipeline:
-    lines = pipeline | 'Read files' >> beam.io.ReadFromText(args.input)
-    lines | 'Write files' >> beam.io.WriteToText(args.output)
-    # [END pipeline_options_command_line]
+  beam_options = PipelineOptions(beam_args)
+  with beam.Pipeline(options=beam_options) as pipeline:
+    lines = (
+        pipeline
+        | 'Read files' >> beam.io.ReadFromText(args.input_file)
+        | 'Write files' >> beam.io.WriteToText(args.output_path))
+  # [END pipeline_options_command_line]
 
 
 def pipeline_logging(lines, output):
@@ -339,32 +343,20 @@ def pipeline_logging(lines, output):
   # Remaining WordCount example code ...
   # [END pipeline_logging]
 
-  with TestPipeline() as p:  # Use TestPipeline for testing.
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
     (
-        p
+        pipeline
         | beam.Create(lines)
         | beam.ParDo(ExtractWordsFn())
         | beam.io.WriteToText(output))
 
 
-def pipeline_monitoring(renames):
+def pipeline_monitoring():
   """Using monitoring interface snippets."""
 
+  import argparse
   import re
   import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
-
-  class WordCountOptions(PipelineOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_argument(
-          '--input',
-          help='Input for the pipeline',
-          default='gs://my-bucket/input')
-      parser.add_argument(
-          '--output',
-          help='output for the pipeline',
-          default='gs://my-bucket/output')
 
   class ExtractWordsFn(beam.DoFn):
     def process(self, element):
@@ -379,68 +371,83 @@ def pipeline_monitoring(renames):
 
   # [START pipeline_monitoring_composite]
   # The CountWords Composite Transform inside the WordCount pipeline.
-  class CountWords(beam.PTransform):
-    def expand(self, pcoll):
-      return (
-          pcoll
-          # Convert lines of text into individual words.
-          | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
-          # Count the number of times each word occurs.
-          | beam.combiners.Count.PerElement()
-          # Format each word and count into a printable string.
-          | 'FormatCounts' >> beam.ParDo(FormatCountsFn()))
+  @beam.ptransform_fn
+  def CountWords(pcoll):
+    return (
+        pcoll
+        # Convert lines of text into individual words.
+        | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
+        # Count the number of times each word occurs.
+        | beam.combiners.Count.PerElement()
+        # Format each word and count into a printable string.
+        | 'FormatCounts' >> beam.ParDo(FormatCountsFn()))
 
   # [END pipeline_monitoring_composite]
 
-  pipeline_options = PipelineOptions()
-  options = pipeline_options.view_as(WordCountOptions)
-  with TestPipeline() as p:  # Use TestPipeline for testing.
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--input-file',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='The file path for the input text to process.')
+  parser.add_argument(
+      '--output-path', required=True, help='The path prefix for output files.')
+  args, _ = parser.parse_known_args()
+
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
 
     # [START pipeline_monitoring_execution]
     (
-        p
+        pipeline
         # Read the lines of the input text.
-        | 'ReadLines' >> beam.io.ReadFromText(options.input)
+        | 'ReadLines' >> beam.io.ReadFromText(args.input_file)
         # Count the words.
         | CountWords()
         # Write the formatted word counts to output.
-        | 'WriteCounts' >> beam.io.WriteToText(options.output))
+        | 'WriteCounts' >> beam.io.WriteToText(args.output_path))
     # [END pipeline_monitoring_execution]
 
-    p.visit(SnippetUtils.RenameFiles(renames))
 
-
-def examples_wordcount_minimal(renames):
+def examples_wordcount_minimal():
   """MinimalWordCount example snippets."""
   import re
 
   import apache_beam as beam
 
-  from apache_beam.options.pipeline_options import GoogleCloudOptions
-  from apache_beam.options.pipeline_options import StandardOptions
+  # [START examples_wordcount_minimal_options]
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  # [START examples_wordcount_minimal_options]
-  options = PipelineOptions()
-  google_cloud_options = options.view_as(GoogleCloudOptions)
-  google_cloud_options.project = 'my-project-id'
-  google_cloud_options.job_name = 'myjob'
-  google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
-  google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
-  options.view_as(StandardOptions).runner = 'DataflowRunner'
+  input_file = 'gs://dataflow-samples/shakespeare/kinglear.txt'
+  output_path = 'gs://my-bucket/counts.txt'
+
+  beam_options = PipelineOptions(
+      runner='DataflowRunner',
+      project='my-project-id',
+      job_name='unique-job-name',
+      temp_location='gs://my-bucket/temp',
+  )
   # [END examples_wordcount_minimal_options]
 
   # Run it locally for testing.
-  options = PipelineOptions()
+  import argparse
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input-file')
+  parser.add_argument('--output-path')
+  args, beam_args = parser.parse_known_args()
+
+  input_file = args.input_file
+  output_path = args.output_path
+
+  beam_options = PipelineOptions(beam_args)
 
   # [START examples_wordcount_minimal_create]
-  p = beam.Pipeline(options=options)
+  pipeline = beam.Pipeline(options=beam_options)
   # [END examples_wordcount_minimal_create]
 
   (
       # [START examples_wordcount_minimal_read]
-      p
-      | beam.io.ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt')
+      pipeline
+      | beam.io.ReadFromText(input_file)
       # [END examples_wordcount_minimal_read]
 
       # [START examples_wordcount_minimal_pardo]
@@ -456,54 +463,52 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]
-      | beam.io.WriteToText('gs://my-bucket/counts.txt')
+      | beam.io.WriteToText(output_path)
       # [END examples_wordcount_minimal_write]
   )
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-
   # [START examples_wordcount_minimal_run]
-  result = p.run()
+  result = pipeline.run()
   # [END examples_wordcount_minimal_run]
   result.wait_until_finish()
 
 
-def examples_wordcount_wordcount(renames):
+def examples_wordcount_wordcount():
   """WordCount example snippets."""
   import re
 
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  argv = []
-
   # [START examples_wordcount_wordcount_options]
-  class WordCountOptions(PipelineOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_argument(
-          '--input',
-          help='Input for the pipeline',
-          default='gs://my-bucket/input')
+  import argparse
 
-  options = PipelineOptions(argv)
-  word_count_options = options.view_as(WordCountOptions)
-  with beam.Pipeline(options=options) as p:
-    lines = p | beam.io.ReadFromText(word_count_options.input)
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--input-file',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='The file path for the input text to process.')
+  parser.add_argument(
+      '--output-path', required=True, help='The path prefix for output files.')
+  args, beam_args = parser.parse_known_args()
+
+  beam_options = PipelineOptions(beam_args)
+  with beam.Pipeline(options=beam_options) as pipeline:
+    lines = pipeline | beam.io.ReadFromText(args.input_file)
 
     # [END examples_wordcount_wordcount_options]
 
     # [START examples_wordcount_wordcount_composite]
-    class CountWords(beam.PTransform):
-      def expand(self, pcoll):
-        return (
-            pcoll
-            # Convert lines of text into individual words.
-            | 'ExtractWords' >>
-            beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+    @beam.ptransform_fn
+    def CountWords(pcoll):
+      return (
+          pcoll
+          # Convert lines of text into individual words.
+          | 'ExtractWords' >>
+          beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
 
-            # Count the number of times each word occurs.
-            | beam.combiners.Count.PerElement())
+          # Count the number of times each word occurs.
+          | beam.combiners.Count.PerElement())
 
     counts = lines | CountWords()
 
@@ -518,11 +523,10 @@ def examples_wordcount_wordcount(renames):
     formatted = counts | beam.ParDo(FormatAsTextFn())
     # [END examples_wordcount_wordcount_dofn]
 
-    formatted | beam.io.WriteToText('gs://my-bucket/counts.txt')
-    p.visit(SnippetUtils.RenameFiles(renames))
+    formatted | beam.io.WriteToText(args.output_path)
 
 
-def examples_wordcount_templated(renames):
+def examples_wordcount_templated():
   """Templated WordCount example snippet."""
   import re
 
@@ -538,15 +542,19 @@ def examples_wordcount_templated(renames):
       # Use add_value_provider_argument for arguments to be templatable
       # Use add_argument as usual for non-templatable arguments
       parser.add_value_provider_argument(
-          '--input', help='Path of the file to read from')
+          '--input-file',
+          default='gs://dataflow-samples/shakespeare/kinglear.txt',
+          help='The file path for the input text to process.')
       parser.add_argument(
-          '--output', required=True, help='Output file to write results to.')
+          '--output-path',
+          required=True,
+          help='The path prefix for output files.')
 
-  pipeline_options = PipelineOptions(['--output', 'some/output_path'])
-  with beam.Pipeline(options=pipeline_options) as p:
+  beam_options = PipelineOptions()
+  args = beam_options.view_as(WordcountTemplatedOptions)
 
-    wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
-    lines = p | 'Read' >> ReadFromText(wordcount_options.input)
+  with beam.Pipeline(options=beam_options) as pipeline:
+    lines = pipeline | 'Read' >> ReadFromText(args.input_file.get())
 
     # [END example_wordcount_templated]
 
@@ -563,9 +571,7 @@ def examples_wordcount_templated(renames):
         |
         'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
         | 'Format' >> beam.Map(format_result)
-        | 'Write' >> WriteToText(wordcount_options.output))
-
-    p.visit(SnippetUtils.RenameFiles(renames))
+        | 'Write' >> WriteToText(args.output_path))
 
 
 def examples_wordcount_debugging(renames):
@@ -612,9 +618,9 @@ def examples_wordcount_debugging(renames):
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
 
-  with TestPipeline() as p:  # Use TestPipeline for testing.
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
     filtered_words = (
-        p
+        pipeline
         |
         beam.io.ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt')
         |
@@ -638,14 +644,13 @@ def examples_wordcount_debugging(renames):
         | 'format' >> beam.Map(format_result)
         | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
-    p.visit(SnippetUtils.RenameFiles(renames))
+    pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
-def examples_wordcount_streaming(argv):
+def examples_wordcount_streaming():
   import apache_beam as beam
   from apache_beam import window
   from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import StandardOptions
 
   # Parse out arguments.
   parser = argparse.ArgumentParser()
@@ -666,19 +671,18 @@ def examples_wordcount_streaming(argv):
       help=(
           'Input PubSub subscription of the form '
           '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
-  known_args, pipeline_args = parser.parse_known_args(argv)
+  args, beam_args = parser.parse_known_args()
 
-  pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(StandardOptions).streaming = True
+  beam_options = PipelineOptions(beam_args, streaming=True)
 
-  with TestPipeline(options=pipeline_options) as p:
+  with TestPipeline(options=beam_options) as pipeline:
     # [START example_wordcount_streaming_read]
     # Read from Pub/Sub into a PCollection.
-    if known_args.input_subscription:
-      lines = p | beam.io.ReadFromPubSub(
-          subscription=known_args.input_subscription)
+    if args.input_subscription:
+      lines = pipeline | beam.io.ReadFromPubSub(
+          subscription=args.input_subscription)
     else:
-      lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+      lines = pipeline | beam.io.ReadFromPubSub(topic=args.input_topic)
     # [END example_wordcount_streaming_read]
 
     output = (
@@ -696,7 +700,7 @@ def examples_wordcount_streaming(argv):
 
     # [START example_wordcount_streaming_write]
     # Write to Pub/Sub
-    output | beam.io.WriteToPubSub(known_args.output_topic)
+    output | beam.io.WriteToPubSub(args.output_topic)
     # [END example_wordcount_streaming_write]
 
 
@@ -719,13 +723,13 @@ def examples_ptransforms_templated(renames):
     def process(self, an_int):
       yield self.templated_int.get() + an_int
 
-  pipeline_options = PipelineOptions()
-  with beam.Pipeline(options=pipeline_options) as p:
+  beam_options = PipelineOptions()
+  args = beam_options.view_as(TemplatedUserOptions)
 
-    user_options = pipeline_options.view_as(TemplatedUserOptions)
-    my_sum_fn = MySumFn(user_options.templated_int)
+  with beam.Pipeline(options=beam_options) as pipeline:
+    my_sum_fn = MySumFn(args.templated_int)
     sum = (
-        p
+        pipeline
         | 'ReadCollection' >>
         beam.io.ReadFromText('gs://some/integer_collection')
         | 'StringToInt' >> beam.Map(lambda w: int(w))
@@ -737,7 +741,7 @@ def examples_ptransforms_templated(renames):
     # so a value must be provided at graph-construction time
     my_sum_fn.templated_int = StaticValueProvider(int, 10)
 
-    p.visit(SnippetUtils.RenameFiles(renames))
+    pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
 # Defining a new source.
@@ -834,8 +838,8 @@ def model_custom_source(count):
 
   # Using the source in an example pipeline.
   # [START model_custom_source_use_new_source]
-  with beam.Pipeline(options=PipelineOptions()) as p:
-    numbers = p | 'ProduceNumbers' >> beam.io.Read(CountingSource(count))
+  with beam.Pipeline() as pipeline:
+    numbers = pipeline | 'ProduceNumbers' >> beam.io.Read(CountingSource(count))
     # [END model_custom_source_use_new_source]
 
     lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
@@ -843,8 +847,8 @@ def model_custom_source(count):
         lines, equal_to(['line ' + str(number) for number in range(0, count)]))
 
   # [START model_custom_source_use_ptransform]
-  with beam.Pipeline(options=PipelineOptions()) as p:
-    numbers = p | 'ProduceNumbers' >> ReadFromCountingSource(count)
+  with beam.Pipeline() as pipeline:
+    numbers = pipeline | 'ProduceNumbers' >> ReadFromCountingSource(count)
     # [END model_custom_source_use_ptransform]
 
     lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
@@ -978,8 +982,8 @@ def model_custom_sink(
 
   # Using the new sink in an example pipeline.
   # [START model_custom_sink_use_new_sink]
-  with beam.Pipeline(options=PipelineOptions()) as p:
-    kvs = p | 'CreateKVs' >> beam.Create(KVs)
+  with beam.Pipeline(options=PipelineOptions()) as pipeline:
+    kvs = pipeline | 'CreateKVs' >> beam.Create(KVs)
 
     kvs | 'WriteToSimpleKV' >> beam.io.Write(
         SimpleKVSink(simplekv, 'http://url_to_simple_kv/', final_table_name))
@@ -988,8 +992,8 @@ def model_custom_sink(
   final_table_name = final_table_name_with_ptransform
 
   # [START model_custom_sink_use_ptransform]
-  with beam.Pipeline(options=PipelineOptions()) as p:
-    kvs = p | 'CreateKVs' >> beam.core.Create(KVs)
+  with beam.Pipeline(options=PipelineOptions()) as pipeline:
+    kvs = pipeline | 'CreateKVs' >> beam.core.Create(KVs)
     kvs | 'WriteToSimpleKV' >> WriteToKVSink(
         simplekv, 'http://url_to_simple_kv/', final_table_name)
     # [END model_custom_sink_use_ptransform]
@@ -1002,9 +1006,10 @@ def model_textio(renames):
     return re.findall(r'[A-Za-z\']+', x)
 
   # [START model_textio_read]
-  with beam.Pipeline(options=PipelineOptions()) as p:
+  with beam.Pipeline(options=PipelineOptions()) as pipeline:
     # [START model_pipelineio_read]
-    lines = p | 'ReadFromText' >> beam.io.ReadFromText('path/to/input-*.csv')
+    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+        'path/to/input-*.csv')
     # [END model_pipelineio_read]
     # [END model_textio_read]
 
@@ -1016,21 +1021,21 @@ def model_textio(renames):
     # [END model_pipelineio_write]
     # [END model_textio_write]
 
-    p.visit(SnippetUtils.RenameFiles(renames))
+    pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
 def model_textio_compressed(renames, expected):
   """Using a Read Transform to read compressed text files."""
-  with TestPipeline() as p:
+  with TestPipeline() as pipeline:
 
     # [START model_textio_write_compressed]
-    lines = p | 'ReadFromText' >> beam.io.ReadFromText(
+    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
         '/path/to/input-*.csv.gz',
         compression_type=beam.io.filesystem.CompressionTypes.GZIP)
     # [END model_textio_write_compressed]
 
     assert_that(lines, equal_to(expected))
-    p.visit(SnippetUtils.RenameFiles(renames))
+    pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
 def model_datastoreio():
@@ -1050,13 +1055,13 @@ def model_datastoreio():
   query = Query(kind, project)
 
   # [START model_datastoreio_read]
-  p = beam.Pipeline(options=PipelineOptions())
-  entities = p | 'Read From Datastore' >> ReadFromDatastore(query)
+  pipeline = beam.Pipeline(options=PipelineOptions())
+  entities = pipeline | 'Read From Datastore' >> ReadFromDatastore(query)
   # [END model_datastoreio_read]
 
   # [START model_datastoreio_write]
-  p = beam.Pipeline(options=PipelineOptions())
-  musicians = p | 'Musicians' >> beam.Create(
+  pipeline = beam.Pipeline(options=PipelineOptions())
+  musicians = pipeline | 'Musicians' >> beam.Create(
       ['Mozart', 'Chopin', 'Beethoven', 'Vivaldi'])
 
   def to_entity(content):
@@ -1070,7 +1075,8 @@ def model_datastoreio():
   # [END model_datastoreio_write]
 
 
-def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
+def model_bigqueryio(
+    pipeline, write_project='', write_dataset='', write_table=''):
   """Using a Read and Write transform to read/write from/to BigQuery."""
 
   # [START model_bigqueryio_table_spec]
@@ -1110,7 +1116,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
 
   # [START model_bigqueryio_read_table]
   max_temperatures = (
-      p
+      pipeline
       | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec)
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
@@ -1118,7 +1124,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
 
   # [START model_bigqueryio_read_query]
   max_temperatures = (
-      p
+      pipeline
       | 'QueryTable' >> beam.io.ReadFromBigQuery(
           query='SELECT max_temperature FROM '\
                 '[clouddataflow-readonly:samples.weather_stations]')
@@ -1128,7 +1134,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
 
   # [START model_bigqueryio_read_query_std_sql]
   max_temperatures = (
-      p
+      pipeline
       | 'QueryTableStdSQL' >> beam.io.ReadFromBigQuery(
           query='SELECT max_temperature FROM '\
                 '`clouddataflow-readonly.samples.weather_stations`',
@@ -1156,7 +1162,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
     table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)
 
   # [START model_bigqueryio_write_input]
-  quotes = p | beam.Create([
+  quotes = pipeline | beam.Create([
       {
           'source': 'Mahatma Gandhi', 'quote': 'My life is my message.'
       },
@@ -1176,8 +1182,8 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
 
   # [START model_bigqueryio_write_dynamic_destinations]
   fictional_characters_view = beam.pvalue.AsDict(
-      p | 'CreateCharacters' >> beam.Create([('Yoda', True),
-                                             ('Obi Wan Kenobi', True)]))
+      pipeline | 'CreateCharacters' >> beam.Create([('Yoda', True),
+                                                    ('Obi Wan Kenobi', True)]))
 
   def table_fn(element, fictional_characters):
     if element in fictional_characters:
@@ -1233,9 +1239,9 @@ def model_composite_transform_example(contents, output_path):
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
-  with TestPipeline() as p:  # Use TestPipeline for testing.
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
     (
-        p
+        pipeline
         | beam.Create(contents)
         | CountWords()
         | beam.io.WriteToText(output_path))
@@ -1246,10 +1252,11 @@ def model_multiple_pcollections_flatten(contents, output_path):
   some_hash_fn = lambda s: ord(s[0])
   partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
   import apache_beam as beam
-  with TestPipeline() as p:  # Use TestPipeline for testing.
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
 
     # Partition into deciles
-    partitioned = p | beam.Create(contents) | beam.Partition(partition_fn, 3)
+    partitioned = pipeline | beam.Create(contents) | beam.Partition(
+        partition_fn, 3)
     pcoll1 = partitioned[0]
     pcoll2 = partitioned[1]
     pcoll3 = partitioned[2]
@@ -1279,9 +1286,9 @@ def model_multiple_pcollections_partition(contents, output_path):
     return i
 
   import apache_beam as beam
-  with TestPipeline() as p:  # Use TestPipeline for testing.
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
 
-    students = p | beam.Create(contents)
+    students = pipeline | beam.Create(contents)
 
     # [START model_multiple_pcollections_partition]
     def partition_fn(student, num_partitions):
@@ -1303,14 +1310,14 @@ def model_group_by_key(contents, output_path):
   import re
 
   import apache_beam as beam
-  with TestPipeline() as p:  # Use TestPipeline for testing.
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
 
     def count_ones(word_ones):
       (word, ones) = word_ones
       return (word, sum(ones))
 
     words_and_counts = (
-        p
+        pipeline
         | beam.Create(contents)
         | beam.FlatMap(lambda x: re.findall(r'\w+', x))
         | 'one word' >> beam.Map(lambda w: (w, 1)))
@@ -1356,14 +1363,14 @@ def model_join_using_side_inputs(
   import apache_beam as beam
   from apache_beam.pvalue import AsIter
 
-  with TestPipeline() as p:  # Use TestPipeline for testing.
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
     # [START model_join_using_side_inputs]
     # This code performs a join by receiving the set of names as an input and
     # passing PCollections that contain emails and phone numbers as side inputs
     # instead of using CoGroupByKey.
-    names = p | 'names' >> beam.Create(name_list)
-    emails = p | 'email' >> beam.Create(email_list)
-    phones = p | 'phone' >> beam.Create(phone_list)
+    names = pipeline | 'names' >> beam.Create(name_list)
+    emails = pipeline | 'email' >> beam.Create(email_list)
+    phones = pipeline | 'phone' >> beam.Create(phone_list)
 
     def join_info(name, emails, phone_numbers):
       filtered_emails = []
@@ -1416,9 +1423,9 @@ def file_process_pattern_access_metadata():
   from apache_beam.io import fileio
 
   # [START FileProcessPatternAccessMetadataSnip1]
-  with beam.Pipeline() as p:
+  with beam.Pipeline() as pipeline:
     readable_files = (
-        p
+        pipeline
         | fileio.MatchFiles('hdfs://path/to/*.txt')
         | fileio.ReadMatches()
         | beam.Reshuffle())
@@ -1456,21 +1463,21 @@ def accessing_valueprovider_info_after_run():
           'The string value is %s' %
           RuntimeValueProvider.get_value('string_value', str, ''))
 
-  pipeline_options = PipelineOptions()
-  # Create pipeline.
-  with beam.Pipeline(options=pipeline_options) as p:
+  beam_options = PipelineOptions()
+  args = beam_options.view_as(MyOptions)
 
-    my_options = pipeline_options.view_as(MyOptions)
+  # Create pipeline.
+  with beam.Pipeline(options=beam_options) as pipeline:
+
     # Add a branch for logging the ValueProvider value.
     _ = (
-        p
+        pipeline
         | beam.Create([None])
-        | 'LogValueProvs' >> beam.ParDo(
-            LogValueProvidersFn(my_options.string_value)))
+        | 'LogValueProvs' >> beam.ParDo(LogValueProvidersFn(args.string_value)))
 
     # The main pipeline.
     result_pc = (
-        p
+        pipeline
         | "main_pc" >> beam.Create([1, 2, 3])
         | beam.combiners.Sum.Globally())
 
@@ -1499,17 +1506,16 @@ def side_input_slow_update(
       yield (left, x)
 
   # Create pipeline.
-  pipeline_options = PipelineOptions()
-  p = beam.Pipeline(options=pipeline_options)
+  pipeline = beam.Pipeline()
   side_input = (
-      p
+      pipeline
       | 'PeriodicImpulse' >> PeriodicImpulse(
           first_timestamp, last_timestamp, interval, True)
       | 'MapToFileName' >> beam.Map(lambda x: src_file_pattern + str(x))
       | 'ReadFromFile' >> beam.io.ReadAllFromText())
 
   main_input = (
-      p
+      pipeline
       | 'MpImpulse' >> beam.Create(sample_main_input_elements)
       |
       'MapMpToTimestamped' >> beam.Map(lambda src: TimestampedValue(src, src))
@@ -1522,7 +1528,7 @@ def side_input_slow_update(
           cross_join, rights=beam.pvalue.AsIter(side_input)))
   # [END SideInputSlowUpdateSnip1]
 
-  return p, result
+  return pipeline, result
 
 
 def bigqueryio_deadletter():
@@ -1531,10 +1537,10 @@ def bigqueryio_deadletter():
   # Create pipeline.
   schema = ({'fields': [{'name': 'a', 'type': 'STRING', 'mode': 'REQUIRED'}]})
 
-  p = beam.Pipeline()
+  pipeline = beam.Pipeline()
 
   errors = (
-      p | 'Data' >> beam.Create([1, 2])
+      pipeline | 'Data' >> beam.Create([1, 2])
       | 'CreateBrokenData' >>
       beam.Map(lambda src: {'a': src} if src == 2 else {'a': None})
       | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
@@ -1605,9 +1611,9 @@ def nlp_analyze_text():
       extract_syntax=True,
   )
 
-  with beam.Pipeline() as p:
+  with beam.Pipeline() as pipeline:
     responses = (
-        p
+        pipeline
         | beam.Create([
             'My experience so far has been fantastic! '
             'I\'d really recommend this product.'

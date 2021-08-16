@@ -550,8 +550,7 @@ class DataflowApplicationClient(object):
         dict(s.split(',', 1)
              for s in sdk_overrides) if sdk_overrides else dict())
 
-  # TODO(silviuc): Refactor so that retry logic can be applied.
-  @retry.no_retries  # Using no_retries marks this as an integration point.
+  @retry.with_exponential_backoff()  # Use filter defaults.
   def _gcs_file_copy(self, from_path, to_path):
     to_folder, to_name = os.path.split(to_path)
     total_size = os.path.getsize(from_path)
@@ -662,6 +661,10 @@ class DataflowApplicationClient(object):
         job.options.view_as(GoogleCloudOptions).template_location)
 
     if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
+      # For Runner V2, also set portable job submission.
+      if _use_unified_worker(job.options):
+        job.options.view_as(DebugOptions).add_experiment(
+            'use_portable_job_submission')
       self.stage_file(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json",

@@ -43,3 +43,9 @@ dependencies {
   runtime library.java.kafka_clients
   runtime library.java.slf4j_jdk14
 }
+
+task runExpansionService (type: JavaExec) {
+  main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  classpath = sourceSets.test.runtimeClasspath
+  args = [project.findProperty("constructionService.port") ?: "8097"]
+}

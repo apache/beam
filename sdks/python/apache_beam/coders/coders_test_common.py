@@ -18,14 +18,11 @@
 """Tests common to all coder implementations."""
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import collections
 import enum
 import logging
 import math
 import unittest
-from builtins import range
 from typing import Any
 from typing import List
 from typing import NamedTuple
@@ -751,6 +748,19 @@ class CodersTest(unittest.TestCase):
         self.check_coder(
             coders.TupleCoder((coder, other_coder)),
             (ShardedKey(key, b'123'), ShardedKey(other_key, b'')))
+
+  def test_timestamp_prefixing_window_coder(self):
+    self.check_coder(
+        coders.TimestampPrefixingWindowCoder(coders.IntervalWindowCoder()),
+        *[
+            window.IntervalWindow(x, y) for x in [-2**52, 0, 2**52]
+            for y in range(-100, 100)
+        ])
+    self.check_coder(
+        coders.TupleCoder((
+            coders.TimestampPrefixingWindowCoder(
+                coders.IntervalWindowCoder()), )),
+        (window.IntervalWindow(0, 10), ))
 
 
 if __name__ == '__main__':

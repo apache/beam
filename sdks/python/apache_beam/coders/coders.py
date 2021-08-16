@@ -22,7 +22,7 @@ Only those coders listed in __all__ are part of the public API of this module.
 # pytype: skip-file
 
 import base64
-from builtins import object
+import pickle
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -37,8 +37,6 @@ from typing import TypeVar
 from typing import overload
 
 import google.protobuf.wrappers_pb2
-from future.moves import pickle
-from past.builtins import unicode
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
@@ -222,7 +220,7 @@ class Coder(object):
     return self.__dict__
 
   def to_type_hint(self):
-    raise NotImplementedError('BEAM-2717')
+    raise NotImplementedError('BEAM-2717: %s' % self.__class__.__name__)
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):
@@ -414,7 +412,7 @@ class StrUtf8Coder(Coder):
     return True
 
   def to_type_hint(self):
-    return unicode
+    return str
 
 
 Coder.register_structured_urn(common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
@@ -533,6 +531,9 @@ class MapCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self)) + hash(self._key_coder) + hash(self._value_coder)
+
+  def __repr__(self):
+    return 'MapCoder[%s, %s]' % (self._key_coder, self._value_coder)
 
 
 class NullableCoder(FastCoder):
@@ -931,10 +932,10 @@ class ProtoCoder(FastCoder):
   def __hash__(self):
     return hash(self.proto_message_type)
 
-  @staticmethod
-  def from_type_hint(typehint, unused_registry):
+  @classmethod
+  def from_type_hint(cls, typehint, unused_registry):
     if issubclass(typehint, proto_utils.message_types):
-      return ProtoCoder(typehint)
+      return cls(typehint)
     else:
       raise ValueError((
           'Expected a subclass of google.protobuf.message.Message'
@@ -1021,10 +1022,10 @@ class TupleCoder(FastCoder):
   def to_type_hint(self):
     return typehints.Tuple[tuple(c.to_type_hint() for c in self._coders)]
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
     # type: (typehints.TupleConstraint, CoderRegistry) -> TupleCoder
-    return TupleCoder([registry.get_coder(t) for t in typehint.tuple_types])
+    return cls([registry.get_coder(t) for t in typehint.tuple_types])
 
   def as_cloud_object(self, coders_context=None):
     if self.is_kv_coder():
@@ -1108,10 +1109,10 @@ class TupleSequenceCoder(FastCoder):
       return TupleSequenceCoder(
           self._elem_coder.as_deterministic_coder(step_label, error_message))
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
     # type: (Any, CoderRegistry) -> TupleSequenceCoder
-    return TupleSequenceCoder(registry.get_coder(typehint.inner_type))
+    return cls(registry.get_coder(typehint.inner_type))
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
@@ -1486,11 +1487,11 @@ class ShardedKeyCoder(FastCoder):
     return sharded_key_type.ShardedKeyTypeConstraint(
         self._key_coder.to_type_hint())
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
     from apache_beam.typehints import sharded_key_type
     if isinstance(typehint, sharded_key_type.ShardedKeyTypeConstraint):
-      return ShardedKeyCoder(registry.get_coder(typehint.key_type))
+      return cls(registry.get_coder(typehint.key_type))
     else:
       raise ValueError((
           'Expected an instance of ShardedKeyTypeConstraint'
@@ -1508,3 +1509,47 @@ class ShardedKeyCoder(FastCoder):
 
 Coder.register_structured_urn(
     common_urns.coders.SHARDED_KEY.urn, ShardedKeyCoder)
+
+
+class TimestampPrefixingWindowCoder(FastCoder):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder which prefixes the max timestamp of arbitrary window to its encoded
+  form."""
+  def __init__(self, window_coder: Coder) -> None:
+    self._window_coder = window_coder
+
+  def _create_impl(self):
+    return coder_impl.TimestampPrefixingWindowCoderImpl(
+        self._window_coder.get_impl())
+
+  def to_type_hint(self):
+    return self._window_coder.to_type_hint()
+
+  def _get_component_coders(self) -> List[Coder]:
+    return [self._window_coder]
+
+  def is_deterministic(self) -> bool:
+    return self._window_coder.is_deterministic()
+
+  def as_cloud_object(self, coders_context=None):
+    return {
+        '@type': 'kind:custom_window',
+        'component_encodings': [
+            self._window_coder.as_cloud_object(coders_context)
+        ],
+    }
+
+  def __repr__(self):
+    return 'TimestampPrefixingWindowCoder[%r]' % self._window_coder
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self._window_coder == other._window_coder)
+
+  def __hash__(self):
+    return hash((type(self), self._window_coder))
+
+
+Coder.register_structured_urn(
+    common_urns.coders.CUSTOM_WINDOW.urn, TimestampPrefixingWindowCoder)

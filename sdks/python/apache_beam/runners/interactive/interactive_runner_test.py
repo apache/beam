@@ -24,13 +24,13 @@ This module is experimental. No backwards-compatibility guarantees.
 
 import sys
 import unittest
+from typing import NamedTuple
 from unittest.mock import patch
 
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -52,6 +52,12 @@ def print_with_message(msg):
     return elem
 
   return printer
+
+
+class Record(NamedTuple):
+  name: str
+  age: int
+  height: int
 
 
 class InteractiveRunnerTest(unittest.TestCase):
@@ -285,7 +291,6 @@ class InteractiveRunnerTest(unittest.TestCase):
     data = p | beam.Create(
         [1, 2, 3]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
     df = to_dataframe(data)
-    pcoll = to_pcollection(df)
 
     # Watch the local scope for Interactive Beam so that values will be cached.
     ib.watch(locals())
@@ -295,9 +300,188 @@ class InteractiveRunnerTest(unittest.TestCase):
     ie.current_env().track_user_pipelines()
 
     df_expected = pd.DataFrame({'square': [1, 4, 9], 'cube': [1, 8, 27]})
-    pd.testing.assert_frame_equal(df_expected, ib.collect(data, n=10))
-    pd.testing.assert_frame_equal(df_expected, ib.collect(df, n=10))
-    pd.testing.assert_frame_equal(df_expected, ib.collect(pcoll, n=10))
+    pd.testing.assert_frame_equal(
+        df_expected, ib.collect(df, n=10).reset_index(drop=True))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes_with_grouped_index(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+
+    data = [
+        Record('a', 20, 170),
+        Record('a', 30, 170),
+        Record('b', 22, 180),
+        Record('c', 18, 150)
+    ]
+
+    aggregate = lambda df: df.groupby('height').mean()
+
+    deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
+    df_expected = aggregate(pd.DataFrame(data))
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    pd.testing.assert_frame_equal(df_expected, ib.collect(deferred_df, n=10))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes_with_multi_index(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+
+    data = [
+        Record('a', 20, 170),
+        Record('a', 30, 170),
+        Record('b', 22, 180),
+        Record('c', 18, 150)
+    ]
+
+    aggregate = lambda df: df.groupby(['name', 'height']).mean()
+
+    deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
+    df_expected = aggregate(pd.DataFrame(data))
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    pd.testing.assert_frame_equal(df_expected, ib.collect(deferred_df, n=10))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes_with_multi_index_get_result(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+
+    data = [
+        Record('a', 20, 170),
+        Record('a', 30, 170),
+        Record('b', 22, 180),
+        Record('c', 18, 150)
+    ]
+
+    aggregate = lambda df: df.groupby(['name', 'height']).mean()['age']
+
+    deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
+    df_expected = aggregate(pd.DataFrame(data))
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    pd.testing.assert_series_equal(df_expected, ib.collect(deferred_df, n=10))
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_dataframes_same_cell_twice(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+    data = p | beam.Create(
+        [1, 2, 3]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
+    df = to_dataframe(data)
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    df_expected = pd.DataFrame({'square': [1, 4, 9], 'cube': [1, 8, 27]})
+    pd.testing.assert_series_equal(
+        df_expected['square'],
+        ib.collect(df['square'], n=10).reset_index(drop=True))
+    pd.testing.assert_series_equal(
+        df_expected['cube'],
+        ib.collect(df['cube'], n=10).reset_index(drop=True))
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_dataframe_caching(self, cell):
+
+    # Create a pipeline that exercises the DataFrame API. This will also use
+    # caching in the background.
+    with cell:  # Cell 1
+      p = beam.Pipeline(interactive_runner.InteractiveRunner())
+      ib.watch({'p': p})
+
+    with cell:  # Cell 2
+      data = p | beam.Create([
+          1, 2, 3
+      ]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
+
+      with beam.dataframe.allow_non_parallel_operations():
+        df = to_dataframe(data).reset_index(drop=True)
+
+      ib.collect(df)
+
+    with cell:  # Cell 3
+      df['output'] = df['square'] * df['cube']
+      ib.collect(df)
+
+    with cell:  # Cell 4
+      df['output'] = 0
+      ib.collect(df)
+
+    # We use a trace through the graph to perform an isomorphism test. The end
+    # output should look like a linear graph. This indicates that the dataframe
+    # transform was correctly broken into separate pieces to cache. If caching
+    # isn't enabled, all the dataframe computation nodes are connected to a
+    # single shared node.
+    trace = []
+
+    # Only look at the top-level transforms for the isomorphism. The test
+    # doesn't care about the transform implementations, just the overall shape.
+    class TopLevelTracer(beam.pipeline.PipelineVisitor):
+      def _find_root_producer(self, node: beam.pipeline.AppliedPTransform):
+        if node is None or not node.full_label:
+          return None
+
+        parent = self._find_root_producer(node.parent)
+        if parent is None:
+          return node
+
+        return parent
+
+      def _add_to_trace(self, node, trace):
+        if '/' not in str(node):
+          if node.inputs:
+            producer = self._find_root_producer(node.inputs[0].producer)
+            producer_name = producer.full_label if producer else ''
+            trace.append((producer_name, node.full_label))
+
+      def visit_transform(self, node: beam.pipeline.AppliedPTransform):
+        self._add_to_trace(node, trace)
+
+      def enter_composite_transform(
+          self, node: beam.pipeline.AppliedPTransform):
+        self._add_to_trace(node, trace)
+
+    p.visit(TopLevelTracer())
+
+    # Do the isomorphism test which states that the topological sort of the
+    # graph yields a linear graph.
+    trace_string = '\n'.join(str(t) for t in trace)
+    prev_producer = ''
+    for producer, consumer in trace:
+      self.assertEqual(producer, prev_producer, trace_string)
+      prev_producer = consumer
 
 
 if __name__ == '__main__':

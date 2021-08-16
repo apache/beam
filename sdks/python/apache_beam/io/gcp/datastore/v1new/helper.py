@@ -29,10 +29,13 @@ from typing import List
 from typing import Union
 
 from google.api_core import exceptions
+from google.api_core.gapic_v1 import client_info
 from google.cloud import environment_vars
+from google.cloud.datastore import __version__
 from google.cloud.datastore import client
 
 from apache_beam.io.gcp.datastore.v1new import types
+from apache_beam.version import __version__ as beam_version
 from cachetools.func import ttl_cache
 
 # https://cloud.google.com/datastore/docs/concepts/errors#error_codes
@@ -47,7 +50,12 @@ _RETRYABLE_DATASTORE_ERRORS = (
 @ttl_cache(maxsize=128, ttl=3600)
 def get_client(project, namespace):
   """Returns a Cloud Datastore client."""
-  _client = client.Client(project=project, namespace=namespace)
+  _client_info = client_info.ClientInfo(
+      client_library_version=__version__,
+      gapic_version=__version__,
+      user_agent=f'beam-python-sdk/{beam_version}')
+  _client = client.Client(
+      project=project, namespace=namespace, client_info=_client_info)
   # Avoid overwriting user setting. BEAM-7608
   if not os.environ.get(environment_vars.GCD_HOST, None):
     _client.base_url = 'https://batch-datastore.googleapis.com'  # BEAM-1387

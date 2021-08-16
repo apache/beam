@@ -73,7 +73,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final String kmsKey;
   private final BigQueryServices bqServices;
   private final Coder<DestinationT> destinationCoder;
-  @Nullable private DatasetService datasetService = null;
 
   public StorageApiWriteUnshardedRecords(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -86,12 +85,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     this.kmsKey = kmsKey;
     this.bqServices = bqServices;
     this.destinationCoder = destinationCoder;
-  }
-
-  private void initializeDatasetService(PipelineOptions pipelineOptions) {
-    if (datasetService == null) {
-      datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
-    }
   }
 
   @Override
@@ -244,9 +237,16 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+    private @Nullable DatasetService datasetService;
 
     WriteRecordsDoFn(String operationName) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
+    }
+
+    private void initializeDatasetService(PipelineOptions pipelineOptions) {
+      if (datasetService == null) {
+        datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+      }
     }
 
     @StartBundle
@@ -317,6 +317,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     public void teardown() {
       for (DestinationState state : destinations.values()) {
         state.close();
+      }
+      try {
+        if (datasetService != null) {
+          datasetService.close();
+          datasetService = null;
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
     }
   }

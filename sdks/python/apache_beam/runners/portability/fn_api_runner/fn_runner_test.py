@@ -35,9 +35,9 @@ from typing import Dict
 from typing import Tuple
 
 import hamcrest  # pylint: disable=ungrouped-imports
+import pytest
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
-from nose.plugins.attrib import attr
 from tenacity import retry
 from tenacity import stop_after_attempt
 
@@ -51,6 +51,7 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import fn_api_runner
@@ -995,7 +996,7 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
-  def test_pack_combiners(self):
+  def _test_pack_combiners(self, assert_using_counter_names):
     counter = beam.metrics.Metrics.counter('ns', 'num_values')
 
     def min_with_counter(values):
@@ -1026,26 +1027,23 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-    unpacked_min_step_name_regex = r'.*PackableMin.*CombinePerKey.*'
-    unpacked_max_step_name_regex = r'.*PackableMax.*CombinePerKey.*'
     packed_step_name_regex = (
         r'.*Packed.*PackableMin.*CombinePerKey.*PackableMax.*CombinePerKey.*' +
         'Pack.*')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names = set(m.key.step for m in counters)
-    self.assertFalse(
-        any([
-            re.match(unpacked_min_step_name_regex, s) and
-            not re.match(packed_step_name_regex, s) for s in step_names
-        ]))
-    self.assertFalse(
-        any([
-            re.match(unpacked_max_step_name_regex, s) and
-            not re.match(packed_step_name_regex, s) for s in step_names
-        ]))
-    self.assertTrue(
-        any([re.match(packed_step_name_regex, s) for s in step_names]))
+    pipeline_options = p._options
+    if assert_using_counter_names:
+      if pipeline_options.view_as(StandardOptions).streaming:
+        self.assertFalse(
+            any([re.match(packed_step_name_regex, s) for s in step_names]))
+      else:
+        self.assertTrue(
+            any([re.match(packed_step_name_regex, s) for s in step_names]))
+
+  def test_pack_combiners(self):
+    self._test_pack_combiners(assert_using_counter_names=True)
 
 
 # These tests are kept in a separate group so that they are
@@ -1989,7 +1987,7 @@ class StateBackedTestElementType(object):
     return (self.__class__, (self.num_elements, 'x' * self.num_elements))
 
 
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class FnApiBasedStateBackedCoderTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(

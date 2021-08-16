@@ -161,13 +161,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
     // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
-    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_sdf_read")) {
-      // Populate experiments directly to have Kafka use legacy read.
-      ExperimentalOptions.addExperiment(
-          pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api_use_deprecated_read");
-      ExperimentalOptions.addExperiment(
-          pipeline.getOptions().as(ExperimentalOptions.class), "use_deprecated_read");
-      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
+    if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(pipelineOptions.isStreaming()));

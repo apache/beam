@@ -50,12 +50,12 @@ required arguments described in the examples.
 
 For example, to run `wordcount`, run:
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
@@ -67,9 +67,9 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache/beam_go_sdk:latest
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 # Build and run the Spark job server from Beam source.
 # -PsparkMasterUrl is optional. If it is unset the job will be run inside an embedded Spark cluster.
 $ ./gradlew :runners:spark:2:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
@@ -80,7 +80,7 @@ $ wordcount --input <PATH_TO_INPUT_FILE> \
             --output counts \
             --runner spark \
             --endpoint localhost:8099
-{{< /highlight >}}
+{{< /runner >}}
 
 ## Next Steps
 

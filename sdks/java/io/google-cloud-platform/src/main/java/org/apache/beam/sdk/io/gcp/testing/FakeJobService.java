@@ -103,6 +103,9 @@ public class FakeJobService implements JobService, Serializable {
 
   private final FakeDatasetService datasetService;
 
+  @Override
+  public void close() throws Exception {}
+
   private static class JobInfo {
     Job job;
     int getJobCount = 0;
@@ -170,7 +173,6 @@ public class FakeJobService implements JobService, Serializable {
         FileSystems.copy(sourceFiles.build(), loadFiles.build());
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
       }
-
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
     }
   }

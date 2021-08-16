@@ -29,7 +29,7 @@ const (
 	GlobalWindows  Kind = "GLO"
 	FixedWindows   Kind = "FIX"
 	SlidingWindows Kind = "SLI"
-	Sessions       Kind = "SES" // TODO
+	Sessions       Kind = "SES"
 )
 
 // NewGlobalWindows returns the default WindowFn, which places all elements

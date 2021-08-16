@@ -22,7 +22,6 @@ import unittest
 from itertools import chain
 
 import numpy as np
-from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.coders import RowCoder
@@ -38,14 +37,13 @@ from apache_beam.utils.timestamp import Timestamp
 Person = typing.NamedTuple(
     "Person",
     [
-        ("name", unicode),
+        ("name", str),
         ("age", np.int32),
-        ("address", typing.Optional[unicode]),
-        ("aliases", typing.List[unicode]),
+        ("address", typing.Optional[str]),
+        ("aliases", typing.List[str]),
         ("knows_javascript", bool),
-        # TODO(BEAM-7372): Use bytes instead of ByteString
-        ("payload", typing.Optional[typing.ByteString]),
-        ("custom_metadata", typing.Mapping[unicode, int]),
+        ("payload", typing.Optional[bytes]),
+        ("custom_metadata", typing.Mapping[str, int]),
         ("favorite_time", Timestamp),
     ])
 
@@ -191,13 +189,13 @@ class RowCoderTest(unittest.TestCase):
       self.assertRaises(OverflowError, lambda: c.encode(case))
 
   def test_none_in_non_nullable_field_throws(self):
-    Test = typing.NamedTuple('Test', [('foo', unicode)])
+    Test = typing.NamedTuple('Test', [('foo', str)])
 
     c = RowCoder.from_type_hint(Test, None)
     self.assertRaises(ValueError, lambda: c.encode(Test(foo=None)))
 
   def test_schema_remove_column(self):
-    fields = [("field1", unicode), ("field2", unicode)]
+    fields = [("field1", str), ("field2", str)]
     # new schema is missing one field that was in the old schema
     Old = typing.NamedTuple('Old', fields)
     New = typing.NamedTuple('New', fields[:-1])
@@ -209,7 +207,7 @@ class RowCoderTest(unittest.TestCase):
         New("foo"), new_coder.decode(old_coder.encode(Old("foo", "bar"))))
 
   def test_schema_add_column(self):
-    fields = [("field1", unicode), ("field2", typing.Optional[unicode])]
+    fields = [("field1", str), ("field2", typing.Optional[str])]
     # new schema has one (optional) field that didn't exist in the old schema
     Old = typing.NamedTuple('Old', fields[:-1])
     New = typing.NamedTuple('New', fields)
@@ -221,8 +219,8 @@ class RowCoderTest(unittest.TestCase):
         New("bar", None), new_coder.decode(old_coder.encode(Old("bar"))))
 
   def test_schema_add_column_with_null_value(self):
-    fields = [("field1", typing.Optional[unicode]), ("field2", unicode),
-              ("field3", typing.Optional[unicode])]
+    fields = [("field1", typing.Optional[str]), ("field2", str),
+              ("field3", typing.Optional[str])]
     # new schema has one (optional) field that didn't exist in the old schema
     Old = typing.NamedTuple('Old', fields[:-1])
     New = typing.NamedTuple('New', fields)

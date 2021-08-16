@@ -22,10 +22,11 @@
 import unittest
 from functools import wraps
 
-from nose.plugins.attrib import attr
+import pytest
 from parameterized import parameterized_class
 
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.portability import fn_api_runner
@@ -54,7 +55,7 @@ def skip_unless_v2(fn):
   return wrapped
 
 
-@attr('ValidatesRunner')
+@pytest.mark.it_validatesrunner
 class CombineFnLifecycleTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = TestPipeline(is_integration_test=True)
@@ -88,7 +89,10 @@ class LocalCombineFnLifecycleTest(unittest.TestCase):
     self._assert_teardown_called()
 
   def test_non_liftable_combine(self):
-    run_combine(TestPipeline(runner=self.runner()), lift_combiners=False)
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    run_combine(
+        TestPipeline(runner=self.runner(), options=test_options),
+        lift_combiners=False)
     self._assert_teardown_called()
 
   def test_combining_value_state(self):

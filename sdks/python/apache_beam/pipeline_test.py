@@ -19,15 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import copy
 import platform
 import unittest
-from builtins import object
-from builtins import range
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -64,7 +60,6 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-# from nose.plugins.attrib import attr
 
 
 class FakeSource(NativeSource):
@@ -263,7 +258,7 @@ class PipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([[1, 2, 3]]))
 
   # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-  # @attr('ValidatesRunner')
+  # @pytest.mark.it_validatesrunner
   def test_metrics_in_fake_source(self):
     pipeline = TestPipeline()
     pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
@@ -723,7 +718,7 @@ class DoFnTest(unittest.TestCase):
           TestDoFn(), prefix, suffix=AsSingleton(suffix))
       assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_element_param(self):
     pipeline = TestPipeline()
     input = [1, 2]
@@ -734,7 +729,7 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to(input))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  @pytest.mark.it_validatesrunner
   def test_key_param(self):
     pipeline = TestPipeline()
     pcoll = (
@@ -976,6 +971,24 @@ class RunnerApiTest(unittest.TestCase):
 
     for transform_id in runner_api_proto.components.transforms:
       self.assertRegex(transform_id, r'[a-zA-Z0-9-_]+')
+
+  def test_input_names(self):
+    class MyPTransform(beam.PTransform):
+      def expand(self, pcolls):
+        return pcolls.values() | beam.Flatten()
+
+    p = beam.Pipeline()
+    input_names = set('ABC')
+    inputs = {x: p | x >> beam.Create([x]) for x in input_names}
+    inputs | MyPTransform()  # pylint: disable=expression-not-assigned
+    runner_api_proto = Pipeline.to_runner_api(p)
+
+    for transform_proto in runner_api_proto.components.transforms.values():
+      if transform_proto.unique_name == 'MyPTransform':
+        self.assertEqual(set(transform_proto.inputs.keys()), input_names)
+        break
+    else:
+      self.fail('Unable to find transform.')
 
   def test_display_data(self):
     class MyParentTransform(beam.PTransform):

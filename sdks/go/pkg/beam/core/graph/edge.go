@@ -296,9 +296,12 @@ func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform, ins []*Inbound
 	edge.Op = External
 	edge.External = ext
 
-	windowingStrategy := inputWindow([]*Node{ins[0].From})
+	ws := window.DefaultWindowingStrategy()
+	if len(ins) > 0 {
+		ws = inputWindow([]*Node{ins[0].From})
+	}
 	for _, o := range outs {
-		o.To.w = windowingStrategy
+		o.To.w = ws
 	}
 
 	isBoundedUpdater := func(n *Node, bounded bool) {
@@ -384,7 +387,13 @@ func NewTaggedExternal(g *Graph, s *Scope, payload *Payload, ins []*Inbound, out
 	edge.Op = External
 	edge.Payload = payload
 
-	windowingStrategy := inputWindow([]*Node{ins[0].From})
+	var windowingStrategy *window.WindowingStrategy
+	if len(ins) == 0 {
+		windowingStrategy = window.DefaultWindowingStrategy()
+	} else {
+		windowingStrategy = inputWindow([]*Node{ins[0].From})
+	}
+
 	for _, o := range outs {
 		o.To.w = windowingStrategy
 		o.To.bounded = bounded
