@@ -40,7 +40,6 @@ try:
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.metrics import monitoring_infos
   from apache_beam.metrics.execution import MetricsEnvironment
-  from apache_beam.metrics.metricbase import MetricName
   from google.cloud.datastore import client
   from google.cloud.datastore import entity
   from google.cloud.datastore import helpers
@@ -181,6 +180,50 @@ class MutateTest(unittest.TestCase):
           mock_throttler, rpc_stats_callback, throttle_delay=0)
     rpc_stats_callback.assert_called_once_with(errors=1)
 
+  def test_write_mutations_metric_on_failure(self):
+    MetricsEnvironment.process_wide_container().reset()
+    mock_batch = MagicMock()
+    mock_batch.commit.side_effect = [
+        exceptions.DeadlineExceeded("Deadline Exceeded"), []
+    ]
+    mock_throttler = MagicMock()
+    rpc_stats_callback = MagicMock()
+    mock_throttler.throttle_request.return_value = False
+    mutate = datastoreio._Mutate.DatastoreMutateFn("my_project")
+    mutate._batch = mock_batch
+    mutate._batch_elements = []
+    mutate._client = MagicMock()
+    mutate.write_mutations(mock_throttler, rpc_stats_callback, throttle_delay=0)
+    self.verify_write_call_metric("my_project", "", "deadline_exceeded", 1)
+    self.verify_write_call_metric("my_project", "", "ok", 1)
+
+  def verify_write_call_metric(self, project_id, namespace, status, count):
+    """Check if a metric was recorded for the Datastore IO write API call."""
+    process_wide_monitoring_infos = list(
+        MetricsEnvironment.process_wide_container().
+        to_runner_api_monitoring_infos(None).values())
+    resource = resource_identifiers.DatastoreNamespace(project_id, namespace)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Datastore',
+        monitoring_infos.METHOD_LABEL: 'BatchDatastoreWrite',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.DATASTORE_NAMESPACE_LABEL: namespace,
+        monitoring_infos.DATASTORE_PROJECT_ID_LABEL: project_id,
+        monitoring_infos.STATUS_LABEL: status
+    }
+    expected_mi = monitoring_infos.int64_counter(
+        monitoring_infos.API_REQUEST_COUNT_URN, count, labels=labels)
+    expected_mi.ClearField("start_time")
+
+    found = False
+    for actual_mi in process_wide_monitoring_infos:
+      actual_mi.ClearField("start_time")
+      if expected_mi == actual_mi:
+        found = True
+        break
+    self.assertTrue(
+        found, "Did not find write call metric with status: %s" % status)
+
 
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')
 class DatastoreioTest(unittest.TestCase):
@@ -202,10 +245,6 @@ class DatastoreioTest(unittest.TestCase):
         namespace=self._NAMESPACE,
         # Don't do any network requests.
         _http=MagicMock())
-
-  def tearDown(self):
-    # Clear container after each test
-    MetricsEnvironment.process_wide_container().reset()
 
   def test_SplitQueryFn_with_num_splits(self):
     with patch.object(helper, 'get_client', return_value=self._mock_client):
@@ -345,26 +384,6 @@ class DatastoreioTest(unittest.TestCase):
       datastore_write_fn.finish_bundle()
 
       self.assertEqual(2, commit_count[0])
-
-  def test_DatastoreWrite_monitoring_info(self):
-    num_entities_to_write = 1
-    self.check_DatastoreWriteFn(num_entities_to_write)
-    resource = resource_identifiers.DatastoreNamespace(self._PROJECT, None)
-    labels = {
-        monitoring_infos.SERVICE_LABEL: 'Datastore',
-        monitoring_infos.METHOD_LABEL: 'BatchDatastoreWrite',
-        monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.DATASTORE_NAMESPACE_LABEL: None,
-        monitoring_infos.DATASTORE_PROJECT_ID_LABEL: self._PROJECT,
-        monitoring_infos.STATUS_LABEL: 'ok'
-    }
-
-    metric_name = MetricName(
-        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
-    metric_value = MetricsEnvironment.process_wide_container().get_counter(
-        metric_name).get_cumulative()
-
-    self.assertEqual(metric_value, 1)
 
   def check_estimated_size_bytes(self, entity_bytes, timestamp, namespace=None):
     """A helper method to test get_estimated_size_bytes"""

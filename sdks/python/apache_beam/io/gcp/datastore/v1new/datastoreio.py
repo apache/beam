@@ -26,6 +26,9 @@ different enough to require extensive changes to this and associated modules.
 import logging
 import time
 
+from google.api_core.exceptions import ClientError
+from google.api_core.exceptions import GoogleAPICallError
+
 from apache_beam import typehints
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import resource_identifiers
@@ -43,6 +46,7 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
 from apache_beam.utils import retry
+from apitools.base.py.exceptions import HttpError
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
@@ -268,6 +272,8 @@ class ReadFromDatastore(PTransform):
   class _QueryFn(DoFn):
     """A DoFn that fetches entities from Cloud Datastore, for a given query."""
     def process(self, query, *unused_args, **unused_kwargs):
+      if query.namespace is None:
+        query.namespace = ''
       _client = helper.get_client(query.project, query.namespace)
       client_query = query._to_client_query(_client)
       # Create request count metric
@@ -288,8 +294,11 @@ class ReadFromDatastore(PTransform):
         for client_entity in client_query.fetch(query.limit):
           yield types.Entity.from_client_entity(client_entity)
         service_call_metric.call('ok')
-      except Exception as e:
-        service_call_metric.call(e.code)
+      except (ClientError, GoogleAPICallError) as e:
+        # e.code.value contains the numeric http status code.
+        service_call_metric.call(e.code.value)
+      except HttpError as e:
+        service_call_metric.call(e)
 
 
 class _Mutate(PTransform):
@@ -417,12 +426,12 @@ class _Mutate(PTransform):
           self.add_to_batch(element)
 
       # Create request count metric
-      resource = resource_identifiers.DatastoreNamespace(self._project, None)
+      resource = resource_identifiers.DatastoreNamespace(self._project, "")
       labels = {
           monitoring_infos.SERVICE_LABEL: 'Datastore',
           monitoring_infos.METHOD_LABEL: 'BatchDatastoreWrite',
           monitoring_infos.RESOURCE_LABEL: resource,
-          monitoring_infos.DATASTORE_NAMESPACE_LABEL: None,
+          monitoring_infos.DATASTORE_NAMESPACE_LABEL: "",
           monitoring_infos.DATASTORE_PROJECT_ID_LABEL: self._project,
           monitoring_infos.STATUS_LABEL: 'ok'
       }
@@ -441,9 +450,14 @@ class _Mutate(PTransform):
         throttler.successful_request(start_time * 1000)
         commit_time_ms = int((end_time - start_time) * 1000)
         return commit_time_ms
-      except Exception as e:
+      except (ClientError, GoogleAPICallError) as e:
         self._batch = None
-        service_call_metric.call(e.code)
+        # e.code.value contains the numeric http status code.
+        service_call_metric.call(e.code.value)
+        rpc_stats_callback(errors=1)
+        raise
+      except HttpError as e:
+        service_call_metric.call(e)
         rpc_stats_callback(errors=1)
         raise
 
