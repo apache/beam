@@ -98,7 +98,8 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
 
   @GetInitialRestriction
   public OffsetRange initialRestriction(@Element ChangeStreamSourceDescriptor inputElement) {
-    return new OffsetRange(0, Long.MAX_VALUE);
+    // TODO: Update this after https://issues.apache.org/jira/browse/BEAM-12756 is fixed.
+    return new OffsetRange(0, Long.MAX_VALUE-10000);
   }
 
   @NewTracker
@@ -126,9 +127,9 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
             .spanBuilder("DetectNewPartitionsDoFn.processElement")
             .setRecordEvents(true)
             .startScopedSpan()) {
-      // Set the watermark to the max value to unblock the downstream windows.
-      watermarkEstimator.setWatermark(
-          new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() - 1000));
+      
+      // TODO: This is a temporary solution. Update to use a correct watermark strategy.
+      watermarkEstimator.setWatermark(Instant.now());
 
       try (ResultSet resultSet = partitionMetadataDao.getPartitionsInState(State.CREATED)) {
         long currentIndex = tracker.currentRestriction().getFrom();

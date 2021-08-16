@@ -1517,9 +1517,11 @@ public class SpannerIO {
                 .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
                 .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
                 .apply("Post processing metrics", ParDo.of(postProcessingMetricsDoFn));
-        impulseOut
-            .apply(Wait.on(results))
-            .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
+        
+        // TODO(zoc): investigate why the metadata table is deleted while the pipeline is still running.
+        // impulseOut
+        //     .apply(Wait.on(results))
+        //     .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
         return results;
       }
     }
