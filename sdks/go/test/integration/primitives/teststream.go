@@ -36,7 +36,7 @@ func TestStreamStrings() *beam.Pipeline {
 	return p
 }
 
-// TestStreamByteSlice tests the TestStream primitive by inserting byte slice elements
+// TestStreamByteSliceSequence tests the TestStream primitive by inserting byte slice elements
 // then advancing the watermark to infinity and comparing the output..
 func TestStreamByteSliceSequence() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
