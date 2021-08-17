@@ -43,6 +43,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Contextful;
@@ -1312,6 +1313,21 @@ public class FileIO {
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
       }
+      if (input
+          .getPipeline()
+          .getOptions()
+          .as(SdkHarnessOptions.class)
+          .getPromoteWindowsToKeysForFileIOWrites()) {
+        writeFiles = writeFiles.withPromoteWindowsToKeys();
+      }
+      if (input
+          .getPipeline()
+          .getOptions()
+          .as(SdkHarnessOptions.class)
+          .getStageFilesDirectlyForFileIOWrites()) {
+        writeFiles = writeFiles.withStageFilesDirectly();
+      }
+
       return input.apply(writeFiles);
     }
 

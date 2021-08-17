@@ -571,7 +571,8 @@ public class AvroIO {
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .setMetadata(ImmutableMap.of())
         .setWindowedWrites(false)
-        .setNoSpilling(false);
+        .setNoSpilling(false)
+        .setStageFilesDirectly(false);
   }
 
   @Experimental(Kind.SCHEMAS)
@@ -1317,6 +1318,8 @@ public class AvroIO {
     /** Avro file metadata. */
     abstract ImmutableMap<String, Object> getMetadata();
 
+    abstract boolean getStageFilesDirectly();
+
     abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
     @AutoValue.Builder
@@ -1359,6 +1362,8 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setDatumWriterFactory(
           AvroSink.DatumWriterFactory<OutputT> datumWriterFactory);
+
+      abstract Builder<UserT, DestinationT, OutputT> setStageFilesDirectly(boolean value);
 
       abstract TypedWrite<UserT, DestinationT, OutputT> build();
     }
@@ -1553,6 +1558,11 @@ public class AvroIO {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
     }
 
+    /** Writes to Avro file(s) with files staged directly. */
+    public TypedWrite<UserT, DestinationT, OutputT> withStageFilesDirectly() {
+      return toBuilder().setStageFilesDirectly(true).build();
+    }
+
     /**
      * Specifies a {@link AvroSink.DatumWriterFactory} to use for creating {@link
      * org.apache.avro.io.DatumWriter} instances.
@@ -1646,6 +1656,9 @@ public class AvroIO {
       }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
+      }
+      if (getStageFilesDirectly()) {
+        write = write.withStageFilesDirectly();
       }
       return input.apply("Write", write);
     }

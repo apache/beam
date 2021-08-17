@@ -96,6 +96,21 @@ public interface SdkHarnessOptions extends PipelineOptions {
 
   void setGroupingTableMaxSizeMb(int value);
 
+  /** Promote windows to keys in FileIO.write. XXX figure out how to do this cleanly. */
+  @Description("If true, keys for file output will include the window.")
+  @Default.Boolean(false)
+  boolean getPromoteWindowsToKeysForFileIOWrites();
+
+  void setPromoteWindowsToKeysForFileIOWrites(boolean value);
+
+  /** Promote windows to keys in FileIO.write. XXX figure out how to do this cleanly. */
+  @Description(
+      "If true, stage files directly if there are enough elements in input within a fixed window.")
+  @Default.Boolean(false)
+  boolean getStageFilesDirectlyForFileIOWrites();
+
+  void setStageFilesDirectlyForFileIOWrites(boolean value);
+
   /**
    * Defines a log level override for a specific class, package, or name.
    *
