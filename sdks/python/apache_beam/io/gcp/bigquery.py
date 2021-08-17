@@ -2116,9 +2116,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
-    This PTransform uses a BigQuery export job to take a snapshot of the table
-    on GCS, and then reads from each produced file. File format is Avro by
+    This PTransform uses either a BigQuery export job to take a snapshot of the
+    table on GCS, and then reads from each produced file (EXPORT) or reads
+    directly from BigQuery storage using BigQuery Read API (DIRECT_READ). The
+    option is specified using the 'method' :parameter. File format is Avro by
     default.
+
+    NOTE: DIRECT_READ only supports reading from BigQuery Tables currently. To
+    read the results of a query please use EXPORT.
 
   .. warning::
       DATETIME columns are parsed as strings in the fastavro library. As a
