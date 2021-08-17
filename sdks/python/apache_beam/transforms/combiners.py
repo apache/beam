@@ -598,10 +598,14 @@ class SampleCombineFn(core.CombineFn):
 
 
 class _TupleCombineFnBase(core.CombineFn):
-  def __init__(self, *combiners, merge_accumulators_batch_size=100):
+  def __init__(self, *combiners, merge_accumulators_batch_size=None):
     self._combiners = [core.CombineFn.maybe_from_callable(c) for c in combiners]
     self._named_combiners = combiners
-    self._merge_accumulators_batch_size = merge_accumulators_batch_size
+    # If the `merge_accumulators_batch_size` value is not specified, we chose a
+    # bounded default that is inversely proportional to the number of
+    # accumulators in merged tuples.
+    self._merge_accumulators_batch_size = (
+        merge_accumulators_batch_size or max(10, 1000 // len(combiners)))
 
   def display_data(self):
     combiners = [
