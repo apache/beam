@@ -534,8 +534,7 @@ class TypeOptions(PipelineOptions):
         'compatibility. See BEAM-11719.')
     parser.add_argument(
         '--allow_unsafe_triggers',
-        # TODO(BEAM-9487): Set to False for Beam 2.33
-        default=True,
+        default=False,
         action='store_true',
         help='Allow the use of unsafe triggers. Unsafe triggers have the '
         'potential to cause data loss due to finishing and/or never having '
