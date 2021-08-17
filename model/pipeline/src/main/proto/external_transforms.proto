@@ -29,6 +29,7 @@ option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "ExternalTransforms";
 
 import "schema.proto";
+import "beam_runner_api.proto";
 
 // A configuration payload for an external transform.
 // Used as the payload of ExternalTransform as part of an ExpansionRequest.
@@ -40,3 +41,66 @@ message ExternalConfigurationPayload {
   // schema.
   bytes payload = 2;
 }
+
+// This defines a single parameter that should be provided to a method (or a
+// constructor) of the transform class.
+message Parameter {
+  // Name of the parameter.
+  // Optional. If available, may be used to validate the parameter’s name at
+  // runtime.
+  string name = 1;
+
+  // A schema that maps to the parameter’s type.
+  Schema schema = 2;
+
+  // A payload which can be decoded using ‘beam:coder:row:v1’ and the given
+  // schema.
+  bytes payload = 3;
+}
+
+// This represents a builder method of the transform class. This may take one
+// or more parameters. This has to return an instance of the transform.
+message BuilderMethod {
+  // Name of the builder method
+  string name = 1;
+
+  // Builder method parameters (in order)
+  repeated Parameter parameter = 2;
+}
+
+message PayloadTypeUrns {
+  enum Enum {
+    // Cross-language transform  payload will be of type
+    // JavaClassLookupPayload.
+    JAVA_CLASS_LOOKUP = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:expansion:payload:java_class_lookup:v1"];
+  }
+}
+
+// A configuration payload for an external transform.
+// Used to define a Java transform that can be directly instantiated by a Java // expansion service.
+message JavaClassLookupPayload {
+  // Name of the Java transform class.
+  string class_name = 1;
+
+  // A method to construct the initial instance of the transform.
+  // In not provided, a constructor of the class will be used.
+  string constructor_method = 2;
+
+  // Set of parameters to be passed to the constructor method to construct the
+  // transform object (in order).
+  repeated Parameter constructor_parameters = 3;
+
+  // Set of builder methods and corresponding parameters to invoke after the
+  // transform object is constructed.
+  // Given builder methods will be invoked in order when constructing the
+  // transform objects.
+  repeated BuilderMethod builder_methods = 4;
+
+  // If set to true, will assume constructor_method
+  // and builder_methods to denote predefined annotations instead of actual
+  // method names.
+  bool annotated = 5;
+}
+
+

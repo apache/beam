@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
@@ -27,6 +28,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
@@ -40,6 +42,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.BuilderMethod;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.PayloadTypeUrns;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
@@ -52,7 +56,13 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
@@ -90,10 +100,85 @@ public class ExpansionServiceTest {
 
   /** Registers a single test transformation. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
-  public static class TestTransforms implements ExpansionService.ExpansionServiceRegistrar {
+  public static class TestTransformRegistrar implements ExpansionService.ExpansionServiceRegistrar {
+
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(TEST_URN, spec -> Count.perElement());
+    }
+  }
+
+  public static class DummyTransform extends PTransform<PBegin, PCollection<String>> {
+
+    String strField1;
+    String strField2;
+    int intField1;
+
+    @Override
+    public PCollection<String> expand(PBegin input) {
+      return input
+          .apply(Create.of("aaa", "bbb", "ccc"))
+          .apply(
+              ParDo.of(
+                  new DoFn<String, String>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      c.output(c.element() + strField1);
+                    }
+                  }));
+    }
+  }
+
+  public static class DummyTransformWithConstructor extends DummyTransform {
+
+    public DummyTransformWithConstructor(String strField1) {
+      this.strField1 = strField1;
+    }
+  }
+
+  public static class DummyTransformWithConstructorAndBuilderMethods extends DummyTransform {
+
+    public DummyTransformWithConstructorAndBuilderMethods(String strField1) {
+      this.strField1 = strField1;
+    }
+
+    public DummyTransformWithConstructorAndBuilderMethods withStrField2(String strField2) {
+      this.strField2 = strField2;
+      return this;
+    }
+
+    public DummyTransformWithConstructorAndBuilderMethods withIntField1(int intField1) {
+      this.intField1 = intField1;
+      return this;
+    }
+  }
+
+  public static class DummyTransformWithConstructorMethod extends DummyTransform {
+
+    public static DummyTransformWithConstructorMethod from(String strField1) {
+      DummyTransformWithConstructorMethod transform = new DummyTransformWithConstructorMethod();
+      transform.strField1 = strField1;
+      return transform;
+    }
+  }
+
+  public static class DummyTransformWithConstructorMethodAndBuilderMethods extends DummyTransform {
+
+    public static DummyTransformWithConstructorMethodAndBuilderMethods from(String strField1) {
+      DummyTransformWithConstructorMethodAndBuilderMethods transform =
+          new DummyTransformWithConstructorMethodAndBuilderMethods();
+      transform.strField1 = strField1;
+      return transform;
+    }
+
+    public DummyTransformWithConstructorMethodAndBuilderMethods withStrField2(String strField2) {
+      this.strField2 = strField2;
+      return this;
+    }
+
+    public DummyTransformWithConstructorMethodAndBuilderMethods withIntField1(int intField1) {
+      this.intField1 = intField1;
+      return this;
     }
   }
 
@@ -140,9 +225,9 @@ public class ExpansionServiceTest {
   }
 
   @Test
-  public void testConstructGenerateSequence() {
+  public void testConstructGenerateSequenceWithRegistration() {
     ExternalTransforms.ExternalConfigurationPayload payload =
-        encodeRow(
+        encodeRowIntoExternalConfigurationPayload(
             Row.withSchema(
                     Schema.of(
                         Field.of("start", FieldType.INT64),
@@ -173,10 +258,240 @@ public class ExpansionServiceTest {
     assertThat(expandedTransform.getSubtransformsCount(), greaterThan(0));
   }
 
+  void testClassLookupExpansionRequestConstruction(
+      ExternalTransforms.JavaClassLookupPayload payloaad) {
+    Pipeline p = Pipeline.create();
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+
+    ExpansionApi.ExpansionRequest request =
+        ExpansionApi.ExpansionRequest.newBuilder()
+            .setComponents(pipelineProto.getComponents())
+            .setTransform(
+                RunnerApi.PTransform.newBuilder()
+                    .setUniqueName(TEST_NAME)
+                    .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn(getUrn(PayloadTypeUrns.Enum.JAVA_CLASS_LOOKUP))
+                            .setPayload(payloaad.toByteString())))
+            .setNamespace(TEST_NAMESPACE)
+            .build();
+    ExpansionApi.ExpansionResponse response = expansionService.expand(request);
+    RunnerApi.PTransform expandedTransform = response.getTransform();
+    assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
+    assertThat(expandedTransform.getInputsCount(), Matchers.is(0));
+    assertThat(expandedTransform.getOutputsCount(), Matchers.is(1));
+    assertThat(expandedTransform.getSubtransformsCount(), greaterThan(0));
+  }
+
+  @Test
+  public void testJavaClassLookupWithConstructor() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.ExpansionServiceTest$DummyTransformWithConstructor");
+
+    payloadBuilder.addConstructorParameters(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+                .withFieldValue("strField1", "test_str_1")
+                .build(),
+            "strField1"));
+
+    testClassLookupExpansionRequestConstruction(payloadBuilder.build());
+  }
+
+  @Test
+  public void testJavaClassLookupWithConstructorMethod() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.ExpansionServiceTest$DummyTransformWithConstructorMethod");
+
+    payloadBuilder.setConstructorMethod("from");
+    payloadBuilder.addConstructorParameters(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+                .withFieldValue("strField1", "test_str_1")
+                .build(),
+            "strField1"));
+
+    testClassLookupExpansionRequestConstruction(payloadBuilder.build());
+  }
+
+  @Test
+  public void testJavaClassLookupWithConstructorAndBuilderMethods() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.ExpansionServiceTest$DummyTransformWithConstructorAndBuilderMethods");
+
+    payloadBuilder.addConstructorParameters(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+                .withFieldValue("strField1", "test_str_1")
+                .build(),
+            "strField1"));
+
+    BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withStrField2");
+    builderMethodBuilder.addParameter(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
+                .withFieldValue("strField2", "test_str_2")
+                .build(),
+            "strField2"));
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withIntField1");
+    builderMethodBuilder.addParameter(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
+                .withFieldValue("intField1", 10)
+                .build(),
+            "intField1"));
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    testClassLookupExpansionRequestConstruction(payloadBuilder.build());
+  }
+
+  @Test
+  public void testJavaClassLookupWithConstructorMethodAndBuilderMethods() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.ExpansionServiceTest$DummyTransformWithConstructorMethodAndBuilderMethods");
+    payloadBuilder.setConstructorMethod("from");
+
+    payloadBuilder.addConstructorParameters(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+                .withFieldValue("strField1", "test_str_1")
+                .build(),
+            "strField1"));
+
+    BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withStrField2");
+    builderMethodBuilder.addParameter(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("strField2", FieldType.STRING)))
+                .withFieldValue("strField2", "test_str_2")
+                .build(),
+            "strField2"));
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withIntField1");
+    builderMethodBuilder.addParameter(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
+                .withFieldValue("intField1", 10)
+                .build(),
+            "intField1"));
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    Pipeline p = Pipeline.create();
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+
+    ExpansionApi.ExpansionRequest request =
+        ExpansionApi.ExpansionRequest.newBuilder()
+            .setComponents(pipelineProto.getComponents())
+            .setTransform(
+                RunnerApi.PTransform.newBuilder()
+                    .setUniqueName(TEST_NAME)
+                    .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn(getUrn(PayloadTypeUrns.Enum.JAVA_CLASS_LOOKUP))
+                            .setPayload(payloadBuilder.build().toByteString())))
+            .setNamespace(TEST_NAMESPACE)
+            .build();
+    ExpansionApi.ExpansionResponse response = expansionService.expand(request);
+    RunnerApi.PTransform expandedTransform = response.getTransform();
+    assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
+    assertThat(expandedTransform.getInputsCount(), Matchers.is(0));
+    assertThat(expandedTransform.getOutputsCount(), Matchers.is(1));
+    assertThat(expandedTransform.getSubtransformsCount(), greaterThan(0));
+  }
+
+  @Test
+  public void testJavaClassLookupClassNotAvailable() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.ExpansionServiceTest$UnavailableClass");
+
+    payloadBuilder.addConstructorParameters(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+                .withFieldValue("strField1", "test_str_1")
+                .build(),
+            "strField1"));
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> testClassLookupExpansionRequestConstruction(payloadBuilder.build()));
+    assertTrue(thrown.getMessage().contains("Could not find class"));
+  }
+
+  @Test
+  public void testJavaClassLookupIncorrectConstructionParameter() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.ExpansionServiceTest$DummyTransformWithConstructor");
+
+    payloadBuilder.addConstructorParameters(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("incorrectField", FieldType.STRING)))
+                .withFieldValue("incorrectField", "test_str_1")
+                .build(),
+            "incorrectField"));
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> testClassLookupExpansionRequestConstruction(payloadBuilder.build()));
+    assertTrue(thrown.getMessage().contains("Expected to find a single mapping constructor"));
+  }
+
+  @Test
+  public void testJavaClassLookupIncorrectBuilderMethodParameter() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.ExpansionServiceTest$DummyTransformWithConstructorAndBuilderMethods");
+
+    payloadBuilder.addConstructorParameters(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("strField1", FieldType.STRING)))
+                .withFieldValue("strField1", "test_str_1")
+                .build(),
+            "strField1"));
+
+    BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withStrField2");
+    builderMethodBuilder.addParameter(
+        encodeRowIntoParameter(
+            Row.withSchema(Schema.of(Field.of("incorrectParam", FieldType.STRING)))
+                .withFieldValue("incorrectParam", "test_str_2")
+                .build(),
+            "incorrectParam"));
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> testClassLookupExpansionRequestConstruction(payloadBuilder.build()));
+    assertTrue(thrown.getMessage().contains("Expected to find exact one matching method"));
+  }
+
   @Test
   public void testCompoundCodersForExternalConfiguration_setters() throws Exception {
     ExternalTransforms.ExternalConfigurationPayload externalConfig =
-        encodeRow(
+        encodeRowIntoExternalConfigurationPayload(
             Row.withSchema(
                     Schema.of(
                         Field.nullable("config_key1", FieldType.INT64),
@@ -253,7 +568,7 @@ public class ExpansionServiceTest {
   @Test
   public void testCompoundCodersForExternalConfiguration_schemas() throws Exception {
     ExternalTransforms.ExternalConfigurationPayload externalConfig =
-        encodeRow(
+        encodeRowIntoExternalConfigurationPayload(
             Row.withSchema(
                     Schema.of(
                         Field.nullable("configKey1", FieldType.INT64),
@@ -320,7 +635,7 @@ public class ExpansionServiceTest {
   @Test
   public void testExternalConfiguration_simpleSchema() throws Exception {
     ExternalTransforms.ExternalConfigurationPayload externalConfig =
-        encodeRow(
+        encodeRowIntoExternalConfigurationPayload(
             Row.withSchema(
                     Schema.of(
                         Field.of("bar", FieldType.STRING),
@@ -350,7 +665,8 @@ public class ExpansionServiceTest {
     abstract List<String> getList();
   }
 
-  private static ExternalTransforms.ExternalConfigurationPayload encodeRow(Row row) {
+  private static ExternalTransforms.ExternalConfigurationPayload
+      encodeRowIntoExternalConfigurationPayload(Row row) {
     ByteString.Output outputStream = ByteString.newOutput();
     try {
       SchemaCoder.of(row.getSchema()).encode(row, outputStream);
@@ -359,6 +675,22 @@ public class ExpansionServiceTest {
     }
 
     return ExternalTransforms.ExternalConfigurationPayload.newBuilder()
+        .setSchema(SchemaTranslation.schemaToProto(row.getSchema(), true))
+        .setPayload(outputStream.toByteString())
+        .build();
+  }
+
+  private static ExternalTransforms.Parameter encodeRowIntoParameter(
+      Row row, @Nullable String name) {
+    ByteString.Output outputStream = ByteString.newOutput();
+    try {
+      SchemaCoder.of(row.getSchema()).encode(row, outputStream);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return ExternalTransforms.Parameter.newBuilder()
+        .setName(name)
         .setSchema(SchemaTranslation.schemaToProto(row.getSchema(), true))
         .setPayload(outputStream.toByteString())
         .build();
