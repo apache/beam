@@ -32,4 +32,9 @@ public class GcpResourceIdentifiers {
         "//bigquery.googleapis.com/projects/%s/datasets/%s/tables/%s",
         projectId, datasetId, tableId);
   }
+
+  public static String bigtableTableID(String project, String instance, String table) {
+    return String.format(
+            "projects/%s/instances/%s/tables/%s", project, instance, table);
+  }
 }

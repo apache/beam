@@ -38,10 +38,15 @@ import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.values.KV;
@@ -130,12 +135,23 @@ class BigtableServiceImpl implements BigtableService {
       String tableNameSr =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
 
+      HashMap<String, String> baseLabels = new HashMap<>();
+      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.ReadRows");
+      baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
+      baseLabels.put(MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
+      baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, GcpResourceIdentifiers.bigtableTableID(session.getOptions().getProjectId(), session.getOptions().getInstanceId(), source.getTableId().get()));
+      ServiceCallMetric serviceCallMetric =
+              new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
       results = session.getDataClient().readRows(requestB.build());
+      serviceCallMetric.call("ok");
       return advance();
     }
 
@@ -182,10 +198,12 @@ class BigtableServiceImpl implements BigtableService {
   static class BigtableWriterImpl implements Writer {
     private BigtableSession session;
     private BulkMutation bulkMutation;
+    private BigtableTableName tableName;
 
     BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
       this.session = session;
       bulkMutation = session.createBulkMutation(tableName);
+      this.tableName = tableName;
     }
 
     @Override
@@ -231,6 +249,16 @@ class BigtableServiceImpl implements BigtableService {
               .addAllMutations(record.getValue())
               .build();
 
+      HashMap<String, String> baseLabels = new HashMap<>();
+      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.MutateRows");
+      baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
+      baseLabels.put(MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
+      baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, GcpResourceIdentifiers.bigtableTableID(session.getOptions().getProjectId(), session.getOptions().getInstanceId(), tableName.getTableId()));
+      ServiceCallMetric serviceCallMetric =
+              new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
       CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
       Futures.addCallback(
           new VendoredListenableFutureAdapter<>(bulkMutation.add(request)),
@@ -238,11 +266,13 @@ class BigtableServiceImpl implements BigtableService {
             @Override
             public void onSuccess(MutateRowResponse mutateRowResponse) {
               result.complete(mutateRowResponse);
+              serviceCallMetric.call("ok");
             }
 
             @Override
             public void onFailure(Throwable throwable) {
               result.completeExceptionally(throwable);
+              serviceCallMetric.call(throwable.toString());
             }
           },
           directExecutor());
