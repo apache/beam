@@ -631,9 +631,9 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
   if [[ "$python_xlang_kafka_taxi_dataflow" = true ]]; then
     gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $CLUSTER_NAME
     kubectl apply -R -f ${LOCAL_BEAM_DIR}/.test-infra/kubernetes/kafka-cluster
-    echo "* Please wait for 5 mins to let a Kafka cluster be launched on GKE."
-    echo "* Sleeping for 5 mins"
-    sleep 5m
+    echo "* Please wait for 10 mins to let a Kafka cluster be launched on GKE."
+    echo "* Sleeping for 10 mins"
+    sleep 10m
   else
     echo "* Skip Kafka cluster setup"
   fi
@@ -690,7 +690,12 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       echo "* How to verify results:"
       echo "* 1. Goto your Dataflow job console and check whether there is any error."
       echo "* 2. Check whether ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi has data, retrieving BigQuery data as below: "
-      bq head -n 10 ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi
+      test_output=$(bq head -n 10 ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi)
+      echo "$test_output"
+      if ! grep -q "passenger_count" <<< "$test_output"; then
+        echo "Couldn't find expected output. Please confirm the output by visiting the console manually."
+        exit 1
+      fi
       echo "***************************************************************"
     else
       echo "* Skip Python XLang Kafka Taxi with DataflowRunner"
@@ -729,7 +734,12 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       echo "* 2. Check whether your ${SQL_TAXI_SUBSCRIPTION} subscription has data below:"
       # run twice since the first execution would return 0 messages
       gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION}
-      gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION}
+      test_output=$(gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION})
+      echo "$test_output"
+      if ! grep -q "ride_status" <<< "$test_output"; then
+        echo "Couldn't find expected output. Please confirm the output by visiting the console manually."
+        exit 1
+      fi
       echo "***************************************************************"
     else
       echo "* Skip Python XLang SQL Taxi with DataflowRunner"
