@@ -1,6 +1,6 @@
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Li Build Python Source Distribution
+name: LI Build Python Source Distribution
 
 on:
   push:
