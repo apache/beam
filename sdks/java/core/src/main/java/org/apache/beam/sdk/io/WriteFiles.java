@@ -66,6 +66,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -166,6 +167,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
+        .setPromoteWindowsToKeys(false)
         .build();
   }
 
@@ -182,6 +184,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract boolean getPromoteWindowsToKeys();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -207,6 +211,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
+
+    abstract Builder<UserT, DestinationT, OutputT> setPromoteWindowsToKeys(
+        boolean promoteWindowsToKeys);
 
     abstract Builder<UserT, DestinationT, OutputT> setShardingFunction(
         @Nullable ShardingFunction<UserT, DestinationT> shardingFunction);
@@ -257,6 +264,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
       List<PCollectionView<?>> sideInputs) {
     return toBuilder().setSideInputs(sideInputs).build();
+  }
+
+  public WriteFiles<UserT, DestinationT, OutputT> withPromoteWindowsToKeys() {
+    return toBuilder().setPromoteWindowsToKeys(true).build();
   }
 
   /**
@@ -374,12 +385,22 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     boolean fixedSharding = getComputeNumShards() != null || getNumShardsProvider() != null;
     PCollection<List<FileResult<DestinationT>>> tempFileResults;
     if (fixedSharding) {
+      @Nullable FixedWindows windowingForSharding = null;
+
+      if (getPromoteWindowsToKeys()) {
+        // Could be improved to support any partitioning window.
+        checkArgument(
+            input.getWindowingStrategy().getWindowFn() instanceof FixedWindows,
+            "Must be a fixed window to promote window to key.");
+        windowingForSharding = (FixedWindows) (input.getWindowingStrategy().getWindowFn());
+      }
+
       tempFileResults =
           input
               .apply(
                   "WriteShardedBundlesToTempFiles",
                   new WriteShardedBundlesToTempFiles(
-                      destinationCoder, fileResultCoder, numShardsView))
+                      destinationCoder, fileResultCoder, numShardsView, windowingForSharding))
               .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
     } else {
       if (input.isBounded() == IsBounded.BOUNDED) {
@@ -675,14 +696,17 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     private final Coder<DestinationT> destinationCoder;
     private final Coder<FileResult<DestinationT>> fileResultCoder;
     private final @Nullable PCollectionView<Integer> numShardsView;
+    private final @Nullable FixedWindows windowingForSharding;
 
     private WriteShardedBundlesToTempFiles(
         Coder<DestinationT> destinationCoder,
         Coder<FileResult<DestinationT>> fileResultCoder,
-        @Nullable PCollectionView<Integer> numShardsView) {
+        @Nullable PCollectionView<Integer> numShardsView,
+        @Nullable FixedWindows windowingForSharding) {
       this.destinationCoder = destinationCoder;
       this.fileResultCoder = fileResultCoder;
       this.numShardsView = numShardsView;
+      this.windowingForSharding = windowingForSharding;
     }
 
     @Override
@@ -700,7 +724,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       return input
           .apply(
               "ApplyShardingKey",
-              ParDo.of(new ApplyShardingFunctionFn(shardingFunction, numShardsView))
+              ParDo.of(
+                      new ApplyShardingFunctionFn(
+                          shardingFunction, numShardsView, windowingForSharding))
                   .withSideInputs(shardingSideInputs))
           .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
           .apply("GroupIntoShards", GroupByKey.create())
@@ -868,12 +894,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     private final ShardingFunction<UserT, DestinationT> shardingFn;
     private final @Nullable PCollectionView<Integer> numShardsView;
+    private final @Nullable FixedWindows windowingForSharding;
 
     ApplyShardingFunctionFn(
         ShardingFunction<UserT, DestinationT> shardingFn,
-        @Nullable PCollectionView<Integer> numShardsView) {
+        @Nullable PCollectionView<Integer> numShardsView,
+        @Nullable FixedWindows windowingForSharding) {
       this.numShardsView = numShardsView;
       this.shardingFn = shardingFn;
+      this.windowingForSharding = windowingForSharding;
     }
 
     @ProcessElement
@@ -895,6 +924,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       DestinationT destination = getDynamicDestinations().getDestination(context.element());
       ShardedKey<Integer> shardKey =
           shardingFn.assignShardKey(destination, context.element(), shardCount);
+      if (windowingForSharding != null) {
+        BoundedWindow w = windowingForSharding.assignWindow(context.timestamp());
+        // Combine the selected shard # with the window. This will generate different
+        // shards for each shard+window combination. Thus instead of processing all windows for a
+        // shard on a single key they can be processed in parallel.
+        int hash = Objects.hashCode(shardKey.getShardNumber(), w);
+        shardKey = ShardedKey.of(shardKey.getKey(), hash);
+      }
       context.output(KV.of(shardKey, context.element()));
     }
   }
