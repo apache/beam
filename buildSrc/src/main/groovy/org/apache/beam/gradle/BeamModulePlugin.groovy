@@ -363,7 +363,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '3.2260.2'
+    project.version = '2.28.0.1'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -662,6 +662,10 @@ class BeamModulePlugin implements Plugin<Project> {
       maven {
         name "linkedin.jfrog.https"
         url "https://linkedin.jfrog.io/artifactory/beam/"
+        credentials {
+          username = System.getenv('USERNAME')
+          password = System.getenv('TOKEN')
+        }
         // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
         // <settings>
