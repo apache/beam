@@ -250,7 +250,7 @@ class CombineTest(unittest.TestCase):
     expected_items = [
         DisplayDataItemMatcher('combine_fn', combine.TupleCombineFn),
         DisplayDataItemMatcher('combiners', "['max', 'MeanCombineFn', 'sum']"),
-        DisplayDataItemMatcher('merge_accumulators_batch_size', 100),
+        DisplayDataItemMatcher('merge_accumulators_batch_size', 333),
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
