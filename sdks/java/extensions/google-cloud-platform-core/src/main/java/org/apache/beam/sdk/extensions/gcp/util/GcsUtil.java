@@ -467,15 +467,17 @@ public class GcsUtil {
    * @param type the type of object, eg "text/plain".
    * @return a Callable object that encloses the operation.
    */
-  public WritableByteChannel create(GcsPath path, String type) throws IOException {
-    return create(path, type, uploadBufferSizeBytes);
+  public WritableByteChannel create(GcsPath path, String type, boolean expectFileToNotExist)
+      throws IOException {
+    return create(path, type, uploadBufferSizeBytes, expectFileToNotExist);
   }
 
   /**
-   * Same as {@link GcsUtil#create(GcsPath, String)} but allows overriding {code
+   * Same as {@link GcsUtil#create(GcsPath, String, boolean)} but allows overriding {code
    * uploadBufferSizeBytes}.
    */
-  public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
+  public WritableByteChannel create(
+      GcsPath path, String type, Integer uploadBufferSizeBytes, boolean expectFileToNotExist)
       throws IOException {
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
     int uploadChunkSize =
@@ -487,8 +489,13 @@ public class GcsUtil {
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(
             newGoogleCloudStorageOptions, this.storageClient, this.credentials);
+    StorageResourceId resourceId =
+        new StorageResourceId(
+            path.getBucket(),
+            path.getObject(),
+            expectFileToNotExist ? 0L : StorageResourceId.UNKNOWN_GENERATION_ID);
     return gcpStorage.create(
-        new StorageResourceId(path.getBucket(), path.getObject()),
+        resourceId,
         CreateObjectOptions.builder().setOverwriteExisting(true).setContentType(type).build());
   }
 

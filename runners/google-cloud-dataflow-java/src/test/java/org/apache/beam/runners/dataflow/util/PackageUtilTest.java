@@ -284,7 +284,7 @@ public class PackageUtilTest {
             ImmutableList.of(
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false)).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets =
         defaultPackageUtil.stageClasspathElements(
@@ -294,7 +294,7 @@ public class PackageUtilTest {
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockGcsUtil).create(any(GcsPath.class), anyString(), false);
     verifyNoMoreInteractions(mockGcsUtil);
 
     assertThat(target.getName(), endsWith(".txt"));
@@ -313,7 +313,7 @@ public class PackageUtilTest {
             ImmutableList.of(
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false))
         .thenAnswer(invocation -> Pipe.open().sink());
 
     List<DataflowPackage> targets =
@@ -342,7 +342,7 @@ public class PackageUtilTest {
         .thenReturn(
             ImmutableList.of(
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false)).thenReturn(pipe.sink());
 
     defaultPackageUtil.stageClasspathElements(
         ImmutableList.of(makeStagedFile(tmpDirectory.getAbsolutePath())),
@@ -350,7 +350,7 @@ public class PackageUtilTest {
         createOptions);
 
     verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockGcsUtil).create(any(GcsPath.class), anyString(), false);
     verifyNoMoreInteractions(mockGcsUtil);
 
     List<String> zipEntryNames = new ArrayList<>();
@@ -375,7 +375,7 @@ public class PackageUtilTest {
         .thenReturn(
             ImmutableList.of(
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false)).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets =
         defaultPackageUtil.stageClasspathElements(
@@ -385,7 +385,7 @@ public class PackageUtilTest {
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockGcsUtil).create(any(GcsPath.class), anyString(), false);
     verifyNoMoreInteractions(mockGcsUtil);
 
     assertThat(target.getName(), endsWith(".jar"));
@@ -403,7 +403,7 @@ public class PackageUtilTest {
         .thenReturn(
             ImmutableList.of(
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false))
         .thenThrow(new IOException("Fake Exception: Upload error"));
 
     try (PackageUtil directPackageUtil =
@@ -415,7 +415,7 @@ public class PackageUtilTest {
           createOptions);
     } finally {
       verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-      verify(mockGcsUtil, times(5)).create(any(GcsPath.class), anyString());
+      verify(mockGcsUtil, times(5)).create(any(GcsPath.class), anyString(), false);
       verifyNoMoreInteractions(mockGcsUtil);
     }
   }
@@ -427,7 +427,7 @@ public class PackageUtilTest {
         .thenReturn(
             ImmutableList.of(
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false))
         .thenThrow(
             new IOException(
                 "Failed to write to GCS path " + STAGING_PATH,
@@ -460,7 +460,7 @@ public class PackageUtilTest {
                       + "login'")));
     } finally {
       verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-      verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+      verify(mockGcsUtil).create(any(GcsPath.class), anyString(), false);
       verifyNoMoreInteractions(mockGcsUtil);
     }
   }
@@ -473,7 +473,7 @@ public class PackageUtilTest {
         .thenReturn(
             ImmutableList.of(
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false))
         .thenThrow(new IOException("Fake Exception: 410 Gone")) // First attempt fails
         .thenReturn(pipe.sink()); // second attempt succeeds
 
@@ -486,7 +486,7 @@ public class PackageUtilTest {
           createOptions);
     } finally {
       verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-      verify(mockGcsUtil, times(2)).create(any(GcsPath.class), anyString());
+      verify(mockGcsUtil, times(2)).create(any(GcsPath.class), anyString(), false);
       verifyNoMoreInteractions(mockGcsUtil);
     }
   }
@@ -520,7 +520,7 @@ public class PackageUtilTest {
             ImmutableList.of(
                 StorageObjectOrIOException.create(
                     createStorageObject(STAGING_PATH, Long.MAX_VALUE))));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false)).thenReturn(pipe.sink());
 
     defaultPackageUtil.stageClasspathElements(
         ImmutableList.of(makeStagedFile(tmpDirectory.getAbsolutePath())),
@@ -528,7 +528,7 @@ public class PackageUtilTest {
         createOptions);
 
     verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockGcsUtil).create(any(GcsPath.class), anyString(), false);
     verifyNoMoreInteractions(mockGcsUtil);
   }
 
@@ -542,7 +542,7 @@ public class PackageUtilTest {
         .thenReturn(
             ImmutableList.of(
                 StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false)).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets =
         defaultPackageUtil.stageClasspathElements(
@@ -552,7 +552,7 @@ public class PackageUtilTest {
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockGcsUtil).create(any(GcsPath.class), anyString(), false);
     verifyNoMoreInteractions(mockGcsUtil);
 
     assertThat(target.getName(), equalTo(overriddenName));

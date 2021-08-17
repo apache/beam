@@ -267,7 +267,7 @@ public class DataflowRunnerTest implements Serializable {
   private static GcsUtil buildMockGcsUtil() throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), false))
         .then(
             invocation ->
                 FileChannel.open(
@@ -276,7 +276,7 @@ public class DataflowRunnerTest implements Serializable {
                     StandardOpenOption.WRITE,
                     StandardOpenOption.DELETE_ON_CLOSE));
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt(), false))
         .then(
             invocation ->
                 FileChannel.open(
@@ -882,7 +882,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt(), false))
         .then(
             invocation ->
                 FileChannel.open(
@@ -950,7 +950,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt(), false))
         .then(
             invocation ->
                 FileChannel.open(

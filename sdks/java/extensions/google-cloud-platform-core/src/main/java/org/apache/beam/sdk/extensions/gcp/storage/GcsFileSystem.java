@@ -139,9 +139,15 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
           .create(
               resourceId.getGcsPath(),
               createOptions.mimeType(),
-              ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
+              ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes(),
+              createOptions.expectFileToNotExist());
     } else {
-      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
+      return options
+          .getGcsUtil()
+          .create(
+              resourceId.getGcsPath(),
+              createOptions.mimeType(),
+              createOptions.expectFileToNotExist());
     }
   }
 
