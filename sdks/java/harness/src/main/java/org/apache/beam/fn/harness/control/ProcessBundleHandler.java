@@ -75,6 +75,7 @@ import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -523,15 +524,18 @@ public class ProcessBundleHandler {
               bundleDescriptor.getStateApiServiceDescriptor());
 
       // If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
-      // Once streaming is supported, always use CachingBeamFnStateClient as the arg
-      // to BlockTillStateCallsFinish
-      beamFnStateClient =
-          new BlockTillStateCallsFinish(
-              options.as(StreamingOptions.class).isStreaming()
-                  ? underlyingClient
-                  : new CachingBeamFnStateClient(
-                      underlyingClient, stateCache, processBundleRequest.getCacheTokensList()));
-
+      // Once streaming is supported use CachingBeamFnStateClient for both.
+      // TODO(BEAM-10212): Remove experiment once cross bundle caching is used by default
+      if (ExperimentalOptions.hasExperiment(options, "cross_bundle_caching")) {
+        beamFnStateClient =
+            new BlockTillStateCallsFinish(
+                options.as(StreamingOptions.class).isStreaming()
+                    ? underlyingClient
+                    : new CachingBeamFnStateClient(
+                        underlyingClient, stateCache, processBundleRequest.getCacheTokensList()));
+      } else {
+        beamFnStateClient = new BlockTillStateCallsFinish(underlyingClient);
+      }
     } else {
       beamFnStateClient = new FailAllStateCallsForBundle(processBundleRequest);
     }
