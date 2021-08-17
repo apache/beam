@@ -1042,7 +1042,7 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 			},
 		}
 	case window.AfterProcessingTimeTrigger:
-		// TODO: Right now would work only for single delay value.
+		// TODO(BEAM-3304) Right now would work only for single delay value.
 		// could be configured to take more than one delay values later.
 		ttd := &pipepb.TimestampTransform{
 			TimestampTransform: &pipepb.TimestampTransform_Delay_{

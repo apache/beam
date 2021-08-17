@@ -144,7 +144,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 		if n.incrementIndexAndCheckSplit() {
 			return nil
 		}
-    // TODO(lostluck) 2020/02/22: Should we include window headers or just count the element sizes?
+		// TODO(lostluck) 2020/02/22: Should we include window headers or just count the element sizes?
 		ws, t, pn, err := DecodeWindowedValueHeader(wc, r)
 		if err != nil {
 			if err == io.EOF {

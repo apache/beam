@@ -16,6 +16,8 @@
 package beam
 
 import (
+	"fmt"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -58,7 +60,7 @@ func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoO
 		case AccumulationMode:
 			ws.AccumulationMode = opt.Mode
 		default:
-			panic("Invalid option for Windowing Strategy")
+			panic(fmt.Sprintf("Unknown WindowInto option type: %T: %v", opt, opt))
 		}
 	}
 
