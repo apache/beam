@@ -95,7 +95,7 @@ class _AbstractFrameTest(unittest.TestCase):
 
     # Verify
     if (not isinstance(actual, type(expected_error)) or
-        not str(actual) == str(expected_error)):
+        str(expected_error) not in str(actual)):
       raise AssertionError(
           f'Expected {expected_error!r} to be raised, but got {actual!r}'
       ) from actual
