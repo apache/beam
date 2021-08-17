@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import static org.junit.Assert.assertEquals;
 
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.MutateRowsRequest;
@@ -45,7 +44,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
-
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -167,13 +165,15 @@ public class BigtableServiceImplTest {
     labels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
     labels.put(MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, PROJECT_ID);
     labels.put(MonitoringInfoConstants.Labels.INSTANCE_ID, INSTANCE_ID);
-    labels.put(MonitoringInfoConstants.Labels.TABLE_ID, GcpResourceIdentifiers.bigtableTableID(PROJECT_ID, INSTANCE_ID, TABLE_ID));
+    labels.put(
+        MonitoringInfoConstants.Labels.TABLE_ID,
+        GcpResourceIdentifiers.bigtableTableID(PROJECT_ID, INSTANCE_ID, TABLE_ID));
     labels.put(MonitoringInfoConstants.Labels.STATUS, status);
 
     MonitoringInfoMetricName name =
-            MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
     MetricsContainerImpl container =
-            (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
     assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 }

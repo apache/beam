@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -140,11 +139,18 @@ class BigtableServiceImpl implements BigtableService {
       baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
       baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.ReadRows");
       baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
-      baseLabels.put(MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
-      baseLabels.put(MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
-      baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, GcpResourceIdentifiers.bigtableTableID(session.getOptions().getProjectId(), session.getOptions().getInstanceId(), source.getTableId().get()));
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.TABLE_ID,
+          GcpResourceIdentifiers.bigtableTableID(
+              session.getOptions().getProjectId(),
+              session.getOptions().getInstanceId(),
+              source.getTableId().get()));
       ServiceCallMetric serviceCallMetric =
-              new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
@@ -254,11 +260,18 @@ class BigtableServiceImpl implements BigtableService {
       baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
       baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.MutateRows");
       baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
-      baseLabels.put(MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
-      baseLabels.put(MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
-      baseLabels.put(MonitoringInfoConstants.Labels.TABLE_ID, GcpResourceIdentifiers.bigtableTableID(session.getOptions().getProjectId(), session.getOptions().getInstanceId(), tableName.getTableId()));
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.TABLE_ID,
+          GcpResourceIdentifiers.bigtableTableID(
+              session.getOptions().getProjectId(),
+              session.getOptions().getInstanceId(),
+              tableName.getTableId()));
       ServiceCallMetric serviceCallMetric =
-              new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
       CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
       Futures.addCallback(
           new VendoredListenableFutureAdapter<>(bulkMutation.add(request)),

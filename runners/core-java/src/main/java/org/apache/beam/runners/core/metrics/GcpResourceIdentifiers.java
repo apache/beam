@@ -34,7 +34,6 @@ public class GcpResourceIdentifiers {
   }
 
   public static String bigtableTableID(String project, String instance, String table) {
-    return String.format(
-            "projects/%s/instances/%s/tables/%s", project, instance, table);
+    return String.format("projects/%s/instances/%s/tables/%s", project, instance, table);
   }
 }
