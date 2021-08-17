@@ -67,6 +67,9 @@
     <Package name="org.apache.beam.sdk.extensions.sql.impl.parser.impl"/>
   </Match>
   <Match>
+    <Package name="org.apache.beam.runners.spark.aggregators.metrics.sink"/>
+  </Match>
+  <Match>
     <Package name="org.apache.beam.sdk.schemas.parser.generated"/>
   </Match>
   <Match>

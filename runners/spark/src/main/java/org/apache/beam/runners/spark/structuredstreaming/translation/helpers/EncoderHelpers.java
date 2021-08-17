@@ -35,6 +35,8 @@ import org.apache.spark.sql.catalyst.expressions.Cast;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NonSQLExpression;
 import org.apache.spark.sql.catalyst.expressions.UnaryExpression;
+import org.apache.spark.sql.catalyst.expressions.codegen.Block;
+import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator;
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext;
 import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode;
 import org.apache.spark.sql.types.DataType;
@@ -95,7 +97,7 @@ public class EncoderHelpers {
     public ExprCode doGenCode(CodegenContext ctx, ExprCode ev) {
       String accessCode = ctx.addReferenceObj("coder", coder, coder.getClass().getName());
       ExprCode input = child.genCode(ctx);
-      String javaType = ctx.javaType(dataType());
+      String javaType = CodeGenerator.javaType(dataType());
 
       List<String> parts = new ArrayList<>();
       List<Object> args = new ArrayList<>();
@@ -118,12 +120,10 @@ public class EncoderHelpers {
 
       StringContext sc =
           new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
-      // Block code =
-      //    (new
-      // Block.BlockHelper(sc)).code(JavaConversions.collectionAsScalaIterable(args).toSeq());
-      String code = sc.s(JavaConversions.collectionAsScalaIterable(args).toSeq());
+      Block code =
+          (new Block.BlockHelper(sc)).code(JavaConversions.collectionAsScalaIterable(args).toSeq());
 
-      return ev.copy(input.code() + "\n" + code, input.isNull(), ev.value());
+      return ev.copy(input.code().$plus(code), input.isNull(), ev.value());
     }
 
     @Override
@@ -206,7 +206,7 @@ public class EncoderHelpers {
     public ExprCode doGenCode(CodegenContext ctx, ExprCode ev) {
       String accessCode = ctx.addReferenceObj("coder", coder, coder.getClass().getName());
       ExprCode input = child.genCode(ctx);
-      String javaType = ctx.javaType(dataType());
+      String javaType = CodeGenerator.javaType(dataType());
 
       List<String> parts = new ArrayList<>();
       List<Object> args = new ArrayList<>();
@@ -231,11 +231,9 @@ public class EncoderHelpers {
 
       StringContext sc =
           new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
-      // Block code =
-      //    (new
-      // Block.BlockHelper(sc)).code(JavaConversions.collectionAsScalaIterable(args).toSeq());
-      String code = sc.s(JavaConversions.collectionAsScalaIterable(args).toSeq());
-      return ev.copy(input.code() + "\n" + code, input.isNull(), ev.value());
+      Block code =
+          (new Block.BlockHelper(sc)).code(JavaConversions.collectionAsScalaIterable(args).toSeq());
+      return ev.copy(input.code().$plus(code), input.isNull(), ev.value());
     }
 
     @Override

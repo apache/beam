@@ -27,30 +27,6 @@ apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
 
-repositories {
-  maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
-    metadataSources {
-      mavenPom()
-      artifact()
-    }
-  }
-  maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/mintdev-publish-repo/"
-    metadataSources {
-      mavenPom()
-      artifact()
-    }
-  }
-  maven {
-    url "file://" + System.getProperty("user.home") + "/local-repo"
-    metadataSources {
-      mavenPom()
-      artifact()
-    }
-  }
-}
-
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.spark.jobserver',
   validateShadowJar: false,

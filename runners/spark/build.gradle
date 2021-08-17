@@ -36,30 +36,6 @@ evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":sdks:java:io:hadoop-format")
 evaluationDependsOn(":runners:core-java")
 
-repositories {
-  maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
-    metadataSources {
-      mavenPom()
-      artifact()
-    }
-  }
-  maven {
-    url "https://artifactory.corp.linkedin.com:8083/artifactory/mintdev-publish-repo/"
-    metadataSources {
-      mavenPom()
-      artifact()
-    }
-  }
-  maven {
-    url "file://" + System.getProperty("user.home") + "/local-repo"
-    metadataSources {
-      mavenPom()
-      artifact()
-    }
-  }
-}
-
 configurations {
   validatesRunner
 }
@@ -92,9 +68,6 @@ test {
   }
 }
 
-// Use LinkedIn spark
-def spark_version = "2.3.0.263"
-
 dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
@@ -106,12 +79,10 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.args4j
-
-  compile "com.linkedin.spark:spark-core_2.11:$spark_version"
-  compile "com.linkedin.spark:spark-sql_2.11:$spark_version"
-  compile "com.linkedin.spark:spark-streaming_2.11:$spark_version"
-  compile "com.linkedin.spark:spark-network-common_2.11:$spark_version"
-
+  provided library.java.spark_core
+  provided library.java.spark_sql
+  provided library.java.spark_streaming
+  provided library.java.spark_network_common
   provided library.java.hadoop_common
   provided library.java.commons_io
   provided library.java.hamcrest_core
