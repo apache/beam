@@ -59,6 +59,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
 
   private final Windmill.WorkItem workItem;
   private final K key;
+  private final boolean keepGoingOnDecodeExceptionDroppingData;
 
   private final transient Coder<? extends BoundedWindow> windowCoder;
   private final transient Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -70,11 +71,22 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
       Coder<? extends BoundedWindow> windowCoder,
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Coder<ElemT> valueCoder) {
+    this(key, workItem, windowCoder, windowsCoder, valueCoder, false);
+  }
+
+  public WindmillKeyedWorkItem(
+      K key,
+      Windmill.WorkItem workItem,
+      Coder<? extends BoundedWindow> windowCoder,
+      Coder<Collection<? extends BoundedWindow>> windowsCoder,
+      Coder<ElemT> valueCoder,
+      boolean keepGoingOnDecodeExceptionDroppingData) {
     this.key = key;
     this.workItem = workItem;
     this.windowCoder = windowCoder;
     this.windowsCoder = windowsCoder;
     this.valueCoder = valueCoder;
+    this.keepGoingOnDecodeExceptionDroppingData = keepGoingOnDecodeExceptionDroppingData;
   }
 
   @Override
@@ -97,24 +109,34 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
 
   @Override
   public Iterable<WindowedValue<ElemT>> elementsIterable() {
-    return FluentIterable.from(workItem.getMessageBundlesList())
-        .transformAndConcat(Windmill.InputMessageBundle::getMessagesList)
-        .transform(
-            message -> {
-              try {
-                Instant timestamp =
-                    WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
-                Collection<? extends BoundedWindow> windows =
-                    WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
-                PaneInfo pane = WindmillSink.decodeMetadataPane(message.getMetadata());
+    Iterable<WindowedValue<ElemT>> elements =
+        FluentIterable.from(workItem.getMessageBundlesList())
+            .transformAndConcat(Windmill.InputMessageBundle::getMessagesList)
+            .transform(
+                message -> {
+                  try {
+                    Instant timestamp =
+                        WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
+                    Collection<? extends BoundedWindow> windows =
+                        WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
+                    PaneInfo pane = WindmillSink.decodeMetadataPane(message.getMetadata());
 
-                InputStream inputStream = message.getData().newInput();
-                ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
-                return WindowedValue.of(value, timestamp, windows, pane);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            });
+                    InputStream inputStream = message.getData().newInput();
+                    ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
+                    return WindowedValue.of(value, timestamp, windows, pane);
+                  } catch (IOException e) {
+                    if (keepGoingOnDecodeExceptionDroppingData) {
+                      return null;  // filtered below
+                    } else {
+                      throw new RuntimeException(e);
+                    }
+                  }
+                });
+    if (keepGoingOnDecodeExceptionDroppingData) {
+      return FluentIterable.from(elements).filter(elemTWindowedValue -> elemTWindowedValue != null);
+    } else {
+      return elements;
+    }
   }
 
   @Override

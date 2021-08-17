@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.ValueInEmptyWindows;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -52,10 +53,13 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
   private final Coder<T> valueCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
+  private final PipelineOptions options;
   private StreamingModeExecutionContext context;
 
   WindowingWindmillReader(
-      Coder<WindowedValue<KeyedWorkItem<K, T>>> coder, StreamingModeExecutionContext context) {
+      Coder<WindowedValue<KeyedWorkItem<K, T>>> coder,
+      @Nullable PipelineOptions options,
+      StreamingModeExecutionContext context) {
     FullWindowedValueCoder<KeyedWorkItem<K, T>> inputCoder =
         (FullWindowedValueCoder<KeyedWorkItem<K, T>>) coder;
     this.windowsCoder = inputCoder.getWindowsCoder();
@@ -65,6 +69,7 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
         (WindmillKeyedWorkItem.FakeKeyedWorkItemCoder<K, T>) inputCoder.getValueCoder();
     this.keyCoder = keyedWorkItemCoder.getKeyCoder();
     this.valueCoder = keyedWorkItemCoder.getElementCoder();
+    this.options = options;
     this.context = context;
   }
 
@@ -101,7 +106,8 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
       })
       Coder<WindowedValue<KeyedWorkItem<Object, Object>>> typedCoder =
           (Coder<WindowedValue<KeyedWorkItem<Object, Object>>>) coder;
-      return WindowingWindmillReader.create(typedCoder, (StreamingModeExecutionContext) context);
+      return WindowingWindmillReader.create(
+          typedCoder, options, (StreamingModeExecutionContext) context);
     }
   }
 
@@ -110,16 +116,31 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
    * StreamingModeExecutionContext}.
    */
   public static <K, T> WindowingWindmillReader<K, T> create(
-      Coder<WindowedValue<KeyedWorkItem<K, T>>> coder, StreamingModeExecutionContext context) {
-    return new WindowingWindmillReader<K, T>(coder, context);
+      Coder<WindowedValue<KeyedWorkItem<K, T>>> coder,
+      @Nullable PipelineOptions options,
+      StreamingModeExecutionContext context) {
+    return new WindowingWindmillReader<K, T>(coder, options, context);
   }
 
   @Override
   public NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>> iterator() throws IOException {
     final K key = keyCoder.decode(context.getSerializedKey().newInput(), Coder.Context.OUTER);
     final WorkItem workItem = context.getWork();
+    boolean keepGoingOnDecodeExceptionDroppingData =
+        options != null
+            && options.as(DataflowPipelineDebugOptions.class).getExperiments() != null
+            && options
+                .as(DataflowPipelineDebugOptions.class)
+                .getExperiments()
+                .contains("keep_going_on_decode_exception_dropping_data");
     KeyedWorkItem<K, T> keyedWorkItem =
-        new WindmillKeyedWorkItem<>(key, workItem, windowCoder, windowsCoder, valueCoder);
+        new WindmillKeyedWorkItem<>(
+            key,
+            workItem,
+            windowCoder,
+            windowsCoder,
+            valueCoder,
+            keepGoingOnDecodeExceptionDroppingData);
     final boolean isEmptyWorkItem =
         (Iterables.isEmpty(keyedWorkItem.timersIterable())
             && Iterables.isEmpty(keyedWorkItem.elementsIterable()));
