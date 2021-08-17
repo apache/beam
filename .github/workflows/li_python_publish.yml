@@ -1,6 +1,6 @@
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Build python source distribution and wheels
+name: Li Build Python Source Distribution
 
 on:
   push:
@@ -29,8 +29,6 @@ jobs:
       - name: Install wheels
         run: python -m pip install wheel
       - name: Build source
-        with:
-          python-version: 2.7
         working-directory: ./sdks/python
         run: python setup.py sdist --formats=zip upload -r lijfrog
       - name: Add checksums
