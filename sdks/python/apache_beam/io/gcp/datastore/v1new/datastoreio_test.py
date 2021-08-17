@@ -322,18 +322,19 @@ class DatastoreioTest(unittest.TestCase):
     with patch.object(helper, 'get_client', return_value=self._mock_client):
       self._mock_query.project = self._PROJECT
       self._mock_query.namespace = self._NAMESPACE
-      client_query = self._mock_query
       _query_fn = ReadFromDatastore._QueryFn()
-      with patch.object(self._mock_query,
-                        '_to_client_query',
-                        return_value=client_query):
-        client_query.fetch.side_effect = [
-            exceptions.DeadlineExceeded("Deadline Exceeded"), []
-        ]
-        _query_fn.process(self._mock_query)
-        self.verify_read_call_metric(
-            self._PROJECT, self._NAMESPACE, "deadline_exceeded", 1)
-        self.verify_read_call_metric(self._PROJECT, self._NAMESPACE, "ok", 1)
+      client_query = self._mock_query._to_client_query()
+      # Test with exception
+      client_query.fetch.side_effect = [
+          exceptions.DeadlineExceeded("Deadline exceed")
+      ]
+      list(_query_fn.process(self._mock_query))
+      self.verify_read_call_metric(
+          self._PROJECT, self._NAMESPACE, "deadline_exceeded", 1)
+      # Test success
+      client_query.fetch.side_effect = [[]]
+      list(_query_fn.process(self._mock_query))
+      self.verify_read_call_metric(self._PROJECT, self._NAMESPACE, "ok", 1)
 
   def verify_read_call_metric(self, project_id, namespace, status, count):
     """Check if a metric was recorded for the Datastore IO read API call."""
