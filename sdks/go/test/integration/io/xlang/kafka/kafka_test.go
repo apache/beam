@@ -20,12 +20,12 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/samza"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 // bootstrapAddr should be set by TestMain once a Kafka cluster has been

@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
@@ -169,7 +169,7 @@ type PlanSnapshot struct {
 	PCols  []PCollectionSnapshot
 }
 
-// Progress returns a snapshot of progress of the plan, and associated metrics. 
+// Progress returns a snapshot of progress of the plan, and associated metrics.
 // The retuend boolean indicates whether the plan includes a DataSource, which is
 // important for handling legacy metrics. This boolean will be removed once
 // we no longer return legacy metrics.
