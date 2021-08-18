@@ -78,6 +78,8 @@ var flinkFilters = []string{
 	"TestXLang_Combine.*",
 	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
 	"TestTestStream.*Sequence.*",
+	// Triggers are not yet supported
+	"TestTrigger.*",
 }
 
 var samzaFilters = []string{
