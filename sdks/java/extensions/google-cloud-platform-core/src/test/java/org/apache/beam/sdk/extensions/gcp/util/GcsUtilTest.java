@@ -26,13 +26,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpStatusCodes;
@@ -51,6 +56,7 @@ import com.google.api.client.util.BackOff;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
+import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import java.io.ByteArrayInputStream;
@@ -71,11 +77,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.BatchInterface;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.RewriteOp;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -826,9 +835,9 @@ public class GcsUtilTest {
     return ret.build();
   }
 
-  private static int sumBatchSizes(List<BatchRequest> batches) {
+  private static int sumBatchSizes(List<BatchInterface> batches) {
     int ret = 0;
-    for (BatchRequest b : batches) {
+    for (BatchInterface b : batches) {
       ret += b.size();
       assertThat(b.size(), greaterThan(0));
     }
@@ -841,7 +850,7 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
     LinkedList<RewriteOp> rewrites =
-        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1));
+        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1), false, false);
     assertEquals(1, rewrites.size());
 
     RewriteOp rewrite = rewrites.pop();
@@ -861,7 +870,7 @@ public class GcsUtilTest {
     gcsUtil.maxBytesRewrittenPerCall = 1337L;
 
     LinkedList<RewriteOp> rewrites =
-        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1));
+        gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1), false, false);
     assertEquals(1, rewrites.size());
 
     RewriteOp rewrite = rewrites.pop();
@@ -871,26 +880,27 @@ public class GcsUtilTest {
   }
 
   @Test
-  public void testMakeCopyBatches() throws IOException {
+  public void testMakeRewriteBatches() throws IOException {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
     // Small number of files fits in 1 batch
-    List<BatchRequest> batches =
-        gcsUtil.makeCopyBatches(gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 3)));
+    List<BatchInterface> batches =
+        gcsUtil.makeRewriteBatches(
+            gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 3), false, false));
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(3));
 
     // 1 batch of files fits in 1 batch
     batches =
-        gcsUtil.makeCopyBatches(
-            gcsUtil.makeRewriteOps(makeStrings("s", 100), makeStrings("d", 100)));
+        gcsUtil.makeRewriteBatches(
+            gcsUtil.makeRewriteOps(makeStrings("s", 100), makeStrings("d", 100), false, false));
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(100));
 
     // A little more than 5 batches of files fits in 6 batches
     batches =
-        gcsUtil.makeCopyBatches(
-            gcsUtil.makeRewriteOps(makeStrings("s", 501), makeStrings("d", 501)));
+        gcsUtil.makeRewriteBatches(
+            gcsUtil.makeRewriteOps(makeStrings("s", 501), makeStrings("d", 501), false, false));
     assertThat(batches.size(), equalTo(6));
     assertThat(sumBatchSizes(batches), equalTo(501));
   }
@@ -901,7 +911,142 @@ public class GcsUtilTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Number of source files 3");
 
-    gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 1));
+    gcsUtil.makeRewriteOps(makeStrings("s", 3), makeStrings("d", 1), false, false);
+  }
+
+  private class FakeBatcher implements BatchInterface {
+    ArrayList<Supplier<Void>> requests = new ArrayList<>();
+
+    @Override
+    public <T> void queue(AbstractGoogleJsonClientRequest<T> request, JsonBatchCallback<T> cb) {
+      assertNotNull(request);
+      assertNotNull(cb);
+      requests.add(
+          () -> {
+            try {
+              try {
+                T result = request.execute();
+                cb.onSuccess(result, null);
+              } catch (FileNotFoundException e) {
+                GoogleJsonError error = new GoogleJsonError();
+                error.setCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
+                cb.onFailure(error, null);
+              } catch (Exception e) {
+                System.out.println("Propagating exception as server error " + e);
+                e.printStackTrace();
+                GoogleJsonError error = new GoogleJsonError();
+                error.setCode(HttpStatusCodes.STATUS_CODE_SERVER_ERROR);
+                cb.onFailure(error, null);
+              }
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+            return null;
+          });
+    }
+
+    @Override
+    public void execute() throws IOException {
+      RuntimeException lastException = null;
+      for (Supplier<Void> request : requests) {
+        try {
+          request.get();
+        } catch (RuntimeException e) {
+          lastException = e;
+        }
+      }
+      if (lastException != null) {
+        throw lastException;
+      }
+    }
+
+    @Override
+    public int size() {
+      return requests.size();
+    }
+  }
+
+  @Test
+  public void testRename() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Delete mockStorageDelete1 = Mockito.mock(Storage.Objects.Delete.class);
+    Storage.Objects.Delete mockStorageDelete2 = Mockito.mock(Storage.Objects.Delete.class);
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite);
+    when(mockStorageRewrite.execute())
+        .thenThrow(new SocketTimeoutException("SocketException"))
+        .thenReturn(new RewriteResponse().setDone(true));
+    when(mockStorageObjects.delete("bucket", "s0"))
+        .thenReturn(mockStorageDelete1)
+        .thenReturn(mockStorageDelete2);
+
+    when(mockStorageDelete1.execute()).thenThrow(new SocketTimeoutException("SocketException"));
+
+    gcsUtil.rename(makeStrings("s", 1), makeStrings("d", 1));
+    verify(mockStorageRewrite, times(2)).execute();
+    verify(mockStorageDelete1, times(1)).execute();
+    verify(mockStorageDelete2, times(1)).execute();
+  }
+
+  @Test
+  public void testRenameIgnoringMissing() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Rewrite mockStorageRewrite1 = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Rewrite mockStorageRewrite2 = Mockito.mock(Storage.Objects.Rewrite.class);
+    Storage.Objects.Delete mockStorageDelete = Mockito.mock(Storage.Objects.Delete.class);
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite1);
+    when(mockStorageRewrite1.execute()).thenThrow(new FileNotFoundException());
+    when(mockStorageObjects.rewrite("bucket", "s1", "bucket", "d1", null))
+        .thenReturn(mockStorageRewrite2);
+    when(mockStorageRewrite2.execute()).thenReturn(new RewriteResponse().setDone(true));
+    when(mockStorageObjects.delete("bucket", "s1")).thenReturn(mockStorageDelete);
+
+    gcsUtil.rename(
+        makeStrings("s", 2), makeStrings("d", 2), StandardMoveOptions.IGNORE_MISSING_FILES);
+    verify(mockStorageRewrite1, times(1)).execute();
+    verify(mockStorageRewrite2, times(1)).execute();
+    verify(mockStorageDelete, times(1)).execute();
+  }
+
+  @Test
+  public void testRenamePropagateMissingException() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
+        .thenReturn(mockStorageRewrite);
+    when(mockStorageRewrite.execute()).thenThrow(new FileNotFoundException());
+
+    assertThrows(IOException.class, () -> gcsUtil.rename(makeStrings("s", 1), makeStrings("d", 1)));
+    verify(mockStorageRewrite, times(1)).execute();
   }
 
   @Test
@@ -909,7 +1054,7 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
     // Small number of files fits in 1 batch
-    List<BatchRequest> batches = gcsUtil.makeRemoveBatches(makeStrings("s", 3));
+    List<BatchInterface> batches = gcsUtil.makeRemoveBatches(makeStrings("s", 3));
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(3));
 
@@ -930,7 +1075,7 @@ public class GcsUtilTest {
 
     // Small number of files fits in 1 batch
     List<StorageObjectOrIOException[]> results = Lists.newArrayList();
-    List<BatchRequest> batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 3), results);
+    List<BatchInterface> batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 3), results);
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(3));
     assertEquals(3, results.size());
