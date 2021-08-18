@@ -6,9 +6,6 @@ on:
   push:
     branches: ['li_trunk']
     tags: 'v*'
-  pull_request:
-    branches: ['li_trunk']
-    tags: 'v*'
     paths: ['sdks/python/**', 'model/**', 'release/**']
 
 jobs:
