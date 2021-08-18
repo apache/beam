@@ -1060,7 +1060,8 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
     # for now.
     return SourceBundle(
         weight=1.0,
-        source=_CustomBigQueryStorageStreamSource(self.read_stream_name),
+        source=_CustomBigQueryStorageStreamSource(
+            self.read_stream_name, self.use_fastavro),
         start_position=None,
         stop_position=None)
 
@@ -1477,7 +1478,7 @@ class BigQueryWriteFn(DoFn):
     (
         bigquery_tools.BigQueryWrapper.HISTOGRAM_METRIC_LOGGER.
         minimum_logging_frequency_msec
-    ) = self.streaming_api_frequency_sec * 1000
+    ) = self.streaming_api_logging_frequency_sec * 1000
 
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
