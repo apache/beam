@@ -47,6 +47,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.RepeatPrimitive;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.ReversedOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.WktMessage;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed64;
@@ -433,6 +434,16 @@ class TestProtoSchemas {
           .setOptions(withTypeName("proto3_schema_messages.OuterOneOf"))
           .build();
 
+  // A sample instance of the Row.
+  static final Row OUTER_ONEOF_ROW =
+      Row.withSchema(OUTER_ONEOF_SCHEMA)
+          .addValues(OUTER_ONEOF_TYPE.createValue("oneof_oneof", ONEOF_ROW_PRIMITIVE))
+          .build();
+
+  // A sample instance of the proto.
+  static final OuterOneOf OUTER_ONEOF_PROTO =
+      OuterOneOf.newBuilder().setOneofOneof(ONEOF_PROTO_PRIMITIVE).build();
+
   // The schema for the ReversedOneOf proto.
   private static final List<Field> REVERSED_ONEOF_FIELDS =
       ImmutableList.of(
@@ -453,6 +464,38 @@ class TestProtoSchemas {
           .addField("oneof_reversed", FieldType.logicalType(REVERSED_ONE_OF_TYPE))
           .addField(withFieldNumber("place2", FieldType.INT32, 1))
           .setOptions(withTypeName("proto3_schema_messages.ReversedOneOf"))
+          .build();
+
+  // Sample row instances for each OneOf case.
+  static final Row REVERSED_ONEOF_ROW_INT32 =
+      Row.withSchema(REVERSED_ONEOF_SCHEMA)
+          .addValues("foo", REVERSED_ONE_OF_TYPE.createValue("oneof_int32", 1), 0)
+          .build();
+  static final Row REVERSED_ONEOF_ROW_BOOL =
+      Row.withSchema(REVERSED_ONEOF_SCHEMA)
+          .addValues("foo", REVERSED_ONE_OF_TYPE.createValue("oneof_bool", true), 0)
+          .build();
+  static final Row REVERSED_ONEOF_ROW_STRING =
+      Row.withSchema(REVERSED_ONEOF_SCHEMA)
+          .addValues("foo", REVERSED_ONE_OF_TYPE.createValue("oneof_string", "foo"), 0)
+          .build();
+  static final Row REVERSED_ONEOF_ROW_PRIMITIVE =
+      Row.withSchema(REVERSED_ONEOF_SCHEMA)
+          .addValues("foo", REVERSED_ONE_OF_TYPE.createValue("oneof_primitive", PRIMITIVE_ROW), 0)
+          .build();
+
+  // Sample proto instances for each reversedOneOf case.
+  static final ReversedOneOf REVERSED_ONEOF_PROTO_INT32 =
+      ReversedOneOf.newBuilder().setOneofInt32(1).setPlace1("foo").setPlace2(0).build();
+  static final ReversedOneOf REVERSED_ONEOF_PROTO_BOOL =
+      ReversedOneOf.newBuilder().setOneofBool(true).setPlace1("foo").setPlace2(0).build();
+  static final ReversedOneOf REVERSED_ONEOF_PROTO_STRING =
+      ReversedOneOf.newBuilder().setOneofString("foo").setPlace1("foo").setPlace2(0).build();
+  static final ReversedOneOf REVERSED_ONEOF_PROTO_PRIMITIVE =
+      ReversedOneOf.newBuilder()
+          .setOneofPrimitive(PRIMITIVE_PROTO)
+          .setPlace1("foo")
+          .setPlace2(0)
           .build();
 
   // The schema for the NonContiguousOneOf proto.
@@ -494,16 +537,6 @@ class TestProtoSchemas {
           .addField(withFieldNumber("place3", FieldType.INT32, 63))
           .setOptions(withTypeName("proto3_schema_messages.NonContiguousOneOf"))
           .build();
-
-  // A sample instance of the Row.
-  static final Row OUTER_ONEOF_ROW =
-      Row.withSchema(OUTER_ONEOF_SCHEMA)
-          .addValues(OUTER_ONEOF_TYPE.createValue("oneof_oneof", ONEOF_ROW_PRIMITIVE))
-          .build();
-
-  // A sample instance of the proto.
-  static final OuterOneOf OUTER_ONEOF_PROTO =
-      OuterOneOf.newBuilder().setOneofOneof(ONEOF_PROTO_PRIMITIVE).build();
 
   static final Schema WKT_MESSAGE_SCHEMA =
       Schema.builder()

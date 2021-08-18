@@ -51,6 +51,14 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REPEATED_
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_PRIMITIVE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_PRIMITIVE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_PRIMITIVE_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_PROTO_BOOL;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_PROTO_INT32;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_PROTO_PRIMITIVE;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_PROTO_STRING;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_ROW_BOOL;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_ROW_INT32;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_ROW_PRIMITIVE;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_ROW_STRING;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_SCHEMA;
@@ -68,6 +76,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.RepeatPrimitive;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.ReversedOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.WktMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -277,6 +286,26 @@ public class ProtoMessageSchemaTest {
     SerializableFunction<Row, OuterOneOf> fromRow =
         new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(OuterOneOf.class));
     assertEquals(OUTER_ONEOF_PROTO, fromRow.apply(OUTER_ONEOF_ROW));
+  }
+
+  @Test
+  public void testReversedOneOfProtoToRow() {
+    SerializableFunction<ReversedOneOf, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(ReversedOneOf.class));
+    assertEquals(REVERSED_ONEOF_ROW_INT32, toRow.apply(REVERSED_ONEOF_PROTO_INT32));
+    assertEquals(REVERSED_ONEOF_ROW_BOOL, toRow.apply(REVERSED_ONEOF_PROTO_BOOL));
+    assertEquals(REVERSED_ONEOF_ROW_STRING, toRow.apply(REVERSED_ONEOF_PROTO_STRING));
+    assertEquals(REVERSED_ONEOF_ROW_PRIMITIVE, toRow.apply(REVERSED_ONEOF_PROTO_PRIMITIVE));
+  }
+
+  @Test
+  public void testReversedOneOfRowToProto() {
+    SerializableFunction<Row, ReversedOneOf> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(ReversedOneOf.class));
+    assertEquals(REVERSED_ONEOF_PROTO_INT32, fromRow.apply(REVERSED_ONEOF_ROW_INT32));
+    assertEquals(REVERSED_ONEOF_PROTO_BOOL, fromRow.apply(REVERSED_ONEOF_ROW_BOOL));
+    assertEquals(REVERSED_ONEOF_PROTO_STRING, fromRow.apply(REVERSED_ONEOF_ROW_STRING));
+    assertEquals(REVERSED_ONEOF_PROTO_PRIMITIVE, fromRow.apply(REVERSED_ONEOF_ROW_PRIMITIVE));
   }
 
   private static final EnumerationType ENUM_TYPE =
