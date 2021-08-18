@@ -112,7 +112,7 @@ class MutateTest(unittest.TestCase):
     mock_throttler = MagicMock()
     rpc_stats_callback = MagicMock()
     mock_throttler.throttle_request.return_value = []
-    mutate = datastoreio._Mutate.DatastoreMutateFn(lambda: None)
+    mutate = datastoreio._Mutate.DatastoreMutateFn("")
     mutate._batch = mock_batch
     mutate.write_mutations(mock_throttler, rpc_stats_callback)
     rpc_stats_callback.assert_has_calls([
@@ -129,7 +129,7 @@ class MutateTest(unittest.TestCase):
     mock_throttler = MagicMock()
     rpc_stats_callback = MagicMock()
     mock_throttler.throttle_request.return_value = []
-    mutate = datastoreio._Mutate.DatastoreMutateFn(lambda: None)
+    mutate = datastoreio._Mutate.DatastoreMutateFn("")
     mutate._batch = mock_batch
     mutate._client = MagicMock()
     mutate._batch_elements = [None]
@@ -152,7 +152,7 @@ class MutateTest(unittest.TestCase):
     # First try: throttle once [True, False]
     # Second try: no throttle [False]
     mock_throttler.throttle_request.side_effect = [True, False, False]
-    mutate = datastoreio._Mutate.DatastoreMutateFn(lambda: None)
+    mutate = datastoreio._Mutate.DatastoreMutateFn("")
     mutate._batch = mock_batch
     mutate._batch_elements = []
     mutate._client = MagicMock()
@@ -173,7 +173,7 @@ class MutateTest(unittest.TestCase):
     mock_throttler = MagicMock()
     rpc_stats_callback = MagicMock()
     mock_throttler.throttle_request.return_value = False
-    mutate = datastoreio._Mutate.DatastoreMutateFn(lambda: None)
+    mutate = datastoreio._Mutate.DatastoreMutateFn("")
     mutate._batch = mock_batch
     with self.assertRaises(exceptions.InvalidArgument):
       mutate.write_mutations(
