@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 public class WindowUtils {
 
-  /** Get {@link WindowingStrategy} of given collection id from {@link RunnerApi.Components} */
+  /** Get {@link WindowingStrategy} of given collection id from {@link RunnerApi.Components}. */
   public static WindowingStrategy<?, BoundedWindow> getWindowStrategy(
       String collectionId, RunnerApi.Components components) {
     RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
@@ -57,7 +57,7 @@ public class WindowUtils {
 
   /**
    * Instantiate {@link WindowedValue.WindowedValueCoder} for given collection id from {@link
-   * RunnerApi.Components}
+   * RunnerApi.Components}.
    */
   public static <T> WindowedValue.WindowedValueCoder<T> instantiateWindowedCoder(
       String collectionId, RunnerApi.Components components) {
