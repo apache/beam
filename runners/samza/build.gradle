@@ -73,7 +73,9 @@ dependencies {
   compile "org.apache.samza:samza-kv_2.11:$samza_version"
   compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
   compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
+  // Pin scalatra version to avoid samza-yarn transitively pulling in an unsafe version
   compile "org.scalatra:scalatra_2.11:2.7.1"
+  compile "org.scalatra:scalatra-scalate_2.11:2.7.1"
   compile "org.apache.samza:samza-yarn_2.11:$samza_version"
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
   compile library.java.vendored_grpc_1_26_0
