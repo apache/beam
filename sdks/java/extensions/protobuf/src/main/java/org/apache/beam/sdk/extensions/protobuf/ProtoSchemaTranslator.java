@@ -156,14 +156,18 @@ class ProtoSchemaTranslator {
   }
 
   static Schema getSchema(Descriptors.Descriptor descriptor) {
-    Set<Integer> oneOfFields = Sets.newHashSet();
-    Map<Integer, Field> oneOfFieldLocationMap = Maps.newHashMap();
+    /* OneOfComponentFields refers to the field number of the protobuf in the protobuf where the component subfields
+     * are. This is needed to prevent double inclusion of the component fields.*/
+    Set<Integer> oneOfComponentFields = Sets.newHashSet();
+    /* OneOfFieldLocation stores the field number of the first field in the OneOf. Using this, we can use the location
+    of the first field in the OneOf as the location of the entire OneOf.*/
+    Map<Integer, Field> oneOfFieldLocation = Maps.newHashMap();
     List<Field> fields = Lists.newArrayListWithCapacity(descriptor.getFields().size());
     for (OneofDescriptor oneofDescriptor : descriptor.getOneofs()) {
       List<Field> subFields = Lists.newArrayListWithCapacity(oneofDescriptor.getFieldCount());
       Map<String, Integer> enumIds = Maps.newHashMap();
       for (FieldDescriptor fieldDescriptor : oneofDescriptor.getFields()) {
-        oneOfFields.add(fieldDescriptor.getNumber());
+        oneOfComponentFields.add(fieldDescriptor.getNumber());
         // Store proto field number in a field option.
         FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
         subFields.add(
@@ -173,21 +177,23 @@ class ProtoSchemaTranslator {
             enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
       }
       FieldType oneOfType = FieldType.logicalType(OneOfType.create(subFields, enumIds));
-      oneOfFieldLocationMap.put(
+      oneOfFieldLocation.put(
           oneofDescriptor.getFields().get(0).getNumber(),
           Field.of(oneofDescriptor.getName(), oneOfType));
     }
 
     for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
       int fieldDescriptorNumber = fieldDescriptor.getNumber();
-      if (!oneOfFields.contains(fieldDescriptorNumber)) {
+      if (!oneOfComponentFields.contains(fieldDescriptorNumber)) {
         // Store proto field number in metadata.
         FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
         fields.add(
             withFieldNumber(Field.of(fieldDescriptor.getName(), fieldType), fieldDescriptorNumber)
                 .withOptions(getFieldOptions(fieldDescriptor)));
-      } else if (oneOfFieldLocationMap.containsKey(fieldDescriptorNumber)) {
-        Field oneOfField = oneOfFieldLocationMap.get(fieldDescriptorNumber);
+        /* Note that descriptor.getFields() returns an iterator in the order of the fields in the .proto file, not
+         * in field number order. Therefore we can safely insert the OneOfField at the field of its first component.*/
+      } else if (oneOfFieldLocation.containsKey(fieldDescriptorNumber)) {
+        Field oneOfField = oneOfFieldLocation.get(fieldDescriptorNumber);
         if (oneOfField != null) {
           fields.add(oneOfField);
         }
