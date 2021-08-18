@@ -10027,7 +10027,8 @@ to annotate the &lt;code>DoFn&lt;/code>.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionProvider&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transforms&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionProvider&lt;/span>
+&lt;span class="p">):&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">initial_restriction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">file_name&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="n">OffsetRange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">stat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_name&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">st_size&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">create_tracker&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">):&lt;/span>
@@ -10112,7 +10113,8 @@ a set of initial splits:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionProvider&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transforms&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionProvider&lt;/span>
+&lt;span class="p">):&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">split&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">file_name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="c1"># Compute and output 64 MiB size ranges to process in parallel&lt;/span>
 &lt;span class="n">split_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">64&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">&amp;lt;&amp;lt;&lt;/span> &lt;span class="mi">20&lt;/span>&lt;span class="p">)&lt;/span>
