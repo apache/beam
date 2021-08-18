@@ -2174,7 +2174,6 @@ class BeamModulePlugin implements Plugin<Project> {
           "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
           "test_opts": config.pytestOptions,
           "suite": "xlangValidateRunner",
-          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
           "collect": config.pythonTestAttr
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
@@ -2221,7 +2220,6 @@ class BeamModulePlugin implements Plugin<Project> {
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
         "test_opts":  config.pytestOptions,
         "suite": "xlangSqlValidateRunner",
-        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
         "collect": "xlang_sql_expansion_service"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)

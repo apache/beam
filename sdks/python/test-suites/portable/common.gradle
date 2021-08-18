@@ -66,8 +66,8 @@ task flinkTriggerTranscript() {
           . ${envdir}/bin/activate \\
           && cd ${pythonRootDir} \\
           && pip install -e .[test] \\
-          && python setup.py nosetests \\
-              --tests apache_beam.transforms.trigger_test:WeakTestStreamTranscriptTest \\
+          && pytest \\
+              apache_beam/transforms/trigger_test.py::WeakTestStreamTranscriptTest \\
               --test-pipeline-options='--runner=FlinkRunner --environment_type=LOOPBACK --flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server:").shadowJar.archivePath}'
           """
     }
@@ -220,7 +220,6 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
             "test_opts": testOpts,
             "suite": "postCommitIT-flink-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
-            "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
     ])
     def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
     exec {
