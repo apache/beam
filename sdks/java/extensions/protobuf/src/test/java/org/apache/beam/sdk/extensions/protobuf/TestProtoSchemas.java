@@ -43,6 +43,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredNest
 import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.NonContiguousOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
@@ -536,6 +537,25 @@ class TestProtoSchemas {
               "oneof_non_contiguous_two", FieldType.logicalType(NONCONTIGUOUS_TWO_ONE_OF_TYPE))
           .addField(withFieldNumber("place3", FieldType.INT32, 63))
           .setOptions(withTypeName("proto3_schema_messages.NonContiguousOneOf"))
+          .build();
+
+  static final Row NONCONTIGUOUS_ONEOF_ROW =
+      Row.withSchema(NONCONTIGUOUS_ONEOF_SCHEMA)
+          .addValues(
+              "foo",
+              NONCONTIGUOUS_ONE_ONE_OF_TYPE.createValue("oneof_one_int32", 1),
+              0,
+              NONCONTIGUOUS_TWO_ONE_OF_TYPE.createValue("oneof_two_second_string", "bar"),
+              343)
+          .build();
+
+  static final NonContiguousOneOf NONCONTIGUOUS_ONEOF_PROTO =
+      NonContiguousOneOf.newBuilder()
+          .setOneofOneInt32(1)
+          .setPlace1("foo")
+          .setPlace2(0)
+          .setOneofTwoSecondString("bar")
+          .setPlace3(343)
           .build();
 
   static final Schema WKT_MESSAGE_SCHEMA =

@@ -23,6 +23,8 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMI
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_PROTO;
@@ -72,6 +74,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredPrim
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.NonContiguousOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
@@ -306,6 +309,20 @@ public class ProtoMessageSchemaTest {
     assertEquals(REVERSED_ONEOF_PROTO_BOOL, fromRow.apply(REVERSED_ONEOF_ROW_BOOL));
     assertEquals(REVERSED_ONEOF_PROTO_STRING, fromRow.apply(REVERSED_ONEOF_ROW_STRING));
     assertEquals(REVERSED_ONEOF_PROTO_PRIMITIVE, fromRow.apply(REVERSED_ONEOF_ROW_PRIMITIVE));
+  }
+
+  @Test
+  public void testNonContiguousOneOfProtoToRow() {
+    SerializableFunction<NonContiguousOneOf, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(NonContiguousOneOf.class));
+    assertEquals(NONCONTIGUOUS_ONEOF_ROW, toRow.apply(NONCONTIGUOUS_ONEOF_PROTO));
+  }
+
+  @Test
+  public void testNonContiguousOneOfRowToProto() {
+    SerializableFunction<Row, NonContiguousOneOf> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(NonContiguousOneOf.class));
+    assertEquals(NONCONTIGUOUS_ONEOF_PROTO, fromRow.apply(NONCONTIGUOUS_ONEOF_ROW));
   }
 
   private static final EnumerationType ENUM_TYPE =
