@@ -100,6 +100,17 @@ message OuterOneOf {
   }
 }
 
+message ReversedOneOf {
+  string place1 = 6;
+    oneof oneof_reversed {
+        int32 oneof_int32 = 5;
+        bool oneof_bool = 4;
+        string oneof_string = 3;
+        Primitive oneof_primitive = 2;
+    }
+    int32 place2 = 1;
+}
+
 message EnumMessage {
   enum Enum {
     ZERO  = 0;

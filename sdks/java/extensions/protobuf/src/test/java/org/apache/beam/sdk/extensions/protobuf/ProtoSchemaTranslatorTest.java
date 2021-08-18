@@ -84,6 +84,13 @@ public class ProtoSchemaTranslatorTest {
   }
 
   @Test
+  public void testReversedOneOfSchema() {
+    assertEquals(
+        TestProtoSchemas.REVERSED_ONEOF_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.ReversedOneOf.class));
+  }
+
+  @Test
   public void testNestedOneOfSchema() {
     assertEquals(
         TestProtoSchemas.OUTER_ONEOF_SCHEMA,

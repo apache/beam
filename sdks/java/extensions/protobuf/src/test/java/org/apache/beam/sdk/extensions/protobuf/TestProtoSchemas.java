@@ -433,6 +433,30 @@ class TestProtoSchemas {
           .setOptions(withTypeName("proto3_schema_messages.OuterOneOf"))
           .build();
 
+  // The schema for the ReversedOneOf proto.
+  // The schema for the OneOf proto.
+  private static final List<Field> ONEOF_FIELDS_REVERSED =
+      ImmutableList.of(
+          withFieldNumber("oneof_int32", FieldType.INT32, 5),
+          withFieldNumber("oneof_bool", FieldType.BOOLEAN, 4),
+          withFieldNumber("oneof_string", FieldType.STRING, 3),
+          withFieldNumber("oneof_primitive", FieldType.row(PRIMITIVE_SCHEMA), 2));
+
+  private static final Map<String, Integer> ONE_OF_ENUM_MAP_REVERSED =
+      ONEOF_FIELDS_REVERSED.stream()
+          .collect(Collectors.toMap(Field::getName, f -> getFieldNumber(f)));
+  static final OneOfType ONE_OF_TYPE_REVERSED =
+      OneOfType.create(ONEOF_FIELDS_REVERSED, ONE_OF_ENUM_MAP_REVERSED);
+
+  //  static final OneOfType ONE_OF_TYPE = OneOfType.create(ONEOF_FIELDS, ONE_OF_ENUM_MAP);
+  static final Schema REVERSED_ONEOF_SCHEMA =
+      Schema.builder()
+          .addField(withFieldNumber("place1", FieldType.STRING, 6))
+          .addField("oneof_reversed", FieldType.logicalType(ONE_OF_TYPE_REVERSED))
+          .addField(withFieldNumber("place2", FieldType.INT32, 1))
+          .setOptions(withTypeName("proto3_schema_messages.ReversedOneOf"))
+          .build();
+
   // A sample instance of the Row.
   static final Row OUTER_ONEOF_ROW =
       Row.withSchema(OUTER_ONEOF_SCHEMA)
