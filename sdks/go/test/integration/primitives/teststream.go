@@ -16,9 +16,9 @@
 package primitives
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/teststream"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 )
 
 // TestStreamSequence tests the TestStream primitive by inserting string elements
@@ -36,7 +36,7 @@ func TestStreamStrings() *beam.Pipeline {
 	return p
 }
 
-// TestStreamByteSlice tests the TestStream primitive by inserting byte slice elements
+// TestStreamByteSliceSequence tests the TestStream primitive by inserting byte slice elements
 // then advancing the watermark to infinity and comparing the output..
 func TestStreamByteSliceSequence() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()

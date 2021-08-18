@@ -47,6 +47,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -162,8 +163,14 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   @Override
-  protected void rename(List<LocalResourceId> srcResourceIds, List<LocalResourceId> destResourceIds)
+  protected void rename(
+      List<LocalResourceId> srcResourceIds,
+      List<LocalResourceId> destResourceIds,
+      MoveOptions... moveOptions)
       throws IOException {
+    if (moveOptions.length > 0) {
+      throw new UnsupportedOperationException("Support for move options is not yet implemented.");
+    }
     checkArgument(
         srcResourceIds.size() == destResourceIds.size(),
         "Number of source files %s must equal number of destination files %s",

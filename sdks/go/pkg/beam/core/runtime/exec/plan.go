@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
