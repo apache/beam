@@ -363,7 +363,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.28.0.2'
+    project.version = '2.28.0.3'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
