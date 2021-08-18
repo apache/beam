@@ -17,6 +17,6 @@
 // in debugging pipeline issues.
 package debug
 
-//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
 //go:generate starcgen --package=debug --identifiers=headFn,headKVFn,discardFn,printFn,printKVFn,printGBKFn
 //go:generate go fmt
