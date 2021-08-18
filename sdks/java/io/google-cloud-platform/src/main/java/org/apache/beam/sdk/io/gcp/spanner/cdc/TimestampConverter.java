@@ -54,4 +54,8 @@ public class TimestampConverter {
   public static Timestamp timestampFromMicros(BigDecimal timestampAsMicros) {
     return Timestamp.ofTimeMicroseconds(timestampAsMicros.longValue());
   }
+
+  public static Timestamp timestampFromMillis(long millis) {
+    return Timestamp.ofTimeMicroseconds(millis * TEN_TO_THE_THIRD.longValue());
+  }
 }

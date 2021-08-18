@@ -19,14 +19,18 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
 
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.SpannerException;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamResultSet;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChangeStreamRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
@@ -35,10 +39,12 @@ import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionRestriction;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,8 +54,10 @@ public class QueryChangeStreamAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryChangeStreamAction.class);
   private static final Tracer TRACER = Tracing.getTracer();
+  public static final Duration BUNDLE_FINALIZER_TIMEOUT = Duration.standardSeconds(5);
 
   private final ChangeStreamDao changeStreamDao;
+  private final PartitionMetadataDao partitionMetadataDao;
   private final ChangeStreamRecordMapper changeStreamRecordMapper;
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
@@ -57,11 +65,13 @@ public class QueryChangeStreamAction {
 
   public QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
+      PartitionMetadataDao partitionMetadataDao,
       ChangeStreamRecordMapper changeStreamRecordMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction) {
     this.changeStreamDao = changeStreamDao;
+    this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
     this.dataChangeRecordAction = dataChangeRecordAction;
     this.heartbeatRecordAction = heartbeatRecordAction;
@@ -72,7 +82,8 @@ public class QueryChangeStreamAction {
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> receiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator,
+      BundleFinalizer bundleFinalizer) {
     try (Scope scope =
         TRACER.spanBuilder("QueryChangeStreamAction").setRecordEvents(true).startScopedSpan()) {
       TRACER
@@ -120,14 +131,38 @@ public class QueryChangeStreamAction {
               throw new IllegalArgumentException("Unknown record type " + record.getClass());
             }
             if (maybeContinuation.isPresent()) {
-              LOG.info("[" + token + "] Continuation present, returning " + maybeContinuation);
+              LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
+              bundleFinalizer.afterBundleCommit(
+                  Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+                  updateWatermarkCallback(
+                      partition.getPartitionToken(), watermarkEstimator.currentWatermark()));
               return maybeContinuation;
             }
           }
         }
-        LOG.debug("[" + token + "] = Query change stream action completed successfully");
+        LOG.debug("[" + token + "] Query change stream action completed successfully");
+        bundleFinalizer.afterBundleCommit(
+            Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+            updateWatermarkCallback(
+                partition.getPartitionToken(), watermarkEstimator.currentWatermark()));
         return Optional.empty();
       }
     }
+  }
+
+  private BundleFinalizer.Callback updateWatermarkCallback(String token, Instant watermark) {
+    return () -> {
+      LOG.info("[" + token + "] Updating current watermark to " + watermark);
+      try {
+        partitionMetadataDao.updateCurrentWatermark(
+            token, TimestampConverter.timestampFromMillis(watermark.getMillis()));
+      } catch (SpannerException e) {
+        if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
+          LOG.debug("[" + token + "] Unable to update the current watermark, partition NOT FOUND");
+        } else {
+          LOG.error("[" + token + "] Error updating the current watermark: " + e.getMessage(), e);
+        }
+      }
+    };
   }
 }

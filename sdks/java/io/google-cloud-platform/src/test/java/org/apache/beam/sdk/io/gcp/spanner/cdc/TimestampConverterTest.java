@@ -150,4 +150,11 @@ public class TimestampConverterTest {
   public void testConvertUnderflowMicrosToTimestamp() {
     TimestampConverter.timestampFromNanos(new BigDecimal("-62135596800000001"));
   }
+
+  @Test
+  public void testConvertMillisToTimestamp() {
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(1234_000L);
+
+    assertEquals(timestamp, TimestampConverter.timestampFromMillis(1234L));
+  }
 }

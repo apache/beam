@@ -67,7 +67,7 @@ public class FinishPartitionAction {
       LOG.debug("[" + token + "] Finishing partition");
 
       if (!tracker.tryClaim(PartitionPosition.finishPartition())) {
-        LOG.info("[" + token + "] Could not claim finishPartition(), stopping");
+        LOG.debug("[" + token + "] Could not claim finishPartition(), stopping");
         return Optional.of(ProcessContinuation.stop());
       }
 
@@ -75,7 +75,7 @@ public class FinishPartitionAction {
         updateStateToFinished(token);
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-          LOG.info("[" + token + "] Partition does not exist, skipping");
+          LOG.debug("[" + token + "] Partition does not exist, skipping");
         } else {
           throw e;
         }

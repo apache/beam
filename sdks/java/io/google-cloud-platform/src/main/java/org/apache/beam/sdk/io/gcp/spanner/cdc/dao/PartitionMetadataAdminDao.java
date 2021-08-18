@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.dao;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_CREATED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_CURRENT_WATERMARK;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_FINISHED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.COLUMN_HEARTBEAT_MILLIS;
@@ -82,6 +83,8 @@ public class PartitionMetadataAdminDao {
             + " INT64 NOT NULL,"
             + COLUMN_STATE
             + " STRING(MAX) NOT NULL,"
+            + COLUMN_CURRENT_WATERMARK
+            + " TIMESTAMP NOT NULL,"
             + COLUMN_CREATED_AT
             + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
             + COLUMN_SCHEDULED_AT

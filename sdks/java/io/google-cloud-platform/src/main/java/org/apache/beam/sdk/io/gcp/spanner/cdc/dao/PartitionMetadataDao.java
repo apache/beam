@@ -55,6 +55,7 @@ public class PartitionMetadataDao {
   public static final String COLUMN_INCLUSIVE_END = "InclusiveEnd";
   public static final String COLUMN_HEARTBEAT_MILLIS = "HeartbeatMillis";
   public static final String COLUMN_STATE = "State";
+  public static final String COLUMN_CURRENT_WATERMARK = "CurrentWatermark";
   public static final String COLUMN_CREATED_AT = "CreatedAt";
   public static final String COLUMN_SCHEDULED_AT = "ScheduledAt";
   public static final String COLUMN_RUNNING_AT = "RunningAt";
@@ -153,12 +154,38 @@ public class PartitionMetadataDao {
   public ResultSet getPartitionsInState(State state) {
     try (Scope scope =
         TRACER.spanBuilder("getPartitionsInState").setRecordEvents(true).startScopedSpan()) {
-      Statement statement =
-          Statement.newBuilder("SELECT * FROM " + tableName + " WHERE State = @state")
+      final Statement statement =
+          Statement.newBuilder(
+                  "SELECT * FROM "
+                      + tableName
+                      + " WHERE State = @state"
+                      + " ORDER BY "
+                      + COLUMN_START_TIMESTAMP
+                      + " ASC")
               .bind("state")
               .to(state.toString())
               .build();
       return databaseClient.singleUse().executeQuery(statement);
+    }
+  }
+
+  public Timestamp getMinCurrentWatermark() {
+    final Statement statement =
+        Statement.of(
+            "SELECT "
+                + COLUMN_CURRENT_WATERMARK
+                + " FROM "
+                + tableName
+                + " ORDER BY "
+                + COLUMN_CURRENT_WATERMARK
+                + " ASC LIMIT 1");
+    try (Scope scope =
+            TRACER.spanBuilder("getMinCurrentWatermark").setRecordEvents(true).startScopedSpan();
+        ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+      if (resultSet.next()) {
+        return resultSet.getTimestamp(COLUMN_CURRENT_WATERMARK);
+      }
+      return null;
     }
   }
 
@@ -177,6 +204,13 @@ public class PartitionMetadataDao {
   public Timestamp updateToRunning(String partitionToken) {
     final TransactionResult<Void> transactionResult =
         runInTransaction(transaction -> transaction.updateToRunning(partitionToken));
+    return transactionResult.getCommitTimestamp();
+  }
+
+  public Timestamp updateCurrentWatermark(String partitionToken, Timestamp watermark) {
+    final TransactionResult<Object> transactionResult =
+        runInTransaction(
+            transaction -> transaction.updateCurrentWatermark(partitionToken, watermark));
     return transactionResult.getCommitTimestamp();
   }
 
@@ -237,7 +271,7 @@ public class PartitionMetadataDao {
             .getCurrentSpan()
             .putAttribute(
                 PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(createUpdateMutationFrom(partitionToken, State.SCHEDULED));
+        transaction.buffer(createUpdateStateMutationFrom(partitionToken, State.SCHEDULED));
         return null;
       }
     }
@@ -249,7 +283,7 @@ public class PartitionMetadataDao {
             .getCurrentSpan()
             .putAttribute(
                 PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(createUpdateMutationFrom(partitionToken, State.RUNNING));
+        transaction.buffer(createUpdateStateMutationFrom(partitionToken, State.RUNNING));
         return null;
       }
     }
@@ -261,7 +295,19 @@ public class PartitionMetadataDao {
             .getCurrentSpan()
             .putAttribute(
                 PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(createUpdateMutationFrom(partitionToken, State.FINISHED));
+        transaction.buffer(createUpdateStateMutationFrom(partitionToken, State.FINISHED));
+        return null;
+      }
+    }
+
+    public Void updateCurrentWatermark(String partitionToken, Timestamp watermark) {
+      try (Scope scope =
+          TRACER.spanBuilder("updateCurrentWatermark").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+        transaction.buffer(createUpdateCurrentWatermarkMutationFrom(partitionToken, watermark));
         return null;
       }
     }
@@ -349,12 +395,14 @@ public class PartitionMetadataDao {
           .to(partitionMetadata.getHeartbeatMillis())
           .set(COLUMN_STATE)
           .to(partitionMetadata.getState().toString())
+          .set(COLUMN_CURRENT_WATERMARK)
+          .to(partitionMetadata.getStartTimestamp())
           .set(COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
           .build();
     }
 
-    private Mutation createUpdateMutationFrom(String partitionToken, State state) {
+    private Mutation createUpdateStateMutationFrom(String partitionToken, State state) {
       final String timestampColumn = stateToTimestampColumn.get(state);
       return Mutation.newUpdateBuilder(tableName)
           .set(COLUMN_PARTITION_TOKEN)
@@ -363,6 +411,16 @@ public class PartitionMetadataDao {
           .to(state.toString())
           .set(timestampColumn)
           .to(Value.COMMIT_TIMESTAMP)
+          .build();
+    }
+
+    private Mutation createUpdateCurrentWatermarkMutationFrom(
+        String partitionToken, Timestamp watermark) {
+      return Mutation.newUpdateBuilder(tableName)
+          .set(COLUMN_PARTITION_TOKEN)
+          .to(partitionToken)
+          .set(COLUMN_CURRENT_WATERMARK)
+          .to(watermark)
           .build();
     }
 

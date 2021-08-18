@@ -51,7 +51,7 @@ public class DonePartitionAction {
       LOG.debug("[" + token + "] Marking partition as done");
 
       if (!tracker.tryClaim(PartitionPosition.done())) {
-        LOG.info("[" + token + "] Could not claim done(), stopping");
+        LOG.debug("[" + token + "] Could not claim done(), stopping");
         return ProcessContinuation.stop();
       }
 

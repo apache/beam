@@ -84,6 +84,7 @@ public class ActionFactory implements Serializable {
   // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized QueryChangeStreamAction queryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
+      PartitionMetadataDao partitionMetadataDao,
       ChangeStreamRecordMapper changeStreamRecordMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
@@ -92,6 +93,7 @@ public class ActionFactory implements Serializable {
       queryChangeStreamActionInstance =
           new QueryChangeStreamAction(
               changeStreamDao,
+              partitionMetadataDao,
               changeStreamRecordMapper,
               dataChangeRecordAction,
               heartbeatRecordAction,

@@ -140,7 +140,6 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final ChangeStreamDao changeStreamDao = daoFactory.getChangeStreamDao();
     final ChangeStreamRecordMapper changeStreamRecordMapper =
         mapperFactory.changeStreamRecordMapper();
-
     final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
     final HeartbeatRecordAction heartbeatRecordAction = actionFactory.heartbeatRecordAction();
     final ChildPartitionsRecordAction childPartitionsRecordAction =
@@ -149,6 +148,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     this.queryChangeStreamAction =
         actionFactory.queryChangeStreamAction(
             changeStreamDao,
+            partitionMetadataDao,
             changeStreamRecordMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
@@ -206,7 +206,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       @Element PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> receiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator,
+      BundleFinalizer bundleFinalizer) {
 
     try (Scope scope =
         TRACER
@@ -226,7 +227,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       final PartitionMode mode = tracker.currentRestriction().getMode();
       switch (mode) {
         case QUERY_CHANGE_STREAM:
-          return queryChangeStream(partition, tracker, receiver, watermarkEstimator);
+          return queryChangeStream(
+              partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
         case WAIT_FOR_CHILD_PARTITIONS:
           return waitForChildPartitions(partition, tracker);
         case FINISH_PARTITION:
@@ -249,9 +251,10 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       PartitionMetadata partition,
       RestrictionTracker<PartitionRestriction, PartitionPosition> tracker,
       OutputReceiver<DataChangeRecord> receiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator,
+      BundleFinalizer bundleFinalizer) {
     return queryChangeStreamAction
-        .run(partition, tracker, receiver, watermarkEstimator)
+        .run(partition, tracker, receiver, watermarkEstimator, bundleFinalizer)
         .orElseGet(() -> waitForChildPartitions(partition, tracker));
   }
 

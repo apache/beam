@@ -26,6 +26,7 @@ import com.google.cloud.spanner.ResultSet;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
+import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.MapperFactory;
@@ -67,7 +68,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
 
   private static final long serialVersionUID = 1523712495885011374L;
   // TODO(hengfeng): Make this field configurable via constructor or spanner config.
-  private Duration resumeDuration;
+  private final Duration resumeDuration;
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private transient PartitionMetadataDao partitionMetadataDao;
@@ -127,8 +128,15 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
             .setRecordEvents(true)
             .startScopedSpan()) {
 
-      // TODO: This is a temporary solution. Update to use a correct watermark strategy.
-      watermarkEstimator.setWatermark(Instant.now());
+      // Updates the current watermark as the min of the watermarks from all existing partitions
+      final Instant minCurrentWatermark =
+          Optional.ofNullable(partitionMetadataDao.getMinCurrentWatermark())
+              .map(timestamp -> new Instant(timestamp.toSqlTimestamp().getTime()))
+              .orElse(null);
+
+      if (minCurrentWatermark != null) {
+        watermarkEstimator.setWatermark(minCurrentWatermark);
+      }
 
       try (ResultSet resultSet = partitionMetadataDao.getPartitionsInState(State.CREATED)) {
         long currentIndex = tracker.currentRestriction().getFrom();
@@ -153,6 +161,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
         if (!tracker.tryClaim(tracker.currentRestriction().getTo() - 1)) {
           LOG.warn("Failed to claim the end of range in DetectNewPartitionsDoFn.");
         }
+        LOG.info("All partitions have been processed, stopping");
         return ProcessContinuation.stop();
       }
       return ProcessContinuation.resume().withResumeDelay(resumeDuration);
