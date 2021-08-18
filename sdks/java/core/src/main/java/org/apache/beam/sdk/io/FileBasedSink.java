@@ -775,7 +775,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
           dstFiles,
           StandardMoveOptions.IGNORE_MISSING_FILES,
           StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
-      removeTemporaryFiles(srcFiles);
+
+      // The rename ensures that the source files are deleted.  However we may still need to clean
+      // up the directory or orphaned files.
+      removeTemporaryFiles(Collections.emptyList());
     }
 
     /**

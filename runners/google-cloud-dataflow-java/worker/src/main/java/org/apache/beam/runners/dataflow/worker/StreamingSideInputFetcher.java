@@ -154,6 +154,10 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     return readyWindows;
   }
 
+  public void prefetchBlockedMap() {
+    stepContext.stateInternals().state(StateNamespaces.global(), blockedMapAddr).readLater();
+  }
+
   public Iterable<BagState<WindowedValue<InputT>>> prefetchElements(Iterable<W> readyWindows) {
     List<BagState<WindowedValue<InputT>>> elements = Lists.newArrayList();
     for (W window : readyWindows) {

@@ -21,15 +21,15 @@ import (
 	"context"
 	"path"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/vet"
 )
 
 func init() {
@@ -47,6 +47,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 	log.Info(ctx, "Pipeline:")
 	log.Info(ctx, p)
+	ctx = metrics.SetBundleID(ctx, "direct") // Ensure a metrics.Store exists.
 
 	if *jobopts.Strict {
 		log.Info(ctx, "Strict mode enabled, applying additional validation.")
@@ -75,7 +76,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	}
 	// TODO(lostluck) 2020/01/24: What's the right way to expose the
 	// metrics store for the direct runner?
-	metrics.DumpToLogFromStore(ctx, plan.Store())
+	metrics.DumpToLog(ctx)
 	return nil, nil
 }
 

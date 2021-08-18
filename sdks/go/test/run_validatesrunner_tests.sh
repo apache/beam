@@ -16,8 +16,7 @@
 #    limitations under the License.
 
 # This script executes ValidatesRunner tests including launching any additional
-# services needed, such as job services or expansion services. This script
-# should be executed from the root of the Beam repository.
+# services needed, such as job services or expansion services.
 #
 # The following runners are supported, and selected via a flag:
 # --runner {portable|direct|flink} (default: portable)
@@ -30,9 +29,13 @@
 #    dataflow - Dataflow Runner
 #
 # General flags:
-#    --tests -> A space-seperated list of targets for "go test". Defaults to
-#        all packages in the integration and regression directories.
+#    --tests -> A space-seperated list of targets for "go test", written with
+#        beam/sdks/go as the working directory. Defaults to all packages in the
+#        integration and regression directories.
 #    --timeout -> Timeout for the go test command, on a per-package level.
+#    --simultaneous -> Number of simultaneous packages to test.
+#        Controls the -p flag for the go test command.
+#        Not used for Flink, Spark, or Samza runners.  Defaults to 3 otherwise.
 #    --endpoint -> An endpoint for an existing job server outside the script.
 #        If present, job server jar flags are ignored.
 #    --test_expansion_jar -> Filepath to jar for an expansion service, for
@@ -70,7 +73,7 @@ set -e
 set -v
 
 # Default test targets.
-TESTS="./sdks/go/test/integration/... ./sdks/go/test/regression"
+TESTS="./test/integration/... ./test/regression"
 
 # Default runner.
 RUNNER=portable
@@ -78,6 +81,9 @@ RUNNER=portable
 # Default timeout. This timeout is applied per-package, as tests in different
 # packages are executed in parallel.
 TIMEOUT=1h
+
+# Default limit on simultaneous test binaries/packages being executed.
+SIMULTANEOUS=3
 
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
@@ -117,6 +123,11 @@ case $key in
         ;;
     --timeout)
         TIMEOUT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --simultaneous)
+        SIMULTANEOUS="$2"
         shift # past argument
         shift # past value
         ;;
@@ -195,10 +206,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --jenkins)
-        JENKINS=true
-        shift # past argument
-        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -255,13 +262,14 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
+      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "samza" ]]; then
       java \
           -jar $SAMZA_JOB_SERVER_JAR \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      ARGS="-p 1"
+      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "spark" ]]; then
       java \
           -jar $SPARK_JOB_SERVER_JAR \
@@ -269,7 +277,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      ARGS="-p 1" # Spark runner fails if jobs are run concurrently.
+      SIMULTANEOUS=1  # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
       python3 \
           -m apache_beam.runners.portability.local_job_service_main \
@@ -356,6 +364,10 @@ else
   CONTAINER=apache/beam_go_sdk
 fi
 
+# The go test flag -p dictates the number of simultaneous test binaries running tests.
+# Note that --parallel indicates within a test binary level of parallism.
+ARGS="$ARGS -p $SIMULTANEOUS"
+
 # Assemble test arguments and pipeline options.
 ARGS="$ARGS --timeout=$TIMEOUT"
 ARGS="$ARGS --runner=$RUNNER"
@@ -379,28 +391,11 @@ if [[ -n "$SDK_OVERRIDES" ]]; then
 fi
 ARGS="$ARGS $PIPELINE_OPTS"
 
-# Running "go test" requires some additional setup on Jenkins.
-if [[ "$JENKINS" == true ]]; then
-  # Copy the go repo as it is on Jenkins, to ensure we compile with the code
-  # being tested.
-  cd ..
-  mkdir -p temp_gopath/src/github.com/apache/beam/sdks
-  cp -a ./src/sdks/go ./temp_gopath/src/github.com/apache/beam/sdks
-  TEMP_GOPATH=$(pwd)/temp_gopath
-  cd ./src
-
-  # Search and replace working directory on test targets with new directory.
-  TESTS="${TESTS//"./"/"github.com/apache/beam/"}"
-  echo ">>> For Jenkins environment, changing test targets to: $TESTS"
-
-  echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-  GOPATH=$TEMP_GOPATH go test -v $TESTS $ARGS \
-      || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
-else
-  echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-  go test -v $TESTS $ARGS \
-      || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
-fi
+cd sdks/go
+echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
+go test -v $TESTS $ARGS \
+    || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
+cd ../..
 
 if [[ "$RUNNER" == "dataflow" ]]; then
   # Delete the container locally and remotely
