@@ -91,6 +91,13 @@ public class ProtoSchemaTranslatorTest {
   }
 
   @Test
+  public void testNonContiguousOneOfSchema() {
+    assertEquals(
+        TestProtoSchemas.NONCONTIGUOUS_ONEOF_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.NonContiguousOneOf.class));
+  }
+
+  @Test
   public void testNestedOneOfSchema() {
     assertEquals(
         TestProtoSchemas.OUTER_ONEOF_SCHEMA,

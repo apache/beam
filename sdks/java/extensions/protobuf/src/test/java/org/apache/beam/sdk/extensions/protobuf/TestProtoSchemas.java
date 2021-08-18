@@ -434,27 +434,65 @@ class TestProtoSchemas {
           .build();
 
   // The schema for the ReversedOneOf proto.
-  // The schema for the OneOf proto.
-  private static final List<Field> ONEOF_FIELDS_REVERSED =
+  private static final List<Field> REVERSED_ONEOF_FIELDS =
       ImmutableList.of(
           withFieldNumber("oneof_int32", FieldType.INT32, 5),
           withFieldNumber("oneof_bool", FieldType.BOOLEAN, 4),
           withFieldNumber("oneof_string", FieldType.STRING, 3),
           withFieldNumber("oneof_primitive", FieldType.row(PRIMITIVE_SCHEMA), 2));
 
-  private static final Map<String, Integer> ONE_OF_ENUM_MAP_REVERSED =
-      ONEOF_FIELDS_REVERSED.stream()
+  private static final Map<String, Integer> REVERSED_ONE_OF_ENUM_MAP =
+      REVERSED_ONEOF_FIELDS.stream()
           .collect(Collectors.toMap(Field::getName, f -> getFieldNumber(f)));
-  static final OneOfType ONE_OF_TYPE_REVERSED =
-      OneOfType.create(ONEOF_FIELDS_REVERSED, ONE_OF_ENUM_MAP_REVERSED);
+  static final OneOfType REVERSED_ONE_OF_TYPE =
+      OneOfType.create(REVERSED_ONEOF_FIELDS, REVERSED_ONE_OF_ENUM_MAP);
 
-  //  static final OneOfType ONE_OF_TYPE = OneOfType.create(ONEOF_FIELDS, ONE_OF_ENUM_MAP);
   static final Schema REVERSED_ONEOF_SCHEMA =
       Schema.builder()
           .addField(withFieldNumber("place1", FieldType.STRING, 6))
-          .addField("oneof_reversed", FieldType.logicalType(ONE_OF_TYPE_REVERSED))
+          .addField("oneof_reversed", FieldType.logicalType(REVERSED_ONE_OF_TYPE))
           .addField(withFieldNumber("place2", FieldType.INT32, 1))
           .setOptions(withTypeName("proto3_schema_messages.ReversedOneOf"))
+          .build();
+
+  // The schema for the NonContiguousOneOf proto.
+  private static final List<Field> NONCONTIGUOUS_ONE_ONEOF_FIELDS =
+      ImmutableList.of(
+          withFieldNumber("oneof_one_int32", FieldType.INT32, 55),
+          withFieldNumber("oneof_one_bool", FieldType.BOOLEAN, 1),
+          withFieldNumber("oneof_one_string", FieldType.STRING, 189),
+          withFieldNumber("oneof_one_primitive", FieldType.row(PRIMITIVE_SCHEMA), 22));
+
+  private static final List<Field> NONCONTIGUOUS_TWO_ONEOF_FIELDS =
+      ImmutableList.of(
+          withFieldNumber("oneof_two_first_string", FieldType.STRING, 981),
+          withFieldNumber("oneof_two_int32", FieldType.INT32, 2),
+          withFieldNumber("oneof_two_second_string", FieldType.STRING, 44));
+
+  private static final Map<String, Integer> NONCONTIGUOUS_ONE_ONE_OF_ENUM_MAP =
+      NONCONTIGUOUS_ONE_ONEOF_FIELDS.stream()
+          .collect(Collectors.toMap(Field::getName, f -> getFieldNumber(f)));
+
+  private static final Map<String, Integer> NONCONTIGUOUS_TWO_ONE_OF_ENUM_MAP =
+      NONCONTIGUOUS_TWO_ONEOF_FIELDS.stream()
+          .collect(Collectors.toMap(Field::getName, f -> getFieldNumber(f)));
+
+  static final OneOfType NONCONTIGUOUS_ONE_ONE_OF_TYPE =
+      OneOfType.create(NONCONTIGUOUS_ONE_ONEOF_FIELDS, NONCONTIGUOUS_ONE_ONE_OF_ENUM_MAP);
+
+  static final OneOfType NONCONTIGUOUS_TWO_ONE_OF_TYPE =
+      OneOfType.create(NONCONTIGUOUS_TWO_ONEOF_FIELDS, NONCONTIGUOUS_TWO_ONE_OF_ENUM_MAP);
+
+  static final Schema NONCONTIGUOUS_ONEOF_SCHEMA =
+      Schema.builder()
+          .addField(withFieldNumber("place1", FieldType.STRING, 76))
+          .addField(
+              "oneof_non_contiguous_one", FieldType.logicalType(NONCONTIGUOUS_ONE_ONE_OF_TYPE))
+          .addField(withFieldNumber("place2", FieldType.INT32, 33))
+          .addField(
+              "oneof_non_contiguous_two", FieldType.logicalType(NONCONTIGUOUS_TWO_ONE_OF_TYPE))
+          .addField(withFieldNumber("place3", FieldType.INT32, 63))
+          .setOptions(withTypeName("proto3_schema_messages.NonContiguousOneOf"))
           .build();
 
   // A sample instance of the Row.
