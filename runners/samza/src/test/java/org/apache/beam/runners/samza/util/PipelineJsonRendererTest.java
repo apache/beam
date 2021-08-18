@@ -19,18 +19,15 @@ package org.apache.beam.runners.samza.util;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.auto.service.AutoService;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Optional;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.SamzaRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -54,7 +51,6 @@ public class PipelineJsonRendererTest {
     String jsonDag =
         "{  \"RootNode\": ["
             + "    { \"fullName\":\"OuterMostNode\","
-            + "      \"ioInfo\":\"TestTopic\","
             + "      \"ChildNodes\":[    ]}],\"graphLinks\": []"
             + "}";
 
@@ -84,22 +80,5 @@ public class PipelineJsonRendererTest {
         JsonParser.parseString(jsonDag),
         JsonParser.parseString(
             PipelineJsonRenderer.toJsonString(p).replaceAll(System.lineSeparator(), "")));
-  }
-
-  @AutoService(PipelineJsonRenderer.SamzaIORegistrar.class)
-  public static class Registrar implements PipelineJsonRenderer.SamzaIORegistrar {
-
-    @Override
-    public PipelineJsonRenderer.SamzaIOInfo getSamzaIO() {
-      return new PipelineJsonRenderer.SamzaIOInfo() {
-        @Override
-        public Optional<String> getIOInfo(TransformHierarchy.Node node) {
-          if (node.isRootNode()) {
-            return Optional.of("TestTopic");
-          }
-          return Optional.empty();
-        }
-      };
-    }
   }
 }
