@@ -210,7 +210,7 @@ class FnApiRunner(runner.PipelineRunner):
         if transform.subtransforms or not transform.outputs:
           continue
         if not common_urns.support_pushdown_annotation in transform.annotations:
-          pass  #continue
+          continue
         # The annotations should really be per input and output.
         consumers = sum(
             (leaf_consumers[pc] for pc in transform.outputs.values()), [])
