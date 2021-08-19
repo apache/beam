@@ -551,9 +551,13 @@ public class Group {
     @Override
     public PCollection<Row> expand(PCollection<InputT> input) {
       SchemaAggregateFn.Inner fn = schemaAggregateFn.withSchema(input.getSchema());
+      Combine.Globally<Row, Row> combineFn = Combine.globally(fn);
+      if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+        combineFn = combineFn.withoutDefaults();
+      }
       return input
           .apply("toRows", Convert.toRows())
-          .apply("Global Combine", Combine.globally(fn))
+          .apply("Global Combine", combineFn)
           .setRowSchema(fn.getOutputSchema());
     }
   }
