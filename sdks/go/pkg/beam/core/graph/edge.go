@@ -533,13 +533,13 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 }
 
 // NewWindowInto inserts a new WindowInto edge into the graph.
-func NewWindowInto(g *Graph, s *Scope, wfn *window.Fn, in *Node) *MultiEdge {
-	n := g.NewNode(in.Type(), &window.WindowingStrategy{Fn: wfn}, in.Bounded())
+func NewWindowInto(g *Graph, s *Scope, ws *window.WindowingStrategy, in *Node) *MultiEdge {
+	n := g.NewNode(in.Type(), ws, in.Bounded())
 	n.Coder = in.Coder
 
 	edge := g.NewEdge(s)
 	edge.Op = WindowInto
-	edge.WindowFn = wfn
+	edge.WindowFn = ws.Fn
 	edge.Input = []*Inbound{{Kind: Main, From: in, Type: in.Type()}}
 	edge.Output = []*Outbound{{To: n, Type: in.Type()}}
 	return edge
