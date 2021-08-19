@@ -277,6 +277,9 @@ class Operation(object):
     self.setup_done = False
     self.step_name = None  # type: Optional[str]
 
+  def actuate_pushdown(self, fields):
+    raise NotImplementedError(type(self))
+
   def setup(self):
     # type: () -> None
 
@@ -591,6 +594,10 @@ class DoOperation(Operation):
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
     self.input_info = None  # type: Optional[OpInputInfo]
+    self._pushdown_fields = None
+
+  def actuate_pushdown(self, fields):
+    self._pushdown_fields = fields
 
   def _read_side_inputs(self, tags_and_types):
     # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
@@ -687,6 +694,9 @@ class DoOperation(Operation):
           self.side_input_maps = list(self._read_side_inputs(tags_and_types))
         else:
           self.side_input_maps = []
+
+      if self._pushdown_fields:
+        fn = fn.with_projection_pushdown(self._pushdown_fields)
 
       self.dofn_runner = common.DoFnRunner(
           fn,

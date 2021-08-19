@@ -1196,7 +1196,10 @@ class BeamTransformFactory(object):
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
     payload = proto_utils.parse_Bytes(
         transform_proto.spec.payload, parameter_type)
-    return creator(self, transform_id, transform_proto, payload, consumers)
+    operation = creator(self, transform_id, transform_proto, payload, consumers)
+    if common_urns.actuate_pushdown_annotation in transform_proto.annotations:
+      operation.actuate_pushdown(transform_proto.annotations[common_urns.actuate_pushdown_annotation].decode('utf-8').split(','))
+    return operation
 
   def extract_timers_info(self):
     # type: () -> Dict[Tuple[str, str], TimerInfo]

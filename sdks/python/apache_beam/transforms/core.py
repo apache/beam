@@ -578,6 +578,12 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def default_label(self):
     return self.__class__.__name__
 
+  def supports_projection_pushdown(self):
+    return False
+
+  def requests_projection_pushdown(self):
+    return None
+
   def process(self, element, *args, **kwargs):
     """Method to use for processing elements.
 
@@ -1241,6 +1247,12 @@ class ParDo(PTransformWithSideInputs):
         'fn': DisplayDataItem(self.fn.__class__, label='Transform Function'),
         'fn_dd': self.fn
     }
+
+  def supports_projection_pushdown(self):
+    return self.fn.supports_projection_pushdown()
+
+  def requests_projection_pushdown(self):
+    return self.fn.requests_projection_pushdown()
 
   def expand(self, pcoll):
     # In the case of a stateful DoFn, warn if the key coder is not
@@ -2374,7 +2386,9 @@ class GroupByKey(PTransform):
 
 def _expr_to_callable(expr, pos):
   if isinstance(expr, str):
-    return lambda x: getattr(x, expr)
+    func = lambda x: getattr(x, expr)
+    func._expr_to_callable_name = expr
+    return func
   elif callable(expr):
     return expr
   else:
@@ -2521,6 +2535,16 @@ class _GroupAndAggregate(PTransform):
     return _GroupAndAggregate(
         self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
 
+  def requests_projection_pushdown(self):
+    try:
+      return set([agg[0]._expr_to_callable_name
+                 for agg in self._aggregations] + [
+                     key[1]._expr_to_callable_name
+                     for key in self._grouping._key_fields])
+    except AttributeError:
+      # Not everything was a field access.
+      return None
+
   def expand(self, pcoll):
     from apache_beam.transforms.combiners import TupleCombineFn
     key_func = self._grouping.force_tuple_keys(True)._key_func()
@@ -2531,10 +2555,15 @@ class _GroupAndAggregate(PTransform):
                               dest for _, __, dest in self._aggregations)
     key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint()
 
+    # Sidestep issues of annotating composites vs. leafs for now.
+    def a(transform):
+      transform.requests_projection_pushdown = self.requests_projection_pushdown
+      return transform
+
     return (
         pcoll
-        | Map(lambda x: (key_func(x), value_func(x))).with_output_types(
-            typehints.Tuple[key_type_hint, typing.Any])
+        | a(Map(lambda x: (key_func(x), value_func(x))).with_output_types(
+            typehints.Tuple[key_type_hint, typing.Any]))
         | CombinePerKey(
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))

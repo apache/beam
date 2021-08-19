@@ -340,6 +340,16 @@ class PTransform(WithTypeHints, HasDisplayData):
   The expand() method of the CustomTransform object passed in will be called
   with input as an argument.
   """
+
+  # These could be an interface in java.
+  def supports_projection_pushdown(self):
+    return False
+
+  def requests_projection_pushdown(self):
+    return None
+
+
+
   # By default, transforms don't have any side inputs.
   side_inputs = ()  # type: Sequence[pvalue.AsSideInput]
 

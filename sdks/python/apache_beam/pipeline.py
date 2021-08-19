@@ -508,7 +508,6 @@ class Pipeline(object):
     # type: (Union[bool, str]) -> PipelineResult
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
-
     # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
@@ -1079,6 +1078,14 @@ class AppliedPTransform(object):
           for key,
           a in transform.annotations().items()
       }
+
+      if transform.supports_projection_pushdown():
+        annotations[common_urns.support_pushdown_annotation] = b''
+
+      if transform.requests_projection_pushdown():
+        annotations[common_urns.requests_pushdown_annotation] = ','.join(
+            transform.requests_projection_pushdown()).encode('utf-8')
+
     self.annotations = annotations
 
   @property

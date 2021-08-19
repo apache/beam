@@ -20,6 +20,7 @@
 # pytype: skip-file
 # mypy: check-untyped-defs
 
+import collections
 import contextlib
 import copy
 import itertools
@@ -197,6 +198,38 @@ class FnApiRunner(runner.PipelineRunner):
     return self._latest_run_result
 
   def run_via_runner_api(self, pipeline_proto):
+
+    def pushdown_projections(pipeline_proto):
+      leaf_consumers = collections.defaultdict(list)
+      for transform in pipeline_proto.components.transforms.values():
+        for pc in transform.inputs.values():
+          if not transform.subtransforms:
+            leaf_consumers[pc].append(transform)
+
+      for transform in pipeline_proto.components.transforms.values():
+        if transform.subtransforms or not transform.outputs:
+          continue
+        if not common_urns.support_pushdown_annotation in transform.annotations:
+          pass  #continue
+        # The annotations should really be per input and output.
+        consumers = sum(
+            (leaf_consumers[pc] for pc in transform.outputs.values()), [])
+        if not consumers:
+          continue
+        if not all(common_urns.requests_pushdown_annotation in c.annotations
+                   for c in consumers):
+          continue
+        fields = set(
+            sum((
+                c.annotations[common_urns.requests_pushdown_annotation].split(
+                    b',') for c in consumers), []))
+        transform.annotations[
+            common_urns.actuate_pushdown_annotation] = b','.join(fields)
+
+      return pipeline_proto
+
+    pipeline_proto = pushdown_projections(pipeline_proto)
+
     # type: (beam_runner_api_pb2.Pipeline) -> RunnerResult
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
