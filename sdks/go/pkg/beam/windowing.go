@@ -16,26 +16,55 @@
 package beam
 
 import (
+	"fmt"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
+type WindowIntoOption interface {
+	windowIntoOption()
+}
+
+type WindowTrigger struct {
+	Name window.Trigger
+}
+
+func (t WindowTrigger) windowIntoOption() {}
+
+type AccumulationMode struct {
+	Mode window.AccumulationMode
+}
+
+func (m AccumulationMode) windowIntoOption() {}
+
 // WindowInto applies the windowing strategy to each element.
-func WindowInto(s Scope, ws *window.Fn, col PCollection) PCollection {
-	return Must(TryWindowInto(s, ws, col))
+func WindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOption) PCollection {
+	return Must(TryWindowInto(s, ws, col, opts...))
 }
 
 // TryWindowInto attempts to insert a WindowInto transform.
-func TryWindowInto(s Scope, ws *window.Fn, col PCollection) (PCollection, error) {
+func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoOption) (PCollection, error) {
 	if !s.IsValid() {
 		return PCollection{}, errors.New("invalid scope")
 	}
 	if !col.IsValid() {
 		return PCollection{}, errors.New("invalid input pcollection")
 	}
+	ws := window.WindowingStrategy{Fn: wfn, Trigger: window.Trigger{}}
+	for _, opt := range opts {
+		switch opt := opt.(type) {
+		case WindowTrigger:
+			ws.Trigger = opt.Name
+		case AccumulationMode:
+			ws.AccumulationMode = opt.Mode
+		default:
+			panic(fmt.Sprintf("Unknown WindowInto option type: %T: %v", opt, opt))
+		}
+	}
 
-	edge := graph.NewWindowInto(s.real, s.scope, ws, col.n)
+	edge := graph.NewWindowInto(s.real, s.scope, &ws, col.n)
 	ret := PCollection{edge.Output[0].To}
 	return ret, nil
 }

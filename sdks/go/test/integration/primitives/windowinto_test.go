@@ -36,3 +36,31 @@ func TestWindowSums_GBK(t *testing.T) {
 	WindowSums_GBK(s)
 	ptest.RunAndValidate(t, p)
 }
+
+func TestTriggerDefault(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerDefault(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerAlways(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerAlways(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerElementCount(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerElementCount(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerRepeat(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerRepeat(s)
+	ptest.RunAndValidate(t, p)
+}
