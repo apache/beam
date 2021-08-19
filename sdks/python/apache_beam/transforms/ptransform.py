@@ -348,8 +348,6 @@ class PTransform(WithTypeHints, HasDisplayData):
   def requests_projection_pushdown(self):
     return None
 
-
-
   # By default, transforms don't have any side inputs.
   side_inputs = ()  # type: Sequence[pvalue.AsSideInput]
 

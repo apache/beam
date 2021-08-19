@@ -2537,10 +2537,9 @@ class _GroupAndAggregate(PTransform):
 
   def requests_projection_pushdown(self):
     try:
-      return set([agg[0]._expr_to_callable_name
-                 for agg in self._aggregations] + [
-                     key[1]._expr_to_callable_name
-                     for key in self._grouping._key_fields])
+      return set(
+          [agg[0]._expr_to_callable_name for agg in self._aggregations] +
+          [key[1]._expr_to_callable_name for key in self._grouping._key_fields])
     except AttributeError:
       # Not everything was a field access.
       return None
@@ -2562,8 +2561,9 @@ class _GroupAndAggregate(PTransform):
 
     return (
         pcoll
-        | a(Map(lambda x: (key_func(x), value_func(x))).with_output_types(
-            typehints.Tuple[key_type_hint, typing.Any]))
+        | a(
+            Map(lambda x: (key_func(x), value_func(x))).with_output_types(
+                typehints.Tuple[key_type_hint, typing.Any]))
         | CombinePerKey(
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
