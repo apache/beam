@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
-import org.apache.beam.sdk.transforms.Combine;
-
 import java.io.Serializable;
+import org.apache.beam.sdk.transforms.Combine;
 
 /**
  * Returns the count of TRUE values for expression. Returns 0 if there are zero input rows, or if
