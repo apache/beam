@@ -86,13 +86,9 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
     LOG.info("Portable pipeline to run DOT graph:\n{}", dotGraph);
 
-    final String jsonGraph = PipelineJsonRenderer.toJsonString(pipeline);
-    LOG.info("Portable pipeline to run JSON graph:\n{}", jsonGraph);
-
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder, options);
     configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
-    configBuilder.put(BEAM_JSON_GRAPH, jsonGraph);
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);

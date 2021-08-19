@@ -18,8 +18,8 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestFlatten(t *testing.T) {

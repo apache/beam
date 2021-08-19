@@ -39,7 +39,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 // Filters for temporarily skipping integration tests. All filters are regex
@@ -72,6 +72,8 @@ var portableFilters = []string{
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
+	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
+	"TestTestStream.*Sequence.*",
 }
 
 var samzaFilters = []string{

@@ -26,7 +26,7 @@ syntax = "proto3";
 
 package org.apache.beam.sdks.go.pkg.beam.core.runtime.graphx.v1;
 
-option go_package = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1;v1";
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1;v1";
 
 // Type represents a serializable reflect.Type.
 message Type {

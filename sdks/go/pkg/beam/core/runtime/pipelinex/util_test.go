@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
 )
 

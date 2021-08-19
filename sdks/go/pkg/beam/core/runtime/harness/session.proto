@@ -24,7 +24,7 @@ syntax = "proto3";
 
 package org.apache.beam.sdks.go.pkg.beam.core.runtime.harness.session;
 
-option go_package = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session;session";
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/session;session";
 
 import "beam_fn_api.proto";
 

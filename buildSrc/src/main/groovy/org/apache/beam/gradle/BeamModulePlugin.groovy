@@ -520,7 +520,7 @@ class BeamModulePlugin implements Plugin<Project> {
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.14",
-        commons_compress                            : "org.apache.commons:commons-compress:1.20",
+        commons_compress                            : "org.apache.commons:commons-compress:1.21",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
         commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
@@ -1747,7 +1747,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'base'
 
       project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.12.7' }
+      project.golang { goVersion = '1.16.5' }
 
       project.repositories {
         golang {
@@ -2174,7 +2174,6 @@ class BeamModulePlugin implements Plugin<Project> {
           "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
           "test_opts": config.pytestOptions,
           "suite": "xlangValidateRunner",
-          "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
           "collect": config.pythonTestAttr
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
@@ -2221,7 +2220,6 @@ class BeamModulePlugin implements Plugin<Project> {
         "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
         "test_opts":  config.pytestOptions,
         "suite": "xlangSqlValidateRunner",
-        "pytest": true, // TODO(BEAM-3713): Remove this once nose is removed.
         "collect": "xlang_sql_expansion_service"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)

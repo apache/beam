@@ -58,7 +58,7 @@ $GOPATH/src/github.com/apache
 to match the package structure expected by the code imports. Go users can just
 `go get` the code directly. For example:
 ```
-go get github.com/apache/beam/sdks/go/...
+go get github.com/apache/beam/sdks/v2/go/...
 ```
 Developers must invoke Go for cross-compilation manually, if desired.
 
