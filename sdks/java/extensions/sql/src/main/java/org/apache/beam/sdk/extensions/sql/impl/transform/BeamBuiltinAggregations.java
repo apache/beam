@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -444,29 +445,45 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  static class BitOr<T extends Number> extends CombineFn<T, Long, Long> {
-    @Override
-    public Long createAccumulator() {
-      return 0L;
+  static class BitOr<T extends Number> extends CombineFn<T, BitOr.Accum, Long> {
+    static class Accum implements Serializable {
+      /** True if no inputs have been seen yet. */
+      boolean isEmpty = true;
+      /** The bitwise-and of the inputs seen so far. */
+      long bitOr = 0L;
     }
 
     @Override
-    public Long addInput(Long accum, T input) {
-      return accum | input.longValue();
+    public Accum createAccumulator() {
+      return new Accum();
     }
 
     @Override
-    public Long mergeAccumulators(Iterable<Long> accums) {
-      Long merged = createAccumulator();
-      for (Long accum : accums) {
-        merged = merged | accum;
+    public Accum addInput(Accum accum, T input) {
+      accum.bitOr |= input.longValue();
+      accum.isEmpty = false;
+      return accum;
+    }
+
+    @Override
+    public Accum mergeAccumulators(Iterable<Accum> accums) {
+      Accum merged = createAccumulator();
+      for (Accum accum : accums) {
+        if (accum.isEmpty) {
+          continue;
+        }
+        merged.isEmpty = false;
+        merged.bitOr |= accum.bitOr;
       }
       return merged;
     }
 
     @Override
-    public Long extractOutput(Long accum) {
-      return accum;
+    public Long extractOutput(Accum accum) {
+      if (accum.isEmpty) {
+        return null;
+      }
+      return accum.bitOr;
     }
   }
 

@@ -3866,6 +3866,18 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testBitwiseOrEmpty() {
+    String sql = "SELECT BIT_OR(x) FROM UNNEST([]) AS x";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue((Long) null).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testArrayAggNulls() {
     String sql = "SELECT ARRAY_AGG(x) FROM UNNEST([1, NULL, 3]) AS x";
 
