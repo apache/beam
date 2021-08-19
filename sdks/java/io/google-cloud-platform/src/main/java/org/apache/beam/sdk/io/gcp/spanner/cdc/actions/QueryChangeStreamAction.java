@@ -152,7 +152,7 @@ public class QueryChangeStreamAction {
 
   private BundleFinalizer.Callback updateWatermarkCallback(String token, Instant watermark) {
     return () -> {
-      LOG.info("[" + token + "] Updating current watermark to " + watermark);
+      LOG.debug("[" + token + "] Updating current watermark to " + watermark);
       try {
         partitionMetadataDao.updateCurrentWatermark(
             token, TimestampConverter.timestampFromMillis(watermark.getMillis()));

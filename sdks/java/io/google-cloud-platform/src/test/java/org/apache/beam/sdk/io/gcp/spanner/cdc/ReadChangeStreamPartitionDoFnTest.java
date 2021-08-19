@@ -93,6 +93,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     final Duration resumeDuration = Duration.millis(100);
     final DaoFactory daoFactory = mock(DaoFactory.class);
     final MapperFactory mapperFactory = mock(MapperFactory.class);
+    final ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
     final ActionFactory actionFactory = mock(ActionFactory.class);
     final PartitionMetadataDao partitionMetadataDao = mock(PartitionMetadataDao.class);
     ChangeStreamDao changeStreamDao = mock(ChangeStreamDao.class);
@@ -107,7 +108,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     deletePartitionAction = mock(DeletePartitionAction.class);
     donePartitionAction = mock(DonePartitionAction.class);
 
-    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory);
+    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
 
     partition =
         PartitionMetadata.newBuilder()
@@ -135,7 +136,7 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     when(actionFactory.dataChangeRecordAction()).thenReturn(dataChangeRecordAction);
     when(actionFactory.heartbeatRecordAction()).thenReturn(heartbeatRecordAction);
-    when(actionFactory.childPartitionsRecordAction(partitionMetadataDao))
+    when(actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics))
         .thenReturn(childPartitionsRecordAction);
     when(actionFactory.queryChangeStreamAction(
             changeStreamDao,
@@ -147,7 +148,7 @@ public class ReadChangeStreamPartitionDoFnTest {
         .thenReturn(queryChangeStreamAction);
     when(actionFactory.waitForChildPartitionsAction(partitionMetadataDao, resumeDuration))
         .thenReturn(waitForChildPartitionsAction);
-    when(actionFactory.finishPartitionAction(partitionMetadataDao))
+    when(actionFactory.finishPartitionAction(partitionMetadataDao, metrics))
         .thenReturn(finishPartitionAction);
     when(actionFactory.waitForParentPartitionsAction(partitionMetadataDao, resumeDuration))
         .thenReturn(waitForParentPartitionsAction);

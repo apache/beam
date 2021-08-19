@@ -17,11 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.DAO_COUNT_PARTITIONS_MS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.INITIAL_PARTITION_CREATED_TO_SCHEDULED_MS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_CREATED_TO_SCHEDULED_MS;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_RECORD_COUNT;
-
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.Tracer;
@@ -71,17 +67,23 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
   private final Duration resumeDuration;
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
+  private final ChangeStreamMetrics metrics;
   private transient PartitionMetadataDao partitionMetadataDao;
   private transient PartitionMetadataMapper partitionMetadataMapper;
 
-  public DetectNewPartitionsDoFn(DaoFactory daoFactory, MapperFactory mapperFactory) {
-    this(daoFactory, mapperFactory, Duration.millis(100L));
+  public DetectNewPartitionsDoFn(
+      DaoFactory daoFactory, MapperFactory mapperFactory, ChangeStreamMetrics metrics) {
+    this(daoFactory, mapperFactory, metrics, Duration.millis(100L));
   }
 
   public DetectNewPartitionsDoFn(
-      DaoFactory daoFactory, MapperFactory mapperFactory, Duration resumeDuration) {
+      DaoFactory daoFactory,
+      MapperFactory mapperFactory,
+      ChangeStreamMetrics metrics,
+      Duration resumeDuration) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
+    this.metrics = metrics;
     this.resumeDuration = resumeDuration;
   }
 
@@ -129,11 +131,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
             .startScopedSpan()) {
 
       // Updates the current watermark as the min of the watermarks from all existing partitions
-      final Instant minCurrentWatermark =
-          Optional.ofNullable(partitionMetadataDao.getMinCurrentWatermark())
-              .map(timestamp -> new Instant(timestamp.toSqlTimestamp().getTime()))
-              .orElse(null);
-
+      final Instant minCurrentWatermark = getMinWatermark();
       if (minCurrentWatermark != null) {
         watermarkEstimator.setWatermark(minCurrentWatermark);
       }
@@ -150,7 +148,7 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
           final PartitionMetadata updatedPartition = updateToScheduled(partition);
           receiver.output(updatedPartition);
 
-          PARTITION_RECORD_COUNT.inc();
+          metrics.incPartitionRecordCount();
           currentIndex++;
         }
       }
@@ -170,19 +168,12 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
 
   private PartitionMetadata updateToScheduled(PartitionMetadata partition) {
     final String token = partition.getPartitionToken();
-    LOG.info("Scheduling partition " + partition);
+    LOG.info("Scheduling partition " + partition.getPartitionToken());
     final com.google.cloud.Timestamp createdAt = partition.getCreatedAt();
     final com.google.cloud.Timestamp scheduledAt = partitionMetadataDao.updateToScheduled(token);
 
-    if (InitialPartition.isInitialPartition(token)) {
-      INITIAL_PARTITION_CREATED_TO_SCHEDULED_MS.update(
-          new Duration(createdAt.toDate().getTime(), scheduledAt.toSqlTimestamp().getTime())
-              .getMillis());
-    } else {
-      PARTITION_CREATED_TO_SCHEDULED_MS.update(
-          new Duration(createdAt.toDate().getTime(), scheduledAt.toSqlTimestamp().getTime())
-              .getMillis());
-    }
+    metrics.updatePartitionCreatedToScheduled(
+        new Duration(createdAt.toDate().getTime(), scheduledAt.toSqlTimestamp().getTime()));
 
     LOG.debug("Updated the record:" + token);
     return partition.toBuilder().setScheduledAt(scheduledAt).build();
@@ -192,12 +183,26 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
     final com.google.cloud.Timestamp countPartitionsStartedAt = com.google.cloud.Timestamp.now();
     final long numberOfPartitions = partitionMetadataDao.countPartitions();
     final com.google.cloud.Timestamp countPartitionsEndedAt = com.google.cloud.Timestamp.now();
-    DAO_COUNT_PARTITIONS_MS.update(
+    metrics.updateDaoCountPartitions(
         new Duration(
-                countPartitionsStartedAt.toSqlTimestamp().getTime(),
-                countPartitionsEndedAt.toSqlTimestamp().getTime())
-            .getMillis());
+            countPartitionsStartedAt.toSqlTimestamp().getTime(),
+            countPartitionsEndedAt.toSqlTimestamp().getTime()));
 
     return numberOfPartitions;
+  }
+
+  private Instant getMinWatermark() {
+    final com.google.cloud.Timestamp minWatermarkStartedAt = com.google.cloud.Timestamp.now();
+    final Instant minCurrentWatermark =
+        Optional.ofNullable(partitionMetadataDao.getMinCurrentWatermark())
+            .map(timestamp -> new Instant(timestamp.toSqlTimestamp().getTime()))
+            .orElse(null);
+    final com.google.cloud.Timestamp minWatermarkEndedAt = com.google.cloud.Timestamp.now();
+    metrics.updateDaoGetMinCurrentWatermark(
+        new Duration(
+            minWatermarkStartedAt.toSqlTimestamp().getTime(),
+            minWatermarkEndedAt.toSqlTimestamp().getTime()));
+
+    return minCurrentWatermark;
   }
 }

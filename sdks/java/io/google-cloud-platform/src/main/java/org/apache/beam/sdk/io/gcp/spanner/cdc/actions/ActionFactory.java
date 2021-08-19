@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.mapper.ChangeStreamRecordMapper;
@@ -55,18 +56,19 @@ public class ActionFactory implements Serializable {
 
   // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized ChildPartitionsRecordAction childPartitionsRecordAction(
-      PartitionMetadataDao partitionMetadataDao) {
+      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
     if (childPartitionsRecordActionInstance == null) {
-      childPartitionsRecordActionInstance = new ChildPartitionsRecordAction(partitionMetadataDao);
+      childPartitionsRecordActionInstance =
+          new ChildPartitionsRecordAction(partitionMetadataDao, metrics);
     }
     return childPartitionsRecordActionInstance;
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
   public synchronized FinishPartitionAction finishPartitionAction(
-      PartitionMetadataDao partitionMetadataDao) {
+      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
     if (finishPartitionActionInstance == null) {
-      finishPartitionActionInstance = new FinishPartitionAction(partitionMetadataDao);
+      finishPartitionActionInstance = new FinishPartitionAction(partitionMetadataDao, metrics);
     }
     return finishPartitionActionInstance;
   }

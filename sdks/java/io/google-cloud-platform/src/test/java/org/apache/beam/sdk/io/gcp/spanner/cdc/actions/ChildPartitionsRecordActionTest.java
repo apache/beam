@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.InTransactionContext;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
@@ -54,6 +55,7 @@ public class ChildPartitionsRecordActionTest {
 
   private PartitionMetadataDao dao;
   private InTransactionContext transaction;
+  private ChangeStreamMetrics metrics;
   private ChildPartitionsRecordAction action;
   private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
@@ -62,7 +64,8 @@ public class ChildPartitionsRecordActionTest {
   public void setUp() {
     dao = mock(PartitionMetadataDao.class);
     transaction = mock(InTransactionContext.class);
-    action = new ChildPartitionsRecordAction(dao);
+    metrics = mock(ChangeStreamMetrics.class);
+    action = new ChildPartitionsRecordAction(dao, metrics);
     tracker = mock(RestrictionTracker.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
 

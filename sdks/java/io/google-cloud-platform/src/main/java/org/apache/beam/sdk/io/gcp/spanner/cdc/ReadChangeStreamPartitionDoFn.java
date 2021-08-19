@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITIONS_RUNNING_COUNTER;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_SCHEDULED_TO_RUNNING_MS;
 
 import io.opencensus.common.Scope;
 import io.opencensus.trace.AttributeValue;
@@ -70,6 +68,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
+  private final ChangeStreamMetrics metrics;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
   private transient WaitForChildPartitionsAction waitForChildPartitionsAction;
@@ -79,10 +78,14 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private transient DonePartitionAction donePartitionAction;
 
   public ReadChangeStreamPartitionDoFn(
-      DaoFactory daoFactory, MapperFactory mapperFactory, ActionFactory actionFactory) {
+      DaoFactory daoFactory,
+      MapperFactory mapperFactory,
+      ActionFactory actionFactory,
+      ChangeStreamMetrics metrics) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
+    this.metrics = metrics;
   }
 
   @GetInitialWatermarkEstimatorState
@@ -107,12 +110,10 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final com.google.cloud.Timestamp partitionRunningAt =
         daoFactory.getPartitionMetadataDao().updateToRunning(token);
 
-    PARTITION_SCHEDULED_TO_RUNNING_MS.update(
+    metrics.updatePartitionScheduledToRunning(
         new Duration(
-                partitionScheduledAt.toSqlTimestamp().getTime(),
-                partitionRunningAt.toSqlTimestamp().getTime())
-            .getMillis());
-    PARTITIONS_RUNNING_COUNTER.inc();
+            partitionScheduledAt.toSqlTimestamp().getTime(),
+            partitionRunningAt.toSqlTimestamp().getTime()));
 
     return PartitionRestriction.queryChangeStream(startTimestamp, endTimestamp)
         .withMetadata(
@@ -143,7 +144,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
     final HeartbeatRecordAction heartbeatRecordAction = actionFactory.heartbeatRecordAction();
     final ChildPartitionsRecordAction childPartitionsRecordAction =
-        actionFactory.childPartitionsRecordAction(partitionMetadataDao);
+        actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics);
 
     this.queryChangeStreamAction =
         actionFactory.queryChangeStreamAction(
@@ -155,7 +156,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             childPartitionsRecordAction);
     this.waitForChildPartitionsAction =
         actionFactory.waitForChildPartitionsAction(partitionMetadataDao, Duration.millis(100));
-    this.finishPartitionAction = actionFactory.finishPartitionAction(partitionMetadataDao);
+    this.finishPartitionAction = actionFactory.finishPartitionAction(partitionMetadataDao, metrics);
     this.waitForParentPartitionsAction =
         actionFactory.waitForParentPartitionsAction(partitionMetadataDao, Duration.millis(100));
     this.deletePartitionAction = actionFactory.deletePartitionAction(partitionMetadataDao);

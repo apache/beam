@@ -30,6 +30,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.InTransactionContext;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -45,14 +46,16 @@ public class FinishPartitionActionTest {
 
   private FinishPartitionAction action;
   private PartitionMetadataDao dao;
-  private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
   private InTransactionContext transaction;
+  private ChangeStreamMetrics metrics;
+  private RestrictionTracker<PartitionRestriction, PartitionPosition> tracker;
 
   @Before
   public void setUp() throws Exception {
     dao = mock(PartitionMetadataDao.class);
     transaction = mock(InTransactionContext.class);
-    action = new FinishPartitionAction(dao);
+    metrics = mock(ChangeStreamMetrics.class);
+    action = new FinishPartitionAction(dao, metrics);
     tracker = mock(RestrictionTracker.class);
 
     when(dao.runInTransaction(any())).thenAnswer(new TestTransactionAnswer(transaction));

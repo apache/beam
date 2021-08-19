@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITIONS_RUNNING_COUNTER;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_RUNNING_TO_FINISHED_MS;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
@@ -29,6 +27,7 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao.TransactionResult;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -47,9 +46,12 @@ public class FinishPartitionAction {
   private static final Tracer TRACER = Tracing.getTracer();
 
   private final PartitionMetadataDao partitionMetadataDao;
+  private final ChangeStreamMetrics metrics;
 
-  public FinishPartitionAction(PartitionMetadataDao partitionMetadataDao) {
+  public FinishPartitionAction(
+      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
     this.partitionMetadataDao = partitionMetadataDao;
+    this.metrics = metrics;
   }
 
   public Optional<ProcessContinuation> run(
@@ -96,9 +98,7 @@ public class FinishPartitionAction {
     final PartitionMetadata updatedPartition = result.getResult();
     final Timestamp runningAt = updatedPartition.getRunningAt();
     final Timestamp finishedAt = result.getCommitTimestamp();
-    PARTITIONS_RUNNING_COUNTER.dec();
-    PARTITION_RUNNING_TO_FINISHED_MS.update(
-        new Duration(runningAt.toSqlTimestamp().getTime(), finishedAt.toSqlTimestamp().getTime())
-            .getMillis());
+    metrics.updatePartitionRunningToFinished(
+        new Duration(runningAt.toSqlTimestamp().getTime(), finishedAt.toSqlTimestamp().getTime()));
   }
 }

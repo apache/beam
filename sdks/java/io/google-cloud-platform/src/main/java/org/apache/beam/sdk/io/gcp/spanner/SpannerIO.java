@@ -58,7 +58,9 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamSourceDescriptor;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.CleanUpReadChangeStreamDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.PostProcessingMetricsDoFn;
@@ -1491,6 +1493,7 @@ public class SpannerIO {
                 .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
                 .withMaxCumulativeBackoff(changeStreamSpannerConfig.getMaxCumulativeBackoff());
         final MapperFactory mapperFactory = new MapperFactory();
+        final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
         final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.LOW);
         final DaoFactory daoFactory =
             new DaoFactory(
@@ -1504,16 +1507,19 @@ public class SpannerIO {
         final ActionFactory actionFactory = new ActionFactory();
 
         final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-            new DetectNewPartitionsDoFn(daoFactory, mapperFactory);
+            new DetectNewPartitionsDoFn(daoFactory, mapperFactory, metrics);
         final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-            new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory);
-        final PostProcessingMetricsDoFn postProcessingMetricsDoFn = new PostProcessingMetricsDoFn();
+            new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
+        final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
+            new PostProcessingMetricsDoFn(metrics);
 
         PipelineInitializer.initialize(
             daoFactory.getPartitionMetadataAdminDao(),
             daoFactory.getPartitionMetadataDao(),
             getInclusiveStartAt(),
             getInclusiveEndAt());
+
+        LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
 
         PCollection<byte[]> impulseOut = input.apply(Impulse.create());
         PCollection<DataChangeRecord> results =

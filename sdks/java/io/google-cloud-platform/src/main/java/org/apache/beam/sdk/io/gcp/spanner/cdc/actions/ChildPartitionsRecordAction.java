@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_RECORD_MERGE_COUNT;
-import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_RECORD_SPLIT_COUNT;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.FINISHED;
 
@@ -32,6 +30,7 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Collections;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.ChildPartitionsRecord.ChildPartition;
@@ -51,9 +50,12 @@ public class ChildPartitionsRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(ChildPartitionsRecordAction.class);
   private static final Tracer TRACER = Tracing.getTracer();
   private final PartitionMetadataDao partitionMetadataDao;
+  private final ChangeStreamMetrics metrics;
 
-  public ChildPartitionsRecordAction(PartitionMetadataDao partitionMetadataDao) {
+  public ChildPartitionsRecordAction(
+      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
     this.partitionMetadataDao = partitionMetadataDao;
+    this.metrics = metrics;
   }
 
   public Optional<ProcessContinuation> run(
@@ -122,7 +124,7 @@ public class ChildPartitionsRecordAction {
       LOG.debug("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
       try {
         partitionMetadataDao.insert(row);
-        PARTITION_RECORD_SPLIT_COUNT.inc();
+        metrics.incPartitionRecordSplitCount();
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
           LOG.debug(
@@ -188,7 +190,7 @@ public class ChildPartitionsRecordAction {
 
               return null;
             });
-        PARTITION_RECORD_MERGE_COUNT.inc();
+        metrics.incPartitionRecordMergeCount();
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
           LOG.debug(
