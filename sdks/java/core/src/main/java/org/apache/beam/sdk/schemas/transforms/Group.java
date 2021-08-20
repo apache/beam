@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -552,7 +553,7 @@ public class Group {
     public PCollection<Row> expand(PCollection<InputT> input) {
       SchemaAggregateFn.Inner fn = schemaAggregateFn.withSchema(input.getSchema());
       Combine.Globally<Row, Row> combineFn = Combine.globally(fn);
-      if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+      if (!(input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows)) {
         combineFn = combineFn.withoutDefaults();
       }
       return input
