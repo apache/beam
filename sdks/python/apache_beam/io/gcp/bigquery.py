@@ -2206,6 +2206,8 @@ class ReadFromBigQuery(PTransform):
         The dataset in which to create temporary tables when performing file
         loads. By default, a new dataset is created in the execution project for
         temporary tables.
+        Dataset name should *not* start with the reserved name
+        'beam_temp_dataset_.
    """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.

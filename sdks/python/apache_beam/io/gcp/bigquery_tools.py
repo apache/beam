@@ -292,8 +292,10 @@ class BigQueryWrapper(object):
   (e.g., find and create tables, query a table, etc.).
   """
 
-  TEMP_TABLE = 'temp_table_'
-  TEMP_DATASET = 'temp_dataset_'
+  # If updting following names, also update the corresponding Pydocs in
+  # bigquery.py.
+  TEMP_TABLE = 'beam_temp_table_'
+  TEMP_DATASET = 'beam_temp_dataset_'
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
