@@ -1660,7 +1660,7 @@ class SDFBoundedSourceReader(PTransform):
 
       def process(
           self,
-          unused_element,
+          unused_element: BoundedSource,
           restriction_tracker=core.DoFn.RestrictionParam(
               _SDFBoundedSourceRestrictionProvider())):
         current_restriction = restriction_tracker.current_restriction()

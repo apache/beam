@@ -753,11 +753,17 @@ class MemoizingPickleCoder(_PickleCoderBase):
     dumps = pickle.dumps
     protocol = pickle.HIGHEST_PROTOCOL
 
-    @lru_cache(maxsize=self.cache_size, typed=True)
-    def memoized_dumps(x):
+    def _dumps(x):
       return dumps(x, protocol)
 
-    return coder_impl.CallbackCoderImpl(memoized_dumps, pickle.loads)
+    mdumps = lru_cache(maxsize=self.cache_size, typed=True)(_dumps)
+    def _nonhashable_dumps(x):
+      try:
+        return mdumps(x)
+      except TypeError:
+        return _dumps(x)
+
+    return coder_impl.CallbackCoderImpl(_nonhashable_dumps, pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return FastPrimitivesCoder(self, requires_deterministic=step_label)
