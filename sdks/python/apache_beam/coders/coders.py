@@ -23,6 +23,7 @@ Only those coders listed in __all__ are part of the public API of this module.
 
 import base64
 import pickle
+from functools import lru_cache
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -81,6 +82,7 @@ __all__ = [
     'ListCoder',
     'MapCoder',
     'NullableCoder',
+    'MemoizingPickleCoder',
     'PickleCoder',
     'ProtoCoder',
     'ShardedKeyCoder',
@@ -739,6 +741,29 @@ class _PickleCoderBase(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+class MemoizingPickleCoder(_PickleCoderBase):
+  """Coder using Python's pickle functionality with memoization."""
+  def __init__(self, cache_size=64):
+    super(MemoizingPickleCoder, self).__init__()
+    self.cache_size = cache_size
+
+  def _create_impl(self):
+    dumps = pickle.dumps
+    protocol = pickle.HIGHEST_PROTOCOL
+
+    @lru_cache(maxsize=self.cache_size, typed=True)
+    def memoized_dumps(x):
+      return dumps(x, protocol)
+
+    return coder_impl.CallbackCoderImpl(memoized_dumps, pickle.loads)
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return FastPrimitivesCoder(self, requires_deterministic=step_label)
+
+  def to_type_hint(self):
+    return Any
 
 
 class PickleCoder(_PickleCoderBase):
