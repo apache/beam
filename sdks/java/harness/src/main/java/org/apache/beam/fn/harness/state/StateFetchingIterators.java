@@ -28,9 +28,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * Adapters which convert a a logical series of chunks using continuation tokens over the Beam Fn
@@ -54,7 +56,7 @@ public class StateFetchingIterators {
    *     only) chunk of a state stream. This state request will be populated with a continuation
    *     token to request further chunks of the stream if required.
    */
-  public static Iterator<ByteString> readAllStartingFrom(
+  public static PrefetchableIterator<ByteString> readAllStartingFrom(
       BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
     return new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk);
   }
@@ -74,21 +76,25 @@ public class StateFetchingIterators {
    *     token to request further chunks of the stream if required.
    * @param valueCoder A coder for decoding the state stream.
    */
-  public static <T> Iterable<T> readAllAndDecodeStartingFrom(
+  public static <T> PrefetchableIterable<T> readAllAndDecodeStartingFrom(
       BeamFnStateClient beamFnStateClient,
       StateRequest stateRequestForFirstChunk,
       Coder<T> valueCoder) {
     FirstPageAndRemainder firstPageAndRemainder =
         new FirstPageAndRemainder(beamFnStateClient, stateRequestForFirstChunk);
-    return Iterables.concat(
+    return PrefetchableIterables.concat(
         new LazyCachingIteratorToIterable<T>(
             new DataStreams.DataStreamDecoder<>(
                 valueCoder,
                 DataStreams.inbound(
                     new LazySingletonIterator<>(firstPageAndRemainder::firstPage)))),
-        () ->
-            new DataStreams.DataStreamDecoder<>(
-                valueCoder, DataStreams.inbound(firstPageAndRemainder.remainder())));
+        new PrefetchableIterable<T>() {
+          @Override
+          public PrefetchableIterator<T> iterator() {
+            return new DataStreams.DataStreamDecoder<>(
+                valueCoder, DataStreams.inbound(firstPageAndRemainder.remainder()));
+          }
+        });
   }
 
   /** A iterable that contains a single element, provided by a Supplier which is invoked lazily. */
@@ -173,10 +179,10 @@ public class StateFetchingIterators {
   /**
    * An {@link Iterator} which fetches {@link ByteString} chunks using the State API.
    *
-   * <p>This iterator will only request a chunk on first access. Subsiquently it eagerly pre-fetches
-   * one future chunks at a time.
+   * <p>This iterator will only request a chunk on first access. Subsequently it eagerly pre-fetches
+   * one future chunk at a time.
    */
-  static class LazyBlockingStateFetchingIterator implements Iterator<ByteString> {
+  static class LazyBlockingStateFetchingIterator implements PrefetchableIterator<ByteString> {
 
     private enum State {
       READ_REQUIRED,
@@ -199,8 +205,14 @@ public class StateFetchingIterators {
       this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();
     }
 
-    private void prefetch() {
-      if (prefetchedResponse == null && currentState == State.READ_REQUIRED) {
+    @Override
+    public boolean isReady() {
+      return !(prefetchedResponse == null && currentState == State.READ_REQUIRED);
+    }
+
+    @Override
+    public void prefetch() {
+      if (!isReady()) {
         prefetchedResponse = new CompletableFuture<>();
         beamFnStateClient.handle(
             stateRequestForFirstChunk

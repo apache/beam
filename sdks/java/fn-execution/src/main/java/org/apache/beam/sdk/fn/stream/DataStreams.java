@@ -231,7 +231,7 @@ public class DataStreams {
    * <p>Note that access to the underlying {@link InputStream} is lazy and will only be invoked on
    * first access to {@link #next()} or {@link #hasNext()}.
    */
-  public static class DataStreamDecoder<T> implements Iterator<T> {
+  public static class DataStreamDecoder<T> implements PrefetchableIterator<T> {
 
     private enum State {
       READ_REQUIRED,
@@ -250,6 +250,16 @@ public class DataStreams {
       this.coder = coder;
       this.pushbackInputStream = new PushbackInputStream(inputStream, 1);
       this.countingInputStream = new CountingInputStream(pushbackInputStream);
+    }
+
+    @Override
+    public boolean isReady() {
+      return currentState != State.READ_REQUIRED;
+    }
+
+    @Override
+    public void prefetch() {
+      // TODO implement
     }
 
     @Override
