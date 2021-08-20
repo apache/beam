@@ -64,6 +64,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Upgrade to Calcite 1.26.0 ([BEAM-9379](https://issues.apache.org/jira/browse/BEAM-9379)).
 
 ## Breaking Changes
 
@@ -73,6 +74,7 @@
   * Code depending on beam imports need to include v2 on the module path.
     * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
   * No other code change should be required to use v2.33.0 of the Go SDK.
+* SQL Rows are no longer flattened ([BEAM-5505](https://issues.apache.org/jira/browse/BEAM-5505)).
 
 ## Deprecations
 
