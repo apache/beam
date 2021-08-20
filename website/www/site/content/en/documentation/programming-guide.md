@@ -4066,7 +4066,7 @@ You can use the `@DefaultCoder` annotation to set a new default as follows:
 
 {{< highlight java >}}
 @DefaultCoder(AvroCoder.class)
-public class MyCustomDataType {
+public class MyCustomDataType implements Serializable {
   ...
 }
 {{< /highlight >}}
@@ -4084,7 +4084,7 @@ public class MyCustomCoder implements Coder {
 }
 
 @DefaultCoder(MyCustomCoder.class)
-public class MyCustomDataType {
+public class MyCustomDataType implements Serializable {
   ...
 }
 {{< /highlight >}}
