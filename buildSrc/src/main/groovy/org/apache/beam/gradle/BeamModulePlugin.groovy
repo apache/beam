@@ -1043,6 +1043,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
+          jvmArgs = ['-Xmx12g']
         }
         project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
