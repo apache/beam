@@ -550,7 +550,8 @@ class DataflowApplicationClient(object):
         dict(s.split(',', 1)
              for s in sdk_overrides) if sdk_overrides else dict())
 
-  @retry.with_exponential_backoff()  # Use filter defaults.
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _gcs_file_copy(self, from_path, to_path):
     to_folder, to_name = os.path.split(to_path)
     total_size = os.path.getsize(from_path)
