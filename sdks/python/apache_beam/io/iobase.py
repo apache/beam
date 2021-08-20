@@ -44,6 +44,7 @@ from typing import Union
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.coders.coders import _MemoizingPickleCoder
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -887,11 +888,12 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
-      coders.registry.register_coder(BoundedSource, coders.MemoizingPickleCoder)
+      coders.registry.register_coder(BoundedSource, _MemoizingPickleCoder)
       display_data = self.source.display_data() or {}
       display_data['source'] = self.source.__class__
 
       def output_source(_) -> BoundedSource:
+        assert isinstance(self.source, BoundedSource)
         return self.source
 
       return (
@@ -1660,7 +1662,7 @@ class SDFBoundedSourceReader(PTransform):
 
       def process(
           self,
-          unused_element: BoundedSource,
+          unused_element,
           restriction_tracker=core.DoFn.RestrictionParam(
               _SDFBoundedSourceRestrictionProvider())):
         current_restriction = restriction_tracker.current_restriction()

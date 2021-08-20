@@ -82,7 +82,6 @@ __all__ = [
     'ListCoder',
     'MapCoder',
     'NullableCoder',
-    'MemoizingPickleCoder',
     'PickleCoder',
     'ProtoCoder',
     'ShardedKeyCoder',
@@ -743,10 +742,10 @@ class _PickleCoderBase(FastCoder):
     return hash(type(self))
 
 
-class MemoizingPickleCoder(_PickleCoderBase):
+class _MemoizingPickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality with memoization."""
-  def __init__(self, cache_size=64):
-    super(MemoizingPickleCoder, self).__init__()
+  def __init__(self, cache_size=16):
+    super(_MemoizingPickleCoder, self).__init__()
     self.cache_size = cache_size
 
   def _create_impl(self):
@@ -757,6 +756,7 @@ class MemoizingPickleCoder(_PickleCoderBase):
       return dumps(x, protocol)
 
     mdumps = lru_cache(maxsize=self.cache_size, typed=True)(_dumps)
+
     def _nonhashable_dumps(x):
       try:
         return mdumps(x)
