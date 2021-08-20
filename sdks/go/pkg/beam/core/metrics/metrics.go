@@ -643,6 +643,8 @@ func MergeGauges(
 	return res
 }
 
+// MetricsExtractor extracts the metrics.Results from Store using ctx.
+// This is same as what metrics.dumperExtractor and metrics.dumpTo would do together.
 func MetricsExtractor(ctx context.Context) Results {
 	store := GetStore(ctx)
 	m := make(map[Labels]interface{})

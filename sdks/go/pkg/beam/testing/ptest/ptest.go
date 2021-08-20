@@ -81,6 +81,8 @@ func Run(p *beam.Pipeline) error {
 	return err
 }
 
+// RunWithMetrics runs a pipeline for testing with that returns metrics.Results
+// in the form of Pipeline Result
 func RunWithMetrics(p *beam.Pipeline) (beam.PipelineResult, error) {
 	if *Runner == "" {
 		*Runner = defaultRunner
