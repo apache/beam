@@ -81,6 +81,13 @@ func Run(p *beam.Pipeline) error {
 	return err
 }
 
+func RunWithMetrics(p *beam.Pipeline) (beam.PipelineResult, error) {
+	if *Runner == "" {
+		*Runner = defaultRunner
+	}
+	return beam.Run(context.Background(), *Runner, p)
+}
+
 // RunAndValidate runs a pipeline for testing and validates the result, failing
 // the test if the pipeline fails.
 func RunAndValidate(t *testing.T, p *beam.Pipeline) {

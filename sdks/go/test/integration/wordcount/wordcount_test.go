@@ -84,7 +84,8 @@ func TestWordCount(t *testing.T) {
 		memfs.Write(filename, []byte(strings.Join(test.lines, "\n")))
 
 		p := WordCount(filename, test.hash, test.words)
-		if err := ptest.Run(p); err != nil {
+		_, err := ptest.RunWithMetrics(p)
+		if err != nil {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
 	}
