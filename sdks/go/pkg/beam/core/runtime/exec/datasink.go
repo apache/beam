@@ -20,12 +20,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-// DataSink is a Node that writes element data to the data service.
+// DataSink is a Node that writes element data to the data service..
 type DataSink struct {
 	UID   UnitID
 	SID   StreamID
@@ -56,6 +57,12 @@ func (n *DataSink) StartBundle(ctx context.Context, id string, data DataContext)
 		return err
 	}
 	n.w = w
+	// TODO[BEAM-6374): Properly handle the multiplex and flatten cases.
+	// Right now we just stop datasink collection.
+	if n.PCol != nil {
+		atomic.StoreInt64(&n.PCol.elementCount, 0)
+		n.PCol.resetSize()
+	}
 	return nil
 }
 
@@ -76,7 +83,12 @@ func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values 
 	if err != nil {
 		return err
 	}
-	n.PCol.addSize(int64(byteCount))
+	// TODO[BEAM-6374): Properly handle the multiplex and flatten cases.
+	// Right now we just stop datasink collection.
+	if n.PCol != nil {
+		atomic.AddInt64(&n.PCol.elementCount, 1)
+		n.PCol.addSize(int64(byteCount))
+	}
 	return nil
 }
 

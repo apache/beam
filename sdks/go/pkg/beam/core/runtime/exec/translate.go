@@ -237,15 +237,19 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 			return nil, err
 		}
 		// This is the cleanest place to do this check and filtering,
-		// since DataSinks aren't aware of their inputs, and a Source->Sink
-		// is both uncommon and inefficent, with the Source eliding the
+		// since DataSinks don't know their inputs, due to the construction
+		// call stack.
+		// A Source->Sink is both uncommon and inefficent, with the Source eliding the
 		// collection anyway.
-		if sink, ok := n.Out.(*DataSink); ok {
+		// TODO[BEAM-6374): Properly handle the multiplex and flatten cases.
+		// Right now we just stop datasink collection.
+		switch out := n.Out.(type) {
+		case *DataSink:
 			// We don't remove the PCollection from units here, since we
 			// want to ensure it's included in snapshots.
-			sink.PCol = n
-			ret = append(ret, sink)
-		} else {
+			out.PCol = n
+			ret = append(ret, out)
+		default:
 			ret = append(ret, n)
 		}
 	}
