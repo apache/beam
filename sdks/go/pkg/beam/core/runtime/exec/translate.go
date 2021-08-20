@@ -89,6 +89,8 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			}
 			// Elide the PCollection Node for DataSources
 			// DataSources can get byte samples directly, and can handle CoGBKs.
+			// Copying the PCollection here is fine, as the PCollection will never
+			// have used it's mutex yet.
 			u.PCol = *u.Out.(*PCollection)
 			u.Out = u.PCol.Out
 			b.units = b.units[:len(b.units)-1]
@@ -234,7 +236,18 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		ret = append(ret, n)
+		// This is the cleanest place to do this check and filtering,
+		// since DataSinks aren't aware of their inputs, and a Source->Sink
+		// is both uncommon and inefficent, with the Source eliding the
+		// collection anyway.
+		if sink, ok := n.Out.(*DataSink); ok {
+			// We don't remove the PCollection from units here, since we
+			// want to ensure it's included in snapshots.
+			sink.PCol = n
+			ret = append(ret, sink)
+		} else {
+			ret = append(ret, n)
+		}
 	}
 	return ret, nil
 }
@@ -465,7 +478,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0], WindowCoder: wc}
 				case urnPerKeyCombineMerge:
-					u = &MergeAccumulators{Combine: cn}
+					ma := &MergeAccumulators{Combine: cn}
+					if eo, ok := ma.Out.(*PCollection).Out.(*ExtractOutput); ok {
+						// Strip PCollections from between MergeAccumulators and ExtractOutputs
+						// as it's a synthetic PCollection.
+						b.units = b.units[:len(b.units)-1]
+						ma.Out = eo
+					}
+					u = ma
 				case urnPerKeyCombineExtract:
 					u = &ExtractOutput{Combine: cn}
 				case urnPerKeyCombineConvert:
@@ -644,7 +664,7 @@ func inputIdToIndex(id string) (int, error) {
 	return strconv.Atoi(strings.TrimPrefix(id, "i"))
 }
 
-// inputIdToIndex converts an index into a local input ID for a transform. Use
+// indexToInputId converts an index into a local input ID for a transform. Use
 // this to avoid relying on format details for input IDs.
 func indexToInputId(i int) string {
 	return "i" + strconv.Itoa(i)
