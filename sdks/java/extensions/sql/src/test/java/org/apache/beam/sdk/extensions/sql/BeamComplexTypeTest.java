@@ -245,6 +245,7 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-12782")
   @Test
   public void testNestedBytes() {
     byte[] bytes = new byte[] {-70, -83, -54, -2};
@@ -269,6 +270,7 @@ public class BeamComplexTypeTest {
     pipeline.run();
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-12782")
   @Test
   public void testNestedArrayOfBytes() {
     byte[] bytes = new byte[] {-70, -83, -54, -2};
