@@ -799,18 +799,22 @@ class BigQueryWrapper(object):
     table = self.get_table(project_id, dataset_id, table_id)
     return table.location
 
+  # Returns true if the temporary dataset was provided by the user.
+  def is_user_configured_dataset(self):
+    return (
+        self.temp_dataset_id and
+        not self.temp_dataset_id.startswith(self.TEMP_DATASET))
+
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def create_temporary_dataset(self, project_id, location):
-    is_user_configured_dataset = \
-      not self.temp_dataset_id.startswith(self.TEMP_DATASET)
     # Check if dataset exists to make sure that the temporary id is unique
     try:
       self.client.datasets.Get(
           bigquery.BigqueryDatasetsGetRequest(
               projectId=project_id, datasetId=self.temp_dataset_id))
-      if project_id is not None and not is_user_configured_dataset:
+      if project_id is not None and not self.is_user_configured_dataset():
         # Unittests don't pass projectIds so they can be run without error
         # User configured datasets are allowed to pre-exist.
         raise RuntimeError(
@@ -1305,8 +1309,10 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
-    self.client.create_temporary_dataset(
-        self.executing_project, location=self._get_source_location())
+    if not self.client.is_user_configured_dataset():
+      # Temp dataset was provided by the user so we do not have to create one.
+      self.client.create_temporary_dataset(
+          self.executing_project, location=self._get_source_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):

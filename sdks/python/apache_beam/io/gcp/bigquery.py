@@ -822,6 +822,9 @@ class _CustomBigQuerySource(BoundedSource):
 
   @check_accessible(['query'])
   def _setup_temporary_dataset(self, bq):
+    if self.temp_dataset:
+      # Temp dataset was provided by the user so we can just return.
+      return
     location = bq.get_query_location(
         self._get_project(), self.query.get(), self.use_legacy_sql)
     bq.create_temporary_dataset(self._get_project(), location)
