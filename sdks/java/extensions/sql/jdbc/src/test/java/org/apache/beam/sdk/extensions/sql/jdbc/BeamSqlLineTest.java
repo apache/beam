@@ -105,7 +105,7 @@ public class BeamSqlLineTest {
         buildArgs(
             "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b VARCHAR, "
                 + "col_c VARCHAR, col_x TINYINT, col_y INT, col_z BIGINT) TYPE 'test';",
-            "INSERT INTO table_test VALUES ('a', 'b', 'c', 1, 2, 3);",
+            "INSERT INTO table_test VALUES ('a', 'b', 'c', 1, 2, CAST(3 AS BIGINT));",
             "SELECT * FROM table_test;");
 
     BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
