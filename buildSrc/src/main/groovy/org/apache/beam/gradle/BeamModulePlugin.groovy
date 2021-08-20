@@ -428,10 +428,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsublite_version = "0.13.2"
     def google_code_gson_version = "2.8.6"
-    def google_oauth_clients_version = "1.31.4-sp.1" // LTS Test
+    def google_oauth_clients_version = "1.31.4-sp.1" // Test
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.36.1" // LTS Test
-    def guava_version = "30.1.1-jre" // LTS Test
+    def grpc_version = "1.36.1" // Test
+    def guava_version = "30.1.1-jre" // Test
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
@@ -446,7 +446,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
-    def protobuf_version = "3.16.0" // LTS Test
+    def protobuf_version = "3.16.0" // Test
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
@@ -505,13 +505,13 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.6",
-        gax                                         : "com.google.api:gax:1.64.0-sp.1", // LTS Test
-        gax_grpc                                    : "com.google.api:gax-grpc:1.64.0-sp.1", // LTS Test
-        gax_httpjson                                : "com.google.api:gax-httpjson:0.81.0-sp.1", // LTS Test
-        google_api_client                           : "com.google.api-client:google-api-client:1.31.3-sp.1", // LTS Test. 1.31.1 is required to run 1.31.0 of google_clients_version below.
+        gax                                         : "com.google.api:gax:1.64.0-sp.1", // Test
+        gax_grpc                                    : "com.google.api:gax-grpc:1.64.0-sp.1", // Test
+        gax_httpjson                                : "com.google.api:gax-httpjson:0.81.0-sp.1", // Test
+        google_api_client                           : "com.google.api-client:google-api-client:1.31.3-sp.1", // Test. 1.31.1 is required to run 1.31.0 of google_clients_version below.
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
-        google_api_common                           : "com.google.api:api-common:1.10.1-sp.1", // LTS Test
+        google_api_common                           : "com.google.api:api-common:1.10.1-sp.1", // Test
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20210410-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20210326-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20210331-$google_clients_version",
@@ -519,9 +519,9 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20210407-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20210322-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20210127-$google_clients_version",
-        google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:0.25.2-sp.1", // LTS Test
-        google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:0.25.2-sp.1", // LTS Test
-        google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.127.12-sp.1", // LTS Test
+        google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:0.25.2-sp.1", // Test
+        google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:0.25.2-sp.1", // Test
+        google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.127.12-sp.1", // Test
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:1.18.1",
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.19.1",
         google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.125.2",
@@ -529,22 +529,22 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
-        google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub:1.111.0-sp.1", // LTS Test
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.4-sp.1", // Test
+        google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub:1.111.0-sp.1", // Test
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite:$google_cloud_pubsublite_version",
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
         // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/20.0.0/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:20.0.0",
-        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:3.3.3-sp.1", // LTS Test
+        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:3.3.3-sp.1", // Test
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
         // This version should be in line with the one in com.google.cloud:libraries-bom.
-        google_http_client                          : "com.google.http-client:google-http-client:1.39.2-sp.1", // LTS Test
-        google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2:1.39.2-sp.1", // LTS Test
+        google_http_client                          : "com.google.http-client:google-http-client:1.39.2-sp.1", // Test
+        google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2:1.39.2-sp.1", // Test
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
-        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:1.39.2-sp.1", // LTS Test
-        google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:1.39.2-sp.1", // LTS Test
+        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:1.39.2-sp.1", // Test
+        google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:1.39.2-sp.1", // Test
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
         // Don't use grpc_all, it can cause issues in Bazel builds. Reference the gRPC libraries you need individually instead.
@@ -553,7 +553,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_auth                                   : "io.grpc:grpc-auth", // google_cloud_platform_libraries_bom sets version
         grpc_context                                : "io.grpc:grpc-context", // google_cloud_platform_libraries_bom sets version
         grpc_core                                   : "io.grpc:grpc-core", // google_cloud_platform_libraries_bom sets version
-        grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
+        grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:1.93.0-sp.1", // Test
         grpc_google_cloud_pubsublite_v1             : "com.google.api.grpc:grpc-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         grpc_google_common_protos                   : "com.google.api.grpc:grpc-google-common-protos", // google_cloud_platform_libraries_bom sets version
         grpc_grpclb                                 : "io.grpc:grpc-grpclb", // google_cloud_platform_libraries_bom sets version
@@ -610,13 +610,13 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_bigquery_storage_v1      : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_admin_v2        : "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigquery_storage_v1beta2 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta2", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2:1.22.0-sp.1", // Test
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1:0.89.5-sp.1", // Test
+        proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1:1.93.0-sp.1", // Test
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
-        proto_google_cloud_spanner_v1: "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_spanner_v1: "com.google.api.grpc:proto-google-cloud-spanner-v1:3.3.3-sp.1", // Test
+        proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:3.3.3-sp.1", // Test
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
