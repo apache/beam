@@ -96,38 +96,120 @@ public class PrefetchableIterables {
         if (!hasNext()) {
           throw new NoSuchElementException();
         }
-        return values[currentIndex];
+        return values[currentIndex++];
       }
     };
   }
 
   private static <T> PrefetchableIterable<T> maybePrefetchable(Iterable<T> iterable) {
+    if (iterable instanceof PrefetchableIterable) {
+      return (PrefetchableIterable<T>) iterable;
+    }
     return new PrefetchableIterable<T>() {
       @Override
       public PrefetchableIterator<T> iterator() {
-        Iterator<T> delegate = iterable.iterator();
-        if (delegate instanceof PrefetchableIterator) {
-          return (PrefetchableIterator<T>) delegate;
+        return maybePrefetchable(iterable.iterator());
+      }
+    };
+  }
+
+  private static <T> PrefetchableIterator<T> maybePrefetchable(Iterator<T> iterator) {
+    if (iterator instanceof PrefetchableIterator) {
+      return (PrefetchableIterator<T>) iterator;
+    }
+    // Assume all non prefetchable iterators are ready and have nothing to do to prefetch
+    return new PrefetchableIterator<T>() {
+      @Override
+      public boolean isReady() {
+        return true;
+      }
+
+      @Override
+      public void prefetch() {}
+
+      @Override
+      public boolean hasNext() {
+        return iterator.hasNext();
+      }
+
+      @Override
+      public T next() {
+        return iterator.next();
+      }
+    };
+  }
+
+  public static <T> PrefetchableIterator<T> concat(Iterator<T>... iterators) {
+    for (int i = 0; i < iterators.length; ++i) {
+      if (iterators[i] == null) {
+        throw new IllegalArgumentException("Iterator at position " + i + " was null.");
+      }
+    }
+    if (iterators.length == 0) {
+      return emptyIterator();
+    } else if (iterators.length == 1) {
+      return maybePrefetchable(iterators[0]);
+    }
+    // TODO: Share implementation details with #concat version
+    return new PrefetchableIterator<T>() {
+      Iterator<T> delegate = iterators[0];
+      int currentIndex;
+
+      @Override
+      public boolean isReady() {
+        if (delegate == null) {
+          return true;
         }
-        return new PrefetchableIterator<T>() {
-          @Override
-          public boolean isReady() {
+        // Ensure that we advance from iterators that don't have the next
+        // element to an iterator that supports prefetch or does have an element
+        for (; ; ) {
+          // If the delegate isn't ready then we aren't ready.
+          // We assume that non prefetchable iterators are always ready.
+          if (delegate instanceof PrefetchableIterator
+              && !((PrefetchableIterator<T>) delegate).isReady()) {
+            return false;
+          }
+
+          // If the delegate has a next and is ready then we are ready
+          if (delegate.hasNext()) {
             return true;
           }
 
-          @Override
-          public void prefetch() {}
-
-          @Override
-          public boolean hasNext() {
-            return delegate.hasNext();
+          // Otherwise we should advance to the next index since we know this iterator is empty
+          // and re-evaluate whether we are ready
+          if (currentIndex == iterators.length - 1) {
+            return true;
           }
+          delegate = iterators[++currentIndex];
+        }
+      }
 
-          @Override
-          public T next() {
-            return delegate.next();
+      @Override
+      public void prefetch() {
+        if (!isReady() && delegate instanceof PrefetchableIterator) {
+          ((PrefetchableIterator<T>) delegate).prefetch();
+        }
+      }
+
+      @Override
+      public boolean hasNext() {
+        for (; ; ) {
+          if (delegate.hasNext()) {
+            return true;
           }
-        };
+          if (currentIndex == iterators.length - 1) {
+            return false;
+          }
+          delegate = iterators[++currentIndex];
+        }
+      }
+
+      @Override
+      public T next() {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+        return delegate.next();
       }
     };
   }
@@ -141,9 +223,6 @@ public class PrefetchableIterables {
     if (iterables.length == 0) {
       return emptyIterable();
     } else if (iterables.length == 1) {
-      if (iterables[0] instanceof PrefetchableIterable) {
-        return (PrefetchableIterable<T>) iterables[0];
-      }
       return maybePrefetchable(iterables[0]);
     }
     return new PrefetchableIterable<T>() {
@@ -155,42 +234,37 @@ public class PrefetchableIterables {
 
           @Override
           public boolean isReady() {
-            return false;
+            if (delegate == null) {
+              return true;
+            }
+            // Ensure that we advance from iterables that don't have the next
+            // element to an iterable that supports prefetch or does have an element
+            for (; ; ) {
+              // If the delegate isn't ready then we aren't ready.
+              // We assume that non prefetchable iterators are always ready.
+              if (delegate instanceof PrefetchableIterator
+                  && !((PrefetchableIterator<T>) delegate).isReady()) {
+                return false;
+              }
+
+              // If the delegate has a next and is ready then we are ready
+              if (delegate.hasNext()) {
+                return true;
+              }
+
+              // Otherwise we should advance to the next index since we know this iterator is empty
+              // and re-evaluate whether we are ready
+              if (currentIndex == iterables.length - 1) {
+                return true;
+              }
+              delegate = iterables[++currentIndex].iterator();
+            }
           }
 
           @Override
           public void prefetch() {
-            // Ensure that we advance from iterables that don't have the next
-            // element to an iterable that supports prefetch or does have an element
-            for (; ; ) {
-              if (delegate instanceof PrefetchableIterator) {
-                // Move to the next iterator if we can know that the prefetchable iterator is
-                // empty without blocking.
-                if (((PrefetchableIterator<T>) delegate).isReady()) {
-                  if (delegate.hasNext()) {
-                    return;
-                  }
-                  // We should advance to the next index since we know this iterator is empty
-                  // and re-evaluate whether we can perform a prefetch
-                  currentIndex += 1;
-                  if (currentIndex == iterables.length) {
-                    delegate = null;
-                  }
-                  delegate = iterables[currentIndex].iterator();
-                } else {
-                  ((PrefetchableIterator<T>) delegate).prefetch();
-                }
-
-                // Assume that iterators that aren't prefetchable are always ready.
-              } else if (!delegate.hasNext()) {
-                // We should advance to the next index since we know this iterator is empty
-                // and re-evaluate whether we can perform a prefetch
-                currentIndex += 1;
-                if (currentIndex == iterables.length) {
-                  delegate = null;
-                }
-                delegate = iterables[currentIndex].iterator();
-              }
+            if (!isReady() && delegate instanceof PrefetchableIterator) {
+              ((PrefetchableIterator<T>) delegate).prefetch();
             }
           }
 
@@ -200,12 +274,10 @@ public class PrefetchableIterables {
               if (delegate.hasNext()) {
                 return true;
               }
-              currentIndex += 1;
-              if (currentIndex == iterables.length) {
-                delegate = null;
+              if (currentIndex == iterables.length - 1) {
                 return false;
               }
-              delegate = iterables[currentIndex].iterator();
+              delegate = iterables[++currentIndex].iterator();
             }
           }
 
@@ -240,7 +312,7 @@ public class PrefetchableIterables {
 
             @Override
             public void prefetch() {
-              if (currentPosition < limit) {
+              if (!isReady()) {
                 delegate.prefetch();
               }
             }

@@ -25,7 +25,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assume.assumeTrue;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,38 +47,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutpu
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataStreams}. */
+@RunWith(Enclosed.class)
 public class DataStreamsTest {
-
-  /** Tests for {@link DataStreams.Inbound}. */
-  @RunWith(JUnit4.class)
-  public static class InboundTest {
-    private static final ByteString BYTES_A = ByteString.copyFromUtf8("TestData");
-    private static final ByteString BYTES_B = ByteString.copyFromUtf8("SomeOtherTestData");
-
-    @Test
-    public void testEmptyRead() throws Exception {
-      assertEquals(ByteString.EMPTY, read());
-      assertEquals(ByteString.EMPTY, read(ByteString.EMPTY));
-      assertEquals(ByteString.EMPTY, read(ByteString.EMPTY, ByteString.EMPTY));
-    }
-
-    @Test
-    public void testRead() throws Exception {
-      assertEquals(BYTES_A.concat(BYTES_B), read(BYTES_A, BYTES_B));
-      assertEquals(BYTES_A.concat(BYTES_B), read(BYTES_A, ByteString.EMPTY, BYTES_B));
-      assertEquals(BYTES_A.concat(BYTES_B), read(BYTES_A, BYTES_B, ByteString.EMPTY));
-    }
-
-    private static ByteString read(ByteString... bytes) throws IOException {
-      return ByteString.readFrom(DataStreams.inbound(Arrays.asList(bytes).iterator()));
-    }
-  }
-
   /** Tests for {@link DataStreams.BlockingQueueIterator}. */
   @RunWith(JUnit4.class)
   public static class BlockingQueueIteratorTest {
@@ -152,7 +127,9 @@ public class DataStreamsTest {
       }
 
       Iterator<T> decoder =
-          new DataStreamDecoder<>(coder, new ByteArrayInputStream(baos.toByteArray()));
+          new DataStreamDecoder<>(
+              coder,
+              PrefetchableIterables.iteratorFromArray(ByteString.copyFrom(baos.toByteArray())));
 
       Object[] actual = Iterators.toArray(decoder, Object.class);
       assertArrayEquals(expected, actual);

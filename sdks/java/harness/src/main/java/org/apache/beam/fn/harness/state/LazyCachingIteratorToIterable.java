@@ -63,10 +63,9 @@ class LazyCachingIteratorToIterable<T> implements PrefetchableIterable<T> {
 
     @Override
     public void prefetch() {
-      if (position < cachedElements.size()) {
-        return;
+      if (!isReady()) {
+        iterator.prefetch();
       }
-      iterator.prefetch();
     }
 
     @Override
