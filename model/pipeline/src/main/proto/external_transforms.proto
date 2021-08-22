@@ -96,11 +96,6 @@ message JavaClassLookupPayload {
   // Given builder methods will be invoked in order when constructing the
   // transform objects.
   repeated BuilderMethod builder_methods = 4;
-
-  // If set to true, will assume constructor_method
-  // and builder_methods to denote predefined annotations instead of actual
-  // method names.
-  bool annotated = 5;
 }
 
 

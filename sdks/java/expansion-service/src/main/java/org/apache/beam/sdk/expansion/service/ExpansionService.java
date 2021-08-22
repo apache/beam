@@ -374,9 +374,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
   private final PipelineOptions pipelineOptions;
+  private String allowlistFile = null;
 
   public ExpansionService() {
     this(new String[] {});
+  }
+
+  void setAllowlistFile(String allowlistFile) {
+    this.allowlistFile = allowlistFile;
   }
 
   public ExpansionService(String[] args) {
@@ -467,7 +472,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     TransformProvider transformProvider = null;
     if (getUrn(PayloadTypeUrns.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
-      transformProvider = new JavaClassLookupTransformProvider();
+
+      if (this.allowlistFile == null) {
+        this.allowlistFile =
+            pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
+      }
+      transformProvider = new JavaClassLookupTransformProvider(this.allowlistFile);
     } else {
       transformProvider = getRegisteredTransforms().get(urn);
       if (transformProvider == null) {

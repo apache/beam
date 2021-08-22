@@ -1,0 +1,26 @@
+version: v1
+allowedClasses:
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructor
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethod
+  allowedConstructorMethods:
+  - from
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods
+  allowedBuilderMethods:
+  - withStrField2
+  - withIntField1
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithConstructorMethodAndBuilderMethods
+  allowedConstructorMethods:
+  - from
+  allowedBuilderMethods:
+  - withStrField2
+  - withIntField1
+  - strField2
+  - intField1
+- className: org.apache.beam.sdk.expansion.service.JavaCLassLookupTransformProviderTest$DummyTransformWithMultiLanguageAnnotations
+  allowedConstructorMethods:
+  - create_transform
+  allowedBuilderMethods:
+  - abc
+  - xyz
+
+

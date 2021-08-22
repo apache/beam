@@ -19,6 +19,12 @@ package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.File;
+import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -55,10 +61,28 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBu
 @SuppressWarnings({
   "rawtypes",
 })
+@SuppressFBWarnings("UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD")
 class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends POutput>
     implements TransformProvider<PInput, POutput> {
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
+  AllowList allowList = null;
+
+  public JavaClassLookupTransformProvider(String allowListFile) {
+    if (!allowListFile.isEmpty()) {
+      ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+      File allowListFileObj = new File(allowListFile);
+      if (!allowListFileObj.exists()) {
+        throw new IllegalArgumentException("Allow list file " + allowListFile + " does not exist");
+      }
+      try {
+        allowList = mapper.readValue(allowListFileObj, AllowList.class);
+      } catch (IOException e) {
+        throw new IllegalArgumentException(
+            "Could not load the provided allowlist file " + allowListFile, e);
+      }
+    }
+  }
 
   @Override
   public PTransform<PInput, POutput> getTransform(FunctionSpec spec) {
@@ -72,6 +96,22 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
 
     String className = payload.getClassName();
     try {
+      AllowedClass allowlistClass = null;
+      if (this.allowList != null) {
+        for (AllowedClass cls : this.allowList.allowedClasses) {
+          if (cls.className.equals(className)) {
+            if (allowlistClass != null) {
+              throw new IllegalArgumentException(
+                  "Found two matching allowlist classes " + allowlistClass + " and " + cls);
+            }
+            allowlistClass = cls;
+          }
+        }
+      }
+      if (allowlistClass == null) {
+        throw new UnsupportedOperationException(
+            "Expanding a transform class by the name " + className + " is not allowed.");
+      }
       Class transformClass = Class.forName(className);
       PTransform<PInput, POutput> transform;
       if (payload.getConstructorMethod().isEmpty()) {
@@ -84,14 +124,14 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
         transform = (PTransform<PInput, POutput>) constructor.newInstance(parameterValues);
       } else {
         Method[] methods = transformClass.getMethods();
-        Method method = findMappingConstructorMethod(methods, payload);
+        Method method = findMappingConstructorMethod(methods, payload, allowlistClass);
         Object[] parameterValues =
             getParameterValues(
                 method.getParameters(),
                 payload.getConstructorParametersList().toArray(new Parameter[0]));
         transform = (PTransform<PInput, POutput>) method.invoke(null, parameterValues);
       }
-      return applyBuilderMethods(transform, payload);
+      return applyBuilderMethods(transform, payload, allowlistClass);
     } catch (ClassNotFoundException e) {
       throw new IllegalArgumentException("Could not find class " + className, e);
     } catch (InstantiationException
@@ -103,9 +143,11 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
   }
 
   private PTransform<PInput, POutput> applyBuilderMethods(
-      PTransform<PInput, POutput> transform, JavaClassLookupPayload payload) {
+      PTransform<PInput, POutput> transform,
+      JavaClassLookupPayload payload,
+      AllowedClass allowListClass) {
     for (BuilderMethod builderMethod : payload.getBuilderMethodsList()) {
-      Method method = getMethod(transform, builderMethod);
+      Method method = getMethod(transform, builderMethod, allowListClass);
       try {
         transform =
             (PTransform<PInput, POutput>)
@@ -129,10 +171,49 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     return transform;
   }
 
-  private Method getMethod(PTransform<PInput, POutput> transform, BuilderMethod builderMethod) {
+  private boolean isBuilderMethodForName(
+      Method method, String nameFromPayload, AllowedClass allowListClass) {
+    // Lookup based on method annotations
+    for (Annotation annotation : method.getAnnotations()) {
+      if (annotation instanceof MultiLanguageBuilderMethod) {
+        if (nameFromPayload.equals(((MultiLanguageBuilderMethod) annotation).name())) {
+          if (allowListClass.allowedBuilderMethods.contains(nameFromPayload)) {
+            return true;
+          } else {
+            throw new RuntimeException(
+                "Builder method " + nameFromPayload + " has to be explicitly allowed");
+          }
+        }
+      }
+    }
+
+    // Lookup based on the method name.
+    boolean match = method.getName().equals(nameFromPayload);
+    String consideredMethodName = method.getName();
+
+    // We provide a simplification for common Java builder pattern naming convention where builder
+    // methods start with "with". In this case, for a builder method name in the form "withXyz",
+    // users may just use "xyz". If additional updates to the method name are needed the transform
+    // has to be updated by adding annotations.
+    if (!match && consideredMethodName.length() > 4 && consideredMethodName.startsWith("with")) {
+      consideredMethodName =
+          consideredMethodName.substring(4, 5).toLowerCase() + consideredMethodName.substring(5);
+      match = consideredMethodName.equals(nameFromPayload);
+    }
+    if (match && !allowListClass.allowedBuilderMethods.contains(consideredMethodName)) {
+      throw new RuntimeException(
+          "Builder method name " + consideredMethodName + " has to be explicitly allowed");
+    }
+    return match;
+  }
+
+  private Method getMethod(
+      PTransform<PInput, POutput> transform,
+      BuilderMethod builderMethod,
+      AllowedClass allowListClass) {
     List<Method> matchingMethods =
         Arrays.stream(transform.getClass().getMethods())
-            .filter(m -> m.getName().equals(builderMethod.getName()))
+            .filter(m -> isBuilderMethodForName(m, builderMethod.getName(), allowListClass))
             .filter(
                 m ->
                     parametersCompatible(
@@ -275,12 +356,39 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     return mappingConstructors.get(0);
   }
 
-  private Method findMappingConstructorMethod(Method[] methods, JavaClassLookupPayload payload) {
+  private boolean isConstructorMethodForName(
+      Method method, String nameFromPayload, AllowedClass allowListClass) {
+    for (Annotation annotation : method.getAnnotations()) {
+      if (annotation instanceof MultiLanguageConstructorMethod) {
+        if (nameFromPayload.equals(((MultiLanguageConstructorMethod) annotation).name())) {
+          if (allowListClass.allowedConstructorMethods.contains(nameFromPayload)) {
+            return true;
+          } else {
+            throw new RuntimeException(
+                "Constructor method " + nameFromPayload + " needs to be explicitly allowed");
+          }
+        }
+      }
+    }
+    if (method.getName().equals(nameFromPayload)) {
+      if (allowListClass.allowedConstructorMethods.contains(nameFromPayload)) {
+        return true;
+      } else {
+        throw new RuntimeException(
+            "Constructor method " + nameFromPayload + " needs to be explicitly allowed");
+      }
+    }
+    return false;
+  }
+
+  private Method findMappingConstructorMethod(
+      Method[] methods, JavaClassLookupPayload payload, AllowedClass allowListClass) {
     Parameter[] constructporMethodParametersFromPayload =
         payload.getConstructorParametersList().toArray(new Parameter[0]);
     List<Method> mappingConstructorMethods =
         Arrays.stream(methods)
-            .filter(m -> m.getName().equals(payload.getConstructorMethod()))
+            .filter(
+                m -> isConstructorMethodForName(m, payload.getConstructorMethod(), allowListClass))
             .filter(m -> m.getParameterCount() == payload.getConstructorParametersCount())
             .filter(
                 m ->
@@ -296,5 +404,16 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
               + payload);
     }
     return mappingConstructorMethods.get(0);
+  }
+
+  public static class AllowList {
+    public String version;
+    public List<AllowedClass> allowedClasses;
+  }
+
+  public static class AllowedClass {
+    public String className;
+    public List<String> allowedConstructorMethods;
+    public List<String> allowedBuilderMethods;
   }
 }
