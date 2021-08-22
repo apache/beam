@@ -41,7 +41,8 @@ except ImportError:
 GCP_TEST_PROJECT = 'apache-beam-testing'
 
 CATALOG_ITEM = {
-    "id": str(int(random.randrange(100000))),
+    "id": f"aitest-{int(datetime.now().timestamp())}-"
+          f"{int(random.randint(1,10000))}",
     "title": "Sample laptop",
     "description": "Indisputably the most fantastic laptop ever created.",
     "language_code": "en",
