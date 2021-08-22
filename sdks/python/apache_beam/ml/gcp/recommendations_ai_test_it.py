@@ -108,7 +108,8 @@ class RecommendationAIIT(unittest.TestCase):
     client = recommendationengine.CatalogServiceClient()
     client.delete_catalog_item(
         name=
-        f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/default_catalog/catalogItems/{CATALOG_ITEM['id']}"
+        f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/"
+        f"default_catalog/catalogItems/{CATALOG_ITEM['id']}"
     )
 
 
