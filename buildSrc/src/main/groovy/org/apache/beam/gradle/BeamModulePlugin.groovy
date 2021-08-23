@@ -536,7 +536,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/20.0.0/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:20.0.0",
-        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:3.3.3-sp.1", // Test
+        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:6.4.4", // Test
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
         // This version should be in line with the one in com.google.cloud:libraries-bom.
@@ -615,8 +615,8 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1:0.89.5-sp.1", // Test
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1:1.93.0-sp.1", // Test
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
-        proto_google_cloud_spanner_v1: "com.google.api.grpc:proto-google-cloud-spanner-v1:3.3.3-sp.1", // Test
-        proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:3.3.3-sp.1", // Test
+        proto_google_cloud_spanner_v1: "com.google.api.grpc:proto-google-cloud-spanner-v1:6.4.4", // Test
+        proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:6.4.4", // Test
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
