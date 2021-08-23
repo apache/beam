@@ -103,7 +103,9 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
     } else if (value instanceof KV) {
       keyedInternals.setKey(((KV<?, ?>) value).getKey());
     } else {
-      keyedInternals.setKey(value);
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is not supported in %s", value.getClass(), DoFnRunnerWithKeyedInternals.class));
     }
   }
 

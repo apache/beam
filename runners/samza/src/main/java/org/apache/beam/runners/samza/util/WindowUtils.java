@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
+/** Utils for window operations. */
 public class WindowUtils {
 
   /** Get {@link WindowingStrategy} of given collection id from {@link RunnerApi.Components}. */

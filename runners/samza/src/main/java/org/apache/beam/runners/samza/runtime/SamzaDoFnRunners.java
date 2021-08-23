@@ -267,7 +267,7 @@ public class SamzaDoFnRunners {
     }
 
     @SuppressWarnings("unchecked")
-    void timerDataConsumer(Timer<?> timerElement, TimerInternals.TimerData timerData) {
+    private void timerDataConsumer(Timer<?> timerElement, TimerInternals.TimerData timerData) {
       TimerInternals timerInternals =
           timerInternalsFactory.timerInternalsForKey(timerElement.getUserKey());
       if (timerElement.getClearBit()) {
@@ -346,11 +346,11 @@ public class SamzaDoFnRunners {
         Instant timestamp,
         Instant outputTimestamp,
         TimeDomain timeDomain) {
-      KV<String, String> timerReceiverKey =
+      final KV<String, String> timerReceiverKey =
           TimerReceiverFactory.decodeTimerDataTimerId(timerFamilyId);
-      FnDataReceiver<Timer> timerReceiver = remoteBundle.getTimerReceivers().get(timerReceiverKey);
-
-      Timer timerValue =
+      final FnDataReceiver<Timer> timerReceiver =
+          remoteBundle.getTimerReceivers().get(timerReceiverKey);
+      final Timer timerValue =
           Timer.of(
               key,
               timerId,
