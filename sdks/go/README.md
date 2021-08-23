@@ -19,7 +19,7 @@
 
 # Go SDK
 
-The Apache Beam Go SDK is the Beam Model implemented in the Go[] Programming Language](https://go.dev/).
+The Apache Beam Go SDK is the Beam Model implemented in the [Go Programming Language](https://go.dev/).
 It is based on the following initial [design](https://s.apache.org/beam-go-sdk-design-rfc).
 
 ## How to run the examples
