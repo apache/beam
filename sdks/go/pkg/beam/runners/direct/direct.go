@@ -74,8 +74,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err = plan.Down(ctx); err != nil {
 		return nil, err
 	}
-	// TODO(lostluck) 2020/01/24: What's the right way to expose the
-	// metrics store for the direct runner?
+
 	prResult, prerr := newDirectPipelineResult(ctx)
 	return prResult, prerr
 }
