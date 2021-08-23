@@ -76,3 +76,7 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
   }
   dockerPrepare.dependsOn 'skipPullLicenses'
 }
+
+task pushAll {
+  dependsOn ":sdks:go:container:dockerPush"
+}
