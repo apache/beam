@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.junit.Test;
 
-/** Unit tests for {@link WindowUtils} */
+/** Unit tests for {@link WindowUtils}. */
 public class WindowUtilsTest {
 
   @Test
