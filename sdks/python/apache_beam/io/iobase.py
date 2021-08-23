@@ -892,14 +892,10 @@ class Read(ptransform.PTransform):
       display_data = self.source.display_data() or {}
       display_data['source'] = self.source.__class__
 
-      def output_source(_) -> BoundedSource:
-        assert isinstance(self.source, BoundedSource)
-        return self.source
-
       return (
           pbegin
           | Impulse()
-          | core.Map(output_source)
+          | core.Map(lambda _: self.source).with_output_types(BoundedSource)
           | SDFBoundedSourceReader(display_data))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
@@ -1581,7 +1577,7 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     return True
 
 
-class _RestrictionCoder(coders.Coder):
+class _SDFBoundedSourceWrapperRestrictionCoder(coders.Coder):
   def decode(self, value):
     return _SDFBoundedSourceRestriction(SourceBundle(*pickler.loads(value)))
 
@@ -1602,7 +1598,8 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   """
   def __init__(self, desired_chunk_size=None, restriction_coder=None):
     self._desired_chunk_size = desired_chunk_size
-    self._restriction_coder = restriction_coder or _RestrictionCoder()
+    self._restriction_coder = (
+        restriction_coder or _SDFBoundedSourceWrapperRestrictionCoder())
 
   def _check_source(self, src):
     if not isinstance(src, BoundedSource):
