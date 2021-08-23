@@ -684,20 +684,20 @@ func MetricsExtractor(ctx context.Context) Results {
 	r := Results{counters: []CounterResult{}, distributions: []DistributionResult{}, gauges: []GaugeResult{}}
 	for _, l := range ls {
 		key := StepKey{Step: l.transform, Name: l.name, Namespace: l.namespace}
-		switch opt := m[l]; opt {
-		case opt.(*counter):
+		switch opt := m[l]; opt.(type) {
+		case *counter:
 			attempted := make(map[StepKey]int64)
 			committed := make(map[StepKey]int64)
 			attempted[key] = 0
 			committed[key] = opt.(*counter).value
 			r.counters = append(r.counters, MergeCounters(attempted, committed)...)
-		case opt.(*distribution):
+		case *distribution:
 			attempted := make(map[StepKey]DistributionValue)
 			committed := make(map[StepKey]DistributionValue)
 			attempted[key] = DistributionValue{}
 			committed[key] = DistributionValue{opt.(*distribution).count, opt.(*distribution).sum, opt.(*distribution).min, opt.(*distribution).max}
 			r.distributions = append(r.distributions, MergeDistributions(attempted, committed)...)
-		case opt.(*gauge):
+		case *gauge:
 			attempted := make(map[StepKey]GaugeValue)
 			committed := make(map[StepKey]GaugeValue)
 			attempted[key] = GaugeValue{}
