@@ -75,8 +75,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, err
 	}
 
-	prResult, prerr := newDirectPipelineResult(ctx)
-	return prResult, prerr
+	return newDirectPipelineResult(ctx)
 }
 
 type directPipelineResult struct {
