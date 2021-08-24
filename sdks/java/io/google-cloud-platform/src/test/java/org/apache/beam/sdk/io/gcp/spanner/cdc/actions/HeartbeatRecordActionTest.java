@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
@@ -46,7 +47,8 @@ public class HeartbeatRecordActionTest {
 
   @Before
   public void setUp() {
-    action = new HeartbeatRecordAction();
+    final ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
+    action = new HeartbeatRecordAction(metrics);
     partition = mock(PartitionMetadata.class);
     tracker = mock(RestrictionTracker.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);

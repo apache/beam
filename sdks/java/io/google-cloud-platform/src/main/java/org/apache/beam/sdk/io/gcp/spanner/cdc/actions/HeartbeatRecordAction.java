@@ -25,6 +25,7 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionPosition;
@@ -40,6 +41,11 @@ import org.slf4j.LoggerFactory;
 public class HeartbeatRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(HeartbeatRecordAction.class);
   private static final Tracer TRACER = Tracing.getTracer();
+  private final ChangeStreamMetrics metrics;
+
+  public HeartbeatRecordAction(ChangeStreamMetrics metrics) {
+    this.metrics = metrics;
+  }
 
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
@@ -63,6 +69,7 @@ public class HeartbeatRecordAction {
         LOG.debug("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
         return Optional.of(ProcessContinuation.stop());
       }
+      metrics.incHearbeatRecordCount();
       watermarkEstimator.setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
 
       LOG.debug("[" + token + "] Heartbeat record action completed successfully");

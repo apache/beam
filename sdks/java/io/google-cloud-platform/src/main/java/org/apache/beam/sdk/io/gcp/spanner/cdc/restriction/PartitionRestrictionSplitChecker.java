@@ -32,9 +32,7 @@ public class PartitionRestrictionSplitChecker {
   private static final long MICRO_SECONDS_REQUIRED_BEFORE_SPLIT = 1L;
 
   public boolean isSplitAllowed(
-      PartitionRestriction restriction,
-      PartitionPosition lastClaimedPosition,
-      PartitionPosition claimedPosition) {
+      PartitionRestriction restriction, PartitionPosition claimedPosition) {
     final String partitionToken = restriction.getMetadata().getPartitionToken();
     final PartitionMode positionMode = claimedPosition.getMode();
     checkArgument(
@@ -45,7 +43,8 @@ public class PartitionRestrictionSplitChecker {
     boolean isSplitAllowed;
     switch (positionMode) {
       case QUERY_CHANGE_STREAM:
-        isSplitAllowed = isQueryChangeStreamSplitAllowed(lastClaimedPosition, claimedPosition);
+        final Timestamp startTimestamp = restriction.getStartTimestamp();
+        isSplitAllowed = isQueryChangeStreamSplitAllowed(startTimestamp, claimedPosition);
         break;
       case WAIT_FOR_CHILD_PARTITIONS:
       case FINISH_PARTITION:
@@ -65,7 +64,7 @@ public class PartitionRestrictionSplitChecker {
         "["
             + partitionToken
             + "] Is split allowed for ("
-            + lastClaimedPosition
+            + restriction
             + ","
             + claimedPosition
             + ") is "
@@ -74,18 +73,10 @@ public class PartitionRestrictionSplitChecker {
   }
 
   private boolean isQueryChangeStreamSplitAllowed(
-      PartitionPosition lastClaimedPosition, PartitionPosition currentPosition) {
-    if (lastClaimedPosition == null) {
-      return false;
-    }
-    if (!lastClaimedPosition.getTimestamp().isPresent()) {
-      return false;
-    }
-
-    final Timestamp lastClaimedTimestamp = lastClaimedPosition.getTimestamp().get();
+      Timestamp startTimestamp, PartitionPosition currentPosition) {
     final Timestamp claimedTimestamp = currentPosition.getTimestamp().get();
     final Duration duration =
-        Timestamps.between(lastClaimedTimestamp.toProto(), claimedTimestamp.toProto());
+        Timestamps.between(startTimestamp.toProto(), claimedTimestamp.toProto());
     if (duration.getSeconds() >= 1) {
       return true;
     }

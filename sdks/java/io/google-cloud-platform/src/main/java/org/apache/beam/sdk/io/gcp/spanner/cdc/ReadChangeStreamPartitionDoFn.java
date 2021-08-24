@@ -142,7 +142,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final ChangeStreamRecordMapper changeStreamRecordMapper =
         mapperFactory.changeStreamRecordMapper();
     final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
-    final HeartbeatRecordAction heartbeatRecordAction = actionFactory.heartbeatRecordAction();
+    final HeartbeatRecordAction heartbeatRecordAction =
+        actionFactory.heartbeatRecordAction(metrics);
     final ChildPartitionsRecordAction childPartitionsRecordAction =
         actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics);
 

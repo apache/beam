@@ -47,9 +47,9 @@ public class ActionFactory implements Serializable {
   }
 
   // TODO: See if synchronized is a bottleneck and refactor if so
-  public synchronized HeartbeatRecordAction heartbeatRecordAction() {
+  public synchronized HeartbeatRecordAction heartbeatRecordAction(ChangeStreamMetrics metrics) {
     if (heartbeatRecordActionInstance == null) {
-      heartbeatRecordActionInstance = new HeartbeatRecordAction();
+      heartbeatRecordActionInstance = new HeartbeatRecordAction(metrics);
     }
     return heartbeatRecordActionInstance;
   }

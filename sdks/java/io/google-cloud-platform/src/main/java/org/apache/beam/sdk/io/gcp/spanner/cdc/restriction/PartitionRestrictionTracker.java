@@ -19,17 +19,21 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.restriction;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.restriction.PartitionMode.QUERY_CHANGE_STREAM;
 
+import java.util.Optional;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // TODO: Add java docs
 // TODO: Implement duration waiting for returning false on try claim
 public class PartitionRestrictionTracker
     extends RestrictionTracker<PartitionRestriction, PartitionPosition> implements HasProgress {
 
+  private static final Logger LOG = LoggerFactory.getLogger(PartitionRestrictionTracker.class);
   private final PartitionRestrictionSplitter splitter;
   private final PartitionRestrictionClaimer claimer;
   private final PartitionRestrictionSplitChecker splitChecker;
@@ -63,8 +67,23 @@ public class PartitionRestrictionTracker
 
   @Override
   public @Nullable SplitResult<PartitionRestriction> trySplit(double fractionOfRemainder) {
+    final String token =
+        Optional.ofNullable(restriction.getMetadata())
+            .map(PartitionRestrictionMetadata::getPartitionToken)
+            .orElse(null);
     final SplitResult<PartitionRestriction> splitResult =
         splitter.trySplit(fractionOfRemainder, isSplitAllowed, lastClaimedPosition, restriction);
+    LOG.debug(
+        "["
+            + token
+            + "] Try split "
+            + isSplitAllowed
+            + ", "
+            + lastClaimedPosition
+            + ", "
+            + restriction
+            + ": "
+            + splitResult);
     if (splitResult != null) {
       this.restriction = splitResult.getPrimary();
     }
@@ -76,7 +95,7 @@ public class PartitionRestrictionTracker
     final boolean canClaim = claimer.tryClaim(restriction, lastClaimedPosition, position);
 
     if (canClaim) {
-      this.isSplitAllowed = splitChecker.isSplitAllowed(restriction, lastClaimedPosition, position);
+      this.isSplitAllowed = splitChecker.isSplitAllowed(restriction, position);
       this.lastClaimedPosition = position;
     }
 

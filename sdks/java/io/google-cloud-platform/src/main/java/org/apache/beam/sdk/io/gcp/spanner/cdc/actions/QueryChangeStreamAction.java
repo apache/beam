@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -134,8 +135,7 @@ public class QueryChangeStreamAction {
               LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
               bundleFinalizer.afterBundleCommit(
                   Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-                  updateWatermarkCallback(
-                      partition.getPartitionToken(), watermarkEstimator.currentWatermark()));
+                  updateWatermarkCallback(partition.getPartitionToken(), watermarkEstimator));
               return maybeContinuation;
             }
           }
@@ -143,15 +143,16 @@ public class QueryChangeStreamAction {
         LOG.debug("[" + token + "] Query change stream action completed successfully");
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-            updateWatermarkCallback(
-                partition.getPartitionToken(), watermarkEstimator.currentWatermark()));
+            updateWatermarkCallback(partition.getPartitionToken(), watermarkEstimator));
         return Optional.empty();
       }
     }
   }
 
-  private BundleFinalizer.Callback updateWatermarkCallback(String token, Instant watermark) {
+  private BundleFinalizer.Callback updateWatermarkCallback(
+      String token, WatermarkEstimator<Instant> watermarkEstimator) {
     return () -> {
+      final Instant watermark = watermarkEstimator.currentWatermark();
       LOG.debug("[" + token + "] Updating current watermark to " + watermark);
       try {
         partitionMetadataDao.updateCurrentWatermark(

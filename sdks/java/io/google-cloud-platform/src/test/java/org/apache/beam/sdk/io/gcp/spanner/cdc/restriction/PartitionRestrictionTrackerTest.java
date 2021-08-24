@@ -106,7 +106,7 @@ public class PartitionRestrictionTrackerTest {
     final PartitionPosition position = mock(PartitionPosition.class);
 
     when(claimer.tryClaim(restriction, null, position)).thenReturn(true);
-    when(splitChecker.isSplitAllowed(restriction, null, position)).thenReturn(true);
+    when(splitChecker.isSplitAllowed(restriction, position)).thenReturn(true);
 
     final boolean tryClaimResult = tracker.tryClaim(position);
 

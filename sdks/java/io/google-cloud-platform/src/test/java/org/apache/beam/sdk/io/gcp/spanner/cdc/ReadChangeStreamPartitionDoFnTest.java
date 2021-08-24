@@ -135,7 +135,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(mapperFactory.changeStreamRecordMapper()).thenReturn(changeStreamRecordMapper);
 
     when(actionFactory.dataChangeRecordAction()).thenReturn(dataChangeRecordAction);
-    when(actionFactory.heartbeatRecordAction()).thenReturn(heartbeatRecordAction);
+    when(actionFactory.heartbeatRecordAction(metrics)).thenReturn(heartbeatRecordAction);
     when(actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics))
         .thenReturn(childPartitionsRecordAction);
     when(actionFactory.queryChangeStreamAction(

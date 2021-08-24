@@ -84,6 +84,12 @@ public class ChangeStreamMetrics implements Serializable {
   public static final Distribution DATA_RECORD_STREAM_MS =
       Metrics.distribution(ReadChangeStream.class, "data_record_stream_ms");
 
+  // -------------------
+  // Hearbeat record metrics
+
+  public static final Counter HEARTBEAT_RECORD_COUNT =
+      Metrics.counter(ReadChangeStream.class, "heartbeat_record_count");
+
   // ----
   // DAO
 
@@ -165,6 +171,10 @@ public class ChangeStreamMetrics implements Serializable {
       inc(DATA_RECORD_STREAM_5000MS_TO_INF_COUNTER);
     }
     update(DATA_RECORD_STREAM_MS, millis);
+  }
+
+  public void incHearbeatRecordCount() {
+    inc(HEARTBEAT_RECORD_COUNT);
   }
 
   public void updateDaoCountPartitions(Duration duration) {
