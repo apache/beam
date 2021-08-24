@@ -292,7 +292,7 @@ class BigQueryWrapper(object):
   (e.g., find and create tables, query a table, etc.).
   """
 
-  # If updting following names, also update the corresponding Pydocs in
+  # If updating following names, also update the corresponding pydocs in
   # bigquery.py.
   TEMP_TABLE = 'beam_temp_table_'
   TEMP_DATASET = 'beam_temp_dataset_'
@@ -315,6 +315,9 @@ class BigQueryWrapper(object):
         'latency_histogram_ms',
         LinearBucket(0, 20, 3000),
         BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
+    if temp_dataset_id and temp_dataset_id.startswith(self.TEMP_DATASET):
+      raise ValueError('User provided temp dataset ID cannot start with %r'
+                       % self.TEMP_DATASET)
     self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
     self.created_temp_dataset = False
 
