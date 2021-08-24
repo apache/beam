@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,18 +24,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.HashIdGenerator;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
 import org.apache.samza.operators.KV;
@@ -57,7 +49,7 @@ import org.apache.samza.table.descriptors.TableDescriptor;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class PortableTranslationContext {
-  private final Map<String, MessageStream<?>> messsageStreams = new HashMap<>();
+  private final Map<String, MessageStream<?>> messageStreams = new HashMap<>();
   private final StreamApplicationDescriptor appDescriptor;
   private final JobInfo jobInfo;
   private final SamzaPipelineOptions options;
@@ -92,7 +84,7 @@ public class PortableTranslationContext {
 
   @SuppressWarnings("unchecked")
   public <T> MessageStream<OpMessage<T>> getMessageStreamById(String id) {
-    return (MessageStream<OpMessage<T>>) messsageStreams.get(id);
+    return (MessageStream<OpMessage<T>>) messageStreams.get(id);
   }
 
   public String getInputId(PipelineNode.PTransformNode transform) {
@@ -108,10 +100,10 @@ public class PortableTranslationContext {
   }
 
   public <T> void registerMessageStream(String id, MessageStream<OpMessage<T>> stream) {
-    if (messsageStreams.containsKey(id)) {
+    if (messageStreams.containsKey(id)) {
       throw new IllegalArgumentException("Stream already registered for id: " + id);
     }
-    messsageStreams.put(id, stream);
+    messageStreams.put(id, stream);
   }
 
   /** Get output stream by output descriptor. */
@@ -132,43 +124,6 @@ public class PortableTranslationContext {
 
     registerMessageStream(id, stream);
     registeredInputStreams.add(streamId);
-  }
-
-  public WindowedValue.WindowedValueCoder instantiateCoder(
-      String collectionId, RunnerApi.Components components) {
-    PipelineNode.PCollectionNode collectionNode =
-        PipelineNode.pCollection(collectionId, components.getPcollectionsOrThrow(collectionId));
-    try {
-      return (WindowedValue.WindowedValueCoder)
-          WireCoders.instantiateRunnerWireCoder(collectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public WindowingStrategy<?, BoundedWindow> getPortableWindowStrategy(
-      String collectionId, RunnerApi.Components components) {
-    RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
-
-    RunnerApi.WindowingStrategy windowingStrategyProto =
-        components.getWindowingStrategiesOrThrow(
-            components.getPcollectionsOrThrow(collectionId).getWindowingStrategyId());
-
-    WindowingStrategy<?, ?> windowingStrategy;
-    try {
-      windowingStrategy =
-          WindowingStrategyTranslation.fromProto(windowingStrategyProto, rehydratedComponents);
-    } catch (Exception e) {
-      throw new IllegalStateException(
-          String.format(
-              "Unable to hydrate GroupByKey windowing strategy %s.", windowingStrategyProto),
-          e);
-    }
-
-    @SuppressWarnings("unchecked")
-    WindowingStrategy<?, BoundedWindow> ret =
-        (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
-    return ret;
   }
 
   @SuppressWarnings("unchecked")
