@@ -19,8 +19,11 @@ package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -50,6 +53,8 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform provider that can be used to directly instantiate a transform using Java class name
@@ -58,15 +63,13 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBu
  * @param <InputT> input {@link PInput} type of the transform
  * @param <OutputT> output {@link POutput} type of the transform
  */
-@SuppressWarnings({
-  "rawtypes",
-})
+@SuppressWarnings({"rawtypes", "argument.type.incompatible", "assignment.type.incompatible"})
 @SuppressFBWarnings("UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD")
 class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends POutput>
     implements TransformProvider<PInput, POutput> {
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
-  AllowList allowList = null;
+  @Nullable AllowList allowList;
 
   public JavaClassLookupTransformProvider(String allowListFile) {
     if (!allowListFile.isEmpty()) {
@@ -98,8 +101,8 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     try {
       AllowedClass allowlistClass = null;
       if (this.allowList != null) {
-        for (AllowedClass cls : this.allowList.allowedClasses) {
-          if (cls.className.equals(className)) {
+        for (AllowedClass cls : this.allowList.getAllowedClasses()) {
+          if (cls.getClassName().equals(className)) {
             if (allowlistClass != null) {
               throw new IllegalArgumentException(
                   "Found two matching allowlist classes " + allowlistClass + " and " + cls);
@@ -129,7 +132,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
             getParameterValues(
                 method.getParameters(),
                 payload.getConstructorParametersList().toArray(new Parameter[0]));
-        transform = (PTransform<PInput, POutput>) method.invoke(null, parameterValues);
+        transform = (PTransform<PInput, POutput>) method.invoke(null /* static */, parameterValues);
       }
       return applyBuilderMethods(transform, payload, allowlistClass);
     } catch (ClassNotFoundException e) {
@@ -177,7 +180,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     for (Annotation annotation : method.getAnnotations()) {
       if (annotation instanceof MultiLanguageBuilderMethod) {
         if (nameFromPayload.equals(((MultiLanguageBuilderMethod) annotation).name())) {
-          if (allowListClass.allowedBuilderMethods.contains(nameFromPayload)) {
+          if (allowListClass.getAllowedBuilderMethods().contains(nameFromPayload)) {
             return true;
           } else {
             throw new RuntimeException(
@@ -200,7 +203,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
           consideredMethodName.substring(4, 5).toLowerCase() + consideredMethodName.substring(5);
       match = consideredMethodName.equals(nameFromPayload);
     }
-    if (match && !allowListClass.allowedBuilderMethods.contains(consideredMethodName)) {
+    if (match && !allowListClass.getAllowedBuilderMethods().contains(consideredMethodName)) {
       throw new RuntimeException(
           "Builder method name " + consideredMethodName + " has to be explicitly allowed");
     }
@@ -333,7 +336,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
           "Expected a Row that contains a single field but received " + parameterRow);
     }
 
-    Object value = parameterRow.getValue(0);
+    @NonNull Object value = parameterRow.getValue(0);
     if (!isPrimitiveOrWrapperOrString(value.getClass())) {
       throw new IllegalArgumentException("Expected a Java primitive value but received " + value);
     }
@@ -361,7 +364,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     for (Annotation annotation : method.getAnnotations()) {
       if (annotation instanceof MultiLanguageConstructorMethod) {
         if (nameFromPayload.equals(((MultiLanguageConstructorMethod) annotation).name())) {
-          if (allowListClass.allowedConstructorMethods.contains(nameFromPayload)) {
+          if (allowListClass.getAllowedConstructorMethods().contains(nameFromPayload)) {
             return true;
           } else {
             throw new RuntimeException(
@@ -371,7 +374,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       }
     }
     if (method.getName().equals(nameFromPayload)) {
-      if (allowListClass.allowedConstructorMethods.contains(nameFromPayload)) {
+      if (allowListClass.getAllowedConstructorMethods().contains(nameFromPayload)) {
         return true;
       } else {
         throw new RuntimeException(
@@ -406,14 +409,49 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     return mappingConstructorMethods.get(0);
   }
 
-  public static class AllowList {
-    public String version;
-    public List<AllowedClass> allowedClasses;
+  @AutoValue
+  public abstract static class AllowList {
+
+    public abstract String getVersion();
+
+    public abstract List<AllowedClass> getAllowedClasses();
+
+    @JsonCreator
+    static AllowList create(
+        @JsonProperty("version") String version,
+        @JsonProperty("allowedClasses") @javax.annotation.Nullable
+            List<AllowedClass> allowedClasses) {
+      if (allowedClasses == null) {
+        allowedClasses = new ArrayList<>();
+      }
+      return new AutoValue_JavaClassLookupTransformProvider_AllowList(version, allowedClasses);
+    }
   }
 
-  public static class AllowedClass {
-    public String className;
-    public List<String> allowedConstructorMethods;
-    public List<String> allowedBuilderMethods;
+  @AutoValue
+  public abstract static class AllowedClass {
+
+    public abstract String getClassName();
+
+    public abstract List<String> getAllowedBuilderMethods();
+
+    public abstract List<String> getAllowedConstructorMethods();
+
+    @JsonCreator
+    static AllowedClass create(
+        @JsonProperty("className") String className,
+        @JsonProperty("allowedBuilderMethods") @javax.annotation.Nullable
+            List<String> allowedBuilderMethods,
+        @JsonProperty("allowedConstructorMethods") @javax.annotation.Nullable
+            List<String> allowedConstructorMethods) {
+      if (allowedBuilderMethods == null) {
+        allowedBuilderMethods = new ArrayList<>();
+      }
+      if (allowedConstructorMethods == null) {
+        allowedConstructorMethods = new ArrayList<>();
+      }
+      return new AutoValue_JavaClassLookupTransformProvider_AllowedClass(
+          className, allowedBuilderMethods, allowedConstructorMethods);
+    }
   }
 }
