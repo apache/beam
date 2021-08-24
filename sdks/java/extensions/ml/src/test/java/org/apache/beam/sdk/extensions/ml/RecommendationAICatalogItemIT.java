@@ -99,7 +99,8 @@ public class RecommendationAICatalogItemIT {
   public static void tearDownAfterClass() throws Exception {
     try (CatalogServiceClient catalogServiceClient = CatalogServiceClient.create()) {
       catalogServiceClient.deleteCatalogItem(
-          "projects/matthias-sandbox/locations/global/catalogs/default_catalog/catalogItems/-1164723756");
+          "projects/matthias-sandbox/locations/global/catalogs/default_catalog/catalogItems/"
+              + randomId);
     }
   }
 
