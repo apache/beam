@@ -2202,12 +2202,15 @@ class ReadFromBigQuery(PTransform):
       https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
               #avro_conversions
     temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.\
-        DatasetReference``):
-        The dataset in which to create temporary tables when performing file
-        loads. By default, a new dataset is created in the execution project for
-        temporary tables.
-        Dataset name should *not* start with the reserved name
-        'beam_temp_dataset_.
+DatasetReference``):
+        Temporary dataset reference to use when reading from BigQuery using a
+        query. When reading using a query, BigQuery source will create a
+        temporary dataset and a temporary table to store the results of the
+        query. With this option, you can set an existing dataset to create the
+        temporary table in. BigQuery source will create a temporary table in
+        that dataset, and will remove it once it is not needed. Job needs access
+        to create and delete tables within the given dataset. Dataset name
+        should *not* start with the reserved prefix 'beam_temp_dataset_.
    """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.

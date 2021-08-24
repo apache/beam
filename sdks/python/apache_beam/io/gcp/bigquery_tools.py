@@ -852,7 +852,13 @@ class BigQueryWrapper(object):
       else:
         raise
     try:
-      self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+      # We do not want to delete temporary datasets configured by the user hence
+      # we just delete the temporary table in that case.
+      if not self.is_user_configured_dataset():
+        self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+      else:
+        self._delete_table(
+            temp_table.projectId, temp_table.datasetId, temp_table.tableId)
       self.created_temp_dataset = False
     except HttpError as exn:
       if exn.status_code == 403:
