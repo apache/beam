@@ -1086,11 +1086,11 @@ public class DatastoreV1Test {
     labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     labels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
     labels.put(MonitoringInfoConstants.Labels.METHOD, method);
-    labels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
-    labels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, PROJECT_ID);
     labels.put(
-        MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE,
+        MonitoringInfoConstants.Labels.RESOURCE,
         "//bigtable.googleapis.com/projects/" + PROJECT_ID + "/namespaces/" + namespace);
+    labels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, PROJECT_ID);
+    labels.put(MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, namespace);
     labels.put(MonitoringInfoConstants.Labels.STATUS, status);
 
     MonitoringInfoMetricName name =

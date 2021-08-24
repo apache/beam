@@ -33,7 +33,7 @@ public class GcpResourceIdentifiers {
         projectId, datasetId, tableId);
   }
 
-  public static String datastoreNamespace(String projectId, String namespace) {
+  public static String datastoreResource(String projectId, String namespace) {
     return String.format(
         "//bigtable.googleapis.com/projects/%s/namespaces/%s", projectId, namespace);
   }

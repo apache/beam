@@ -909,12 +909,13 @@ public class DatastoreV1 {
           baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
           baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
           baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BatchDatastoreRead");
-          baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
+          baseLabels.put(
+              MonitoringInfoConstants.Labels.RESOURCE,
+              GcpResourceIdentifiers.datastoreResource(
+                  options.getProjectId(), options.getNamespace()));
           baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, options.getProjectId());
           baseLabels.put(
-              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE,
-              GcpResourceIdentifiers.datastoreNamespace(
-                  options.getProjectId(), options.getNamespace()));
+              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, options.getNamespace());
           ServiceCallMetric serviceCallMetric =
               new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
           try {
@@ -1469,11 +1470,11 @@ public class DatastoreV1 {
         baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
         baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
         baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BatchDatastoreWrite");
-        baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
-        baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, projectId.get());
         baseLabels.put(
-            MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE,
-            GcpResourceIdentifiers.datastoreNamespace(projectId.get(), ""));
+            MonitoringInfoConstants.Labels.RESOURCE,
+            GcpResourceIdentifiers.datastoreResource(projectId.get(), ""));
+        baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, projectId.get());
+        baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, "");
         ServiceCallMetric serviceCallMetric =
             new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
         try {
