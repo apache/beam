@@ -43,7 +43,7 @@ GCP_TEST_PROJECT = 'apache-beam-testing'
 
 CATALOG_ITEM = {
     "id": f"aitest-{int(datetime.now().timestamp())}-"
-          f"{int(random.randint(1,10000))}",
+    f"{int(random.randint(1,10000))}",
     "title": "Sample laptop",
     "description": "Indisputably the most fantastic laptop ever created.",
     "language_code": "en",
@@ -109,10 +109,8 @@ class RecommendationAIIT(unittest.TestCase):
   def tearDownClass(cls):
     client = recommendationengine.CatalogServiceClient()
     client.delete_catalog_item(
-        name=
-        f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/"
-        f"default_catalog/catalogItems/{CATALOG_ITEM['id']}"
-    )
+        name=f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/"
+        f"default_catalog/catalogItems/{CATALOG_ITEM['id']}")
 
 
 if __name__ == '__main__':
