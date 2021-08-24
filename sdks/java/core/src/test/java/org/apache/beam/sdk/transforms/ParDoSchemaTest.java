@@ -48,6 +48,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -914,6 +915,7 @@ public class ParDoSchemaTest implements Serializable {
 
     DoFn<Row, Row> fn =
         new DoFn<Row, Row>() {
+        final @StateId("foo") StateSpec<ValueState<Integer>> stateSpec = StateSpecs.value();
           @StateKeyFields private final StateKeySpec keySpec = StateKeySpec.fields("key");
 
           @ProcessElement

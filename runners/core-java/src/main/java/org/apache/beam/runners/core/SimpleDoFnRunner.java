@@ -735,7 +735,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Object schemaKey(int index) {
-      // TODO: MEMOIZE
       return ((SerializableFunction) schemaKeyFunctions.get(index)).apply(key());
     }
 
