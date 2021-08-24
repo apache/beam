@@ -33,7 +33,7 @@ In short, the goals are to make both worlds work well.
 
 ## Go Modules
 
-Beam publishes a single Go Module for SDK developement and usage, in the `sdks` directory. 
+Beam publishes a single Go Module for SDK developement and usage, in the `sdks` directory.
 This puts all Go code necessary for user pipeline development and for execution
 under the same module.
 This includes container bootloader code in the Java and Python SDK directories.
@@ -45,7 +45,7 @@ Pipeline authors will require a dependency on `github.com/apache/beam/sdks/v2` i
 
 To integrate with Gradle, we use a gradle plugin called GoGradle.
 However, we disable GoGradle vendoring in favour of using Go Modules
-for dependency management. 
+for dependency management.
 GoGradle handles invoking the go toolchain or gradle and jenkins,
 using the same dependencies as SDK contributors and users.
 For the rare Go binary, such as the container boot loaders, it should be
