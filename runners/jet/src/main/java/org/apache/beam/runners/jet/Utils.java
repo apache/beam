@@ -153,8 +153,8 @@ public class Utils {
 
   static Collection<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> appliedTransform) {
     PTransform<?, ?> transform = appliedTransform.getTransform();
-    if (transform instanceof ParDo.MultiOutput) {
-      ParDo.MultiOutput multiParDo = (ParDo.MultiOutput) transform;
+    if (transform instanceof ParDo.MultiOutputPrimitive) {
+      ParDo.MultiOutputPrimitive multiParDo = (ParDo.MultiOutputPrimitive) transform;
       return (List) multiParDo.getSideInputs().values().stream().collect(Collectors.toList());
     } else if (transform instanceof ParDo.SingleOutput) {
       ParDo.SingleOutput singleParDo = (ParDo.SingleOutput) transform;

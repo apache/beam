@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.state;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 
 @Experimental(Kind.SCHEMAS)
-public class StateKeySpec {
+public class StateKeySpec implements Serializable {
   private final FieldAccessDescriptor keyDescriptor;
 
   private StateKeySpec(FieldAccessDescriptor keyDescriptor) {

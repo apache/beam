@@ -29,7 +29,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
-import org.apache.beam.sdk.state.StateKeySpec;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
@@ -401,8 +400,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
   @Experimental(Kind.STATE)
-  public @interface StateKeyFields {
-  }
+  public @interface StateKeyFields {}
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -503,14 +501,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
   public @interface Key {}
-
-  /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.FIELD, ElementType.PARAMETER})
-  @Experimental(Kind.SCHEMAS)
-  public @interface FieldAccess {
-    String value();
-  }
 
   /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
   @Retention(RetentionPolicy.RUNTIME)

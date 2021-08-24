@@ -227,7 +227,9 @@ public class PTransformMatchersTest implements Serializable {
     AppliedPTransform<?, ?, ?> parDoApplication = getAppliedTransform(ParDo.of(doFn));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
   }
@@ -238,7 +240,9 @@ public class PTransformMatchersTest implements Serializable {
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
   }
 
@@ -248,7 +252,9 @@ public class PTransformMatchersTest implements Serializable {
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
   }
 
@@ -258,7 +264,9 @@ public class PTransformMatchersTest implements Serializable {
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
   }
 
@@ -268,7 +276,9 @@ public class PTransformMatchersTest implements Serializable {
         getAppliedTransform(ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
   }
@@ -280,7 +290,9 @@ public class PTransformMatchersTest implements Serializable {
             ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(true));
 
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
   }
@@ -292,7 +304,9 @@ public class PTransformMatchersTest implements Serializable {
             ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(true));
 
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
   }
@@ -302,7 +316,9 @@ public class PTransformMatchersTest implements Serializable {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
             ParDo.of(doFnWithState).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(true));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
@@ -327,7 +343,9 @@ public class PTransformMatchersTest implements Serializable {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
             ParDo.of(doFnWithTimers).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(true));
+    assertThat(
+        PTransformMatchers.stateOrTimerParDoMultiNotPrimitive().matches(parDoApplication),
+        is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));

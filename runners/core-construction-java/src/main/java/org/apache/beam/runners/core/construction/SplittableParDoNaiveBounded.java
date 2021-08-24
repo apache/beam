@@ -449,6 +449,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public Object schemaKey(int index) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
       public Object sideInput(String tagId) {
         throw new UnsupportedOperationException();
       }

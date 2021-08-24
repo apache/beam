@@ -49,11 +49,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ParDoMultiOutputTranslatorBatch<InputT, OutputT>
-    implements BatchTransformTranslator<ParDo.MultiOutput<InputT, OutputT>> {
+    implements BatchTransformTranslator<ParDo.MultiOutputPrimitive<InputT, OutputT>> {
 
   @Override
   public void translateNode(
-      ParDo.MultiOutput<InputT, OutputT> transform, Twister2BatchTranslationContext context) {
+      ParDo.MultiOutputPrimitive<InputT, OutputT> transform,
+      Twister2BatchTranslationContext context) {
     DoFn<InputT, OutputT> doFn;
     doFn = transform.getFn();
     if (DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable()) {

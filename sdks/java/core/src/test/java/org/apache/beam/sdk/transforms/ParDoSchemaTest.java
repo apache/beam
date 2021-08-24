@@ -28,7 +28,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -41,17 +40,27 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.StateKeySpec;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.UsesTimerMap;
+import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -59,6 +68,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -652,26 +662,29 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testRowBagState() {
     final String stateId = "foo";
 
     Schema type =
-        Stream.of(Schema.Field.of("f_string", FieldType.STRING)).collect(Schema.toSchema());
+        Schema.builder()
+            .addField(Schema.Field.of("f_string", FieldType.STRING))
+            .addField(Schema.Field.of("key", FieldType.STRING))
+            .build();
+
     Schema outputType = Schema.of(Field.of("values", FieldType.array(FieldType.row(type))));
 
-    DoFn<KV<String, Row>, Row> fn =
-        new DoFn<KV<String, Row>, Row>() {
-
+    DoFn<Row, Row> fn =
+        new DoFn<Row, Row>() {
           @StateId(stateId)
           private final StateSpec<BagState<Row>> bufferState = StateSpecs.rowBag(type);
 
+          @StateKeyFields private final StateKeySpec keySpec = StateKeySpec.fields("key");
+
           @ProcessElement
           public void processElement(
-              @Element KV<String, Row> element,
-              @StateId(stateId) BagState<Row> state,
-              OutputReceiver<Row> o) {
-            state.add(element.getValue());
+              @Element Row element, @StateId(stateId) BagState<Row> state, OutputReceiver<Row> o) {
+            state.add(element);
             Iterable<Row> currentValue = state.read();
             if (Iterables.size(currentValue) >= 4) {
               List<Row> sorted = Lists.newArrayList(currentValue);
@@ -681,28 +694,340 @@ public class ParDoSchemaTest implements Serializable {
           }
         };
 
+    TupleTag<Row> mainTag = new TupleTag<>();
     PCollection<Row> output =
         pipeline
             .apply(
+                "Create values",
                 Create.of(
-                    KV.of("hello", Row.withSchema(type).addValue("a").build()),
-                    KV.of("hello", Row.withSchema(type).addValue("b").build()),
-                    KV.of("hello", Row.withSchema(type).addValue("c").build()),
-                    KV.of("hello", Row.withSchema(type).addValue("d").build())))
-            .apply(ParDo.of(fn))
+                        Row.withSchema(type).addValues("a", "hello").build(),
+                        Row.withSchema(type).addValues("b", "hello").build(),
+                        Row.withSchema(type).addValues("c", "hello").build(),
+                        Row.withSchema(type).addValues("d", "hello").build())
+                    .withRowSchema(type))
+            .apply("run statetful fn", ParDo.of(fn).withOutputTags(mainTag, TupleTagList.empty()))
+            .get(mainTag)
             .setRowSchema(outputType);
     PAssert.that(output)
         .containsInAnyOrder(
             Row.withSchema(outputType)
                 .addArray(
                     Lists.newArrayList(
-                        Row.withSchema(type).addValue("a").build(),
-                        Row.withSchema(type).addValue("b").build(),
-                        Row.withSchema(type).addValue("c").build(),
-                        Row.withSchema(type).addValue("d").build()))
+                        Row.withSchema(type).addValues("a", "hello").build(),
+                        Row.withSchema(type).addValues("b", "hello").build(),
+                        Row.withSchema(type).addValues("c", "hello").build(),
+                        Row.withSchema(type).addValues("d", "hello").build()))
                 .build());
 
     pipeline.run();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class testRowBagStateKeyValue {
+    public abstract String getKey();
+  }
+
+  public void testSchemaKeyProcessTimer(boolean isBounded) {
+    final String timerId = "timer";
+    final String timerFamilyId = "timerFamily";
+
+    Schema type =
+        Schema.builder()
+            .addField(Schema.Field.of("f_string", FieldType.STRING))
+            .addField(Schema.Field.of("key", FieldType.STRING))
+            .build();
+
+    Schema outputType =
+        Schema.builder()
+            .addField(Field.of("source", FieldType.STRING))
+            .addField(Field.of("key", FieldType.STRING))
+            .build();
+
+    DoFn<Row, Row> fn =
+        new DoFn<Row, Row>() {
+          @TimerId(timerId)
+          private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @StateKeyFields private final StateKeySpec keySpec = StateKeySpec.fields("key");
+
+          @ProcessElement
+          public void processElement(
+              @Key Row key,
+              @Key String stringKey,
+              @Key testRowBagStateKeyValue autoValueKey,
+              @Element Row element,
+              @TimerId(timerId) Timer timer,
+              OutputReceiver<Row> o) {
+            assertEquals(key.getValue(0), stringKey);
+            assertEquals(stringKey, autoValueKey.getKey());
+            assertEquals(autoValueKey.getKey(), element.getValue("key"));
+            o.output(
+                Row.withSchema(outputType)
+                    .withFieldValue("source", "processElement")
+                    .withFieldValue("key", stringKey)
+                    .build());
+            timer.offset(Duration.standardSeconds(1)).setRelative();
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(
+              @Key Row key,
+              @Key String stringKey,
+              @Key testRowBagStateKeyValue autoValueKey,
+              OutputReceiver<Row> o) {
+            assertEquals(key.getValue(0), stringKey);
+            assertEquals(stringKey, autoValueKey.getKey());
+            o.output(
+                Row.withSchema(outputType)
+                    .withFieldValue("source", "onTimer")
+                    .withFieldValue("key", stringKey)
+                    .build());
+          }
+        };
+
+    TupleTag<Row> mainTag = new TupleTag<>();
+    PCollection<Row> output =
+        pipeline
+            .apply(
+                Create.of(
+                        Row.withSchema(type).addValues("a", "key1").build(),
+                        Row.withSchema(type).addValues("b", "key2").build(),
+                        Row.withSchema(type).addValues("c", "key3").build())
+                    .withRowSchema(type))
+            .setIsBoundedInternal(isBounded ? IsBounded.BOUNDED : IsBounded.UNBOUNDED)
+            .apply(ParDo.of(fn).withOutputTags(mainTag, TupleTagList.empty()))
+            .get(mainTag)
+            .setRowSchema(outputType);
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Lists.newArrayList(
+                Row.withSchema(type).addValues("processElement", "key1").build(),
+                Row.withSchema(type).addValues("processElement", "key2").build(),
+                Row.withSchema(type).addValues("processElement", "key3").build(),
+                Row.withSchema(type).addValues("onTimer", "key1").build(),
+                Row.withSchema(type).addValues("onTimer", "key2").build(),
+                Row.withSchema(type).addValues("onTimer", "key3").build()));
+
+    pipeline.run();
+  }
+
+  public void testSchemaKeyProcessTimerFamily(boolean isBounded) {
+    final String timerId = "timer";
+    final String timerFamilyId = "timerFamily";
+
+    Schema type =
+        Schema.builder()
+            .addField(Schema.Field.of("f_string", FieldType.STRING))
+            .addField(Schema.Field.of("key", FieldType.STRING))
+            .build();
+
+    Schema outputType =
+        Schema.builder()
+            .addField(Field.of("source", FieldType.STRING))
+            .addField(Field.of("key", FieldType.STRING))
+            .build();
+
+    DoFn<Row, Row> fn =
+        new DoFn<Row, Row>() {
+          @TimerFamily(timerFamilyId)
+          private final TimerSpec timerMapSpec = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+          @StateKeyFields private final StateKeySpec keySpec = StateKeySpec.fields("key");
+
+          @ProcessElement
+          public void processElement(
+              @Key Row key,
+              @Key String stringKey,
+              @Key testRowBagStateKeyValue autoValueKey,
+              @Element Row element,
+              @TimerFamily(timerFamilyId) TimerMap timerMap,
+              OutputReceiver<Row> o) {
+            assertEquals(key.getValue(0), stringKey);
+            assertEquals(stringKey, autoValueKey.getKey());
+            assertEquals(autoValueKey.getKey(), element.getValue("key"));
+            o.output(
+                Row.withSchema(outputType)
+                    .withFieldValue("source", "processElement")
+                    .withFieldValue("key", stringKey)
+                    .build());
+            timerMap.get(timerId).offset(Duration.standardSeconds(1)).setRelative();
+          }
+
+          @OnTimerFamily(timerFamilyId)
+          public void onTimerFamily(
+              @Key Row key,
+              @Key String stringKey,
+              @Key testRowBagStateKeyValue autoValueKey,
+              OutputReceiver<Row> o) {
+            assertEquals(key.getValue(0), stringKey);
+            assertEquals(stringKey, autoValueKey.getKey());
+            o.output(
+                Row.withSchema(outputType)
+                    .withFieldValue("source", "onTimerFamily")
+                    .withFieldValue("key", stringKey)
+                    .build());
+          }
+        };
+
+    TupleTag<Row> mainTag = new TupleTag<>();
+    PCollection<Row> output =
+        pipeline
+            .apply(
+                Create.of(
+                        Row.withSchema(type).addValues("a", "key1").build(),
+                        Row.withSchema(type).addValues("b", "key2").build(),
+                        Row.withSchema(type).addValues("c", "key3").build())
+                    .withRowSchema(type))
+            .setIsBoundedInternal(isBounded ? IsBounded.BOUNDED : IsBounded.UNBOUNDED)
+            .apply(ParDo.of(fn).withOutputTags(mainTag, TupleTagList.empty()))
+            .get(mainTag)
+            .setRowSchema(outputType);
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Lists.newArrayList(
+                Row.withSchema(type).addValues("processElement", "key1").build(),
+                Row.withSchema(type).addValues("processElement", "key2").build(),
+                Row.withSchema(type).addValues("processElement", "key3").build(),
+                Row.withSchema(type).addValues("onTimerFamily", "key1").build(),
+                Row.withSchema(type).addValues("onTimerFamily", "key2").build(),
+                Row.withSchema(type).addValues("onTimerFamily", "key3").build()));
+
+    pipeline.run();
+  }
+
+  public void testSchemaKeyOnWindowExpiration(boolean isBounded) {
+    final String timerId = "timer";
+    final String timerFamilyId = "timerFamily";
+
+    Schema type =
+        Schema.builder()
+            .addField(Schema.Field.of("f_string", FieldType.STRING))
+            .addField(Schema.Field.of("key", FieldType.STRING))
+            .build();
+
+    Schema outputType =
+        Schema.builder()
+            .addField(Field.of("source", FieldType.STRING))
+            .addField(Field.of("key", FieldType.STRING))
+            .build();
+
+    DoFn<Row, Row> fn =
+        new DoFn<Row, Row>() {
+          @StateKeyFields private final StateKeySpec keySpec = StateKeySpec.fields("key");
+
+          @ProcessElement
+          public void processElement(
+              @Key Row key,
+              @Key String stringKey,
+              @Key testRowBagStateKeyValue autoValueKey,
+              @Element Row element,
+              OutputReceiver<Row> o) {
+            assertEquals(key.getValue(0), stringKey);
+            assertEquals(stringKey, autoValueKey.getKey());
+            assertEquals(autoValueKey.getKey(), element.getValue("key"));
+            o.output(
+                Row.withSchema(outputType)
+                    .withFieldValue("source", "processElement")
+                    .withFieldValue("key", stringKey)
+                    .build());
+          }
+
+          @OnWindowExpiration
+          public void onWindowExpiration(
+              @Key Row key,
+              @Key String stringKey,
+              @Key testRowBagStateKeyValue autoValueKey,
+              OutputReceiver<Row> o) {
+            assertEquals(key.getValue(0), stringKey);
+            assertEquals(stringKey, autoValueKey.getKey());
+            o.output(
+                Row.withSchema(outputType)
+                    .withFieldValue("source", "onWindowExpiration")
+                    .withFieldValue("key", stringKey)
+                    .build());
+          }
+        };
+
+    TupleTag<Row> mainTag = new TupleTag<>();
+    PCollection<Row> output =
+        pipeline
+            .apply(
+                Create.of(
+                        Row.withSchema(type).addValues("a", "key1").build(),
+                        Row.withSchema(type).addValues("b", "key2").build(),
+                        Row.withSchema(type).addValues("c", "key3").build())
+                    .withRowSchema(type))
+            .setIsBoundedInternal(isBounded ? IsBounded.BOUNDED : IsBounded.UNBOUNDED)
+            .apply(ParDo.of(fn).withOutputTags(mainTag, TupleTagList.empty()))
+            .get(mainTag)
+            .setRowSchema(outputType);
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Lists.newArrayList(
+                Row.withSchema(type).addValues("processElement", "key1").build(),
+                Row.withSchema(type).addValues("processElement", "key2").build(),
+                Row.withSchema(type).addValues("processElement", "key3").build(),
+                Row.withSchema(type).addValues("onWindowExpiration", "key1").build(),
+                Row.withSchema(type).addValues("onWindowExpiration", "key2").build(),
+                Row.withSchema(type).addValues("onWindowExpiration", "key3").build()));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class,
+    UsesTimersInParDo.class,
+  })
+  public void testSchemaKeyProcessTimerBounded() {
+    testSchemaKeyProcessTimer(true);
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class,
+    UsesTimersInParDo.class,
+  })
+  public void testSchemaKeyProcessTimerUnbounded() {
+    testSchemaKeyProcessTimer(false);
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class,
+    UsesTimersInParDo.class,
+    UsesTimerMap.class
+  })
+  public void testSchemaKeyProcessTimerFamilyBounded() {
+    testSchemaKeyProcessTimerFamily(true);
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class,
+    UsesTimersInParDo.class,
+    UsesTimerMap.class
+  })
+  public void testSchemaKeyProcessTimerFamilyUnbounded() {
+    testSchemaKeyProcessTimerFamily(false);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesOnWindowExpiration.class})
+  public void testSchemaKeyOnWindowExpirationBounded() {
+    testSchemaKeyOnWindowExpiration(true);
+    ;
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesOnWindowExpiration.class})
+  public void testSchemaKeyOnWindowExpirationUnbounded() {
+    testSchemaKeyOnWindowExpiration(false);
   }
 
   @DefaultSchema(AutoValueSchema.class)

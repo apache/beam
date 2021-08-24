@@ -38,7 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCac
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutput}. */
+/** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutputPrimitive}. */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

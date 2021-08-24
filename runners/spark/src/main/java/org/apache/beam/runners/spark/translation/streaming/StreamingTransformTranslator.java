@@ -405,11 +405,11 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
-    return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
+  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutputPrimitive<InputT, OutputT>> parDo() {
+    return new TransformEvaluator<ParDo.MultiOutputPrimitive<InputT, OutputT>>() {
       @Override
       public void evaluate(
-          final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
+          final ParDo.MultiOutputPrimitive<InputT, OutputT> transform, final EvaluationContext context) {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
         checkArgument(
             !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),

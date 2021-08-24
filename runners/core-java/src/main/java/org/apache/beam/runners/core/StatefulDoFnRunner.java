@@ -140,7 +140,6 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
   @Override
   public void processElement(WindowedValue<InputT> input) {
-
     // StatefulDoFnRunner always observes windows, so we need to explode
     for (WindowedValue<InputT> value : input.explodeWindows()) {
       BoundedWindow window = value.getWindows().iterator().next();

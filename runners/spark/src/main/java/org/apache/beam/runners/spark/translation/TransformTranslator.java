@@ -346,12 +346,12 @@ public final class TransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
-    return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
+  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutputPrimitive<InputT, OutputT>> parDo() {
+    return new TransformEvaluator<ParDo.MultiOutputPrimitive<InputT, OutputT>>() {
       @Override
       @SuppressWarnings("unchecked")
       public void evaluate(
-          ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
+          ParDo.MultiOutputPrimitive<InputT, OutputT> transform, EvaluationContext context) {
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
         checkState(

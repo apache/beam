@@ -2369,6 +2369,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public Object schemaKey(int index) {
+      return null;
+    }
+
+    @Override
     public Object schemaElement(int index) {
       SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
       return converter.apply(element());
@@ -2576,6 +2581,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public K key() {
       return (K) currentTimer.getUserKey();
+    }
+
+    @Override
+    public Object schemaKey(int index) {
+      return null;
     }
 
     @Override

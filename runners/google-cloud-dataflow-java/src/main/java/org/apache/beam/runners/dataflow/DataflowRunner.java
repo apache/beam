@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -570,7 +569,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.stateOrTimerParDoMulti(),
+                  PTransformMatchers.stateOrTimerParDoMultiNotPrimitive(),
                   BatchStatefulParDoOverrides.multiOutputOverrideFactory(options)))
           .add(
               PTransformOverride.of(
