@@ -18,6 +18,8 @@
                     &#x2713;
                 {{ else if eq .val.l1 "Partially" }}
                     ~
+                {{ else if eq .val.l1 "Unverified" }}
+                    ?
                 {{ else }}
                     &#x2715;
                 {{ end }}

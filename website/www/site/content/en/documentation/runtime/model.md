@@ -50,6 +50,11 @@ ways, such as:
     This may allow the runner to avoid serializing elements; instead, the runner
     can just pass the elements in memory.
 
+Passing elements between transforms that are running on the same worker is
+done by Beam and the runner as an optimization on pipelines to save on costs
+of serialization and data transfer. This optimization is called
+*fusion*, and a series of fused transforms is known as a *stage* in Beam.
+
 Some situations where the runner may serialize and persist elements are:
 
 1. When used as part of a stateful `DoFn`, the runner may persist values to some
@@ -76,6 +81,48 @@ choose an appropriate middle-ground between persisting results after every
 element, and having to retry everything if there is a failure. For example, a
 streaming runner may prefer to process and commit small bundles, and a batch
 runner may prefer to process larger bundles.
+
+### Data partitioning and inter-stage execution
+
+Partitioning and parallelization of element processing within a Beam pipeline is
+dependent on two things:
+
+- Data source implementation
+- Inter-stage key parallelism
+
+Beam pipelines read data from a source (e.g. `KafkaIO`, `BigQueryIO`, `JdbcIO`,
+or your own source implementation). Sources are implemented as Splittable
+`DoFn`s. A Splittable `DoFn` provides the runner with interfaces to facilitate
+the splitting of work.
+
+When running key-based operations in Beam (e.g. `GroupByKey`, `Combine`,
+`Reshuffle.perKey`, and stateful `DoFn`s), Beam runners perform serialization
+and transfer of data known as *shuffle*<sup>1</sup>. Shuffle allows data
+elements of the same key to be processed together.
+
+The way in which runners *shuffle* data may be slightly different for Batch and
+Streaming execution modes.
+
+#### Batch shuffle
+
+Batch processing engines optimize shuffle implementations for high throughput
+over large datasets. Beam runners are no exception. Beam runners usually
+execute batch shuffles as blocking operations that perform per-key
+grouping of a complete dataset before starting to execute operations downstream.
+It is important to note, however, that each runner is free to implement batch
+shuffling as appropriate.
+
+#### Streaming shuffle
+
+Streaming engines optimize their shuffle implementations for low latency of
+transference of information in between processing stages.
+
+#### Data ordering in a pipeline execution
+The Beam model does not define strict guidelines regarding the order in which
+they process elements or transport them across `PTransforms`. Runners implement
+
+
+<sup>1</sup>Not to be confused with the `shuffle` operation in some runners.
 
 ## Failures and parallelism within and between transforms {#parallelism}
 
