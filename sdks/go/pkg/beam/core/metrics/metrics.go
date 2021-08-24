@@ -482,7 +482,54 @@ func (mr Results) AllMetrics() QueryResults {
 	return QueryResults{mr.counters, mr.distributions, mr.gauges}
 }
 
-// TODO(BEAM-11217): Implement Query(Filter) and metrics filtering
+// TODO(BEAM-11217): Add step field based filter.
+// QueryByName filters the Results based on the name. The names should match exactly.
+func (mr Results) QueryByName(name string) QueryResults {
+	counters := []CounterResult{}
+	distributions := []DistributionResult{}
+	gauges := []GaugeResult{}
+
+	for _, counter := range mr.counters {
+		if counter.Key.Name == name {
+			counters = append(counters, counter)
+		}
+	}
+	for _, distribution := range mr.distributions {
+		if distribution.Key.Name == name {
+			distributions = append(distributions, distribution)
+		}
+	}
+	for _, gauge := range mr.gauges {
+		if gauge.Key.Name == name {
+			gauges = append(gauges, gauge)
+		}
+	}
+	return QueryResults{counters, distributions, gauges}
+}
+
+// QueryByNamespace filters the Results based on the namespace. The namespaces should match exactly.
+func (mr Results) QueryByNamespace(namespace string) QueryResults {
+	counters := []CounterResult{}
+	distributions := []DistributionResult{}
+	gauges := []GaugeResult{}
+
+	for _, counter := range mr.counters {
+		if counter.Key.Namespace == namespace {
+			counters = append(counters, counter)
+		}
+	}
+	for _, distribution := range mr.distributions {
+		if distribution.Key.Namespace == namespace {
+			distributions = append(distributions, distribution)
+		}
+	}
+	for _, gauge := range mr.gauges {
+		if gauge.Key.Namespace == namespace {
+			gauges = append(gauges, gauge)
+		}
+	}
+	return QueryResults{counters, distributions, gauges}
+}
 
 // QueryResults is the result of a query. Allows accessing all of the
 // metrics that matched the filter.
