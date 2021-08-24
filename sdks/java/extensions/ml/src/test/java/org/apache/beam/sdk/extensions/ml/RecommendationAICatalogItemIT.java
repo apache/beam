@@ -50,7 +50,7 @@ public class RecommendationAICatalogItemIT {
   private static final String randomId =
       "aitest-" + Instant.now().getEpochSecond() + UUID.randomUUID().toString();
 
-  private final GenericJson getCatalogItem() {
+  private GenericJson getCatalogItem() {
     List<Object> categories = new ArrayList<Object>();
     categories.add(new GenericJson().set("categories", Arrays.asList("Electronics", "Computers")));
     categories.add(new GenericJson().set("categories", Arrays.asList("Laptops")));
