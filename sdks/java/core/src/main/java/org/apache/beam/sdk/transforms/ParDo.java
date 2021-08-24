@@ -1054,6 +1054,7 @@ public class ParDo {
         });
   }
 
+  /** Primitive transform implementing ParDo.MultiOutput. */
   public static class MultiOutputPrimitive<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
