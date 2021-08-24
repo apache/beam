@@ -576,6 +576,12 @@ class GcsIO(object):
 
 class GcsDownloader(Downloader):
   def __init__(self, client, path, buffer_size, get_project_number):
+    if client is None:
+      client = storage.StorageV1(
+          credentials=auth.get_service_credentials(),
+          get_credentials=False,
+          http=get_new_http(),
+          response_encoding='utf8')
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
@@ -649,6 +655,12 @@ class GcsDownloader(Downloader):
 
 class GcsUploader(Uploader):
   def __init__(self, client, path, mime_type, get_project_number):
+    if client is None:
+      client = storage.StorageV1(
+          credentials=auth.get_service_credentials(),
+          get_credentials=False,
+          http=get_new_http(),
+          response_encoding='utf8')
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
