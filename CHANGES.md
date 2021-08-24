@@ -36,6 +36,11 @@
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Go SDK pipelines require new import paths to use this release due to migration to Go Modules.
+  * `go.mod` files will need to change to require `github.com/apache/beam/sdks/v2`.
+  * Code depending on beam imports need to include v2 on the module path.
+    * Fix by'v2' to the import paths, turning  `.../sdks/go/...` to `.../sdks/v2/go/...`
+  * No other code change should be required to use v2.33.0 of the Go SDK.
 
 ## Deprecations
 
@@ -51,6 +56,16 @@
 
 * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* Go SDK is no longer experimental, and is officially part of the Beam release process.
+  * Matching Go SDK containers are published on release.
+  * Batch usage is well supported, and tested on Flink, Spark, and the Python Portable Runner.
+    * SDK Tests are also run against Google Cloud Dataflow, but this doesn't indicate reciprical support.
+  * The SDK supports Splittable DoFns, Cross Language transforms, and most Beam Model basics.
+  * Go Modules are now used for dependency management.
+    * This is a breaking change, see Breaking Changes for resolution.
+    * Easier path to contribute to the Go SDK, no need to set up a GO_PATH.
+    * Minimum Go version is now Go v1.16
+  * See the announcement blogpost for full information (TODO(lostluck): Add link once published.)
 
 ## I/Os
 
