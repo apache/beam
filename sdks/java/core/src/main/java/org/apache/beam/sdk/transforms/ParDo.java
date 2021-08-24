@@ -64,6 +64,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -950,13 +951,14 @@ public class ParDo {
       // Need to figure out where to validate this.
 
       PCollectionTuple outputs =
-          PCollectionTuple.ofPrimitiveOutputsInternal(
-              input.getPipeline(),
-              TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
-              // TODO
-              Collections.emptyMap(),
-              input.getWindowingStrategy(),
-              input.isBounded().and(signature.isBoundedPerElement()));
+          input.apply(
+              "Primitive",
+              new MultiOutputPrimitive<>(
+                  getFn(),
+                  getMainOutputTag(),
+                  getAdditionalOutputTags(),
+                  getSideInputs(),
+                  fnDisplayData));
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       for (PCollection<?> out : outputs.getAll().values()) {
@@ -969,11 +971,6 @@ public class ParDo {
           // Ignore and let coder inference happen later.
         }
       }
-
-      // The fn will likely be an instance of an anonymous subclass
-      // such as DoFn<Integer, String> { }, thus will have a high-fidelity
-      // TypeDescriptor for the output type.
-      outputs.get(mainOutputTag).setTypeDescriptor(getFn().getOutputTypeDescriptor());
 
       return outputs;
     }
@@ -1055,6 +1052,105 @@ public class ParDo {
             return "SetState<" + elementCoder + ">";
           }
         });
+  }
+
+  public static class MultiOutputPrimitive<InputT, OutputT>
+      extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
+    private final DoFn<InputT, OutputT> fn;
+    private final TupleTag<OutputT> mainOutputTag;
+    private final TupleTagList additionalOutputTags;
+    private final Map<String, PCollectionView<?>> sideInputs;
+    private final @Nullable ItemSpec<? extends Class<?>> fnDisplayData;
+
+    private MultiOutputPrimitive(
+        DoFn<InputT, OutputT> fn,
+        TupleTag<OutputT> mainOutputTag,
+        TupleTagList additionalOutputTags,
+        Map<String, PCollectionView<?>> sideInputs,
+        @Nullable ItemSpec<? extends Class<?>> fnDisplayData) {
+      this.fn = fn;
+      this.mainOutputTag = mainOutputTag;
+      this.additionalOutputTags = additionalOutputTags;
+      this.sideInputs = sideInputs;
+      this.fnDisplayData = fnDisplayData;
+    }
+
+    @VisibleForTesting
+    public static <InputT, OutputT> MultiOutputPrimitive<InputT, OutputT> of(
+        DoFn<InputT, OutputT> fn,
+        TupleTag<OutputT> mainOutputTag,
+        TupleTagList additionalOutputTags,
+        Map<String, PCollectionView<?>> sideInputs) {
+      return new MultiOutputPrimitive<>(fn, mainOutputTag, additionalOutputTags, sideInputs, null);
+    }
+
+    /**
+     * Returns the side inputs of this {@link ParDo}, tagged with the tag of the {@link
+     * PCollectionView}. The values of the returned map will be equal to the result of {@link
+     * #getSideInputs()}.
+     */
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      return PCollectionViews.toAdditionalInputs(sideInputs.values());
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<? extends InputT> input) {
+      DoFnSignature signature = DoFnSignatures.getSignature(getFn().getClass());
+      PCollectionTuple outputs =
+          PCollectionTuple.ofPrimitiveOutputsInternal(
+              input.getPipeline(),
+              TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
+              // TODO
+              Collections.emptyMap(),
+              input.getWindowingStrategy(),
+              input.isBounded().and(signature.isBoundedPerElement()));
+      @SuppressWarnings("unchecked")
+      Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
+      for (PCollection<?> out : outputs.getAll().values()) {
+        try {
+          out.setCoder(
+              (Coder)
+                  input
+                      .getPipeline()
+                      .getCoderRegistry()
+                      .getCoder(
+                          out.getTypeDescriptor(), getFn().getInputTypeDescriptor(), inputCoder));
+        } catch (CannotProvideCoderException e) {
+          // Ignore and let coder inference happen later.
+        }
+      }
+
+      // The fn will likely be an instance of an anonymous subclass
+      // such as DoFn<Integer, String> { }, thus will have a high-fidelity
+      // TypeDescriptor for the output type.
+      outputs.get(mainOutputTag).setTypeDescriptor(getFn().getOutputTypeDescriptor());
+      return outputs;
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      super.populateDisplayData(builder);
+      if (fnDisplayData != null) {
+        ParDo.populateDisplayData(builder, fn, fnDisplayData);
+      }
+    }
+
+    public DoFn<InputT, OutputT> getFn() {
+      return fn;
+    }
+
+    public TupleTag<OutputT> getMainOutputTag() {
+      return mainOutputTag;
+    }
+
+    public TupleTagList getAdditionalOutputTags() {
+      return additionalOutputTags;
+    }
+
+    public Map<String, PCollectionView<?>> getSideInputs() {
+      return sideInputs;
+    }
   }
 
   private static void populateDisplayData(

@@ -231,9 +231,10 @@ public class PipelineValidator {
     for (String sideInputId : payload.getSideInputsMap().keySet()) {
       checkArgument(
           transform.containsInputs(sideInputId),
-          "Transform %s side input %s is not listed in the transform's inputs",
+          "Transform %s side input %s is not listed in the transform's inputs %s",
           id,
-          sideInputId);
+          sideInputId,
+          transform.getInputsMap());
     }
     if (payload.getStateSpecsCount() > 0 || payload.getTimerFamilySpecsCount() > 0) {
       checkArgument(requirements.contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));

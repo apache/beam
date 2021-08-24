@@ -75,7 +75,7 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
 
     TRANSFORM_TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutputPrimitive.class, new ParDoTranslatorBatch());
 
     TRANSFORM_TRANSLATORS.put(
         SplittableParDo.PrimitiveBoundedRead.class, new ReadSourceTranslatorBatch());

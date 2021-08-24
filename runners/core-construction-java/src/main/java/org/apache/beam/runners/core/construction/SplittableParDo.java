@@ -52,7 +52,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -110,10 +109,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
    */
   public static class OverrideFactory<InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
+          PCollection<InputT>, PCollectionTuple, ParDo.MultiOutputPrimitive<InputT, OutputT>> {
     @Override
     public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
+        AppliedPTransform<
+                PCollection<InputT>, PCollectionTuple, ParDo.MultiOutputPrimitive<InputT, OutputT>>
             transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform), forAppliedParDo(transform));

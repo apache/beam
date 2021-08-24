@@ -73,16 +73,16 @@ import org.apache.samza.operators.functions.WatermarkFunction;
 import org.joda.time.Instant;
 
 /**
- * Translates {@link org.apache.beam.sdk.transforms.ParDo.MultiOutput} or ExecutableStage in
- * portable api to Samza {@link DoFnOp}.
+ * Translates {@link org.apache.beam.sdk.transforms.ParDo.MultiOutputPrimitive} or ExecutableStage
+ * in portable api to Samza {@link DoFnOp}.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class ParDoBoundMultiTranslator<InT, OutT>
-    implements TransformTranslator<ParDo.MultiOutput<InT, OutT>>,
-        TransformConfigGenerator<ParDo.MultiOutput<InT, OutT>> {
+    implements TransformTranslator<ParDo.MultiOutputPrimitive<InT, OutT>>,
+        TransformConfigGenerator<ParDo.MultiOutputPrimitive<InT, OutT>> {
 
   private final SamzaDoFnInvokerRegistrar doFnInvokerRegistrar;
 
@@ -94,7 +94,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
   @Override
   public void translate(
-      ParDo.MultiOutput<InT, OutT> transform,
+      ParDo.MultiOutputPrimitive<InT, OutT> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
     doTranslate(transform, node, ctx);
@@ -102,7 +102,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
   // static for serializing anonymous functions
   private static <InT, OutT> void doTranslate(
-      ParDo.MultiOutput<InT, OutT> transform,
+      ParDo.MultiOutputPrimitive<InT, OutT> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
@@ -353,7 +353,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
   @Override
   public Map<String, String> createConfig(
-      ParDo.MultiOutput<InT, OutT> transform, TransformHierarchy.Node node, ConfigContext ctx) {
+      ParDo.MultiOutputPrimitive<InT, OutT> transform,
+      TransformHierarchy.Node node,
+      ConfigContext ctx) {
     final Map<String, String> config = new HashMap<>();
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final SamzaPipelineOptions options = ctx.getPipelineOptions();

@@ -185,7 +185,8 @@ public class PCollection<T> extends PValueBase implements PValue {
         // and provide a better error message if so. Unfortunately, this information is not
         // directly available from the TypeDescriptor, so infer based on the type of the PTransform
         // and the error message itself.
-        if (transform instanceof ParDo.MultiOutput && exc.getReason() == ReasonCode.TYPE_ERASURE) {
+        if (transform instanceof ParDo.MultiOutputPrimitive
+            && exc.getReason() == ReasonCode.TYPE_ERASURE) {
           inferFromTokenException =
               new CannotProvideCoderException(
                   exc.getMessage()

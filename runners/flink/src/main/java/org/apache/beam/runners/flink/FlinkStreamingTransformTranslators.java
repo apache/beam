@@ -468,7 +468,7 @@ class FlinkStreamingTransformTranslators {
   }
 
   /**
-   * Helper for translating {@code ParDo.MultiOutput} and {@link
+   * Helper for translating {@code ParDo.MultiOutputPrimitive} and {@link
    * SplittableParDoViaKeyedWorkItems.ProcessElements}.
    */
   static class ParDoTranslationHelper {

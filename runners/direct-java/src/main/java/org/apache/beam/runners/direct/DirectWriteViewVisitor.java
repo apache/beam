@@ -61,8 +61,9 @@ class DirectWriteViewVisitor extends PipelineVisitor.Defaults {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    if (node.getTransform() instanceof ParDo.MultiOutput) {
-      ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) node.getTransform();
+    if (node.getTransform() instanceof ParDo.MultiOutputPrimitive) {
+      ParDo.MultiOutputPrimitive<?, ?> parDo =
+          (ParDo.MultiOutputPrimitive<?, ?>) node.getTransform();
       viewsToWrite.addAll(parDo.getSideInputs().values());
     }
   }

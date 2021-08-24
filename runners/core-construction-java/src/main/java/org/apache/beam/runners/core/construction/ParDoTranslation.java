@@ -60,7 +60,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutputPrimitive;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -143,7 +143,7 @@ public class ParDoTranslation {
   public static final String CUSTOM_JAVA_WINDOW_MAPPING_FN_URN = "beam:windowmappingfn:javasdk:0.1";
 
   /** A {@link TransformPayloadTranslator} for {@link ParDo}. */
-  public static class ParDoTranslator implements TransformTranslator<MultiOutput<?, ?>> {
+  public static class ParDoTranslator implements TransformTranslator<MultiOutputPrimitive<?, ?>> {
 
     public static TransformTranslator create() {
       return new ParDoTranslator();
@@ -152,13 +152,13 @@ public class ParDoTranslation {
     private ParDoTranslator() {}
 
     @Override
-    public String getUrn(ParDo.MultiOutput<?, ?> transform) {
+    public String getUrn(ParDo.MultiOutputPrimitive<?, ?> transform) {
       return PAR_DO_TRANSFORM_URN;
     }
 
     @Override
     public boolean canTranslate(PTransform<?, ?> pTransform) {
-      return pTransform instanceof ParDo.MultiOutput;
+      return pTransform instanceof ParDo.MultiOutputPrimitive;
     }
 
     @Override
@@ -171,8 +171,8 @@ public class ParDoTranslation {
           PTransformTranslation.translateAppliedPTransform(
               appliedPTransform, subtransforms, components);
 
-      AppliedPTransform<?, ?, ParDo.MultiOutput<?, ?>> appliedParDo =
-          (AppliedPTransform<?, ?, ParDo.MultiOutput<?, ?>>) appliedPTransform;
+      AppliedPTransform<?, ?, ParDo.MultiOutputPrimitive<?, ?>> appliedParDo =
+          (AppliedPTransform<?, ?, ParDo.MultiOutputPrimitive<?, ?>>) appliedPTransform;
       ParDoPayload payload = translateParDo(appliedParDo, components);
       builder.setSpec(
           RunnerApi.FunctionSpec.newBuilder()
@@ -186,9 +186,10 @@ public class ParDoTranslation {
   }
 
   public static ParDoPayload translateParDo(
-      AppliedPTransform<?, ?, ParDo.MultiOutput<?, ?>> appliedPTransform, SdkComponents components)
+      AppliedPTransform<?, ?, ParDo.MultiOutputPrimitive<?, ?>> appliedPTransform,
+      SdkComponents components)
       throws IOException {
-    final ParDo.MultiOutput<?, ?> parDo = appliedPTransform.getTransform();
+    final ParDo.MultiOutputPrimitive<?, ?> parDo = appliedPTransform.getTransform();
     final Pipeline pipeline = appliedPTransform.getPipeline();
     final DoFn<?, ?> doFn = parDo.getFn();
 
@@ -208,12 +209,33 @@ public class ParDoTranslation {
     final DoFnSchemaInformation doFnSchemaInformation =
         ParDo.getDoFnSchemaInformation(doFn, mainInput);
     return translateParDo(
-        (ParDo.MultiOutput) parDo, mainInput, doFnSchemaInformation, pipeline, components);
+        (ParDo.MultiOutputPrimitive) parDo, mainInput, doFnSchemaInformation, pipeline, components);
+  }
+
+  /** Translate a ParDo. */
+  @VisibleForTesting
+  public static <InputT, OutputT> ParDoPayload translateParDo(
+      ParDo.MultiOutput<InputT, OutputT> parDo,
+      PCollection<InputT> mainInput,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Pipeline pipeline,
+      SdkComponents components)
+      throws IOException {
+    return translateParDo(
+        MultiOutputPrimitive.of(
+            parDo.getFn(),
+            parDo.getMainOutputTag(),
+            parDo.getAdditionalOutputTags(),
+            parDo.getSideInputs()),
+        mainInput,
+        doFnSchemaInformation,
+        pipeline,
+        components);
   }
 
   /** Translate a ParDo. */
   public static <InputT> ParDoPayload translateParDo(
-      ParDo.MultiOutput<InputT, ?> parDo,
+      ParDo.MultiOutputPrimitive<InputT, ?> parDo,
       PCollection<InputT> mainInput,
       DoFnSchemaInformation doFnSchemaInformation,
       Pipeline pipeline,
@@ -365,8 +387,8 @@ public class ParDoTranslation {
 
   public static DoFn<?, ?> getDoFn(AppliedPTransform<?, ?, ?> application) throws IOException {
     PTransform<?, ?> transform = application.getTransform();
-    if (transform instanceof ParDo.MultiOutput) {
-      return ((ParDo.MultiOutput<?, ?>) transform).getFn();
+    if (transform instanceof ParDo.MultiOutputPrimitive) {
+      return ((ParDo.MultiOutputPrimitive<?, ?>) transform).getFn();
     }
 
     return getDoFn(getParDoPayload(application));
@@ -422,8 +444,8 @@ public class ParDoTranslation {
   public static TupleTag<?> getMainOutputTag(AppliedPTransform<?, ?, ?> application)
       throws IOException {
     PTransform<?, ?> transform = application.getTransform();
-    if (transform instanceof ParDo.MultiOutput) {
-      return ((ParDo.MultiOutput<?, ?>) transform).getMainOutputTag();
+    if (transform instanceof ParDo.MultiOutputPrimitive) {
+      return ((ParDo.MultiOutputPrimitive<?, ?>) transform).getMainOutputTag();
     }
 
     return getMainOutputTag(getParDoPayload(application));
@@ -432,8 +454,8 @@ public class ParDoTranslation {
   public static TupleTagList getAdditionalOutputTags(AppliedPTransform<?, ?, ?> application)
       throws IOException {
     PTransform<?, ?> transform = application.getTransform();
-    if (transform instanceof ParDo.MultiOutput) {
-      return ((ParDo.MultiOutput<?, ?>) transform).getAdditionalOutputTags();
+    if (transform instanceof ParDo.MultiOutputPrimitive) {
+      return ((ParDo.MultiOutputPrimitive<?, ?>) transform).getAdditionalOutputTags();
     }
 
     RunnerApi.PTransform protoTransform =
@@ -462,8 +484,8 @@ public class ParDoTranslation {
   public static List<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> application)
       throws IOException {
     PTransform<?, ?> transform = application.getTransform();
-    if (transform instanceof ParDo.MultiOutput) {
-      return ((ParDo.MultiOutput<?, ?>) transform)
+    if (transform instanceof ParDo.MultiOutputPrimitive) {
+      return ((ParDo.MultiOutputPrimitive<?, ?>) transform)
           .getSideInputs().values().stream().collect(Collectors.toList());
     }
 

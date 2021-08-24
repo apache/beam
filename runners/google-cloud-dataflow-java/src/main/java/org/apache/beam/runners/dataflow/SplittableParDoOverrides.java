@@ -56,10 +56,11 @@ class SplittableParDoOverrides {
 
   static class SplittableParDoOverrideFactory<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
-          PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
+          PCollection<InputT>, PCollectionTuple, ParDo.MultiOutputPrimitive<InputT, OutputT>> {
     @Override
     public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
+        AppliedPTransform<
+                PCollection<InputT>, PCollectionTuple, ParDo.MultiOutputPrimitive<InputT, OutputT>>
             appliedTransform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(appliedTransform),

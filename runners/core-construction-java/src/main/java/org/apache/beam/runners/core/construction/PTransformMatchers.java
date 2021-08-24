@@ -166,8 +166,8 @@ public class PTransformMatchers {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.MultiOutput) {
-          DoFn<?, ?> fn = ((ParDo.MultiOutput<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.MultiOutputPrimitive) {
+          DoFn<?, ?> fn = ((ParDo.MultiOutputPrimitive<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.processElement().requiresStableInput();
         }
@@ -236,16 +236,16 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutput} containing a {@link DoFn}
-   * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutputPrimitive} containing a
+   * {@link DoFn} that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
    */
   public static PTransformMatcher splittableParDoMulti() {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.MultiOutput) {
-          DoFn<?, ?> fn = ((ParDo.MultiOutput<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.MultiOutputPrimitive) {
+          DoFn<?, ?> fn = ((ParDo.MultiOutputPrimitive<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.processElement().isSplittable();
         }
@@ -398,7 +398,7 @@ public class PTransformMatchers {
 
   /**
    * A {@link PTransformMatcher} which matches a {@link ParDo.SingleOutput} or {@link
-   * ParDo.MultiOutput} where the {@link DoFn} is of the provided type.
+   * ParDo.MultiOutputPrimitive} where the {@link DoFn} is of the provided type.
    */
   public static PTransformMatcher parDoWithFnType(final Class<? extends DoFn> fnType) {
     return new PTransformMatcher() {
@@ -407,8 +407,8 @@ public class PTransformMatchers {
         DoFn<?, ?> fn;
         if (application.getTransform() instanceof ParDo.SingleOutput) {
           fn = ((ParDo.SingleOutput) application.getTransform()).getFn();
-        } else if (application.getTransform() instanceof ParDo.MultiOutput) {
-          fn = ((ParDo.MultiOutput) application.getTransform()).getFn();
+        } else if (application.getTransform() instanceof ParDo.MultiOutputPrimitive) {
+          fn = ((ParDo.MultiOutputPrimitive) application.getTransform()).getFn();
         } else {
           return false;
         }

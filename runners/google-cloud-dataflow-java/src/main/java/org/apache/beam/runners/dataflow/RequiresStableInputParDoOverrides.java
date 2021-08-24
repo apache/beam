@@ -50,7 +50,7 @@ class RequiresStableInputParDoOverrides {
    */
   static <InputT, OutputT>
       PTransformOverrideFactory<
-              PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
+              PCollection<InputT>, PCollectionTuple, ParDo.MultiOutputPrimitive<InputT, OutputT>>
           multiOutputOverrideFactory() {
     return new MultiOutputOverrideFactory<>();
   }
@@ -85,11 +85,12 @@ class RequiresStableInputParDoOverrides {
 
   private static class MultiOutputOverrideFactory<InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
+          PCollection<InputT>, PCollectionTuple, ParDo.MultiOutputPrimitive<InputT, OutputT>> {
 
     @Override
     public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
+        AppliedPTransform<
+                PCollection<InputT>, PCollectionTuple, ParDo.MultiOutputPrimitive<InputT, OutputT>>
             appliedTransform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(appliedTransform),

@@ -52,7 +52,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutputPrimitive;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -123,7 +123,7 @@ public class ParDoTranslationTest {
     }
 
     @Parameter(0)
-    public ParDo.MultiOutput<KV<Long, String>, Void> parDo;
+    public ParDo.MultiOutputPrimitive<KV<Long, String>, Void> parDo;
 
     @Test
     public void testToProto() throws Exception {
@@ -165,8 +165,14 @@ public class ParDoTranslationTest {
       // Encode
       RunnerApi.PTransform protoTransform =
           PTransformTranslation.toProto(
-              AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
-                  "foo", inputs, PValues.expandOutput(output), parDo, ResourceHints.create(), p),
+              AppliedPTransform
+                  .<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutputPrimitive>of(
+                      "foo",
+                      inputs,
+                      PValues.expandOutput(output),
+                      parDo,
+                      ResourceHints.create(),
+                      p),
               sdkComponents);
       RunnerApi.Components components = sdkComponents.toComponents();
       RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
@@ -378,12 +384,16 @@ public class ParDoTranslationTest {
       Pipeline p = Pipeline.create();
       SdkComponents sdkComponents = SdkComponents.create();
       sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+      PCollection<String> mainInput =
+          PCollection.createPrimitiveOutputInternal(
+              p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of());
+      ParDo.MultiOutput<String, String> parDo =
+          ParDo.of(new StartBundleDoFn()).withOutputTags(new TupleTag<>(), TupleTagList.empty());
+      mainInput.apply(parDo);
       ParDoPayload payload =
           ParDoTranslation.translateParDo(
-              ParDo.of(new StartBundleDoFn())
-                  .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
-              PCollection.createPrimitiveOutputInternal(
-                  p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of()),
+              parDo,
+              mainInput,
               DoFnSchemaInformation.create(),
               TestPipeline.create(),
               sdkComponents);
