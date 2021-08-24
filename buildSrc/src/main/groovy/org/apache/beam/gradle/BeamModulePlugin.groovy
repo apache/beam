@@ -346,6 +346,10 @@ class BeamModulePlugin implements Plugin<Project> {
     return project.hasProperty('isRelease')
   }
 
+  def isSnapshot(Project project) {
+    return project.hasProperty('isSnapshot')
+  }
+
   def isLinkedin(Project project) {
     return project.hasProperty('isLinkedin')
   }
@@ -364,11 +368,12 @@ class BeamModulePlugin implements Plugin<Project> {
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
     project.version = '2.28.0.4'
-    if (!isRelease(project)) {
-      project.version += '-SNAPSHOT'
-    }
+
     if (isLinkedin(project)) {
       project.version += '-LI'
+    }
+    if (!isRelease(project) || isSnapshot(project)) {
+      project.version += '-SNAPSHOT'
     }
 
     // Default to dash-separated directories for artifact base name,
@@ -657,7 +662,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.repositories = {
       maven {
         name "testPublicationLocal"
-        url "file://${project.rootProject.projectDir}/testPublication/"
+        url "file://${System.getProperty('user.home')}/local-repo/"
       }
       maven {
         name "linkedin.jfrog.https"
@@ -1155,7 +1160,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.includeInJavaBom = configuration.publish
       project.ext.exportJavadoc = configuration.exportJavadoc
 
-      if ((isRelease(project) || project.hasProperty('publishing')) &&
+      if ((isRelease(project) || isSnapshot(project) || project.hasProperty('publishing')) &&
       configuration.publish) {
         project.apply plugin: "maven-publish"
         project.apply plugin: 'com.jfrog.artifactory'

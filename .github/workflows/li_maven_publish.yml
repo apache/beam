@@ -8,7 +8,7 @@ on:
     types: [created]
   push:
     branches: ['li_trunk']
-    paths: ['runners/samza/**', 'runners/spark/**', 'buildSrc/src/main/groovy/org/apache/beam/gradle/**']
+    paths: ['runners/samza/**', 'runners/spark/**', 'sdks/java/**']
 
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
     # The USERNAME and TOKEN need to correspond to the credentials environment variables used in
     # the publishing section of your build.gradle
     - name: Publish to LI JFrog Artifactory
-      run: ./gradlew publishMavenJavaPublicationToLinkedin.jfrog.httpsRepository -PnoSigning -PisRelease -PisLinkedin --no-daemon
+      run: ./gradlew publishMavenJavaPublicationToLinkedin.jfrog.httpsRepository -PisRelease -PisLinkedin --no-daemon
       env:
         USERNAME: ${{ secrets.ARTIFACTORY_USER }}
         TOKEN: ${{ secrets.ARTIFACTORY_KEY }}
