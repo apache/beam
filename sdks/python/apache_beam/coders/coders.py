@@ -30,7 +30,8 @@ change it from `dill` if necessary).
 
 We created `_MemoizingPickleCoder` to improve performance when serializing
 complex user types for the execution of SDF. Specifically to address
-BEAM-12781, where `BoundedSource` instances are being encoded.
+BEAM-12781, where many identical `BoundedSource` instances are being
+encoded.
 
 """
 # pytype: skip-file
