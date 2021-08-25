@@ -492,22 +492,6 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       }
     }
 
-    void deletePersisted(
-        byte[] keyBytes,
-        K key,
-        StateNamespace namespace,
-        String timerId,
-        String timerFamilyId,
-        Instant timestamp,
-        Instant outputTimestamp,
-        TimeDomain domain) {
-      final TimerInternals.TimerData timerData =
-          TimerInternals.TimerData.of(
-              timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
-      final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
-      deletePersisted(keyedTimerData);
-    }
-
     void deletePersisted(KeyedTimerData<K> keyedTimerData) {
       final TimerKey<K> timerKey = TimerKey.of(keyedTimerData);
       switch (keyedTimerData.getTimerData().getDomain()) {
