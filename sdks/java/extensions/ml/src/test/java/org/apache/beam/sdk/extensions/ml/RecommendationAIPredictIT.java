@@ -30,6 +30,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,6 +45,7 @@ public class RecommendationAIPredictIT {
     return new GenericJson().set("eventType", "home-page-view").set("userInfo", userInfo);
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-12733")
   @Test
   public void predict() {
     String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
