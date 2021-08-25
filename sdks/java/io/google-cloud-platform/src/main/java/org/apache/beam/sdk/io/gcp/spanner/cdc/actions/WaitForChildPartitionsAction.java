@@ -19,12 +19,13 @@ package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.SCHEDULED;
 
 import io.opencensus.common.Scope;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -73,17 +74,17 @@ public class WaitForChildPartitionsAction {
         LOG.debug("[" + token + "] Could not claim waitForChildPartitions(), stopping");
         return Optional.of(ProcessContinuation.stop());
       }
-      long numberOfUnscheduledChildren =
+      long numberOfNotRunningChildren =
           partitionMetadataDao.countChildPartitionsInStates(
-              token, Collections.singletonList(CREATED));
-      LOG.debug("[" + token + "] Number of unscheduled children is " + numberOfUnscheduledChildren);
-      if (numberOfUnscheduledChildren > 0) {
+              token, Arrays.asList(CREATED, SCHEDULED));
+      LOG.debug("[" + token + "] Number not running children is " + numberOfNotRunningChildren);
+      if (numberOfNotRunningChildren > 0) {
         LOG.debug(
             "["
                 + token
                 + " ] Resuming, there are "
-                + numberOfUnscheduledChildren
-                + " unscheduled / not finished children");
+                + numberOfNotRunningChildren
+                + " not running children");
 
         return Optional.of(ProcessContinuation.resume().withResumeDelay(resumeDuration));
       }

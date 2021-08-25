@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.io.gcp.spanner.cdc.actions;
 
 import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.CREATED;
+import static org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata.State.SCHEDULED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.cdc.model.PartitionMetadata;
@@ -55,7 +56,7 @@ public class WaitForChildPartitionsActionTest {
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(dao.countChildPartitionsInStates(partitionToken, Collections.singletonList(CREATED)))
+    when(dao.countChildPartitionsInStates(partitionToken, Arrays.asList(CREATED, SCHEDULED)))
         .thenReturn(0L);
 
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
@@ -69,7 +70,7 @@ public class WaitForChildPartitionsActionTest {
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     when(tracker.tryClaim(PartitionPosition.waitForChildPartitions())).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(dao.countChildPartitionsInStates(partitionToken, Collections.singletonList(CREATED)))
+    when(dao.countChildPartitionsInStates(partitionToken, Arrays.asList(CREATED, SCHEDULED)))
         .thenReturn(1L);
 
     final Optional<ProcessContinuation> maybeContinuation = action.run(partition, tracker);
