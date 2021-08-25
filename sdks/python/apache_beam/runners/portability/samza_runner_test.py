@@ -153,10 +153,6 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Samza portable runner supports clearing timer.
     raise unittest.SkipTest("BEAM-12774")
 
-  def test_pardo_timers_clear(self):
-    # Skip until Samza portable runner supports clearing timer.
-    raise unittest.SkipTest("BEAM-12774")
-
   def test_register_finalizations(self):
     # Skip until Samza runner supports bundle finalization.
     raise unittest.SkipTest("BEAM-12615")
