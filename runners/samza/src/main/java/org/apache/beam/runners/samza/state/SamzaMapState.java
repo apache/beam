@@ -35,8 +35,6 @@ public interface SamzaMapState<KeyT, ValueT> extends MapState<KeyT, ValueT> {
    */
   ReadableState<Iterator<Map.Entry<KeyT, ValueT>>> readIterator();
 
-  /**
-   * Closes the iterator returned from {@link SamzaMapState#readIterator()}.
-   */
+  /** Closes the iterator returned from {@link SamzaMapState#readIterator()}. */
   void closeIterators();
 }
