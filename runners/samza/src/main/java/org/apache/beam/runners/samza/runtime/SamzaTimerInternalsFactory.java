@@ -317,12 +317,14 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       }
     }
 
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
     @Override
     @Deprecated
     public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
       deleteTimer(namespace, timerId, timerFamilyId, TimeDomain.EVENT_TIME);
     }
 
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
     @Override
     @Deprecated
     public void deleteTimer(TimerData timerData) {
