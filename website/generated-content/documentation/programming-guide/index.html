@@ -269,7 +269,11 @@ Examples are JSON, Protocol Buffer, Avro, and database records. Schemas provide 
 express types as a set of named fields, allowing for more-expressive aggregations.</p><h4 id=immutability>3.2.3. Immutability</h4><p>A <code>PCollection</code> is immutable. Once created, you cannot add, remove, or change
 individual elements. A Beam Transform might process each element of a
 <code>PCollection</code> and generate new pipeline data (as a new <code>PCollection</code>), <em>but it
-does not consume or modify the original input collection</em>.</p><h4 id=random-access>3.2.4. Random access</h4><p>A <code>PCollection</code> does not support random access to individual elements. Instead,
+does not consume or modify the original input collection</em>.</p><blockquote><p><strong>Note:</strong> Beam SDKs avoid unnecessary copying of elements, so <code>PCollection</code>
+contents are logically immutable, not physically immutable. Changes to input
+elements may be visible to other DoFns executing within the same bundle, and may
+cause correctness issues.
+As a rule, it&rsquo;s not safe to modify values provided to a DoFn.</p></blockquote><h4 id=random-access>3.2.4. Random access</h4><p>A <code>PCollection</code> does not support random access to individual elements. Instead,
 Beam Transforms consider every element in a <code>PCollection</code> individually.</p><h4 id=size-and-boundedness>3.2.5. Size and boundedness</h4><p>A <code>PCollection</code> is a large, immutable &ldquo;bag&rdquo; of elements. There is no upper limit
 on how many elements a <code>PCollection</code> can contain; any given <code>PCollection</code> might
 fit in memory on a single machine, or it might represent a very large

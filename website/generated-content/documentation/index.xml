@@ -4156,6 +4156,13 @@ express types as a set of named fields, allowing for more-expressive aggregation
 individual elements. A Beam Transform might process each element of a
 &lt;code>PCollection&lt;/code> and generate new pipeline data (as a new &lt;code>PCollection&lt;/code>), &lt;em>but it
 does not consume or modify the original input collection&lt;/em>.&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>Note:&lt;/strong> Beam SDKs avoid unnecessary copying of elements, so &lt;code>PCollection&lt;/code>
+contents are logically immutable, not physically immutable. Changes to input
+elements may be visible to other DoFns executing within the same bundle, and may
+cause correctness issues.
+As a rule, it&amp;rsquo;s not safe to modify values provided to a DoFn.&lt;/p>
+&lt;/blockquote>
 &lt;h4 id="random-access">3.2.4. Random access&lt;/h4>
 &lt;p>A &lt;code>PCollection&lt;/code> does not support random access to individual elements. Instead,
 Beam Transforms consider every element in a &lt;code>PCollection&lt;/code> individually.&lt;/p>
