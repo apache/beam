@@ -25,8 +25,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assume.assumeTrue;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,37 +46,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutpu
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataStreams}. */
+@RunWith(Enclosed.class)
 public class DataStreamsTest {
-
-  /** Tests for {@link DataStreams.Inbound}. */
-  @RunWith(JUnit4.class)
-  public static class InboundTest {
-    private static final ByteString BYTES_A = ByteString.copyFromUtf8("TestData");
-    private static final ByteString BYTES_B = ByteString.copyFromUtf8("SomeOtherTestData");
-
-    @Test
-    public void testEmptyRead() throws Exception {
-      assertEquals(ByteString.EMPTY, read());
-      assertEquals(ByteString.EMPTY, read(ByteString.EMPTY));
-      assertEquals(ByteString.EMPTY, read(ByteString.EMPTY, ByteString.EMPTY));
-    }
-
-    @Test
-    public void testRead() throws Exception {
-      assertEquals(BYTES_A.concat(BYTES_B), read(BYTES_A, BYTES_B));
-      assertEquals(BYTES_A.concat(BYTES_B), read(BYTES_A, ByteString.EMPTY, BYTES_B));
-      assertEquals(BYTES_A.concat(BYTES_B), read(BYTES_A, BYTES_B, ByteString.EMPTY));
-    }
-
-    private static ByteString read(ByteString... bytes) throws IOException {
-      return ByteString.readFrom(DataStreams.inbound(Arrays.asList(bytes).iterator()));
-    }
-  }
 
   /** Tests for {@link DataStreams.BlockingQueueIterator}. */
   @RunWith(JUnit4.class)
@@ -141,22 +116,27 @@ public class DataStreamsTest {
     }
 
     private <T> void testDecoderWith(Coder<T> coder, T... expected) throws IOException {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      ByteString.Output output = ByteString.newOutput();
       for (T value : expected) {
-        int size = baos.size();
-        coder.encode(value, baos);
+        int size = output.size();
+        coder.encode(value, output);
         // Pad an arbitrary byte when values encode to zero bytes
-        if (baos.size() - size == 0) {
-          baos.write(0);
+        if (output.size() - size == 0) {
+          output.write(0);
         }
       }
+      testDecoderWith(coder, expected, Arrays.asList(output.toByteString()));
+      testDecoderWith(coder, expected, Arrays.asList(ByteString.EMPTY, output.toByteString()));
+      testDecoderWith(coder, expected, Arrays.asList(output.toByteString(), ByteString.EMPTY));
+    }
 
-      Iterator<T> decoder =
-          new DataStreamDecoder<>(coder, new ByteArrayInputStream(baos.toByteArray()));
+    private <T> void testDecoderWith(Coder<T> coder, T[] expected, List<ByteString> encoded) {
+      Iterator<T> decoder = new DataStreamDecoder<>(coder, encoded.iterator());
 
       Object[] actual = Iterators.toArray(decoder, Object.class);
       assertArrayEquals(expected, actual);
 
+      // Ensure that we are consistent on hasNext at end of stream
       assertFalse(decoder.hasNext());
       assertFalse(decoder.hasNext());
 
