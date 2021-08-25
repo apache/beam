@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.bigtable.admin.v2.GetTableRequest;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.MutateRowsRequest;
@@ -138,7 +139,12 @@ class BigtableServiceImpl implements BigtableService {
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
       baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
       baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.ReadRows");
-      baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.RESOURCE,
+          GcpResourceIdentifiers.bigtableResource(
+              session.getOptions().getProjectId(),
+              session.getOptions().getInstanceId(),
+              source.getTableId().get()));
       baseLabels.put(
           MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
       baseLabels.put(
@@ -156,8 +162,13 @@ class BigtableServiceImpl implements BigtableService {
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
-      results = session.getDataClient().readRows(requestB.build());
-      serviceCallMetric.call("ok");
+      try {
+        results = session.getDataClient().readRows(requestB.build());
+        serviceCallMetric.call("ok");
+      } catch (ApiException e) {
+        serviceCallMetric.call(e.getStatusCode().getCode().getHttpStatusCode());
+        throw e;
+      }
       return advance();
     }
 
@@ -259,7 +270,12 @@ class BigtableServiceImpl implements BigtableService {
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
       baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
       baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.MutateRows");
-      baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.RESOURCE,
+          GcpResourceIdentifiers.bigtableResource(
+              session.getOptions().getProjectId(),
+              session.getOptions().getInstanceId(),
+              tableName.getTableId()));
       baseLabels.put(
           MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
       baseLabels.put(
@@ -284,8 +300,13 @@ class BigtableServiceImpl implements BigtableService {
 
             @Override
             public void onFailure(Throwable throwable) {
+              if (throwable instanceof ApiException) {
+                serviceCallMetric.call(
+                    ((ApiException) throwable).getStatusCode().getCode().getHttpStatusCode());
+              } else {
+                serviceCallMetric.call(2); // Unknown
+              }
               result.completeExceptionally(throwable);
-              serviceCallMetric.call(throwable.toString());
             }
           },
           directExecutor());

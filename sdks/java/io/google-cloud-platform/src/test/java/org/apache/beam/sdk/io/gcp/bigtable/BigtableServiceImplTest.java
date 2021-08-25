@@ -162,7 +162,9 @@ public class BigtableServiceImplTest {
     labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     labels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
     labels.put(MonitoringInfoConstants.Labels.METHOD, method);
-    labels.put(MonitoringInfoConstants.Labels.RESOURCE, "");
+    labels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.bigtableResource(PROJECT_ID, INSTANCE_ID, TABLE_ID));
     labels.put(MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, PROJECT_ID);
     labels.put(MonitoringInfoConstants.Labels.INSTANCE_ID, INSTANCE_ID);
     labels.put(
