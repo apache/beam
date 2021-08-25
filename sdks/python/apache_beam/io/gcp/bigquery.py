@@ -332,10 +332,18 @@ from apache_beam.utils.annotations import experimental
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
-  import google.cloud.bigquery_storage_v1 as bq_storage
 except ImportError:
   DatasetReference = None
   TableReference = None
+
+_LOGGER = logging.getLogger(__name__)
+
+try:
+  import google.cloud.bigquery_storage_v1 as bq_storage
+except ImportError:
+  _LOGGER.warning(
+      'ImportError: import google.cloud.bigquery_storage_v1 as bq_storage',
+      exc_info=True)
 
 __all__ = [
     'TableRowJsonCoder',
@@ -348,8 +356,6 @@ __all__ = [
     'ReadAllFromBigQuery',
     'SCHEMA_AUTODETECT',
 ]
-
-_LOGGER = logging.getLogger(__name__)
 """
 Template for BigQuery jobs created by BigQueryIO. This template is:
 `"beam_bq_job_{job_type}_{job_id}_{step_id}_{random}"`, where:
@@ -2133,7 +2139,7 @@ class ReadFromBigQuery(PTransform):
 
   Args:
     method: The method to use to read from BigQuery. It may be EXPORT or
-      DIRECT_READ. EXPORT invokes a BigQuery export request
+      DIRECT_READ (Experimental). EXPORT invokes a BigQuery export request
       (https://cloud.google.com/bigquery/docs/exporting-data). DIRECT_READ reads
       directly from BigQuery storage using the BigQuery Read API
       (https://cloud.google.com/bigquery/docs/reference/storage). If

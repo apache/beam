@@ -186,7 +186,7 @@ GCP_REQUIREMENTS = [
     'google-auth>=1.18.0,<2',
     'google-cloud-datastore>=1.8.0,<2',
     'google-cloud-pubsub>=0.39.0,<2',
-    'google-cloud-bigquery-storage>=2.4.0',
+    'google-cloud-bigquery-storage>=2.6.3',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-core>=0.28.1,<2',
