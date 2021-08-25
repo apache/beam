@@ -125,7 +125,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   static final String ES_TYPE = "test";
-  static final long NUM_DOCS_UTESTS = 100L;
+  static final long NUM_DOCS_UTESTS = 40L;
   static final long NUM_DOCS_ITESTS = 50000L;
   static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final long AVERAGE_DOC_SIZE = 25L;
