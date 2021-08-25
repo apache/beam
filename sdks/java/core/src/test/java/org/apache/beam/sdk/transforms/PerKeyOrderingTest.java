@@ -78,8 +78,8 @@ public class PerKeyOrderingTest implements Serializable {
         matchedElements.write(-1);
         receiver.output(KV.of(elm.getKey(), false));
       } else {
-        assert this.perKeyElements.get(matched).equals(elm.getValue()) :
-            String.format("Element %s is not expected %s", elm, this.perKeyElements.get(matched));
+        assert this.perKeyElements.get(matched).equals(elm.getValue())
+            : String.format("Element %s is not expected %s", elm, this.perKeyElements.get(matched));
         matchedElements.write(matched + 1);
         // If we reached the end of perKeyElements, it means that all elements have been emitted in
         // the expected order, and thus we mark this Key as successful.
@@ -228,7 +228,9 @@ public class PerKeyOrderingTest implements Serializable {
 
     PCollection<KV<String, Boolean>> result =
         kvSeeds
-            .apply("Generate ordered values per key", ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
+            .apply(
+                "Generate ordered values per key",
+                ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
             .apply("Reshuffle", Reshuffle.of())
             .apply("Verify", ParDo.of(new VerifyDoFn<Integer>(perKeyElements)));
@@ -270,7 +272,9 @@ public class PerKeyOrderingTest implements Serializable {
 
     PCollection<KV<String, Boolean>> result =
         kvSeeds
-            .apply("Generate ordered values per key",ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
+            .apply(
+                "Generate ordered values per key",
+                ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
             .apply("Verify", ParDo.of(new VerifyDoFn<Integer>(perKeyElements)));
 
