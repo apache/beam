@@ -32,4 +32,8 @@ public class GcpResourceIdentifiers {
         "//bigquery.googleapis.com/projects/%s/datasets/%s/tables/%s",
         projectId, datasetId, tableId);
   }
+
+  public static String cloudStorageBucket(String bucketId) {
+    return String.format("//storage.googleapis.com/buckets/%s", bucketId);
+  }
 }
