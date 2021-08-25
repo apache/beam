@@ -103,26 +103,38 @@ elements of the same key to be processed together.
 The way in which runners *shuffle* data may be slightly different for Batch and
 Streaming execution modes.
 
-#### Batch shuffle
+<sup>1</sup>Not to be confused with the `shuffle` operation in some runners.
 
-Batch processing engines optimize shuffle implementations for high throughput
-over large datasets. Beam runners are no exception. Beam runners usually
-execute batch shuffles as blocking operations that perform per-key
-grouping of a complete dataset before starting to execute operations downstream.
-It is important to note, however, that each runner is free to implement batch
-shuffling as appropriate.
+[comment]: <> (#### Batch shuffle)
 
-#### Streaming shuffle
+[comment]: <> (Batch processing engines optimize shuffle implementations for high throughput)
 
-Streaming engines optimize their shuffle implementations for low latency of
-transference of information in between processing stages.
+[comment]: <> (over large datasets. Beam runners are no exception. Beam runners usually)
+
+[comment]: <> (execute batch shuffles as blocking operations that perform per-key)
+
+[comment]: <> (grouping of a complete dataset before starting to execute operations downstream.)
+
+[comment]: <> (It is important to note, however, that each runner is free to implement batch)
+
+[comment]: <> (shuffling as appropriate.)
+
+[comment]: <> (#### Streaming shuffle)
+
+[comment]: <> (Streaming engines optimize their shuffle implementations for low latency of)
+
+[comment]: <> (transference of information in between processing stages.)
 
 #### Data ordering in a pipeline execution
 The Beam model does not define strict guidelines regarding the order in which
-they process elements or transport them across `PTransforms`. Runners implement
+runners process elements or transport them across `PTransforms`. Runners are
+free to implement shuffling semantics in different forms.
+
+Some use cases exist where user pipelines may need to rely on specific ordering
+semantics in pipeline execution. The [capability matrix documents](/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/index.html)
+runner behavior for **key-to-key ordered delivery**.
 
 
-<sup>1</sup>Not to be confused with the `shuffle` operation in some runners.
 
 ## Failures and parallelism within and between transforms {#parallelism}
 

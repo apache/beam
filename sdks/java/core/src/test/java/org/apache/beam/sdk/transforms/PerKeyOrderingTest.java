@@ -67,33 +67,23 @@ public class PerKeyOrderingTest implements Serializable {
         OutputReceiver<KV<String, Boolean>> receiver,
         @StateId("matchedElements") ValueState<Integer> matchedElements) {
       Integer matched = matchedElements.read();
-      LOG.info("Element: {}. Expected: {}. Machi: {}", elm, perKeyElements, matched);
       matched = matched == null ? 0 : matched;
-      LOG.info("Machi precheck: {}", matched);
       if (matched == -1) {
         // When matched is set to -1, it means that we have met an error, and elements on this
         // key are not matched anymore - thus we ignore all inputs.
-        return;
       } else if (matched < this.perKeyElements.size()
-          && !elm.getValue().equals(this.perKeyElements.get(matched))) {
+          && !this.perKeyElements.get(matched).equals(elm.getValue())) {
         // If we meet this condition, then the order of elements is not what we're expecting.
         // We mark `matched` as -1, and output a failed ordering.
-        LOG.info(
-            "NOSUCCESS : / - Key: {} - Elm: {} - Mchd: {} - PKE: {} - EQ: {}",
-            elm.getKey(),
-            elm.getValue(),
-            matched,
-            perKeyElements,
-            this.perKeyElements.get(matched).equals(elm.getValue()));
         matchedElements.write(-1);
         receiver.output(KV.of(elm.getKey(), false));
       } else {
-        assert elm.getValue() == this.perKeyElements.get(matched);
+        assert this.perKeyElements.get(matched).equals(elm.getValue()) :
+            String.format("Element %s is not expected %s", elm, this.perKeyElements.get(matched));
         matchedElements.write(matched + 1);
         // If we reached the end of perKeyElements, it means that all elements have been emitted in
         // the expected order, and thus we mark this Key as successful.
-        if (matchedElements.read() == perKeyElements.size()) {
-          LOG.info("Success! Key: {}.", elm.getKey());
+        if (matched + 1 == perKeyElements.size()) {
           receiver.output(KV.of(elm.getKey(), true));
         }
       }
@@ -113,16 +103,18 @@ public class PerKeyOrderingTest implements Serializable {
             .collect(Collectors.toList());
     PCollection<KV<String, Integer>> kvSeeds =
         pipeline
-            .apply(Create.of(allKeys))
+            .apply("Generate all keys", Create.of(allKeys))
             .apply(
+                "Map into KV pairs",
                 MapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
                     .via(key -> KV.of(key, 0)))
-            .apply("rs1", Reshuffle.of());
+            .apply("Shuffle by key", Reshuffle.of());
 
     PCollection<KV<String, Boolean>> result =
         kvSeeds
             .apply(
+                "Generate ordered values per key",
                 FlatMapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
                     .via(
@@ -131,8 +123,8 @@ public class PerKeyOrderingTest implements Serializable {
                               .map(number -> KV.of(input.getKey(), number))
                               .collect(Collectors.toList());
                         }))
-            .apply("rs2", Reshuffle.of())
-            .apply(ParDo.of(new VerifyDoFn<>(perKeyElements)));
+            .apply("Reshuffle", Reshuffle.of())
+            .apply("Verify", ParDo.of(new VerifyDoFn<>(perKeyElements)));
 
     PAssert.that(result)
         .containsInAnyOrder(allKeys.stream().map(k -> KV.of(k, true)).collect(Collectors.toList()));
@@ -152,16 +144,18 @@ public class PerKeyOrderingTest implements Serializable {
             .collect(Collectors.toList());
     PCollection<KV<String, Integer>> kvSeeds =
         pipeline
-            .apply(Create.of(allKeys))
+            .apply("Generate all keys", Create.of(allKeys))
             .apply(
+                "Map into KV pairs",
                 MapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
                     .via(key -> KV.of(key, 0)))
-            .apply("rs1", Reshuffle.of());
+            .apply("Shuffle by key", Reshuffle.of());
 
     PCollection<KV<String, Boolean>> result =
         kvSeeds
             .apply(
+                "Generate ordered values per key",
                 FlatMapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
                     .via(
@@ -170,7 +164,7 @@ public class PerKeyOrderingTest implements Serializable {
                               .map(number -> KV.of(input.getKey(), number))
                               .collect(Collectors.toList());
                         }))
-            .apply(ParDo.of(new VerifyDoFn<>(perKeyElements)));
+            .apply("Verify", ParDo.of(new VerifyDoFn<>(perKeyElements)));
 
     PAssert.that(result)
         .containsInAnyOrder(allKeys.stream().map(k -> KV.of(k, true)).collect(Collectors.toList()));
@@ -195,7 +189,6 @@ public class PerKeyOrderingTest implements Serializable {
       Integer index = indexState.read();
       index = index == null ? 0 : index;
       if (index >= perKeyElements.size()) {
-        LOG.warn("INDEX IS TOO HIGH!: {}", index);
         return;
       }
       receiver.output(KV.of(elm.getKey(), perKeyElements.get(index)));
@@ -218,6 +211,7 @@ public class PerKeyOrderingTest implements Serializable {
     PCollection<KV<String, Integer>> kvSeeds =
         pipeline
             .apply(
+                "Periodic impulse",
                 PeriodicImpulse.create()
                     .startAt(Instant.ofEpochMilli(0))
                     .withInterval(Duration.standardSeconds(1))
@@ -225,17 +219,19 @@ public class PerKeyOrderingTest implements Serializable {
                         Instant.ofEpochMilli(0)
                             .plus(Duration.standardSeconds(perKeyElements.size()))))
             .apply(
+                "Generate all keys",
                 FlatMapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
                     .via(
                         elm -> allKeys.stream().map(k -> KV.of(k, 0)).collect(Collectors.toList())))
-            .apply(Reshuffle.of());
+            .apply("Shuffle by key", Reshuffle.of());
 
     PCollection<KV<String, Boolean>> result =
         kvSeeds
-            .apply(ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
+            .apply("Generate ordered values per key", ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-            .apply(ParDo.of(new VerifyDoFn<Integer>(perKeyElements)));
+            .apply("Reshuffle", Reshuffle.of())
+            .apply("Verify", ParDo.of(new VerifyDoFn<Integer>(perKeyElements)));
 
     PAssert.that(result)
         .containsInAnyOrder(allKeys.stream().map(k -> KV.of(k, true)).collect(Collectors.toList()));
@@ -257,6 +253,7 @@ public class PerKeyOrderingTest implements Serializable {
     PCollection<KV<String, Integer>> kvSeeds =
         pipeline
             .apply(
+                "Periodic impulse",
                 PeriodicImpulse.create()
                     .startAt(Instant.ofEpochMilli(0))
                     .withInterval(Duration.standardSeconds(1))
@@ -264,6 +261,7 @@ public class PerKeyOrderingTest implements Serializable {
                         Instant.ofEpochMilli(0)
                             .plus(Duration.standardSeconds(perKeyElements.size()))))
             .apply(
+                "Generate all keys",
                 FlatMapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
                     .via(
@@ -272,9 +270,9 @@ public class PerKeyOrderingTest implements Serializable {
 
     PCollection<KV<String, Boolean>> result =
         kvSeeds
-            .apply(ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
+            .apply("Generate ordered values per key",ParDo.of(new StatefulOrderedGenerator<Integer>(perKeyElements)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-            .apply(ParDo.of(new VerifyDoFn<Integer>(perKeyElements)));
+            .apply("Verify", ParDo.of(new VerifyDoFn<Integer>(perKeyElements)));
 
     PAssert.that(result)
         .containsInAnyOrder(allKeys.stream().map(k -> KV.of(k, true)).collect(Collectors.toList()));
