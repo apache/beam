@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutputPrimitive;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -275,9 +276,16 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void parDoMultiSplittable() {
+    ParDo.MultiOutput<KV<String, Integer>, Integer> splittableParDo =
+        ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty());
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
-            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+            MultiOutputPrimitive.of(
+                splittableParDo.getFn(),
+                splittableParDo.getMainOutputTag(),
+                splittableParDo.getAdditionalOutputTags(),
+                splittableParDo.getSideInputs()));
+
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
@@ -287,9 +295,16 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void parDoSplittable() {
+    ParDo.MultiOutput<KV<String, Integer>, Integer> splittableParDo =
+        ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty());
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
-            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+            MultiOutputPrimitive.of(
+                splittableParDo.getFn(),
+                splittableParDo.getMainOutputTag(),
+                splittableParDo.getAdditionalOutputTags(),
+                splittableParDo.getSideInputs()));
+
     assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
@@ -311,14 +326,26 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void parDoWithState() {
+    ParDo.MultiOutput<KV<String, Integer>, Integer> parDo =
+        ParDo.of(doFnWithState).withOutputTags(new TupleTag<>(), TupleTagList.empty());
     AppliedPTransform<?, ?, ?> statefulApplication =
         getAppliedTransform(
-            ParDo.of(doFnWithState).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+            MultiOutputPrimitive.of(
+                parDo.getFn(),
+                parDo.getMainOutputTag(),
+                parDo.getAdditionalOutputTags(),
+                parDo.getSideInputs()));
     assertThat(PTransformMatchers.stateOrTimerParDo().matches(statefulApplication), is(true));
 
+    ParDo.MultiOutput<KV<String, Integer>, Integer> splittableParDo =
+        ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty());
     AppliedPTransform<?, ?, ?> splittableApplication =
         getAppliedTransform(
-            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+            MultiOutputPrimitive.of(
+                splittableParDo.getFn(),
+                splittableParDo.getMainOutputTag(),
+                splittableParDo.getAdditionalOutputTags(),
+                splittableParDo.getSideInputs()));
     assertThat(PTransformMatchers.stateOrTimerParDo().matches(splittableApplication), is(false));
   }
 
@@ -345,11 +372,26 @@ public class PTransformMatchersTest implements Serializable {
 
     AppliedPTransform<?, ?, ?> single = getAppliedTransform(ParDo.of(doFn));
     AppliedPTransform<?, ?, ?> singleRSI = getAppliedTransform(ParDo.of(doFnRSI));
+
+    ParDo.MultiOutput<KV<String, Integer>, Integer> parDoMulti =
+        ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty());
     AppliedPTransform<?, ?, ?> multi =
-        getAppliedTransform(ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+        getAppliedTransform(
+            MultiOutputPrimitive.of(
+                parDoMulti.getFn(),
+                parDoMulti.getMainOutputTag(),
+                parDoMulti.getAdditionalOutputTags(),
+                parDoMulti.getSideInputs()));
+
+    ParDo.MultiOutput<Object, Object> parDoMultiRSI =
+        ParDo.of(doFnRSI).withOutputTags(new TupleTag<>(), TupleTagList.empty());
     AppliedPTransform<?, ?, ?> multiRSI =
         getAppliedTransform(
-            ParDo.of(doFnRSI).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+            MultiOutputPrimitive.of(
+                parDoMultiRSI.getFn(),
+                parDoMultiRSI.getMainOutputTag(),
+                parDoMultiRSI.getAdditionalOutputTags(),
+                parDoMultiRSI.getSideInputs()));
 
     assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(single), is(false));
     assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(singleRSI), is(true));
@@ -369,12 +411,20 @@ public class PTransformMatchersTest implements Serializable {
           public void process(ProcessContext ctxt) {}
         };
     AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
-    AppliedPTransform<?, ?, ?> parDoMulti =
-        getAppliedTransform(ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+
+    ParDo.MultiOutput<Object, Object> parDoMulti =
+        ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty());
+    AppliedPTransform<?, ?, ?> parDoMultiTransform =
+        getAppliedTransform(
+            MultiOutputPrimitive.of(
+                parDoMulti.getFn(),
+                parDoMulti.getMainOutputTag(),
+                parDoMulti.getAdditionalOutputTags(),
+                parDoMulti.getSideInputs()));
 
     PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(fn.getClass());
     assertThat(matcher.matches(parDoSingle), is(true));
-    assertThat(matcher.matches(parDoMulti), is(true));
+    assertThat(matcher.matches(parDoMultiTransform), is(true));
   }
 
   @Test

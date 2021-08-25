@@ -1385,11 +1385,19 @@ public class ParDoTest implements Serializable {
                               .and(additionalOutputTagUnwritten)
                               .and(additionalOutputTag2)));
 
-      assertEquals("MyParDo.main", outputs.get(mainOutputTag).getName());
-      assertEquals("MyParDo.output1", outputs.get(additionalOutputTag1).getName());
-      assertEquals("MyParDo.output2", outputs.get(additionalOutputTag2).getName());
-      assertEquals("MyParDo.output3", outputs.get(additionalOutputTag3).getName());
-      assertEquals("MyParDo.unwrittenOutput", outputs.get(additionalOutputTagUnwritten).getName());
+      assertEquals("MyParDo/ParDo.MultiOutputPrimitive.main", outputs.get(mainOutputTag).getName());
+      assertEquals(
+          "MyParDo/ParDo.MultiOutputPrimitive.output1",
+          outputs.get(additionalOutputTag1).getName());
+      assertEquals(
+          "MyParDo/ParDo.MultiOutputPrimitive.output2",
+          outputs.get(additionalOutputTag2).getName());
+      assertEquals(
+          "MyParDo/ParDo.MultiOutputPrimitive.output3",
+          outputs.get(additionalOutputTag3).getName());
+      assertEquals(
+          "MyParDo/ParDo.MultiOutputPrimitive.unwrittenOutput",
+          outputs.get(additionalOutputTagUnwritten).getName());
     }
 
     @Test

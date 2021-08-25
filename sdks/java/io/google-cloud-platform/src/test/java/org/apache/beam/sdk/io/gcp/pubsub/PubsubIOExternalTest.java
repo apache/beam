@@ -175,7 +175,13 @@ public class PubsubIOExternalTest {
 
     // test_namespacetest/PubsubUnboundedSink/PubsubSink/PubsubUnboundedSink.Writer/ParMultiDo(Writer)
     RunnerApi.PTransform writeParDo =
-        result.getComponents().getTransformsOrThrow(writeComposite3.getSubtransforms(0));
+        result
+            .getComponents()
+            .getTransformsOrThrow(
+                result
+                    .getComponents()
+                    .getTransformsOrThrow(writeComposite3.getSubtransforms(0))
+                    .getSubtransforms(0));
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());

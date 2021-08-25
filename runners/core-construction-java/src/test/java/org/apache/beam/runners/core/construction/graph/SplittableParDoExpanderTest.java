@@ -33,8 +33,6 @@ import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -80,15 +78,12 @@ public class SplittableParDoExpanderTest {
         .apply("TestSDF", ParDo.of(new PairStringWithIndexToLengthBase()));
 
     RunnerApi.Pipeline proto = PipelineTranslation.toProto(p);
-    String transformName =
-        Iterables.getOnlyElement(
-            Maps.filterValues(
-                    proto.getComponents().getTransformsMap(),
-                    (RunnerApi.PTransform transform) ->
-                        transform
-                            .getUniqueName()
-                            .contains(PairStringWithIndexToLengthBase.class.getSimpleName()))
-                .keySet());
+    RunnerApi.PTransform outerTransform =
+        proto
+            .getComponents()
+            .getTransformsOrThrow(
+                proto.getComponents().getTransformsOrThrow(("TestSDF")).getSubtransforms(0));
+    String transformName = outerTransform.getSubtransforms(0);
 
     RunnerApi.Pipeline updatedProto =
         ProtoOverrides.updateTransform(
@@ -129,15 +124,12 @@ public class SplittableParDoExpanderTest {
         .apply("TestSDF", ParDo.of(new PairStringWithIndexToLengthBase()));
 
     RunnerApi.Pipeline proto = PipelineTranslation.toProto(p);
-    String transformName =
-        Iterables.getOnlyElement(
-            Maps.filterValues(
-                    proto.getComponents().getTransformsMap(),
-                    (RunnerApi.PTransform transform) ->
-                        transform
-                            .getUniqueName()
-                            .contains(PairStringWithIndexToLengthBase.class.getSimpleName()))
-                .keySet());
+    RunnerApi.PTransform outerTransform =
+        proto
+            .getComponents()
+            .getTransformsOrThrow(
+                proto.getComponents().getTransformsOrThrow(("TestSDF")).getSubtransforms(0));
+    String transformName = outerTransform.getSubtransforms(0);
 
     RunnerApi.Pipeline updatedProto =
         ProtoOverrides.updateTransform(

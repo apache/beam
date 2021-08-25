@@ -144,10 +144,10 @@ public class TFRecordIOTest {
     Create.Values<ReadableFile> create = Create.of(new ReadableFile(metadata, Compression.AUTO));
 
     assertEquals(
-        "TFRecordIO.ReadFiles/Read all via FileBasedSource/Read ranges/ParMultiDo(ReadFileRanges).output",
+        "TFRecordIO.ReadFiles/Read all via FileBasedSource/Read ranges/ParMultiDo(ReadFileRanges)/ParDo.MultiOutputPrimitive.output",
         readPipeline.apply(create).apply(TFRecordIO.readFiles()).getName());
     assertEquals(
-        "MyRead/Read all via FileBasedSource/Read ranges/ParMultiDo(ReadFileRanges).output",
+        "MyRead/Read all via FileBasedSource/Read ranges/ParMultiDo(ReadFileRanges)/ParDo.MultiOutputPrimitive.output",
         readPipeline.apply(create).apply("MyRead", TFRecordIO.readFiles()).getName());
   }
 

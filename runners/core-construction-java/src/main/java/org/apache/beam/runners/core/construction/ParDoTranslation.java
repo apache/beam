@@ -724,11 +724,12 @@ public class ParDoTranslation {
       FunctionSpec fnSpec) {
     checkArgument(
         fnSpec.getUrn().equals(CUSTOM_JAVA_DO_FN_URN),
-        "Expected %s to be %s with URN %s, but URN was %s",
+        "Expected %s to be %s with URN %s, but URN was %s for fnSpec %s",
         DoFn.class.getSimpleName(),
         FunctionSpec.class.getSimpleName(),
         CUSTOM_JAVA_DO_FN_URN,
-        fnSpec.getUrn());
+        fnSpec.getUrn(),
+        fnSpec);
     byte[] serializedFn = fnSpec.getPayload().toByteArray();
     return (DoFnWithExecutionInformation)
         SerializableUtils.deserializeFromByteArray(serializedFn, "Custom DoFn With Execution Info");

@@ -205,8 +205,8 @@ public class PipelineTranslationTest {
         final DoFn<?, ?> doFn;
         if (node.getTransform() instanceof ParDo.SingleOutput) {
           doFn = ((ParDo.SingleOutput) node.getTransform()).getFn();
-        } else if (node.getTransform() instanceof ParDo.MultiOutput) {
-          doFn = ((ParDo.MultiOutput) node.getTransform()).getFn();
+        } else if (node.getTransform() instanceof ParDo.MultiOutputPrimitive) {
+          doFn = ((ParDo.MultiOutputPrimitive) node.getTransform()).getFn();
         } else {
           throw new IllegalStateException(
               "Unexpected type of ParDo " + node.getTransform().getClass());

@@ -244,7 +244,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
       String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
       String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
-      RunnerApi.PTransform pTransform =
+      RunnerApi.PTransform outerPTransform =
           pProto
               .getComponents()
               .getTransformsOrThrow(
@@ -252,6 +252,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       .getComponents()
                       .getTransformsOrThrow(TEST_TRANSFORM_ID)
                       .getSubtransforms(0));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(outerPTransform.getSubtransforms(0));
 
       FakeBeamFnStateClient fakeClient =
           new FakeBeamFnStateClient(
@@ -427,8 +429,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
       String additionalPCollectionId =
           sdkComponents.registerPCollection(outputPCollection.get(additionalOutput));
 
-      RunnerApi.PTransform pTransform =
+      RunnerApi.PTransform outerPTransform =
           pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(outerPTransform.getSubtransforms(0));
 
       ImmutableMap<StateKey, ByteString> stateData =
           ImmutableMap.of(
@@ -564,9 +568,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
       String additionalPCollectionId =
           sdkComponents.registerPCollection(outputPCollection.get(additionalOutput));
 
-      RunnerApi.PTransform pTransform =
+      RunnerApi.PTransform outerPTransform =
           pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
-
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(outerPTransform.getSubtransforms(0));
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
@@ -713,7 +718,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
       String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
 
-      RunnerApi.PTransform pTransform =
+      RunnerApi.PTransform outerPTransform =
           pProto
               .getComponents()
               .getTransformsOrThrow(
@@ -721,6 +726,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       .getComponents()
                       .getTransformsOrThrow(TEST_TRANSFORM_ID)
                       .getSubtransforms(0));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(outerPTransform.getSubtransforms(0));
 
       ImmutableMap<StateKey, ByteString> stateData =
           ImmutableMap.of(
@@ -981,16 +988,16 @@ public class FnApiDoFnRunnerTest implements Serializable {
       String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
       String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
 
-      RunnerApi.PTransform pTransform =
+      RunnerApi.PTransform outerPTransform =
           pProto
               .getComponents()
               .getTransformsOrThrow(
                   pProto
                       .getComponents()
                       .getTransformsOrThrow(TEST_TRANSFORM_ID)
-                      .getSubtransforms(0))
-              .toBuilder()
-              .build();
+                      .getSubtransforms(0));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(outerPTransform.getSubtransforms(0));
 
       FakeBeamFnStateClient fakeStateClient =
           new FakeBeamFnStateClient(

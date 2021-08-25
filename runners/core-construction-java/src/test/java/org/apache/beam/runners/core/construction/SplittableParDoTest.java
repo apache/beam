@@ -46,6 +46,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutputPrimitive;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -152,7 +153,11 @@ public class SplittableParDoTest {
             "ParDo",
             PValues.expandInput(input),
             PValues.expandOutput(output),
-            multiOutput,
+            MultiOutputPrimitive.of(
+                multiOutput.getFn(),
+                multiOutput.getMainOutputTag(),
+                multiOutput.getAdditionalOutputTags(),
+                multiOutput.getSideInputs()),
             ResourceHints.create(),
             pipeline);
     return input.apply(name, SplittableParDo.forAppliedParDo(transform)).get(MAIN_OUTPUT_TAG);

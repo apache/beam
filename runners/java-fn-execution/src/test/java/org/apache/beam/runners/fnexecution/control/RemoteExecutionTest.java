@@ -802,7 +802,7 @@ public class RemoteExecutionTest implements Serializable {
               (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
-    final String testPTransformId = "create-ParMultiDo-Metrics-";
+    final String testPTransformId = "create-ParMultiDo-Metrics--ParDo-MultiOutputPrimitive";
     BundleProgressHandler progressHandler =
         new BundleProgressHandler() {
           @Override
@@ -964,7 +964,8 @@ public class RemoteExecutionTest implements Serializable {
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(
-                MonitoringInfoConstants.Labels.PCOLLECTION, "create/ParMultiDo(Metrics).output");
+                MonitoringInfoConstants.Labels.PCOLLECTION,
+                "create/ParMultiDo(Metrics)/ParDo.MultiOutputPrimitive.output");
             builder.setInt64SumValue(3);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -973,7 +974,7 @@ public class RemoteExecutionTest implements Serializable {
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PCOLLECTION,
-                "processA/ParMultiDo(Anonymous).output");
+                "processA/ParMultiDo(Anonymous)/ParDo.MultiOutputPrimitive.output");
             builder.setInt64SumValue(6);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -981,7 +982,7 @@ public class RemoteExecutionTest implements Serializable {
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PCOLLECTION,
-                "processB/ParMultiDo(Anonymous).output");
+                "processB/ParMultiDo(Anonymous)/ParDo.MultiOutputPrimitive.output");
             builder.setInt64SumValue(6);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 

@@ -210,7 +210,9 @@ public class QueryablePipelineTest {
                 .values());
     PCollectionNode mainInput =
         PipelineNode.pCollection(mainInputName, components.getPcollectionsOrThrow(mainInputName));
-    PTransform parDoTransform = components.getTransformsOrThrow("par_do");
+    String primitiveName = components.getTransformsOrThrow("par_do").getSubtransforms(0);
+    PTransform parDoTransform = components.getTransformsOrThrow(primitiveName);
+
     String sideInputLocalName =
         getOnlyElement(
             parDoTransform.getInputsMap().entrySet().stream()
@@ -221,8 +223,7 @@ public class QueryablePipelineTest {
     PCollectionNode sideInput =
         PipelineNode.pCollection(
             sideInputCollectionId, components.getPcollectionsOrThrow(sideInputCollectionId));
-    PTransformNode parDoNode =
-        PipelineNode.pTransform("par_do", components.getTransformsOrThrow("par_do"));
+    PTransformNode parDoNode = PipelineNode.pTransform(primitiveName, parDoTransform);
     SideInputReference sideInputRef =
         SideInputReference.of(parDoNode, sideInputLocalName, sideInput);
 
@@ -353,9 +354,11 @@ public class QueryablePipelineTest {
     Components components = PipelineTranslation.toProto(p).getComponents();
     QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
+    String primitiveParDoName =
+        components.getTransformsOrThrow("ParDo-ParMultiDo-Test-").getSubtransforms(0);
     PTransformNode environmentalTransform =
         PipelineNode.pTransform(
-            "ParDo-ParMultiDo-Test-", components.getTransformsOrThrow("ParDo-ParMultiDo-Test-"));
+            primitiveParDoName, components.getTransformsOrThrow(primitiveParDoName));
     PTransformNode nonEnvironmentalTransform =
         PipelineNode.pTransform("groupByKey", components.getTransformsOrThrow("groupByKey"));
 
@@ -383,10 +386,11 @@ public class QueryablePipelineTest {
             ParDo.of(new TestFn()).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     Components originalComponents = PipelineTranslation.toProto(p).getComponents();
+    String parDoPrimitive = originalComponents.getTransformsOrThrow("multi-do").getSubtransforms(0);
     Collection<String> primitiveComponents =
         QueryablePipeline.getPrimitiveTransformIds(originalComponents);
 
-    assertThat(primitiveComponents, equalTo(originalComponents.getTransformsMap().keySet()));
+    assertThat(primitiveComponents, equalTo(ImmutableSet.of("Impulse", parDoPrimitive)));
   }
 
   @Test

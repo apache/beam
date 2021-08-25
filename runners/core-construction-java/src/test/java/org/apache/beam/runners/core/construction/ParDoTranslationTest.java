@@ -123,7 +123,7 @@ public class ParDoTranslationTest {
     }
 
     @Parameter(0)
-    public ParDo.MultiOutputPrimitive<KV<Long, String>, Void> parDo;
+    public ParDo.MultiOutput<KV<Long, String>, Void> parDo;
 
     @Test
     public void testToProto() throws Exception {
@@ -170,7 +170,11 @@ public class ParDoTranslationTest {
                       "foo",
                       inputs,
                       PValues.expandOutput(output),
-                      parDo,
+                      MultiOutputPrimitive.of(
+                          parDo.getFn(),
+                          parDo.getMainOutputTag(),
+                          parDo.getAdditionalOutputTags(),
+                          parDo.getSideInputs()),
                       ResourceHints.create(),
                       p),
               sdkComponents);

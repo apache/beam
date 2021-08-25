@@ -952,7 +952,6 @@ public class ParDo {
 
       PCollectionTuple outputs =
           input.apply(
-              "Primitive",
               new MultiOutputPrimitive<>(
                   getFn(),
                   getMainOutputTag(),
