@@ -55,9 +55,6 @@ __all__ = [
     'DeferredDataFrame',
 ]
 
-# Get major, minor version
-PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
-
 
 def populate_not_implemented(pd_type):
   def wrapper(deferred_type):
@@ -1935,7 +1932,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     else:
       column = self
 
-    result = column.groupby(column, dropna=dropna).size()
+    result = column.groupby(column).size()
 
     # groupby.size() names the index, which we don't need
     result.index.name = None
@@ -2395,8 +2392,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if func in ('quantile',):
       return getattr(self, func)(*args, axis=axis, **kwargs)
 
-    # In pandas<1.3.0, maps to a property, args are ignored
-    if func in ('size',) and PD_VERSION < (1, 3):
+    # Maps to a property, args are ignored
+    if func in ('size',):
       return getattr(self, func)
 
     # We also have specialized distributed implementations for these. They only
@@ -3395,7 +3392,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.DataFrame)
   def value_counts(self, subset=None, sort=False, normalize=False,
-                   ascending=False, dropna=True):
+                   ascending=False):
     """``sort`` is ``False`` by default, and ``sort=True`` is not supported
     because it imposes an ordering on the dataset which likely will not be
     preserved."""
@@ -3406,16 +3403,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           "ordering on the dataset which likely will not be preserved.",
           reason="order-sensitive")
     columns = subset or list(self.columns)
-
-    if dropna:
-      dropped = self.dropna()
-    else:
-      dropped = self
-
-    result = dropped.groupby(columns, dropna=dropna).size()
+    result = self.groupby(columns).size()
 
     if normalize:
-      return result/dropped.length()
+      return result/self.dropna().length()
     else:
       return result
 
