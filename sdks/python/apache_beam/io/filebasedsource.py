@@ -335,6 +335,13 @@ class _SingleFileSource(iobase.BoundedSource):
   def default_output_coder(self):
     return self._file_based_source.default_output_coder()
 
+  def supports_projection_pushdown(self):
+    return self._file_based_source.supports_projection_pushdown()
+
+  def with_projection_pushdown(self, fields):
+    if self.supports_projection_pushdown():
+      self._file_based_source = self._file_based_source.with_projection_pushdown(fields)
+    return self
 
 class _ExpandIntoRanges(DoFn):
   def __init__(

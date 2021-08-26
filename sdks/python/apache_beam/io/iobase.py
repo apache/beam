@@ -238,6 +238,9 @@ class BoundedSource(SourceBase):
   def is_bounded(self):
     return True
 
+  def supports_projection_pushdown(self):
+    return False
+
 
 class RangeTracker(object):
   """A thread safe object used by Dataflow source framework.
@@ -1635,9 +1638,17 @@ class SDFBoundedSourceReader(PTransform):
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, dd):
         self._dd = dd
+        self._projection = None
 
       def display_data(self):
         return self._dd
+
+      def supports_projection_pushdown(self):
+        return True
+
+      def with_projection_pushdown(self, fields):
+        self._projection = fields
+        return self
 
       def process(
           self,
@@ -1647,9 +1658,11 @@ class SDFBoundedSourceReader(PTransform):
         current_restriction = restriction_tracker.current_restriction()
         assert isinstance(current_restriction, _SDFBoundedSourceRestriction)
 
-        result = current_restriction.source().read(
-            current_restriction.range_tracker())
-        return result
+        source = current_restriction.source()
+        if source.supports_projection_pushdown():
+          source = source.with_projection_pushdown(self._projection)
+
+        return source.read(current_restriction.range_tracker())
 
     return SDFBoundedSourceDoFn(self._data_to_display)
 

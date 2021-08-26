@@ -206,26 +206,41 @@ class FnApiRunner(runner.PipelineRunner):
           if not transform.subtransforms:
             leaf_consumers[pc].append(transform)
 
-      for transform in pipeline_proto.components.transforms.values():
-        if transform.subtransforms or not transform.outputs:
-          continue
-        if not common_urns.support_pushdown_annotation in transform.annotations:
-          continue
+      seen = set()
+
+      def annotate_pushdowns(transform):
+        if transform.unique_name in seen:
+          return
+        seen.add(transform.unique_name)
+        if (transform.subtransforms
+            or not transform.outputs
+            or (common_urns.support_pushdown_annotation not in transform.annotations
+                and common_urns.forwards_pushdown_annotation not in transform.annotations)):
+          return
         # The annotations should really be per input and output.
         consumers = sum(
             (leaf_consumers[pc] for pc in transform.outputs.values()), [])
         if not consumers:
-          continue
-        if not all(common_urns.requests_pushdown_annotation in c.annotations
-                   for c in consumers):
-          continue
+          return
+        for c in consumers:
+          annotate_pushdowns(c)
+          if common_urns.requests_pushdown_annotation not in c.annotations:
+            return
         fields = set(
             sum((
                 c.annotations[common_urns.requests_pushdown_annotation].split(
                     b',') for c in consumers), []))
-        transform.annotations[
-            common_urns.actuate_pushdown_annotation] = b','.join(fields)
+        if common_urns.support_pushdown_annotation in transform.annotations:
+          transform.annotations[
+              common_urns.actuate_pushdown_annotation] = b','.join(fields)
+        if common_urns.forwards_pushdown_annotation in transform.annotations:
+          transform.annotations[
+              common_urns.requests_pushdown_annotation] = b','.join(fields)
 
+      for transform in pipeline_proto.components.transforms.values():
+        annotate_pushdowns(transform)
+
+      print(pipeline_proto)
       return pipeline_proto
 
     pipeline_proto = pushdown_projections(pipeline_proto)

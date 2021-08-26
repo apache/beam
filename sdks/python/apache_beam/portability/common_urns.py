@@ -68,6 +68,7 @@ requirements = StandardRequirements.Enum
 displayData = StandardDisplayData.DisplayData
 
 
-support_pushdown_annotation = "beam:annotations:supports_pushdown:v1"
-requests_pushdown_annotation = "beam:annotations:requests_pushdown:v1"
-actuate_pushdown_annotation =  "beam:annotations:actuate_pushdown:v1"
+support_pushdown_annotation = "beam:annotations:supports_pushdown:prototype1"
+requests_pushdown_annotation = "beam:annotations:requests_pushdown:prototype1"
+forwards_pushdown_annotation = "beam:annotations:forwards_pushdown:prototype1"
+actuate_pushdown_annotation =  "beam:annotations:actuate_pushdown:prototype1"

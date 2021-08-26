@@ -64,6 +64,9 @@ __all__ = [
 class _ArrowTableToRowDictionaries(DoFn):
   """ A DoFn that consumes an Arrow table and yields a python dictionary for
   each row in the table."""
+  def forwards_projection_pushdown(self):
+    return True
+
   def process(self, table, with_filename=False):
     if with_filename:
       file_name = table[0]
@@ -310,6 +313,16 @@ class _ParquetSource(filebasedsource.FileBasedSource):
         min_bundle_size=min_bundle_size,
         validate=validate)
     self._columns = columns
+
+  def supports_projection_pushdown(self):
+    return True
+
+  def with_projection_pushdown(self, fields):
+    if self._columns:
+      self._columns = [column for column in self._columns if column in fields]
+    else:
+      self._columns = fields
+    return self
 
   def read_records(self, file_name, range_tracker):
     next_block_start = -1

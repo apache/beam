@@ -584,6 +584,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def requests_projection_pushdown(self):
     return None
 
+  def forwards_projection_pushdown(self):
+    return False
+
   def process(self, element, *args, **kwargs):
     """Method to use for processing elements.
 
@@ -1253,6 +1256,9 @@ class ParDo(PTransformWithSideInputs):
 
   def requests_projection_pushdown(self):
     return self.fn.requests_projection_pushdown()
+
+  def forwards_projection_pushdown(self):
+    return self.fn.forwards_projection_pushdown()
 
   def expand(self, pcoll):
     # In the case of a stateful DoFn, warn if the key coder is not

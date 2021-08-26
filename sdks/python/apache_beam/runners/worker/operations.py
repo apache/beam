@@ -696,6 +696,8 @@ class DoOperation(Operation):
           self.side_input_maps = []
 
       if self._pushdown_fields:
+        logging.info(
+            'Pushing down projection %s into %s', fn, self._pushdown_fields)
         fn = fn.with_projection_pushdown(self._pushdown_fields)
 
       self.dofn_runner = common.DoFnRunner(

@@ -1087,6 +1087,9 @@ class AppliedPTransform(object):
         annotations[common_urns.requests_pushdown_annotation] = ','.join(
             transform.requests_projection_pushdown()).encode('utf-8')
 
+      if transform.forwards_projection_pushdown():
+        annotations[common_urns.forwards_pushdown_annotation] = b''
+
     self.annotations = annotations
 
   @property
