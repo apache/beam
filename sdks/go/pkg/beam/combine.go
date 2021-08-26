@@ -39,12 +39,8 @@ func CombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Opti
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
 func TryCombine(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
-	pre := AddFixedKey(s, col)
-	post, err := TryCombinePerKey(s, combinefn, pre, opts...)
-	if err != nil {
-		return PCollection{}, err
-	}
-	return DropKey(s, post), nil
+	s = s.Scope(graph.CombineGloballyScope)
+	return tryGeneralCombine(s, combinefn, col, opts...)
 }
 
 func addCombinePerKeyCtx(err error, s Scope) error {
@@ -57,6 +53,17 @@ func addCombinePerKeyCtx(err error, s Scope) error {
 func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
 	s = s.Scope(graph.CombinePerKeyScope)
 	ValidateKVType(col)
+
+	col, err := TryGroupByKey(s, col)
+	if err != nil {
+		return PCollection{}, addCombinePerKeyCtx(err, s)
+	}
+
+	return tryGeneralCombine(s, combinefn, col, opts...)
+}
+
+// tryGeneralCombine handles logic common to TryCombine and TryCombinePerKey.
+func tryGeneralCombine(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
 	side, typedefs, err := validate(s, col, opts)
 	if err != nil {
 		return PCollection{}, addCombinePerKeyCtx(err, s)
@@ -65,15 +72,11 @@ func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...O
 		return PCollection{}, addCombinePerKeyCtx(errors.New("combine does not support side inputs"), s)
 	}
 
-	col, err = TryGroupByKey(s, col)
-	if err != nil {
-		return PCollection{}, addCombinePerKeyCtx(err, s)
-	}
-
 	fn, err := graph.NewCombineFn(combinefn)
 	if err != nil {
 		return PCollection{}, addCombinePerKeyCtx(err, s)
 	}
+
 	// This seems like the best place to infer the accumulator coder type, unless
 	// it's a universal type.
 	// We can get the fulltype from the return value of the mergeAccumulatorFn

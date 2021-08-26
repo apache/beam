@@ -34,13 +34,14 @@ import (
 // Model constants for interfacing with a Beam runner.
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
-	URNImpulse       = "beam:transform:impulse:v1"
-	URNParDo         = "beam:transform:pardo:v1"
-	URNFlatten       = "beam:transform:flatten:v1"
-	URNGBK           = "beam:transform:group_by_key:v1"
-	URNReshuffle     = "beam:transform:reshuffle:v1"
-	URNCombinePerKey = "beam:transform:combine_per_key:v1"
-	URNWindow        = "beam:transform:window_into:v1"
+	URNImpulse         = "beam:transform:impulse:v1"
+	URNParDo           = "beam:transform:pardo:v1"
+	URNFlatten         = "beam:transform:flatten:v1"
+	URNGBK             = "beam:transform:group_by_key:v1"
+	URNReshuffle       = "beam:transform:reshuffle:v1"
+	URNCombineGlobally = "beam:transform:combine_globally:v1"
+	URNCombinePerKey   = "beam:transform:combine_per_key:v1"
+	URNWindow          = "beam:transform:window_into:v1"
 
 	// URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
@@ -251,7 +252,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 // Beam Portability requires that composites contain an implementation for runners
 // that don't understand the URN and Payload, which this lightly checks for.
 func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PTransform) error {
-	if s.Scope.Name != graph.CombinePerKeyScope ||
+	if (s.Scope.Name != graph.CombinePerKeyScope && s.Scope.Name != graph.CombineGloballyScope) ||
 		len(s.Edges) != 2 ||
 		len(s.Edges[0].Edge.Input) != 1 ||
 		len(s.Edges[1].Edge.Output) != 1 ||
@@ -275,7 +276,13 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 		},
 		AccumulatorCoderId: acID,
 	}
-	transform.Spec = &pipepb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
+	var payloadURN string
+	if s.Scope.Name == graph.CombinePerKeyScope {
+		payloadURN = URNCombinePerKey
+	} else {
+		payloadURN = URNCombineGlobally
+	}
+	transform.Spec = &pipepb.FunctionSpec{Urn: payloadURN, Payload: protox.MustEncode(payload)}
 	return nil
 }
 

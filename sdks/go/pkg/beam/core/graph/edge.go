@@ -442,6 +442,11 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, rc *coder.C
 // by a runner and should set this scope's URN and Payload accordingly.
 const CombinePerKeyScope = "CombinePerKey"
 
+// CombineGloballyScope is the Go SDK canonical name for the combine composite
+// scope within the Go SDK, focusing on global combines rather than per-key
+// combines. Functions like its per-key counterpart.
+const CombineGloballyScope = "CombineGlobally"
+
 // NewCombine inserts a new Combine edge into the graph. Combines cannot have side
 // input.
 func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder, typedefs map[string]reflect.Type) (*MultiEdge, error) {
@@ -450,8 +455,8 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder, typ
 	}
 
 	inT := in.Type()
-	if !typex.IsCoGBK(inT) {
-		return nil, addContext(errors.Errorf("Combine requires CoGBK type: %v", inT), s)
+	if !typex.IsCoGBK(inT) && s.Label == CombinePerKeyScope {
+		return nil, addContext(errors.Errorf("Combine Per Krequires CoGBK type: %v", inT), s)
 	}
 	if len(inT.Components()) > 2 {
 		return nil, addContext(errors.Errorf("Combine cannot follow multi-input CoGBK: %v", inT), s)
@@ -490,16 +495,17 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder, typ
 	//
 	// However, the outbound type will be KV<A,O> (where O is the output
 	// type) regardless of whether the combineFn is keyed or not.
+	if s.Label == CombinePerKeyScope {
+		if len(synth.Param) == 1 {
+			inT = inT.Components()[1] // Drop implicit key for binding purposes
+		} else {
+			inT = typex.NewKV(inT.Components()...)
+		}
 
-	if len(synth.Param) == 1 {
-		inT = inT.Components()[1] // Drop implicit key for binding purposes
-	} else {
-		inT = typex.NewKV(inT.Components()...)
+		// The runtime always adds the key for the output of combiners.
+		key := in.Type().Components()[0]
+		synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
 	}
-
-	// The runtime always adds the key for the output of combiners.
-	key := in.Type().Components()[0]
-	synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
 
 	inbound, kinds, outbound, out, err := Bind(synth, typedefs, inT)
 	if err != nil {
