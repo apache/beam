@@ -10,7 +10,7 @@ categories:
 
 authors:
 
-  - Ankur Goenka
+  - angoenka
 
 ---
 
