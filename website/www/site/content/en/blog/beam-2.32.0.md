@@ -2,7 +2,7 @@
 
 title:  "Apache Beam 2.32.0"
 
-date:   2021-08-18 00:00:01 -0800
+date:   2021-08-25 00:00:01 -0800
 
 categories:
 
@@ -48,7 +48,7 @@ For more information on changes in 2.32.0, check out the
 ## Highlights
 * The [Beam DataFrame
   API](https://beam.apache.org/documentation/dsls/dataframes/overview/) is no
-  longer experimental! We've spent the time since the [2.32.0 preview
+  longer experimental! We've spent the time since the [2.26.0 preview
   announcement](https://beam.apache.org/blog/dataframe-api-preview-available/)
   implementing the most frequently used pandas operations
   ([BEAM-9547](https://issues.apache.org/jira/browse/BEAM-9547)), improving
