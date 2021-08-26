@@ -32,4 +32,9 @@ public class GcpResourceIdentifiers {
         "//bigquery.googleapis.com/projects/%s/datasets/%s/tables/%s",
         projectId, datasetId, tableId);
   }
+
+  public static String datastoreResource(String projectId, String namespace) {
+    return String.format(
+        "//bigtable.googleapis.com/projects/%s/namespaces/%s", projectId, namespace);
+  }
 }
