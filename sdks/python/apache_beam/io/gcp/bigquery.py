@@ -1948,15 +1948,16 @@ class ReadFromBigQuery(PTransform):
     return (
         pcoll
         | beam.io.Read(
-        _CustomBigQuerySource(
-            gcs_location=self.gcs_location,
-            pipeline_options=pcoll.pipeline.options,
-            job_name=job_name,
-            step_name=step_name,
-            unique_id=unique_id,
-            *self._args,
-            **self._kwargs))
+          _CustomBigQuerySource(
+              gcs_location=self.gcs_location,
+              pipeline_options=pcoll.pipeline.options,
+              job_name=job_name,
+              step_name=step_name,
+              unique_id=unique_id,
+              *self._args,
+              **self._kwargs))
         | _PassThroughThenCleanup(files_to_remove_pcoll))
+
 
 class ReadFromBigQueryRequest:
   """
