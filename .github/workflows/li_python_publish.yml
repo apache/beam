@@ -27,7 +27,7 @@ jobs:
         run: python -m pip install wheel
       - name: Build source
         working-directory: ./sdks/python
-        run: python setup.py sdist --formats=zip upload -r lijfrog
+        run: python setup.py sdist --formats=zip
       - name: Add checksums
         working-directory: ./sdks/python/dist
         run: |
