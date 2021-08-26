@@ -262,14 +262,12 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "samza" ]]; then
       java \
           -jar $SAMZA_JOB_SERVER_JAR \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "spark" ]]; then
       java \
           -jar $SPARK_JOB_SERVER_JAR \
@@ -277,7 +275,6 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      SIMULTANEOUS=1  # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
       python3 \
           -m apache_beam.runners.portability.local_job_service_main \
@@ -303,6 +300,11 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
     java -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
     IO_EXPANSION_PID=$!
   fi
+fi
+
+# Disable parallelism on runners that don't support it.
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" ]]; then
+  SIMULTANEOUS=1
 fi
 
 if [[ "$RUNNER" == "dataflow" ]]; then

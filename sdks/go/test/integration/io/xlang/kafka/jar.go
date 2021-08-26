@@ -13,6 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Exclude OSes which do not support the timeout command or syscall.SIGTERM.
+//go:build !windows
+// +build !windows
+
 package kafka
 
 import (
@@ -20,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -30,8 +35,16 @@ type kafkaCluster struct {
 	bootstrapAddr string      // The bootstrap address to connect to Kafka.
 }
 
-// runLocalKafka takes a Kafka jar filepath and runs a local Kafka cluster,
-// returning the bootstrap server for that cluster.
+// Shutdown gracefully shuts down the cluster. It is recommended to use this
+// instead of directly killing the process.
+func (kc *kafkaCluster) Shutdown() {
+	// Avoid using SIGKILL. The cluster is wrapped in the timeout command,
+	// so SIGKILL will kill the timeout and leave the cluster running.
+	kc.proc.Signal(syscall.SIGTERM)
+}
+
+// runLocalKafka takes a Kafka jar filepath and runs a local Kafka cluster with
+// a timeout (via the timeout command), returning the bootstrap server.
 func runLocalKafka(jar string, timeout string) (*kafkaCluster, error) {
 	port, err := getOpenPort()
 	if err != nil {

@@ -83,7 +83,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("Kafka cluster failed to start: %v", err)
 		}
-		defer func() { cluster.proc.Kill() }()
+		defer func() { cluster.Shutdown() }()
 		bootstrapAddr = cluster.bootstrapAddr
 	}
 
