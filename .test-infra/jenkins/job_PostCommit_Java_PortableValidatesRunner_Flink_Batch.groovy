@@ -26,7 +26,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink_Batch',
       description('Runs the Java PortableValidatesRunner suite on the Flink runner.')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, defaultTimeout=240)
 
       // Publish all test results to Jenkins
       publishers {
