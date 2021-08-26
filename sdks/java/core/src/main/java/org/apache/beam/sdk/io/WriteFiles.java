@@ -352,9 +352,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       }
     }
     this.writeOperation = getSink().createWriteOperation();
-    this.writeOperation.setWindowedWrites(getWindowedWrites());
-
-    if (!getWindowedWrites()) {
+    if (getWindowedWrites()) {
+      this.writeOperation.setWindowedWrites();
+    } else {
       // Re-window the data into the global window and remove any existing triggers.
       input =
           input.apply(
