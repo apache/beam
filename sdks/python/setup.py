@@ -81,7 +81,7 @@ def get_version():
   return global_names['__version__']
 
 
-PACKAGE_NAME = 'apache-beam'
+PACKAGE_NAME = 'apache-beam-li'
 PACKAGE_VERSION = get_version()
 PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
 PACKAGE_URL = 'https://beam.apache.org'
