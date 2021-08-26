@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.AvroIO.TypedWrite;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -269,6 +270,7 @@ public class TextIO {
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNoSpilling(false)
+        .setStageFilesDirectly(false)
         .build();
   }
 
@@ -648,6 +650,9 @@ public class TextIO {
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
+    /** Whether to stage data directly to files from source steps, without shuffling. */
+    abstract boolean getStageFilesDirectly();
+
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -694,6 +699,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<UserT, DestinationT> setStageFilesDirectly(boolean value);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -939,6 +946,11 @@ public class TextIO {
     /** See {@link WriteFiles#withNoSpilling()}. */
     public TypedWrite<UserT, DestinationT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
+    }
+
+    /** See {@link WriteFiles#withStageFilesDirectly()}. */
+    public TypedWrite<UserT, DestinationT> withStageFilesDirectly() {
+      return toBuilder().setStageFilesDirectly(true).build();
     }
 
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {

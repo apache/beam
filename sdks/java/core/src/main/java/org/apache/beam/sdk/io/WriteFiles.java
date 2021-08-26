@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -66,8 +67,10 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -84,7 +87,9 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -166,6 +171,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
+        .setStageFilesDirectly(false)
         .build();
   }
 
@@ -182,6 +188,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract boolean getStageFilesDirectly();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -207,6 +215,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
+
+    abstract Builder<UserT, DestinationT, OutputT> setStageFilesDirectly(
+        boolean stageFilesDirectly);
 
     abstract Builder<UserT, DestinationT, OutputT> setShardingFunction(
         @Nullable ShardingFunction<UserT, DestinationT> shardingFunction);
@@ -257,6 +268,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
       List<PCollectionView<?>> sideInputs) {
     return toBuilder().setSideInputs(sideInputs).build();
+  }
+
+  public WriteFiles<UserT, DestinationT, OutputT> withStageFilesDirectly() {
+    return toBuilder().setStageFilesDirectly(true).build();
   }
 
   /**
@@ -373,7 +388,52 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     boolean fixedSharding = getComputeNumShards() != null || getNumShardsProvider() != null;
     PCollection<List<FileResult<DestinationT>>> tempFileResults;
-    if (fixedSharding) {
+    if (getStageFilesDirectly()) {
+      checkArgument(
+          input.getWindowingStrategy().getWindowFn() instanceof FixedWindows,
+          "Must be a fixed window to stage directly.");
+      FixedWindows windowingForDirect = (FixedWindows) input.getWindowingStrategy().getWindowFn();
+
+      // XXX on looking further this looks a lot like WriteUnshardedToTempFiles, that
+      // currently can result in lots of small files by not requiring a minimum per
+      // file but it could probably be unified.
+      final TupleTag<FileResult<DestinationT>> tempFilesTag =
+          new TupleTag<FileResult<DestinationT>>() {};
+      // Output that contains data that needs to be shuffled to get enough data.
+      final TupleTag<UserT> forwardedOutputTag = new TupleTag<UserT>() {};
+
+      PCollectionTuple userDataOrTempFiles =
+          input.apply(
+              "WriteFilesDirectlyOrForward",
+              ParDo.of(
+                      new WriteFilesDirectlyToTempFilesOrForward(
+                          forwardedOutputTag, tempFilesTag, windowingForDirect))
+                  .withOutputTags(forwardedOutputTag, TupleTagList.of(tempFilesTag)));
+
+      PCollection<FileResult<DestinationT>> directTempFiles =
+          userDataOrTempFiles.get(tempFilesTag).setCoder(fileResultCoder);
+      // In order to Flatten with the non-direct temp files below we must use the same
+      // windowing strategy.  Since that goes through an additional shuffle it uses the continuation
+      // trigger of the current triggering, so we specify that here.
+      // XXX consider using explicit trigger instead of continuation for both, have to consider
+      // upgrade compatibility
+      WindowingStrategy<?, ?> windowingStrategy = directTempFiles.getWindowingStrategy();
+      windowingStrategy =
+          windowingStrategy.withTrigger(windowingStrategy.getTrigger().getContinuationTrigger());
+      directTempFiles = directTempFiles.setWindowingStrategyInternal(windowingStrategy);
+      PCollection<FileResult<DestinationT>> shuffleTempFiles =
+          userDataOrTempFiles
+              .get(forwardedOutputTag)
+              .apply(
+                  "WriteForwardedToTempFiles",
+                  new WriteShardedBundlesToTempFiles(
+                      destinationCoder, fileResultCoder, numShardsView));
+      tempFileResults =
+          PCollectionList.of(directTempFiles)
+              .and(shuffleTempFiles)
+              .apply(Flatten.pCollections())
+              .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
+    } else if (fixedSharding) {
       tempFileResults =
           input
               .apply(
@@ -668,6 +728,145 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return Hashing.murmur3_32()
         .hashBytes(CoderUtils.encodeToByteArray(destinationCoder, destination))
         .asInt();
+  }
+
+  private class WriteFilesDirectlyToTempFilesOrForward extends DoFn<UserT, UserT> {
+    private final TupleTag<FileResult<DestinationT>> tempFilesTag;
+    private final TupleTag<UserT> forwardedOutputTag;
+    private final FixedWindows fixedWindows;
+
+    private transient @Nullable Map<DestinationT, Map<IntervalWindow, BufferedWriter>> buffered =
+        null;
+
+    private WriteFilesDirectlyToTempFilesOrForward(
+        TupleTag<UserT> forwardedOutputTag,
+        TupleTag<FileResult<DestinationT>> tempFilesTag,
+        FixedWindows fixedWindows) {
+      this.tempFilesTag = tempFilesTag;
+      this.forwardedOutputTag = forwardedOutputTag;
+      this.fixedWindows = fixedWindows;
+    }
+
+    @StartBundle
+    public void startBundle() {
+      buffered = new HashMap<>();
+    }
+
+    class BufferedWriter {
+      final DestinationT destination;
+      final IntervalWindow window;
+      final List<UserT> buffered = new ArrayList<>(8);
+      @Nullable Writer<DestinationT, OutputT> writer;
+
+      BufferedWriter(DestinationT destination, IntervalWindow window) {
+        this.destination = destination;
+        this.window = window;
+      }
+
+      void add(UserT input) throws Exception {
+        if (writer == null) {
+          if (buffered.size() < 7) {
+            buffered.add(input);
+            return;
+          }
+          String uuid = UUID.randomUUID().toString();
+          LOG.info("Opening writer {} for window {} destination {}", uuid, window, destination);
+          writer = writeOperation.createWriter();
+          writer.setDestination(destination);
+          writer.open(uuid);
+          for (UserT elem : buffered) {
+            writeOrClose(writer, getDynamicDestinations().formatRecord(elem));
+          }
+          buffered.clear();
+        }
+        writeOrClose(writer, getDynamicDestinations().formatRecord(input));
+      }
+
+      @Nullable
+      CompletionStage<Void> flush() {
+        if (writer != null) {
+          return MoreFutures.runAsync(
+              () -> {
+                try {
+                  // Close the writer; if this throws let the error propagate.
+                  writer.close();
+                } catch (Exception e) {
+                  // If anything goes wrong, make sure to delete the temporary file.
+                  writer.cleanup();
+                  throw e;
+                }
+              });
+        }
+        return null;
+      }
+
+      void output(FinishBundleContext context) {
+        if (writer != null) {
+          Preconditions.checkState(buffered.isEmpty());
+          UUID uuid = UUID.randomUUID();
+          context.output(
+              tempFilesTag,
+              new FileResult<DestinationT>(
+                  writer.getOutputFile(),
+                  uuid.hashCode(),
+                  window,
+                  PaneInfo.createPane(
+                      false,
+                      false,
+                      PaneInfo.Timing.EARLY,
+                      // We need some way to ensure that this is unique. Only one of these shard
+                      // fields is used.
+                      uuid.getLeastSignificantBits(),
+                      uuid.getLeastSignificantBits()),
+                  destination),
+              window.end(),
+              window);
+        } else {
+          for (UserT elem : buffered) {
+            context.output(forwardedOutputTag, elem, window.start(), window);
+          }
+        }
+      }
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
+      DestinationT destination = getDynamicDestinations().getDestination(c.element());
+
+      Map<IntervalWindow, BufferedWriter> destBuffer =
+          buffered.computeIfAbsent(destination, (DestinationT t) -> new HashMap<>());
+      IntervalWindow window = fixedWindows.assignWindow(c.timestamp());
+      BufferedWriter writer =
+          destBuffer.computeIfAbsent(
+              window, (IntervalWindow w) -> new BufferedWriter(destination, w));
+      writer.add(c.element());
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      // Close in parallel so flushing of buffered writes to files for many windows happens in
+      // parallel.
+      List<CompletionStage<Void>> closeFutures = new ArrayList<>();
+      buffered.forEach(
+          (destination, tsWriters) ->
+              tsWriters.forEach(
+                  (ts, writer) -> {
+                    @Nullable CompletionStage<Void> closeFuture = writer.flush();
+                    if (closeFuture != null) {
+                      closeFutures.add(closeFuture);
+                    }
+                  }));
+      MoreFutures.get(MoreFutures.allAsList(closeFutures));
+      // If all writers were closed without exception, output the results to the next stage.
+      buffered.forEach(
+          (destination, tsWriters) ->
+              tsWriters.forEach(
+                  (ts, writer) -> {
+                    writer.output(c);
+                  }));
+      buffered = null;
+    }
   }
 
   private class WriteShardedBundlesToTempFiles

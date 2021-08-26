@@ -371,6 +371,7 @@ public class FileIO {
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
         .setNoSpilling(false)
+        .setStageFilesDirectly(false)
         .build();
   }
 
@@ -384,6 +385,7 @@ public class FileIO {
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
         .setNoSpilling(false)
+        .setStageFilesDirectly(false)
         .build();
   }
 
@@ -937,6 +939,8 @@ public class FileIO {
 
     abstract boolean getNoSpilling();
 
+    abstract boolean getStageFilesDirectly();
+
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -982,6 +986,8 @@ public class FileIO {
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
 
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<DestinationT, UserT> setStageFilesDirectly(boolean noSpilling);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1209,6 +1215,11 @@ public class FileIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** See {@link WriteFiles#withStageFilesDirectly()} */
+    public Write<DestinationT, UserT> withStageFilesDirectly() {
+      return toBuilder().setStageFilesDirectly(true).build();
+    }
+
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
@@ -1294,6 +1305,7 @@ public class FileIO {
       resolvedSpec.setSharding(getSharding());
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
       resolvedSpec.setNoSpilling(getNoSpilling());
+      resolvedSpec.setStageFilesDirectly(getStageFilesDirectly());
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
@@ -1311,6 +1323,9 @@ public class FileIO {
       }
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
+      }
+      if (getStageFilesDirectly()) {
+        writeFiles = writeFiles.withStageFilesDirectly();
       }
       return input.apply(writeFiles);
     }
