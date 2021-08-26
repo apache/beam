@@ -29,7 +29,8 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.UsesPerKeyOrdering;
+import org.apache.beam.sdk.testing.UsesPerKeyOrderInStage;
+import org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -91,7 +92,7 @@ public class PerKeyOrderingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesPerKeyOrdering.class})
+  @Category({ValidatesRunner.class, UsesPerKeyOrderedDelivery.class})
   public void testSingleCallOrderingWithShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     List<Integer> perKeyElements =
@@ -132,7 +133,7 @@ public class PerKeyOrderingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesPerKeyOrdering.class})
+  @Category({ValidatesRunner.class, UsesPerKeyOrderInStage.class})
   public void testSingleCallOrderingWithoutShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     List<Integer> perKeyElements =
@@ -197,7 +198,7 @@ public class PerKeyOrderingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesPerKeyOrdering.class})
+  @Category({ValidatesRunner.class, UsesPerKeyOrderedDelivery.class})
   public void testMultipleStatefulOrderingWithShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     Instant instant = Instant.ofEpochMilli(0);
@@ -241,7 +242,7 @@ public class PerKeyOrderingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesPerKeyOrdering.class})
+  @Category({ValidatesRunner.class, UsesPerKeyOrderInStage.class})
   public void testMultipleStatefulOrderingWithoutShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
     Instant instant = Instant.ofEpochMilli(0);

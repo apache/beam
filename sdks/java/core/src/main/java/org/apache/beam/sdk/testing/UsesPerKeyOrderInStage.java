@@ -20,9 +20,9 @@ package org.apache.beam.sdk.testing;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * Category tag for validation tests which rely on a runner providing per-key ordering. Tests tagged
- * with {@link UsesPerKeyOrdering} should be run for runners which support key-to-key ordering of
- * elements.
+ * Category tag for validation tests which rely on a runner providing per-key ordering in between
+ * transforms in the same stage. Tests tagged with {@link UsesPerKeyOrderInStage} should be run for
+ * runners which support key-to-key ordering of elements within the same stage.
  */
 @Internal
-public interface UsesPerKeyOrdering {}
+public interface UsesPerKeyOrderInStage {}

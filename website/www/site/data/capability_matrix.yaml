@@ -1714,7 +1714,7 @@ capability-matrix:
             - class: flink
               l1: "Partially"
               l2:
-              l3: TODO
+              l3: Flink may perform different shuffling algorithms for batch and streaming. Flink guarantees ordered key-to-key delivery in streaming, though not in batch.
             - class: spark-rdd
               l1: "Unverified"
               l2:
@@ -1728,9 +1728,9 @@ capability-matrix:
               l2:
               l3:
             - class: samza
-              l1: "Unverified"
+              l1: "Partially"
               l2:
-              l3:
+              l3: Samza may perform different shuffling algorithms for batch and streaming. Samza guarantees ordered key-to-key delivery in streaming, though not in batch.
             - class: nemo
               l1: "Unverified"
               l2:
