@@ -91,9 +91,9 @@ dependent on two things:
 - Inter-stage key parallelism
 
 Beam pipelines read data from a source (e.g. `KafkaIO`, `BigQueryIO`, `JdbcIO`,
-or your own source implementation). Sources are implemented as Splittable
-`DoFn`s. A Splittable `DoFn` provides the runner with interfaces to facilitate
-the splitting of work.
+or your own source implementation). To implement a Source in Beam one must
+implement it as a Splittable `DoFn`. A Splittable `DoFn` provides the runner
+with interfaces to facilitate the splitting of work.
 
 When running key-based operations in Beam (e.g. `GroupByKey`, `Combine`,
 `Reshuffle.perKey`, and stateful `DoFn`s), Beam runners perform serialization
@@ -105,26 +105,6 @@ Streaming execution modes.
 
 <sup>1</sup>Not to be confused with the `shuffle` operation in some runners.
 
-[comment]: <> (#### Batch shuffle)
-
-[comment]: <> (Batch processing engines optimize shuffle implementations for high throughput)
-
-[comment]: <> (over large datasets. Beam runners are no exception. Beam runners usually)
-
-[comment]: <> (execute batch shuffles as blocking operations that perform per-key)
-
-[comment]: <> (grouping of a complete dataset before starting to execute operations downstream.)
-
-[comment]: <> (It is important to note, however, that each runner is free to implement batch)
-
-[comment]: <> (shuffling as appropriate.)
-
-[comment]: <> (#### Streaming shuffle)
-
-[comment]: <> (Streaming engines optimize their shuffle implementations for low latency of)
-
-[comment]: <> (transference of information in between processing stages.)
-
 #### Data ordering in a pipeline execution
 The Beam model does not define strict guidelines regarding the order in which
 runners process elements or transport them across `PTransforms`. Runners are
@@ -132,9 +112,17 @@ free to implement shuffling semantics in different forms.
 
 Some use cases exist where user pipelines may need to rely on specific ordering
 semantics in pipeline execution. The [capability matrix documents](/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/index.html)
-runner behavior for **key-to-key ordered delivery**.
+runner behavior for **key-ordered delivery**.
 
+Consider a single Beam worker processing a series of bundles from the same Beam
+stage, and consider a `PTransform` that outputs data from this Stage into a
+downstream `PCollection`. Finally, consider two events *with the same key*
+emitted in a certain order by this worker (within the same bundle or as part of
+different bundles).
 
+We say that the Beam runner supports **key-ordered delivery** if it guarantees
+that these two events will be observed downstream in the same order,
+independently of the kind of transmission.
 
 ## Failures and parallelism within and between transforms {#parallelism}
 
