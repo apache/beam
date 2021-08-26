@@ -370,7 +370,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.version = '2.28.0.4'
 
     if (isLinkedin(project)) {
-      project.version += '-LI'
+      project.ext.mavenGroupId = 'com.linkedin.beam'
     }
     if (!isRelease(project) || isSnapshot(project)) {
       project.version += '-SNAPSHOT'
@@ -661,7 +661,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.repositories = {
       maven {
-        name "testPublicationLocal"
+        name "LiTestPublicationLocal"
         url "file://${System.getProperty('user.home')}/local-repo/"
       }
       maven {

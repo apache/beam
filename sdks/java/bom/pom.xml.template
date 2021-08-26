@@ -15,7 +15,7 @@
   limitations under the License.
 -->
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.beam</groupId>
+  <groupId>com.linkedin.beam</groupId>
   <artifactId>beam-sdks-java-bom</artifactId>
   <version>${version}</version>
   <packaging>pom</packaging>
