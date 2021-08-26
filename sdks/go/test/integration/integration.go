@@ -60,6 +60,7 @@ var sickbay = []string{}
 var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
+	"TestKafkaIO.*",
 	// Triggers are not yet supported
 	"TestTrigger.*",
 	// The direct runner does not support the TestStream primitive
@@ -71,6 +72,8 @@ var portableFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
+	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
+	"TestKafkaIO.*",
 }
 
 var flinkFilters = []string{
@@ -110,6 +113,8 @@ var dataflowFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
+	// There is no infrastructure for running KafkaIO tests with Dataflow.
+	"TestKafkaIO.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

@@ -32,7 +32,7 @@ type kafkaCluster struct {
 
 // runLocalKafka takes a Kafka jar filepath and runs a local Kafka cluster,
 // returning the bootstrap server for that cluster.
-func runLocalKafka(jar string) (*kafkaCluster, error) {
+func runLocalKafka(jar string, timeout string) (*kafkaCluster, error) {
 	port, err := getOpenPort()
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func runLocalKafka(jar string) (*kafkaCluster, error) {
 	}
 	zookeeperPort := strconv.Itoa(port)
 
-	cmd := exec.Command("java", "-jar", jar, kafkaPort, zookeeperPort)
+	cmd := exec.Command("timeout", timeout, "java", "-jar", jar, kafkaPort, zookeeperPort)
 	err = cmd.Start()
 	if err != nil {
 		return nil, err

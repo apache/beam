@@ -328,6 +328,7 @@ task validatesRunnerStreaming {
 
 task setupXVR {
   dependsOn buildAndPushDockerContainer
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 }
 
 createCrossLanguageValidatesRunnerTask(
@@ -359,7 +360,16 @@ createCrossLanguageValidatesRunnerTask(
     "--numprocesses=8",
     "--timeout=4500",
     "--log-cli-level=INFO",
-  ]
+  ],
+  goScriptOptions: [
+    "--runner dataflow",
+    "--project ${dataflowProject}",
+    "--dataflow_project ${dataflowProject}",
+    "--region ${dataflowRegion}",
+    "--tests \"./test/integration/xlang\"",
+    "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
+    "--sdk_overrides \".*java.*,${dockerImageContainer}:${dockerTag}\"",
+  ],
 )
 
 task validatesRunnerV2 {
